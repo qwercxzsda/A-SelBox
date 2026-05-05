@@ -1,0 +1,1 @@
+-- Seed data is intentionally omitted for the initial schema setup.

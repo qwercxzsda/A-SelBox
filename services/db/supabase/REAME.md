@@ -1,0 +1,1 @@
+# Managing the Supabase Database

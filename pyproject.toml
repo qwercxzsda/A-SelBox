@@ -1,0 +1,23 @@
+[tool.sqlfluff.core]
+dialect = "postgres"
+templater = "raw"
+sql_file_exts = ".sql"
+max_line_length = 0
+
+[tool.pymarkdown]
+plugins.line-length.enabled = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+extend-select = [
+  "S113", # requests timeout 누락
+  "S608", # SQL injection 가능성
+  "S105", # hardcoded password
+  "S106", # hardcoded password in function arg
+  "S107", # hardcoded password in default arg
+  "S324", # insecure hash
+]
