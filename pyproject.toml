@@ -21,3 +21,7 @@ extend-select = [
   "S107", # hardcoded password in default arg
   "S324", # insecure hash
 ]
+
+[tool.pyright]
+pythonVersion = "3.14"
+typeCheckingMode = "standard"
