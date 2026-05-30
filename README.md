@@ -693,7 +693,7 @@ pymarkdown scan -r .
 
 ### Python
 
-isort + black
+ruff
 
 ```sh
 ruff check --fix . && ruff format .
