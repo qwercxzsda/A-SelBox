@@ -18,12 +18,11 @@ from src.database import (
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-# Defaults live at this public entrypoint; lower-level helpers require explicit inputs.
 def sync_settlement_reports(
     client_factory: ReportsClientFactory,
     database: DatabaseConnection,
-    days: int = 14,
-    output_dir: Path | None = None,
+    days: int,
+    output_dir: Path | None,
 ) -> list[str]:
     """Download, parse, and insert recent settlement reports."""
     log_context: dict[str, int | str] = {

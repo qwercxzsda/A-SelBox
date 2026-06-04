@@ -10,7 +10,10 @@ from tempfile import TemporaryDirectory
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 from src.amazon import ReportsClientFactory
-from src.database import LOCAL_SUPABASE_URL, PostgresDatabaseConnection
+from src.database import (
+    LOCAL_SUPABASE_URL,
+    PostgresDatabaseConnection,
+)
 from src.settlements import sync_settlement_reports
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -100,10 +103,9 @@ class TestRealAmazonPostgresSync(unittest.TestCase):
         """Run the production sync path with real SP-API data and local Postgres."""
         settings: RealAmazonPostgresTestSettings = get_real_amazon_postgres_test_settings()
         logger.info(
-            "Running real Amazon SP-API settlement sync test. endpoint=%s days=%s database_url=%s",
+            "Running real Amazon SP-API settlement sync test. endpoint=%s days=%s",
             settings.amazon_endpoint,
             settings.days,
-            settings.database_url,
         )
 
         with TemporaryDirectory() as tmp_dir:

@@ -736,6 +736,11 @@ using (
 
 endpoint, `days`를 input으로 받는다.
 
+```sh
+cd services/sync
+conda run -n A-SelBox python run_download.py --amz-endpoint NA --days 14
+```
+
 1. SP-API를 이용해 주어진 endpoint에서 최근 `days`동안 만들어진 settlement reports의 report document id를 받음
 1. SP-API를 이용해 report document id들에 해당하는 settlement report 파일들을 다운로드
 1. 다운로드 한 settlement report들을 parse 후, private.settlements, private.settlement_transactions에 INSERT
@@ -751,6 +756,12 @@ endpoint, `days`를 input으로 받는다.
 ### B. Preprocessing Settlement Transactions (Order Transactions)
 
 settlement_id를 input으로 받는다.
+
+```sh
+cd services/sync
+conda run -n A-SelBox python run_preprocess_order_transactions.py \
+  --settlement-id <settlement_id>
+```
 
 1. private.settlement_transactions에서 settlement_id에 해당하는 transaction rows 선택
 1. amz_order_id, amz_sku가 NOT NULL인 row 선택
@@ -770,6 +781,12 @@ settlement_id를 input으로 받는다.
 ### C. Preprocessing the Settlement Transactions (No SKU Transactions)
 
 settlement_id를 input으로 받는다.
+
+```sh
+cd services/sync
+conda run -n A-SelBox python run_preprocess_no_sku_transactions.py \
+  --settlement-id <settlement_id>
+```
 
 1. private.settlement_transactions에서 settlement_id에 해당하는 transaction rows 선택
 1. amz_order_id 또는 amz_sku가 NULL인 row 선택

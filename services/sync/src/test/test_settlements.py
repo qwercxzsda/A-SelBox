@@ -1,9 +1,6 @@
 import tempfile
 import unittest
-from collections.abc import Iterable
 from pathlib import Path
-from types import TracebackType
-from typing import Self
 from unittest.mock import patch
 
 from src.amazon import (
@@ -17,8 +14,13 @@ from src.amazon.models import (
     ParsedSettlementReport,
     ParsedSettlementTransaction,
 )
-from src.database import DatabaseConnection, insert_settlement_report
+from src.database import (
+    insert_settlement_report,
+    preprocess_no_sku_transactions,
+    preprocess_order_transactions,
+)
 from src.settlements import sync_settlement_reports
+from src.test.fakes import FakeDatabaseConnection
 
 
 def make_report_text() -> str:
@@ -227,127 +229,6 @@ class FakeClient:
         self.closed = True
 
 
-class FakeContext:
-    def __enter__(self) -> Self:
-        """Enter a fake context manager used by transaction mocks."""
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> bool:
-        """Do not suppress exceptions raised inside the fake context."""
-        return False
-
-
-class FakeCursor:
-    def __init__(self, fetchone_results: list[tuple[object, ...] | None]) -> None:
-        """Create a fake cursor with queued fetchone results."""
-        self.fetchone_results = list(fetchone_results)
-        self.execute_calls: list[tuple[str, object]] = []
-        self.executemany_calls: list[tuple[str, list[dict[str, str | int | None]]]] = []
-
-    def __enter__(self) -> Self:
-        """Enter the fake cursor context manager."""
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> bool:
-        """Do not suppress exceptions raised inside cursor usage."""
-        return False
-
-    def execute(self, sql: str, params: object) -> None:
-        """Record a SQL execute call and its parameters."""
-        self.execute_calls.append((sql, params))
-
-    def fetchone(self) -> tuple[object, ...] | None:
-        """Return the next queued row from the fake cursor."""
-        if not self.fetchone_results:
-            return None
-        return self.fetchone_results.pop(0)
-
-    def executemany(
-        self,
-        sql: str,
-        params_seq: Iterable[dict[str, str | int | None]],
-    ) -> None:
-        """Record a batched SQL execution and materialize its params."""
-        self.executemany_calls.append((sql, list(params_seq)))
-
-
-class FakeConnection:
-    def __init__(self, cursor: FakeCursor) -> None:
-        """Create a fake connection that returns one fake cursor."""
-        self.cursor_obj = cursor
-
-    def __enter__(self) -> Self:
-        """Enter the fake connection context manager."""
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> bool:
-        """Do not suppress exceptions raised inside connection usage."""
-        return False
-
-    def transaction(self) -> FakeContext:
-        """Return a fake transaction context manager."""
-        return FakeContext()
-
-    def cursor(self) -> FakeCursor:
-        """Return the fake cursor context manager."""
-        return self.cursor_obj
-
-
-class FakeDatabaseConnection(DatabaseConnection):
-    def __init__(self, fetchone_results: list[tuple[object, ...] | None]) -> None:
-        """Create a fake database pool that returns one fake connection."""
-        self.cursor_obj = FakeCursor(fetchone_results)
-        self.connection_obj = FakeConnection(self.cursor_obj)
-        self.enter_count = 0
-        self.connection_count = 0
-
-    def __enter__(self) -> Self:
-        """Enter the fake database pool context manager."""
-        self.enter_count += 1
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> bool:
-        """Do not suppress exceptions raised inside database pool usage."""
-        return False
-
-    def connection(self) -> FakeConnection:
-        """Return the fake connection context manager."""
-        self.connection_count += 1
-        return self.connection_obj
-
-    @property
-    def execute_calls(self) -> list[tuple[str, object]]:
-        """Return execute calls recorded by the fake cursor."""
-        return self.cursor_obj.execute_calls
-
-    @property
-    def executemany_calls(
-        self,
-    ) -> list[tuple[str, list[dict[str, str | int | None]]]]:
-        """Return executemany calls recorded by the fake cursor."""
-        return self.cursor_obj.executemany_calls
-
-
 class TestSettlementSync(unittest.TestCase):
     def test_get_endpoint_marketplaces_accepts_exact_endpoint(self) -> None:
         """Check that an exact endpoint maps to expected marketplace IDs."""
@@ -466,6 +347,61 @@ class TestSettlementSync(unittest.TestCase):
         self.assertIn("insert into private.settlements", conn.execute_calls[0][0])
         self.assertEqual(conn.executemany_calls, [])
 
+    def test_preprocess_order_transactions_uses_explicit_metadata(self) -> None:
+        """Check that order preprocessing records explicit run metadata."""
+        conn = FakeDatabaseConnection(
+            [
+                ("order-run-1", 1),
+                (2, 6),
+            ]
+        )
+
+        result = preprocess_order_transactions(
+            conn,
+            "settlement-uuid-1",
+            preprocess_version="order-v2",
+            preprocess_description="manual order run",
+        )
+
+        self.assertEqual(result.preprocess_type, "order")
+        self.assertEqual(result.preprocess_run_id, "order-run-1")
+        self.assertEqual(result.inserted_count, 2)
+        self.assertEqual(result.mapping_count, 6)
+        self.assertEqual(result.marked_not_current_count, 1)
+        self.assertEqual(conn.connection_count, 1)
+        self.assertIn("private.order_transactions", conn.execute_calls[0][0])
+        self.assertIn("private.order_transactions", conn.execute_calls[1][0])
+        self.assertEqual(conn.execute_calls[0][1]["settlement_id"], "settlement-uuid-1")
+        self.assertEqual(conn.execute_calls[0][1]["preprocess_version"], "order-v2")
+        self.assertEqual(conn.execute_calls[0][1]["preprocess_description"], "manual order run")
+
+    def test_preprocess_no_sku_transactions_uses_explicit_metadata(self) -> None:
+        """Check that no-SKU preprocessing records explicit run metadata."""
+        conn = FakeDatabaseConnection(
+            [
+                ("no-sku-run-1", 2),
+                (3,),
+            ]
+        )
+
+        result = preprocess_no_sku_transactions(
+            conn,
+            "settlement-uuid-1",
+            preprocess_version="no-sku-v2",
+            preprocess_description="manual no-sku run",
+        )
+
+        self.assertEqual(result.preprocess_type, "no_sku")
+        self.assertEqual(result.preprocess_run_id, "no-sku-run-1")
+        self.assertEqual(result.inserted_count, 3)
+        self.assertEqual(result.marked_not_current_count, 2)
+        self.assertEqual(conn.connection_count, 1)
+        self.assertIn("private.no_sku_transactions", conn.execute_calls[0][0])
+        self.assertIn("private.no_sku_transactions", conn.execute_calls[1][0])
+        self.assertEqual(conn.execute_calls[0][1]["settlement_id"], "settlement-uuid-1")
+        self.assertEqual(conn.execute_calls[0][1]["preprocess_version"], "no-sku-v2")
+        self.assertEqual(conn.execute_calls[0][1]["preprocess_description"], "manual no-sku run")
+
     def test_sync_settlement_reports_downloads_parses_and_inserts(self) -> None:
         """Check the orchestration path with fake Amazon and database clients."""
         client = FakeClient(make_report_text())
@@ -490,6 +426,8 @@ class TestSettlementSync(unittest.TestCase):
         self.assertEqual(client.get_reports_calls[0]["processingStatuses"], ["DONE"])
         self.assertEqual(client.get_reports_calls[0]["pageSize"], 100)
         self.assertEqual(client.downloads[0][0], "document-1")
+        self.assertEqual(len(fake_db.execute_calls), 1)
+        self.assertIn("insert into private.settlements", fake_db.execute_calls[0][0])
 
 
 if __name__ == "__main__":
