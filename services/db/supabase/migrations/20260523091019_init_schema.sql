@@ -82,11 +82,17 @@ create table public.company_fees (
     )
 );
 
+create index idx_company_fees_company_id
+on public.company_fees (company_id);
+
 create table public.users_companies (
     user_id uuid primary key references auth.users (id) on delete cascade,
     company_id uuid not null references public.companies (id),
     created_at timestamptz default current_timestamp not null
 );
+
+create index idx_users_companies_company_id
+on public.users_companies (company_id);
 
 create table private.admins (
     user_id uuid primary key references auth.users (id) on delete cascade,
@@ -95,22 +101,31 @@ create table private.admins (
 
 create table private.preprocess_runs (
     id uuid primary key default gen_random_uuid(),
+    settlement_id uuid not null references private.settlements (id),
+
     run_no bigint generated always as identity unique,
     preprocess_version varchar(255) not null,
     preprocess_type varchar(50) not null,
     preprocess_description text default '' not null,
     created_at timestamptz default current_timestamp not null,
 
+    constraint uq_preprocess_runs_id_settlement
+    unique (id, settlement_id),
+
     constraint preprocess_runs_preprocess_type_valid
-    check (preprocess_type in ('order', 'storage', 'advertisement', 'disposal'))
+    check (preprocess_type in ('order', 'no_sku'))
 );
 
 create index preprocess_runs_preprocess_type_run_no_idx
 on private.preprocess_runs (preprocess_type, run_no desc);
 
+create index idx_preprocess_runs_settlement_id
+on private.preprocess_runs (settlement_id);
+
 create table private.order_transactions (
     id uuid primary key default gen_random_uuid(),
     settlement_id uuid not null references private.settlements (id),
+    preprocess_run_id uuid not null,
     amz_posted_date_time timestamptz not null,
 
     amz_sku varchar(255) not null,
@@ -125,7 +140,7 @@ create table private.order_transactions (
     amz_others numeric(38, 6),
 
     selbox_fees numeric(38, 6),
-    net_amount numeric(38, 6) generated always as (
+    net_amount numeric(38, 6) not null generated always as (
         coalesce(amz_order_item_price, 0)
         + coalesce(amz_order_item_fees, 0)
         + coalesce(amz_order_item_withheld_tax, 0)
@@ -142,16 +157,19 @@ create table private.order_transactions (
     company_id uuid references public.companies (id),
     company_fee_id uuid references public.company_fees (id),
 
-    preprocess_run_id uuid not null references private.preprocess_runs (id),
     created_at timestamptz default current_timestamp not null,
 
     is_current boolean not null default true,
 
-    constraint uq_order_transactions_settlement_order_sku_run
-    unique (settlement_id, amz_order_id, amz_sku, preprocess_run_id)
+    constraint uq_order_transactions_order_sku_run
+    unique (amz_order_id, amz_sku, preprocess_run_id),
+
+    constraint fk_order_transactions_run_settlement
+    foreign key (preprocess_run_id, settlement_id)
+    references private.preprocess_runs (id, settlement_id)
 );
 
-create unique index uq_order_transactions_only_one_current
+create unique index uq_order_transactions_current_st_order_sku
 on private.order_transactions (
     settlement_id,
     amz_order_id,
@@ -166,6 +184,12 @@ on private.order_transactions (
     amz_sku
 )
 where is_current;
+
+create index idx_order_transactions_preprocess_run_settlement
+on private.order_transactions (preprocess_run_id, settlement_id);
+
+create index idx_order_transactions_company_fee_id
+on private.order_transactions (company_fee_id);
 
 create table private.settlement_transactions_order_transactions (
     id uuid primary key default gen_random_uuid(),
@@ -189,27 +213,25 @@ create table private.no_sku_transactions (
     amz_order_id varchar(255),
     amz_marketplace_name varchar(255),
 
-    amz_type varchar(255),
-    amz_amount numeric(38, 6),
-    description varchar(255),
-
-    selbox_fees numeric(38, 6),
+    amz_transaction_type varchar(255) not null,
+    amz_amount_type varchar(255) not null,
+    amz_amount_description varchar(255) not null,
+    amz_amount numeric(38, 6) not null,
     amz_currency varchar(3) not null,
 
     company_id uuid references public.companies (id),
-    company_fee_id uuid references public.company_fees (id),
 
     preprocess_run_id uuid not null references private.preprocess_runs (id),
     created_at timestamptz default current_timestamp not null,
 
     is_current boolean not null default true,
 
-    constraint uq_no_sku_transactions_settlement_tx_sku_run
-    unique (settlement_transaction_id, amz_sku, preprocess_run_id)
+    constraint uq_no_sku_transactions_settlement_tx_run
+    unique (settlement_transaction_id, preprocess_run_id)
 );
 
-create unique index uq_no_sku_transactions_only_one_current
-on private.no_sku_transactions (settlement_transaction_id, amz_sku)
+create unique index uq_no_sku_transactions_current_st_tx
+on private.no_sku_transactions (settlement_transaction_id)
 where is_current;
 
 create index idx_no_sku_transactions_current_company_date_sku
@@ -220,15 +242,8 @@ on private.no_sku_transactions (
 )
 where is_current;
 
-create table private.settlements_preprocess_runs (
-    id uuid primary key default gen_random_uuid(),
-    settlement_id uuid not null references private.settlements (id),
-    preprocess_run_id uuid not null references private.preprocess_runs (id),
-    created_at timestamptz default current_timestamp not null,
-
-    constraint uq_settlement_preprocess_run_pair
-    unique (settlement_id, preprocess_run_id)
-);
+create index idx_no_sku_transactions_preprocess_run_id
+on private.no_sku_transactions (preprocess_run_id);
 
 create or replace function private.get_company()
 returns uuid
@@ -290,10 +305,10 @@ select
     nst.amz_sku,
     nst.amz_order_id,
     nst.amz_marketplace_name,
-    nst.amz_type,
+    nst.amz_transaction_type,
+    nst.amz_amount_type,
+    nst.amz_amount_description,
     nst.amz_amount,
-    nst.description,
-    nst.selbox_fees,
     nst.amz_currency,
     nst.created_at
 from private.no_sku_transactions as nst

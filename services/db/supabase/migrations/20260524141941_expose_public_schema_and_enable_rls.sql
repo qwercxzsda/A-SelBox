@@ -29,7 +29,6 @@ alter default privileges in schema private revoke all on sequences from public;
 alter default privileges in schema private revoke all on sequences from anon;
 
 grant usage on schema public to authenticated;
-grant usage on schema private to authenticated;
 
 grant execute on function private.is_admin() to authenticated;
 grant execute on function private.get_company() to authenticated;
@@ -43,6 +42,8 @@ grant select, insert, update, delete
 on public.users_companies
 to authenticated;
 
+-- security_invoker view 조회에는 underlying private table의 SELECT 권한이 필요하다.
+-- 단, view 사용자에게 private schema의 USAGE 권한은 필요하지 않다.
 grant select
 on private.order_transactions,
 private.no_sku_transactions
@@ -64,7 +65,6 @@ alter table private.preprocess_runs enable row level security;
 alter table private.order_transactions enable row level security;
 alter table private.settlement_transactions_order_transactions enable row level security;
 alter table private.no_sku_transactions enable row level security;
-alter table private.settlements_preprocess_runs enable row level security;
 
 create policy admins_can_select_companies
 on public.companies
