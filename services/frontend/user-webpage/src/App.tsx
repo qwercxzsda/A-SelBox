@@ -1,122 +1,1241 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { type ReactElement, useCallback, useEffect, useMemo, useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+const DEFAULT_SUPABASE_URL =
+  globalThis.location?.hostname === "host.docker.internal"
+    ? "http://host.docker.internal:54321"
+    : "http://127.0.0.1:54321";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
+
+type DemoAccount = {
+  label: string;
+  email: string;
+  password: string;
+};
+
+const DEMO_ACCOUNTS: DemoAccount[] = [
+  {
+    label: "User One",
+    email: "user-one@example.com",
+    password: "password123",
+  },
+  {
+    label: "User Two",
+    email: "user-two@example.com",
+    password: "password123",
+  },
+  {
+    label: "Admin",
+    email: "admin@example.com",
+    password: "password123",
+  },
+];
+
+type OrderTransaction = {
+  id: string;
+  amz_posted_date_time: string;
+  amz_sku: string;
+  amz_order_id: string;
+  amz_marketplace_name: string | null;
+  amz_order_item_price: string | null;
+  amz_order_item_fees: string | null;
+  amz_order_item_withheld_tax: string | null;
+  amz_order_promotion: string | null;
+  amz_refund: string | null;
+  amz_others: string | null;
+  selbox_fees: string | null;
+  net_amount: string;
+  amz_quantity_purchased: number | null;
+  amz_currency: string;
+  company_name: string | null;
+};
+
+type NoSkuTransaction = {
+  id: string;
+  amz_posted_date_time: string;
+  amz_sku: string;
+  amz_order_id: string | null;
+  amz_marketplace_name: string | null;
+  amz_transaction_type: string;
+  amz_amount_type: string;
+  amz_amount_description: string;
+  amz_amount: string;
+  amz_currency: string;
+  company_name: string | null;
+};
+
+type SkuEconomicsRow = {
+  id: string;
+  company_id: string;
+  company_name: string | null;
+  amz_sku: string;
+  amz_marketplace_name: string | null;
+  period_start: string;
+  period_end: string;
+  amz_currency: string;
+  average_sales_price: string | null;
+  units_sold: string;
+  units_returned: string;
+  net_units_sold: string;
+  sales: string;
+  net_sales: string;
+  total_amazon_charges: string;
+  fba_fulfillment_fee: string;
+  monthly_inventory_storage_fee: string;
+  low_inventory_level_fee: string;
+  referral_fee: string;
+  long_term_storage_fee: string;
+  fba_inbound_placement_service_fee: string;
+  sponsored_products_charges: string;
+  inbound_transportation_charges: string;
+  per_item_selling_fees: string;
+  closing_fees: string;
+  removal_fee: string;
+  disposal_fee: string;
+  refund_administration_fee: string;
+  fba_prep_fee: string;
+  cost_of_goods_sold: string;
+  miscellaneous_cost: string;
+  net_proceeds: string;
+  details: Record<string, unknown>;
+};
+
+type Session = {
+  access_token: string;
+  user: {
+    email?: string;
+  };
+};
+
+type ActiveTab = "orders" | "no_sku";
+type EconomicsMode = "total" | "per_unit";
+
+type SortColumn =
+  | "amz_posted_date_time"
+  | "company_name"
+  | "amz_sku"
+  | "amz_order_id"
+  | "amz_order_item_price"
+  | "amz_order_item_fees"
+  | "amz_order_item_withheld_tax"
+  | "amz_order_promotion"
+  | "amz_refund"
+  | "amz_others"
+  | "selbox_fees"
+  | "net_amount"
+  | "amz_transaction_type"
+  | "amz_amount_type"
+  | "amz_amount_description"
+  | "amz_amount";
+
+type FixedColumn =
+  | "amz_posted_date_time"
+  | "company_name"
+  | "amz_marketplace_name"
+  | "amz_sku"
+  | "amz_order_id"
+  | "amz_quantity_purchased";
+
+type AmountColumn =
+  | "amz_order_item_price"
+  | "amz_order_item_fees"
+  | "amz_order_item_withheld_tax"
+  | "amz_order_promotion"
+  | "amz_refund"
+  | "amz_others"
+  | "selbox_fees"
+  | "net_amount";
+
+type NoSkuColumn =
+  | "amz_posted_date_time"
+  | "company_name"
+  | "amz_marketplace_name"
+  | "amz_sku"
+  | "amz_order_id"
+  | "amz_transaction_type"
+  | "amz_amount_type"
+  | "amz_amount_description"
+  | "amz_amount";
+
+type DisplayColumn = FixedColumn | AmountColumn | NoSkuColumn;
+
+type SortDirection = "asc" | "desc";
+
+type SortState = {
+  column: SortColumn;
+  direction: SortDirection;
+};
+
+type SkuEconomicsMoneyKey =
+  | "average_sales_price"
+  | "sales"
+  | "net_sales"
+  | "total_amazon_charges"
+  | "fba_fulfillment_fee"
+  | "monthly_inventory_storage_fee"
+  | "low_inventory_level_fee"
+  | "referral_fee"
+  | "long_term_storage_fee"
+  | "fba_inbound_placement_service_fee"
+  | "sponsored_products_charges"
+  | "inbound_transportation_charges"
+  | "per_item_selling_fees"
+  | "closing_fees"
+  | "removal_fee"
+  | "disposal_fee"
+  | "refund_administration_fee"
+  | "fba_prep_fee"
+  | "cost_of_goods_sold"
+  | "miscellaneous_cost"
+  | "net_proceeds";
+
+type SkuEconomicsFeeDefinition = {
+  key: SkuEconomicsMoneyKey;
+  label: string;
+};
+
+type ColumnDefinition = {
+  key: DisplayColumn;
+  label: string;
+  sortable?: SortColumn;
+  align?: "right";
+  kind?: "date" | "integer" | "money" | "text";
+};
+
+const FIXED_COLUMNS: ColumnDefinition[] = [
+  {
+    key: "amz_posted_date_time",
+    label: "Posted",
+    sortable: "amz_posted_date_time",
+    kind: "date",
+  },
+  { key: "company_name", label: "Company", sortable: "company_name" },
+  { key: "amz_marketplace_name", label: "Market" },
+  { key: "amz_sku", label: "SKU", sortable: "amz_sku" },
+  { key: "amz_order_id", label: "Order ID", sortable: "amz_order_id" },
+  {
+    key: "amz_quantity_purchased",
+    label: "Qty",
+    align: "right",
+    kind: "integer",
+  },
+];
+
+const AMOUNT_COLUMNS: ColumnDefinition[] = [
+  {
+    key: "amz_order_item_price",
+    label: "Item Price",
+    sortable: "amz_order_item_price",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "amz_order_item_fees",
+    label: "Item Fees",
+    sortable: "amz_order_item_fees",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "amz_order_item_withheld_tax",
+    label: "Withheld Tax",
+    sortable: "amz_order_item_withheld_tax",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "amz_order_promotion",
+    label: "Promotion",
+    sortable: "amz_order_promotion",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "amz_refund",
+    label: "Refund",
+    sortable: "amz_refund",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "amz_others",
+    label: "Others",
+    sortable: "amz_others",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "selbox_fees",
+    label: "SelBox Fee",
+    sortable: "selbox_fees",
+    align: "right",
+    kind: "money",
+  },
+  {
+    key: "net_amount",
+    label: "Net",
+    sortable: "net_amount",
+    align: "right",
+    kind: "money",
+  },
+];
+
+const DEFAULT_VISIBLE_AMOUNT_COLUMNS: AmountColumn[] = [
+  "amz_order_item_price",
+  "selbox_fees",
+  "net_amount",
+];
+
+const NO_SKU_COLUMNS: ColumnDefinition[] = [
+  {
+    key: "amz_posted_date_time",
+    label: "Posted",
+    sortable: "amz_posted_date_time",
+    kind: "date",
+  },
+  { key: "company_name", label: "Company", sortable: "company_name" },
+  { key: "amz_marketplace_name", label: "Market" },
+  { key: "amz_sku", label: "SKU", sortable: "amz_sku" },
+  { key: "amz_order_id", label: "Order ID", sortable: "amz_order_id" },
+  {
+    key: "amz_transaction_type",
+    label: "Transaction",
+    sortable: "amz_transaction_type",
+  },
+  {
+    key: "amz_amount_type",
+    label: "Amount Type",
+    sortable: "amz_amount_type",
+  },
+  {
+    key: "amz_amount_description",
+    label: "Description",
+    sortable: "amz_amount_description",
+  },
+  {
+    key: "amz_amount",
+    label: "Amount",
+    sortable: "amz_amount",
+    align: "right",
+    kind: "money",
+  },
+];
+
+const DEFAULT_SORT_BY_TAB: Record<ActiveTab, SortState> = {
+  orders: {
+    column: "amz_posted_date_time",
+    direction: "desc",
+  },
+  no_sku: {
+    column: "amz_posted_date_time",
+    direction: "desc",
+  },
+};
+
+const PAGE_SIZES = [25, 50, 100];
+
+const SKU_ECONOMICS_SELECT_COLUMNS = [
+  "id",
+  "company_id",
+  "company_name",
+  "amz_sku",
+  "amz_marketplace_name",
+  "period_start",
+  "period_end",
+  "amz_currency",
+  "average_sales_price",
+  "units_sold",
+  "units_returned",
+  "net_units_sold",
+  "sales",
+  "net_sales",
+  "total_amazon_charges",
+  "fba_fulfillment_fee",
+  "monthly_inventory_storage_fee",
+  "low_inventory_level_fee",
+  "referral_fee",
+  "long_term_storage_fee",
+  "fba_inbound_placement_service_fee",
+  "sponsored_products_charges",
+  "inbound_transportation_charges",
+  "per_item_selling_fees",
+  "closing_fees",
+  "removal_fee",
+  "disposal_fee",
+  "refund_administration_fee",
+  "fba_prep_fee",
+  "cost_of_goods_sold",
+  "miscellaneous_cost",
+  "net_proceeds",
+  "details",
+];
+
+const AMAZON_CHARGE_ROWS: SkuEconomicsFeeDefinition[] = [
+  { key: "fba_fulfillment_fee", label: "FBA fulfillment fee" },
+  { key: "monthly_inventory_storage_fee", label: "Monthly inventory storage fee" },
+  { key: "low_inventory_level_fee", label: "Low inventory level fee" },
+  { key: "referral_fee", label: "Referral fee" },
+  { key: "long_term_storage_fee", label: "Long-term storage fee" },
+  {
+    key: "fba_inbound_placement_service_fee",
+    label: "FBA inbound placement service fee",
+  },
+  { key: "sponsored_products_charges", label: "Sponsored Products charges" },
+  { key: "inbound_transportation_charges", label: "Inbound transportation charges" },
+  { key: "per_item_selling_fees", label: "Per-item selling fees" },
+  { key: "closing_fees", label: "Closing fees" },
+  { key: "removal_fee", label: "Removal fee" },
+  { key: "disposal_fee", label: "Disposal fee" },
+  { key: "refund_administration_fee", label: "Refund administration fee" },
+  { key: "fba_prep_fee", label: "FBA Prep fee" },
+];
+
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const integerFormatter = new Intl.NumberFormat("en-US");
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unexpected error";
+}
+
+function parseTotalCount(contentRange: string | null): number | null {
+  if (!contentRange) {
+    return null;
+  }
+
+  const total = contentRange.split("/")[1];
+  if (!total || total === "*") {
+    return null;
+  }
+
+  const parsed = Number.parseInt(total, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatMoney(value: string | null, currency: string): string {
+  if (value === null) {
+    return "-";
+  }
+
+  return `${currencyFormatter.format(Number(value))} ${currency}`;
+}
+
+function parseMetric(value: string | null | undefined): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatCurrencyAmount(value: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      currency,
+      currencyDisplay: "narrowSymbol",
+      style: "currency",
+    }).format(value);
+  } catch {
+    return `${currencyFormatter.format(value)} ${currency}`;
+  }
+}
+
+function formatEconomicsMoney(
+  row: SkuEconomicsRow,
+  key: SkuEconomicsMoneyKey,
+  mode: EconomicsMode,
+): string {
+  const rawValue = parseMetric(row[key]);
+  const shouldDivide = mode === "per_unit" && key !== "average_sales_price";
+  const units = parseMetric(row.net_units_sold);
+  const value = shouldDivide && units > 0 ? rawValue / units : rawValue;
+
+  return formatCurrencyAmount(value, row.amz_currency);
+}
+
+function formatEconomicsUnits(value: string): string {
+  return integerFormatter.format(parseMetric(value));
+}
+
+function sanitizeSearchTerm(value: string): string {
+  return value.trim().replace(/[*,()]/g, " ");
+}
+
+async function signIn(account: DemoAccount): Promise<Session> {
+  const response = await fetch(
+    `${SUPABASE_URL}/auth/v1/token?grant_type=password`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        "Content-Type": "application/json",
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
+        email: account.email,
+        password: account.password,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Sign in failed with HTTP ${response.status}`);
+  }
+
+  return response.json() as Promise<Session>;
+}
+
+async function fetchOrderTransactions({
+  accessToken,
+  pageIndex,
+  pageSize,
+  search,
+  sort,
+}: {
+  accessToken: string;
+  pageIndex: number;
+  pageSize: number;
+  search: string;
+  sort: SortState;
+}): Promise<{ rows: OrderTransaction[]; totalCount: number | null }> {
+  const params = new URLSearchParams();
+  params.set(
+    "select",
+    [
+      "id",
+      "amz_posted_date_time",
+      "amz_sku",
+      "amz_order_id",
+      "amz_marketplace_name",
+      "amz_order_item_price",
+      "amz_order_item_fees",
+      "amz_order_item_withheld_tax",
+      "amz_order_promotion",
+      "amz_refund",
+      "amz_others",
+      "selbox_fees",
+      "net_amount",
+      "amz_quantity_purchased",
+      "amz_currency",
+      "company_name",
+    ].join(","),
+  );
+  params.set("order", `${sort.column}.${sort.direction}.nullslast`);
+  params.set("limit", String(pageSize));
+  params.set("offset", String(pageIndex * pageSize));
+
+  const sanitizedSearch = sanitizeSearchTerm(search);
+  if (sanitizedSearch) {
+    const pattern = `*${sanitizedSearch}*`;
+    const searchFilters = [
+      `amz_order_id.ilike.${pattern}`,
+      `amz_sku.ilike.${pattern}`,
+      `amz_marketplace_name.ilike.${pattern}`,
+      `company_name.ilike.${pattern}`,
+    ].join(",");
+    params.set("or", `(${searchFilters})`);
+  }
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/order_transactions_view?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Prefer: "count=exact",
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Transaction query failed with HTTP ${response.status}`);
+  }
+
+  return {
+    rows: (await response.json()) as OrderTransaction[],
+    totalCount: parseTotalCount(response.headers.get("Content-Range")),
+  };
+}
+
+async function fetchNoSkuTransactions({
+  accessToken,
+  pageIndex,
+  pageSize,
+  search,
+  sort,
+}: {
+  accessToken: string;
+  pageIndex: number;
+  pageSize: number;
+  search: string;
+  sort: SortState;
+}): Promise<{ rows: NoSkuTransaction[]; totalCount: number | null }> {
+  const params = new URLSearchParams();
+  params.set(
+    "select",
+    [
+      "id",
+      "amz_posted_date_time",
+      "amz_sku",
+      "amz_order_id",
+      "amz_marketplace_name",
+      "amz_transaction_type",
+      "amz_amount_type",
+      "amz_amount_description",
+      "amz_amount",
+      "amz_currency",
+      "company_name",
+    ].join(","),
+  );
+  params.set("order", `${sort.column}.${sort.direction}.nullslast`);
+  params.set("limit", String(pageSize));
+  params.set("offset", String(pageIndex * pageSize));
+
+  const sanitizedSearch = sanitizeSearchTerm(search);
+  if (sanitizedSearch) {
+    const pattern = `*${sanitizedSearch}*`;
+    const searchFilters = [
+      `amz_order_id.ilike.${pattern}`,
+      `amz_sku.ilike.${pattern}`,
+      `amz_marketplace_name.ilike.${pattern}`,
+      `company_name.ilike.${pattern}`,
+      `amz_transaction_type.ilike.${pattern}`,
+      `amz_amount_type.ilike.${pattern}`,
+      `amz_amount_description.ilike.${pattern}`,
+    ].join(",");
+    params.set("or", `(${searchFilters})`);
+  }
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/no_sku_transactions_view?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Prefer: "count=exact",
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`No-SKU query failed with HTTP ${response.status}`);
+  }
+
+  return {
+    rows: (await response.json()) as NoSkuTransaction[],
+    totalCount: parseTotalCount(response.headers.get("Content-Range")),
+  };
+}
+
+async function fetchSkuEconomicsRows({
+  accessToken,
+}: {
+  accessToken: string;
+}): Promise<SkuEconomicsRow[]> {
+  const params = new URLSearchParams();
+  params.set("select", SKU_ECONOMICS_SELECT_COLUMNS.join(","));
+  params.set("order", "net_proceeds.desc.nullslast");
+  params.set("limit", "100");
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/sku_economics_view?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`SKU economics query failed with HTTP ${response.status}`);
+  }
+
+  return response.json() as Promise<SkuEconomicsRow[]>;
+}
+
+function MetricInfo(): ReactElement {
+  return (
+    <span className="metric-info" aria-hidden="true">
+      i
+    </span>
+  );
+}
+
+function EconomicsMetricRow({
+  isIndented = false,
+  isMuted = false,
+  isStrong = false,
+  label,
+  value,
+}: {
+  isIndented?: boolean;
+  isMuted?: boolean;
+  isStrong?: boolean;
+  label: string;
+  value: string;
+}): React.ReactElement {
+  const classNames = ["economics-metric-row"];
+
+  if (isIndented) {
+    classNames.push("indented");
+  }
+
+  if (isMuted) {
+    classNames.push("muted");
+  }
+
+  if (isStrong) {
+    classNames.push("strong");
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className={classNames.join(" ")}>
+      <span>
+        {label}
+        <MetricInfo />
+      </span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function getCellClassName(column: ColumnDefinition): string | undefined {
+  const classNames: string[] = [];
+
+  if (column.align === "right") {
+    classNames.push("numeric");
+  }
+
+  if (column.key === "amz_sku") {
+    classNames.push("sku-cell");
+  }
+
+  if (column.key === "amz_order_id") {
+    classNames.push("order-cell");
+  }
+
+  if (column.key === "net_amount") {
+    classNames.push("strong-cell");
+  }
+
+  return classNames.length > 0 ? classNames.join(" ") : undefined;
+}
+
+function renderOrderCell(
+  row: OrderTransaction,
+  column: ColumnDefinition,
+): string {
+  if (column.kind === "date") {
+    return formatDate(row.amz_posted_date_time);
+  }
+
+  if (column.kind === "integer") {
+    return row.amz_quantity_purchased === null
+      ? "-"
+      : integerFormatter.format(row.amz_quantity_purchased);
+  }
+
+  if (column.kind === "money") {
+    return formatMoney(row[column.key as AmountColumn], row.amz_currency);
+  }
+
+  const value = row[column.key as keyof OrderTransaction];
+  return value === null ? "-" : String(value);
+}
+
+function renderNoSkuCell(
+  row: NoSkuTransaction,
+  column: ColumnDefinition,
+): string {
+  if (column.kind === "date") {
+    return formatDate(row.amz_posted_date_time);
+  }
+
+  if (column.kind === "money") {
+    return formatMoney(row[column.key as "amz_amount"], row.amz_currency);
+  }
+
+  const value = row[column.key as NoSkuColumn];
+  return value === null ? "-" : String(value);
+}
+
+function App() {
+  const [selectedAccount, setSelectedAccount] = useState<DemoAccount>(
+    DEMO_ACCOUNTS[0],
+  );
+  const [activeTab, setActiveTab] = useState<ActiveTab>("orders");
+  const [session, setSession] = useState<Session | null>(null);
+  const [skuEconomicsRows, setSkuEconomicsRows] = useState<SkuEconomicsRow[]>([]);
+  const [selectedSku, setSelectedSku] = useState("");
+  const [economicsMode, setEconomicsMode] = useState<EconomicsMode>("total");
+  const [orderRows, setOrderRows] = useState<OrderTransaction[]>([]);
+  const [noSkuRows, setNoSkuRows] = useState<NoSkuTransaction[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+  const [search, setSearch] = useState("");
+  const [visibleAmountColumns, setVisibleAmountColumns] = useState<
+    AmountColumn[]
+  >(DEFAULT_VISIBLE_AMOUNT_COLUMNS);
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT_BY_TAB.orders);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isLoadingEconomics, setIsLoadingEconomics] = useState(false);
+  const [isLoadingRows, setIsLoadingRows] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const totalPages = useMemo(() => {
+    if (totalCount === null || totalCount === 0) {
+      return 1;
+    }
+
+    return Math.ceil(totalCount / pageSize);
+  }, [pageSize, totalCount]);
+
+  const currentStart = totalCount === 0 ? 0 : pageIndex * pageSize + 1;
+  const activeRowCount =
+    activeTab === "orders" ? orderRows.length : noSkuRows.length;
+  const currentEnd =
+    totalCount === null
+      ? pageIndex * pageSize + activeRowCount
+      : Math.min(totalCount, pageIndex * pageSize + activeRowCount);
+  const visibleColumns = useMemo(
+    () =>
+      activeTab === "orders"
+        ? [
+            ...FIXED_COLUMNS,
+            ...AMOUNT_COLUMNS.filter((column) =>
+              visibleAmountColumns.includes(column.key as AmountColumn),
+            ),
+          ]
+        : NO_SKU_COLUMNS,
+    [activeTab, visibleAmountColumns],
+  );
+  const selectedEconomicsRow = useMemo(
+    () =>
+      skuEconomicsRows.find((row) => row.amz_sku === selectedSku) ??
+      skuEconomicsRows[0] ??
+      null,
+    [selectedSku, skuEconomicsRows],
+  );
+
+  const loadSession = useCallback(async (account: DemoAccount) => {
+    setIsSigningIn(true);
+    setErrorMessage(null);
+
+    try {
+      const nextSession = await signIn(account);
+      setSession(nextSession);
+      setPageIndex(0);
+    } catch (error) {
+      setSession(null);
+      setSkuEconomicsRows([]);
+      setSelectedSku("");
+      setOrderRows([]);
+      setNoSkuRows([]);
+      setTotalCount(null);
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSigningIn(false);
+    }
+  }, []);
+
+  const loadSkuEconomics = useCallback(async () => {
+    if (!session) {
+      return;
+    }
+
+    setIsLoadingEconomics(true);
+    setErrorMessage(null);
+
+    try {
+      const rows = await fetchSkuEconomicsRows({
+        accessToken: session.access_token,
+      });
+      setSkuEconomicsRows(rows);
+      setSelectedSku((currentSku) =>
+        rows.some((row) => row.amz_sku === currentSku)
+          ? currentSku
+          : (rows[0]?.amz_sku ?? ""),
+      );
+    } catch (error) {
+      setSkuEconomicsRows([]);
+      setSelectedSku("");
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsLoadingEconomics(false);
+    }
+  }, [session]);
+
+  const loadTransactions = useCallback(async () => {
+    if (!session) {
+      return;
+    }
+
+    setIsLoadingRows(true);
+    setErrorMessage(null);
+
+    try {
+      const result =
+        activeTab === "orders"
+          ? await fetchOrderTransactions({
+              accessToken: session.access_token,
+              pageIndex,
+              pageSize,
+              search,
+              sort,
+            })
+          : await fetchNoSkuTransactions({
+              accessToken: session.access_token,
+              pageIndex,
+              pageSize,
+              search,
+              sort,
+            });
+
+      if (activeTab === "orders") {
+        setOrderRows(result.rows as OrderTransaction[]);
+      } else {
+        setNoSkuRows(result.rows as NoSkuTransaction[]);
+      }
+      setTotalCount(result.totalCount);
+    } catch (error) {
+      if (activeTab === "orders") {
+        setOrderRows([]);
+      } else {
+        setNoSkuRows([]);
+      }
+      setTotalCount(null);
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsLoadingRows(false);
+    }
+  }, [activeTab, pageIndex, pageSize, search, session, sort]);
+
+  useEffect(() => {
+    void loadSession(selectedAccount);
+  }, [loadSession, selectedAccount]);
+
+  useEffect(() => {
+    void loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
+    void loadSkuEconomics();
+  }, [loadSkuEconomics]);
+
+  function toggleSort(column: SortColumn): void {
+    setPageIndex(0);
+    setSort((currentSort) => {
+      if (currentSort.column !== column) {
+        return {
+          column,
+          direction: "asc",
+        };
+      }
+
+      return {
+        column,
+        direction: currentSort.direction === "asc" ? "desc" : "asc",
+      };
+    });
+  }
+
+  function toggleAmountColumn(column: AmountColumn): void {
+    setVisibleAmountColumns((currentColumns) => {
+      const isVisible = currentColumns.includes(column);
+      const nextColumns = isVisible
+        ? currentColumns.filter((currentColumn) => currentColumn !== column)
+        : [...currentColumns, column];
+
+      if (isVisible && sort.column === column) {
+        setSort({
+          column: "amz_posted_date_time",
+          direction: "desc",
+        });
+      }
+
+      return nextColumns;
+    });
+  }
+
+  function changeTab(tab: ActiveTab): void {
+    setActiveTab(tab);
+    setSearch("");
+    setPageIndex(0);
+    setTotalCount(null);
+    setSort(DEFAULT_SORT_BY_TAB[tab]);
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="toolbar">
+        <div>
+          <p className="eyebrow">SelBox POC</p>
+          <h1>Transactions</h1>
+        </div>
+
+        <div className="account-switcher" aria-label="Account">
+          {DEMO_ACCOUNTS.map((account) => (
+            <button
+              className={
+                account.email === selectedAccount.email ? "active" : undefined
+              }
+              key={account.email}
+              onClick={() => setSelectedAccount(account)}
+              type="button"
+            >
+              {account.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <nav className="dataset-tabs" aria-label="Transaction tables">
+        <button
+          className={activeTab === "orders" ? "active" : undefined}
+          onClick={() => changeTab("orders")}
+          type="button"
+        >
+          Order Transactions
+        </button>
+        <button
+          className={activeTab === "no_sku" ? "active" : undefined}
+          onClick={() => changeTab("no_sku")}
+          type="button"
+        >
+          No-SKU Transactions
+        </button>
+      </nav>
+
+      <section className="summary-band" aria-live="polite">
+        <div>
+          <span className="metric-label">Rows</span>
+          <strong>
+            {totalCount === null ? "-" : integerFormatter.format(totalCount)}
+          </strong>
         </div>
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <span className="metric-label">Table</span>
+          <strong>
+            {activeTab === "orders"
+              ? "Order Transactions"
+              : "No-SKU Transactions"}
+          </strong>
         </div>
+        <div>
+          <span className="metric-label">Signed In</span>
+          <strong>{session?.user.email ?? selectedAccount.email}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Page</span>
+          <strong>
+            {pageIndex + 1} / {totalPages}
+          </strong>
+        </div>
+      </section>
+
+      <section className="table-tools">
+        <label className="search-field">
+          <span>Search</span>
+          <input
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPageIndex(0);
+            }}
+            placeholder={
+              activeTab === "orders"
+                ? "Order, SKU, market, company"
+                : "Order, SKU, transaction, amount, company"
+            }
+            type="search"
+            value={search}
+          />
+        </label>
+
+        <label className="page-size-field">
+          <span>Rows</span>
+          <select
+            onChange={(event) => {
+              setPageSize(Number(event.target.value));
+              setPageIndex(0);
+            }}
+            value={pageSize}
+          >
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {activeTab === "orders" ? (
+          <fieldset className="columns-field">
+            <legend>Amount Columns</legend>
+            <div>
+              {AMOUNT_COLUMNS.map((column) => {
+                const amountColumn = column.key as AmountColumn;
+
+                return (
+                  <label key={amountColumn}>
+                    <input
+                      checked={visibleAmountColumns.includes(amountColumn)}
+                      onChange={() => toggleAmountColumn(amountColumn)}
+                      type="checkbox"
+                    />
+                    <span>{column.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
+
         <button
+          className="secondary-button"
+          disabled={!session || isLoadingRows || isSigningIn}
+          onClick={() => void loadTransactions()}
           type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
         >
-          Count is {count}
+          Refresh
         </button>
       </section>
 
-      <div className="ticks"></div>
+      {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      <section className="table-frame" aria-busy={isLoadingRows || isSigningIn}>
+        <div className="table-scroll">
+          <table
+            style={{
+              minWidth: `${Math.max(1080, visibleColumns.length * 124)}px`,
+            }}
+          >
+            <thead>
+              <tr>
+                {visibleColumns.map((column) => {
+                  const sortableColumn = column.sortable;
+
+                  return (
+                    <th
+                      className={
+                        column.align === "right" ? "numeric" : undefined
+                      }
+                      key={column.key}
+                      scope="col"
+                    >
+                      {sortableColumn ? (
+                        <button
+                          aria-label={`Sort by ${column.label}`}
+                          className="sort-button"
+                          onClick={() => toggleSort(sortableColumn)}
+                          type="button"
+                        >
+                          {column.label}
+                          <span aria-hidden="true">
+                            {sort.column === sortableColumn
+                              ? sort.direction === "asc"
+                                ? "▲"
+                                : "▼"
+                              : "↕"}
+                          </span>
+                        </button>
+                      ) : (
+                        column.label
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {activeTab === "orders"
+                ? orderRows.map((row) => (
+                    <tr key={row.id}>
+                      {visibleColumns.map((column) => (
+                        <td
+                          className={getCellClassName(column)}
+                          key={column.key}
+                        >
+                          {renderOrderCell(row, column)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : noSkuRows.map((row) => (
+                    <tr key={row.id}>
+                      {visibleColumns.map((column) => (
+                        <td
+                          className={getCellClassName(column)}
+                          key={column.key}
+                        >
+                          {renderNoSkuCell(row, column)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
+
+        {activeRowCount === 0 && !isLoadingRows && !isSigningIn ? (
+          <div className="empty-state">No matching transactions</div>
+        ) : null}
+
+        {isLoadingRows || isSigningIn ? (
+          <div className="loading-state">Loading transactions</div>
+        ) : null}
       </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <footer className="pagination-bar">
+        <span>
+          {integerFormatter.format(currentStart)}-
+          {integerFormatter.format(currentEnd)} of{" "}
+          {totalCount === null ? "-" : integerFormatter.format(totalCount)}
+        </span>
+
+        <div className="pagination-actions">
+          <button
+            disabled={pageIndex === 0 || isLoadingRows || isSigningIn}
+            onClick={() => setPageIndex((currentPage) => currentPage - 1)}
+            type="button"
+          >
+            Previous
+          </button>
+          <button
+            disabled={
+              isLoadingRows ||
+              isSigningIn ||
+              totalCount === null ||
+              pageIndex >= totalPages - 1
+            }
+            onClick={() => setPageIndex((currentPage) => currentPage + 1)}
+            type="button"
+          >
+            Next
+          </button>
+        </div>
+      </footer>
+    </main>
+  );
 }
 
-export default App
+export default App;
