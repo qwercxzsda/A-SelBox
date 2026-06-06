@@ -1,75 +1,86 @@
-# React + TypeScript + Vite
+# User Webpage POC
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite webpage for local Supabase order transactions.
 
-Currently, two official plugins are available:
+## Tooling
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Package manager: `pnpm`, run only through Docker.
+- TypeScript linting: ESLint via `pnpm run lint`.
+- TypeScript formatting: Prettier via `pnpm run format` or `pnpm run format:write`.
 
-## React Compiler
+## Local Accounts
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+The Supabase seed creates these local proof-of-concept accounts:
 
-Note: This will impact Vite dev & build performances.
+- `admin@example.com` / `password123`
+- `user-one@example.com` / `password123`
+- `user-two@example.com` / `password123`
 
-## Expanding the ESLint configuration
+The webpage signs in with Supabase Auth and queries `public.order_transactions_view`.
+RLS limits normal users to their company transactions; the admin account can see all current order transactions.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Docker pnpm Commands
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Run these from `frontend/user-webpage`.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+docker run --rm -u "$(id -u):$(id -g)" \
+  -e COREPACK_HOME=/tmp/corepack \
+  -v "$PWD":/app \
+  -w /app \
+  node:24-alpine corepack pnpm install --store-dir /app/.pnpm-store
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+docker run --rm -u "$(id -u):$(id -g)" \
+  -e COREPACK_HOME=/tmp/corepack \
+  -p 5173:5173 \
+  -v "$PWD":/app \
+  -w /app \
+  node:24-alpine corepack pnpm run dev --host 0.0.0.0
 ```
+
+```sh
+docker run --rm -u "$(id -u):$(id -g)" \
+  -e COREPACK_HOME=/tmp/corepack \
+  -v "$PWD":/app \
+  -w /app \
+  node:24-alpine corepack pnpm run lint
+```
+
+```sh
+docker run --rm -u "$(id -u):$(id -g)" \
+  -e COREPACK_HOME=/tmp/corepack \
+  -v "$PWD":/app \
+  -w /app \
+  node:24-alpine corepack pnpm run format
+```
+
+```sh
+docker run --rm -u "$(id -u):$(id -g)" \
+  -e COREPACK_HOME=/tmp/corepack \
+  -v "$PWD":/app \
+  -w /app \
+  node:24-alpine corepack pnpm run build
+```
+
+## Supabase Data Refresh
+
+Run these from the repository `services` directory.
+
+```sh
+supabase start --workdir db
+```
+
+The Amazon SP-API credentials live in `sync/.env`. Do not print those values.
+
+```sh
+conda run -n A-SelBox python sync/run_download.py --days 60
+conda run -n A-SelBox python sync/run_preprocess_order_transactions.py \
+  --all-settlements \
+  --preprocess-description "60-day real SP-API refresh"
+```
+
+The current proof-of-concept table uses real SP-API settlement report data inserted into
+`private.settlements`, `private.settlement_transactions`, and preprocessed into
+`private.order_transactions`.

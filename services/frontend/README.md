@@ -1,14 +1,10 @@
 # Frontend
 
-pnpm + vite + reach + typescript
+The user webpage POC is in `frontend/user-webpage`.
 
-"Always use docker to run the frontend, never run it locally."
+- Stack: pnpm + Vite + React + TypeScript.
+- Run `npm` and `pnpm` only through Docker; do not run them on the host.
+- TypeScript linting uses ESLint.
+- TypeScript formatting uses Prettier.
 
-Create a user webpage for proof of concept.
-Query local supabase db for order transaction data and display it in a table.
-
-Create a local db as follows:
-Create 1 dummy admin user and 2 dummy customer users in the local supabase db.
-Create 2 dummy companies, 2 dummy company fees for each dummy user.
-
-Create order transaction table from the real amazon SP-API. Download the data of the last 60 days.
+See `frontend/user-webpage/README.md` for the exact Docker commands.
