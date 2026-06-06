@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 
 const DEFAULT_SUPABASE_URL =
@@ -68,42 +68,6 @@ type NoSkuTransaction = {
   company_name: string | null;
 };
 
-type SkuEconomicsRow = {
-  id: string;
-  company_id: string;
-  company_name: string | null;
-  amz_sku: string;
-  amz_marketplace_name: string | null;
-  period_start: string;
-  period_end: string;
-  amz_currency: string;
-  average_sales_price: string | null;
-  units_sold: string;
-  units_returned: string;
-  net_units_sold: string;
-  sales: string;
-  net_sales: string;
-  total_amazon_charges: string;
-  fba_fulfillment_fee: string;
-  monthly_inventory_storage_fee: string;
-  low_inventory_level_fee: string;
-  referral_fee: string;
-  long_term_storage_fee: string;
-  fba_inbound_placement_service_fee: string;
-  sponsored_products_charges: string;
-  inbound_transportation_charges: string;
-  per_item_selling_fees: string;
-  closing_fees: string;
-  removal_fee: string;
-  disposal_fee: string;
-  refund_administration_fee: string;
-  fba_prep_fee: string;
-  cost_of_goods_sold: string;
-  miscellaneous_cost: string;
-  net_proceeds: string;
-  details: Record<string, unknown>;
-};
-
 type Session = {
   access_token: string;
   user: {
@@ -112,7 +76,6 @@ type Session = {
 };
 
 type ActiveTab = "orders" | "no_sku";
-type EconomicsMode = "total" | "per_unit";
 
 type SortColumn =
   | "amz_posted_date_time"
@@ -168,34 +131,6 @@ type SortDirection = "asc" | "desc";
 type SortState = {
   column: SortColumn;
   direction: SortDirection;
-};
-
-type SkuEconomicsMoneyKey =
-  | "average_sales_price"
-  | "sales"
-  | "net_sales"
-  | "total_amazon_charges"
-  | "fba_fulfillment_fee"
-  | "monthly_inventory_storage_fee"
-  | "low_inventory_level_fee"
-  | "referral_fee"
-  | "long_term_storage_fee"
-  | "fba_inbound_placement_service_fee"
-  | "sponsored_products_charges"
-  | "inbound_transportation_charges"
-  | "per_item_selling_fees"
-  | "closing_fees"
-  | "removal_fee"
-  | "disposal_fee"
-  | "refund_administration_fee"
-  | "fba_prep_fee"
-  | "cost_of_goods_sold"
-  | "miscellaneous_cost"
-  | "net_proceeds";
-
-type SkuEconomicsFeeDefinition = {
-  key: SkuEconomicsMoneyKey;
-  label: string;
 };
 
 type ColumnDefinition = {
@@ -338,62 +273,6 @@ const DEFAULT_SORT_BY_TAB: Record<ActiveTab, SortState> = {
 
 const PAGE_SIZES = [25, 50, 100];
 
-const SKU_ECONOMICS_SELECT_COLUMNS = [
-  "id",
-  "company_id",
-  "company_name",
-  "amz_sku",
-  "amz_marketplace_name",
-  "period_start",
-  "period_end",
-  "amz_currency",
-  "average_sales_price",
-  "units_sold",
-  "units_returned",
-  "net_units_sold",
-  "sales",
-  "net_sales",
-  "total_amazon_charges",
-  "fba_fulfillment_fee",
-  "monthly_inventory_storage_fee",
-  "low_inventory_level_fee",
-  "referral_fee",
-  "long_term_storage_fee",
-  "fba_inbound_placement_service_fee",
-  "sponsored_products_charges",
-  "inbound_transportation_charges",
-  "per_item_selling_fees",
-  "closing_fees",
-  "removal_fee",
-  "disposal_fee",
-  "refund_administration_fee",
-  "fba_prep_fee",
-  "cost_of_goods_sold",
-  "miscellaneous_cost",
-  "net_proceeds",
-  "details",
-];
-
-const AMAZON_CHARGE_ROWS: SkuEconomicsFeeDefinition[] = [
-  { key: "fba_fulfillment_fee", label: "FBA fulfillment fee" },
-  { key: "monthly_inventory_storage_fee", label: "Monthly inventory storage fee" },
-  { key: "low_inventory_level_fee", label: "Low inventory level fee" },
-  { key: "referral_fee", label: "Referral fee" },
-  { key: "long_term_storage_fee", label: "Long-term storage fee" },
-  {
-    key: "fba_inbound_placement_service_fee",
-    label: "FBA inbound placement service fee",
-  },
-  { key: "sponsored_products_charges", label: "Sponsored Products charges" },
-  { key: "inbound_transportation_charges", label: "Inbound transportation charges" },
-  { key: "per_item_selling_fees", label: "Per-item selling fees" },
-  { key: "closing_fees", label: "Closing fees" },
-  { key: "removal_fee", label: "Removal fee" },
-  { key: "disposal_fee", label: "Disposal fee" },
-  { key: "refund_administration_fee", label: "Refund administration fee" },
-  { key: "fba_prep_fee", label: "FBA Prep fee" },
-];
-
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -435,44 +314,6 @@ function formatMoney(value: string | null, currency: string): string {
   }
 
   return `${currencyFormatter.format(Number(value))} ${currency}`;
-}
-
-function parseMetric(value: string | null | undefined): number {
-  if (value === null || value === undefined) {
-    return 0;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatCurrencyAmount(value: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      currency,
-      currencyDisplay: "narrowSymbol",
-      style: "currency",
-    }).format(value);
-  } catch {
-    return `${currencyFormatter.format(value)} ${currency}`;
-  }
-}
-
-function formatEconomicsMoney(
-  row: SkuEconomicsRow,
-  key: SkuEconomicsMoneyKey,
-  mode: EconomicsMode,
-): string {
-  const rawValue = parseMetric(row[key]);
-  const shouldDivide = mode === "per_unit" && key !== "average_sales_price";
-  const units = parseMetric(row.net_units_sold);
-  const value = shouldDivide && units > 0 ? rawValue / units : rawValue;
-
-  return formatCurrencyAmount(value, row.amz_currency);
-}
-
-function formatEconomicsUnits(value: string): string {
-  return integerFormatter.format(parseMetric(value));
 }
 
 function sanitizeSearchTerm(value: string): string {
@@ -645,79 +486,6 @@ async function fetchNoSkuTransactions({
   };
 }
 
-async function fetchSkuEconomicsRows({
-  accessToken,
-}: {
-  accessToken: string;
-}): Promise<SkuEconomicsRow[]> {
-  const params = new URLSearchParams();
-  params.set("select", SKU_ECONOMICS_SELECT_COLUMNS.join(","));
-  params.set("order", "net_proceeds.desc.nullslast");
-  params.set("limit", "100");
-
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/sku_economics_view?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`SKU economics query failed with HTTP ${response.status}`);
-  }
-
-  return response.json() as Promise<SkuEconomicsRow[]>;
-}
-
-function MetricInfo(): ReactElement {
-  return (
-    <span className="metric-info" aria-hidden="true">
-      i
-    </span>
-  );
-}
-
-function EconomicsMetricRow({
-  isIndented = false,
-  isMuted = false,
-  isStrong = false,
-  label,
-  value,
-}: {
-  isIndented?: boolean;
-  isMuted?: boolean;
-  isStrong?: boolean;
-  label: string;
-  value: string;
-}): React.ReactElement {
-  const classNames = ["economics-metric-row"];
-
-  if (isIndented) {
-    classNames.push("indented");
-  }
-
-  if (isMuted) {
-    classNames.push("muted");
-  }
-
-  if (isStrong) {
-    classNames.push("strong");
-  }
-
-  return (
-    <div className={classNames.join(" ")}>
-      <span>
-        {label}
-        <MetricInfo />
-      </span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 function getCellClassName(column: ColumnDefinition): string | undefined {
   const classNames: string[] = [];
 
@@ -784,9 +552,6 @@ function App() {
   );
   const [activeTab, setActiveTab] = useState<ActiveTab>("orders");
   const [session, setSession] = useState<Session | null>(null);
-  const [skuEconomicsRows, setSkuEconomicsRows] = useState<SkuEconomicsRow[]>([]);
-  const [selectedSku, setSelectedSku] = useState("");
-  const [economicsMode, setEconomicsMode] = useState<EconomicsMode>("total");
   const [orderRows, setOrderRows] = useState<OrderTransaction[]>([]);
   const [noSkuRows, setNoSkuRows] = useState<NoSkuTransaction[]>([]);
   const [totalCount, setTotalCount] = useState<number | null>(null);
@@ -798,7 +563,6 @@ function App() {
   >(DEFAULT_VISIBLE_AMOUNT_COLUMNS);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT_BY_TAB.orders);
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isLoadingEconomics, setIsLoadingEconomics] = useState(false);
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -829,13 +593,6 @@ function App() {
         : NO_SKU_COLUMNS,
     [activeTab, visibleAmountColumns],
   );
-  const selectedEconomicsRow = useMemo(
-    () =>
-      skuEconomicsRows.find((row) => row.amz_sku === selectedSku) ??
-      skuEconomicsRows[0] ??
-      null,
-    [selectedSku, skuEconomicsRows],
-  );
 
   const loadSession = useCallback(async (account: DemoAccount) => {
     setIsSigningIn(true);
@@ -847,8 +604,6 @@ function App() {
       setPageIndex(0);
     } catch (error) {
       setSession(null);
-      setSkuEconomicsRows([]);
-      setSelectedSku("");
       setOrderRows([]);
       setNoSkuRows([]);
       setTotalCount(null);
@@ -857,33 +612,6 @@ function App() {
       setIsSigningIn(false);
     }
   }, []);
-
-  const loadSkuEconomics = useCallback(async () => {
-    if (!session) {
-      return;
-    }
-
-    setIsLoadingEconomics(true);
-    setErrorMessage(null);
-
-    try {
-      const rows = await fetchSkuEconomicsRows({
-        accessToken: session.access_token,
-      });
-      setSkuEconomicsRows(rows);
-      setSelectedSku((currentSku) =>
-        rows.some((row) => row.amz_sku === currentSku)
-          ? currentSku
-          : (rows[0]?.amz_sku ?? ""),
-      );
-    } catch (error) {
-      setSkuEconomicsRows([]);
-      setSelectedSku("");
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsLoadingEconomics(false);
-    }
-  }, [session]);
 
   const loadTransactions = useCallback(async () => {
     if (!session) {
@@ -937,10 +665,6 @@ function App() {
   useEffect(() => {
     void loadTransactions();
   }, [loadTransactions]);
-
-  useEffect(() => {
-    void loadSkuEconomics();
-  }, [loadSkuEconomics]);
 
   function toggleSort(column: SortColumn): void {
     setPageIndex(0);
