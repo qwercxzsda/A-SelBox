@@ -3,7 +3,7 @@ import unittest
 from collections.abc import Iterable
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self
+from typing import Self
 from unittest.mock import patch
 
 from src.amazon import (
@@ -179,7 +179,7 @@ def make_parsed_settlement_report() -> ParsedSettlementReport:
 class FakeResponse:
     def __init__(
         self,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         next_token: str | None,
     ) -> None:
         """Store the minimal ApiResponse fields used by pagination code."""
@@ -192,11 +192,11 @@ class FakeClient:
     def __init__(self, report_text: str) -> None:
         """Create a fake Reports client that records API calls."""
         self.report_text = report_text
-        self.get_reports_calls: list[dict[str, Any]] = []
+        self.get_reports_calls: list[dict[str, object]] = []
         self.downloads: list[tuple[str, bool, str]] = []
         self.closed = False
 
-    def get_reports(self, **kwargs: Any) -> FakeResponse:
+    def get_reports(self, **kwargs: object) -> FakeResponse:
         """Return one completed settlement report from the fake client."""
         self.get_reports_calls.append(kwargs)
         return FakeResponse(
@@ -243,11 +243,11 @@ class FakeContext:
 
 
 class FakeCursor:
-    def __init__(self, fetchone_results: list[Any]) -> None:
+    def __init__(self, fetchone_results: list[tuple[object, ...] | None]) -> None:
         """Create a fake cursor with queued fetchone results."""
-        self.fetchone_results: list[Any] = list(fetchone_results)
-        self.execute_calls: list[tuple[str, Any]] = []
-        self.executemany_calls: list[tuple[str, list[dict[str, Any]]]] = []
+        self.fetchone_results = list(fetchone_results)
+        self.execute_calls: list[tuple[str, object]] = []
+        self.executemany_calls: list[tuple[str, list[dict[str, str | int | None]]]] = []
 
     def __enter__(self) -> Self:
         """Enter the fake cursor context manager."""
@@ -262,17 +262,21 @@ class FakeCursor:
         """Do not suppress exceptions raised inside cursor usage."""
         return False
 
-    def execute(self, sql: str, params: Any) -> None:
+    def execute(self, sql: str, params: object) -> None:
         """Record a SQL execute call and its parameters."""
         self.execute_calls.append((sql, params))
 
-    def fetchone(self) -> Any:
+    def fetchone(self) -> tuple[object, ...] | None:
         """Return the next queued row from the fake cursor."""
         if not self.fetchone_results:
             return None
         return self.fetchone_results.pop(0)
 
-    def executemany(self, sql: str, params_seq: Iterable[dict[str, Any]]) -> None:
+    def executemany(
+        self,
+        sql: str,
+        params_seq: Iterable[dict[str, str | int | None]],
+    ) -> None:
         """Record a batched SQL execution and materialize its params."""
         self.executemany_calls.append((sql, list(params_seq)))
 
@@ -305,7 +309,7 @@ class FakeConnection:
 
 
 class FakeDatabaseConnection(DatabaseConnection):
-    def __init__(self, fetchone_results: list[Any]) -> None:
+    def __init__(self, fetchone_results: list[tuple[object, ...] | None]) -> None:
         """Create a fake database pool that returns one fake connection."""
         self.cursor_obj = FakeCursor(fetchone_results)
         self.connection_obj = FakeConnection(self.cursor_obj)
@@ -332,12 +336,14 @@ class FakeDatabaseConnection(DatabaseConnection):
         return self.connection_obj
 
     @property
-    def execute_calls(self) -> list[tuple[str, Any]]:
+    def execute_calls(self) -> list[tuple[str, object]]:
         """Return execute calls recorded by the fake cursor."""
         return self.cursor_obj.execute_calls
 
     @property
-    def executemany_calls(self) -> list[tuple[str, list[dict[str, Any]]]]:
+    def executemany_calls(
+        self,
+    ) -> list[tuple[str, list[dict[str, str | int | None]]]]:
         """Return executemany calls recorded by the fake cursor."""
         return self.cursor_obj.executemany_calls
 

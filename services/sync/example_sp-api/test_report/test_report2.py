@@ -1,7 +1,8 @@
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol, TextIO, cast
 
 from dotenv import load_dotenv
 from sp_api.api import Reports
@@ -12,11 +13,22 @@ logger: logging.Logger = logging.getLogger(__name__)
 load_dotenv()
 
 
+class _TypedReportsClient(Protocol):
+    def get_report_document(
+        self,
+        report_document_id: str,
+        *,
+        download: bool,
+        file: str,
+    ) -> ApiResponse:
+        """Call the dynamically typed report-document endpoint."""
+        ...
+
+
 def download_report_document(
     client: Reports, report_document_id: str, output_dir: Path
 ) -> ApiResponse:
-    """
-    Downloads the report document using the provided client and saves it to the specified output directory.
+    """Download a report document and save it in the specified directory.
 
     Args:
         client (Reports): An instance of the Reports API client.
@@ -27,23 +39,24 @@ def download_report_document(
         ApiResponse: The response from the get_report_document API call.
     """
     report_path: Path = output_dir / f"{report_document_id}.tsv"
-    document_response: ApiResponse = client.get_report_document(
+    typed_client: _TypedReportsClient = cast(_TypedReportsClient, client)
+    document_response: ApiResponse = typed_client.get_report_document(
         report_document_id,
         download=True,
         file=str(report_path),
     )
 
-    logger.info(f"Report document response: {document_response}")
-    logger.info(f"Downloaded settlement report to: {report_path}")
+    logger.info("Report document response: %s", document_response)
+    logger.info("Downloaded settlement report to: %s", report_path)
     return document_response
 
 
 if __name__ == "__main__":
     # Set up logging
     fh: logging.FileHandler = logging.FileHandler(
-        Path(__file__).parent / f"{datetime.now().strftime('%Y-%m-%dT%H-%M-%S')}.log"
+        Path(__file__).parent / f"{datetime.now(UTC).strftime('%Y-%m-%dT%H-%M-%S')}.log"
     )
-    sh: logging.StreamHandler = logging.StreamHandler()
+    sh: logging.StreamHandler[TextIO] = logging.StreamHandler()
 
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s -- %(message)s",

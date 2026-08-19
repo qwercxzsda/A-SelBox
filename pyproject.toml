@@ -12,16 +12,31 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
-extend-select = [
-  "S113", # requests timeout 누락
-  "S608", # SQL injection 가능성
-  "S105", # hardcoded password
-  "S106", # hardcoded password in function arg
-  "S107", # hardcoded password in default arg
-  "S324", # insecure hash
+select = [
+  "ANN",
+  "ARG",
+  "B",
+  "C4",
+  "DTZ",
+  "E",
+  "F",
+  "G",
+  "I",
+  "LOG",
+  "N",
+  "PIE",
+  "PLE",
+  "PTH",
+  "RET",
+  "RUF",
+  "S",
+  "SIM",
+  "UP",
+  "W",
 ]
 
 [tool.pyright]
 pythonVersion = "3.14"
-typeCheckingMode = "standard"
+# Third-party packages lack stub packages; strict unknown-type diagnostics still apply.
+reportMissingTypeStubs = false
+typeCheckingMode = "strict"

@@ -789,7 +789,13 @@ settlement_id를 input으로 받는다.
 
 ## Formatting
 
-### Postgresql
+Activate the project Conda environment before running the commands below:
+
+```sh
+conda activate A-SelBox
+```
+
+### PostgreSQL
 
 sqlfluff
 
@@ -800,7 +806,9 @@ sqlfluff lint .
 
 ### Markdown
 
-mdformat + pymarkdown
+mdformat + mdformat-gfm + pymarkdownlnt
+
+The PyPI package that provides the `pymarkdown` command is `pymarkdownlnt`.
 
 ```sh
 mdformat .
@@ -813,5 +821,5 @@ ruff
 
 ```sh
 ruff check --fix . && ruff format .
-pyright
+pyright --pythonpath "$(command -v python)"
 ```

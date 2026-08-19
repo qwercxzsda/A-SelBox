@@ -1,20 +1,68 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Protocol, TypedDict, cast
 
+import sp_api.util as _sp_api_util
 from sp_api.api import Reports
 from sp_api.base import ApiResponse
-from sp_api.util import load_all_pages, sp_retry
 
 from src.amazon.marketplaces import get_endpoint_marketplaces
 from src.amazon.models import DownloadedSettlementReport
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-NEXT_TOKEN_PARAM: str = "nextToken"  # noqa: S105 - Amazon pagination parameter.
+PAGINATION_PARAMETER: str = "nextToken"
 SETTLEMENT_REPORT_TYPE: str = "GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2"
+
+type _ApiResponseCallable = Callable[..., ApiResponse]
+type _PaginatedApiResponseCallable = Callable[..., Iterable[ApiResponse]]
+type _ApiResponseDecorator = Callable[[_ApiResponseCallable], _ApiResponseCallable]
+type _PaginationDecorator = Callable[[_ApiResponseCallable], _PaginatedApiResponseCallable]
+type _LoadAllPagesFactory = Callable[..., _PaginationDecorator]
+type _RetryFactory = Callable[[], _ApiResponseDecorator]
+
+
+class _ReportSummary(TypedDict):
+    reportId: str
+    reportDocumentId: str
+
+
+class _ReportsPayload(TypedDict):
+    reports: list[_ReportSummary]
+
+
+class _ReportsPage(Protocol):
+    payload: _ReportsPayload
+
+
+class _TypedReportsClient(Protocol):
+    def get_reports(self, **kwargs: object) -> ApiResponse:
+        """Call the dynamically typed Reports listing endpoint."""
+        ...
+
+    def get_report_document(
+        self,
+        report_document_id: str,
+        *,
+        download: bool,
+        file: str,
+    ) -> ApiResponse:
+        """Call the dynamically typed report-document endpoint."""
+        ...
+
+
+# python-amazon-sp-api does not publish complete callable annotations. Cast its
+# decorator factories once at this boundary so unknown types do not leak inward.
+_load_all_pages: _LoadAllPagesFactory = cast(
+    _LoadAllPagesFactory,
+    vars(_sp_api_util)["load_all_pages"],
+)
+_sp_retry: _RetryFactory = cast(
+    _RetryFactory,
+    vars(_sp_api_util)["sp_retry"],
+)
 
 
 def get_created_since(days: int) -> str:
@@ -31,6 +79,7 @@ def list_settlement_report_documents(
     days: int,
 ) -> list[tuple[str, str]]:
     """List completed settlement report IDs and document IDs."""
+    typed_client: _TypedReportsClient = cast(_TypedReportsClient, client)
     marketplace_ids: list[str] = [
         marketplace.marketplace_id for marketplace in get_endpoint_marketplaces(amazon_endpoint)
     ]
@@ -47,28 +96,28 @@ def list_settlement_report_documents(
     )
 
     # Reports API pagination sends only nextToken after the first request.
-    @load_all_pages(next_token_param=NEXT_TOKEN_PARAM, next_token_only=True)
-    @sp_retry()
-    def iter_reports(**kwargs: Any) -> ApiResponse:
+    def iter_reports(**kwargs: object) -> ApiResponse:
         """Fetch one page of reports with retry behavior."""
-        return client.get_reports(**kwargs)
+        return typed_client.get_reports(**kwargs)
 
+    paginated_iter_reports: _PaginatedApiResponseCallable = _load_all_pages(
+        next_token_param=PAGINATION_PARAMETER,
+        next_token_only=True,
+    )(_sp_retry()(iter_reports))
     report_pages: list[ApiResponse] = list(
-        cast(
-            Iterable[ApiResponse],
-            iter_reports(
-                reportTypes=[SETTLEMENT_REPORT_TYPE],
-                processingStatuses=["DONE"],
-                marketplaceIds=marketplace_ids,
-                createdSince=created_since,
-                pageSize=100,
-            ),
+        paginated_iter_reports(
+            reportTypes=[SETTLEMENT_REPORT_TYPE],
+            processingStatuses=["DONE"],
+            marketplaceIds=marketplace_ids,
+            createdSince=created_since,
+            pageSize=100,
         )
     )
 
     report_documents: list[tuple[str, str]] = []
     for page in report_pages:
-        for report in page.payload.get("reports", []):
+        typed_page: _ReportsPage = cast(_ReportsPage, page)
+        for report in typed_page.payload.get("reports", []):
             report_documents.append((report["reportId"], report["reportDocumentId"]))
 
     logger.info(
@@ -88,7 +137,8 @@ def download_report_document(
     client: Reports, report_document_id: str, output_path: Path
 ) -> ApiResponse:
     """Download one report document to a local TSV path."""
-    document_response: ApiResponse = client.get_report_document(
+    typed_client: _TypedReportsClient = cast(_TypedReportsClient, client)
+    document_response: ApiResponse = typed_client.get_report_document(
         report_document_id,
         download=True,
         file=str(output_path),

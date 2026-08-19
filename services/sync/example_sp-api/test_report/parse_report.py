@@ -1,13 +1,21 @@
+from collections.abc import Mapping
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
 
-def parse_settlement_reports():
+def _normalized_value(row: pd.Series, column_name: str) -> str:
+    """Return a report value as stripped text."""
+    row_values = cast(Mapping[str, object], row)
+    return str(row_values.get(column_name, "")).strip()
+
+
+def parse_settlement_reports() -> None:
     """Parse all TSV files in settlement_reports and print unique tuples"""
 
     base_path = Path(__file__).parent / "settlement_reports"
-    unique_tuples = set()
+    unique_tuples: set[tuple[str, str, str]] = set()
 
     # Find all TSV files
     tsv_files = sorted(base_path.glob("*.tsv"))
@@ -24,23 +32,24 @@ def parse_settlement_reports():
         try:
             df = pd.read_csv(filepath, delimiter="\t")
             for _, row in df.iterrows():
-                transcation_type = str(row.get("transaction-type", "")).strip()
-                marketplace = str(row.get("marketplace-name", "")).strip()
-                amount_type = str(row.get("amount-type", "")).strip()
-                amount_desc = str(row.get("amount-description", "")).strip()
+                transaction_type = _normalized_value(row, "transaction-type")
+                amount_type = _normalized_value(row, "amount-type")
+                amount_desc = _normalized_value(row, "amount-description")
 
-                unique_tuples.add((transcation_type, amount_type, amount_desc))
-        except Exception as e:
-            print(f"  Error reading file: {e}")
+                unique_tuples.add((transaction_type, amount_type, amount_desc))
+        except Exception as error:
+            print(f"  Error reading file: {error}")
 
     print(
-        f"\nFound {len(unique_tuples)} unique (transaction-type, amount-type, amount-description) tuples:\n"
+        f"\nFound {len(unique_tuples)} unique "
+        "(transaction-type, amount-type, amount-description) tuples:\n"
     )
 
     # Sort and print
-    for transcation_type, amount_type, amount_desc in sorted(unique_tuples):
+    for transaction_type, amount_type, amount_desc in sorted(unique_tuples):
         print(
-            f"Transaction Type: {transcation_type} | Type: {amount_type} | Description: {amount_desc}"
+            f"Transaction Type: {transaction_type} | Type: {amount_type} | "
+            f"Description: {amount_desc}"
         )
 
 
