@@ -64,8 +64,8 @@ def parse_settlement_reports_with_nan(column_name: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python parse_report2.py <column_name>")
-        print("\nExample: python parse_report2.py 'marketplace-name'")
+        print("Usage: python find_missing_settlement_report_values.py <column_name>")
+        print("\nExample: python find_missing_settlement_report_values.py 'marketplace-name'")
         sys.exit(1)
 
     column_name = sys.argv[1]
