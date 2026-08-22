@@ -1,10 +1,13 @@
 # Frontend
 
-The user webpage POC is in `frontend/user-webpage`.
+The published SKU economics client is in `services/frontend/user-webpage`.
 
-- Stack: pnpm + Vite + React + TypeScript.
-- Run `npm` and `pnpm` only through Docker; do not run them on the host.
-- TypeScript linting uses ESLint.
-- TypeScript formatting uses Prettier.
+- Stack: React, TypeScript, Vite, and pnpm.
+- Run every `node`, `npm`, `npx`, `corepack`, and `pnpm` command through Docker;
+  native host execution is unsupported.
+- The Docker-only `pnpm run check` enforces deterministic Prettier output,
+  zero-warning type-aware and accessibility ESLint rules, unit tests,
+  TypeScript, and the production build.
 
-See `frontend/user-webpage/README.md` for the exact Docker commands.
+See the [user webpage README](user-webpage/README.md) for the exact Docker-only
+commands and canonical Supabase API contract.

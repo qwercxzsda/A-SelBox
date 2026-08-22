@@ -5,6 +5,7 @@
 - If additional packages are needed, install them in the `A-SelBox` environment and update the `env.yml` file.
 - For the packages not available in Anaconda, use Docker. Do not install packages natively.
 - The first line of the commit message should be of the form `<type>: <subject>`.
+- Run all frontend `node`, `npm`, `npx`, `corepack`, and `pnpm` commands inside Docker. Do not run Node or package-manager commands natively on the host. See `services/frontend/user-webpage/README.md` for the commands.
 - After making changes, refactor the affected parts.
   - Format and lint
   - Remove redundant code
