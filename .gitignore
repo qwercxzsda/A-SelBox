@@ -2,6 +2,7 @@
 .idea/
 .vscode/
 .env
+.pnpm-store/
 *.out
 *.log
 *.py[cod]
