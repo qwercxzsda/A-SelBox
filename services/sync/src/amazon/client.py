@@ -1,29 +1,46 @@
-from dataclasses import dataclass
+from collections.abc import Callable
+from typing import cast
 
-from sp_api.api import Reports
+from sp_api.api import DataKiosk, Reports
 from sp_api.base import Marketplaces
 
-from src.amazon.marketplaces import get_endpoint_marketplaces, validate_endpoint
+from .credentials import AmazonLwaCredentials
+from .data_kiosk.client_protocol import DataKioskClient
+from .marketplaces import get_credential_scope
+from .transport import ensure_explicit_marketplace_routing
 
 
-@dataclass(frozen=True)
-class ReportsClientFactory:
-    """Store SP-API client settings and create Reports clients on demand."""
+def create_explicit_sp_api_client[ClientT](
+    client_class: Callable[..., ClientT],
+    marketplace: Marketplaces,
+    credentials: AmazonLwaCredentials,
+) -> ClientT:
+    """Construct an explicitly credentialed client on its intended transport."""
+    ensure_explicit_marketplace_routing(marketplace)
+    return client_class(
+        marketplace=marketplace,
+        refresh_token=credentials.refresh_token,
+        credentials=credentials.as_sdk_credentials(),
+    )
 
-    amazon_endpoint: str
-    refresh_token: str
 
-    def __post_init__(self) -> None:
-        """Validate the exact endpoint code and non-empty refresh token."""
-        object.__setattr__(self, "amazon_endpoint", validate_endpoint(self.amazon_endpoint))
-        if not self.refresh_token:
-            raise ValueError("refresh_token must not be empty.")
+def create_reports_client(
+    amazon_scope: str,
+    credentials: AmazonLwaCredentials,
+) -> Reports:
+    """Build an explicitly credentialed Reports client for one scope."""
+    marketplace: Marketplaces = get_credential_scope(amazon_scope).client_marketplace
+    return create_explicit_sp_api_client(Reports, marketplace, credentials)
 
-    def create(self) -> Reports:
-        """Build an SP-API Reports client for this factory's endpoint."""
-        # Any marketplace in the endpoint region can initialize the regional Reports client.
-        marketplace: Marketplaces = get_endpoint_marketplaces(self.amazon_endpoint)[0]
-        return Reports(
-            marketplace=marketplace,
-            refresh_token=self.refresh_token,
-        )
+
+def create_data_kiosk_client(
+    marketplace: Marketplaces,
+    credentials: AmazonLwaCredentials,
+) -> DataKioskClient:
+    """Build an explicitly credentialed regional Data Kiosk client."""
+    # python-amazon-sp-api omits None from the annotation for its optional
+    # ``file`` argument. Keep that third-party typing defect at this boundary.
+    return cast(
+        DataKioskClient,
+        create_explicit_sp_api_client(DataKiosk, marketplace, credentials),
+    )

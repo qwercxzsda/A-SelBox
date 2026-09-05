@@ -3,3 +3,16 @@
 .vscode/
 .env
 *.out
+*.log
+*.py[cod]
+*.tsv
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+
+# Local report output can contain seller financial data.
+/output/
+/docs/assets/
+/services/sync/example_sp-api/
+/services/sync/out*/

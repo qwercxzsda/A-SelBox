@@ -1,0 +1,1 @@
+"""Amazon adapter unit tests."""

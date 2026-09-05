@@ -1,1 +1,6 @@
--- Seed data is intentionally omitted for the initial schema setup.
+-- The default database seed is intentionally empty.
+--
+-- Company/SKU ownership and Selbox fee rates are administered directly in
+-- public.company_sku_fee_rates. Amazon Settlement reports and rolling Data
+-- Kiosk provisions must enter through their production workflows; do not add
+-- fake source history to this file.
