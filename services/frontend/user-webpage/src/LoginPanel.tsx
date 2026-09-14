@@ -22,12 +22,9 @@ export function LoginPanel({
   return (
     <div className="login-shell">
       <section className="login-card">
-        <p className="eyebrow">Authenticated data access</p>
-        <h2>Sign in to SKU economics</h2>
-        <p>
-          The public read models require an authenticated Supabase user. Row-level security limits
-          company users to their own published targets.
-        </p>
+        <p className="eyebrow">Your company workspace</p>
+        <h2>Sign in to Company Finance</h2>
+        <p>View your company’s transactions, marketplace costs, and current fees.</p>
 
         {errorMessage ? (
           <p className="error-banner" role="alert">

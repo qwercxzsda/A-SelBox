@@ -1,43 +1,54 @@
 import type { CanonicalRow } from "./api";
-import { categoryLabel, humanizeCode } from "./categories";
-import { formatExactMoney } from "./decimal";
+import { humanizeCode } from "./categories";
+import { formatExactDecimal, formatExactMoney } from "./decimal";
 import { companyLabel, formatDate, rowText, type ColumnDefinition } from "./view-model";
-
-export function CodeLabel({ code, category = false }: { code: string | null; category?: boolean }) {
-  if (!code) {
-    return <span className="muted-value">—</span>;
-  }
-
-  return (
-    <span className="code-label">
-      <strong>{category ? categoryLabel(code) : humanizeCode(code)}</strong>
-      <code>{code}</code>
-    </span>
-  );
-}
 
 export function TableCellValue({
   column,
   companies,
   row,
+  skuNames = new Map(),
 }: {
   column: ColumnDefinition;
   companies: Map<string, string>;
   row: CanonicalRow;
+  skuNames?: Map<string, string>;
 }) {
   const value = rowText(row, column.key);
+  if (value === null) {
+    if (column.kind === "company")
+      return row.access_role === "operator" ? "All companies" : "Unassigned";
+    return <span className="muted-value">—</span>;
+  }
   switch (column.kind) {
     case "category":
-      return <CodeLabel category code={value} />;
     case "code":
-      return <CodeLabel code={value} />;
+      return (
+        <span className={value.startsWith("MISSING_") ? "missing-value" : undefined}>
+          {humanizeCode(value)}
+        </span>
+      );
     case "company":
       return companyLabel(value, companies);
+    case "sku":
+      return skuNames.get(value) ?? value;
     case "date":
       return formatDate(value);
+    case "period": {
+      const match = /^\[([^,]+),([^)]*)\)$/.exec(value);
+      return match ? `${match[1]} → ${match[2] || "No end date"}` : value;
+    }
     case "money":
       return formatExactMoney(value, rowText(row, "currency"));
+    case "percent":
+      return `${formatExactDecimal(value)}%`;
+    case "number":
+      return formatExactDecimal(value);
     case "text":
-      return value ?? <span className="muted-value">—</span>;
+      return column.key === "authoritative"
+        ? value === "true" || value === "t"
+          ? "Yes"
+          : "Comparison only"
+        : value;
   }
 }
