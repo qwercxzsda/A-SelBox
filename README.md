@@ -56,6 +56,10 @@ environment variables take precedence. See the
 and `--no-load-dotenv`. Do not inspect, print, or edit `.env` directly. Keep original
 reports and other private financial artifacts out of version control.
 
+The [Company Finance frontend](services/frontend/user-webpage/README.md) reads the
+current company fees, live calculations, source results, and operator views. Its
+Node tooling runs in Docker and connects to an explicitly configured Supabase instance.
+
 ## Design
 
 - [Data workflows](docs/data_workflows.md): archives, complete publications,

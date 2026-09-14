@@ -1,6 +1,6 @@
 # Frontend
 
-The published SKU economics client is in `services/frontend/user-webpage`.
+The Company Finance client is in `services/frontend/user-webpage`.
 
 - Stack: React, TypeScript, Vite, and pnpm.
 - Run every `node`, `npm`, `npx`, `corepack`, and `pnpm` command through Docker;
@@ -10,4 +10,4 @@ The published SKU economics client is in `services/frontend/user-webpage`.
   TypeScript, and the production build.
 
 See the [user webpage README](user-webpage/README.md) for the exact Docker-only
-commands and canonical Supabase API contract.
+commands and current Supabase REST contract.

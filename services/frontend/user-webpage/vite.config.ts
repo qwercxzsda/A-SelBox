@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
+import { validateApiConfig } from "./src/api/client-config.ts";
 
 const REQUIRED_PRODUCTION_SETTINGS = [
   "VITE_SUPABASE_URL",
@@ -17,6 +18,10 @@ export default defineConfig(({ command, mode }) => {
     if (missingSettings.length > 0) {
       throw new Error(`Production build requires ${missingSettings.join(", ")}`);
     }
+    validateApiConfig({
+      supabaseUrl: environment.VITE_SUPABASE_URL,
+      publishableKey: environment.VITE_SUPABASE_PUBLISHABLE_KEY,
+    });
   }
 
   return {

@@ -2,15 +2,17 @@ import { DATASET_CONFIG } from "./config.ts";
 import { parseTotalCount } from "./content-range.ts";
 import { parseCsv } from "./csv.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
-import { sanitizeSearchTerm } from "./search.ts";
+import { readBuildConfig, validateApiConfig, type ApiClientConfig } from "./runtime-config.ts";
+import { buildSearchFilter } from "./search.ts";
 import type {
+  AppAccount,
   Company,
   DatasetKey,
-  DatasetRowMap,
   DatasetSort,
   FetchDatasetPageOptions,
   PageResult,
   Session,
+  SkuAssignment,
 } from "./types.ts";
 import {
   isJsonObject,
@@ -20,47 +22,13 @@ import {
   requiredJsonString,
 } from "./validation.ts";
 
-const RUNTIME_LOCATION: unknown = globalThis.location;
-const LOCAL_PUBLISHABLE_KEY = "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
+export type { ApiClientConfig } from "./runtime-config.ts";
+
+const LOOKUP_PAGE_SIZE = 1000;
 const SORT_DIRECTIONS: ReadonlySet<string> = new Set(["asc", "desc"]);
 
-function optionalBuildString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-function defaultSupabaseUrl(): string {
-  if (isJsonObject(RUNTIME_LOCATION) && RUNTIME_LOCATION.hostname === "host.docker.internal") {
-    return "http://host.docker.internal:54321";
-  }
-  return "http://127.0.0.1:54321";
-}
-
-function missingBuildSetting(name: string): never {
-  throw new Error(`${name} must be configured outside the Vite development server`);
-}
-
-const SUPABASE_URL = (
-  optionalBuildString(import.meta.env.VITE_SUPABASE_URL) ??
-  (import.meta.env.DEV ? defaultSupabaseUrl() : missingBuildSetting("VITE_SUPABASE_URL"))
-).replace(/\/+$/, "");
-const SUPABASE_PUBLISHABLE_KEY =
-  optionalBuildString(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) ??
-  (import.meta.env.DEV
-    ? LOCAL_PUBLISHABLE_KEY
-    : missingBuildSetting("VITE_SUPABASE_PUBLISHABLE_KEY"));
-
 function requireAccessToken(accessToken: string): void {
-  if (accessToken.length === 0) {
-    throw new Error("An access token is required");
-  }
-}
-
-async function safeFetch(url: string, init: RequestInit, operation: string): Promise<Response> {
-  try {
-    return await fetch(url, init);
-  } catch {
-    throw new Error(`${operation} failed because the network request failed`);
-  }
+  if (accessToken.trim().length === 0) throw new Error("An access token is required");
 }
 
 async function readJson(response: Response, operation: string): Promise<unknown> {
@@ -75,7 +43,6 @@ function parseSession(value: unknown, operation: string): Session {
   if (!isJsonObject(value) || !isJsonObject(value.user)) {
     throw new Error(`${operation} returned an invalid session`);
   }
-
   return {
     access_token: requiredJsonString(value, "access_token"),
     token_type: requiredJsonString(value, "token_type"),
@@ -89,20 +56,25 @@ function parseSession(value: unknown, operation: string): Session {
   };
 }
 
-function parseCompanies(value: unknown): Company[] {
-  if (!Array.isArray(value)) {
-    throw new Error("Company query returned an invalid response");
+function parseObjectRows(value: unknown, operation: string): Record<string, unknown>[] {
+  if (!Array.isArray(value) || !value.every(isJsonObject)) {
+    throw new Error(`${operation} returned invalid rows`);
   }
+  return value;
+}
 
-  return value.map((company) => {
-    if (!isJsonObject(company)) {
-      throw new Error("Company query returned an invalid row");
-    }
-    return {
-      id: requiredJsonString(company, "id"),
-      company_name: requiredJsonString(company, "company_name"),
-    };
-  });
+function parseAppAccount(value: Record<string, unknown>, userId: string): AppAccount {
+  const user_id = requiredJsonString(value, "user_id");
+  const access_role = requiredJsonString(value, "access_role");
+  const company_id = value.company_id === null ? null : requiredJsonString(value, "company_id");
+  if (
+    user_id !== userId ||
+    (access_role !== "operator" && access_role !== "company_member") ||
+    (access_role === "operator" ? company_id !== null : company_id === null)
+  ) {
+    throw new Error("Application account query returned an invalid account");
+  }
+  return { user_id, access_role, company_id };
 }
 
 function validatePageRequest(
@@ -111,168 +83,232 @@ function validatePageRequest(
   pageSize: number,
   sort: DatasetSort,
 ): void {
+  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
   if (!Number.isSafeInteger(pageIndex) || pageIndex < 0) {
     throw new Error("Page index must be a non-negative safe integer");
   }
-  if (!Number.isSafeInteger(pageSize) || pageSize <= 0) {
-    throw new Error("Page size must be a positive safe integer");
+  if (!Number.isSafeInteger(pageSize) || pageSize <= 0 || pageSize > LOOKUP_PAGE_SIZE) {
+    throw new Error("Page size must be a positive integer of at most 1000");
   }
-  if (!SORT_DIRECTIONS.has(sort.direction)) {
-    throw new Error("Sort direction is invalid");
-  }
-  if (!DATASET_CONFIG[dataset].sortColumns.some((allowedColumn) => allowedColumn === sort.column)) {
+  if (!SORT_DIRECTIONS.has(sort.direction)) throw new Error("Sort direction is invalid");
+  if (!DATASET_CONFIG[dataset].sortColumns.some((column) => column === sort.column)) {
     throw new Error(`Sort column is not allowed for ${dataset}`);
   }
-
-  const offset = pageIndex * pageSize;
-  if (!Number.isSafeInteger(offset)) {
+  if (!Number.isSafeInteger(pageIndex * pageSize)) {
     throw new Error("Page offset exceeds JavaScript's safe range");
   }
 }
 
-function buildDatasetParams(
-  dataset: DatasetKey,
-  pageIndex: number,
-  pageSize: number,
-  search: string,
-  sort: DatasetSort,
-): URLSearchParams {
+function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
+  const { dataset, pageIndex, pageSize, search, sort } = options;
   const config = DATASET_CONFIG[dataset];
-  const params = new URLSearchParams();
-  params.set("select", config.selectColumns.join(","));
-  params.set("limit", String(pageSize));
-  params.set("offset", String(pageIndex * pageSize));
-
-  const tieBreaker = sort.column === "id" ? "" : ",id.asc";
-  params.set("order", `${sort.column}.${sort.direction}.nullslast${tieBreaker}`);
-
-  const searchTerm = sanitizeSearchTerm(search);
-  if (searchTerm.length > 0) {
-    const pattern = `*${searchTerm}*`;
-    const filters = config.searchColumns.map((column) => `${column}.ilike.${pattern}`);
-    params.set("or", `(${filters.join(",")})`);
-  }
-
+  const order = [
+    `${sort.column}.${sort.direction}.nullslast`,
+    ...config.idColumns.filter((column) => column !== sort.column).map((column) => `${column}.asc`),
+  ];
+  const params = new URLSearchParams({
+    select: config.selectColumns.join(","),
+    limit: String(pageSize),
+    offset: String(pageIndex * pageSize),
+    order: order.join(","),
+  });
+  const filter = buildSearchFilter(config.searchColumns, search);
+  if (filter !== null) params.set("or", filter);
   return params;
 }
 
-async function requestSession(
-  grantType: "password" | "refresh_token",
-  credentials: Record<string, string>,
-  operation: string,
-): Promise<Session> {
-  const response = await safeFetch(
-    `${SUPABASE_URL}/auth/v1/token?grant_type=${grantType}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-        "Content-Type": "application/json",
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-      },
-      body: JSON.stringify(credentials),
-    },
-    operation,
-  );
+/** Bind requests to one public Supabase configuration; injectable fetch keeps tests offline. */
+export function createApiClient(
+  configuration: ApiClientConfig,
+  fetchImplementation: typeof fetch = globalThis.fetch,
+) {
+  const { supabaseUrl, publishableKey } = validateApiConfig(configuration);
 
-  if (!response.ok) {
-    throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+  async function request(path: string, init: RequestInit, operation: string): Promise<Response> {
+    try {
+      return await fetchImplementation(`${supabaseUrl}${path}`, { ...init, redirect: "error" });
+    } catch {
+      throw new Error(`${operation} failed because the network request failed`);
+    }
   }
-  return parseSession(await readJson(response, operation), operation);
-}
 
-export async function signIn(email: string, password: string): Promise<Session> {
-  return requestSession("password", { email, password }, "Sign in");
-}
-
-export async function refreshSession(refreshToken: string): Promise<Session> {
-  if (refreshToken.length === 0) {
-    throw new Error("A refresh token is required");
+  function authenticatedHeaders(accessToken: string, accept = "application/json") {
+    requireAccessToken(accessToken);
+    return { Accept: accept, Authorization: `Bearer ${accessToken}`, apikey: publishableKey };
   }
-  return requestSession("refresh_token", { refresh_token: refreshToken }, "Session refresh");
-}
 
-export async function signOut(accessToken: string): Promise<void> {
-  requireAccessToken(accessToken);
-  const response = await safeFetch(
-    `${SUPABASE_URL}/auth/v1/logout`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: SUPABASE_PUBLISHABLE_KEY,
+  async function requestSession(
+    grantType: "password" | "refresh_token",
+    credentials: Record<string, string>,
+    operation: string,
+  ): Promise<Session> {
+    const response = await request(
+      `/auth/v1/token?grant_type=${grantType}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: publishableKey },
+        body: JSON.stringify(credentials),
       },
-    },
-    "Sign out",
-  );
-
-  if (!response.ok) {
-    throw new Error(`Sign out failed with HTTP ${String(response.status)}`);
+      operation,
+    );
+    if (!response.ok) throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+    return parseSession(await readJson(response, operation), operation);
   }
-}
 
-export async function fetchCompanies(accessToken: string): Promise<Company[]> {
-  requireAccessToken(accessToken);
-  const params = new URLSearchParams({
-    select: "id,company_name",
-    order: "company_name.asc,id.asc",
-  });
-  const response = await safeFetch(
-    `${SUPABASE_URL}/rest/v1/companies?${params.toString()}`,
-    {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-      },
-    },
-    "Company query",
-  );
-
-  if (!response.ok) {
-    throw new Error(`Company query failed with HTTP ${String(response.status)}`);
-  }
-  return parseCompanies(await readJson(response, "Company query"));
-}
-
-export async function fetchDatasetPage<Dataset extends DatasetKey>({
-  accessToken,
-  dataset,
-  pageIndex,
-  pageSize,
-  search,
-  sort,
-}: FetchDatasetPageOptions<Dataset>): Promise<PageResult<DatasetRowMap[Dataset]>> {
-  requireAccessToken(accessToken);
-  validatePageRequest(dataset, pageIndex, pageSize, sort);
-
-  const config = DATASET_CONFIG[dataset];
-  const params = buildDatasetParams(dataset, pageIndex, pageSize, search, sort);
-  const response = await safeFetch(
-    `${SUPABASE_URL}/rest/v1/${config.endpoint}?${params.toString()}`,
-    {
-      headers: {
-        Accept: "text/csv",
-        Authorization: `Bearer ${accessToken}`,
-        Prefer: "count=exact",
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-      },
-    },
-    `${config.label} query`,
-  );
-
-  if (!response.ok) {
-    if (response.status === 416) {
-      const totalCount = parseTotalCount(response.headers.get("Content-Range"));
-      if (totalCount !== null) {
-        return { rows: [], totalCount };
+  async function readAllRows(
+    accessToken: string,
+    endpoint: string,
+    select: string,
+    order: string,
+    operation: string,
+  ): Promise<Record<string, unknown>[]> {
+    const headers = { ...authenticatedHeaders(accessToken), Prefer: "count=exact" };
+    const rows: Record<string, unknown>[] = [];
+    for (;;) {
+      const params = new URLSearchParams({
+        select,
+        order,
+        limit: String(LOOKUP_PAGE_SIZE),
+        offset: String(rows.length),
+      });
+      const response = await request(
+        `/rest/v1/${endpoint}?${params.toString()}`,
+        { headers },
+        operation,
+      );
+      if (response.status === 416) {
+        const total = parseTotalCount(response.headers.get("Content-Range"));
+        if (total !== null && rows.length >= total) return rows;
+      }
+      if (!response.ok) throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+      const page = parseObjectRows(await readJson(response, operation), operation);
+      const total = parseTotalCount(response.headers.get("Content-Range"));
+      rows.push(...page);
+      if (total !== null && rows.length >= total) return rows;
+      if (page.length === 0) {
+        if (total !== null) throw new Error(`${operation} returned an incomplete page`);
+        return rows;
       }
     }
-    throw new Error(`${config.label} query failed with HTTP ${String(response.status)}`);
   }
 
   return {
-    rows: mapDatasetRows(dataset, parseCsv(await response.text())),
-    totalCount: parseTotalCount(response.headers.get("Content-Range")),
+    signIn(email: string, password: string): Promise<Session> {
+      return requestSession("password", { email, password }, "Sign in");
+    },
+
+    refreshSession(refreshToken: string): Promise<Session> {
+      if (refreshToken.trim().length === 0) throw new Error("A refresh token is required");
+      return requestSession("refresh_token", { refresh_token: refreshToken }, "Session refresh");
+    },
+
+    async signOut(accessToken: string): Promise<void> {
+      const response = await request(
+        "/auth/v1/logout?scope=local",
+        { method: "POST", headers: authenticatedHeaders(accessToken) },
+        "Sign out",
+      );
+      if (!response.ok) throw new Error(`Sign out failed with HTTP ${String(response.status)}`);
+    },
+
+    async fetchAppAccount(accessToken: string, userId: string): Promise<AppAccount> {
+      if (userId.trim() === "") throw new Error("An Auth user ID is required");
+      const params = new URLSearchParams({
+        select: "user_id,access_role,company_id",
+        user_id: `eq.${userId}`,
+        limit: "1",
+      });
+      const operation = "Application account query";
+      const response = await request(
+        `/rest/v1/app_accounts?${params.toString()}`,
+        { headers: authenticatedHeaders(accessToken) },
+        operation,
+      );
+      if (!response.ok) throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+      const rows = parseObjectRows(await readJson(response, operation), operation);
+      if (rows.length === 0) throw new Error("This Auth account has no application access");
+      if (rows.length !== 1) throw new Error(`${operation} returned multiple accounts`);
+      return parseAppAccount(rows[0], userId);
+    },
+
+    async fetchCompanies(accessToken: string): Promise<Company[]> {
+      const rows = await readAllRows(
+        accessToken,
+        "companies",
+        "id,name",
+        "name.asc,id.asc",
+        "Company query",
+      );
+      return rows.map((row) => ({
+        id: requiredJsonString(row, "id"),
+        name: requiredJsonString(row, "name"),
+      }));
+    },
+
+    async fetchSkuAssignments(accessToken: string): Promise<SkuAssignment[]> {
+      const rows = await readAllRows(
+        accessToken,
+        "company_skus",
+        "id,seller_namespace,sku,company_id,terms_version_id",
+        "id.asc",
+        "SKU assignment query",
+      );
+      return rows.map((row) => ({
+        id: requiredJsonString(row, "id"),
+        seller_namespace: requiredJsonString(row, "seller_namespace"),
+        sku: requiredJsonString(row, "sku"),
+        company_id: requiredJsonString(row, "company_id"),
+        terms_version_id: requiredJsonString(row, "terms_version_id"),
+      }));
+    },
+
+    async fetchDatasetPage(options: FetchDatasetPageOptions): Promise<PageResult> {
+      requireAccessToken(options.accessToken);
+      validatePageRequest(options.dataset, options.pageIndex, options.pageSize, options.sort);
+      const config = DATASET_CONFIG[options.dataset];
+      const params = buildDatasetParams(options);
+      const response = await request(
+        `/rest/v1/${config.endpoint}?${params.toString()}`,
+        {
+          headers: {
+            ...authenticatedHeaders(options.accessToken, "text/csv"),
+            Prefer: "count=exact",
+          },
+        },
+        `${config.label} query`,
+      );
+      if (!response.ok) {
+        if (response.status === 416) {
+          const totalCount = parseTotalCount(response.headers.get("Content-Range"));
+          if (totalCount !== null) return { rows: [], totalCount };
+        }
+        throw new Error(`${config.label} query failed with HTTP ${String(response.status)}`);
+      }
+      return {
+        rows: mapDatasetRows(options.dataset, parseCsv(await response.text())),
+        totalCount: parseTotalCount(response.headers.get("Content-Range")),
+      };
+    },
   };
 }
+
+let defaultClient: ReturnType<typeof createApiClient> | undefined;
+function getDefaultClient(): ReturnType<typeof createApiClient> {
+  defaultClient ??= createApiClient(readBuildConfig());
+  return defaultClient;
+}
+
+export const signIn = (email: string, password: string): Promise<Session> =>
+  getDefaultClient().signIn(email, password);
+export const refreshSession = (refreshToken: string): Promise<Session> =>
+  getDefaultClient().refreshSession(refreshToken);
+export const signOut = (accessToken: string): Promise<void> =>
+  getDefaultClient().signOut(accessToken);
+export const fetchAppAccount = (accessToken: string, userId: string): Promise<AppAccount> =>
+  getDefaultClient().fetchAppAccount(accessToken, userId);
+export const fetchCompanies = (accessToken: string): Promise<Company[]> =>
+  getDefaultClient().fetchCompanies(accessToken);
+export const fetchSkuAssignments = (accessToken: string): Promise<SkuAssignment[]> =>
+  getDefaultClient().fetchSkuAssignments(accessToken);
+export const fetchDatasetPage = (options: FetchDatasetPageOptions): Promise<PageResult> =>
+  getDefaultClient().fetchDatasetPage(options);
