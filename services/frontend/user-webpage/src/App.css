@@ -83,7 +83,8 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
-summary:focus-visible {
+summary:focus-visible,
+.detail-card:focus-visible {
   outline: 3px solid #0b7182;
   outline-offset: 2px;
 }
@@ -91,8 +92,7 @@ summary:focus-visible {
 .primary-button,
 .secondary-button,
 .dataset-tabs button,
-.sort-button,
-.detail-button {
+.sort-button {
   border-radius: 7px;
   font-weight: 750;
 }
@@ -109,8 +109,7 @@ summary:focus-visible {
   background: #0b7182;
 }
 
-.secondary-button,
-.detail-button {
+.secondary-button {
   min-height: 36px;
   border: 1px solid #b9c4ce;
   background: #fff;
@@ -118,8 +117,7 @@ summary:focus-visible {
   padding: 0 12px;
 }
 
-.secondary-button:hover,
-.detail-button:hover {
+.secondary-button:hover {
   border-color: #718390;
   background: #f7fafb;
 }
@@ -340,6 +338,15 @@ th {
   text-transform: uppercase;
 }
 
+.inspectable-row {
+  cursor: pointer;
+}
+
+.inspectable-row:focus-visible {
+  outline: 3px solid #0b7182;
+  outline-offset: -3px;
+}
+
 tbody tr:hover,
 tbody tr.selected {
   background: #f0f9fa;
@@ -412,6 +419,7 @@ td.numeric {
 }
 
 .detail-card {
+  scroll-margin-top: 20px;
   overflow: hidden;
   margin-top: 18px;
   border: 1px solid #cbd5dc;

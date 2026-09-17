@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import type { CanonicalRow, DatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
 import { humanizeCode } from "./categories";
@@ -8,17 +9,25 @@ export function RowDetail({
   dataset,
   row,
   skuNames,
+  sectionRef,
 }: {
   companies: Map<string, string>;
   dataset: DatasetKey;
   row: CanonicalRow;
   skuNames: Map<string, string>;
+  sectionRef: Ref<HTMLElement>;
 }) {
   const columns = TABLE_COLUMNS[dataset];
   const shown = new Set(columns.map((column) => column.key));
   const remaining = Object.keys(row).filter((key) => !shown.has(key));
   return (
-    <section className="detail-card" aria-label="Selected row details">
+    <section
+      className="detail-card"
+      id="selected-row-details"
+      aria-label="Selected row details"
+      ref={sectionRef}
+      tabIndex={-1}
+    >
       <div className="detail-heading">
         <div>
           <p className="eyebrow">Selected row</p>

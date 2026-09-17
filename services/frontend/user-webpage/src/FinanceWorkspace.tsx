@@ -30,7 +30,8 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
   const [sort, setSort] = useState<DatasetSort>(DATASET_CONFIG.live.defaultSort);
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [inspection, setInspection] = useState<{ rowId: string } | null>(null);
+  const detailRef = useRef<HTMLElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const requestVersion = useRef(0);
@@ -44,8 +45,8 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
     [identity],
   );
   const selectedRow = useMemo(
-    () => rows.find((row) => rowId(row) === selectedRowId) ?? rows.at(0) ?? null,
-    [rows, selectedRowId],
+    () => rows.find((row) => rowId(row) === inspection?.rowId) ?? rows.at(0) ?? null,
+    [rows, inspection],
   );
   const totalPages = totalCount === null ? null : Math.max(1, Math.ceil(totalCount / pageSize));
   const firstVisible = rows.length === 0 ? 0 : pageIndex * pageSize + 1;
@@ -59,7 +60,7 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
     requestVersion.current = activeRequest;
     setIsLoading(true);
     setRows([]);
-    setSelectedRowId(null);
+    setInspection(null);
     setDataError(null);
 
     try {
@@ -77,7 +78,7 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
           if (pageIndex > finalPageIndex) {
             setRows([]);
             setTotalCount(result.totalCount);
-            setSelectedRowId(null);
+            setInspection(null);
             setPageIndex(finalPageIndex);
             return;
           }
@@ -111,6 +112,13 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
     };
   }, [loadPage]);
 
+  useEffect(() => {
+    if (inspection) {
+      detailRef.current?.focus({ preventScroll: true });
+      detailRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    }
+  }, [inspection]);
+
   function selectDataset(nextDataset: DatasetKey) {
     requestVersion.current += 1;
     setDataset(nextDataset);
@@ -119,7 +127,7 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
     setPageIndex(0);
     setRows([]);
     setTotalCount(null);
-    setSelectedRowId(null);
+    setInspection(null);
   }
 
   function toggleSort(column: string) {
@@ -266,7 +274,6 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
                     )}
                   </th>
                 ))}
-                <th scope="col">Detail</th>
               </tr>
             </thead>
             <tbody>
@@ -274,7 +281,22 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
                 const id = rowId(row);
                 const isSelected = id === (selectedRow ? rowId(selectedRow) : null);
                 return (
-                  <tr className={isSelected ? "selected" : undefined} key={id}>
+                  <tr
+                    className={isSelected ? "inspectable-row selected" : "inspectable-row"}
+                    key={id}
+                    tabIndex={0}
+                    aria-selected={isSelected}
+                    aria-controls="selected-row-details"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setInspection({ rowId: id });
+                      }
+                    }}
+                    onClick={() => {
+                      if (window.getSelection()?.type !== "Range") setInspection({ rowId: id });
+                    }}
+                  >
                     {columns.map((column) => (
                       <td
                         className={column.align === "right" ? "numeric" : undefined}
@@ -288,18 +310,6 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
                         />
                       </td>
                     ))}
-                    <td>
-                      <button
-                        aria-pressed={isSelected}
-                        className="detail-button"
-                        onClick={() => {
-                          setSelectedRowId(id);
-                        }}
-                        type="button"
-                      >
-                        Inspect
-                      </button>
-                    </td>
                   </tr>
                 );
               })}
@@ -344,6 +354,7 @@ export function FinanceWorkspace({ identity }: { identity: Identity }) {
 
       {selectedRow ? (
         <RowDetail
+          sectionRef={detailRef}
           companies={companyNames}
           dataset={dataset}
           row={selectedRow}
