@@ -1,10 +1,12 @@
 # AGENTS.md
 
-- The `.env` file contains sensitive credentials. Do not inspect, print, or modify it directly. Application code may use `load_dotenv()` and access credentials through environment variables.
-- Use the conda environment `A-SelBox` to run the Python scripts.
+- The service configuration file is `services/sync/.env` (not the repository root). It contains sensitive credentials. Do not inspect, print, or modify it directly. Application code may use `load_dotenv()` and access credentials through environment variables; one-off verification scripts should pass the service file's path explicitly.
+- Use the Anaconda environment `A-SelBox` to run the Python scripts.
 - If additional packages are needed, install them in the `A-SelBox` environment and update the `env.yml` file.
-- After making changes, format and lint the files. Read the relevant `README.md` files for details.
-- After making changes, refactor the affected code as appropriate.
+- For the packages not available in Anaconda, use Docker. Do not install packages natively.
+- The first line of the commit message should be of the form `<type>: <subject>`.
+- After making changes, refactor the affected parts.
+  - Format and lint
   - Remove redundant code
   - Simplify logic
   - Split files and functions that are long

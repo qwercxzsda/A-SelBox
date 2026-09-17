@@ -1,0 +1,4407 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-09-08",
+  "classification_policy": "Audit of F1-F7 component and SKU invariants; unmatched populations do not define the current company-amount source.",
+  "acquisition": [
+    {
+      "scope": "AUSTRALIA",
+      "status": "COMPLETE_CURRENT_LISTING_COVERAGE",
+      "created_since": "2026-06-10T03:22:54+00:00",
+      "created_until": "2026-09-08T03:22:54+00:00",
+      "listing_complete": true,
+      "candidate_marketplaces": [
+        "AU"
+      ],
+      "active_marketplaces": [
+        {
+          "marketplace_id": "A39IBJ37TRP1C6",
+          "name": "Amazon.com.au",
+          "domain_name": "www.amazon.com.au"
+        }
+      ],
+      "unfiltered_page_count": 1,
+      "unfiltered_report_count": 8,
+      "identity_anomaly_count": 0,
+      "filtered_listing": {
+        "report_count": 8,
+        "identity_anomaly_count": 0,
+        "unfiltered_only_count": 0,
+        "filtered_only_count": 0
+      },
+      "errors": [],
+      "document_content_sources": {
+        "fresh_download_verified_identical": 8
+      }
+    },
+    {
+      "scope": "EU",
+      "status": "COMPLETE_CURRENT_LISTING_COVERAGE",
+      "created_since": "2026-06-10T03:22:54+00:00",
+      "created_until": "2026-09-08T03:22:54+00:00",
+      "listing_complete": true,
+      "candidate_marketplaces": [
+        "AE",
+        "BE",
+        "DE",
+        "EG",
+        "ES",
+        "FR",
+        "GB",
+        "IE",
+        "IN",
+        "IT",
+        "NL",
+        "PL",
+        "SA",
+        "SE",
+        "TR",
+        "ZA"
+      ],
+      "active_marketplaces": [
+        {
+          "marketplace_id": "A2VIGQ35RCS4UG",
+          "name": "Amazon.ae",
+          "domain_name": "www.amazon.ae"
+        },
+        {
+          "marketplace_id": "AMEN7PMS3EDWL",
+          "name": "Amazon.com.be",
+          "domain_name": "www.amazon.com.be"
+        },
+        {
+          "marketplace_id": "A1PA6795UKMFR9",
+          "name": "Amazon.de",
+          "domain_name": "www.amazon.de"
+        },
+        {
+          "marketplace_id": "A1RKKUPIHCS9HS",
+          "name": "Amazon.es",
+          "domain_name": "www.amazon.es"
+        },
+        {
+          "marketplace_id": "A13V1IB3VIYZZH",
+          "name": "Amazon.fr",
+          "domain_name": "www.amazon.fr"
+        },
+        {
+          "marketplace_id": "A1F83G8C2ARO7P",
+          "name": "Amazon.co.uk",
+          "domain_name": "www.amazon.co.uk"
+        },
+        {
+          "marketplace_id": "A28R8C7NBKEWEA",
+          "name": "Amazon.ie",
+          "domain_name": "www.amazon.ie"
+        },
+        {
+          "marketplace_id": "APJ6JRA9NG5V4",
+          "name": "Amazon.it",
+          "domain_name": "www.amazon.it"
+        },
+        {
+          "marketplace_id": "A1805IZSGTT6HS",
+          "name": "Amazon.nl",
+          "domain_name": "www.amazon.nl"
+        },
+        {
+          "marketplace_id": "A1C3SOZRARQ6R3",
+          "name": "Amazon.pl",
+          "domain_name": "www.amazon.pl"
+        },
+        {
+          "marketplace_id": "A17E79C6D8DWNP",
+          "name": "Amazon.sa",
+          "domain_name": "www.amazon.sa"
+        },
+        {
+          "marketplace_id": "A2NODRKZP88ZB9",
+          "name": "Amazon.se",
+          "domain_name": "www.amazon.se"
+        }
+      ],
+      "unfiltered_page_count": 1,
+      "unfiltered_report_count": 66,
+      "identity_anomaly_count": 0,
+      "filtered_listing": {
+        "report_count": 66,
+        "identity_anomaly_count": 0,
+        "unfiltered_only_count": 0,
+        "filtered_only_count": 0
+      },
+      "errors": [],
+      "document_content_sources": {
+        "matched_previous_raw_cache": 45,
+        "fresh_download_verified_identical": 21
+      }
+    },
+    {
+      "scope": "JAPAN",
+      "status": "COMPLETE_CURRENT_LISTING_COVERAGE",
+      "created_since": "2026-06-10T03:22:54+00:00",
+      "created_until": "2026-09-08T03:22:54+00:00",
+      "listing_complete": true,
+      "candidate_marketplaces": [
+        "JP"
+      ],
+      "active_marketplaces": [
+        {
+          "marketplace_id": "A1VC38T7YXB528",
+          "name": "Amazon.co.jp",
+          "domain_name": "www.amazon.jp"
+        }
+      ],
+      "unfiltered_page_count": 1,
+      "unfiltered_report_count": 0,
+      "identity_anomaly_count": 0,
+      "filtered_listing": {
+        "report_count": 0,
+        "identity_anomaly_count": 0,
+        "unfiltered_only_count": 0,
+        "filtered_only_count": 0
+      },
+      "errors": [],
+      "document_content_sources": {}
+    },
+    {
+      "scope": "NA",
+      "status": "COMPLETE_CURRENT_LISTING_COVERAGE",
+      "created_since": "2026-06-10T03:22:54+00:00",
+      "created_until": "2026-09-08T03:22:54+00:00",
+      "listing_complete": true,
+      "candidate_marketplaces": [
+        "US",
+        "CA",
+        "MX",
+        "BR"
+      ],
+      "active_marketplaces": [
+        {
+          "marketplace_id": "ATVPDKIKX0DER",
+          "name": "Amazon.com",
+          "domain_name": "www.amazon.com"
+        },
+        {
+          "marketplace_id": "A2EUQ1WTGCTBG2",
+          "name": "Amazon.ca",
+          "domain_name": "www.amazon.ca"
+        },
+        {
+          "marketplace_id": "A1AM78C64UM0Y8",
+          "name": "Amazon.com.mx",
+          "domain_name": "www.amazon.com.mx"
+        }
+      ],
+      "unfiltered_page_count": 1,
+      "unfiltered_report_count": 18,
+      "identity_anomaly_count": 0,
+      "filtered_listing": {
+        "report_count": 18,
+        "identity_anomaly_count": 0,
+        "unfiltered_only_count": 0,
+        "filtered_only_count": 0
+      },
+      "errors": [],
+      "document_content_sources": {
+        "fresh_download_verified_identical": 18
+      }
+    },
+    {
+      "scope": "SINGAPORE",
+      "status": "COMPLETE_CURRENT_LISTING_COVERAGE",
+      "created_since": "2026-06-10T03:22:54+00:00",
+      "created_until": "2026-09-08T03:22:54+00:00",
+      "listing_complete": true,
+      "candidate_marketplaces": [
+        "SG"
+      ],
+      "active_marketplaces": [
+        {
+          "marketplace_id": "A19VAU5U5O7RUS",
+          "name": "Amazon.sg",
+          "domain_name": "www.amazon.sg"
+        }
+      ],
+      "unfiltered_page_count": 1,
+      "unfiltered_report_count": 2,
+      "identity_anomaly_count": 0,
+      "filtered_listing": {
+        "report_count": 2,
+        "identity_anomaly_count": 0,
+        "unfiltered_only_count": 0,
+        "filtered_only_count": 0
+      },
+      "errors": [],
+      "document_content_sources": {
+        "fresh_download_verified_identical": 2
+      }
+    }
+  ],
+  "input_document_counts": {
+    "live": 94,
+    "previous_api_cache": 94,
+    "historical_archive": 27
+  },
+  "structurally_rejected_documents": [
+    {
+      "scope": "NA",
+      "source": "historical_archive",
+      "exception_type": "ValueError",
+      "document_fingerprint": "c1cd9c04d020388ea0bcd26402e21f3c48f7315fe15c531f1fca97dcc5c440f8"
+    },
+    {
+      "scope": "NA",
+      "source": "historical_archive",
+      "exception_type": "ValueError",
+      "document_fingerprint": "2bb4f49eef9c088b1f6109f605807236b8b66d12e053caf4b87eb4408b220644"
+    },
+    {
+      "scope": "NA",
+      "source": "historical_archive",
+      "exception_type": "ValueError",
+      "document_fingerprint": "6b2a2f702b07a52d021834ec94093050e8e9a1d79e92b05c1fd9db3b8d528dce"
+    },
+    {
+      "scope": "EU",
+      "source": "historical_archive",
+      "exception_type": "ValueError",
+      "document_fingerprint": "9b47a9555199a9f095ef7686bc344b90504993d9cc16479b617f8a11ba7106e2"
+    }
+  ],
+  "live": {
+    "duplicate_documents_removed": {
+      "live": 1
+    },
+    "same_scope_settlement_different_body_groups": 0,
+    "documents": 93,
+    "rows": 150809,
+    "family_group_rows": {
+      "F1_F4": 149946,
+      "OUTSIDE_F1_F7": 654,
+      "F5_F7": 209
+    },
+    "family_rows": {
+      "F1": 149517,
+      "unmatched": 654,
+      "F3": 329,
+      "F6": 120,
+      "F2": 92,
+      "F5": 69,
+      "F7": 20,
+      "F4": 8
+    },
+    "classification_violations": {},
+    "classification_violating_rows": 0,
+    "violating_examples": [],
+    "scopes": [
+      {
+        "scope": "AUSTRALIA",
+        "documents": 7,
+        "rows": 5284,
+        "f1_f4": 5229,
+        "sku_present": 5229,
+        "outside_f1_f7": 50,
+        "sku_blank": 55,
+        "blank_marketplace_rows": 25,
+        "f5_f7": 5
+      },
+      {
+        "scope": "EU",
+        "documents": 66,
+        "rows": 118479,
+        "f1_f4": 117882,
+        "sku_present": 117882,
+        "outside_f1_f7": 430,
+        "sku_blank": 597,
+        "blank_marketplace_rows": 542,
+        "f5_f7": 167
+      },
+      {
+        "scope": "NA",
+        "documents": 18,
+        "rows": 27028,
+        "f5_f7": 35,
+        "sku_blank": 204,
+        "blank_marketplace_rows": 292,
+        "outside_f1_f7": 169,
+        "f1_f4": 26824,
+        "sku_present": 26824
+      },
+      {
+        "scope": "SINGAPORE",
+        "documents": 2,
+        "rows": 18,
+        "f5_f7": 2,
+        "sku_blank": 7,
+        "blank_marketplace_rows": 4,
+        "outside_f1_f7": 5,
+        "f1_f4": 11,
+        "sku_present": 11
+      }
+    ],
+    "marketplaces": [
+      {
+        "scope": "AUSTRALIA",
+        "marketplace_name": "Amazon.com.au",
+        "rows": 5259,
+        "f1_f4": 5221,
+        "violating_rows": 0,
+        "sku_present": 5221,
+        "outside_f1_f7": 38,
+        "sku_blank": 38
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.co.uk",
+        "rows": 64761,
+        "f1_f4": 64558,
+        "violating_rows": 0,
+        "sku_present": 64558,
+        "outside_f1_f7": 196,
+        "sku_blank": 203,
+        "f5_f7": 7
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.com.be",
+        "rows": 1554,
+        "f1_f4": 1554,
+        "violating_rows": 0,
+        "sku_present": 1554
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.de",
+        "rows": 17249,
+        "f1_f4": 17207,
+        "violating_rows": 0,
+        "sku_present": 17207,
+        "outside_f1_f7": 38,
+        "sku_blank": 42,
+        "f5_f7": 4
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.es",
+        "rows": 1460,
+        "f1_f4": 1451,
+        "violating_rows": 0,
+        "sku_present": 1451,
+        "outside_f1_f7": 9,
+        "sku_blank": 9
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.fr",
+        "rows": 22952,
+        "f1_f4": 22940,
+        "violating_rows": 0,
+        "sku_present": 22940,
+        "outside_f1_f7": 12,
+        "sku_blank": 12
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.ie",
+        "rows": 520,
+        "f1_f4": 520,
+        "violating_rows": 0,
+        "sku_present": 520
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.it",
+        "rows": 8133,
+        "f1_f4": 8121,
+        "violating_rows": 0,
+        "sku_present": 8121,
+        "outside_f1_f7": 12,
+        "sku_blank": 12
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.nl",
+        "rows": 705,
+        "f1_f4": 705,
+        "violating_rows": 0,
+        "sku_present": 705
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.pl",
+        "rows": 118,
+        "f1_f4": 118,
+        "violating_rows": 0,
+        "sku_present": 118
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.se",
+        "rows": 485,
+        "f1_f4": 485,
+        "violating_rows": 0,
+        "sku_present": 485
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Amazon.ca",
+        "rows": 64,
+        "outside_f1_f7": 9,
+        "violating_rows": 0,
+        "sku_blank": 9,
+        "f1_f4": 55,
+        "sku_present": 55
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Amazon.com",
+        "rows": 26672,
+        "f1_f4": 26579,
+        "violating_rows": 0,
+        "sku_present": 26579,
+        "outside_f1_f7": 84,
+        "sku_blank": 93,
+        "f5_f7": 9
+      },
+      {
+        "scope": "SINGAPORE",
+        "marketplace_name": "Amazon.sg",
+        "rows": 14,
+        "outside_f1_f7": 3,
+        "violating_rows": 0,
+        "sku_blank": 3,
+        "f1_f4": 11,
+        "sku_present": 11
+      }
+    ],
+    "scope_currencies": [
+      {
+        "scope": "AUSTRALIA",
+        "currency": "AUD",
+        "documents": 7,
+        "blank_marketplace_rows": 25,
+        "rows": 5284,
+        "f1_f4": 5229,
+        "outside_f1_f7": 50,
+        "f5_f7": 5
+      },
+      {
+        "scope": "EU",
+        "currency": "EUR",
+        "documents": 48,
+        "blank_marketplace_rows": 288,
+        "rows": 52861,
+        "f1_f4": 52568,
+        "outside_f1_f7": 158,
+        "f5_f7": 135
+      },
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "documents": 7,
+        "blank_marketplace_rows": 236,
+        "rows": 64997,
+        "f1_f4": 64711,
+        "f5_f7": 21,
+        "outside_f1_f7": 265
+      },
+      {
+        "scope": "EU",
+        "currency": "PLN",
+        "documents": 5,
+        "blank_marketplace_rows": 9,
+        "rows": 127,
+        "f1_f4": 118,
+        "f5_f7": 6,
+        "outside_f1_f7": 3
+      },
+      {
+        "scope": "EU",
+        "currency": "SEK",
+        "documents": 6,
+        "blank_marketplace_rows": 9,
+        "rows": 494,
+        "f1_f4": 485,
+        "f5_f7": 5,
+        "outside_f1_f7": 4
+      },
+      {
+        "scope": "NA",
+        "currency": "CAD",
+        "documents": 6,
+        "blank_marketplace_rows": 15,
+        "rows": 79,
+        "f5_f7": 12,
+        "outside_f1_f7": 12,
+        "f1_f4": 55
+      },
+      {
+        "scope": "NA",
+        "currency": "MXN",
+        "documents": 3,
+        "blank_marketplace_rows": 8,
+        "rows": 8,
+        "f5_f7": 8
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "documents": 9,
+        "blank_marketplace_rows": 269,
+        "rows": 26941,
+        "f1_f4": 26769,
+        "outside_f1_f7": 157,
+        "f5_f7": 15
+      },
+      {
+        "scope": "SINGAPORE",
+        "currency": "SGD",
+        "documents": 2,
+        "blank_marketplace_rows": 4,
+        "rows": 18,
+        "f5_f7": 2,
+        "outside_f1_f7": 5,
+        "f1_f4": 11
+      }
+    ],
+    "date_ranges": {
+      "settlement-start-date": {
+        "min": "2026-05-11T17:32:11+00:00",
+        "max": "2026-08-23T19:53:47+00:00"
+      },
+      "settlement-end-date": {
+        "min": "2026-06-10T06:33:36+00:00",
+        "max": "2026-09-06T19:50:19+00:00"
+      },
+      "posted-date-time": {
+        "min": "2026-05-13T06:33:37+00:00",
+        "max": "2026-09-05T21:08:47+00:00"
+      }
+    },
+    "report_marketplace_names": {
+      "one_named_marketplace": 89,
+      "no_named_marketplace": 4
+    },
+    "general_validation_observations": {
+      "posted_rows_outside_header_window": 3
+    },
+    "zero_amount_rows": {
+      "f1_f4": 13863,
+      "f5_f7": 8,
+      "outside_f1_f7": 3
+    },
+    "retrocharge_groups": [
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "type": "Order_Retrocharge",
+        "candidate_group": "b9116836eb126d24",
+        "rows": 4,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "type": "Refund_Retrocharge",
+        "candidate_group": "74c284c8bf2f4ef8",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "EU",
+        "currency": "EUR",
+        "type": "Order_Retrocharge",
+        "candidate_group": "756592bc2116e38e",
+        "rows": 4,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "4e2485c973097d26",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "fdd2ea95a5932a83",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "33914acd4758086d",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      }
+    ]
+  },
+  "historical_strict": {
+    "duplicate_documents_removed": {},
+    "same_scope_settlement_different_body_groups": 0,
+    "documents": 23,
+    "rows": 23440,
+    "family_group_rows": {
+      "F1_F4": 23322,
+      "F5_F7": 61,
+      "OUTSIDE_F1_F7": 57
+    },
+    "family_rows": {
+      "F1": 23271,
+      "F6": 43,
+      "unmatched": 57,
+      "F3": 51,
+      "F7": 4,
+      "F5": 14
+    },
+    "classification_violations": {},
+    "classification_violating_rows": 0,
+    "violating_examples": [],
+    "scopes": [
+      {
+        "scope": "EU",
+        "documents": 15,
+        "rows": 19629,
+        "f1_f4": 19553,
+        "sku_present": 19553,
+        "f5_f7": 40,
+        "sku_blank": 76,
+        "blank_marketplace_rows": 102,
+        "outside_f1_f7": 36
+      },
+      {
+        "scope": "NA",
+        "documents": 8,
+        "rows": 3811,
+        "f1_f4": 3769,
+        "sku_present": 3769,
+        "f5_f7": 21,
+        "sku_blank": 42,
+        "blank_marketplace_rows": 63,
+        "outside_f1_f7": 21
+      }
+    ],
+    "marketplaces": [
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.co.uk",
+        "rows": 14333,
+        "f1_f4": 14333,
+        "violating_rows": 0,
+        "sku_present": 14333
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.com.be",
+        "rows": 218,
+        "f1_f4": 218,
+        "violating_rows": 0,
+        "sku_present": 218
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.de",
+        "rows": 1988,
+        "f1_f4": 1988,
+        "violating_rows": 0,
+        "sku_present": 1988
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.es",
+        "rows": 270,
+        "f1_f4": 270,
+        "violating_rows": 0,
+        "sku_present": 270
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.fr",
+        "rows": 1468,
+        "f1_f4": 1468,
+        "violating_rows": 0,
+        "sku_present": 1468
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.ie",
+        "rows": 79,
+        "f1_f4": 79,
+        "violating_rows": 0,
+        "sku_present": 79
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.it",
+        "rows": 1033,
+        "f1_f4": 1033,
+        "violating_rows": 0,
+        "sku_present": 1033
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.nl",
+        "rows": 86,
+        "f1_f4": 86,
+        "violating_rows": 0,
+        "sku_present": 86
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.se",
+        "rows": 52,
+        "f1_f4": 52,
+        "violating_rows": 0,
+        "sku_present": 52
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Amazon.ca",
+        "rows": 20,
+        "f1_f4": 20,
+        "violating_rows": 0,
+        "sku_present": 20
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Amazon.com",
+        "rows": 3726,
+        "f1_f4": 3722,
+        "violating_rows": 0,
+        "sku_present": 3722,
+        "f5_f7": 4,
+        "sku_blank": 4
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Non-Amazon US",
+        "rows": 2,
+        "f1_f4": 2,
+        "violating_rows": 0,
+        "sku_present": 2
+      }
+    ],
+    "scope_currencies": [
+      {
+        "scope": "EU",
+        "currency": "EUR",
+        "documents": 10,
+        "blank_marketplace_rows": 55,
+        "rows": 5197,
+        "f1_f4": 5146,
+        "f5_f7": 33,
+        "outside_f1_f7": 18
+      },
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "documents": 2,
+        "blank_marketplace_rows": 43,
+        "rows": 14376,
+        "f1_f4": 14355,
+        "f5_f7": 5,
+        "outside_f1_f7": 16
+      },
+      {
+        "scope": "EU",
+        "currency": "PLN",
+        "documents": 1,
+        "blank_marketplace_rows": 3,
+        "rows": 3,
+        "f5_f7": 2,
+        "outside_f1_f7": 1
+      },
+      {
+        "scope": "EU",
+        "currency": "SEK",
+        "documents": 2,
+        "blank_marketplace_rows": 1,
+        "rows": 53,
+        "f1_f4": 52,
+        "outside_f1_f7": 1
+      },
+      {
+        "scope": "NA",
+        "currency": "CAD",
+        "documents": 4,
+        "blank_marketplace_rows": 15,
+        "rows": 35,
+        "f1_f4": 20,
+        "f5_f7": 9,
+        "outside_f1_f7": 6
+      },
+      {
+        "scope": "NA",
+        "currency": "MXN",
+        "documents": 2,
+        "blank_marketplace_rows": 5,
+        "rows": 5,
+        "f5_f7": 5
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "documents": 2,
+        "blank_marketplace_rows": 43,
+        "rows": 3771,
+        "f1_f4": 3749,
+        "f5_f7": 7,
+        "outside_f1_f7": 15
+      }
+    ],
+    "date_ranges": {
+      "settlement-start-date": {
+        "min": "2026-02-02T17:32:11+00:00",
+        "max": "2026-04-24T17:32:06+00:00"
+      },
+      "settlement-end-date": {
+        "min": "2026-03-18T06:33:37+00:00",
+        "max": "2026-05-09T08:08:18+00:00"
+      },
+      "posted-date-time": {
+        "min": "2026-02-18T06:33:37+00:00",
+        "max": "2026-05-07T01:21:51+00:00"
+      }
+    },
+    "report_marketplace_names": {
+      "one_named_marketplace": 17,
+      "no_named_marketplace": 5,
+      "multiple_named_marketplaces": 1
+    },
+    "general_validation_observations": {
+      "posted_rows_outside_header_window": 3
+    },
+    "zero_amount_rows": {
+      "f1_f4": 2157
+    },
+    "retrocharge_groups": [
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "8e4f8eac90e789b9",
+        "rows": 4,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      }
+    ]
+  },
+  "combined_strict": {
+    "duplicate_documents_removed": {
+      "live": 1,
+      "previous_api_cache": 94
+    },
+    "same_scope_settlement_different_body_groups": 0,
+    "documents": 116,
+    "rows": 174249,
+    "family_group_rows": {
+      "F1_F4": 173268,
+      "OUTSIDE_F1_F7": 711,
+      "F5_F7": 270
+    },
+    "family_rows": {
+      "F1": 172788,
+      "unmatched": 711,
+      "F3": 380,
+      "F6": 163,
+      "F2": 92,
+      "F5": 83,
+      "F7": 24,
+      "F4": 8
+    },
+    "classification_violations": {},
+    "classification_violating_rows": 0,
+    "violating_examples": [],
+    "scopes": [
+      {
+        "scope": "AUSTRALIA",
+        "documents": 7,
+        "rows": 5284,
+        "f1_f4": 5229,
+        "sku_present": 5229,
+        "outside_f1_f7": 50,
+        "sku_blank": 55,
+        "blank_marketplace_rows": 25,
+        "f5_f7": 5
+      },
+      {
+        "scope": "EU",
+        "documents": 81,
+        "rows": 138108,
+        "f1_f4": 137435,
+        "sku_present": 137435,
+        "outside_f1_f7": 466,
+        "sku_blank": 673,
+        "blank_marketplace_rows": 644,
+        "f5_f7": 207
+      },
+      {
+        "scope": "NA",
+        "documents": 26,
+        "rows": 30839,
+        "f5_f7": 56,
+        "sku_blank": 246,
+        "blank_marketplace_rows": 355,
+        "outside_f1_f7": 190,
+        "f1_f4": 30593,
+        "sku_present": 30593
+      },
+      {
+        "scope": "SINGAPORE",
+        "documents": 2,
+        "rows": 18,
+        "f5_f7": 2,
+        "sku_blank": 7,
+        "blank_marketplace_rows": 4,
+        "outside_f1_f7": 5,
+        "f1_f4": 11,
+        "sku_present": 11
+      }
+    ],
+    "marketplaces": [
+      {
+        "scope": "AUSTRALIA",
+        "marketplace_name": "Amazon.com.au",
+        "rows": 5259,
+        "f1_f4": 5221,
+        "violating_rows": 0,
+        "sku_present": 5221,
+        "outside_f1_f7": 38,
+        "sku_blank": 38
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.co.uk",
+        "rows": 79094,
+        "f1_f4": 78891,
+        "violating_rows": 0,
+        "sku_present": 78891,
+        "outside_f1_f7": 196,
+        "sku_blank": 203,
+        "f5_f7": 7
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.com.be",
+        "rows": 1772,
+        "f1_f4": 1772,
+        "violating_rows": 0,
+        "sku_present": 1772
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.de",
+        "rows": 19237,
+        "f1_f4": 19195,
+        "violating_rows": 0,
+        "sku_present": 19195,
+        "outside_f1_f7": 38,
+        "sku_blank": 42,
+        "f5_f7": 4
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.es",
+        "rows": 1730,
+        "f1_f4": 1721,
+        "violating_rows": 0,
+        "sku_present": 1721,
+        "outside_f1_f7": 9,
+        "sku_blank": 9
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.fr",
+        "rows": 24420,
+        "f1_f4": 24408,
+        "violating_rows": 0,
+        "sku_present": 24408,
+        "outside_f1_f7": 12,
+        "sku_blank": 12
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.ie",
+        "rows": 599,
+        "f1_f4": 599,
+        "violating_rows": 0,
+        "sku_present": 599
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.it",
+        "rows": 9166,
+        "f1_f4": 9154,
+        "violating_rows": 0,
+        "sku_present": 9154,
+        "outside_f1_f7": 12,
+        "sku_blank": 12
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.nl",
+        "rows": 791,
+        "f1_f4": 791,
+        "violating_rows": 0,
+        "sku_present": 791
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.pl",
+        "rows": 118,
+        "f1_f4": 118,
+        "violating_rows": 0,
+        "sku_present": 118
+      },
+      {
+        "scope": "EU",
+        "marketplace_name": "Amazon.se",
+        "rows": 537,
+        "f1_f4": 537,
+        "violating_rows": 0,
+        "sku_present": 537
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Amazon.ca",
+        "rows": 84,
+        "outside_f1_f7": 9,
+        "violating_rows": 0,
+        "sku_blank": 9,
+        "f1_f4": 75,
+        "sku_present": 75
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Amazon.com",
+        "rows": 30398,
+        "f1_f4": 30301,
+        "violating_rows": 0,
+        "sku_present": 30301,
+        "outside_f1_f7": 84,
+        "sku_blank": 97,
+        "f5_f7": 13
+      },
+      {
+        "scope": "NA",
+        "marketplace_name": "Non-Amazon US",
+        "rows": 2,
+        "f1_f4": 2,
+        "violating_rows": 0,
+        "sku_present": 2
+      },
+      {
+        "scope": "SINGAPORE",
+        "marketplace_name": "Amazon.sg",
+        "rows": 14,
+        "outside_f1_f7": 3,
+        "violating_rows": 0,
+        "sku_blank": 3,
+        "f1_f4": 11,
+        "sku_present": 11
+      }
+    ],
+    "scope_currencies": [
+      {
+        "scope": "AUSTRALIA",
+        "currency": "AUD",
+        "documents": 7,
+        "blank_marketplace_rows": 25,
+        "rows": 5284,
+        "f1_f4": 5229,
+        "outside_f1_f7": 50,
+        "f5_f7": 5
+      },
+      {
+        "scope": "EU",
+        "currency": "EUR",
+        "documents": 58,
+        "blank_marketplace_rows": 343,
+        "rows": 58058,
+        "f1_f4": 57714,
+        "outside_f1_f7": 176,
+        "f5_f7": 168
+      },
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "documents": 9,
+        "blank_marketplace_rows": 279,
+        "rows": 79373,
+        "f1_f4": 79066,
+        "f5_f7": 26,
+        "outside_f1_f7": 281
+      },
+      {
+        "scope": "EU",
+        "currency": "PLN",
+        "documents": 6,
+        "blank_marketplace_rows": 12,
+        "rows": 130,
+        "f1_f4": 118,
+        "f5_f7": 8,
+        "outside_f1_f7": 4
+      },
+      {
+        "scope": "EU",
+        "currency": "SEK",
+        "documents": 8,
+        "blank_marketplace_rows": 10,
+        "rows": 547,
+        "f1_f4": 537,
+        "f5_f7": 5,
+        "outside_f1_f7": 5
+      },
+      {
+        "scope": "NA",
+        "currency": "CAD",
+        "documents": 10,
+        "blank_marketplace_rows": 30,
+        "rows": 114,
+        "f5_f7": 21,
+        "outside_f1_f7": 18,
+        "f1_f4": 75
+      },
+      {
+        "scope": "NA",
+        "currency": "MXN",
+        "documents": 5,
+        "blank_marketplace_rows": 13,
+        "rows": 13,
+        "f5_f7": 13
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "documents": 11,
+        "blank_marketplace_rows": 312,
+        "rows": 30712,
+        "f1_f4": 30518,
+        "outside_f1_f7": 172,
+        "f5_f7": 22
+      },
+      {
+        "scope": "SINGAPORE",
+        "currency": "SGD",
+        "documents": 2,
+        "blank_marketplace_rows": 4,
+        "rows": 18,
+        "f5_f7": 2,
+        "outside_f1_f7": 5,
+        "f1_f4": 11
+      }
+    ],
+    "date_ranges": {
+      "settlement-start-date": {
+        "min": "2026-02-02T17:32:11+00:00",
+        "max": "2026-08-23T19:53:47+00:00"
+      },
+      "settlement-end-date": {
+        "min": "2026-03-18T06:33:37+00:00",
+        "max": "2026-09-06T19:50:19+00:00"
+      },
+      "posted-date-time": {
+        "min": "2026-02-18T06:33:37+00:00",
+        "max": "2026-09-05T21:08:47+00:00"
+      }
+    },
+    "report_marketplace_names": {
+      "one_named_marketplace": 106,
+      "no_named_marketplace": 9,
+      "multiple_named_marketplaces": 1
+    },
+    "general_validation_observations": {
+      "posted_rows_outside_header_window": 6
+    },
+    "zero_amount_rows": {
+      "f1_f4": 16020,
+      "f5_f7": 8,
+      "outside_f1_f7": 3
+    },
+    "retrocharge_groups": [
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "type": "Order_Retrocharge",
+        "candidate_group": "b9116836eb126d24",
+        "rows": 4,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "EU",
+        "currency": "GBP",
+        "type": "Refund_Retrocharge",
+        "candidate_group": "74c284c8bf2f4ef8",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "EU",
+        "currency": "EUR",
+        "type": "Order_Retrocharge",
+        "candidate_group": "756592bc2116e38e",
+        "rows": 4,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "4e2485c973097d26",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "fdd2ea95a5932a83",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "33914acd4758086d",
+        "rows": 3,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      },
+      {
+        "scope": "NA",
+        "currency": "USD",
+        "type": "Order_Retrocharge",
+        "candidate_group": "8e4f8eac90e789b9",
+        "rows": 4,
+        "signed_total": "0.00",
+        "observed_zero_net": true,
+        "missing_required_identity": [],
+        "adjustment_id_present": false,
+        "document_count": 1,
+        "item_price_and_withheld_present": true,
+        "universal_identity_and_completeness_proven": false
+      }
+    ],
+    "signatures": [
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "Amazon service fee for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)",
+        "amount_description": "Base fee",
+        "rows": 1,
+        "outside_f1_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "Coupon Participation Fee",
+        "amount_description": "Base fee",
+        "rows": 4,
+        "outside_f1_f7": 4,
+        "sku_blank": 4
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "Coupon Performance Based Fee",
+        "amount_description": "Base fee",
+        "rows": 2,
+        "outside_f1_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "Deal Participation Fee",
+        "amount_description": "Base fee",
+        "rows": 16,
+        "outside_f1_f7": 16,
+        "sku_blank": 16
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "Deal Performance Based Fee",
+        "amount_description": "Base fee",
+        "rows": 15,
+        "outside_f1_f7": 15,
+        "sku_blank": 15
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "Eco-contribution for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)",
+        "amount_description": "Base fee",
+        "rows": 1,
+        "outside_f1_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "FBA fulfilment fee per unit - Correction",
+        "amount_description": "Base fee",
+        "rows": 4,
+        "f1_f4": 4,
+        "sku_present": 4
+      },
+      {
+        "transaction_type": "AmazonFees",
+        "amount_type": "FBA fulfilment fee per unit - Reversal",
+        "amount_description": "Base fee",
+        "rows": 4,
+        "f1_f4": 4,
+        "sku_present": 4
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE",
+        "rows": 10,
+        "f5_f7": 10,
+        "sku_blank": 10
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE, ES",
+        "rows": 3,
+        "f5_f7": 3,
+        "sku_blank": 3
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE, ES, NL",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE, FR, ES",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE, FR, ES, NL",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE, NL",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against BE, NL, ES",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against DE",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against DE, BE, ES",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against DE, NL, ES",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against ES",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against ES, NL",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against FR",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment against NL, ES",
+        "rows": 3,
+        "f5_f7": 3,
+        "sku_blank": 3
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment for BE",
+        "rows": 5,
+        "f5_f7": 5,
+        "sku_blank": 5
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment for DE",
+        "rows": 3,
+        "f5_f7": 3,
+        "sku_blank": 3
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment for ES",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment for FR",
+        "rows": 17,
+        "f5_f7": 17,
+        "sku_blank": 17
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment for IT",
+        "rows": 24,
+        "f5_f7": 24,
+        "sku_blank": 24
+      },
+      {
+        "transaction_type": "Debt Adjustment",
+        "amount_type": "Debt Adjustment",
+        "amount_description": "Cross-Account Debt Adjustment for NL",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Amazon-Partnered Carrier Shipment Fee",
+        "amount_description": "Base fee",
+        "rows": 6,
+        "outside_f1_f7": 6,
+        "sku_blank": 6
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Inbound Placement Service Fee",
+        "amount_description": "Base fee",
+        "rows": 10,
+        "outside_f1_f7": 10,
+        "sku_blank": 10
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Inventory Storage Fee",
+        "amount_description": "Base fee",
+        "rows": 22,
+        "outside_f1_f7": 22,
+        "sku_blank": 22
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Inventory Storage Fee",
+        "amount_description": "Tax on fee",
+        "rows": 3,
+        "outside_f1_f7": 3,
+        "sku_blank": 3
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Long Term Storage Fee",
+        "amount_description": "Base fee",
+        "rows": 9,
+        "outside_f1_f7": 9,
+        "sku_blank": 9
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Long Term Storage Fee",
+        "amount_description": "Tax on fee",
+        "rows": 2,
+        "outside_f1_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Removal Order: Disposal Fee",
+        "amount_description": "Base fee",
+        "rows": 284,
+        "outside_f1_f7": 284,
+        "sku_blank": 284
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Removal Order: Disposal Fee",
+        "amount_description": "Tax on fee",
+        "rows": 15,
+        "outside_f1_f7": 15,
+        "sku_blank": 15
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "FBA Removal Order: Return Fee",
+        "amount_description": "Base fee",
+        "rows": 2,
+        "outside_f1_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "Inbound Defect Fee",
+        "amount_description": "Base fee",
+        "rows": 1,
+        "outside_f1_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "FBAFees",
+        "amount_type": "Inbound Transportation Program Fee",
+        "amount_description": "Base fee",
+        "rows": 4,
+        "outside_f1_f7": 4,
+        "sku_blank": 4
+      },
+      {
+        "transaction_type": "Liquidations",
+        "amount_type": "ItemFees",
+        "amount_description": "LiquidationsBrokerageFee",
+        "rows": 40,
+        "f1_f4": 40,
+        "sku_present": 40
+      },
+      {
+        "transaction_type": "Liquidations",
+        "amount_type": "ItemPrice",
+        "amount_description": "Principal",
+        "rows": 40,
+        "f1_f4": 40,
+        "sku_present": 40
+      },
+      {
+        "transaction_type": "Liquidations",
+        "amount_type": "ItemPrice",
+        "amount_description": "Tax",
+        "rows": 6,
+        "f1_f4": 6,
+        "sku_present": 6
+      },
+      {
+        "transaction_type": "Liquidations Adjustments",
+        "amount_type": "ItemFees",
+        "amount_description": "LiquidationsBrokerageFee",
+        "rows": 2,
+        "f1_f4": 2,
+        "sku_present": 2
+      },
+      {
+        "transaction_type": "Liquidations Adjustments",
+        "amount_type": "ItemPrice",
+        "amount_description": "Principal",
+        "rows": 2,
+        "f1_f4": 2,
+        "sku_present": 2
+      },
+      {
+        "transaction_type": "Liquidations Adjustments",
+        "amount_type": "ItemPrice",
+        "amount_description": "Tax",
+        "rows": 2,
+        "f1_f4": 2,
+        "sku_present": 2
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemFees",
+        "amount_description": "Commission",
+        "rows": 24296,
+        "f1_f4": 24296,
+        "sku_present": 24296
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemFees",
+        "amount_description": "Digital Services Fee",
+        "rows": 55,
+        "f1_f4": 55,
+        "sku_present": 55
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemFees",
+        "amount_description": "DigitalServicesFee",
+        "rows": 14284,
+        "f1_f4": 14284,
+        "sku_present": 14284
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemFees",
+        "amount_description": "FBAPerUnitFulfillmentFee",
+        "rows": 24479,
+        "f1_f4": 24479,
+        "sku_present": 24479
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemFees",
+        "amount_description": "ShippingChargeback",
+        "rows": 1789,
+        "f1_f4": 1789,
+        "sku_present": 1789
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemPrice",
+        "amount_description": "Principal",
+        "rows": 24479,
+        "f1_f4": 24479,
+        "sku_present": 24479
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemPrice",
+        "amount_description": "Shipping",
+        "rows": 5654,
+        "f1_f4": 5654,
+        "sku_present": 5654
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemPrice",
+        "amount_description": "ShippingTax",
+        "rows": 4001,
+        "f1_f4": 4001,
+        "sku_present": 4001
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemPrice",
+        "amount_description": "Tax",
+        "rows": 22774,
+        "f1_f4": 22774,
+        "sku_present": 22774
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "LowValueGoodsTax-Principal",
+        "rows": 3,
+        "f1_f4": 3,
+        "sku_present": 3
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "LowValueGoodsTax-Shipping",
+        "rows": 3,
+        "f1_f4": 3,
+        "sku_present": 3
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Principal",
+        "rows": 5108,
+        "f1_f4": 5108,
+        "sku_present": 5108
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Shipping",
+        "rows": 72,
+        "f1_f4": 72,
+        "sku_present": 72
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Principal",
+        "rows": 17506,
+        "f1_f4": 17506,
+        "sku_present": 17506
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Shipping",
+        "rows": 17486,
+        "f1_f4": 17486,
+        "sku_present": 17486
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "Promotion",
+        "amount_description": "Principal",
+        "rows": 657,
+        "f1_f4": 657,
+        "sku_present": 657
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "Promotion",
+        "amount_description": "Shipping",
+        "rows": 3854,
+        "f1_f4": 3854,
+        "sku_present": 3854
+      },
+      {
+        "transaction_type": "Order",
+        "amount_type": "Promotion",
+        "amount_description": "TaxDiscount",
+        "rows": 2755,
+        "f1_f4": 2755,
+        "sku_present": 2755
+      },
+      {
+        "transaction_type": "Order_Retrocharge",
+        "amount_type": "ItemPrice",
+        "amount_description": "ShippingTax",
+        "rows": 6,
+        "f5_f7": 6,
+        "sku_blank": 6
+      },
+      {
+        "transaction_type": "Order_Retrocharge",
+        "amount_type": "ItemPrice",
+        "amount_description": "Tax",
+        "rows": 6,
+        "f5_f7": 6,
+        "sku_blank": 6
+      },
+      {
+        "transaction_type": "Order_Retrocharge",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Principal",
+        "rows": 4,
+        "f5_f7": 4,
+        "sku_blank": 4
+      },
+      {
+        "transaction_type": "Order_Retrocharge",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Shipping",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Order_Retrocharge",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Principal",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "Order_Retrocharge",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Shipping",
+        "rows": 2,
+        "f5_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemFees",
+        "amount_description": "Commission",
+        "rows": 534,
+        "f1_f4": 534,
+        "sku_present": 534
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemFees",
+        "amount_description": "DigitalServicesFee",
+        "rows": 279,
+        "f1_f4": 279,
+        "sku_present": 279
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemFees",
+        "amount_description": "RefundCommission",
+        "rows": 534,
+        "f1_f4": 534,
+        "sku_present": 534
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemFees",
+        "amount_description": "ShippingChargeback",
+        "rows": 74,
+        "f1_f4": 74,
+        "sku_present": 74
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemPrice",
+        "amount_description": "Principal",
+        "rows": 546,
+        "f1_f4": 546,
+        "sku_present": 546
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemPrice",
+        "amount_description": "RestockingFee",
+        "rows": 2,
+        "f1_f4": 2,
+        "sku_present": 2
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemPrice",
+        "amount_description": "Shipping",
+        "rows": 154,
+        "f1_f4": 154,
+        "sku_present": 154
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemPrice",
+        "amount_description": "ShippingTax",
+        "rows": 104,
+        "f1_f4": 104,
+        "sku_present": 104
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemPrice",
+        "amount_description": "Tax",
+        "rows": 528,
+        "f1_f4": 528,
+        "sku_present": 528
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Other",
+        "rows": 10,
+        "f1_f4": 10,
+        "sku_present": 10
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Principal",
+        "rows": 183,
+        "f1_f4": 183,
+        "sku_present": 183
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorTax-Shipping",
+        "rows": 7,
+        "f1_f4": 7,
+        "sku_present": 7
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Principal",
+        "rows": 333,
+        "f1_f4": 333,
+        "sku_present": 333
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Shipping",
+        "rows": 96,
+        "f1_f4": 96,
+        "sku_present": 96
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "Promotion",
+        "amount_description": "Principal",
+        "rows": 20,
+        "f1_f4": 20,
+        "sku_present": 20
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "Promotion",
+        "amount_description": "Shipping",
+        "rows": 79,
+        "f1_f4": 79,
+        "sku_present": 79
+      },
+      {
+        "transaction_type": "Refund",
+        "amount_type": "Promotion",
+        "amount_description": "TaxDiscount",
+        "rows": 50,
+        "f1_f4": 50,
+        "sku_present": 50
+      },
+      {
+        "transaction_type": "Refund_Retrocharge",
+        "amount_type": "ItemPrice",
+        "amount_description": "ShippingTax",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Refund_Retrocharge",
+        "amount_type": "ItemPrice",
+        "amount_description": "Tax",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "Refund_Retrocharge",
+        "amount_type": "ItemWithheldTax",
+        "amount_description": "MarketplaceFacilitatorVAT-Principal",
+        "rows": 1,
+        "f5_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "ServiceFee",
+        "amount_type": "Cost of Advertising",
+        "amount_description": "TransactionTotalAmount",
+        "rows": 218,
+        "outside_f1_f7": 218,
+        "sku_blank": 218
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "FBA Inventory Reimbursement",
+        "amount_description": "COMPENSATED_CLAWBACK",
+        "rows": 58,
+        "f1_f4": 58,
+        "sku_present": 58
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "FBA Inventory Reimbursement",
+        "amount_description": "FREE_REPLACEMENT_REFUND_ITEMS",
+        "rows": 21,
+        "f1_f4": 21,
+        "sku_present": 21
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "FBA Inventory Reimbursement",
+        "amount_description": "REVERSAL_REIMBURSEMENT",
+        "rows": 183,
+        "f1_f4": 183,
+        "sku_present": 183
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "FBA Inventory Reimbursement",
+        "amount_description": "WAREHOUSE_DAMAGE",
+        "rows": 53,
+        "f1_f4": 53,
+        "sku_present": 53
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "FBA Inventory Reimbursement",
+        "amount_description": "WAREHOUSE_LOST",
+        "rows": 65,
+        "f1_f4": 65,
+        "sku_present": 65
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "rows": 6,
+        "f5_f7": 6,
+        "sku_blank": 6
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "DisposalComplete",
+        "rows": 43,
+        "outside_f1_f7": 43,
+        "sku_blank": 43
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "FBA Inbound Placement Service Fee",
+        "rows": 4,
+        "outside_f1_f7": 4,
+        "sku_blank": 4
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "FBAInboundTransportationFee",
+        "rows": 12,
+        "outside_f1_f7": 12,
+        "sku_blank": 12
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "FBAInboundTransportationProgramFee",
+        "rows": 12,
+        "outside_f1_f7": 12,
+        "sku_blank": 12
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Fee Adjustment",
+        "rows": 1,
+        "outside_f1_f7": 1,
+        "sku_blank": 1
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Inbound Transportation Fee",
+        "rows": 8,
+        "outside_f1_f7": 8,
+        "sku_blank": 8
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Payable to Amazon",
+        "rows": 67,
+        "f5_f7": 67,
+        "sku_blank": 67
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Previous Reserve Amount Balance",
+        "rows": 6,
+        "f5_f7": 6,
+        "sku_blank": 6
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "RemovalComplete",
+        "rows": 2,
+        "outside_f1_f7": 2,
+        "sku_blank": 2
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Storage Fee",
+        "rows": 7,
+        "outside_f1_f7": 7,
+        "sku_blank": 7
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "StorageRenewalBilling",
+        "rows": 7,
+        "outside_f1_f7": 7,
+        "sku_blank": 7
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Subscription Fee",
+        "rows": 21,
+        "f5_f7": 21,
+        "sku_blank": 21
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Successful charge",
+        "rows": 60,
+        "f5_f7": 60,
+        "sku_blank": 60
+      },
+      {
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Transfer of funds unsuccessful: We could not transfer funds to your bank account because the account information on file is invalid. Please update your bank account information.",
+        "rows": 3,
+        "f5_f7": 3,
+        "sku_blank": 3
+      }
+    ],
+    "document_controls": [
+      {
+        "scope": "AUSTRALIA",
+        "document": "14fd06b2d8b19526",
+        "source": "live",
+        "rows": 1058,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "d010dee3882810860a9ede74a2115bc70a53006823ffa88239f5513848113ddb"
+      },
+      {
+        "scope": "AUSTRALIA",
+        "document": "f3eb997a58197d60",
+        "source": "live",
+        "rows": 888,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "c9eab784eb08529edc939dd02e256a7d6655268d585946d61fa75a41be838a4e"
+      },
+      {
+        "scope": "AUSTRALIA",
+        "document": "abf1add366569c9c",
+        "source": "live",
+        "rows": 840,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "286be3b916e0ec8ea3c90a6f1782f155c0ee48534eef5898cef214795ae98671"
+      },
+      {
+        "scope": "AUSTRALIA",
+        "document": "24f808d62098261f",
+        "source": "live",
+        "rows": 710,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "4cfe17334240bff533ea34a26d12e223ae2f1a5c06eb727f13d4614ef496812f"
+      },
+      {
+        "scope": "AUSTRALIA",
+        "document": "1ea28e431b543797",
+        "source": "live",
+        "rows": 295,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "059a68141c5658e4f7e4a9709623d4e248f9d92c55be026a0f050bf265d8badd"
+      },
+      {
+        "scope": "AUSTRALIA",
+        "document": "5eddfd0b0effd4b7",
+        "source": "live",
+        "rows": 823,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "a8f09b25d057ad1157753fdeb32898704b03eba6f37fcbc87611af5e80fa18b8"
+      },
+      {
+        "scope": "AUSTRALIA",
+        "document": "37a76c460eca4545",
+        "source": "live",
+        "rows": 670,
+        "currency": "AUD",
+        "named_marketplaces": [
+          "Amazon.com.au"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "476aaadac8ece950bd940005464bad0eb981d885e82285ec891f699e43278320"
+      },
+      {
+        "scope": "EU",
+        "document": "913710142629dc3b",
+        "source": "live",
+        "rows": 54,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "89552300abda38c6017767e2f5b3d7f0ac237a7d4feb865d447d8fbbdc67ae92"
+      },
+      {
+        "scope": "EU",
+        "document": "ff48148ceb87b9de",
+        "source": "live",
+        "rows": 10872,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "723a4811a0eb310c361ab45248eb15a273b81cac303a016b2e380b8862103eb9"
+      },
+      {
+        "scope": "EU",
+        "document": "0f5efabb1145220a",
+        "source": "live",
+        "rows": 252,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "9079a57140d26aaecd9d3350e6c92429f12e7f42317f09f2cd79574d4a9e450d"
+      },
+      {
+        "scope": "EU",
+        "document": "bbfad93e9ce7c867",
+        "source": "live",
+        "rows": 1976,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "dcb7a48e3b4bf83239a08ddbe3d93b74be497ef820802d0128b5aa7063e0b43d"
+      },
+      {
+        "scope": "EU",
+        "document": "afcb963c77418cff",
+        "source": "live",
+        "rows": 612,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "018a25cf222053c4b7bdea8d59273dad9bfeb98588127aa50dabbd78fc0d5936"
+      },
+      {
+        "scope": "EU",
+        "document": "294e44ab6fc18588",
+        "source": "live",
+        "rows": 3397,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "793a86e4daa58ca754c27291a592a1e130d62e95578a9ed6dca91a7bf7068bf4"
+      },
+      {
+        "scope": "EU",
+        "document": "417f3c6fecf011ae",
+        "source": "live",
+        "rows": 86,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "0080866884d230b1154c63cc1b3280b8d43342ae2cfbb40ede8674e5049ede7e"
+      },
+      {
+        "scope": "EU",
+        "document": "1d73b4979817e6a1",
+        "source": "live",
+        "rows": 37,
+        "currency": "PLN",
+        "named_marketplaces": [
+          "Amazon.pl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "09257196f021012d5a35ae727587e3e9050668e4e5a59d14739288a0b841be40"
+      },
+      {
+        "scope": "EU",
+        "document": "129a2af8450882ef",
+        "source": "live",
+        "rows": 82,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "7c885732e3089b3e1c8a7e734ee6515f083c1931137fc10ee49dc76bb13fbc55"
+      },
+      {
+        "scope": "EU",
+        "document": "1fbee6050e627888",
+        "source": "live",
+        "rows": 283,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "b64907185e116c7585297b80d2a965d8dedcf720c8192f7c8b67ffcd94a4baef"
+      },
+      {
+        "scope": "EU",
+        "document": "8654448640d1b897",
+        "source": "live",
+        "rows": 87,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "d5d8c366ee81387015b5b539a3cb346b675eb22d835d1582b6484e6183bb755a"
+      },
+      {
+        "scope": "EU",
+        "document": "79423cd480d569fa",
+        "source": "live",
+        "rows": 11574,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "d8ec0d61138f515d0de18e397ccc745745a119c3ac565a5f370d86b3c25f329b"
+      },
+      {
+        "scope": "EU",
+        "document": "67edaebbb2078367",
+        "source": "live",
+        "rows": 354,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 1,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "b10f1eec2c5d23a140e6eee9f539b8b10a3c541486978aade9e6622166c404ec"
+      },
+      {
+        "scope": "EU",
+        "document": "a64a29b663c28428",
+        "source": "live",
+        "rows": 97,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "20b6850a7cc3ce74fb3447a2c5837111538dc309b182b5357d477f11deebc483"
+      },
+      {
+        "scope": "EU",
+        "document": "b2fb4bf770e51822",
+        "source": "live",
+        "rows": 499,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "44680e3959fa44d82da2a8a2c7ec96ced2696c557c658dcea138fbb3823669f7"
+      },
+      {
+        "scope": "EU",
+        "document": "01c87c521d91ded4",
+        "source": "live",
+        "rows": 2974,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "52e9592da9f329e13d4e8d7814458c1dfd10508e38f305109a222578acf24473"
+      },
+      {
+        "scope": "EU",
+        "document": "f1b1f81f225f31dc",
+        "source": "live",
+        "rows": 2456,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "1d8491f23699628c7d6cb9466ad701f1d1771fbe26116b248542a7b1349018ce"
+      },
+      {
+        "scope": "EU",
+        "document": "3a4c9791873c8aeb",
+        "source": "live",
+        "rows": 33,
+        "currency": "PLN",
+        "named_marketplaces": [
+          "Amazon.pl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "eab4d04632165b18c1372abb59e36c87cb60c43c8eaa63fd12993365909340ff"
+      },
+      {
+        "scope": "EU",
+        "document": "16a6d308b0388efd",
+        "source": "live",
+        "rows": 41,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "55a6521f71ee665c1eff16d10ba317815b394942412cbc5a97631f4f7cd32a0a"
+      },
+      {
+        "scope": "EU",
+        "document": "175a29c3de866f58",
+        "source": "live",
+        "rows": 212,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "66af29f392aff03f2ccd3a5c4c2ace40dd09972a72853f2069389d47635f8a72"
+      },
+      {
+        "scope": "EU",
+        "document": "0b3e6044d18cb78a",
+        "source": "live",
+        "rows": 47,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "e42cad462b98b299243923949b99654d0bc8d0cadfebcb300e1c019504a602fe"
+      },
+      {
+        "scope": "EU",
+        "document": "bce3c06f5c461413",
+        "source": "live",
+        "rows": 8436,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "186bad639add84e3c7bd1702f4e784187703ca31ae77d46765a54c9c7a1b84eb"
+      },
+      {
+        "scope": "EU",
+        "document": "f055b6134791226c",
+        "source": "live",
+        "rows": 1396,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f5edc0cc5bd276b848de8813698d397ed987e0d55e999c2452dd043739a2dc03"
+      },
+      {
+        "scope": "EU",
+        "document": "ef5aa196c09a62c6",
+        "source": "live",
+        "rows": 172,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "53ec1178f80a9dfd09755dd8a2fb3845d3c918e45556377d3722c6a8b1355684"
+      },
+      {
+        "scope": "EU",
+        "document": "c0a3010197477692",
+        "source": "live",
+        "rows": 103,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "e13e2d941146630dfc2491aab4c29c8e43f5bebf4d20709fb4c88dab46ce9380"
+      },
+      {
+        "scope": "EU",
+        "document": "7be17f40486df734",
+        "source": "live",
+        "rows": 2089,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "3671aa1c43758d631b4a6ad4f9f5549e24a9ab62e21d117801c4d71871ab553f"
+      },
+      {
+        "scope": "EU",
+        "document": "f1f8deb64c4208ad",
+        "source": "live",
+        "rows": 2789,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "12ea503f79b1d132a0cba53a56c28e0a7e9e65a6dc42347ee0d6e02b3d88942b"
+      },
+      {
+        "scope": "EU",
+        "document": "010a43d5b5f82849",
+        "source": "live",
+        "rows": 31,
+        "currency": "PLN",
+        "named_marketplaces": [
+          "Amazon.pl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f06bc7a4ca0ecd97d6f48a6804682670e3bd840f51d5f60f4159f87467dc1644"
+      },
+      {
+        "scope": "EU",
+        "document": "2faca466b07f3d25",
+        "source": "live",
+        "rows": 106,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "04b21621ba89534a5bfa1c0aa10a130eab137b879ac9e536dc783c407aff6872"
+      },
+      {
+        "scope": "EU",
+        "document": "0d940ad9decc047f",
+        "source": "live",
+        "rows": 341,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "1b59db7785220a8d8de19f2254697ae7ffdb9c776faeac20601394768521d493"
+      },
+      {
+        "scope": "EU",
+        "document": "f789de27d18240de",
+        "source": "live",
+        "rows": 77,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "8b7d59e2b3f9acb3bfee4ac5e754a21c626085f503f72712b1b2056fe9666247"
+      },
+      {
+        "scope": "EU",
+        "document": "08b008609b37729f",
+        "source": "live",
+        "rows": 8690,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "7afee617bc97151c92908280ca1e31356837214d31c738189bac277af475df34"
+      },
+      {
+        "scope": "EU",
+        "document": "45e55a506c815919",
+        "source": "live",
+        "rows": 179,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 1,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "122ebfaf90727b98949dd50ee695d51a6f1442b5da533af9951db51b4e689efd"
+      },
+      {
+        "scope": "EU",
+        "document": "072ec682283ff79f",
+        "source": "live",
+        "rows": 1855,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "26a3e3e10d7a6bbf7aabe787b29eb2b5be042f45817e8456a6f57cc77ca166b6"
+      },
+      {
+        "scope": "EU",
+        "document": "98935302679a73b4",
+        "source": "live",
+        "rows": 71,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f2c76c105cda1cb16f747a9007eaf5be15dcfbe8dc39aaa12dac1fa3d7f329a0"
+      },
+      {
+        "scope": "EU",
+        "document": "0cbc9e4247ed832d",
+        "source": "live",
+        "rows": 4884,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "24b63a4aa4aa3c996a3f8b4c0d91a7839d88c5d6d1bad9100f648e55fb8b9fb0"
+      },
+      {
+        "scope": "EU",
+        "document": "58474b49f1120152",
+        "source": "live",
+        "rows": 3169,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "3a52f8a9e2b74c37f5ba83e3312caea1616c1742da737b39fc19c6b19e0f6835"
+      },
+      {
+        "scope": "EU",
+        "document": "55f5887937dc7ddf",
+        "source": "live",
+        "rows": 24,
+        "currency": "PLN",
+        "named_marketplaces": [
+          "Amazon.pl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "a038366e5559ed05a339772c08304dcfddb58c5d323343307f615ee286174222"
+      },
+      {
+        "scope": "EU",
+        "document": "54c502e66d910384",
+        "source": "live",
+        "rows": 116,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "2da879b794b7632083115493dcca0f0780ccc0859de870bd37c7ef0150048274"
+      },
+      {
+        "scope": "EU",
+        "document": "5cca2ec3e623e02a",
+        "source": "live",
+        "rows": 294,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "e09a3b5be04704500379d986661760aa187079ca06ce0ce0a2872b3de731046d"
+      },
+      {
+        "scope": "EU",
+        "document": "0a8ddbfd892eacfc",
+        "source": "live",
+        "rows": 73,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "aee41cd6db54ad1009ef6463fe75992a2f634065ebd6a1dfc29ed0f4578fe445"
+      },
+      {
+        "scope": "EU",
+        "document": "2e5312a0e7f8794e",
+        "source": "live",
+        "rows": 9455,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "715180832e969b061097d4013101b1758e1c398ffc51f36fa03f61838a11df0d"
+      },
+      {
+        "scope": "EU",
+        "document": "b40afba028090c36",
+        "source": "live",
+        "rows": 1100,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "92a47b0cf4ceb840f6f75c7497e0734133dc6991dbf11aef318a15762f09a4ed"
+      },
+      {
+        "scope": "EU",
+        "document": "4bd2fabd118e4902",
+        "source": "live",
+        "rows": 2235,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "77a3af293898e2d1a9719b3939afe44bfffc4a68c2f953ed82b07525f103053e"
+      },
+      {
+        "scope": "EU",
+        "document": "9c409c18b58019e0",
+        "source": "live",
+        "rows": 2661,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "4504a68af1c054e3a5c172655c8fc922a5615bacf894d84bf6ffebb3e0fd8f8f"
+      },
+      {
+        "scope": "EU",
+        "document": "e00b6aafc5388eee",
+        "source": "live",
+        "rows": 241,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "c185540344d4812f50740986610a3815bcb2a05c39a877f29590b357fe2e0645"
+      },
+      {
+        "scope": "EU",
+        "document": "c96cdb2b70456b30",
+        "source": "live",
+        "rows": 158,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "23aafc16aacc6145f29bbfc6cb93c8ede88efedbe68d38802cfcfc90c62d3a3e"
+      },
+      {
+        "scope": "EU",
+        "document": "48e006f4d0cda294",
+        "source": "live",
+        "rows": 2,
+        "currency": "PLN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "ef06a2fbfdf53e51cf817d7b7c3036bcf0060c757b3c2d4e0117dbc19327f8de"
+      },
+      {
+        "scope": "EU",
+        "document": "dc219f13d4ccf07b",
+        "source": "live",
+        "rows": 92,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "6463b44936bf2fa31f262f87e5c71aa3aff6e75e4562432b0ffe78e46e505060"
+      },
+      {
+        "scope": "EU",
+        "document": "d30187de5246756e",
+        "source": "live",
+        "rows": 314,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "d6d4d83e254ef27c95ac3e4abbb071a29626e734911f7f338016c6f8058b10c4"
+      },
+      {
+        "scope": "EU",
+        "document": "a3052600f1a9f648",
+        "source": "live",
+        "rows": 111,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "cd59b9f3e66e92d5a41051932d59e4b69f458e52f27cd8b9be6afa61537bfff8"
+      },
+      {
+        "scope": "EU",
+        "document": "513498aec57585ce",
+        "source": "live",
+        "rows": 8034,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "433716e62d8846bbaf6321f50bc1dc3e4e43fe3276541779bc49a2c70606ad57"
+      },
+      {
+        "scope": "EU",
+        "document": "ac1bcd63e01509f1",
+        "source": "live",
+        "rows": 119,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 1,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "9c113c44af386483a35447266f7be1c0eb370dab4e855b9eaecaca7c5865fa45"
+      },
+      {
+        "scope": "EU",
+        "document": "2e101a59877a75c2",
+        "source": "live",
+        "rows": 96,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "6c5c3984c824a4db398f6e988e10a7c5e5c4aa787a26265de21bfe8d72f21c0a"
+      },
+      {
+        "scope": "EU",
+        "document": "96bf6b8cf5414cbd",
+        "source": "live",
+        "rows": 2983,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "32783671c707ef3486a1f0fb30a4110a525e668e9c9dd233e027c48fa9fc9ca8"
+      },
+      {
+        "scope": "EU",
+        "document": "3cb974b4add4e955",
+        "source": "live",
+        "rows": 1466,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "2e4177e44779680395f4b108b03a0bba4766741f40f52c225a87882ece48ee70"
+      },
+      {
+        "scope": "EU",
+        "document": "47b478b42c131f5e",
+        "source": "live",
+        "rows": 3601,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "8afc816f42c4ba6628d1f2940f0fe25adf841ff78a51253ad8086034b2ba4c3b"
+      },
+      {
+        "scope": "EU",
+        "document": "132c21755dc1b992",
+        "source": "live",
+        "rows": 57,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "bdd6aa706c2c06a7871a97a40ab50407a81421b8bb80527352219808bd04d270"
+      },
+      {
+        "scope": "EU",
+        "document": "532df006bd6059ea",
+        "source": "live",
+        "rows": 136,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f151c77e29b89593fa1f74213fc81db61db8391b13d9b42d349225c1014fa4fc"
+      },
+      {
+        "scope": "EU",
+        "document": "5b3540f238e8531c",
+        "source": "live",
+        "rows": 76,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "c5d36e0b12fe87655161aceaf4f5bf872af8e362a799fc5905f8c5f3528a851d"
+      },
+      {
+        "scope": "EU",
+        "document": "d22cb5afe8f14b62",
+        "source": "live",
+        "rows": 7936,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "a41cc1fb40670eeeff3f848b4afd070c6cd39248907b84334054bc68376ddee1"
+      },
+      {
+        "scope": "EU",
+        "document": "1eb1d9884d24d6ed",
+        "source": "live",
+        "rows": 2723,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "5c9c3018afa2244a741e9837a0aa12437555d2e3e0f7bab6863fab12617d618a"
+      },
+      {
+        "scope": "EU",
+        "document": "45b96d45cb4d84e4",
+        "source": "live",
+        "rows": 181,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "6235570518c0d3756af2414be994517483faf870b0ade76776be6401a224cb91"
+      },
+      {
+        "scope": "EU",
+        "document": "568b08e05bcc4a0b",
+        "source": "live",
+        "rows": 2425,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "91fe6a1f53289e5414ec642cf718d873d24bf4109b69d7c2b5e8fc0794111000"
+      },
+      {
+        "scope": "EU",
+        "document": "738d553dd9f1175c",
+        "source": "live",
+        "rows": 109,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "80946c9bd1a5f6f4c95c69d03fc806eb7745300a6ae14def717de13412fa61c6"
+      },
+      {
+        "scope": "EU",
+        "document": "3e34df156a26c849",
+        "source": "live",
+        "rows": 1248,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "cfb311476b8eb25a722b41eb32fe695cb657454c4a909ab0319cc4b48888a3e8"
+      },
+      {
+        "scope": "NA",
+        "document": "833b63f968896e4a",
+        "source": "live",
+        "rows": 3,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "729578e1937615022ab8599378569a38564a96dbc6fd7ff9d8cca58ce8bd69e2"
+      },
+      {
+        "scope": "NA",
+        "document": "8c5bec5271928186",
+        "source": "live",
+        "rows": 3947,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "370328b4484c935d974e7467dca4ad5ec8eb709918bbef12c101cc601c3d0e5d"
+      },
+      {
+        "scope": "NA",
+        "document": "c338734318511a87",
+        "source": "live",
+        "rows": 3,
+        "currency": "MXN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "2a99a6ab2f975c157711341affc8876f86116525cf470de23d222405a82979a8"
+      },
+      {
+        "scope": "NA",
+        "document": "74a47a94a6d349aa",
+        "source": "live",
+        "rows": 4,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "d14c64e7e4f183563b5923dc90e190ac0ad466d5c90540809c59f7b1d487e494"
+      },
+      {
+        "scope": "NA",
+        "document": "46e9a35a43d27157",
+        "source": "live",
+        "rows": 3505,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "a84232dc5c62e1244d74d4f993dd82c2da8e99dae3b9628b630359e41c02ea84"
+      },
+      {
+        "scope": "NA",
+        "document": "ccd2cc2575e66044",
+        "source": "live",
+        "rows": 4218,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "bf95cc24fb9f2bb20dddfb9b10b0d8fff0070181395acaee3c5e18c3fb714b8e"
+      },
+      {
+        "scope": "NA",
+        "document": "1e7a912146f91000",
+        "source": "live",
+        "rows": 18,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "fac3e3a17462506f90660e32574d135ba070f594efb45be2bd30c3e110e92149"
+      },
+      {
+        "scope": "NA",
+        "document": "45d47028f06a0f42",
+        "source": "live",
+        "rows": 334,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "b96d40a54bdc48a5a0893a1d3351817d77235df308c1a1f6b4e7b6e19a2e278d"
+      },
+      {
+        "scope": "NA",
+        "document": "596b8a0e588c742a",
+        "source": "live",
+        "rows": 5,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "6352126b9ae12a544cfdd115d70c36bf822558d72e63ac3f06ca51b394e9088c"
+      },
+      {
+        "scope": "NA",
+        "document": "f04882ad268f7a03",
+        "source": "live",
+        "rows": 4392,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "6b5353c925cdf1d2b0571ebb69468c307eb00871147da9927180b9592d4f43f3"
+      },
+      {
+        "scope": "NA",
+        "document": "e6f1e4002afaaa5f",
+        "source": "live",
+        "rows": 34,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "c373557687cc996cfc916908561fa6c948a9d10433e0a6d8ac99d1427ea7b6df"
+      },
+      {
+        "scope": "NA",
+        "document": "f033a78d411b7def",
+        "source": "live",
+        "rows": 3,
+        "currency": "MXN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "8a136c0b0874e0b0fa1c2c046e4511a77c6fe3f0087cd8cbce2817ff15b34653"
+      },
+      {
+        "scope": "NA",
+        "document": "2ed696273e4db62d",
+        "source": "live",
+        "rows": 4979,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "e939439e7a159efd13def8f3811dd288501267d8b68895f9a18aee7080b94998"
+      },
+      {
+        "scope": "NA",
+        "document": "553eb2849aaa8011",
+        "source": "live",
+        "rows": 11,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "98d0a045fcdb2cc8793022d9213bad4b683ef36c2ad7ebd2b3b238dfb36e36ea"
+      },
+      {
+        "scope": "NA",
+        "document": "c4b4539ff5ef9b33",
+        "source": "live",
+        "rows": 3132,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "92f24e4c124bfc82c850c9f6ff5b44d385b3313930337d429563b91b80876f6d"
+      },
+      {
+        "scope": "NA",
+        "document": "1a1c04eb1488c30e",
+        "source": "live",
+        "rows": 2429,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "2c816a10f302a3511f354b924b2122effc9cc893d51e06cf16723cf4409e72f4"
+      },
+      {
+        "scope": "NA",
+        "document": "5b2b2bec913aed3b",
+        "source": "live",
+        "rows": 9,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "c337fdc33d409a1c91d1b088d7442f24f988aedc23b97e7b11ad5fabd5bb365b"
+      },
+      {
+        "scope": "NA",
+        "document": "b2a79c750b04d8b9",
+        "source": "live",
+        "rows": 2,
+        "currency": "MXN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "2d1176a16cbefe5ba2098feafa8b4381d948531db5567008c091ea93e970b86b"
+      },
+      {
+        "scope": "SINGAPORE",
+        "document": "67744402cafd7f9f",
+        "source": "live",
+        "rows": 4,
+        "currency": "SGD",
+        "named_marketplaces": [
+          "Amazon.sg"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "b636dd79037577367898e80dd35f699085350a759d0ab193652a5ac9f8d2790f"
+      },
+      {
+        "scope": "SINGAPORE",
+        "document": "2315815b94adf0e4",
+        "source": "live",
+        "rows": 14,
+        "currency": "SGD",
+        "named_marketplaces": [
+          "Amazon.sg"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "5c91d061640f8282aa606a13ac6c2fbc30d2f6cfea9e996aedc1b619760e3609"
+      },
+      {
+        "scope": "NA",
+        "document": "5a986ccf2e17d2b2",
+        "source": "historical_archive",
+        "rows": 19,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "52b1a48d85a2ce91e7c52f1a10980e1037993268cc12ceec7759beb777691118"
+      },
+      {
+        "scope": "NA",
+        "document": "948f8746dc241395",
+        "source": "historical_archive",
+        "rows": 3,
+        "currency": "MXN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "22b3a8bb469310cbad6272381c8eea24fdf7a037aebf0bb7e297f0b5102dd9dc"
+      },
+      {
+        "scope": "NA",
+        "document": "c4b10cc7285de35d",
+        "source": "historical_archive",
+        "rows": 3768,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com",
+          "Non-Amazon US"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f951b16cc43686fdc874a17360f290576b0cf04d216793084c972bbee8275739"
+      },
+      {
+        "scope": "NA",
+        "document": "a82fa8b714833fa1",
+        "source": "historical_archive",
+        "rows": 8,
+        "currency": "CAD",
+        "named_marketplaces": [
+          "Amazon.ca"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "8f17868dafa0ddde0546795511cf6066083527016e317e803e12883c027f2bc9"
+      },
+      {
+        "scope": "NA",
+        "document": "03279bc51e97e416",
+        "source": "historical_archive",
+        "rows": 4,
+        "currency": "CAD",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "21cbd9b1ce53b880c4b46d4259e35ab22500144094d8680d448b1ffdb7903d58"
+      },
+      {
+        "scope": "NA",
+        "document": "4fb244108384e7dc",
+        "source": "historical_archive",
+        "rows": 2,
+        "currency": "MXN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "5af2be39b68d09acf8b20cd85a3aa3febdfa7d061b66e1cc8736d5afa3b2fa24"
+      },
+      {
+        "scope": "NA",
+        "document": "962d255d9bd9d2e3",
+        "source": "historical_archive",
+        "rows": 3,
+        "currency": "USD",
+        "named_marketplaces": [
+          "Amazon.com"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f2edfffce758a05bf00f915aa371ed3b8a84388464558691c4addf7ed7adcf20"
+      },
+      {
+        "scope": "NA",
+        "document": "53b63a655d590038",
+        "source": "historical_archive",
+        "rows": 4,
+        "currency": "CAD",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "4259250eff30ce7b38a2985da76a8039a6817b58c38f05c06ec49af4d2113e1a"
+      },
+      {
+        "scope": "EU",
+        "document": "5022119f7c695a87",
+        "source": "historical_archive",
+        "rows": 74,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "901b281966bea9a116ad7d0794e0e5466c70521ec8dbef30f3be9c589ce8bb42"
+      },
+      {
+        "scope": "EU",
+        "document": "2fea62a10e81519a",
+        "source": "historical_archive",
+        "rows": 7376,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "535d29c56a417155662671fbef3e221da5a8725bcb895dbc9bfca25a47105ce8"
+      },
+      {
+        "scope": "EU",
+        "document": "67fcd419c05e09ee",
+        "source": "historical_archive",
+        "rows": 68,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 1,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "151254216360ce6bb4e9795df717cc3d6f019826dcbf4ce7c1c700a6b947da2e"
+      },
+      {
+        "scope": "EU",
+        "document": "e902eaa6c3357e06",
+        "source": "historical_archive",
+        "rows": 85,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "68ccc32837c356c49f52eda83d011bc2a2882754064acd3845a3c521d59dfc10"
+      },
+      {
+        "scope": "EU",
+        "document": "2694afd5bf22db80",
+        "source": "historical_archive",
+        "rows": 46,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "3ace9de5dc0709b4c2da136c21101b48531390eb52565d4193017187b024d3bb"
+      },
+      {
+        "scope": "EU",
+        "document": "e4ec71d8a1eb83d7",
+        "source": "historical_archive",
+        "rows": 91,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.nl"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "6c6152f65c879e749a57f3168dd9a9815d7cc366afc500dc7d1a036155c03fd6"
+      },
+      {
+        "scope": "EU",
+        "document": "a2a7ce82855bbec0",
+        "source": "historical_archive",
+        "rows": 2002,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.de"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "38daaabc8f85a5e701c5061ad67419d81eb1a99033aeaea974c5828a9df60229"
+      },
+      {
+        "scope": "EU",
+        "document": "e5acb720fcde1173",
+        "source": "historical_archive",
+        "rows": 1038,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.it"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "aae4e8769e05e5709a7b1f8491b48ee6d81dc70bb1ad9bda9278f8da16403f6c"
+      },
+      {
+        "scope": "EU",
+        "document": "3b9609c4c28db1d5",
+        "source": "historical_archive",
+        "rows": 1476,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.fr"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "30eafa4e69bbce1b514b7958f7096c993e86142edacff01351926d9b298154af"
+      },
+      {
+        "scope": "EU",
+        "document": "4b33a6b027ffd16d",
+        "source": "historical_archive",
+        "rows": 205,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.es"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 1,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "46de7bb3d5c4a239b515fa1962d092de117b8c2e9c1989397fb3ea4ada598321"
+      },
+      {
+        "scope": "EU",
+        "document": "9bc407239b0b7945",
+        "source": "historical_archive",
+        "rows": 7000,
+        "currency": "GBP",
+        "named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 1,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "4de1b369aa5cd5f26d6253234f75d41b6791fd8661db04c0f95d21db71fd089b"
+      },
+      {
+        "scope": "EU",
+        "document": "b840a227a0217318",
+        "source": "historical_archive",
+        "rows": 17,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "18392490835ec4809596b97ce3b434a36eac461d03a61f5af09b65a881ec268e"
+      },
+      {
+        "scope": "EU",
+        "document": "4c2b95af8d4a3532",
+        "source": "historical_archive",
+        "rows": 141,
+        "currency": "EUR",
+        "named_marketplaces": [
+          "Amazon.com.be"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "f726bdb4a1c5bbe22fcf7f9815508978680a898b6342fa6e2bf2e4f8e0c70a9b"
+      },
+      {
+        "scope": "EU",
+        "document": "3ecb5053fec5da3b",
+        "source": "historical_archive",
+        "rows": 7,
+        "currency": "SEK",
+        "named_marketplaces": [
+          "Amazon.se"
+        ],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "ff64ad77152c35b04eed9a0918942de36029b9d3c440e0fef96fd4a0d5ca0948"
+      },
+      {
+        "scope": "EU",
+        "document": "d9110ba7f817ad26",
+        "source": "historical_archive",
+        "rows": 3,
+        "currency": "PLN",
+        "named_marketplaces": [],
+        "reconciles": true,
+        "control_difference": "0.00",
+        "outside_header_window_rows": 0,
+        "classification_violating_rows": 0,
+        "decoded_sha256": "2c54345a3a07d0a872ffb494811083c249aed90e4450560856f5f7d5737eaff2"
+      }
+    ]
+  },
+  "status": "No observed classification-rule violation; coverage and other validation limitations remain explicit.",
+  "method": {
+    "current_listing": "Fresh Sellers participations and exhaustive getReports DONE V2 listings under all five configured credential scopes, with no marketplace filter; active-marketplace filtered discovery independently returned the same report identities.",
+    "content_snapshots": "All 94 current report/document identities and available report metadata match retained September 7 snapshots. 49 documents were re-downloaded September 8 and byte-identical; 45 EU bodies were reused from matched prior raw copies.",
+    "raw_cache_integrity_limits": "NA acquisition hashes were retained. EU/FE original per-body digests were not retained; EU complete prior parsed-cell snapshots and FE retained fields were crosschecked. All FE documents and 21 EU documents were re-downloaded today. Immutability of the remaining 45 EU bodies is not established independently.",
+    "retained_dates": "The original FE cache lacked API dataStartTime/dataEndTime. No TSV dates were substituted for those missing API metadata fields.",
+    "historical_extension": "27 older NA/EU archived API downloads supported by retained acquisition logs; no original byte digests. 23 pass the existing structural parser. Four are diagnostic-only because 15 rows lack the final promotion-id cell.",
+    "row_selection": "Every content row of each complete strict-parser document, including zero amounts, blank marketplace names, and out-of-header-period postings. Header and metadata row excluded. No business validation filters the sample.",
+    "classification": "Match F1-F7 before validating known-family fields and SKU expectations. Other rows retain raw SKU and remain a separate audit population; this is source evidence, not an Amazon guarantee.",
+    "identity": "Deduplicate exact decoded bodies with matching credential scope and TSV settlement ID. Differing bodies for one scoped identity are not silently merged; none observed.",
+    "marketplace": "Observed marketplace-name rows are counted separately from scope/currency and API metadata. Currency or a query filter never fills blank row marketplaces.",
+    "retrocharges": "Candidate groups use credential scope, currency, exact retrocharge transaction type, order ID, available adjustment ID, and normalized posting timestamp. Zero net is checked; it is not independent proof of complete event identity/coverage.",
+    "scope_of_conclusion": "Checks SKU presence and family invariants, not SKU correctness/ownership, Data Kiosk completeness or exclusions, or full preprocessing/payout readiness."
+  },
+  "content_refresh": {
+    "counts": {
+      "fresh_download_verified_identical": 49,
+      "matched_previous_raw_cache": 45
+    },
+    "scopes": {
+      "AUSTRALIA": {
+        "fresh_download_verified_identical": 8
+      },
+      "EU": {
+        "matched_previous_raw_cache": 45,
+        "fresh_download_verified_identical": 21
+      },
+      "JAPAN": {},
+      "NA": {
+        "fresh_download_verified_identical": 18
+      },
+      "SINGAPORE": {
+        "fresh_download_verified_identical": 2
+      }
+    },
+    "all_current_references_matched": true,
+    "available_reference_metadata_matched": true,
+    "fresh_subset_body_differences": 0,
+    "prior_snapshot_notes": [
+      "Private index includes exact source IDs; do not publish it.",
+      "Strongest retained byte-level check is NA; EU/FE use explicit acquisition mappings plus retained content/metadata corroboration.",
+      "Missing FE Reports API data-window fields remain null; settlement header dates are separate source fields."
+    ]
+  },
+  "historical_supplemental": {
+    "strict_parser_document_counts": {
+      "PASSED": 23,
+      "FAILED": 4
+    },
+    "supplemental_all_27_diagnostic": {
+      "rows": 35698,
+      "family_group_rows": {
+        "F1_F4": 35445,
+        "F5_F7": 71,
+        "OUTSIDE_F1_F7": 182
+      },
+      "family_rows": {
+        "F1": 35362,
+        "F2": 10,
+        "F3": 73,
+        "F5": 16,
+        "F6": 48,
+        "F7": 7,
+        "unmatched": 182
+      },
+      "violating_rows": 0,
+      "violations": {},
+      "outside_f1_f7_with_sku": 0,
+      "documents": 27,
+      "family_group_sku_presence": [
+        {
+          "family_group": "F1_F4",
+          "sku_present": true,
+          "rows": 35445
+        },
+        {
+          "family_group": "F5_F7",
+          "sku_present": false,
+          "rows": 71
+        },
+        {
+          "family_group": "OUTSIDE_F1_F7",
+          "sku_present": false,
+          "rows": 182
+        }
+      ],
+      "violation_examples": [],
+      "new_unmatched_signatures": [
+        {
+          "transaction_type": "AmazonFees",
+          "amount_type": "Vine Enrollment Fee",
+          "amount_description": "Base fee",
+          "rows": 3
+        },
+        {
+          "transaction_type": "ServiceFee",
+          "amount_type": "Refund for Advertiser",
+          "amount_description": "TransactionTotalAmount",
+          "rows": 1
+        }
+      ],
+      "per_scope": {
+        "EU": {
+          "posted_min": "2026-04-02T06:41:30+00:00",
+          "posted_max": "2026-05-07T01:21:51+00:00",
+          "rows": 21099,
+          "family_group_rows": {
+            "F1_F4": 21012,
+            "F5_F7": 44,
+            "OUTSIDE_F1_F7": 43
+          },
+          "family_rows": {
+            "F1": 20980,
+            "F2": 4,
+            "F3": 28,
+            "F5": 16,
+            "F6": 28,
+            "unmatched": 43
+          },
+          "violating_rows": 0,
+          "violations": {},
+          "outside_f1_f7_with_sku": 0
+        },
+        "NA": {
+          "posted_min": "2026-02-18T06:33:37+00:00",
+          "posted_max": "2026-04-30T02:38:44+00:00",
+          "rows": 14599,
+          "family_group_rows": {
+            "F1_F4": 14433,
+            "F5_F7": 27,
+            "OUTSIDE_F1_F7": 139
+          },
+          "family_rows": {
+            "F1": 14382,
+            "F2": 6,
+            "F3": 45,
+            "F6": 20,
+            "F7": 7,
+            "unmatched": 139
+          },
+          "violating_rows": 0,
+          "violations": {},
+          "outside_f1_f7_with_sku": 0
+        }
+      },
+      "non_amazon_marketplace_rows": {
+        "rows": 2,
+        "family_group_rows": {
+          "F1_F4": 2
+        },
+        "family_rows": {
+          "F1": 2
+        },
+        "violating_rows": 0,
+        "violations": {},
+        "outside_f1_f7_with_sku": 0,
+        "signatures": [
+          {
+            "transaction_type": "Order",
+            "amount_type": "ItemFees",
+            "amount_description": "FBAPerUnitFulfillmentFee",
+            "rows": 1
+          },
+          {
+            "transaction_type": "Order",
+            "amount_type": "ItemPrice",
+            "amount_description": "Principal",
+            "rows": 1
+          }
+        ]
+      },
+      "retrocharge_candidates": {
+        "groups": 2,
+        "rows": 7,
+        "nonzero_groups": 0,
+        "missing_identity_groups": 0,
+        "note": "Grouping and observed zero totals do not independently certify original event identity or source completeness.",
+        "checks": [
+          {
+            "scope": "NA",
+            "currency": "USD",
+            "transaction_type": "Order_Retrocharge",
+            "posted_at": "2026-03-09T23:43:11+00:00",
+            "rows": 4,
+            "candidate_identity_count": 1,
+            "signed_total": "0.00",
+            "observed_zero_net": true,
+            "identity_reviewed": false,
+            "coverage_established": false,
+            "violations": [
+              "retrocharge_coverage_not_established",
+              "retrocharge_identity_not_reviewed"
+            ]
+          },
+          {
+            "scope": "NA",
+            "currency": "USD",
+            "transaction_type": "Order_Retrocharge",
+            "posted_at": "2026-03-19T07:12:25+00:00",
+            "rows": 3,
+            "candidate_identity_count": 1,
+            "signed_total": "0.00",
+            "observed_zero_net": true,
+            "identity_reviewed": false,
+            "coverage_established": false,
+            "violations": [
+              "retrocharge_coverage_not_established",
+              "retrocharge_identity_not_reviewed"
+            ]
+          }
+        ]
+      }
+    },
+    "supplemental_caveat": "All 27 includes four malformed documents by in-memory final promotion-id padding on 15 rows only. This is separate from strict-valid evidence, not a production parser exception.",
+    "provenance": "Archived local TSVs whose filename report references occur in adjacent May 8–23, 2026 getReports logs with GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2 markers. No retained acquisition digest manifest proves bytes unchanged. The historical archive is incomplete; coverage is not continuous through the later API window.",
+    "independently_confirmed_strict_counts": {
+      "documents": 23,
+      "rows": 23440,
+      "family_group_rows": {
+        "F1_F4": 23322,
+        "F5_F7": 61,
+        "OUTSIDE_F1_F7": 57
+      },
+      "violating_rows": 0,
+      "violations": {},
+      "outside_f1_f7_with_sku": 0
+    }
+  },
+  "independent_review": {
+    "snapshot_input_documents": 165,
+    "combined_unique_documents": 116,
+    "combined_family_group_rows": {
+      "F1_F4": 173268,
+      "F5_F7": 270,
+      "OUTSIDE_F1_F7": 711
+    },
+    "family_rows": {
+      "F1": 172788,
+      "F6": 163,
+      "unmatched": 711,
+      "F3": 380,
+      "F5": 83,
+      "F7": 24,
+      "F2": 92,
+      "F4": 8
+    },
+    "physically_counted_content_rows": {
+      "AUSTRALIA": 5284,
+      "EU": 138108,
+      "NA": 30839,
+      "SINGAPORE": 18
+    },
+    "outside_f1_f7_with_sku": 0,
+    "signature_count": 110,
+    "same_scope_settlement_different_bodies": 0,
+    "strict_parser_failures": [
+      {
+        "scope": "NA",
+        "source": "historical_archive",
+        "exception": "ValueError",
+        "reason": "Settlement report row 1421 has fewer values than header columns."
+      },
+      {
+        "scope": "NA",
+        "source": "historical_archive",
+        "exception": "ValueError",
+        "reason": "Settlement report row 2557 has fewer values than header columns."
+      },
+      {
+        "scope": "NA",
+        "source": "historical_archive",
+        "exception": "ValueError",
+        "reason": "Settlement report row 2039 has fewer values than header columns."
+      },
+      {
+        "scope": "EU",
+        "source": "historical_archive",
+        "exception": "ValueError",
+        "reason": "Settlement report row 998 has fewer values than header columns."
+      }
+    ],
+    "outside_header_window_rows": [
+      {
+        "scope": "EU",
+        "source": "live",
+        "currency": "EUR",
+        "report_named_marketplaces": [
+          "Amazon.es"
+        ],
+        "row_marketplace_name": "",
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "amount": "-14,92",
+        "family_group": "F5_F7",
+        "family": "F6",
+        "classification_violations": [],
+        "sku_present": false,
+        "settlement_start_utc": "2026-06-11T06:41:30+00:00",
+        "settlement_end_utc": "2026-06-25T06:41:30+00:00",
+        "posted_utc": "2026-06-25T06:41:39+00:00",
+        "seconds_before_start": 0,
+        "seconds_after_end": 9.0
+      },
+      {
+        "scope": "EU",
+        "source": "previous_api_cache",
+        "currency": "EUR",
+        "report_named_marketplaces": [
+          "Amazon.es"
+        ],
+        "row_marketplace_name": "",
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "amount": "-25,83",
+        "family_group": "F5_F7",
+        "family": "F6",
+        "classification_violations": [],
+        "sku_present": false,
+        "settlement_start_utc": "2026-07-09T06:41:31+00:00",
+        "settlement_end_utc": "2026-07-23T06:41:30+00:00",
+        "posted_utc": "2026-07-23T06:41:38+00:00",
+        "seconds_before_start": 0,
+        "seconds_after_end": 8.0
+      },
+      {
+        "scope": "EU",
+        "source": "previous_api_cache",
+        "currency": "EUR",
+        "report_named_marketplaces": [
+          "Amazon.es"
+        ],
+        "row_marketplace_name": "",
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "amount": "-26,38",
+        "family_group": "F5_F7",
+        "family": "F6",
+        "classification_violations": [],
+        "sku_present": false,
+        "settlement_start_utc": "2026-08-06T06:41:30+00:00",
+        "settlement_end_utc": "2026-08-20T06:41:30+00:00",
+        "posted_utc": "2026-08-20T06:41:38+00:00",
+        "seconds_before_start": 0,
+        "seconds_after_end": 8.0
+      },
+      {
+        "scope": "EU",
+        "source": "historical_archive",
+        "currency": "EUR",
+        "report_named_marketplaces": [
+          "Amazon.ie"
+        ],
+        "row_marketplace_name": "",
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "amount": "-27,78",
+        "family_group": "F5_F7",
+        "family": "F6",
+        "classification_violations": [],
+        "sku_present": false,
+        "settlement_start_utc": "2026-04-05T19:57:04+00:00",
+        "settlement_end_utc": "2026-04-19T19:59:22+00:00",
+        "posted_utc": "2026-04-19T19:59:31+00:00",
+        "seconds_before_start": 0,
+        "seconds_after_end": 9.0
+      },
+      {
+        "scope": "EU",
+        "source": "historical_archive",
+        "currency": "EUR",
+        "report_named_marketplaces": [
+          "Amazon.es"
+        ],
+        "row_marketplace_name": "",
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "amount": "-9,47",
+        "family_group": "F5_F7",
+        "family": "F6",
+        "classification_violations": [],
+        "sku_present": false,
+        "settlement_start_utc": "2026-04-16T06:41:30+00:00",
+        "settlement_end_utc": "2026-04-30T06:41:30+00:00",
+        "posted_utc": "2026-04-30T06:41:39+00:00",
+        "seconds_before_start": 0,
+        "seconds_after_end": 9.0
+      },
+      {
+        "scope": "EU",
+        "source": "historical_archive",
+        "currency": "GBP",
+        "report_named_marketplaces": [
+          "Amazon.co.uk"
+        ],
+        "row_marketplace_name": "",
+        "transaction_type": "other-transaction",
+        "amount_type": "other-transaction",
+        "amount_description": "Current Reserve Amount",
+        "amount": "-48.03",
+        "family_group": "F5_F7",
+        "family": "F6",
+        "classification_violations": [],
+        "sku_present": false,
+        "settlement_start_utc": "2026-04-17T03:00:33+00:00",
+        "settlement_end_utc": "2026-05-01T03:00:33+00:00",
+        "posted_utc": "2026-05-01T03:00:42+00:00",
+        "seconds_before_start": 0,
+        "seconds_after_end": 9.0
+      }
+    ],
+    "checks": "Counts, raw physical row accounting, signatures, and dedup conflicts match audit_summary snapshot."
+  },
+  "audit_classifier_sha256": "d41d98a6a49d2fbaac9ce4e03402528b1c5611ff0640bc44590abec9db929f0a",
+  "sources": [
+    "https://github.com/amzn/selling-partner-api-models/blob/main/models/reports-api-model/reports_2021-06-30.json",
+    "https://developer-docs.amazon/sp-api/docs/report-type-values-settlement",
+    "https://developer-docs.amazon/sp-api/reference/getreportdocument"
+  ],
+  "previous_cache_crosscheck": {
+    "additional_distinct_documents_beyond_current_listing": 0,
+    "all_previous_94_documents_match_current_listing": true,
+    "same_scope_settlement_different_body_groups": 0
+  },
+  "family_group_definitions": {
+    "F1_F4": "SKU-bearing ordinary orders, refunds, liquidations, reimbursements, and recognized fulfillment corrections",
+    "F5_F7": "Blank-SKU account families and candidate tax retrocharges",
+    "OUTSIDE_F1_F7": "Rows outside those seven families; use the current explicit cost/default policy for allocation"
+  }
+}

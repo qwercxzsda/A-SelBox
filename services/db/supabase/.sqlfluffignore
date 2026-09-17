@@ -1,0 +1,3 @@
+# Local SQL can contain private operational data.
+*.local.sql
+*.local.sql.*.tmp

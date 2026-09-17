@@ -1,0 +1,240 @@
+{
+  "finding_date": "2026-09-07",
+  "decision_date": "2026-09-08",
+  "status": "Accepted source-data discrepancy; selected Data Kiosk disposal amounts remain authoritative for company costs.",
+  "scope": {
+    "marketplace": "US",
+    "currency": "USD",
+    "comparison_start": "2026-06-01",
+    "comparison_end_inclusive": "2026-08-31",
+    "dates": "Data Kiosk source dates and settlement posted-date labels; not an assertion of individual operation identity or equal event clocks.",
+    "amount_convention": "Positive expense, Decimal strings.",
+    "privacy": "No raw seller, customer, order, report, document, product or SKU identifiers; S12/S15/S16 are aliases."
+  },
+  "decision": {
+    "future_financial_data_sources_only": [
+      "Settlement reports",
+      "Historical Data Kiosk"
+    ],
+    "FBA_reports_or_Finances_API_in_future_workflow": false,
+    "historical_auxiliary_evidence_role": "FBA and inventory controls document the 2026-09-07 investigation only; no future acquisition, fallback, refresh, or reconciliation diagnostic dependency.",
+    "ambiguous_category_company_amount_source": "Historical Data Kiosk",
+    "settlement_role": "Ground truth for Amazon settlement postings; retain separately for reconciliation.",
+    "excluded_Data_Kiosk_components": [
+      "SETTLEMENT components retained for comparison",
+      "ANALYSIS_ONLY seller-entered cost components"
+    ],
+    "exclusion_is_not_settlement_SKU_membership_filter": true,
+    "residual_bearer": "SelBox",
+    "known_Amazon_source_error_accepted": true,
+    "settlement_rule_failures_still_abort_preprocessing": true,
+    "single_unambiguous_SKU": "Possible later operational mitigation; not a historical financial correction or approved implementation.",
+    "automatic_deduplication_SKU_drop_merge_or_identifier_rewrite_authorized": false,
+    "data_kiosk_account_component_with_msku": "Reject preprocessing; retain archived source evidence."
+  },
+  "main_comparison": {
+    "settlement_disposal": "260.05",
+    "Data_Kiosk_disposal": "314.53",
+    "Data_Kiosk_minus_settlement": "54.48",
+    "investigated_cohort": {
+      "Data_Kiosk_SKU_aliases": [
+        "S12",
+        "S15"
+      ],
+      "Data_Kiosk_cost_by_alias": {
+        "S12": "61.29",
+        "S15": "63.56"
+      },
+      "Data_Kiosk_cost": "124.85",
+      "Data_Kiosk_reported_quantity": "55.0",
+      "settlement_cost": "70.37",
+      "settlement_rows": 31,
+      "settlement_SKU_and_quantity_fields_blank": true,
+      "customer_order_links": {
+        "count": 30,
+        "cost": "68.10"
+      },
+      "manual_removal_order_links": {
+        "count": 1,
+        "cost": "2.27"
+      },
+      "attribution_limit": "Supporting records identify S12; no settlement amount was divided between S12/S15. Historical matching was investigative only."
+    },
+    "remaining_costs": {
+      "settlement": "189.68",
+      "Data_Kiosk": "189.68",
+      "limit": "Aggregate remainder equality; not verified per-SKU equality."
+    }
+  },
+  "raw_path_control": {
+    "raw_rows": 4773,
+    "fee_records": 1822,
+    "independent_decoding_matches_parser_and_normalizer_exactly": true,
+    "local_duplicate_pages_facts_or_charge_keys": false,
+    "both_SKU_strings_in_raw_response": true,
+    "query_names_SKUs_or_fans_out_per_SKU": false,
+    "disposal_components_empty": true,
+    "disposal_tax_and_promotion_zero": true
+  },
+  "fresh_query_controls": {
+    "completed_single_page_queries": 4,
+    "MSKU_DAY_MONTH_RANGE_disposal_each": "314.53",
+    "MSKU_DAY_MONTH_RANGE_cohort_each": "124.85",
+    "all_returned_fee_totals_agree_across_MSKU_date_aggregations": true,
+    "CHILD_ASIN_RANGE_disposal": "315.37",
+    "product_aggregation_disposal_difference": "0.84",
+    "product_aggregation_referral_fee_difference": "0.58",
+    "other_returned_fee_totals_agree_across_product_aggregations": true
+  },
+  "settlement_controls": {
+    "all_currency_report_count": 18,
+    "all_currency_content_rows": 27028,
+    "all_reports_reconcile_to_TSV_header_totals": true,
+    "supported_offset_found_in_other_components": false,
+    "all_available_US_reports": 9,
+    "extended_available_US_settlement_cost": "265.43",
+    "extended_comparison_Data_Kiosk_cost": "319.91",
+    "extended_difference": "54.48",
+    "limit": "Bounded available history, not lifetime or future settlement coverage."
+  },
+  "inventory_control": {
+    "unfiltered_pages": 2,
+    "distinct_SKUs": 62,
+    "S12_S15_independently_present": true,
+    "S12_S15_same_ASIN_and_FNSKU": true,
+    "S12_S15_FNSKU_equals_ASIN": true,
+    "S16_same_ASIN_different_X_prefixed_FNSKU": true,
+    "historical_pair_rows_same_FNSKU": 4032,
+    "limit": "Shared ASIN-valued FNSKU does not prove one physical inventory operation or duplicate economic charges.",
+    "other_shared_FNSKU_groups_or_fee_types_with_equivalent_exact_overlap_observed": false
+  },
+  "matching_payload_diagnostic": {
+    "pair_count": 20,
+    "one_copy_cost": "54.48",
+    "one_copy_reported_quantity": "24.0",
+    "comparison_fields": [
+      "day",
+      "fee_period",
+      "quantity",
+      "complete_monetary_detail",
+      "properties",
+      "components"
+    ],
+    "monthly": [
+      {
+        "month": "2026-06",
+        "raw_all_disposal_cost": "38.75",
+        "overlap_pairs": 4,
+        "one_copy_overlap_cost": "11.35",
+        "one_copy_overlap_quantity": "5.0",
+        "diagnostic_deduplicated_all_disposal_cost": "27.40",
+        "settlement_all_disposal_posted_cost": "27.40"
+      },
+      {
+        "month": "2026-07",
+        "raw_all_disposal_cost": "219.12",
+        "overlap_pairs": 8,
+        "one_copy_overlap_cost": "20.43",
+        "one_copy_overlap_quantity": "9.0",
+        "diagnostic_deduplicated_all_disposal_cost": "198.69",
+        "settlement_all_disposal_posted_cost": "198.69"
+      },
+      {
+        "month": "2026-08",
+        "raw_all_disposal_cost": "56.66",
+        "overlap_pairs": 8,
+        "one_copy_overlap_cost": "22.70",
+        "one_copy_overlap_quantity": "10.0",
+        "diagnostic_deduplicated_all_disposal_cost": "33.96",
+        "settlement_all_disposal_posted_cost": "33.96"
+      }
+    ],
+    "native_disposal_identifier_reused_across_records": 92,
+    "safe_automatic_deduplication_proven": false,
+    "August_settlement_posting_days_still_mismatched_after_diagnostic": 8,
+    "counterexample": {
+      "day": "2026-08-03",
+      "timezone": "America/Los_Angeles",
+      "distinct_operations": [
+        "Customer return with observed donation status",
+        "Manual removal request"
+      ],
+      "individual_fee": "2.27",
+      "corresponding_settlement_posting_dates": [
+        "2026-08-04",
+        "2026-08-14"
+      ],
+      "Data_Kiosk_equal_looking_entries": 2,
+      "limit": "No Data Kiosk operation identifiers establish whether either entry belongs to either real operation."
+    }
+  },
+  "settlement_SKU_membership_filter_diagnostic": {
+    "distinct_explicit_settlement_SKUs": 21,
+    "excluded_disposal": "68.60",
+    "remaining_disposal": "245.93",
+    "remaining_Data_Kiosk_minus_settlement": "-14.12",
+    "verified_legitimate_disposal_excluded": "5.04",
+    "verified_reconciled_removal_excluded": "23.70",
+    "limit": "Absence from settlement SKU fields does not imply invalid expense or absent company ownership; filter is not an accepted correction."
+  },
+  "conclusion": {
+    "confirmed": "The discrepancy is present in Amazon raw historical Data Kiosk responses and reproduced through fresh supported queries.",
+    "hypothesis": "Overlapping SKU attribution or aggregation in Amazon data.",
+    "not_established": [
+      "Amazon internal cause",
+      "A universally safe automatic correction",
+      "Eventual convergence",
+      "Inaccuracy of all Data Kiosk categories or regions"
+    ]
+  },
+  "private_summary_provenance": [
+    {
+      "artifact": "selbox_data_kiosk_source_validation_2026-09-07.md",
+      "sha256": "b41c63c1e827c8478fb8094a009f71d8c3b5173dd643696878bd8b927ded4cc2"
+    },
+    {
+      "artifact": "selbox_dk_raw_path_audit/summary.json",
+      "sha256": "2c83e4d9df80f121694f623873513bbbff2376b6596c232dba90401789cb0d4f"
+    },
+    {
+      "artifact": "selbox_dk_raw_path_audit/duplicate_control_summary.json",
+      "sha256": "2eed3793babea138988e2e52c38c0f2eed59f2a10610a99839c308975df904f5"
+    },
+    {
+      "artifact": "selbox_dk_native_controls/summary.json",
+      "sha256": "ead07210e49c43a58aa97a36de2b155eb311de8617f2ebcec81788240759026c"
+    },
+    {
+      "artifact": "selbox_dk_native_controls/cross_aggregation_summary.json",
+      "sha256": "c067db7a9a6fb21e7f421cbafde801a28eefe22bfca9c7b9c9583a1d9368cae6"
+    },
+    {
+      "artifact": "selbox_finance_operation_audit/current_inventory_unfiltered_summary.json",
+      "sha256": "d3297b4ff1f1efb13916b69c6a5a6266a3d99514756308ad07466df8675fd988"
+    },
+    {
+      "artifact": "selbox_finance_operation_audit/current_inventory_dk_overlap_summary.json",
+      "sha256": "86e10eac1225096a5e08b9de2cbbac2ed8c50da4fb535c6ad2103ef7de426e31"
+    },
+    {
+      "artifact": "selbox_inventory_ledger_audit/cohort_quantity_comparison_summary.json",
+      "sha256": "49464c6bfcb482e3d1ec7b656a719d7803f51be20d2cbbe6e15e46556401c80b"
+    },
+    {
+      "artifact": "selbox_settlement_offset_audit/cohort_settlement_bridge_summary.json",
+      "sha256": "e2c2844f6ed06305964442eb9d09ba1d6a7f71e7a4b2ee8ddc11045554842848"
+    },
+    {
+      "artifact": "selbox_customer_returns_audit/return_order_comparison_summary.json",
+      "sha256": "cbeeee9c85f72a18738b22e0abad2583baf9fe278e6bde7e63889277452c976e"
+    },
+    {
+      "artifact": "selbox_customer_returns_audit/return_day_comparison_summary.json",
+      "sha256": "a3c979cc4869e0b6e68eea58e9d7734e1e5cfd780cc9f625759b7307d58a367a"
+    },
+    {
+      "artifact": "selbox_settlement_SKU_membership_filter_2026-09-07.json",
+      "sha256": "61022821505be7758bb649617a8a7977dd8e14e6e5b245820d57f2c1ed1f3a78"
+    }
+  ]
+}

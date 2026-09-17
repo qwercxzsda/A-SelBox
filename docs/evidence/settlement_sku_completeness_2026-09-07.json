@@ -1,0 +1,2382 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-09-07",
+  "status": "Observed source SKU-presence evidence; not an Amazon guarantee or company-allocation rule.",
+  "method": {
+    "report_type": "GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2",
+    "row_population": "All structurally parsed content rows, including zero amounts; TSV header and metadata row excluded.",
+    "sku_test": "The content-row sku cell is nonblank after stripping whitespace.",
+    "signature_fields": [
+      "transaction-type",
+      "amount-type",
+      "amount-description"
+    ],
+    "signature_normalization": "Strip surrounding whitespace for comparison; do not merge spelling variants or alter raw source cells.",
+    "preprocess_filtering": "No marketplace, company, fee, classification, or posting-window business validation filters the audited rows.",
+    "coverage": "EU/FE queries used every active canonical marketplace in each configured credential scope and exhausted listing chunks/pages.",
+    "deduplication": "EU/FE repeated identical decoded TSV bytes with the same settlement ID count once; distinct same-ID bodies must be flagged, not arbitrarily selected."
+  },
+  "coverage": [
+    {
+      "scope": "NA",
+      "source": "previously acquired, cached settlement content",
+      "report_records_audited": 18,
+      "discovery_window": "Earlier 90-day discovery sample; exact request timestamps not retained in the combined audit.",
+      "deduplication": "18 distinct retained normalized report records; original raw bytes and settlement header IDs unavailable for a stronger identity check."
+    },
+    {
+      "scope": "EU",
+      "source": "live existing SP-API acquisition functions",
+      "created_since": "2026-06-09T08:28:41.954740+00:00",
+      "created_until": "2026-09-07T08:28:41.954740+00:00",
+      "listed_report_documents": 66,
+      "downloaded_and_parsed_documents": 66,
+      "distinct_settlements": 66,
+      "remaining_failures": 0,
+      "initial_download_failures_recovered": 2,
+      "active_marketplaces_requested": 12,
+      "observed_content_marketplace_names": [
+        "Amazon.co.uk",
+        "Amazon.com.be",
+        "Amazon.de",
+        "Amazon.es",
+        "Amazon.fr",
+        "Amazon.ie",
+        "Amazon.it",
+        "Amazon.nl",
+        "Amazon.pl",
+        "Amazon.se"
+      ],
+      "same_settlement_different_body_groups": 0
+    },
+    {
+      "scope": "JAPAN",
+      "endpoint": "FE",
+      "source": "live existing SP-API acquisition functions",
+      "created_since": "2026-06-09T08:28:44.683773+00:00",
+      "created_until": "2026-09-07T08:28:44.683773+00:00",
+      "listed_report_documents": 0,
+      "downloaded_and_parsed_documents": 0,
+      "distinct_settlements": 0,
+      "remaining_failures": 0,
+      "report_instance_rows": 0,
+      "duplicate_document_copies_removed": 0,
+      "status": "NO_REPORTS_NO_CONTENT_EVIDENCE"
+    },
+    {
+      "scope": "SINGAPORE",
+      "endpoint": "FE",
+      "source": "live existing SP-API acquisition functions",
+      "created_since": "2026-06-09T08:28:44.683773+00:00",
+      "created_until": "2026-09-07T08:28:44.683773+00:00",
+      "listed_report_documents": 2,
+      "downloaded_and_parsed_documents": 2,
+      "distinct_settlements": 2,
+      "remaining_failures": 0,
+      "report_instance_rows": 18,
+      "duplicate_document_copies_removed": 0,
+      "status": "COMPLETE"
+    },
+    {
+      "scope": "AUSTRALIA",
+      "endpoint": "FE",
+      "source": "live existing SP-API acquisition functions",
+      "created_since": "2026-06-09T08:28:44.683773+00:00",
+      "created_until": "2026-09-07T08:28:44.683773+00:00",
+      "listed_report_documents": 8,
+      "downloaded_and_parsed_documents": 8,
+      "distinct_settlements": 7,
+      "remaining_failures": 0,
+      "report_instance_rows": 5994,
+      "duplicate_document_copies_removed": 1,
+      "status": "COMPLETE"
+    }
+  ],
+  "region_counts": {
+    "NA": {
+      "rows": 27028,
+      "nonblank_sku": 26824,
+      "blank_sku": 204
+    },
+    "EU": {
+      "rows": 118479,
+      "nonblank_sku": 117882,
+      "blank_sku": 597
+    },
+    "JAPAN": {
+      "rows": 0,
+      "nonblank_sku": 0,
+      "blank_sku": 0
+    },
+    "SINGAPORE": {
+      "rows": 18,
+      "nonblank_sku": 11,
+      "blank_sku": 7
+    },
+    "AUSTRALIA": {
+      "rows": 5284,
+      "nonblank_sku": 5229,
+      "blank_sku": 55
+    }
+  },
+  "totals": {
+    "rows": 150809,
+    "nonblank_sku": 149946,
+    "blank_sku": 863,
+    "signatures": 107,
+    "signature_presence_counts": {
+      "all_blank": 59,
+      "all_present": 48
+    }
+  },
+  "transaction_types": [
+    {
+      "transaction_type": "AmazonFees",
+      "rows": 47,
+      "nonblank_sku": 8,
+      "blank_sku": 39
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "rows": 69,
+      "nonblank_sku": 0,
+      "blank_sku": 69
+    },
+    {
+      "transaction_type": "FBAFees",
+      "rows": 358,
+      "nonblank_sku": 0,
+      "blank_sku": 358
+    },
+    {
+      "transaction_type": "Liquidations",
+      "rows": 86,
+      "nonblank_sku": 86,
+      "blank_sku": 0
+    },
+    {
+      "transaction_type": "Liquidations Adjustments",
+      "rows": 6,
+      "nonblank_sku": 6,
+      "blank_sku": 0
+    },
+    {
+      "transaction_type": "Order",
+      "rows": 146305,
+      "nonblank_sku": 146305,
+      "blank_sku": 0
+    },
+    {
+      "transaction_type": "Order_Retrocharge",
+      "rows": 17,
+      "nonblank_sku": 0,
+      "blank_sku": 17
+    },
+    {
+      "transaction_type": "Refund",
+      "rows": 3212,
+      "nonblank_sku": 3212,
+      "blank_sku": 0
+    },
+    {
+      "transaction_type": "Refund_Retrocharge",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3
+    },
+    {
+      "transaction_type": "ServiceFee",
+      "rows": 191,
+      "nonblank_sku": 0,
+      "blank_sku": 191
+    },
+    {
+      "transaction_type": "other-transaction",
+      "rows": 515,
+      "nonblank_sku": 329,
+      "blank_sku": 186
+    }
+  ],
+  "mixed_signatures": [],
+  "na_required_signature_violations_elsewhere": [],
+  "retrocharge_groups": [
+    {
+      "scope": "NA",
+      "transaction_type": "Order_Retrocharge",
+      "rows": 3,
+      "blank_sku_rows": 3,
+      "currency": "USD",
+      "signed_net_amount": "0.00",
+      "order_id_present": true,
+      "order_item_code_present": false,
+      "nets_to_zero": true
+    },
+    {
+      "scope": "NA",
+      "transaction_type": "Order_Retrocharge",
+      "rows": 3,
+      "blank_sku_rows": 3,
+      "currency": "USD",
+      "signed_net_amount": "0.00",
+      "order_id_present": true,
+      "order_item_code_present": false,
+      "nets_to_zero": true
+    },
+    {
+      "scope": "NA",
+      "transaction_type": "Order_Retrocharge",
+      "rows": 3,
+      "blank_sku_rows": 3,
+      "currency": "USD",
+      "signed_net_amount": "0.00",
+      "order_id_present": true,
+      "order_item_code_present": false,
+      "nets_to_zero": true
+    },
+    {
+      "scope": "EU",
+      "transaction_type": "Order_Retrocharge",
+      "rows": 4,
+      "blank_sku_rows": 4,
+      "currency": "EUR",
+      "signed_net_amount": "0.00",
+      "order_id_present": true,
+      "order_item_code_present": false,
+      "nets_to_zero": true
+    },
+    {
+      "scope": "EU",
+      "transaction_type": "Order_Retrocharge",
+      "rows": 4,
+      "blank_sku_rows": 4,
+      "currency": "GBP",
+      "signed_net_amount": "0.00",
+      "order_id_present": true,
+      "order_item_code_present": false,
+      "nets_to_zero": true
+    },
+    {
+      "scope": "EU",
+      "transaction_type": "Refund_Retrocharge",
+      "rows": 3,
+      "blank_sku_rows": 3,
+      "currency": "GBP",
+      "signed_net_amount": "0.00",
+      "order_id_present": true,
+      "order_item_code_present": false,
+      "nets_to_zero": true
+    }
+  ],
+  "signatures": [
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "Amazon service fee for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)",
+      "amount_description": "Base fee",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "Coupon Participation Fee",
+      "amount_description": "Base fee",
+      "rows": 4,
+      "nonblank_sku": 0,
+      "blank_sku": 4,
+      "regions": {
+        "NA": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "Coupon Performance Based Fee",
+      "amount_description": "Base fee",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "Deal Participation Fee",
+      "amount_description": "Base fee",
+      "rows": 16,
+      "nonblank_sku": 0,
+      "blank_sku": 16,
+      "regions": {
+        "NA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "EU": {
+          "rows": 15,
+          "nonblank_sku": 0,
+          "blank_sku": 15
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "Deal Performance Based Fee",
+      "amount_description": "Base fee",
+      "rows": 15,
+      "nonblank_sku": 0,
+      "blank_sku": 15,
+      "regions": {
+        "NA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "EU": {
+          "rows": 14,
+          "nonblank_sku": 0,
+          "blank_sku": 14
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "Eco-contribution for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)",
+      "amount_description": "Base fee",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "FBA fulfilment fee per unit - Correction",
+      "amount_description": "Base fee",
+      "rows": 4,
+      "nonblank_sku": 4,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 4,
+          "nonblank_sku": 4,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "AmazonFees",
+      "amount_type": "FBA fulfilment fee per unit - Reversal",
+      "amount_description": "Base fee",
+      "rows": 4,
+      "nonblank_sku": 4,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 4,
+          "nonblank_sku": 4,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against BE",
+      "rows": 8,
+      "nonblank_sku": 0,
+      "blank_sku": 8,
+      "regions": {
+        "EU": {
+          "rows": 8,
+          "nonblank_sku": 0,
+          "blank_sku": 8
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against BE, ES",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "EU": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against BE, ES, NL",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against BE, FR, ES",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against BE, NL, ES",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against DE",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against DE, BE, ES",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against DE, NL, ES",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against ES",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against ES, NL",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against FR",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment against NL, ES",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "EU": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment for BE",
+      "rows": 5,
+      "nonblank_sku": 0,
+      "blank_sku": 5,
+      "regions": {
+        "EU": {
+          "rows": 5,
+          "nonblank_sku": 0,
+          "blank_sku": 5
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment for DE",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "EU": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment for ES",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment for FR",
+      "rows": 15,
+      "nonblank_sku": 0,
+      "blank_sku": 15,
+      "regions": {
+        "EU": {
+          "rows": 15,
+          "nonblank_sku": 0,
+          "blank_sku": 15
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment for IT",
+      "rows": 18,
+      "nonblank_sku": 0,
+      "blank_sku": 18,
+      "regions": {
+        "EU": {
+          "rows": 18,
+          "nonblank_sku": 0,
+          "blank_sku": 18
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Debt Adjustment",
+      "amount_type": "Debt Adjustment",
+      "amount_description": "Cross-Account Debt Adjustment for NL",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Amazon-Partnered Carrier Shipment Fee",
+      "amount_description": "Base fee",
+      "rows": 6,
+      "nonblank_sku": 0,
+      "blank_sku": 6,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        },
+        "EU": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Inbound Placement Service Fee",
+      "amount_description": "Base fee",
+      "rows": 10,
+      "nonblank_sku": 0,
+      "blank_sku": 10,
+      "regions": {
+        "NA": {
+          "rows": 10,
+          "nonblank_sku": 0,
+          "blank_sku": 10
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Inventory Storage Fee",
+      "amount_description": "Base fee",
+      "rows": 22,
+      "nonblank_sku": 0,
+      "blank_sku": 22,
+      "regions": {
+        "NA": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        },
+        "EU": {
+          "rows": 15,
+          "nonblank_sku": 0,
+          "blank_sku": 15
+        },
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "AUSTRALIA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Inventory Storage Fee",
+      "amount_description": "Tax on fee",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "AUSTRALIA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Long Term Storage Fee",
+      "amount_description": "Base fee",
+      "rows": 9,
+      "nonblank_sku": 0,
+      "blank_sku": 9,
+      "regions": {
+        "NA": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        },
+        "EU": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        },
+        "AUSTRALIA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Long Term Storage Fee",
+      "amount_description": "Tax on fee",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "AUSTRALIA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Removal Order: Disposal Fee",
+      "amount_description": "Base fee",
+      "rows": 284,
+      "nonblank_sku": 0,
+      "blank_sku": 284,
+      "regions": {
+        "NA": {
+          "rows": 61,
+          "nonblank_sku": 0,
+          "blank_sku": 61
+        },
+        "EU": {
+          "rows": 207,
+          "nonblank_sku": 0,
+          "blank_sku": 207
+        },
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "AUSTRALIA": {
+          "rows": 15,
+          "nonblank_sku": 0,
+          "blank_sku": 15
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Removal Order: Disposal Fee",
+      "amount_description": "Tax on fee",
+      "rows": 15,
+      "nonblank_sku": 0,
+      "blank_sku": 15,
+      "regions": {
+        "AUSTRALIA": {
+          "rows": 15,
+          "nonblank_sku": 0,
+          "blank_sku": 15
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "FBA Removal Order: Return Fee",
+      "amount_description": "Base fee",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "Inbound Defect Fee",
+      "amount_description": "Base fee",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "FBAFees",
+      "amount_type": "Inbound Transportation Program Fee",
+      "amount_description": "Base fee",
+      "rows": 4,
+      "nonblank_sku": 0,
+      "blank_sku": 4,
+      "regions": {
+        "EU": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Liquidations",
+      "amount_type": "ItemFees",
+      "amount_description": "LiquidationsBrokerageFee",
+      "rows": 40,
+      "nonblank_sku": 40,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 32,
+          "nonblank_sku": 32,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 8,
+          "nonblank_sku": 8,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Liquidations",
+      "amount_type": "ItemPrice",
+      "amount_description": "Principal",
+      "rows": 40,
+      "nonblank_sku": 40,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 32,
+          "nonblank_sku": 32,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 8,
+          "nonblank_sku": 8,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Liquidations",
+      "amount_type": "ItemPrice",
+      "amount_description": "Tax",
+      "rows": 6,
+      "nonblank_sku": 6,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 6,
+          "nonblank_sku": 6,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Liquidations Adjustments",
+      "amount_type": "ItemFees",
+      "amount_description": "LiquidationsBrokerageFee",
+      "rows": 2,
+      "nonblank_sku": 2,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Liquidations Adjustments",
+      "amount_type": "ItemPrice",
+      "amount_description": "Principal",
+      "rows": 2,
+      "nonblank_sku": 2,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Liquidations Adjustments",
+      "amount_type": "ItemPrice",
+      "amount_description": "Tax",
+      "rows": 2,
+      "nonblank_sku": 2,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemFees",
+      "amount_description": "Commission",
+      "rows": 21163,
+      "nonblank_sku": 21163,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 4659,
+          "nonblank_sku": 4659,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 15135,
+          "nonblank_sku": 15135,
+          "blank_sku": 0
+        },
+        "SINGAPORE": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 1366,
+          "nonblank_sku": 1366,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemFees",
+      "amount_description": "Digital Services Fee",
+      "rows": 54,
+      "nonblank_sku": 54,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 54,
+          "nonblank_sku": 54,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemFees",
+      "amount_description": "DigitalServicesFee",
+      "rows": 12204,
+      "nonblank_sku": 12204,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 12204,
+          "nonblank_sku": 12204,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemFees",
+      "amount_description": "FBAPerUnitFulfillmentFee",
+      "rows": 21327,
+      "nonblank_sku": 21327,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 4726,
+          "nonblank_sku": 4726,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 15224,
+          "nonblank_sku": 15224,
+          "blank_sku": 0
+        },
+        "SINGAPORE": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 1374,
+          "nonblank_sku": 1374,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemFees",
+      "amount_description": "ShippingChargeback",
+      "rows": 1497,
+      "nonblank_sku": 1497,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 94,
+          "nonblank_sku": 94,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 1269,
+          "nonblank_sku": 1269,
+          "blank_sku": 0
+        },
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 1,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 133,
+          "nonblank_sku": 133,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemPrice",
+      "amount_description": "Principal",
+      "rows": 21327,
+      "nonblank_sku": 21327,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 4726,
+          "nonblank_sku": 4726,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 15224,
+          "nonblank_sku": 15224,
+          "blank_sku": 0
+        },
+        "SINGAPORE": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 1374,
+          "nonblank_sku": 1374,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemPrice",
+      "amount_description": "Shipping",
+      "rows": 4837,
+      "nonblank_sku": 4837,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 1075,
+          "nonblank_sku": 1075,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 3236,
+          "nonblank_sku": 3236,
+          "blank_sku": 0
+        },
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 1,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 525,
+          "nonblank_sku": 525,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemPrice",
+      "amount_description": "ShippingTax",
+      "rows": 3291,
+      "nonblank_sku": 3291,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 65,
+          "nonblank_sku": 65,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 3223,
+          "nonblank_sku": 3223,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemPrice",
+      "amount_description": "Tax",
+      "rows": 19738,
+      "nonblank_sku": 19738,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 4560,
+          "nonblank_sku": 4560,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 15175,
+          "nonblank_sku": 15175,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "LowValueGoodsTax-Principal",
+      "rows": 3,
+      "nonblank_sku": 3,
+      "blank_sku": 0,
+      "regions": {
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "LowValueGoodsTax-Shipping",
+      "rows": 3,
+      "nonblank_sku": 3,
+      "blank_sku": 0,
+      "regions": {
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorTax-Principal",
+      "rows": 4525,
+      "nonblank_sku": 4525,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 4525,
+          "nonblank_sku": 4525,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorTax-Shipping",
+      "rows": 63,
+      "nonblank_sku": 63,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 63,
+          "nonblank_sku": 63,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Principal",
+      "rows": 15074,
+      "nonblank_sku": 15074,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 15072,
+          "nonblank_sku": 15072,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Shipping",
+      "rows": 15054,
+      "nonblank_sku": 15054,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 15052,
+          "nonblank_sku": 15052,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "Promotion",
+      "amount_description": "Principal",
+      "rows": 514,
+      "nonblank_sku": 514,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 170,
+          "nonblank_sku": 170,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 344,
+          "nonblank_sku": 344,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "Promotion",
+      "amount_description": "Shipping",
+      "rows": 3330,
+      "nonblank_sku": 3330,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 980,
+          "nonblank_sku": 980,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 1960,
+          "nonblank_sku": 1960,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 390,
+          "nonblank_sku": 390,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order",
+      "amount_type": "Promotion",
+      "amount_description": "TaxDiscount",
+      "rows": 2301,
+      "nonblank_sku": 2301,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 2298,
+          "nonblank_sku": 2298,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Order_Retrocharge",
+      "amount_type": "ItemPrice",
+      "amount_description": "ShippingTax",
+      "rows": 5,
+      "nonblank_sku": 0,
+      "blank_sku": 5,
+      "regions": {
+        "NA": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        },
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Order_Retrocharge",
+      "amount_type": "ItemPrice",
+      "amount_description": "Tax",
+      "rows": 5,
+      "nonblank_sku": 0,
+      "blank_sku": 5,
+      "regions": {
+        "NA": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        },
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Order_Retrocharge",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorTax-Principal",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "NA": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Order_Retrocharge",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Principal",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Order_Retrocharge",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Shipping",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "EU": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemFees",
+      "amount_description": "Commission",
+      "rows": 488,
+      "nonblank_sku": 488,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 175,
+          "nonblank_sku": 175,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 303,
+          "nonblank_sku": 303,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 10,
+          "nonblank_sku": 10,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemFees",
+      "amount_description": "DigitalServicesFee",
+      "rows": 251,
+      "nonblank_sku": 251,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 251,
+          "nonblank_sku": 251,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemFees",
+      "amount_description": "RefundCommission",
+      "rows": 488,
+      "nonblank_sku": 488,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 175,
+          "nonblank_sku": 175,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 303,
+          "nonblank_sku": 303,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 10,
+          "nonblank_sku": 10,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemFees",
+      "amount_description": "ShippingChargeback",
+      "rows": 66,
+      "nonblank_sku": 66,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 8,
+          "nonblank_sku": 8,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 53,
+          "nonblank_sku": 53,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 5,
+          "nonblank_sku": 5,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemPrice",
+      "amount_description": "Principal",
+      "rows": 499,
+      "nonblank_sku": 499,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 181,
+          "nonblank_sku": 181,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 308,
+          "nonblank_sku": 308,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 10,
+          "nonblank_sku": 10,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemPrice",
+      "amount_description": "RestockingFee",
+      "rows": 2,
+      "nonblank_sku": 2,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemPrice",
+      "amount_description": "Shipping",
+      "rows": 138,
+      "nonblank_sku": 138,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 46,
+          "nonblank_sku": 46,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 85,
+          "nonblank_sku": 85,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 7,
+          "nonblank_sku": 7,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemPrice",
+      "amount_description": "ShippingTax",
+      "rows": 92,
+      "nonblank_sku": 92,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 7,
+          "nonblank_sku": 7,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 85,
+          "nonblank_sku": 85,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemPrice",
+      "amount_description": "Tax",
+      "rows": 482,
+      "nonblank_sku": 482,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 174,
+          "nonblank_sku": 174,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 308,
+          "nonblank_sku": 308,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorTax-Other",
+      "rows": 10,
+      "nonblank_sku": 10,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 10,
+          "nonblank_sku": 10,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorTax-Principal",
+      "rows": 168,
+      "nonblank_sku": 168,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 168,
+          "nonblank_sku": 168,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorTax-Shipping",
+      "rows": 7,
+      "nonblank_sku": 7,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 7,
+          "nonblank_sku": 7,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Principal",
+      "rows": 303,
+      "nonblank_sku": 303,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 303,
+          "nonblank_sku": 303,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Shipping",
+      "rows": 84,
+      "nonblank_sku": 84,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 84,
+          "nonblank_sku": 84,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "Promotion",
+      "amount_description": "Principal",
+      "rows": 19,
+      "nonblank_sku": 19,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 6,
+          "nonblank_sku": 6,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 13,
+          "nonblank_sku": 13,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "Promotion",
+      "amount_description": "Shipping",
+      "rows": 71,
+      "nonblank_sku": 71,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 38,
+          "nonblank_sku": 38,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 31,
+          "nonblank_sku": 31,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 2,
+          "nonblank_sku": 2,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund",
+      "amount_type": "Promotion",
+      "amount_description": "TaxDiscount",
+      "rows": 44,
+      "nonblank_sku": 44,
+      "blank_sku": 0,
+      "regions": {
+        "EU": {
+          "rows": 44,
+          "nonblank_sku": 44,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "Refund_Retrocharge",
+      "amount_type": "ItemPrice",
+      "amount_description": "ShippingTax",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Refund_Retrocharge",
+      "amount_type": "ItemPrice",
+      "amount_description": "Tax",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "Refund_Retrocharge",
+      "amount_type": "ItemWithheldTax",
+      "amount_description": "MarketplaceFacilitatorVAT-Principal",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "ServiceFee",
+      "amount_type": "Cost of Advertising",
+      "amount_description": "TransactionTotalAmount",
+      "rows": 191,
+      "nonblank_sku": 0,
+      "blank_sku": 191,
+      "regions": {
+        "NA": {
+          "rows": 52,
+          "nonblank_sku": 0,
+          "blank_sku": 52
+        },
+        "EU": {
+          "rows": 128,
+          "nonblank_sku": 0,
+          "blank_sku": 128
+        },
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "AUSTRALIA": {
+          "rows": 10,
+          "nonblank_sku": 0,
+          "blank_sku": 10
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "FBA Inventory Reimbursement",
+      "amount_description": "COMPENSATED_CLAWBACK",
+      "rows": 46,
+      "nonblank_sku": 46,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 32,
+          "nonblank_sku": 32,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 14,
+          "nonblank_sku": 14,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "FBA Inventory Reimbursement",
+      "amount_description": "FREE_REPLACEMENT_REFUND_ITEMS",
+      "rows": 18,
+      "nonblank_sku": 18,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 17,
+          "nonblank_sku": 17,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 1,
+          "nonblank_sku": 1,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "FBA Inventory Reimbursement",
+      "amount_description": "REVERSAL_REIMBURSEMENT",
+      "rows": 150,
+      "nonblank_sku": 150,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 35,
+          "nonblank_sku": 35,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 112,
+          "nonblank_sku": 112,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 3,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "FBA Inventory Reimbursement",
+      "amount_description": "WAREHOUSE_DAMAGE",
+      "rows": 50,
+      "nonblank_sku": 50,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 23,
+          "nonblank_sku": 23,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 23,
+          "nonblank_sku": 23,
+          "blank_sku": 0
+        },
+        "AUSTRALIA": {
+          "rows": 4,
+          "nonblank_sku": 4,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "FBA Inventory Reimbursement",
+      "amount_description": "WAREHOUSE_LOST",
+      "rows": 65,
+      "nonblank_sku": 65,
+      "blank_sku": 0,
+      "regions": {
+        "NA": {
+          "rows": 19,
+          "nonblank_sku": 19,
+          "blank_sku": 0
+        },
+        "EU": {
+          "rows": 46,
+          "nonblank_sku": 46,
+          "blank_sku": 0
+        }
+      },
+      "observed_sku_presence": "all_present"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Current Reserve Amount",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "EU": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "DisposalComplete",
+      "rows": 26,
+      "nonblank_sku": 0,
+      "blank_sku": 26,
+      "regions": {
+        "NA": {
+          "rows": 12,
+          "nonblank_sku": 0,
+          "blank_sku": 12
+        },
+        "EU": {
+          "rows": 14,
+          "nonblank_sku": 0,
+          "blank_sku": 14
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "FBA Inbound Placement Service Fee",
+      "rows": 4,
+      "nonblank_sku": 0,
+      "blank_sku": 4,
+      "regions": {
+        "NA": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "FBAInboundTransportationFee",
+      "rows": 10,
+      "nonblank_sku": 0,
+      "blank_sku": 10,
+      "regions": {
+        "EU": {
+          "rows": 10,
+          "nonblank_sku": 0,
+          "blank_sku": 10
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "FBAInboundTransportationProgramFee",
+      "rows": 10,
+      "nonblank_sku": 0,
+      "blank_sku": 10,
+      "regions": {
+        "EU": {
+          "rows": 10,
+          "nonblank_sku": 0,
+          "blank_sku": 10
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Fee Adjustment",
+      "rows": 1,
+      "nonblank_sku": 0,
+      "blank_sku": 1,
+      "regions": {
+        "NA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Inbound Transportation Fee",
+      "rows": 6,
+      "nonblank_sku": 0,
+      "blank_sku": 6,
+      "regions": {
+        "NA": {
+          "rows": 6,
+          "nonblank_sku": 0,
+          "blank_sku": 6
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Payable to Amazon",
+      "rows": 50,
+      "nonblank_sku": 0,
+      "blank_sku": 50,
+      "regions": {
+        "NA": {
+          "rows": 9,
+          "nonblank_sku": 0,
+          "blank_sku": 9
+        },
+        "EU": {
+          "rows": 40,
+          "nonblank_sku": 0,
+          "blank_sku": 40
+        },
+        "AUSTRALIA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Previous Reserve Amount Balance",
+      "rows": 4,
+      "nonblank_sku": 0,
+      "blank_sku": 4,
+      "regions": {
+        "EU": {
+          "rows": 4,
+          "nonblank_sku": 0,
+          "blank_sku": 4
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "RemovalComplete",
+      "rows": 2,
+      "nonblank_sku": 0,
+      "blank_sku": 2,
+      "regions": {
+        "NA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "EU": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Storage Fee",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        },
+        "AUSTRALIA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "StorageRenewalBilling",
+      "rows": 4,
+      "nonblank_sku": 0,
+      "blank_sku": 4,
+      "regions": {
+        "NA": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        },
+        "SINGAPORE": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "AUSTRALIA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Subscription Fee",
+      "rows": 15,
+      "nonblank_sku": 0,
+      "blank_sku": 15,
+      "regions": {
+        "NA": {
+          "rows": 9,
+          "nonblank_sku": 0,
+          "blank_sku": 9
+        },
+        "EU": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        },
+        "AUSTRALIA": {
+          "rows": 3,
+          "nonblank_sku": 0,
+          "blank_sku": 3
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Successful charge",
+      "rows": 45,
+      "nonblank_sku": 0,
+      "blank_sku": 45,
+      "regions": {
+        "NA": {
+          "rows": 7,
+          "nonblank_sku": 0,
+          "blank_sku": 7
+        },
+        "EU": {
+          "rows": 37,
+          "nonblank_sku": 0,
+          "blank_sku": 37
+        },
+        "AUSTRALIA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    },
+    {
+      "transaction_type": "other-transaction",
+      "amount_type": "other-transaction",
+      "amount_description": "Transfer of funds unsuccessful: We could not transfer funds to your bank account because the account information on file is invalid. Please update your bank account information.",
+      "rows": 3,
+      "nonblank_sku": 0,
+      "blank_sku": 3,
+      "regions": {
+        "NA": {
+          "rows": 1,
+          "nonblank_sku": 0,
+          "blank_sku": 1
+        },
+        "SINGAPORE": {
+          "rows": 2,
+          "nonblank_sku": 0,
+          "blank_sku": 2
+        }
+      },
+      "observed_sku_presence": "all_blank"
+    }
+  ],
+  "limitations": [
+    "Japan has no content evidence; Singapore has only 11 ordinary Order rows and no Refund rows.",
+    "Creation-time discovery windows are not settlement or posting-time windows.",
+    "SKU presence does not verify SKU correctness, company mapping, monetary completeness, or future behavior.",
+    "Missing entire reports or transactions cannot be detected by testing the SKU cells of rows that were returned.",
+    "This file preserves aggregate evidence; raw TSVs, credentials, seller/report/order identifiers, SKU values, and temporary paths are deliberately absent.",
+    "Reproducing the source audit requires authorized source documents or fresh SP-API acquisition; internal count checks alone do not independently verify the source data."
+  ]
+}

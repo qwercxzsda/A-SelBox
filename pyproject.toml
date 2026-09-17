@@ -36,6 +36,7 @@ select = [
 ]
 
 [tool.pyright]
+include = ["services"]
 pythonVersion = "3.14"
 # Third-party packages lack stub packages; strict unknown-type diagnostics still apply.
 reportMissingTypeStubs = false
