@@ -120,7 +120,7 @@ const ACCOUNT_COLUMNS = ["user_id", "access_role", "company_id", "created_at"] a
 // or private domains, even when their CSV representation looks like text.
 export const DATASET_CONFIG = {
   live: {
-    label: "Live company amounts",
+    label: "Company amounts",
     endpoint: "live_company_components",
     selectColumns: LIVE_COLUMNS,
     searchColumns: [
@@ -137,7 +137,7 @@ export const DATASET_CONFIG = {
     idColumns: ["source", "source_row_id"],
   },
   settlement: {
-    label: "Settlement",
+    label: "Settlements",
     endpoint: "settlement_preprocess_entries",
     selectColumns: SETTLEMENT_COLUMNS,
     searchColumns: ["sku", "currency", "family", "accounting_subtype"],
@@ -173,7 +173,7 @@ export const DATASET_CONFIG = {
     idColumns: ["id"],
   },
   accounts: {
-    label: "People",
+    label: "User access",
     endpoint: "app_accounts",
     selectColumns: ACCOUNT_COLUMNS,
     searchColumns: [],

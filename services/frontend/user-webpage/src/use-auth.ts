@@ -13,6 +13,7 @@ import {
 } from "./api";
 import { sessionRefreshDelayMs } from "./session";
 import { getErrorMessage } from "./view-model";
+import { ApiError } from "./api/client";
 
 export interface Identity {
   session: Session;
@@ -115,6 +116,12 @@ export function useAuth() {
         next.account.company_id === identity.account.company_id
       );
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (error.status === null || error.status >= 500 || error.status === 429)
+      ) {
+        throw error;
+      }
       if (generation === operation.current) {
         ++operation.current;
         setIdentity(null);

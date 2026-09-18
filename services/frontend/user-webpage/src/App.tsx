@@ -2,13 +2,32 @@ import { LoginPanel } from "./LoginPanel";
 import { useEffect, useState } from "react";
 import { Button } from "@mantine/core";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { FinanceWorkspace, type WorkspaceProps } from "./FinanceWorkspace";
+import { FinanceWorkspace } from "./FinanceWorkspace";
 import { createQueryClient } from "./query-client";
 import { companyLabel } from "./view-model";
 import { useAuth } from "./use-auth";
+import { useWorkspaceRefresh } from "./use-workspace-refresh";
+import type { Identity } from "./use-auth";
 import "./App.css";
 
-function AuthenticatedWorkspace(props: WorkspaceProps) {
+interface AuthenticatedProps {
+  identity: Identity;
+  onRefreshIdentity: () => Promise<boolean>;
+}
+
+function WorkspaceContent({ identity, onRefreshIdentity }: AuthenticatedProps) {
+  const { refresh, isUpdating, updateError } = useWorkspaceRefresh(onRefreshIdentity);
+  return (
+    <FinanceWorkspace
+      identity={identity}
+      onRetry={refresh}
+      isUpdating={isUpdating}
+      updateError={updateError}
+    />
+  );
+}
+
+function AuthenticatedWorkspace(props: AuthenticatedProps) {
   const [client] = useState(createQueryClient);
   useEffect(
     () => () => {
@@ -18,7 +37,7 @@ function AuthenticatedWorkspace(props: WorkspaceProps) {
   );
   return (
     <QueryClientProvider client={client}>
-      <FinanceWorkspace {...props} />
+      <WorkspaceContent {...props} />
     </QueryClientProvider>
   );
 }
@@ -40,22 +59,23 @@ function App() {
   const session = identity?.session;
   const account = identity?.account;
   const companyNames = new Map(identity?.companies.map((company) => [company.id, company.name]));
+  const accountLabel = !account
+    ? null
+    : account.access_role === "operator"
+      ? "Administrator"
+      : companyLabel(account.company_id, companyNames);
+  useEffect(() => {
+    document.title = accountLabel ? `${accountLabel} · A-SelBox` : "A-SelBox";
+  }, [accountLabel]);
   return (
     <main className="app-shell">
       <div className="app-frame">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">A-SelBox · company workspace</p>
-            <h1>Company Finance</h1>
-          </div>
+          <p className="app-brand">A-SelBox</p>
           {session ? (
             <div className="session-panel">
               <span className="session-identity">
-                <span>
-                  {account?.access_role === "operator"
-                    ? "Operator"
-                    : companyLabel(account?.company_id ?? null, companyNames)}
-                </span>
+                <span>{accountLabel}</span>
                 <strong>{session.user.email ?? email}</strong>
               </span>
               <Button

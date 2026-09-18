@@ -2,7 +2,13 @@ import { Drawer, Text, Title } from "@mantine/core";
 import type { CanonicalRow, DatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
 import { humanizeCode } from "./categories";
-import { DATASET_PRESENTATION, TABLE_COLUMNS, rowId, type ColumnDefinition } from "./view-model";
+import {
+  DATASET_PRESENTATION,
+  TABLE_COLUMNS,
+  displayColumns,
+  rowId,
+  type ColumnDefinition,
+} from "./view-model";
 
 export function RowDetail({
   companies,
@@ -10,16 +16,22 @@ export function RowDetail({
   row,
   skuNames,
   onClose,
+  isAdministrator,
 }: {
   companies: Map<string, string>;
   dataset: DatasetKey;
   row: CanonicalRow | null;
   skuNames: Map<string, string>;
   onClose: () => void;
+  isAdministrator: boolean;
 }) {
-  const columns = TABLE_COLUMNS[dataset];
-  const shown = new Set(columns.map((column) => column.key));
-  const remaining = Object.keys(row ?? {}).filter((key) => !shown.has(key));
+  const columns = displayColumns(dataset, isAdministrator).filter(
+    (column) => !(column.key === "sku" && row?.sku),
+  );
+  const shown = new Set(TABLE_COLUMNS[dataset].map((column) => column.key));
+  const remaining = Object.keys(row ?? {}).filter(
+    (key) => !shown.has(key) && (isAdministrator || key !== "company_id"),
+  );
   return (
     <Drawer
       id="selected-row-details"
@@ -54,22 +66,24 @@ export function RowDetail({
               </div>
             ))}
           </div>
-          <details className="audit-details" key={rowId(row)}>
-            <summary>Source and version details</summary>
-            <div className="audit-grid">
-              {remaining.map((key) => {
-                const column: ColumnDefinition = { key, kind: "text", label: humanizeCode(key) };
-                return (
-                  <div className="audit-value" key={key}>
-                    <span className="field-label">{column.label}</span>
-                    <code>
-                      <TableCellValue column={column} companies={companies} row={row} />
-                    </code>
-                  </div>
-                );
-              })}
-            </div>
-          </details>
+          {isAdministrator && remaining.length > 0 ? (
+            <details className="audit-details" key={rowId(row)}>
+              <summary>Additional details</summary>
+              <div className="audit-grid">
+                {remaining.map((key) => {
+                  const column: ColumnDefinition = { key, kind: "text", label: humanizeCode(key) };
+                  return (
+                    <div className="audit-value" key={key}>
+                      <span className="field-label">{column.label}</span>
+                      <code>
+                        <TableCellValue column={column} companies={companies} row={row} />
+                      </code>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
         </>
       ) : null}
     </Drawer>

@@ -6,6 +6,7 @@ import { readBuildConfig, validateApiConfig, type ApiClientConfig } from "./runt
 import { buildSearchFilter } from "./search.ts";
 import type {
   AppAccount,
+  CanonicalRow,
   Company,
   DatasetKey,
   DatasetSort,
@@ -129,6 +130,10 @@ function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
   });
   const filter = buildSearchFilter(config.searchColumns, search);
   if (filter !== null) params.set("or", filter);
+  if (dataset === "data_kiosk") params.set("amount", "neq.0");
+  if (dataset === "live") {
+    params.set("and", "(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+  }
   return params;
 }
 
@@ -153,6 +158,55 @@ export function createApiClient(
   function authenticatedHeaders(accessToken: string, accept = "application/json") {
     requireAccessToken(accessToken);
     return { Accept: accept, Authorization: `Bearer ${accessToken}`, apikey: publishableKey };
+  }
+
+  async function readCsvPage(
+    accessToken: string,
+    endpoint: string,
+    params: URLSearchParams,
+    operation: string,
+    signal?: AbortSignal,
+  ): Promise<PageResult> {
+    const response = await request(
+      `/rest/v1/${endpoint}?${params.toString()}`,
+      {
+        signal,
+        headers: { ...authenticatedHeaders(accessToken, "text/csv"), Prefer: "count=exact" },
+      },
+      operation,
+    );
+    if (!response.ok) {
+      if (response.status === 416) {
+        const totalCount = parseTotalCount(response.headers.get("Content-Range"));
+        if (totalCount !== null) return { rows: [], totalCount };
+      }
+      throw new ApiError(operation, response.status);
+    }
+    return {
+      rows: parseCsv(await response.text()),
+      totalCount: parseTotalCount(response.headers.get("Content-Range")),
+    };
+  }
+
+  async function readAllCsvRows(
+    accessToken: string,
+    endpoint: string,
+    params: URLSearchParams,
+    operation: string,
+    signal?: AbortSignal,
+  ): Promise<CanonicalRow[]> {
+    const rows: CanonicalRow[] = [];
+    for (;;) {
+      params.set("limit", String(LOOKUP_PAGE_SIZE));
+      params.set("offset", String(rows.length));
+      const page = await readCsvPage(accessToken, endpoint, params, operation, signal);
+      rows.push(...page.rows);
+      if (page.totalCount !== null && rows.length >= page.totalCount) return rows;
+      if (page.rows.length === 0) {
+        if (page.totalCount !== null) throw new Error(`${operation} returned an incomplete page`);
+        return rows;
+      }
+    }
   }
 
   async function requestSession(
@@ -236,7 +290,7 @@ export function createApiClient(
         user_id: `eq.${userId}`,
         limit: "1",
       });
-      const operation = "Application account query";
+      const operation = "Account access";
       const response = await request(
         `/rest/v1/app_accounts?${params.toString()}`,
         { headers: authenticatedHeaders(accessToken) },
@@ -244,7 +298,8 @@ export function createApiClient(
       );
       if (!response.ok) throw new ApiError(operation, response.status);
       const rows = parseObjectRows(await readJson(response, operation), operation);
-      if (rows.length === 0) throw new Error("This Auth account has no application access");
+      if (rows.length === 0)
+        throw new Error("This account does not have access. Contact your administrator.");
       if (rows.length !== 1) throw new Error(`${operation} returned multiple accounts`);
       return parseAppAccount(rows[0], userId);
     },
@@ -255,7 +310,7 @@ export function createApiClient(
         "companies",
         "id,name",
         "name.asc,id.asc",
-        "Company query",
+        "Company details",
       );
       return rows.map((row) => ({
         id: requiredJsonString(row, "id"),
@@ -269,7 +324,7 @@ export function createApiClient(
         "company_skus",
         "id,seller_namespace,sku,company_id,terms_version_id",
         "id.asc",
-        "SKU assignment query",
+        "Product assignments",
       );
       return rows.map((row) => ({
         id: requiredJsonString(row, "id"),
@@ -285,28 +340,36 @@ export function createApiClient(
       validatePageRequest(options.dataset, options.pageIndex, options.pageSize, options.sort);
       const config = DATASET_CONFIG[options.dataset];
       const params = buildDatasetParams(options);
-      const response = await request(
-        `/rest/v1/${config.endpoint}?${params.toString()}`,
-        {
-          signal: options.signal,
-          headers: {
-            ...authenticatedHeaders(options.accessToken, "text/csv"),
-            Prefer: "count=exact",
-          },
-        },
-        `${config.label} query`,
+      const result = await readCsvPage(
+        options.accessToken,
+        config.endpoint,
+        params,
+        config.label,
+        options.signal,
       );
-      if (!response.ok) {
-        if (response.status === 416) {
-          const totalCount = parseTotalCount(response.headers.get("Content-Range"));
-          if (totalCount !== null) return { rows: [], totalCount };
-        }
-        throw new ApiError(`${config.label} query`, response.status);
+      return { ...result, rows: mapDatasetRows(options.dataset, result.rows) };
+    },
+
+    async fetchSkuFees(
+      accessToken: string,
+      sellerSkuId: string,
+      signal?: AbortSignal,
+    ): Promise<CanonicalRow[]> {
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(sellerSkuId)) {
+        throw new Error("A valid seller SKU ID is required");
       }
-      return {
-        rows: mapDatasetRows(options.dataset, parseCsv(await response.text())),
-        totalCount: parseTotalCount(response.headers.get("Content-Range")),
-      };
+      const rows = await readAllCsvRows(
+        accessToken,
+        DATASET_CONFIG.fees.endpoint,
+        new URLSearchParams({
+          select: DATASET_CONFIG.fees.selectColumns.join(","),
+          seller_sku_id: `eq.${sellerSkuId}`,
+          order: "marketplace_name.asc,valid_period.asc,fee_period_id.asc",
+        }),
+        "Fee rates",
+        signal,
+      );
+      return mapDatasetRows("fees", rows);
     },
   };
 }
@@ -331,3 +394,8 @@ export const fetchSkuAssignments = (accessToken: string): Promise<SkuAssignment[
   getDefaultClient().fetchSkuAssignments(accessToken);
 export const fetchDatasetPage = (options: FetchDatasetPageOptions): Promise<PageResult> =>
   getDefaultClient().fetchDatasetPage(options);
+export const fetchSkuFees = (
+  accessToken: string,
+  sellerSkuId: string,
+  signal?: AbortSignal,
+): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, sellerSkuId, signal);
