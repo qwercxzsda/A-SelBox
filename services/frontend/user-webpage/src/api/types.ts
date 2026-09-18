@@ -49,6 +49,17 @@ export interface DatasetSort {
   direction: SortDirection;
 }
 
+export type DatasetFilterField = "sku" | "marketplace_name" | "source" | "component_type";
+
+export interface DatasetFilters {
+  dateFrom: string;
+  dateTo: string;
+  skus: string[];
+  marketplaces: string[];
+  sources: string[];
+  types: string[];
+}
+
 export interface FetchDatasetPageOptions<Dataset extends DatasetKey = DatasetKey> {
   accessToken: string;
   signal?: AbortSignal;
@@ -57,4 +68,5 @@ export interface FetchDatasetPageOptions<Dataset extends DatasetKey = DatasetKey
   pageSize: number;
   search: string;
   sort: DatasetSort;
+  filters?: DatasetFilters;
 }

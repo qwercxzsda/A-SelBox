@@ -444,3 +444,173 @@ test("SKU fee expansion reads every marketplace period despite a smaller server 
   assert.ok(result.every((row) => row.fee_rate_percent === "4.123456"));
   await assert.rejects(client.fetchSkuFees("test-access", "invalid-id"), /valid seller SKU ID/);
 });
+
+function datasetFilters(overrides = {}) {
+  return {
+    dateFrom: "",
+    dateTo: "",
+    skus: [],
+    marketplaces: [],
+    sources: [],
+    types: [],
+    ...overrides,
+  };
+}
+
+test("column filters combine inclusive dates, exact selections, search, and visibility before paging", async () => {
+  let requested;
+  const skus = ["SKU_100%", "a,b(c).d", 'quoted"value', "path\\value", "ＳＫＵ－１"];
+  const filters = datasetFilters({
+    dateFrom: "2024-02-29",
+    dateTo: "2024-03-01",
+    skus: [...skus, skus[0]],
+    marketplaces: ["Amazon.com", "Amazon.co.jp"],
+    sources: ["SETTLEMENT", "DATA_KIOSK"],
+    types: ["PRODUCT_SALES", "FbaStorageFee"],
+  });
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requested = { params: new URL(url).searchParams, init };
+    return new Response("", { headers: { "Content-Range": "*/0" } });
+  });
+  await client.fetchDatasetPage(pageRequest("live", { filters, search: "SKU", pageIndex: 2 }));
+  const { params, init } = requested;
+  assert.deepEqual(params.getAll("activity_date"), ["gte.2024-02-29", "lte.2024-03-01"]);
+  assert.deepEqual(JSON.parse(`[${params.get("sku").slice(4, -1)}]`), skus);
+  assert.equal(params.get("marketplace_name"), 'in.("Amazon.com","Amazon.co.jp")');
+  assert.equal(params.get("source"), 'in.("SETTLEMENT","DATA_KIOSK")');
+  assert.equal(params.get("component_type"), 'in.("PRODUCT_SALES","FbaStorageFee")');
+  assert.equal(params.get("and"), "(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+  assert.equal(params.get("or"), buildSearchFilter(DATASET_CONFIG.live.searchColumns, "SKU"));
+  assert.equal(params.get("offset"), "50");
+  assert.equal(new Headers(init.headers).get("Prefer"), "count=exact");
+  await client.fetchDatasetPage(
+    pageRequest("settlement", {
+      filters: datasetFilters({ dateTo: "2026-09-18", skus: ["SKU"] }),
+    }),
+  );
+  assert.equal(requested.params.get("posted_date"), "lte.2026-09-18");
+  assert.equal(requested.params.has("activity_date"), false);
+});
+
+test("empty selections preserve the unfiltered request", async () => {
+  const urls = [];
+  const client = createApiClient(SETTINGS, async (url) => {
+    urls.push(url);
+    return new Response("", { headers: { "Content-Range": "*/0" } });
+  });
+  await client.fetchDatasetPage(pageRequest());
+  await client.fetchDatasetPage(pageRequest("live", { filters: datasetFilters() }));
+  assert.equal(urls[0], urls[1]);
+});
+
+test("invalid calendar periods and unsupported column filters fail before sending a request", async () => {
+  let requests = 0;
+  const client = createApiClient(SETTINGS, async () => {
+    requests += 1;
+    return new Response("");
+  });
+  for (const dateFrom of [
+    "2026-02-29",
+    "2026-04-31",
+    "2026-13-01",
+    "0000-01-01",
+    "2026-9-1",
+    "2026-09-01T00:00:00Z",
+  ]) {
+    await assert.rejects(
+      client.fetchDatasetPage(
+        pageRequest("live", {
+          filters: datasetFilters({ dateFrom }),
+        }),
+      ),
+      /valid.*date/,
+    );
+  }
+  await assert.rejects(
+    client.fetchDatasetPage(
+      pageRequest("live", {
+        filters: datasetFilters({ dateFrom: "2026-09-02", dateTo: "2026-09-01" }),
+      }),
+    ),
+    /start date/,
+  );
+  for (const [dataset, filters] of [
+    ["settlement", datasetFilters({ sources: ["SETTLEMENT"] })],
+    ["accounts", datasetFilters({ marketplaces: ["Amazon.com"] })],
+    ["fees", datasetFilters({ dateFrom: "2026-09-01" })],
+    ["live", datasetFilters({ skus: ["invalid\0value"] })],
+  ]) {
+    await assert.rejects(client.fetchDatasetPage(pageRequest(dataset, { filters })));
+  }
+  await assert.rejects(
+    client.fetchDatasetFilterOptions("test-access", "live", "company_id"),
+    /cannot be filtered/,
+  );
+  assert.equal(requests, 0);
+});
+
+test("filter options traverse duplicate values and small server caps until no later values remain", async () => {
+  const expected = ["A", 'B,quoted"SKU', "C.(sku)", "D\\backslash", "ＳＫＵ－１"];
+  const stored = [...Array(1100).fill("A"), ...expected.slice(1)];
+  const cursors = [];
+  const signal = new AbortController().signal;
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    const params = new URL(url).searchParams;
+    assert.equal(params.get("select"), "sku");
+    assert.equal(params.get("order"), "sku.asc");
+    assert.equal(params.get("limit"), "1000");
+    assert.equal(params.has("offset"), false);
+    assert.equal(params.get("and"), "(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+    assert.equal(new Headers(init.headers).has("Prefer"), false);
+    assert.equal(init.signal, signal);
+    const filter = params.get("sku");
+    cursors.push(filter);
+    const cursor = filter === "not.is.null" ? null : filter.slice(3);
+    const values = stored.filter((value) => cursor === null || value > cursor).slice(0, 2);
+    const csv = ["sku", ...values.map((value) => `"${value.replaceAll('"', '""')}"`)].join("\n");
+    return new Response(csv);
+  });
+  assert.deepEqual(
+    await client.fetchDatasetFilterOptions("test-access", "live", "sku", signal),
+    expected,
+  );
+  assert.deepEqual(cursors, ["not.is.null", "gt.A", "gt.C.(sku)", "gt.ＳＫＵ－１"]);
+});
+
+test("filter-option cursor preserves quoted punctuation instead of wrapping a top-level comparison", async () => {
+  const cursor = 'SKU,"quote"\\path.(value)';
+  let requests = 0;
+  const client = createApiClient(SETTINGS, async (url) => {
+    const params = new URL(url).searchParams;
+    requests += 1;
+    if (requests === 1) return new Response(csvRecord({ sku: cursor }));
+    assert.equal(params.get("sku"), `gt.${cursor}`);
+    return new Response("sku\n");
+  });
+  assert.deepEqual(await client.fetchDatasetFilterOptions("test-access", "live", "sku"), [cursor]);
+  assert.equal(requests, 2);
+});
+
+test("filter-option scans pass cancellation through and cannot loop on a non-advancing server", async () => {
+  const controller = new AbortController();
+  const client = createApiClient(SETTINGS, async (_url, { signal }) => {
+    assert.equal(signal, controller.signal);
+    return new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  });
+  const pending = client.fetchDatasetFilterOptions("test-access", "live", "sku", controller.signal);
+  const rejected = assert.rejects(pending, (error) => error === controller.signal.reason);
+  controller.abort();
+  await rejected;
+  let requests = 0;
+  const stuck = createApiClient(SETTINGS, async () => {
+    requests += 1;
+    return new Response("sku\nA");
+  });
+  await assert.rejects(
+    stuck.fetchDatasetFilterOptions("test-access", "live", "sku"),
+    /did not advance/,
+  );
+  assert.equal(requests, 2);
+});

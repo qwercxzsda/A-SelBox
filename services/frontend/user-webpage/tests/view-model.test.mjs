@@ -7,15 +7,16 @@ import {
   DATASET_PRESENTATION,
   TABLE_COLUMNS,
   companyLabel,
+  displayColumns,
   rowId,
   rowText,
   visibleDatasets,
 } from "../src/view-model.ts";
 
-test("members see company views while administrators also see payouts and user access", () => {
+test("members see transactions and fees while administrators retain all views", () => {
   const member = { user_id: "member-id", access_role: "company_member", company_id: "company-a" };
   const operator = { user_id: "operator-id", access_role: "operator", company_id: null };
-  assert.deepEqual(visibleDatasets(member), ["live", "settlement", "data_kiosk", "fees"]);
+  assert.deepEqual(visibleDatasets(member), ["live", "fees"]);
   assert.deepEqual(visibleDatasets(operator), DATASET_ORDER);
 });
 
@@ -31,6 +32,12 @@ test("every displayed sort uses a real allowed API column", () => {
       }
     }
   }
+  assert.deepEqual(
+    displayColumns("live", false)
+      .filter((column) => column.sortable)
+      .map((column) => column.key),
+    ["activity_date", "source_amount", "fee_rate_percent", "fee_amount", "company_amount"],
+  );
 });
 
 test("row selection uses source-qualified IDs and each other view's stable identity", () => {

@@ -51,6 +51,10 @@ test("pagination, sorting, and literal search make server requests and reset the
   expect(fixture.requests.at(-1).params.get("offset")).toBe("25");
 
   await page.getByRole("button", { name: "Date", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Date options", exact: true })
+    .getByRole("button", { name: "Oldest first", exact: true })
+    .click();
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   expect(fixture.requests.at(-1).params.get("order")).toBe(
     "activity_date.asc.nullslast,source.asc,source_row_id.asc",

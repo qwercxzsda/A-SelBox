@@ -1,6 +1,7 @@
 import { DATASET_CONFIG } from "./config.ts";
 import { parseTotalCount } from "./content-range.ts";
 import { parseCsv } from "./csv.ts";
+import { applyDatasetFilters, applyDatasetVisibility, requireFilterField } from "./filters.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
 import { readBuildConfig, validateApiConfig, type ApiClientConfig } from "./runtime-config.ts";
 import { buildSearchFilter } from "./search.ts";
@@ -8,6 +9,7 @@ import type {
   AppAccount,
   CanonicalRow,
   Company,
+  DatasetFilterField,
   DatasetKey,
   DatasetSort,
   FetchDatasetPageOptions,
@@ -130,10 +132,8 @@ function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
   });
   const filter = buildSearchFilter(config.searchColumns, search);
   if (filter !== null) params.set("or", filter);
-  if (dataset === "data_kiosk") params.set("amount", "neq.0");
-  if (dataset === "live") {
-    params.set("and", "(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
-  }
+  applyDatasetVisibility(dataset, params);
+  applyDatasetFilters(dataset, params, options.filters);
   return params;
 }
 
@@ -166,12 +166,16 @@ export function createApiClient(
     params: URLSearchParams,
     operation: string,
     signal?: AbortSignal,
+    includeCount = true,
   ): Promise<PageResult> {
     const response = await request(
       `/rest/v1/${endpoint}?${params.toString()}`,
       {
         signal,
-        headers: { ...authenticatedHeaders(accessToken, "text/csv"), Prefer: "count=exact" },
+        headers: {
+          ...authenticatedHeaders(accessToken, "text/csv"),
+          ...(includeCount ? { Prefer: "count=exact" } : {}),
+        },
       },
       operation,
     );
@@ -371,6 +375,46 @@ export function createApiClient(
       );
       return mapDatasetRows("fees", rows);
     },
+
+    async fetchDatasetFilterOptions(
+      accessToken: string,
+      dataset: DatasetKey,
+      field: DatasetFilterField,
+      signal?: AbortSignal,
+    ): Promise<string[]> {
+      requireFilterField(dataset, field);
+      const params = new URLSearchParams({
+        select: field,
+        order: `${field}.asc`,
+        limit: String(LOOKUP_PAGE_SIZE),
+        [field]: "not.is.null",
+      });
+      applyDatasetVisibility(dataset, params);
+      const values = new Set<string>();
+      for (;;) {
+        const page = await readCsvPage(
+          accessToken,
+          DATASET_CONFIG[dataset].endpoint,
+          params,
+          `${DATASET_CONFIG[dataset].label} filter options`,
+          signal,
+          false,
+        );
+        if (page.rows.length === 0) return [...values];
+        const nextValues = page.rows.map((row) => {
+          const value = row[field];
+          if (typeof value !== "string")
+            throw new Error("Filter options returned an invalid value");
+          return value;
+        });
+        const cursor = nextValues[nextValues.length - 1];
+        if (values.has(cursor)) throw new Error("Filter options did not advance to the next value");
+        for (const value of nextValues) values.add(value);
+        // Top-level comparison operands are raw values; URLSearchParams encodes them.
+        // Advancing past the last value skips duplicates even under smaller server caps.
+        params.set(field, `gt.${cursor}`);
+      }
+    },
   };
 }
 
@@ -399,3 +443,10 @@ export const fetchSkuFees = (
   sellerSkuId: string,
   signal?: AbortSignal,
 ): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, sellerSkuId, signal);
+export const fetchDatasetFilterOptions = (
+  accessToken: string,
+  dataset: DatasetKey,
+  field: DatasetFilterField,
+  signal?: AbortSignal,
+): Promise<string[]> =>
+  getDefaultClient().fetchDatasetFilterOptions(accessToken, dataset, field, signal);

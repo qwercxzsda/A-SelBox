@@ -17,6 +17,10 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await page.getByLabel("Rows", { exact: true }).selectOption("50");
   await expect(rowWithSku(page, "ALPHA-050")).toBeVisible();
   await page.getByRole("button", { name: "Date", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Date options", exact: true })
+    .getByRole("button", { name: "Oldest first", exact: true })
+    .click();
   await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
     "aria-sort",
     "ascending",
@@ -29,7 +33,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await group.click();
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
 
-  await page.getByRole("tab", { name: "Company amounts", exact: true }).click();
+  await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("ALPHA");
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
@@ -229,7 +233,7 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   await expect(group).toBeVisible();
 });
 
-test("Company amounts hides only zero Data Kiosk rows before pagination", async ({ page }) => {
+test("Transactions hides only zero Data Kiosk rows before pagination", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = [
     { ...liveRow("SETTLEMENT-ZERO", 1), source_amount: "0" },
@@ -266,6 +270,14 @@ for (const role of ["company_member", "operator"]) {
     fixture.feeRows = [feeRow(0)];
     await signIn(page);
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
+    await expect(page.getByRole("tab")).toHaveCount(role === "operator" ? 6 : 2);
+    await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
+    for (const sourceTab of ["Settlements", "Data Kiosk"]) {
+      await expect(page.getByRole("tab", { name: sourceTab, exact: true })).toHaveCount(
+        role === "operator" ? 1 : 0,
+      );
+    }
     const companyName = "Company A";
     const companyColumn = page.getByRole("columnheader", { name: "Company", exact: true });
     await expect(companyColumn).toHaveCount(role === "operator" ? 1 : 0);
@@ -307,8 +319,10 @@ for (const role of ["company_member", "operator"]) {
     }
     await details.getByRole("button", { name: "Close row details", exact: true }).click();
 
-    await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
-    await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(0);
+    if (role === "operator") {
+      await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
+      await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(0);
+    }
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     const group = page.getByRole("button", { name: /^Show marketplace fees for GROUP-001/ });

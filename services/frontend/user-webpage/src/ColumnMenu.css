@@ -1,0 +1,81 @@
+.column-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border-radius: var(--mantine-radius-xs);
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.column-menu-trigger:hover,
+.column-menu-trigger[data-filtered] {
+  color: var(--mantine-primary-color-filled);
+}
+
+.column-menu-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.column-menu-indicators svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.column-menu-count {
+  min-width: 16px;
+  border-radius: 8px;
+  background: var(--mantine-primary-color-light);
+  padding-inline: 3px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.column-menu-dropdown {
+  color: var(--mantine-color-text);
+  white-space: normal;
+}
+
+.column-menu-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.column-menu-dates input {
+  min-width: 0;
+  width: 100%;
+}
+
+.column-menu-options {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+}
+
+.column-menu-option {
+  padding-block: 6px;
+  overflow-wrap: anywhere;
+}
+
+.column-menu-option label {
+  cursor: pointer;
+}
+
+@media (max-width: 380px) {
+  .column-menu-dates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

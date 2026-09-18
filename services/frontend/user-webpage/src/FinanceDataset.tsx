@@ -8,15 +8,16 @@ import {
   Table,
   Text,
   TextInput,
-  UnstyledButton,
 } from "@mantine/core";
 import { type DatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
-import { DATASET_PRESENTATION, PAGE_SIZES, getErrorMessage } from "./view-model";
+import { DATASET_PRESENTATION, PAGE_SIZES, displayColumns, getErrorMessage } from "./view-model";
 import type { WorkspaceProps } from "./FinanceWorkspace";
 import { PaginationBar } from "./PaginationBar";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
+import { FinanceColumnHeader } from "./FinanceColumnHeader";
+import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 
 export function FinanceDataset({
   identity,
@@ -26,18 +27,28 @@ export function FinanceDataset({
   viewState,
   onViewStateChange,
 }: WorkspaceProps & { dataset: DatasetKey } & ViewStateProps<DatasetViewState>) {
-  const { table, query, totalCount, search, changeSearch, companies, skuNames } = useFinanceTable(
-    identity,
-    dataset,
-    viewState,
-    onViewStateChange,
-  );
+  const {
+    table,
+    query,
+    totalCount,
+    search,
+    changeSearch,
+    filters,
+    changeFilters,
+    companies,
+    skuNames,
+  } = useFinanceTable(identity, dataset, viewState, onViewStateChange);
   const { pageIndex, pageSize } = table.state.pagination;
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
   const pageCount = totalCount === null ? null : table.getPageCount();
   const isBusy = query.isFetching || isUpdating;
   const selectedRow = table.getSelectedRowModel().rows[0]?.original ?? null;
+  const filterCount = activeFilterCount(filters);
+  const hasFilters = filterCount > 0;
+  const hasRefinements = hasFilters || search.trim().length > 0;
+  const columns = displayColumns(dataset, identity.account.access_role === "operator");
+  const sort = viewState.sorting[0];
   return (
     <>
       <Text mb="md" role="note" c="dimmed" size="sm">
@@ -85,6 +96,22 @@ export function FinanceDataset({
           />
         </Group>
       </Group>
+      {hasFilters ? (
+        <Group gap="xs" mb="xs">
+          <Text size="sm" c="dimmed">
+            {filterCount} {filterCount === 1 ? "filter" : "filters"} applied
+          </Text>
+          <Button
+            size="compact-sm"
+            variant="subtle"
+            onClick={() => {
+              changeFilters(normalizeDatasetFilters());
+            }}
+          >
+            Clear filters
+          </Button>
+        </Group>
+      ) : null}
       <PaginationBar
         pageIndex={pageIndex}
         pageCount={pageCount}
@@ -128,6 +155,9 @@ export function FinanceDataset({
                 <Table.Tr key={group.id}>
                   {group.headers.map((header) => {
                     const sorted = header.column.getIsSorted();
+                    const column = columns.find(
+                      (definition) => definition.key === header.column.id,
+                    );
                     return (
                       <Table.Th
                         key={header.id}
@@ -145,17 +175,18 @@ export function FinanceDataset({
                             : undefined
                         }
                       >
-                        {header.column.getCanSort() ? (
-                          <UnstyledButton
-                            className="sort-button"
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                          >
-                            <table.FlexRender header={header} />
-                            <span className="sort-indicator" aria-hidden="true">
-                              {sorted === "asc" ? "▲" : sorted === "desc" ? "▼" : "↕"}
-                            </span>
-                          </UnstyledButton>
+                        {column ? (
+                          <FinanceColumnHeader
+                            column={column}
+                            dataset={dataset}
+                            identity={identity}
+                            filters={filters}
+                            onFiltersChange={changeFilters}
+                            sort={{ column: sort.id, direction: sort.desc ? "desc" : "asc" }}
+                            onSortChange={({ column: id, direction }) => {
+                              table.setSorting([{ id, desc: direction === "desc" }]);
+                            }}
+                          />
                         ) : (
                           <table.FlexRender header={header} />
                         )}
@@ -207,11 +238,13 @@ export function FinanceDataset({
           {!query.isPending && !query.isError && rows.length === 0 ? (
             <div className="empty-state">
               <Text fw={600}>
-                {search.trim() ? "No matching records" : presentation.emptyMessage}
+                {hasRefinements ? "No matching records" : presentation.emptyMessage}
               </Text>
-              {search.trim() ? (
+              {hasRefinements ? (
                 <Text c="dimmed" size="sm">
-                  Try a different search or use Clear search to see all records.
+                  {hasFilters
+                    ? "Adjust your selections or use Clear filters to see more records."
+                    : "Try a different search or use Clear search to see all records."}
                 </Text>
               ) : null}
             </div>
