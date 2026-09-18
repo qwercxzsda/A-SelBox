@@ -10,12 +10,14 @@ import {
   type RowSelectionState,
 } from "@tanstack/react-table";
 import type { CanonicalRow, DatasetKey } from "./api";
+import type { DatasetFilters } from "./api/types";
 import { TableCellValue } from "./Cell";
 import { lastPageIndex } from "./pagination";
 import { displayColumns, rowId } from "./view-model";
 import { useDatasetQuery } from "./use-dataset-query";
 import type { Identity } from "./use-auth";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
+import { normalizeDatasetFilters } from "./dataset-filters";
 
 const columnMeta: { align?: "right" } = {};
 const features = tableFeatures({
@@ -33,6 +35,7 @@ export function useFinanceTable(
   onViewStateChange: ViewStateProps<DatasetViewState>["onViewStateChange"],
 ) {
   const { pagination, sorting, search } = viewState;
+  const filters = normalizeDatasetFilters(viewState.filters);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [debouncedSearch] = useDebouncedValue(search.trim(), 250);
   const sort = sorting[0];
@@ -40,6 +43,7 @@ export function useFinanceTable(
     dataset,
     ...pagination,
     search: debouncedSearch,
+    filters,
     sort: { column: sort.id, direction: sort.desc ? "desc" : "asc" },
   });
   const rows = query.isError ? EMPTY_ROWS : (query.data?.rows ?? EMPTY_ROWS);
@@ -110,5 +114,23 @@ export function useFinanceTable(
       pagination: { ...current.pagination, pageIndex: 0 },
     }));
   }
-  return { table, query, totalCount, search, changeSearch, companies, skuNames };
+  function changeFilters(patch: Partial<DatasetFilters>) {
+    setRowSelection({});
+    onViewStateChange((current) => ({
+      ...current,
+      filters: normalizeDatasetFilters({ ...normalizeDatasetFilters(current.filters), ...patch }),
+      pagination: { ...current.pagination, pageIndex: 0 },
+    }));
+  }
+  return {
+    table,
+    query,
+    totalCount,
+    search,
+    changeSearch,
+    filters,
+    changeFilters,
+    companies,
+    skuNames,
+  };
 }

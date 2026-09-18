@@ -266,9 +266,17 @@ Strict and partial-summary functions currently invoke that view for validation
 and aggregation separately. The cost can therefore grow with the whole visible
 history rather than only the requested date interval.
 
-Representative workload measurements are needed before moving scope filters or
-changing the resolver interface. Local fixtures do not establish production
-latency or capacity.
+The [September 19 local table-loading investigation](evidence/frontend_table_loading_2026-09-19.md)
+measured about 2.0 seconds for a company member's 25-row Transactions request
+with an exact count, versus 1.0 second without the count. Query plans generated
+48,540 permitted rows before the page limit; date filtering did not reduce that
+work. The separate exact-count read repeated the resolver, and both passes
+spilled intermediate results to temporary storage. Complete frontend filter-option
+scans multiplied this cost across sequential requests.
+
+The issue is documented, not fixed. These local seeded measurements do not
+establish production latency or capacity; see the investigation for methods,
+sanitized measurements, frontend contributors, and limitations.
 
 ### Storage and database publication
 

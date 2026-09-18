@@ -1,4 +1,4 @@
-import type { DatasetKey, DatasetSort } from "./types.ts";
+import type { DatasetFilterField, DatasetKey, DatasetSort } from "./types.ts";
 
 export interface DatasetConfig {
   label: string;
@@ -8,6 +8,8 @@ export interface DatasetConfig {
   sortColumns: readonly string[];
   defaultSort: DatasetSort;
   idColumns: readonly string[];
+  dateColumn: string | null;
+  filterColumns: readonly DatasetFilterField[];
 }
 
 const LIVE_COLUMNS = [
@@ -120,7 +122,7 @@ const ACCOUNT_COLUMNS = ["user_id", "access_role", "company_id", "created_at"] a
 // or private domains, even when their CSV representation looks like text.
 export const DATASET_CONFIG = {
   live: {
-    label: "Company amounts",
+    label: "Transactions",
     endpoint: "live_company_components",
     selectColumns: LIVE_COLUMNS,
     searchColumns: [
@@ -135,6 +137,8 @@ export const DATASET_CONFIG = {
     sortColumns: LIVE_COLUMNS,
     defaultSort: { column: "activity_date", direction: "desc" },
     idColumns: ["source", "source_row_id"],
+    dateColumn: "activity_date",
+    filterColumns: ["sku", "marketplace_name", "source", "component_type"],
   },
   settlement: {
     label: "Settlements",
@@ -144,6 +148,8 @@ export const DATASET_CONFIG = {
     sortColumns: SETTLEMENT_COLUMNS,
     defaultSort: { column: "posted_date", direction: "desc" },
     idColumns: ["id"],
+    dateColumn: "posted_date",
+    filterColumns: ["sku", "marketplace_name", "component_type"],
   },
   data_kiosk: {
     label: "Data Kiosk",
@@ -153,6 +159,8 @@ export const DATASET_CONFIG = {
     sortColumns: DATA_KIOSK_COLUMNS,
     defaultSort: { column: "activity_date", direction: "desc" },
     idColumns: ["id"],
+    dateColumn: "activity_date",
+    filterColumns: ["sku", "marketplace_name", "component_type"],
   },
   fees: {
     label: "Current fees",
@@ -162,6 +170,8 @@ export const DATASET_CONFIG = {
     sortColumns: FEE_COLUMNS,
     defaultSort: { column: "fee_rate_percent", direction: "asc" },
     idColumns: ["fee_period_id"],
+    dateColumn: null,
+    filterColumns: ["marketplace_name"],
   },
   payouts: {
     label: "Payout reports",
@@ -171,6 +181,8 @@ export const DATASET_CONFIG = {
     sortColumns: PAYOUT_COLUMNS,
     defaultSort: { column: "created_at", direction: "desc" },
     idColumns: ["id"],
+    dateColumn: null,
+    filterColumns: [],
   },
   accounts: {
     label: "User access",
@@ -180,5 +192,7 @@ export const DATASET_CONFIG = {
     sortColumns: ACCOUNT_COLUMNS,
     defaultSort: { column: "created_at", direction: "desc" },
     idColumns: ["user_id"],
+    dateColumn: null,
+    filterColumns: [],
   },
 } as const satisfies Record<DatasetKey, DatasetConfig>;

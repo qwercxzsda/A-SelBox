@@ -4,6 +4,7 @@ import { ApiError, createApiClient } from "../src/api/client.ts";
 import { DATASET_CONFIG } from "../src/api/config.ts";
 import { createQueryClient } from "../src/query-client.ts";
 import { datasetQueryOptions } from "../src/use-dataset-query.ts";
+import { normalizeDatasetFilters } from "../src/dataset-filters.ts";
 
 const IDENTITY = {
   session: { user: { id: "user-a" }, access_token: "private-access-token" },
@@ -36,6 +37,14 @@ test("cached pages are separated by account access and every server-side query o
       { sort: { ...OPTIONS.sort, direction: OPTIONS.sort.direction === "asc" ? "desc" : "asc" } },
       { pageSize: 50 },
       { pageIndex: 1 },
+      ...[
+        { dateFrom: "2026-09-01" },
+        { dateTo: "2026-09-30" },
+        { skus: ["SKU_100"] },
+        { marketplaces: ["Amazon.com"] },
+        { sources: ["DATA_KIOSK"] },
+        { types: ["PRINCIPAL"] },
+      ].map((filters) => ({ filters: { ...normalizeDatasetFilters(), ...filters } })),
     ]) {
       assert.equal(
         client.getQueryData(datasetQueryOptions(IDENTITY, { ...OPTIONS, ...options }).queryKey),
@@ -47,6 +56,21 @@ test("cached pages are separated by account access and every server-side query o
       session: { ...IDENTITY.session, access_token: "renewed-private-token" },
     };
     assert.deepEqual(datasetQueryOptions(renewed, OPTIONS).queryKey, base.queryKey);
+    assert.deepEqual(
+      datasetQueryOptions(IDENTITY, { ...OPTIONS, filters: normalizeDatasetFilters() }).queryKey,
+      base.queryKey,
+    );
+    assert.deepEqual(
+      datasetQueryOptions(IDENTITY, {
+        ...OPTIONS,
+        filters: { ...normalizeDatasetFilters(), skus: ["B", "A", "B"] },
+      }).queryKey,
+      datasetQueryOptions(IDENTITY, {
+        ...OPTIONS,
+        filters: { ...normalizeDatasetFilters(), skus: ["A", "B"] },
+      }).queryKey,
+      "Selection order and duplicate values must share the same cached page",
+    );
     assert.equal(JSON.stringify(base.queryKey).includes(IDENTITY.session.access_token), false);
     const fresh = await client.fetchQuery({
       ...base,
@@ -113,6 +137,10 @@ test("an out-of-range page invalidates outdated sibling pages before pagination 
   const unaffected = [
     datasetQueryOptions(IDENTITY, { ...OPTIONS, search: "different-search" }),
     datasetQueryOptions(IDENTITY, { ...OPTIONS, dataset: "settlement" }),
+    datasetQueryOptions(IDENTITY, {
+      ...OPTIONS,
+      filters: { ...normalizeDatasetFilters(), sources: ["DATA_KIOSK"] },
+    }),
     datasetQueryOptions(
       { ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } },
       OPTIONS,

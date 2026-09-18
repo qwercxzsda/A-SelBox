@@ -37,18 +37,16 @@ export const DATASET_ORDER: readonly DatasetKey[] = [
 ];
 
 export function visibleDatasets(account: AppAccount): readonly DatasetKey[] {
-  return DATASET_ORDER.filter(
-    (key) => account.access_role === "operator" || (key !== "payouts" && key !== "accounts"),
-  );
+  return account.access_role === "operator" ? DATASET_ORDER : ["live", "fees"];
 }
 
 export const DATASET_PRESENTATION: Record<DatasetKey, DatasetPresentation> = {
   live: {
-    label: "Company amounts",
+    label: "Transactions",
     description:
       "Amounts reported by Amazon, service fees, and the resulting company amounts. Comparison-only rows are excluded from totals. Missing fee rates remain visible.",
     searchPlaceholder: "SKU, currency, or type",
-    emptyMessage: "No company amounts match this view.",
+    emptyMessage: "No transactions match this view.",
   },
   settlement: {
     label: "Settlements",
@@ -160,17 +158,35 @@ export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected request failure.";
 }
 
+const TRANSACTION_SORT_COLUMNS = new Set([
+  "activity_date",
+  "posted_date",
+  "source_amount",
+  "amount",
+  "fee_rate_percent",
+  "fee_amount",
+  "company_amount",
+]);
+
 export function displayColumns(
   dataset: DatasetKey,
   isAdministrator: boolean,
 ): readonly ColumnDefinition[] {
-  return TABLE_COLUMNS[dataset].filter(
-    (column) =>
-      isAdministrator ||
-      (column.kind !== "company" &&
-        column.key !== "preprocess_version" &&
-        !(dataset === "settlement" && column.key === "category")),
-  );
+  const transactionView =
+    dataset === "live" || dataset === "settlement" || dataset === "data_kiosk";
+  return TABLE_COLUMNS[dataset]
+    .filter(
+      (column) =>
+        isAdministrator ||
+        (column.kind !== "company" &&
+          column.key !== "preprocess_version" &&
+          !(dataset === "settlement" && column.key === "category")),
+    )
+    .map((column) =>
+      transactionView && !TRANSACTION_SORT_COLUMNS.has(column.key)
+        ? { ...column, sortable: undefined }
+        : column,
+    );
 }
 
 export function rowText(row: CanonicalRow, key: string): string | null {

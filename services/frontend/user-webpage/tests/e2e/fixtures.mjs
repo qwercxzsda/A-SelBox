@@ -1,5 +1,11 @@
 import { expect } from "@playwright/test";
 import { DATA_KIOSK_COLUMNS, FEE_COLUMNS, csv } from "./api-fixtures.mjs";
+import {
+  filterRecordRows,
+  optionColumn,
+  projectedOptionRows,
+  sortRecordRows,
+} from "./record-fixtures.mjs";
 
 const LIVE_COLUMNS = [
   "source",
@@ -73,6 +79,8 @@ export async function mockSupabase(page) {
     requests: [],
     events: [],
     feeRequests: [],
+    optionRequests: [],
+    optionPageCap: 1000,
     assignments: [],
     kioskRows: [],
     feeRows: [],
@@ -173,9 +181,21 @@ export async function mockSupabase(page) {
       return csvReply(FEE_COLUMNS, rows.slice(offset, offset + limit), rows.length, offset);
     }
     if (url.pathname === "/rest/v1/data_kiosk_preprocess_entries") {
+      const selectedColumn = optionColumn(url.searchParams);
+      if (selectedColumn) {
+        fixture.optionRequests.push({ user, params: url.searchParams, dataset: "data_kiosk" });
+        const rows = projectedOptionRows(
+          filterRecordRows(fixture.kioskRows, url.searchParams),
+          selectedColumn,
+          url.searchParams,
+          fixture.optionPageCap,
+        );
+        return csvReply([selectedColumn], rows);
+      }
       fixture.requests.push({ user, params: url.searchParams, dataset: "data_kiosk" });
-      const rows = fixture.kioskRows.filter(
-        (row) => url.searchParams.get("amount") !== "neq.0" || Number(row.amount) !== 0,
+      const rows = sortRecordRows(
+        filterRecordRows(fixture.kioskRows, url.searchParams),
+        url.searchParams,
       );
       const offset = Number(url.searchParams.get("offset"));
       const limit = Number(url.searchParams.get("limit"));
@@ -183,6 +203,23 @@ export async function mockSupabase(page) {
     }
     if (url.pathname !== "/rest/v1/live_company_components") {
       throw new Error(`Unexpected test API request: ${url.pathname}`);
+    }
+
+    const selectedColumn = optionColumn(url.searchParams);
+    if (selectedColumn) {
+      fixture.optionRequests.push({ user, params: url.searchParams, dataset: "live" });
+      const allRows =
+        fixture.liveRows ??
+        Array.from({ length: fixture.totalCount }, (_, index) =>
+          liveRow(fixture.prefixes[user], index + 1, fixture.companyIds[user]),
+        );
+      const rows = projectedOptionRows(
+        filterRecordRows(allRows, url.searchParams),
+        selectedColumn,
+        url.searchParams,
+        fixture.optionPageCap,
+      );
+      return csvReply([selectedColumn], rows);
     }
 
     const entry = { user, params: url.searchParams, dataset: "live" };
@@ -193,13 +230,10 @@ export async function mockSupabase(page) {
     const offset = Number(url.searchParams.get("offset"));
     const limit = Number(url.searchParams.get("limit"));
     const search = url.searchParams.get("or") ?? "";
-    const liveFilter = url.searchParams.get("and") ?? "";
-    const filteredRows = fixture.liveRows?.filter(
-      (row) =>
-        !liveFilter.includes("or(source.neq.DATA_KIOSK,source_amount.neq.0)") ||
-        row.source !== "DATA_KIOSK" ||
-        Number(row.source_amount) !== 0,
-    );
+    const filteredRows =
+      fixture.liveRows === null
+        ? undefined
+        : sortRecordRows(filterRecordRows(fixture.liveRows, url.searchParams), url.searchParams);
     const count = filteredRows?.length ?? (search ? fixture.searchCount : fixture.totalCount);
     if (offset > 0 && offset >= count) {
       return reply({}, 416, { "Content-Range": `*/${count}` });

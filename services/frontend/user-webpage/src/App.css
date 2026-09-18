@@ -118,21 +118,6 @@
   font-weight: 600;
 }
 
-.sort-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: inherit;
-  font-weight: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-}
-
-.sort-button:hover {
-  color: var(--mantine-primary-color-filled);
-}
-
-.sort-indicator,
 .muted-value {
   color: #7a8792;
 }

@@ -1,13 +1,15 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { PaginationState, SortingState } from "@tanstack/react-table";
 import { DATASET_CONFIG } from "./api/config.ts";
-import type { DatasetKey } from "./api/types.ts";
+import type { DatasetFilters, DatasetKey } from "./api/types.ts";
 import { PAGE_SIZES } from "./view-model";
+import { normalizeDatasetFilters } from "./dataset-filters.ts";
 
 export interface DatasetViewState {
   search: string;
   pagination: PaginationState;
   sorting: SortingState;
+  filters: DatasetFilters;
 }
 
 export interface FeeViewState {
@@ -28,6 +30,7 @@ export function createDatasetViewState(dataset: DatasetKey): DatasetViewState {
     search: "",
     pagination: { pageIndex: 0, pageSize: PAGE_SIZES[0] },
     sorting: [{ id: sort.column, desc: sort.direction === "desc" }],
+    filters: normalizeDatasetFilters(),
   };
 }
 
