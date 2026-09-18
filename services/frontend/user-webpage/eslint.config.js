@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", ".pnpm-store", "node_modules"]),
+  globalIgnores(["dist", ".pnpm-store", "node_modules", "playwright-report", "test-results"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
@@ -40,7 +40,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["*.config.js", "tests/**/*.mjs"],
+    files: ["*.config.{js,mjs}", "tests/**/*.mjs"],
     extends: [js.configs.recommended],
     languageOptions: {
       globals: globals.node,

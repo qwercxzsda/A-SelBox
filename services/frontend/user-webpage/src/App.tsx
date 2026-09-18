@@ -1,8 +1,27 @@
 import { LoginPanel } from "./LoginPanel";
-import { FinanceWorkspace } from "./FinanceWorkspace";
+import { useEffect, useState } from "react";
+import { Button } from "@mantine/core";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { FinanceWorkspace, type WorkspaceProps } from "./FinanceWorkspace";
+import { createQueryClient } from "./query-client";
 import { companyLabel } from "./view-model";
 import { useAuth } from "./use-auth";
 import "./App.css";
+
+function AuthenticatedWorkspace(props: WorkspaceProps) {
+  const [client] = useState(createQueryClient);
+  useEffect(
+    () => () => {
+      client.clear();
+    },
+    [client],
+  );
+  return (
+    <QueryClientProvider client={client}>
+      <FinanceWorkspace {...props} />
+    </QueryClientProvider>
+  );
+}
 
 function App() {
   const {
@@ -16,6 +35,7 @@ function App() {
     authError,
     handleSignIn,
     handleSignOut,
+    refreshIdentity,
   } = useAuth();
   const session = identity?.session;
   const account = identity?.account;
@@ -38,14 +58,14 @@ function App() {
                 </span>
                 <strong>{session.user.email ?? email}</strong>
               </span>
-              <button
-                className="secondary-button"
+              <Button
+                variant="default"
                 disabled={isSigningOut}
                 onClick={() => void handleSignOut()}
                 type="button"
               >
                 {isSigningOut ? "Signing out…" : "Sign out"}
-              </button>
+              </Button>
             </div>
           ) : null}
         </header>
@@ -61,9 +81,10 @@ function App() {
             password={password}
           />
         ) : (
-          <FinanceWorkspace
+          <AuthenticatedWorkspace
             key={`${identity.account.user_id}:${identity.account.access_role}:${identity.account.company_id ?? ""}`}
             identity={identity}
+            onRefreshIdentity={refreshIdentity}
           />
         )}
       </div>

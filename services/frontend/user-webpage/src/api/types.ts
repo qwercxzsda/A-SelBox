@@ -51,6 +51,7 @@ export interface DatasetSort {
 
 export interface FetchDatasetPageOptions<Dataset extends DatasetKey = DatasetKey> {
   accessToken: string;
+  signal?: AbortSignal;
   dataset: Dataset;
   pageIndex: number;
   pageSize: number;

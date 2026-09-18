@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createApiClient } from "../src/api/client.ts";
+import { ApiError, createApiClient } from "../src/api/client.ts";
 import { DATASET_CONFIG } from "../src/api/config.ts";
 import { parseTotalCount } from "../src/api/content-range.ts";
 import { parseCsv } from "../src/api/csv.ts";
@@ -281,7 +281,37 @@ test("forbidden source reads are errors rather than successful empty pages", asy
   );
   await assert.rejects(
     client.fetchDatasetPage(pageRequest()),
-    (error) => /403/.test(error.message) && !error.message.includes("private source details"),
+    (error) =>
+      error instanceof ApiError &&
+      error.status === 403 &&
+      !error.message.includes("private source details"),
+  );
+});
+
+test("dataset cancellation forwards the signal and preserves the abort reason", async () => {
+  const controller = new AbortController();
+  const client = createApiClient(SETTINGS, async (_url, { signal }) => {
+    assert.equal(signal, controller.signal);
+    return new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  });
+  const request = client.fetchDatasetPage(pageRequest("live", { signal: controller.signal }));
+  const aborted = assert.rejects(request, (error) => error === controller.signal.reason);
+  controller.abort();
+  await aborted;
+});
+
+test("transport failures have a retryable status without exposing private network details", async () => {
+  const client = createApiClient(SETTINGS, async () => {
+    throw new TypeError("private network detail");
+  });
+  await assert.rejects(
+    client.fetchDatasetPage(pageRequest()),
+    (error) =>
+      error instanceof ApiError &&
+      error.status === null &&
+      !error.message.includes("private network detail"),
   );
 });
 
