@@ -7,41 +7,69 @@ TanStack Query manages requests, cancellation, and an in-memory page cache.
 
 ## Data and access
 
-The app signs in with an existing Supabase Auth account, then loads its `app_accounts` role and
-company. It reads these models through Supabase REST with that user's access token:
+The app signs in with an existing account, then loads its `app_accounts` role and company. It reads
+these models through Supabase REST with that user's access token:
 
-| Tab                  | REST model                      | Visibility                                                              |
-| -------------------- | ------------------------------- | ----------------------------------------------------------------------- |
-| Live calculations    | `live_company_components`       | Current assignments and fees; members see their company                 |
-| Settlement           | `settlement_preprocess_entries` | Members see current own-company results; operators see retained history |
-| Data Kiosk           | `data_kiosk_preprocess_entries` | Members see current own-company results; operators see retained history |
-| Current fees         | `current_sku_fee_periods`       | Current fee periods; members see their company                          |
-| Payout reports       | `company_payout_reports`        | Operators only                                                          |
-| Application accounts | `app_accounts`                  | Operators only                                                          |
+| Tab             | REST model                                | Visibility                                                                   |
+| --------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| Company amounts | `live_company_components`                 | Current assignments and fees; members see their company                      |
+| Settlements     | `settlement_preprocess_entries`           | Members see current own-company results; administrators see retained history |
+| Data Kiosk      | `data_kiosk_preprocess_entries`           | Members see current own-company results; administrators see retained history |
+| Current fees    | `company_skus`, `current_sku_fee_periods` | Current assignments and fee periods; members see their company               |
+| Payout reports  | `company_payout_reports`                  | Administrators only                                                          |
+| User access     | `app_accounts`                            | Administrators only                                                          |
 
 `companies` and `company_skus` supply company and SKU display names. Lookup queries are paginated so
 deployments with more than 1,000 assignments still resolve SKU labels. The account lookup filters by
 the authenticated user ID even for operators. RLS enforces all data access; hiding tabs is only a
 navigation choice.
 
+The `operator` role is displayed as Administrator. Table labels use Reported amount, Service fee,
+and Company amount for the existing `source_amount`, `fee_amount`, and `company_amount` fields.
+Changing these labels does not change the calculation or the stored values.
+
+Data Kiosk excludes rows whose monetary amount is zero in the server query before counting or
+paginating results. The Company amounts view applies the same filter to Data Kiosk components while
+retaining Settlement zero rows. Current fees paginates SKU assignments; expanding an assignment
+loads every marketplace fee period for that SKU, including results beyond the server's response-page
+limit.
+
+Each tab remembers search, sorting, page size, page, and fee expansions for the current signed-in
+workspace. Switching tabs unmounts inactive queries. Sign-out or a user, role, or company change
+clears these view settings. Tables expand to their full height and use document scrolling, with
+horizontal scrolling for wide columns; pagination stays above the records. The inline page number
+accepts a destination directly; Enter applies the page number and Escape cancels. Search can be
+cleared directly, and marketplace fee rates remain visible on narrow screens.
+
+Company members see their company name once above their email in the header. Repeated company fields
+and processing metadata are omitted from their records; administrators retain company columns and
+additional record details for cross-company review. The combined Company amounts view identifies the
+source of each record, while source-specific tabs avoid repeating their origin.
+
+Daily and monthly analytics are deferred because accurate complete-period summaries require later
+database work. The current frontend changes use the existing database interfaces.
+
 The frontend currently supports reading and inspecting these results. Account administration, fee
 publication, and historical fee browsing are not implemented in this UI; the database permissions
 and REST operations are documented in the [access guide](../../../docs/access_control.md).
 
 Financial values arrive as PostgREST CSV and remain exact decimal strings. Missing fees remain NULL
-and display as a dash with the row's resolution status. Comparison components are labeled and are
-not presented as contributions to a total. The UI does not calculate financial totals or combine
-currencies. Search treats SKU punctuation literally, and pagination uses stable identity
-tie-breakers. Fee date ranges include the start and exclude the end.
+and display as a dash. Company amounts omits the Fee status column; rows with `NOT_APPLICABLE`
+display `-` for Fee rate and Service fee, while applicable zero fees remain numeric zero. Comparison
+components are labeled and are not presented as contributions to a total. The UI does not calculate
+financial totals or combine currencies. Search treats SKU punctuation literally, and pagination uses
+stable identity tie-breakers. Fee date ranges include the start and exclude the end.
 
 Sessions are held in memory, refreshed while the page is open, and cleared on sign-out. Reloading
 the page requires signing in again. Sign-out ends only the current session. User, role, or company
 changes clear the previous workspace's selection and loaded rows.
 
 Each authenticated workspace owns a separate Query cache, discarded on sign-out or a user, role, or
-company change. Pages are fresh for 30 seconds; only network and server errors retry once. Refresh
-rechecks the account and display-name lookups before invalidating cached pages. A changed row count
-also invalidates other pages of the same filtered dataset. Search is debounced by 250 ms.
+company change. Pages are fresh for 30 seconds; only network and server errors retry once. While the
+page is visible and online, data updates every 60 seconds, on a sufficiently stale focus/visibility
+event, and after reconnecting. Each update rechecks the account and display-name lookups before
+invalidating active queries. A failed update offers Retry. A changed row count also invalidates
+other pages of the same filtered dataset. Search is debounced by 250 ms.
 
 ## Configuration
 
@@ -120,9 +148,12 @@ Open `http://127.0.0.1:5173`.
 
 The Playwright suite exercises the rendered app with synthetic Auth and REST responses. It checks
 row inspection by mouse and keyboard, drawer focus and closing, server pagination/sort/search,
-out-of-order responses, session cache isolation, and recovery after denied requests. It does not
-require Supabase, a test account, or a database reset. Every API request targets the reserved
-`example.invalid` domain and is intercepted by the test fixture.
+out-of-order responses, session cache isolation, and recovery after denied requests. Dashboard
+regressions cover automatic authorization checks and updates, zero filtering before pagination, and
+loading all marketplace fees for an expanded SKU. Usability regressions cover saved tab settings,
+explicit page jumps, search recovery, full-height tables with document scrolling, and mobile fee
+readability. It does not require Supabase, a test account, or a database reset. Every API request
+targets the reserved `example.invalid` domain and is intercepted by the test fixture.
 
 Use the Playwright Docker image matching the exact `@playwright/test` version in the lockfile:
 
@@ -140,16 +171,20 @@ trace and screenshot under `test-results/`. The existing fast Node tests continu
 exact decimal, API validation, and view-model contracts. Run both suites when changing user
 interactions, request handling, or authentication.
 
+Use Docker's standard networking so Chromium can exercise online and reconnect events. Set
+`PLAYWRIGHT_CAPTURE_REVIEW=1` in the container to also capture desktop and narrow-screen workspace,
+fee, and drawer screenshots under `test-results/`.
+
 ## Existing frontend test database
 
 Use the currently running seeded database without resetting it. The September 15, 2026 test stack
 uses API port `55421` and Studio port `55423`, with these dummy accounts:
 
-| Login                   | Role           | Company            |
-| ----------------------- | -------------- | ------------------ |
-| `operator@example.test` | Operator       | All companies      |
-| `member-a@example.test` | Company member | Frontend Company A |
-| `member-b@example.test` | Company member | Frontend Company B |
+| Login                   | Role           | Company       |
+| ----------------------- | -------------- | ------------- |
+| `operator@example.test` | Administrator  | All companies |
+| `member-a@example.test` | Company member | Company A     |
+| `member-b@example.test` | Company member | Company B     |
 
 The local-only password for these dummy accounts is `Frontend-Test-2026!`. The test data includes
 roughly 90 days of Data Kiosk results, retained Settlement results, and current fees of 4.8% and

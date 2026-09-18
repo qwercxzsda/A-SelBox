@@ -12,7 +12,7 @@ import {
   visibleDatasets,
 } from "../src/view-model.ts";
 
-test("members see current company views while operators also see payouts and people", () => {
+test("members see company views while administrators also see payouts and user access", () => {
   const member = { user_id: "member-id", access_role: "company_member", company_id: "company-a" };
   const operator = { user_id: "operator-id", access_role: "operator", company_id: null };
   assert.deepEqual(visibleDatasets(member), ["live", "settlement", "data_kiosk", "fees"]);

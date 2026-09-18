@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { DATA_KIOSK_COLUMNS, FEE_COLUMNS, csv } from "./api-fixtures.mjs";
 
 const LIVE_COLUMNS = [
   "source",
@@ -34,7 +35,7 @@ const CORS_HEADERS = {
   "Access-Control-Expose-Headers": "Content-Range",
 };
 
-function liveRow(prefix, index, companyId) {
+export function liveRow(prefix, index, companyId = "company-member-a") {
   return {
     source: "SETTLEMENT",
     source_row_id: `${prefix}-${index}`,
@@ -59,15 +60,6 @@ function liveRow(prefix, index, companyId) {
   };
 }
 
-function csv(rows) {
-  const quote = (value) =>
-    value === null || value === undefined ? "" : `"${String(value).replaceAll('"', '""')}"`;
-  return [
-    LIVE_COLUMNS.join(","),
-    ...rows.map((row) => LIVE_COLUMNS.map((key) => quote(row[key])).join(",")),
-  ].join("\n");
-}
-
 export function deferred() {
   let resolve;
   const promise = new Promise((done) => {
@@ -79,11 +71,26 @@ export function deferred() {
 export async function mockSupabase(page) {
   const fixture = {
     requests: [],
+    events: [],
+    feeRequests: [],
+    assignments: [],
+    kioskRows: [],
+    feeRows: [],
+    feePageCap: 1000,
     prefixes: { "member-a": "ALPHA", "member-b": "BRAVO" },
+    roles: { "member-a": "company_member", "member-b": "company_member" },
     companyIds: { "member-a": "company-member-a", "member-b": "company-member-b" },
+    companyNames: {
+      "company-member-a": "Company A",
+      "company-member-b": "Company B",
+      "company-reassigned": "Company Reassigned",
+    },
     authRequests: 0,
     totalCount: 30,
+    searchCount: 1,
+    liveRows: null,
     beforeDataset: async () => {},
+    beforeAccount: async () => {},
     status: 200,
   };
 
@@ -99,6 +106,19 @@ export async function mockSupabase(page) {
         body: JSON.stringify(json),
       });
     if (request.method() === "OPTIONS") return reply({}, 200);
+    fixture.events.push({ endpoint: url.pathname, user });
+    const csvReply = (columns, rows, total = rows.length, offset = 0) =>
+      route.fulfill({
+        status: 200,
+        headers: {
+          ...CORS_HEADERS,
+          "Content-Range": rows.length
+            ? `${offset}-${offset + rows.length - 1}/${total}`
+            : `*/${total}`,
+        },
+        contentType: "text/csv",
+        body: csv(columns, rows),
+      });
     if (url.pathname === "/auth/v1/token") {
       fixture.authRequests += 1;
       const body = request.postDataJSON();
@@ -113,13 +133,19 @@ export async function mockSupabase(page) {
     }
     if (url.pathname === "/auth/v1/logout") return reply({});
     if (url.pathname === "/rest/v1/app_accounts") {
+      await fixture.beforeAccount();
+      const role = fixture.roles[user];
       return reply([
-        { user_id: user, access_role: "company_member", company_id: fixture.companyIds[user] },
+        {
+          user_id: user,
+          access_role: role,
+          company_id: role === "operator" ? null : fixture.companyIds[user],
+        },
       ]);
     }
     if (url.pathname === "/rest/v1/companies") {
       return reply(
-        [{ id: fixture.companyIds[user], name: `Company ${fixture.companyIds[user]}` }],
+        [{ id: fixture.companyIds[user], name: fixture.companyNames[fixture.companyIds[user]] }],
         200,
         {
           "Content-Range": "0-0/1",
@@ -127,13 +153,39 @@ export async function mockSupabase(page) {
       );
     }
     if (url.pathname === "/rest/v1/company_skus") {
-      return reply([], 200, { "Content-Range": "*/0" });
+      const offset = Number(url.searchParams.get("offset"));
+      const rows = fixture.assignments.slice(
+        offset,
+        offset + Number(url.searchParams.get("limit")),
+      );
+      return reply(rows, 200, {
+        "Content-Range": rows.length
+          ? `${offset}-${offset + rows.length - 1}/${fixture.assignments.length}`
+          : `*/${fixture.assignments.length}`,
+      });
+    }
+    if (url.pathname === "/rest/v1/current_sku_fee_periods") {
+      fixture.feeRequests.push({ user, params: url.searchParams });
+      const assignment = url.searchParams.get("seller_sku_id")?.replace("eq.", "");
+      const rows = fixture.feeRows.filter((row) => row.seller_sku_id === assignment);
+      const offset = Number(url.searchParams.get("offset"));
+      const limit = Math.min(Number(url.searchParams.get("limit")), fixture.feePageCap);
+      return csvReply(FEE_COLUMNS, rows.slice(offset, offset + limit), rows.length, offset);
+    }
+    if (url.pathname === "/rest/v1/data_kiosk_preprocess_entries") {
+      fixture.requests.push({ user, params: url.searchParams, dataset: "data_kiosk" });
+      const rows = fixture.kioskRows.filter(
+        (row) => url.searchParams.get("amount") !== "neq.0" || Number(row.amount) !== 0,
+      );
+      const offset = Number(url.searchParams.get("offset"));
+      const limit = Number(url.searchParams.get("limit"));
+      return csvReply(DATA_KIOSK_COLUMNS, rows.slice(offset, offset + limit), rows.length, offset);
     }
     if (url.pathname !== "/rest/v1/live_company_components") {
       throw new Error(`Unexpected test API request: ${url.pathname}`);
     }
 
-    const entry = { user, params: url.searchParams };
+    const entry = { user, params: url.searchParams, dataset: "live" };
     fixture.requests.push(entry);
     const prefix = fixture.prefixes[user];
     await fixture.beforeDataset(entry);
@@ -141,17 +193,26 @@ export async function mockSupabase(page) {
     const offset = Number(url.searchParams.get("offset"));
     const limit = Number(url.searchParams.get("limit"));
     const search = url.searchParams.get("or") ?? "";
-    const count = search ? 1 : fixture.totalCount;
+    const liveFilter = url.searchParams.get("and") ?? "";
+    const filteredRows = fixture.liveRows?.filter(
+      (row) =>
+        !liveFilter.includes("or(source.neq.DATA_KIOSK,source_amount.neq.0)") ||
+        row.source !== "DATA_KIOSK" ||
+        Number(row.source_amount) !== 0,
+    );
+    const count = filteredRows?.length ?? (search ? fixture.searchCount : fixture.totalCount);
     if (offset > 0 && offset >= count) {
       return reply({}, 416, { "Content-Range": `*/${count}` });
     }
-    const rows = Array.from({ length: Math.min(limit, Math.max(0, count - offset)) }, (_, index) =>
-      liveRow(
-        search.includes("FRESH") ? "FRESH" : search.includes("STALE") ? "STALE" : prefix,
-        offset + index + 1,
-        fixture.companyIds[user],
-      ),
-    );
+    const rows =
+      filteredRows?.slice(offset, offset + limit) ??
+      Array.from({ length: Math.min(limit, Math.max(0, count - offset)) }, (_, index) =>
+        liveRow(
+          search.includes("FRESH") ? "FRESH" : search.includes("STALE") ? "STALE" : prefix,
+          offset + index + 1,
+          fixture.companyIds[user],
+        ),
+      );
     return route.fulfill({
       status: 200,
       headers: {
@@ -161,7 +222,7 @@ export async function mockSupabase(page) {
           : `*/${count}`,
       },
       contentType: "text/csv",
-      body: csv(rows),
+      body: csv(LIVE_COLUMNS, rows),
     });
   });
   await page.goto("/");
@@ -177,4 +238,21 @@ export async function signIn(page, user = "member-a") {
 
 export function rowWithSku(page, sku) {
   return page.getByRole("row").filter({ has: page.getByRole("cell", { name: sku, exact: true }) });
+}
+
+export async function captureResponsiveReview(page, testInfo, name, fullPage = true) {
+  if (process.env.PLAYWRIGHT_CAPTURE_REVIEW !== "1") return;
+  const initialViewport = page.viewportSize();
+  await page.screenshot({
+    path: testInfo.outputPath(`desktop-${name}.png`),
+    fullPage,
+    animations: "disabled",
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: testInfo.outputPath(`narrow-${name}.png`),
+    fullPage,
+    animations: "disabled",
+  });
+  await page.setViewportSize(initialViewport);
 }

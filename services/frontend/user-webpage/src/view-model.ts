@@ -44,46 +44,44 @@ export function visibleDatasets(account: AppAccount): readonly DatasetKey[] {
 
 export const DATASET_PRESENTATION: Record<DatasetKey, DatasetPresentation> = {
   live: {
-    label: "Live calculations",
+    label: "Company amounts",
     description:
-      "Current company assignments and fees applied to source components. Comparison components are shown for context and do not contribute to company totals. Missing fees remain visible.",
-    searchPlaceholder: "SKU, currency, component",
-    emptyMessage: "No live components are available for your company.",
+      "Amounts reported by Amazon, service fees, and the resulting company amounts. Comparison-only rows are excluded from totals. Missing fee rates remain visible.",
+    searchPlaceholder: "SKU, currency, or type",
+    emptyMessage: "No company amounts match this view.",
   },
   settlement: {
-    label: "Settlement",
-    description:
-      "Preprocessed Settlement transactions. Company members see their current company results; operators can inspect retained versions.",
-    searchPlaceholder: "SKU, currency, family",
-    emptyMessage: "No Settlement transactions match this view.",
+    label: "Settlements",
+    description: "Sales, refunds, and charges from Amazon settlement reports.",
+    searchPlaceholder: "SKU or currency",
+    emptyMessage: "No settlement transactions match this view.",
   },
   data_kiosk: {
     label: "Data Kiosk",
     description:
-      "Daily marketplace components from Data Kiosk. Company members see current results for their company; operators can inspect retained versions.",
+      "Daily sales, refunds, and charges reported by Amazon. Rows with a zero amount are hidden.",
     searchPlaceholder: "SKU or currency",
-    emptyMessage: "No Data Kiosk components match this view.",
+    emptyMessage: "No Data Kiosk records match this view.",
   },
   fees: {
     label: "Current fees",
     description:
-      "Marketplace fee periods in the currently selected SKU terms. Rates apply from the start date up to, but excluding, the end date.",
+      "Fee rates by SKU and marketplace. Each rate applies from its start date up to, but excluding, its end date.",
     searchPlaceholder: "Search unavailable for this view",
-    emptyMessage: "No current fee periods are available.",
+    emptyMessage: "No fee rates match this view.",
   },
   payouts: {
     label: "Payout reports",
     description:
-      "Saved company payout reports retain the source and fee versions used when they were created.",
+      "Saved payout calculations use the transactions and fee rates recorded when each report was created.",
     searchPlaceholder: "Currency or calculation version",
-    emptyMessage: "No payout reports have been created yet.",
+    emptyMessage: "No payout reports match this view.",
   },
   accounts: {
-    label: "People",
-    description:
-      "Application access for existing Auth accounts. Each company member belongs to one company.",
+    label: "User access",
+    description: "User roles and company access. Each company member belongs to one company.",
     searchPlaceholder: "Search unavailable for this view",
-    emptyMessage: "No application accounts are available.",
+    emptyMessage: "No users match this view.",
   },
 };
 
@@ -106,12 +104,11 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
     column("source", "Source", "code"),
-    column("component_type", "Component", "code"),
-    column("source_amount", "Source amount", "money"),
+    column("component_type", "Type", "code"),
+    column("source_amount", "Reported amount", "money"),
     column("fee_rate_percent", "Fee rate", "percent"),
-    column("fee_amount", "Company fee", "money"),
+    column("fee_amount", "Service fee", "money"),
     column("company_amount", "Company amount", "money"),
-    column("resolution_status", "Fee status", "code"),
     column("authoritative", "Included in totals"),
   ],
   settlement: [
@@ -123,17 +120,17 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("amount_description", "Description"),
     column("amount", "Amount", "money"),
     column("quantity", "Quantity", "number"),
-    column("preprocess_version", "Version"),
+    column("preprocess_version", "Processing version"),
   ],
   data_kiosk: [
     column("activity_date", "Date", "date"),
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
     column("category", "Category", "category"),
-    column("component_type", "Component", "code"),
+    column("component_type", "Type", "code"),
     column("amount", "Amount", "money"),
     column("quantity", "Quantity", "number"),
-    column("preprocess_version", "Version"),
+    column("preprocess_version", "Processing version"),
   ],
   fees: [
     column("seller_sku_id", "SKU", "sku"),
@@ -147,12 +144,12 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("company_id", "Company", "company"),
     column("start_date", "From", "date"),
     column("end_date", "Through", "date"),
-    column("source_amount", "Source amount", "money"),
-    column("fee_amount", "Company fee", "money"),
+    column("source_amount", "Reported amount", "money"),
+    column("fee_amount", "Service fee", "money"),
     column("company_amount", "Company amount", "money"),
   ],
   accounts: [
-    column("user_id", "Account ID"),
+    column("user_id", "User ID"),
     column("access_role", "Role", "code"),
     column("company_id", "Company", "company"),
     column("created_at", "Added", "date"),
@@ -161,6 +158,19 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
 
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected request failure.";
+}
+
+export function displayColumns(
+  dataset: DatasetKey,
+  isAdministrator: boolean,
+): readonly ColumnDefinition[] {
+  return TABLE_COLUMNS[dataset].filter(
+    (column) =>
+      isAdministrator ||
+      (column.kind !== "company" &&
+        column.key !== "preprocess_version" &&
+        !(dataset === "settlement" && column.key === "category")),
+  );
 }
 
 export function rowText(row: CanonicalRow, key: string): string | null {

@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import {
+  captureResponsiveReview,
+  deferred,
+  mockSupabase,
+  rowWithSku,
+  signIn,
+} from "./fixtures.mjs";
 
 for (const activation of ["click", "Enter", "Space"]) {
   test(`${activation} inspects the chosen nonfirst row and restores focus after closing`, async ({
@@ -10,21 +16,7 @@ for (const activation of ["click", "Enter", "Space"]) {
     const row = rowWithSku(page, "ALPHA-002");
     await expect(row).toBeVisible();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    const captureReview = activation === "click" && process.env.PLAYWRIGHT_CAPTURE_REVIEW === "1";
-    if (captureReview) {
-      await page.screenshot({
-        path: testInfo.outputPath("desktop-workspace.png"),
-        fullPage: true,
-        animations: "disabled",
-      });
-      await page.setViewportSize({ width: 390, height: 844 });
-      await page.screenshot({
-        path: testInfo.outputPath("narrow-workspace.png"),
-        fullPage: true,
-        animations: "disabled",
-      });
-      await page.setViewportSize({ width: 1280, height: 720 });
-    }
+    if (activation === "click") await captureResponsiveReview(page, testInfo, "workspace");
     if (activation === "click") await row.click();
     else {
       await row.focus();
@@ -35,18 +27,7 @@ for (const activation of ["click", "Enter", "Space"]) {
     await expect(details).toBeVisible();
     await expect(details.getByRole("heading", { name: "ALPHA-002", exact: true })).toBeVisible();
     await expect(details.getByText("2.123456789012345678 USD", { exact: true })).toBeVisible();
-    if (captureReview) {
-      await page.screenshot({
-        path: testInfo.outputPath("desktop-drawer.png"),
-        animations: "disabled",
-      });
-      await page.setViewportSize({ width: 390, height: 844 });
-      await page.screenshot({
-        path: testInfo.outputPath("narrow-drawer.png"),
-        animations: "disabled",
-      });
-      await page.setViewportSize({ width: 1280, height: 720 });
-    }
+    if (activation === "click") await captureResponsiveReview(page, testInfo, "drawer", false);
     await expect
       .poll(() =>
         details.evaluate((element) => element.contains(element.ownerDocument.activeElement)),
@@ -105,7 +86,10 @@ test("selecting table text leaves the details drawer closed", async ({ page }) =
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("Refresh detects a company reassignment using the existing session", async ({ page }) => {
+test("automatic refresh detects a company reassignment using the existing session", async ({
+  page,
+}) => {
+  await page.clock.install();
   const fixture = await mockSupabase(page);
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
@@ -117,7 +101,8 @@ test("Refresh detects a company reassignment using the existing session", async 
     started.resolve();
     await release.promise;
   };
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Refresh", exact: true })).toHaveCount(0);
+  await page.clock.fastForward(60_000);
   await started.promise;
   await expect(rowWithSku(page, "ALPHA-001")).toHaveCount(0);
   release.resolve();
@@ -125,14 +110,17 @@ test("Refresh detects a company reassignment using the existing session", async 
   expect(fixture.authRequests).toBe(1);
 });
 
-test("Refresh clamps a removed last page after an HTTP 416 response", async ({ page }) => {
+test("automatic refresh clamps a removed last page after an HTTP 416 response", async ({
+  page,
+}) => {
+  await page.clock.install();
   const fixture = await mockSupabase(page);
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   fixture.totalCount = 5;
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("row")).toHaveCount(6);
   await expect(page.getByRole("button", { name: "Previous", exact: true })).toBeDisabled();
@@ -206,7 +194,7 @@ test("sign out clears rows and details for another user and the same user's next
 });
 
 for (const status of [401, 403]) {
-  test(`HTTP ${status} is shown without automatic retries and Refresh recovers`, async ({
+  test(`HTTP ${status} is shown without immediate automatic retries and Retry recovers`, async ({
     page,
   }) => {
     await page.clock.install();
@@ -220,7 +208,7 @@ for (const status of [401, 403]) {
     // StrictMode can cancel its initial mount's request; only later attempts are retries.
     expect(deniedRequests).toBeGreaterThan(0);
     fixture.status = 200;
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   });

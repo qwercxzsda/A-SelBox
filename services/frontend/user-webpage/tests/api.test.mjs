@@ -331,7 +331,7 @@ test("an Auth user without an application account does not gain a default role",
   const client = createApiClient(SETTINGS, async () => responseJson([]));
   await assert.rejects(
     client.fetchAppAccount("test-access", "unregistered-user"),
-    /no application access/,
+    /does not have access/,
   );
 });
 
@@ -363,4 +363,84 @@ test("Auth refresh uses its refresh grant and does not leak HTTP error bodies", 
     failing.refreshSession("test-refresh"),
     (error) => /401/.test(error.message) && !error.message.includes("private response detail"),
   );
+});
+
+test("Data Kiosk excludes zero amounts in the server filter before pagination and count", async () => {
+  const urls = [];
+  const client = createApiClient(SETTINGS, async (url) => {
+    urls.push(new URL(url));
+    return new Response("", { headers: { "Content-Range": "*/0" } });
+  });
+  await client.fetchDatasetPage(pageRequest("data_kiosk", { pageIndex: 2, search: "SKU" }));
+  await client.fetchDatasetPage(pageRequest("settlement"));
+  assert.equal(urls[0].searchParams.get("amount"), "neq.0");
+  assert.equal(urls[0].searchParams.get("offset"), "50");
+  assert.ok(urls[0].searchParams.has("or"));
+  assert.equal(urls[1].searchParams.has("amount"), false);
+});
+
+test("Live filters only Data Kiosk zero amounts while composing literal search and pagination", async () => {
+  const urls = [];
+  const client = createApiClient(SETTINGS, async (url) => {
+    urls.push(new URL(url));
+    return new Response("", { headers: { "Content-Range": "*/0" } });
+  });
+  const search = "SKU_100%,or(source.eq.DATA_KIOSK)";
+  await client.fetchDatasetPage(pageRequest("live", { pageIndex: 2, search }));
+  await client.fetchDatasetPage(pageRequest("live"));
+  await client.fetchDatasetPage(pageRequest("settlement"));
+  for (const url of urls.slice(0, 2)) {
+    assert.equal(url.searchParams.get("and"), "(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+    assert.equal(
+      url.searchParams.has("source_amount"),
+      false,
+      "Settlement zero amounts must remain",
+    );
+  }
+  assert.equal(urls[0].searchParams.get("offset"), "50");
+  assert.equal(urls[0].searchParams.get("limit"), "25");
+  assert.equal(
+    urls[0].searchParams.get("or"),
+    buildSearchFilter(DATASET_CONFIG.live.searchColumns, search),
+  );
+  assert.equal(urls[1].searchParams.has("or"), false);
+  assert.equal(urls[2].searchParams.has("and"), false);
+});
+
+test("SKU fee expansion reads every marketplace period despite a smaller server page cap", async () => {
+  const sellerSkuId = "0198b50b-701a-7000-8000-000000000001";
+  const records = ["Amazon.com", "Amazon.ca", "Amazon.co.jp"].map((marketplace, index) =>
+    datasetRecord("fees", {
+      seller_sku_id: sellerSkuId,
+      marketplace_name: marketplace,
+      fee_period_id: `period-${String(index)}`,
+      fee_rate_percent: "4.123456",
+    }),
+  );
+  const offsets = [];
+  const signal = new AbortController().signal;
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    const params = new URL(url).searchParams;
+    const offset = Number(params.get("offset"));
+    offsets.push(offset);
+    assert.equal(params.get("seller_sku_id"), `eq.${sellerSkuId}`);
+    assert.equal(params.get("order"), "marketplace_name.asc,valid_period.asc,fee_period_id.asc");
+    assert.equal(init.signal, signal);
+    const page = records.slice(offset, offset + 2);
+    const csv = page
+      .map((record, index) => (index === 0 ? csvRecord(record) : csvRecord(record).split("\n")[1]))
+      .join("\n");
+    return new Response(csv, {
+      status: 206,
+      headers: { "Content-Range": `${String(offset)}-${String(offset + page.length - 1)}/3` },
+    });
+  });
+  const result = await client.fetchSkuFees("test-access", sellerSkuId, signal);
+  assert.deepEqual(offsets, [0, 2]);
+  assert.deepEqual(
+    result.map((row) => row.marketplace_name),
+    records.map((row) => row.marketplace_name),
+  );
+  assert.ok(result.every((row) => row.fee_rate_percent === "4.123456"));
+  await assert.rejects(client.fetchSkuFees("test-access", "invalid-id"), /valid seller SKU ID/);
 });

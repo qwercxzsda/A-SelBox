@@ -25,12 +25,11 @@ export function LoginPanel({
       <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
         <Stack gap="md">
           <div>
-            <p className="eyebrow">Your company workspace</p>
             <Title order={2} size="h3" mb="xs">
-              Sign in to Company Finance
+              Sign in
             </Title>
             <Text c="dimmed" size="sm">
-              View your company’s transactions, marketplace costs, and current fees.
+              View transactions, marketplace charges, and fee rates.
             </Text>
           </div>
           {errorMessage ? (

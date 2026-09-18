@@ -4,6 +4,7 @@ export {
   fetchCompanies,
   fetchDatasetPage,
   fetchSkuAssignments,
+  fetchSkuFees,
   refreshSession,
   signIn,
   signOut,

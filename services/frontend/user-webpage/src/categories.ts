@@ -1,14 +1,15 @@
 const LABELS: Record<string, string> = {
-  SETTLEMENT: "Settlement",
+  SETTLEMENT: "Settlements",
   DATA_KIOSK: "Data Kiosk",
   SELBOX: "Account-level",
   ANALYSIS_ONLY: "Analysis only",
   APPLIED: "Fee applied",
-  NOT_APPLICABLE: "No commission",
-  MISSING_FEE: "Missing fee",
-  MISSING_OWNERSHIP: "Unassigned SKU",
-  operator: "Operator",
+  NOT_APPLICABLE: "Fee not applicable",
+  MISSING_FEE: "Fee rate missing",
+  MISSING_OWNERSHIP: "Company assignment missing",
+  operator: "Administrator",
   company_member: "Company member",
+  preprocess_version: "Processing version",
 };
 
 export function humanizeCode(value: string): string {

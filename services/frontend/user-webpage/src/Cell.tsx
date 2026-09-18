@@ -14,6 +14,16 @@ export function TableCellValue({
   row: CanonicalRow;
   skuNames?: Map<string, string>;
 }) {
+  if (
+    row.resolution_status === "NOT_APPLICABLE" &&
+    (column.key === "fee_rate_percent" || column.key === "fee_amount")
+  ) {
+    return (
+      <span className="muted-value" title="Fee not applicable">
+        -
+      </span>
+    );
+  }
   const value = rowText(row, column.key);
   if (value === null) {
     if (column.kind === "company")

@@ -1,84 +1,56 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Button,
+  CloseButton,
   Group,
   NativeSelect,
   Paper,
   Table,
+  Text,
   TextInput,
   UnstyledButton,
 } from "@mantine/core";
 import { type DatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
-import {
-  companyLabel,
-  DATASET_PRESENTATION,
-  PAGE_SIZES,
-  TABLE_COLUMNS,
-  getErrorMessage,
-} from "./view-model";
+import { DATASET_PRESENTATION, PAGE_SIZES, getErrorMessage } from "./view-model";
 import type { WorkspaceProps } from "./FinanceWorkspace";
+import { PaginationBar } from "./PaginationBar";
+import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 
 export function FinanceDataset({
   identity,
   dataset,
-  onRefreshIdentity,
-}: WorkspaceProps & { dataset: DatasetKey }) {
+  onRetry,
+  isUpdating,
+  viewState,
+  onViewStateChange,
+}: WorkspaceProps & { dataset: DatasetKey } & ViewStateProps<DatasetViewState>) {
   const { table, query, totalCount, search, changeSearch, companies, skuNames } = useFinanceTable(
     identity,
     dataset,
+    viewState,
+    onViewStateChange,
   );
   const { pageIndex, pageSize } = table.state.pagination;
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
   const pageCount = totalCount === null ? null : table.getPageCount();
-  const queryClient = useQueryClient();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const isBusy = query.isFetching || isRefreshing;
+  const isBusy = query.isFetching || isUpdating;
   const selectedRow = table.getSelectedRowModel().rows[0]?.original ?? null;
-  async function refresh() {
-    table.resetRowSelection();
-    setIsRefreshing(true);
-    try {
-      if (await onRefreshIdentity()) {
-        // Invalidate every cached page so shrinking datasets cannot revive an old page.
-        await queryClient.invalidateQueries({ queryKey: ["dataset"] });
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  }
   return (
     <>
-      <Alert mb="md" role="note">
+      <Text mb="md" role="note" c="dimmed" size="sm">
         {presentation.description}
-      </Alert>
+      </Text>
       {query.error ? (
         <Alert color="red" role="alert" mb="md">
           {getErrorMessage(query.error)}
+          <Button variant="subtle" disabled={isBusy} onClick={() => void onRetry()}>
+            Retry
+          </Button>
         </Alert>
       ) : null}
-      <Paper component="section" withBorder className="summary-grid" aria-live="polite">
-        {[
-          ["Matching rows", totalCount?.toLocaleString("en-US") ?? "—"],
-          ["View", presentation.label],
-          [
-            "Access",
-            identity.account.access_role === "operator"
-              ? "All companies"
-              : companyLabel(identity.account.company_id, companies),
-          ],
-          ["Page", `${String(pageIndex + 1)} / ${pageCount === null ? "—" : String(pageCount)}`],
-        ].map(([label, value]) => (
-          <div className="summary-item" key={label}>
-            <span className="summary-label">{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </Paper>
       <Group className="table-toolbar" justify="space-between" align="end">
         <Group align="end" className="table-toolbar-fields">
           <TextInput
@@ -88,6 +60,17 @@ export function FinanceDataset({
             value={search}
             placeholder={presentation.searchPlaceholder}
             disabled={DATASET_CONFIG[dataset].searchColumns.length === 0}
+            rightSectionPointerEvents="auto"
+            rightSection={
+              search ? (
+                <CloseButton
+                  aria-label="Clear search"
+                  onClick={() => {
+                    changeSearch("");
+                  }}
+                />
+              ) : undefined
+            }
             onChange={(event) => {
               changeSearch(event.currentTarget.value);
             }}
@@ -101,13 +84,45 @@ export function FinanceDataset({
             }}
           />
         </Group>
-        <Button variant="default" disabled={isBusy} onClick={() => void refresh()}>
-          Refresh
-        </Button>
       </Group>
+      <PaginationBar
+        pageIndex={pageIndex}
+        pageCount={pageCount}
+        canPrevious={table.getCanPreviousPage()}
+        canNext={totalCount === null ? rows.length === pageSize : table.getCanNextPage()}
+        isBusy={isBusy}
+        onPrevious={() => {
+          table.previousPage();
+        }}
+        onNext={() => {
+          table.nextPage();
+        }}
+        onPageChange={(index) => {
+          table.setPageIndex(index);
+        }}
+        summary={
+          query.isPending
+            ? `Loading page ${String(pageIndex + 1)}…`
+            : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} rows`
+        }
+      />
+      <Text size="xs" c="dimmed" mb="xs">
+        Select a row or press Enter to view its details.
+      </Text>
       <Paper withBorder className="table-card" aria-busy={isBusy}>
-        <Table.ScrollContainer minWidth={Math.max(980, TABLE_COLUMNS[dataset].length * 132)}>
-          <Table highlightOnHover fz="sm">
+        <div
+          className="table-horizontal-scroll"
+          role="region"
+          aria-label="Financial table"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll wide tables horizontally.
+          tabIndex={0}
+        >
+          <Table
+            highlightOnHover
+            fz="sm"
+            aria-label="Financial records"
+            miw={Math.max(900, table.getAllLeafColumns().length * 120)}
+          >
             <Table.Thead>
               {table.getHeaderGroups().map((group) => (
                 <Table.Tr key={group.id}>
@@ -184,45 +199,27 @@ export function FinanceDataset({
               ))}
             </Table.Tbody>
           </Table>
-        </Table.ScrollContainer>
-        {query.isPending ? (
-          <div className="loading-state" role="status">
-            Loading rows…
-          </div>
-        ) : null}
-        {!query.isPending && !query.isError && rows.length === 0 ? (
-          <div className="empty-state">{presentation.emptyMessage}</div>
-        ) : null}
+          {query.isPending ? (
+            <div className="loading-state" role="status">
+              Loading rows…
+            </div>
+          ) : null}
+          {!query.isPending && !query.isError && rows.length === 0 ? (
+            <div className="empty-state">
+              <Text fw={600}>
+                {search.trim() ? "No matching records" : presentation.emptyMessage}
+              </Text>
+              {search.trim() ? (
+                <Text c="dimmed" size="sm">
+                  Try a different search or use Clear search to see all records.
+                </Text>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </Paper>
-      <Group className="pagination-bar" justify="space-between">
-        <span>
-          {rows.length === 0 ? 0 : pageIndex * pageSize + 1}-{pageIndex * pageSize + rows.length} of{" "}
-          {totalCount?.toLocaleString("en-US") ?? "—"}
-        </span>
-        <Group>
-          <Button
-            variant="default"
-            disabled={!table.getCanPreviousPage() || isBusy}
-            onClick={() => {
-              table.previousPage();
-            }}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="default"
-            disabled={
-              isBusy || (totalCount === null ? rows.length < pageSize : !table.getCanNextPage())
-            }
-            onClick={() => {
-              table.nextPage();
-            }}
-          >
-            Next
-          </Button>
-        </Group>
-      </Group>
       <RowDetail
+        isAdministrator={identity.account.access_role === "operator"}
         companies={companies}
         dataset={dataset}
         row={selectedRow}
