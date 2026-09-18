@@ -1,6 +1,9 @@
 # Company Finance webpage
 
-React, TypeScript, and Vite client for the current company fee and source-data schema.
+React, TypeScript, and Vite client for the current company fee and source-data schema. Mantine
+supplies shared controls, styling, and an accessible row-details drawer. TanStack Table manages
+sorting, pagination, and single-row selection; sorting and pagination still run on the server.
+TanStack Query manages requests, cancellation, and an in-memory page cache.
 
 ## Data and access
 
@@ -35,6 +38,11 @@ Sessions are held in memory, refreshed while the page is open, and cleared on si
 the page requires signing in again. Sign-out ends only the current session. User, role, or company
 changes clear the previous workspace's selection and loaded rows.
 
+Each authenticated workspace owns a separate Query cache, discarded on sign-out or a user, role, or
+company change. Pages are fresh for 30 seconds; only network and server errors retry once. Refresh
+rechecks the account and display-name lookups before invalidating cached pages. A changed row count
+also invalidates other pages of the same filtered dataset. Search is debounced by 250 ms.
+
 ## Configuration
 
 Set both values in an ignored `services/frontend/user-webpage/.env.local` before starting Vite:
@@ -59,6 +67,10 @@ Do not run `node`, `npm`, `npx`, `corepack`, or `pnpm` directly on the host. Eve
 package-manager command for this project must run in Docker. Run the commands below from
 `services/frontend/user-webpage`.
 
+Use the same pinned Playwright image for development and checks so Vite's native dependencies and
+the browser runner use the same Linux environment. If dependencies were installed with the old
+Alpine image, reinstall them in this image before starting Vite or running checks.
+
 Install the lockfile exactly:
 
 ```sh
@@ -66,19 +78,19 @@ docker run --rm -u "$(id -u):$(id -g)" \
   -e COREPACK_HOME=/tmp/corepack \
   -v "$PWD":/app \
   -w /app \
-  node:24-alpine corepack pnpm install --frozen-lockfile \
+  mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm install --frozen-lockfile \
   --store-dir /app/.pnpm-store
 ```
 
 Run the complete strict check. It fails on a formatting difference, any ESLint warning, a unit-test
-failure, a TypeScript error, or a production-build error:
+failure, a TypeScript error, a production-build error, or a browser regression:
 
 ```sh
 docker run --rm -u "$(id -u):$(id -g)" \
   -e COREPACK_HOME=/tmp/corepack \
   -v "$PWD":/app \
   -w /app \
-  node:24-alpine corepack pnpm run check
+  mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run check
 ```
 
 Apply Prettier, then rerun the complete check:
@@ -88,7 +100,7 @@ docker run --rm -u "$(id -u):$(id -g)" \
   -e COREPACK_HOME=/tmp/corepack \
   -v "$PWD":/app \
   -w /app \
-  node:24-alpine corepack pnpm run format:write
+  mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run format:write
 ```
 
 Start Vite:
@@ -99,10 +111,34 @@ docker run --rm -u "$(id -u):$(id -g)" \
   -p 127.0.0.1:5173:5173 \
   -v "$PWD":/app \
   -w /app \
-  node:24-alpine corepack pnpm run dev --host 0.0.0.0
+  mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run dev --host 0.0.0.0
 ```
 
 Open `http://127.0.0.1:5173`.
+
+## Browser regression tests
+
+The Playwright suite exercises the rendered app with synthetic Auth and REST responses. It checks
+row inspection by mouse and keyboard, drawer focus and closing, server pagination/sort/search,
+out-of-order responses, session cache isolation, and recovery after denied requests. It does not
+require Supabase, a test account, or a database reset. Every API request targets the reserved
+`example.invalid` domain and is intercepted by the test fixture.
+
+Use the Playwright Docker image matching the exact `@playwright/test` version in the lockfile:
+
+```sh
+docker run --rm --init --ipc=host \
+  -u "$(id -u):$(id -g)" \
+  -v "$PWD":/app \
+  -w /app \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
+  node node_modules/@playwright/test/cli.js test
+```
+
+The configuration starts its own Vite server with public dummy settings. A failed test retains a
+trace and screenshot under `test-results/`. The existing fast Node tests continue to verify the CSV,
+exact decimal, API validation, and view-model contracts. Run both suites when changing user
+interactions, request handling, or authentication.
 
 ## Existing frontend test database
 

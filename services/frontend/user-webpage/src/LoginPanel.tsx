@@ -1,4 +1,5 @@
 import type { SubmitEvent } from "react";
+import { Alert, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
 
 interface LoginPanelProps {
   email: string;
@@ -21,47 +22,50 @@ export function LoginPanel({
 }: LoginPanelProps) {
   return (
     <div className="login-shell">
-      <section className="login-card">
-        <p className="eyebrow">Your company workspace</p>
-        <h2>Sign in to Company Finance</h2>
-        <p>View your company’s transactions, marketplace costs, and current fees.</p>
-
-        {errorMessage ? (
-          <p className="error-banner" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        <form className="login-form" onSubmit={onSubmit}>
-          <label className="form-field">
-            <span>Email</span>
-            <input
-              autoComplete="username"
-              onChange={(event) => {
-                onEmailChange(event.target.value);
-              }}
-              required
-              type="email"
-              value={email}
-            />
-          </label>
-          <label className="form-field">
-            <span>Password</span>
-            <input
-              autoComplete="current-password"
-              onChange={(event) => {
-                onPasswordChange(event.target.value);
-              }}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-          <button className="primary-button" disabled={isSigningIn} type="submit">
-            {isSigningIn ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </section>
+      <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
+        <Stack gap="md">
+          <div>
+            <p className="eyebrow">Your company workspace</p>
+            <Title order={2} size="h3" mb="xs">
+              Sign in to Company Finance
+            </Title>
+            <Text c="dimmed" size="sm">
+              View your company’s transactions, marketplace costs, and current fees.
+            </Text>
+          </div>
+          {errorMessage ? (
+            <Alert color="red" role="alert">
+              {errorMessage}
+            </Alert>
+          ) : null}
+          <form onSubmit={onSubmit}>
+            <Stack gap="md">
+              <TextInput
+                autoComplete="username"
+                label="Email"
+                onChange={(event) => {
+                  onEmailChange(event.target.value);
+                }}
+                required
+                type="email"
+                value={email}
+              />
+              <PasswordInput
+                autoComplete="current-password"
+                label="Password"
+                onChange={(event) => {
+                  onPasswordChange(event.target.value);
+                }}
+                required
+                value={password}
+              />
+              <Button loading={isSigningIn} type="submit">
+                {isSigningIn ? "Signing in…" : "Sign in"}
+              </Button>
+            </Stack>
+          </form>
+        </Stack>
+      </Paper>
     </div>
   );
 }

@@ -48,10 +48,14 @@ export function useAuth() {
       void refreshSession(session.refresh_token)
         .then(loadIdentity)
         .then((next) => {
-          if (!cancelled && generation === operation.current) setIdentity(next);
+          if (!cancelled && generation === operation.current) {
+            ++operation.current;
+            setIdentity(next);
+          }
         })
         .catch((error: unknown) => {
           if (!cancelled && generation === operation.current) {
+            ++operation.current;
             setIdentity(null);
             setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
           }
@@ -99,6 +103,27 @@ export function useAuth() {
     }
   }
 
+  async function refreshIdentity(): Promise<boolean> {
+    if (!identity || isSigningOut) return false;
+    const generation = operation.current;
+    try {
+      const next = await loadIdentity(identity.session);
+      if (generation !== operation.current) return false;
+      setIdentity(next);
+      return (
+        next.account.access_role === identity.account.access_role &&
+        next.account.company_id === identity.account.company_id
+      );
+    } catch (error) {
+      if (generation === operation.current) {
+        ++operation.current;
+        setIdentity(null);
+        setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
+      }
+      return false;
+    }
+  }
+
   return {
     email,
     setEmail,
@@ -110,5 +135,6 @@ export function useAuth() {
     authError,
     handleSignIn,
     handleSignOut,
+    refreshIdentity,
   };
 }

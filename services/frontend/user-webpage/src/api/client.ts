@@ -27,6 +27,21 @@ export type { ApiClientConfig } from "./runtime-config.ts";
 const LOOKUP_PAGE_SIZE = 1000;
 const SORT_DIRECTIONS: ReadonlySet<string> = new Set(["asc", "desc"]);
 
+/** A null status identifies a transport failure; server response bodies stay private. */
+export class ApiError extends Error {
+  readonly status: number | null;
+
+  constructor(operation: string, status: number | null) {
+    super(
+      status === null
+        ? `${operation} failed because the network request failed`
+        : `${operation} failed with HTTP ${String(status)}`,
+    );
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 function requireAccessToken(accessToken: string): void {
   if (accessToken.trim().length === 0) throw new Error("An access token is required");
 }
@@ -127,8 +142,11 @@ export function createApiClient(
   async function request(path: string, init: RequestInit, operation: string): Promise<Response> {
     try {
       return await fetchImplementation(`${supabaseUrl}${path}`, { ...init, redirect: "error" });
-    } catch {
-      throw new Error(`${operation} failed because the network request failed`);
+    } catch (error) {
+      if (init.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
+        throw error;
+      }
+      throw new ApiError(operation, null);
     }
   }
 
@@ -151,7 +169,7 @@ export function createApiClient(
       },
       operation,
     );
-    if (!response.ok) throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+    if (!response.ok) throw new ApiError(operation, response.status);
     return parseSession(await readJson(response, operation), operation);
   }
 
@@ -180,7 +198,7 @@ export function createApiClient(
         const total = parseTotalCount(response.headers.get("Content-Range"));
         if (total !== null && rows.length >= total) return rows;
       }
-      if (!response.ok) throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+      if (!response.ok) throw new ApiError(operation, response.status);
       const page = parseObjectRows(await readJson(response, operation), operation);
       const total = parseTotalCount(response.headers.get("Content-Range"));
       rows.push(...page);
@@ -208,7 +226,7 @@ export function createApiClient(
         { method: "POST", headers: authenticatedHeaders(accessToken) },
         "Sign out",
       );
-      if (!response.ok) throw new Error(`Sign out failed with HTTP ${String(response.status)}`);
+      if (!response.ok) throw new ApiError("Sign out", response.status);
     },
 
     async fetchAppAccount(accessToken: string, userId: string): Promise<AppAccount> {
@@ -224,7 +242,7 @@ export function createApiClient(
         { headers: authenticatedHeaders(accessToken) },
         operation,
       );
-      if (!response.ok) throw new Error(`${operation} failed with HTTP ${String(response.status)}`);
+      if (!response.ok) throw new ApiError(operation, response.status);
       const rows = parseObjectRows(await readJson(response, operation), operation);
       if (rows.length === 0) throw new Error("This Auth account has no application access");
       if (rows.length !== 1) throw new Error(`${operation} returned multiple accounts`);
@@ -270,6 +288,7 @@ export function createApiClient(
       const response = await request(
         `/rest/v1/${config.endpoint}?${params.toString()}`,
         {
+          signal: options.signal,
           headers: {
             ...authenticatedHeaders(options.accessToken, "text/csv"),
             Prefer: "count=exact",
@@ -282,7 +301,7 @@ export function createApiClient(
           const totalCount = parseTotalCount(response.headers.get("Content-Range"));
           if (totalCount !== null) return { rows: [], totalCount };
         }
-        throw new Error(`${config.label} query failed with HTTP ${String(response.status)}`);
+        throw new ApiError(`${config.label} query`, response.status);
       }
       return {
         rows: mapDatasetRows(options.dataset, parseCsv(await response.text())),
