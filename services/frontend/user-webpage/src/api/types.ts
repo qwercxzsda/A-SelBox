@@ -27,6 +27,21 @@ export interface AppAccount {
   company_id: string | null;
 }
 
+export type RevisionSource = "settlement" | "data_kiosk" | "fees";
+export type WorkspaceRevisions = Partial<Record<RevisionSource, string>>;
+
+export interface WorkspaceRevisionSnapshot {
+  account: AppAccount;
+  revisions: WorkspaceRevisions;
+}
+
+export interface FetchWorkspaceRevisionsOptions {
+  accessToken: string;
+  userId: string;
+  sources: readonly RevisionSource[];
+  signal?: AbortSignal;
+}
+
 export interface SkuAssignment {
   id: string;
   seller_namespace: string;
@@ -35,12 +50,11 @@ export interface SkuAssignment {
   terms_version_id: string;
 }
 
-// CSV keeps PostgreSQL numerics exact and distinguishes SQL NULL from empty text.
+// CSV and the transaction RPC keep numerics exact and SQL NULL distinct from empty text.
 export type CanonicalRow = Record<string, string | null>;
-export type DatasetRowMap = Record<DatasetKey, CanonicalRow>;
 
-export interface PageResult<Row extends CanonicalRow = CanonicalRow> {
-  rows: Row[];
+export interface PageResult {
+  rows: CanonicalRow[];
   totalCount: number | null;
 }
 
@@ -52,21 +66,62 @@ export interface DatasetSort {
 export type DatasetFilterField = "sku" | "marketplace_name" | "source" | "component_type";
 
 export interface DatasetFilters {
+  companyIds: string[];
   dateFrom: string;
   dateTo: string;
   skus: string[];
   marketplaces: string[];
   sources: string[];
   types: string[];
+  feeApplicability: string[];
 }
 
-export interface FetchDatasetPageOptions<Dataset extends DatasetKey = DatasetKey> {
+export interface FetchDatasetPageOptions {
   accessToken: string;
   signal?: AbortSignal;
-  dataset: Dataset;
+  dataset: DatasetKey;
   pageIndex: number;
   pageSize: number;
   search: string;
   sort: DatasetSort;
   filters?: DatasetFilters;
+  includeCount?: boolean;
+}
+
+export type FetchDatasetCountOptions = Pick<
+  FetchDatasetPageOptions,
+  "accessToken" | "signal" | "dataset" | "search" | "filters"
+>;
+
+export interface CurrencyTotal {
+  currency: string;
+  reportedAmount: DecimalString | null;
+  serviceFee: DecimalString | null;
+  companyAmount: DecimalString | null;
+  rowCount: number;
+  missingFeeCount: number;
+}
+
+export interface TransactionSummaryFilters {
+  companyIds?: string[];
+  skus?: string[];
+  marketplaces?: string[];
+}
+
+export interface FetchLatestTransactionDateOptions extends TransactionSummaryFilters {
+  accessToken: string;
+  signal?: AbortSignal;
+}
+
+export interface FetchTransactionPeriodTotalsOptions extends FetchLatestTransactionDateOptions {
+  dateFrom: string;
+  dateTo: string;
+}
+
+export interface FetchTransactionTypeTotalsOptions extends FetchTransactionPeriodTotalsOptions {
+  currency: string;
+}
+
+export interface TransactionTypeTotal extends CurrencyTotal {
+  type: string;
 }

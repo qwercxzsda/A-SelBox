@@ -1,0 +1,52 @@
+.summary-filters {
+  min-width: 0;
+  margin-bottom: 16px;
+  color: var(--mantine-color-dimmed);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.summary-filters p,
+.summary-filters dl,
+.summary-filters dd {
+  margin: 0;
+}
+
+.summary-filters dl {
+  display: grid;
+  gap: 6px;
+}
+
+.summary-filter {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.summary-filter dt {
+  flex-shrink: 0;
+  color: var(--mantine-color-text);
+  font-weight: 500;
+}
+
+.summary-filter dt::after {
+  content: ":";
+}
+
+.summary-filter dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summary-filters[data-compact] {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.summary-filters[data-compact] dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}

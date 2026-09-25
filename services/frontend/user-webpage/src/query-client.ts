@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { ApiError } from "./api/client.ts";
+import { ApiError } from "./api.ts";
 
 /** Each authenticated workspace owns its cache and discards it when access changes. */
 export function createQueryClient(): QueryClient {

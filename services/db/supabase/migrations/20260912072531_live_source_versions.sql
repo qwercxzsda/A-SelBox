@@ -167,9 +167,8 @@ create table private.settlement_preprocess_versions (
     created_at timestamptz not null default now(),
     unique (settlement_id, id)
 );
-create index settlement_versions_acquisition_idx on private.settlement_preprocess_versions (
-    acquisition_id
-);
+-- Maintained version reads use ID or Settlement identity. Acquisition parents
+-- reject UPDATE/DELETE, so this FK needs no additional reverse-lookup index.
 alter table private.settlements add constraint settlement_current_version_identity
 foreign key (id, current_version_id) references private.settlement_preprocess_versions (
     settlement_id, id
@@ -206,12 +205,6 @@ create table private.settlement_transactions (
     check (category <> 'SELBOX' or family is null or sku is null),
     check (transaction_type not in ('Order', 'Refund') or marketplace_name is not null)
 );
-create index settlement_transactions_owner_date_idx on private.settlement_transactions (
-    seller_namespace, sku, posted_date
-);
-create index settlement_transactions_marketplace_date_idx on private.settlement_transactions (
-    marketplace_name, posted_date
-);
 create table private.data_kiosk_days (
     id public.local_uuid primary key default private.uuid7(),
     seller_namespace private.nonblank not null,
@@ -243,7 +236,7 @@ create table private.data_kiosk_preprocess_versions (
 );
 alter table private.data_kiosk_days add constraint data_kiosk_current_version_identity
 foreign key (id, current_version_id) references private.data_kiosk_preprocess_versions (day_id, id);
-create index data_kiosk_versions_batch_idx on private.data_kiosk_preprocess_versions (batch_id);
+-- UNIQUE(batch_id, day_id) also serves batch inventory counts and FK lookups.
 create table private.data_kiosk_transactions (
     id public.local_uuid primary key default private.uuid7(),
     version_id public.local_uuid not null references private.data_kiosk_preprocess_versions (id),
@@ -268,16 +261,62 @@ create table private.data_kiosk_transactions (
     constraint data_kiosk_account_requires_blank_sku
     check (category <> 'SELBOX' or sku is null)
 );
-create index data_kiosk_transactions_owner_date_idx on private.data_kiosk_transactions (
-    seller_namespace, sku, activity_date
-);
-create index data_kiosk_transactions_marketplace_date_idx on private.data_kiosk_transactions (
-    marketplace_name, activity_date
-);
 create table private.data_kiosk_pruned_versions (
     version_id public.local_uuid primary key references private.data_kiosk_preprocess_versions (id),
     created_at timestamptz not null default now()
 );
+
+-- Support current ownership/version reads and exact counts. Trailing category
+-- and marketplace keys cover Settlement eligibility while retaining B-tree deduplication.
+create index settlement_transactions_owner_version_idx
+on private.settlement_transactions (
+    seller_namespace, sku, version_id, category, marketplace_name
+)
+where category = 'SETTLEMENT';
+
+create index data_kiosk_transactions_owner_version_idx
+on private.data_kiosk_transactions (seller_namespace, sku, version_id)
+where category <> 'SELBOX';
+
+-- Match each owned fact to its currently selected source version.
+create index settlements_current_version_idx
+on private.settlements (current_version_id)
+where current_version_id is not null;
+
+create index data_kiosk_days_current_version_idx
+on private.data_kiosk_days (current_version_id)
+where current_version_id is not null;
+
+-- Default date pages use one B-tree per source in either direction. Full
+-- coverage also serves the raw operator tabs, including historical/account rows;
+-- unchanged RLS and live-query predicates still enforce their respective scopes.
+create index settlement_transactions_date_id_idx
+on private.settlement_transactions (posted_date asc nulls last, id asc);
+
+create index data_kiosk_transactions_date_id_idx
+on private.data_kiosk_transactions (activity_date asc nulls last, id asc);
+
+-- UI SKU selections do not supply a seller namespace. Lead with the selected
+-- SKU; retain compact date keys and B-tree deduplication instead of appending ID.
+-- These narrow candidate scans; they need not satisfy the complete page order.
+create index settlement_transactions_sku_date_idx
+on private.settlement_transactions (sku, posted_date);
+
+create index data_kiosk_transactions_sku_date_idx
+on private.data_kiosk_transactions (sku, activity_date);
+
+-- Exact Type selections narrow sparse component/date scopes in either source.
+-- Use native text comparisons with the same collation as the existing filters.
+create index settlement_transactions_type_date_idx
+on private.settlement_transactions (component_type, posted_date);
+
+create index data_kiosk_transactions_type_date_idx
+on private.data_kiosk_transactions (component_type, activity_date);
+
+-- Retain the compact Data Kiosk marketplace/date path for privileged financial
+-- reads. Authenticated enum filters may stay behind the RLS security barrier.
+create index data_kiosk_transactions_marketplace_date_idx
+on private.data_kiosk_transactions (marketplace_name, activity_date);
 
 create function private.reject_mutation() returns trigger language plpgsql
 set search_path = '' as $$

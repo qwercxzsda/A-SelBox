@@ -1,6 +1,6 @@
 # Frontend
 
-The Company Finance client is in `services/frontend/user-webpage`.
+The A-SelBox web client is in `services/frontend/user-webpage`.
 
 - Stack: React, TypeScript, Vite, and pnpm.
 - Run every `node`, `npm`, `npx`, `corepack`, and `pnpm` command through Docker;

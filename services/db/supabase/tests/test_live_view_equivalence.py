@@ -1,0 +1,382 @@
+"""The relational live view preserves the explicit resolver's full row contract."""
+
+from decimal import Decimal, localcontext
+from typing import LiteralString, cast
+
+from psycopg import sql
+
+from services.db.supabase.tests.local_database import require_row
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+
+_COMPARISON: LiteralString = """
+with legacy as materialized (
+    select * from private.resolve_company_components(
+        array(select current_version_id::uuid from private.settlements
+            where current_version_id is not null),
+        array(select current_version_id::uuid from private.data_kiosk_days
+            where current_version_id is not null),
+        array(select current_terms_version_id::uuid from public.seller_skus
+            where current_terms_version_id is not null)
+    )
+), actual as materialized (
+    select * from public.live_company_components where {predicate}
+    order by activity_date desc nulls last, source, source_row_id {limit_clause}
+), expected as materialized (
+    select * from legacy where {predicate}
+    order by activity_date desc nulls last, source, source_row_id {limit_clause}
+), differences as (
+    (select * from actual except all select * from expected)
+    union all
+    (select * from expected except all select * from actual)
+)
+select (select count(*) from actual), (select count(*) from expected), count(*)
+from differences
+"""
+
+
+class LiveViewEquivalenceTests(SourceModelFixture):
+    def assert_matches_resolver(
+        self,
+        user: str | None,
+        expected_rows: int,
+        predicate: LiteralString = "true",
+        parameters: tuple[object, ...] = (),
+        *,
+        limit: int | None = None,
+    ) -> None:
+        query = sql.SQL(_COMPARISON).format(
+            predicate=sql.SQL(predicate),
+            limit_clause=sql.SQL("")
+            if limit is None
+            else sql.SQL("limit {}").format(sql.Literal(limit)),
+        )
+        with self.connection.transaction():
+            if user is not None:
+                self.connection.execute(
+                    "select set_config('request.jwt.claim.sub',%s,true)", (user,)
+                )
+                self.connection.execute("set local role authenticated")
+            result = self.connection.execute(query, parameters + parameters).fetchone()
+            if user is not None:
+                self.connection.execute("reset role")
+        count = expected_rows if limit is None else min(limit, expected_rows)
+        self.assertEqual(result, (count, count, 0))
+
+    def assign(
+        self,
+        sku: str,
+        company: str | None,
+        *,
+        rate: str | None = None,
+        expected: str | None = None,
+    ) -> str:
+        return self.call(
+            "publish_sku_terms",
+            {
+                "id": new_id(),
+                "seller_sku_id": new_id(),
+                "seller_namespace": self.seller,
+                "sku": sku,
+                "company_id": company,
+                "expected_current_version_id": expected,
+                "change_reason": "Live-view regression fixture",
+                "periods": []
+                if rate is None
+                else [
+                    {
+                        "id": new_id(),
+                        "marketplace_name": "Amazon.com",
+                        "valid_from": "2026-01-01",
+                        "valid_to": None,
+                        "fee_rate_percent": rate,
+                    }
+                ],
+            },
+        )
+
+    def financial_fixture(self) -> tuple[str, str]:
+        company_a, sku = self.owner()
+        company_b, other = self.owner("OTHER")
+        self.fee(sku, [("2026-01-01", "2026-07-01", "5.125"), ("2026-07-01", None, "7")])
+        self.fee(other, [("2026-01-01", None, "7")])
+        self.assign("GAP", company_a)
+        self.assign("UNASSIGNED", None, rate="9")
+        self.settlement(
+            [
+                self.transaction("100.123456789012345678901"),
+                self.transaction("-2.5", 4, kind="Refund", activity_date="2026-07-01"),
+                self.transaction("12", 5, description="Shipping"),
+                self.transaction("0", 6, activity_date="2026-06-16"),
+                self.transaction("5", 7, sku="GAP"),
+                self.transaction("7", 8, sku="UNKNOWN"),
+                self.transaction("11", 9, sku="UNASSIGNED"),
+                self.transaction("13", 10, sku="UNASSIGNED", description="Shipping"),
+                self.transaction("20", 11, sku="OTHER"),
+                self.transaction("999", 12, category="DATA_KIOSK"),
+                self.transaction("999", 13, category="SELBOX") | {"family": None},
+            ]
+        )
+        self.kiosk(
+            1,
+            [
+                self.component("-10"),
+                self.component("3", category="SETTLEMENT"),
+                self.component("2", category="ANALYSIS_ONLY"),
+                self.component("0"),
+                self.component("4", sku="OTHER"),
+                self.component("6", sku="UNKNOWN"),
+                self.component("8", sku="UNASSIGNED"),
+                self.component("9") | {"component_type": "NET_PRODUCT_SALES", "fee_base": "9"},
+                self.component("17", category="SELBOX") | {"sku": None},
+            ],
+        )
+        self.seller = "seller-two"
+        self.assign("SKU", company_b, rate="11")
+        self.settlement([self.transaction("100")])
+        self.kiosk(1, [self.component("-7")])
+        self.seller = "seller-one"
+        return company_a, company_b
+
+    def test_all_fields_match_for_roles_filters_categories_and_exact_amounts(self) -> None:
+        company_a, company_b = self.financial_fixture()
+        member_a, member_b, operator = (
+            self.member(company_a),
+            self.member(company_b),
+            self.operator(),
+        )
+        scopes: tuple[tuple[LiteralString, tuple[object, ...], tuple[int, int, int]], ...] = (
+            ("true", (), (20, 10, 4)),
+            ("company_id = %s::uuid", (company_a,), (10, 10, 0)),
+            ("company_id = %s::uuid", (company_b,), (4, 0, 4)),
+            ("activity_date = %s::date", ("2026-06-15",), (18, 8, 4)),
+            ("sku = %s", ("SKU",), (11, 9, 2)),
+            ("source = %s", ("DATA_KIOSK",), (10, 5, 2)),
+            (
+                "marketplace_name = %s and component_type = %s",
+                ("Amazon.com", "FbaStorageFee"),
+                (9, 4, 2),
+            ),
+            ("source <> 'DATA_KIOSK' or source_amount <> 0", (), (19, 9, 4)),
+            (
+                "activity_date = %s::date and sku = %s "
+                "and (source <> 'DATA_KIOSK' or source_amount <> 0)",
+                ("2026-06-15", "SKU"),
+                (8, 6, 2),
+            ),
+        )
+        for predicate, parameters, counts in scopes:
+            for user, expected_rows in (
+                (None, counts[0]),
+                (operator, counts[0]),
+                (member_a, counts[1]),
+                (member_b, counts[2]),
+            ):
+                with self.subTest(role="trusted" if user is None else user, predicate=predicate):
+                    self.assert_matches_resolver(user, expected_rows, predicate, parameters)
+        for user, count in ((None, 20), (operator, 20), (member_a, 10), (member_b, 4)):
+            with self.subTest(page_role="trusted" if user is None else user):
+                self.assert_matches_resolver(user, count, limit=3)
+        self.assert_matches_resolver(self.auth_user(), 0)
+
+        exact = Decimal("100.123456789012345678901")
+        with localcontext() as context:
+            context.prec = 80
+            expected_fee = -exact * Decimal("0.05125")
+            expected_company = exact + expected_fee
+        self.assertEqual(
+            self.connection.execute(
+                "select source_amount,fee_amount,company_amount "
+                "from public.live_company_components "
+                "where source='SETTLEMENT' and seller_namespace='seller-one' "
+                "and sku='SKU' and source_amount > 100"
+            ).fetchone(),
+            (exact, expected_fee, expected_company),
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select bool_and(seller_sku_id is not null and terms_version_id is not null "
+                "and company_id is null and fee_period_id is null and fee_rate_percent is null "
+                "and resolution_status='MISSING_OWNERSHIP' and fee_amount is null "
+                "and company_amount is null) from public.live_company_components "
+                "where sku='UNASSIGNED'"
+            ).fetchone(),
+            (True,),
+        )
+
+    def test_reprocessing_and_reassignment_only_change_current_rows(self) -> None:
+        company_a, sku = self.owner()
+        company_b, _ = self.owner("OTHER")
+        members = (self.member(company_a), self.member(company_b))
+        operator = self.operator()
+        terms = self.fee(sku, [("2026-01-01", None, "5")])
+        acquisition = self.acquisition()
+        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        _, old_kiosk = self.kiosk(1, [self.component("-10")])
+        _, new_settlement = self.settlement(
+            [self.transaction("200")],
+            acquisition_id=acquisition,
+            expected=old_settlement,
+        )
+        _, new_kiosk = self.kiosk(2, [self.component("-20")], expected=old_kiosk)
+        revised_terms = self.assign("SKU", company_b, rate="7", expected=terms)
+        for user, count in ((None, 2), (operator, 2), (members[0], 0), (members[1], 2)):
+            self.assert_matches_resolver(user, count)
+        self.assertEqual(
+            {
+                str(row[0])
+                for row in self.connection.execute(
+                    "select source_version_id from public.live_company_components"
+                ).fetchall()
+            },
+            {new_settlement, new_kiosk},
+        )
+        self.assertEqual(
+            self.as_user(
+                members[1], "select sum(company_amount) from public.live_company_components"
+            ),
+            [(Decimal(166),)],
+        )
+        self.assertEqual(
+            require_row(
+                self.connection.execute(
+                    "select sum(company_amount) from private.resolve_company_components("
+                    "%s::uuid[],%s::uuid[],%s::uuid[])",
+                    ([old_settlement], [old_kiosk], [terms]),
+                ).fetchone()
+            )[0],
+            Decimal(85),
+        )
+        self.assign("SKU", None, rate="7", expected=revised_terms)
+        for user, count in ((None, 2), (operator, 2), (members[0], 0), (members[1], 0)):
+            self.assert_matches_resolver(user, count)
+        self.connection.execute("set constraints all immediate")
+
+    def test_date_and_sku_filters_reach_fact_scans_without_materializing_the_resolver(self) -> None:
+        company, sku = self.owner()
+        self.fee(sku, [("2026-01-01", None, "5")])
+        self.settlement([self.transaction("100")])
+        self.kiosk(1, [self.component("-10")])
+        result = self.as_user(
+            self.member(company),
+            "explain (format json, verbose) select * from public.live_company_components "
+            "where activity_date between '2026-06-15' and '2026-06-16' and sku='SKU' "
+            "order by activity_date desc nulls last, source, source_row_id limit 25",
+        )
+        root = cast(list[dict[str, object]], result[0][0])[0]["Plan"]
+        pending = [cast(dict[str, object], root)]
+        nodes: list[dict[str, object]] = []
+        while pending:
+            node = pending.pop()
+            nodes.append(node)
+            pending.extend(cast(list[dict[str, object]], node.get("Plans", [])))
+        self.assertFalse(
+            any(
+                node.get("Node Type") == "Function Scan"
+                and node.get("Function Name") == "resolve_company_components"
+                for node in nodes
+            ),
+            "The live view must allow filtering before the full-history resolver materializes rows",
+        )
+        for relation, date_column in (
+            ("settlement_transactions", "posted_date"),
+            ("data_kiosk_transactions", "activity_date"),
+        ):
+            with self.subTest(relation=relation):
+                conditions = [
+                    " ".join(
+                        str(node.get(key, "")) for key in ("Filter", "Index Cond", "Recheck Cond")
+                    )
+                    for node in nodes
+                    if node.get("Relation Name") == relation
+                ]
+                self.assertTrue(
+                    any(
+                        date_column in condition and "2026-06-15" in condition
+                        for condition in conditions
+                    ),
+                    "The date bound must reach the source scan, regardless of the chosen scan type",
+                )
+
+    def assert_source_visible(
+        self, user: str, source: str | None, version: str | None, expected: bool
+    ) -> None:
+        self.assertEqual(
+            self.as_user(
+                user,
+                "select coalesce(%s::uuid in ("
+                "select private.current_company_source_versions(%s::text)),false)",
+                (version, source),
+            ),
+            [(expected,)],
+        )
+
+    def test_source_visibility_helper_checks_current_owner_namespace_and_role(self) -> None:
+        company_a, identity = self.owner()
+        terms = str(
+            require_row(
+                self.connection.execute(
+                    "select current_terms_version_id from public.seller_skus where id=%s",
+                    (identity,),
+                ).fetchone()
+            )[0]
+        )
+        acquisition = self.acquisition()
+        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        _, current_settlement = self.settlement(
+            [self.transaction("110")], acquisition_id=acquisition, expected=old_settlement
+        )
+        _, old_kiosk = self.kiosk(1, [self.component()])
+        _, current_kiosk = self.kiosk(2, [self.component("-11")], expected=old_kiosk)
+        excluded_acquisition = self.acquisition(document_id="comparison-only")
+        _, excluded_settlement = self.settlement(
+            [self.transaction("3", category="DATA_KIOSK")],
+            acquisition_id=excluded_acquisition,
+            identity="comparison-only",
+        )
+
+        self.seller = "seller-two"
+        company_b, _ = self.owner("SKU")
+        _, other_settlement = self.settlement([self.transaction("50")])
+        _, other_kiosk = self.kiosk(1, [self.component("-7")])
+        self.seller = "account-only-seller"
+        self.assign("SKU", company_a)
+        _, excluded_kiosk = self.kiosk(1, [self.component("-9", category="SELBOX") | {"sku": None}])
+        self.seller = "seller-one"
+
+        member_a, member_b = self.member(company_a), self.member(company_b)
+        operator, unregistered = self.operator(), self.auth_user()
+        for source, current, historical, other, excluded in (
+            (
+                "SETTLEMENT",
+                current_settlement,
+                old_settlement,
+                other_settlement,
+                excluded_settlement,
+            ),
+            ("DATA_KIOSK", current_kiosk, old_kiosk, other_kiosk, excluded_kiosk),
+        ):
+            with self.subTest(source=source):
+                self.assert_source_visible(member_a, source, current, True)
+                self.assert_source_visible(member_a, source, historical, False)
+                self.assert_source_visible(member_a, source, other, False)
+                self.assert_source_visible(member_a, source, excluded, False)
+                self.assert_source_visible(member_b, source, current, False)
+                self.assert_source_visible(member_b, source, other, True)
+                self.assert_source_visible(operator, source, current, False)
+                self.assert_source_visible(unregistered, source, current, False)
+                self.assert_source_visible(member_a, source, None, False)
+        self.assert_source_visible(member_a, "UNSUPPORTED", current_settlement, False)
+        self.assert_source_visible(member_a, None, current_settlement, False)
+
+        revised = self.assign("SKU", company_b, expected=terms)
+        for source, current, historical in (
+            ("SETTLEMENT", current_settlement, old_settlement),
+            ("DATA_KIOSK", current_kiosk, old_kiosk),
+        ):
+            self.assert_source_visible(member_a, source, current, False)
+            self.assert_source_visible(member_b, source, current, True)
+            self.assert_source_visible(member_b, source, historical, False)
+        self.assign("SKU", None, expected=revised)
+        self.assert_source_visible(member_b, "SETTLEMENT", current_settlement, False)
+        self.assert_source_visible(member_b, "DATA_KIOSK", current_kiosk, False)
+        self.connection.execute("set constraints all immediate")

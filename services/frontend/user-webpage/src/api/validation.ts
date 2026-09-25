@@ -18,10 +18,7 @@ export function optionalJsonString(
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (typeof value !== "string") {
-    throw new Error(`JSON response has invalid ${property}`);
-  }
-  return value;
+  return requiredJsonString(object, property);
 }
 
 export function requiredJsonNumber(object: Record<string, unknown>, property: string): number {
@@ -40,8 +37,12 @@ export function optionalJsonNumber(
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`JSON response has invalid ${property}`);
+  return requiredJsonNumber(object, property);
+}
+
+export function parseObjectRows(value: unknown, operation: string): Record<string, unknown>[] {
+  if (!Array.isArray(value) || !value.every(isJsonObject)) {
+    throw new Error(`${operation} returned invalid rows`);
   }
   return value;
 }

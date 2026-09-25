@@ -1,12 +1,7 @@
+import { liveRow } from "./api-fixtures.mjs";
+import { openColumn } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
-import { liveRow, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-
-async function openColumn(page, label) {
-  await page.getByRole("button", { name: label, exact: true }).click();
-  const menu = page.getByRole("dialog", { name: `${label} options`, exact: true });
-  await expect(menu).toBeVisible();
-  return menu;
-}
+import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
 async function selectOption(page, label, option) {
   const menu = await openColumn(page, label);
@@ -58,7 +53,7 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   await selectOption(page, "Marketplace", "Amazon.com");
   await selectOption(page, "Source", "Data Kiosk");
-  await selectOption(page, "Type", "FBA STORAGE FEE");
+  await selectOption(page, "Type", "FBA storage fee");
   const dates = await openColumn(page, "Date");
   await dates.getByLabel("From date", { exact: true }).fill("2026-09-03");
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-02");
@@ -104,10 +99,11 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await expect(page.getByRole("button", { name: "Clear filters", exact: true })).toHaveCount(0);
 });
 
-test("SKU options load lazily beyond both the visible page and a thousand repeated values", async ({
+test("SKU options use complete cursor pages despite many repeated transaction values", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
+  fixture.optionPageCap = 3;
   const lastSku = "ZZZ, last (special)";
   fixture.liveRows = [
     ...Array.from({ length: 1001 }, (_, index) => ({ ...liveRow("FIRST", index + 1), sku: "AAA" })),
@@ -115,7 +111,7 @@ test("SKU options load lazily beyond both the visible page and a thousand repeat
       ...liveRow("MIDDLE", index + 1),
       sku: `MIDDLE-${index}`,
     })),
-    { ...liveRow("LAST", 1), sku: lastSku },
+    { ...liveRow("LAST", 1), sku: lastSku, activity_date: "2026-08-31" },
     { ...liveRow("ZERO", 1), sku: "ZZZ-ZERO-ONLY", source: "DATA_KIOSK", source_amount: "0" },
   ];
   await signIn(page);
@@ -130,9 +126,21 @@ test("SKU options load lazily beyond both the visible page and a thousand repeat
   await expect(menu.getByRole("checkbox")).toHaveCount(1);
   await expect(menu.getByLabel("Search sku", { exact: true })).toBeVisible();
   await expect(menu.getByRole("checkbox", { name: "ZZZ-ZERO-ONLY", exact: true })).toHaveCount(0);
-  expect(fixture.optionRequests).toHaveLength(3);
-  expect(fixture.optionRequests[1].params.get("sku")).toBe("gt.AAA");
-  expect(fixture.optionRequests[2].params.get("sku")).toBe(`gt.${lastSku}`);
+  expect(fixture.optionRequests).toHaveLength(4);
+  expect(fixture.optionRequests.map((request) => request.args.p_after)).toEqual([
+    null,
+    "MIDDLE-1",
+    "MIDDLE-4",
+    "MIDDLE-7",
+  ]);
+  expect(fixture.optionRequests.every((request) => !request.includeCount)).toBe(true);
+  expect(
+    fixture.optionRequests.every(
+      (request) =>
+        request.endpoint === "/rest/v1/rpc/dataset_filter_options" &&
+        request.args.p_field === "sku",
+    ),
+  ).toBe(true);
   await lastOption.check();
   await expect(menu).toBeVisible();
   await expect(rowWithSku(page, lastSku)).toBeVisible();
@@ -184,10 +192,7 @@ test("one date or numeric ordering applies at a time while source and date filte
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-03");
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();
   for (const [label, ordering, column, direction, firstSku] of [
-    ["Reported amount", "Highest first", "source_amount", "desc", "ORDER-B-001"],
-    ["Fee rate", "Lowest first", "fee_rate_percent", "asc", "ORDER-C-001"],
-    ["Service fee", "Highest first", "fee_amount", "desc", "ORDER-C-001"],
-    ["Company amount", "Lowest first", "company_amount", "asc", "ORDER-A-001"],
+    ["Reported amount", "Lowest first", "source_amount", "asc", "ORDER-A-001"],
     ["Date", "Oldest first", "activity_date", "asc", "ORDER-C-001"],
   ]) {
     const menu = await openColumn(page, label);

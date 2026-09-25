@@ -1,0 +1,126 @@
+[
+  {
+    "label": "large-density-before-bounded",
+    "serial_successes": 0,
+    "serial_total": 8,
+    "batches": [
+      {
+        "readers": 4,
+        "repeat": 0,
+        "elapsed_ms": 8039.598,
+        "successful_reads": 1,
+        "attempts_per_second": 0.498,
+        "successful_reads_per_second": 0.124
+      },
+      {
+        "readers": 8,
+        "repeat": 0,
+        "elapsed_ms": 8057.648,
+        "successful_reads": 1,
+        "attempts_per_second": 0.993,
+        "successful_reads_per_second": 0.124
+      }
+    ],
+    "settings": {
+      "jit": "on",
+      "max_connections": "100",
+      "max_parallel_workers_per_gather": "2",
+      "server_version": "17.6",
+      "shared_buffers": "16384",
+      "work_mem": "4096"
+    }
+  },
+  {
+    "label": "large-density-after-bounded",
+    "serial_successes": 10,
+    "serial_total": 10,
+    "batches": [
+      {
+        "readers": 4,
+        "repeat": 0,
+        "elapsed_ms": 2929.931,
+        "successful_reads": 4,
+        "attempts_per_second": 1.365,
+        "successful_reads_per_second": 1.365
+      },
+      {
+        "readers": 8,
+        "repeat": 0,
+        "elapsed_ms": 3248.928,
+        "successful_reads": 8,
+        "attempts_per_second": 2.462,
+        "successful_reads_per_second": 2.462
+      }
+    ],
+    "settings": {
+      "jit": "on",
+      "max_connections": "100",
+      "max_parallel_workers_per_gather": "2",
+      "server_version": "17.6",
+      "shared_buffers": "16384",
+      "work_mem": "4096"
+    }
+  },
+  {
+    "label": "large-broad-before-bounded",
+    "serial_successes": 0,
+    "serial_total": 8,
+    "batches": [
+      {
+        "readers": 4,
+        "repeat": 0,
+        "elapsed_ms": 8021.428,
+        "successful_reads": 0,
+        "attempts_per_second": 0.499,
+        "successful_reads_per_second": 0.0
+      },
+      {
+        "readers": 8,
+        "repeat": 0,
+        "elapsed_ms": 8040.445,
+        "successful_reads": 0,
+        "attempts_per_second": 0.995,
+        "successful_reads_per_second": 0.0
+      }
+    ],
+    "settings": {
+      "jit": "on",
+      "max_connections": "100",
+      "max_parallel_workers_per_gather": "2",
+      "server_version": "17.6",
+      "shared_buffers": "16384",
+      "work_mem": "4096"
+    }
+  },
+  {
+    "label": "large-broad-after-bounded",
+    "serial_successes": 2,
+    "serial_total": 10,
+    "batches": [
+      {
+        "readers": 4,
+        "repeat": 0,
+        "elapsed_ms": 8019.674,
+        "successful_reads": 1,
+        "attempts_per_second": 0.499,
+        "successful_reads_per_second": 0.125
+      },
+      {
+        "readers": 8,
+        "repeat": 0,
+        "elapsed_ms": 8035.105,
+        "successful_reads": 2,
+        "attempts_per_second": 0.996,
+        "successful_reads_per_second": 0.249
+      }
+    ],
+    "settings": {
+      "jit": "on",
+      "max_connections": "100",
+      "max_parallel_workers_per_gather": "2",
+      "server_version": "17.6",
+      "shared_buffers": "16384",
+      "work_mem": "4096"
+    }
+  }
+]

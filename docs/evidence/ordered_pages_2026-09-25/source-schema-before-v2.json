@@ -1,0 +1,11 @@
+{
+  "format": "2-includes-view-options-and-index-state",
+  "tables_views_security": "e33044cad0ca670c892bed86ab3fd7dc6accce060c78ba9390654d5f7a8d7e4d",
+  "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+  "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+  "indexes": "5933df6c99a4fa0ec5fdce097ef8cff74e7315cf0f55d99865a4dbb90c59ca07",
+  "functions": "4dfd057059279ac71f5fd726a4a7c1eec27b3fd85527b8f5cbf630b7da9110ce",
+  "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+  "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+  "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+}

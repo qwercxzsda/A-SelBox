@@ -1,0 +1,60 @@
+.table-card {
+  overflow: hidden;
+}
+
+.table-horizontal-scroll {
+  overflow-x: auto;
+}
+
+.table-horizontal-scroll:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.table-card th {
+  background: #f3f6f8;
+  color: #445360;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.table-card th,
+.table-card td {
+  white-space: nowrap;
+}
+
+.table-card [data-column="component_type"] {
+  width: 20rem;
+  max-width: 20rem;
+}
+
+.table-card td[data-column="component_type"] > span {
+  display: block;
+  max-width: 20rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.inspectable-row {
+  cursor: pointer;
+}
+
+.inspectable-row:focus-visible {
+  outline: 3px solid var(--mantine-primary-color-filled);
+  outline-offset: -3px;
+}
+
+.table-card tbody tr.selected {
+  background: #f0f9fa;
+  box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
+}
+
+.table-card .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-card td.numeric {
+  font-weight: 600;
+}

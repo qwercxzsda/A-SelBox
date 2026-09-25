@@ -1,0 +1,28 @@
+{
+  "obsolete_files_removed": [
+    "docs/evidence/bounded_summary_reads_2026-09-19/benchmark.py",
+    "docs/evidence/live_read_optimization_2026-09-19/create_clone.py",
+    "docs/evidence/live_read_optimization_2026-09-19/expand_tenants.py",
+    "docs/evidence/live_read_optimization_2026-09-19/expand_tenants.sql",
+    "docs/evidence/live_read_optimization_2026-09-19/final_report.py",
+    "docs/evidence/live_read_optimization_2026-09-19/run_sql.py",
+    "docs/evidence/live_read_optimization_2026-09-19/scale.sql",
+    "docs/evidence/live_read_optimization_2026-09-19/scale_workload.py",
+    "docs/evidence/ordered_pages_2026-09-25/benchmark.py",
+    "docs/evidence/ordered_pages_2026-09-25/common.py",
+    "docs/evidence/ordered_pages_2026-09-25/expand_tenants.sql",
+    "docs/evidence/ordered_pages_2026-09-25/history_fixture.py",
+    "docs/evidence/ordered_pages_2026-09-25/indexes.py",
+    "docs/evidence/ordered_pages_2026-09-25/queries.py",
+    "docs/evidence/ordered_pages_2026-09-25/scale.sql",
+    "docs/evidence/ordered_pages_2026-09-25/setup.py",
+    "docs/evidence/ordered_pages_2026-09-25/validate.py",
+    "docs/evidence/ordered_pages_2026-09-25/validate_mutations.py",
+    "docs/evidence/ordered_pages_2026-09-25/validation_runner.py",
+    "docs/evidence/page_first_transactions_2026-09-23/benchmark.py",
+    "docs/evidence/progressive_counts_2026-09-23/benchmark.py",
+    "docs/evidence/progressive_counts_2026-09-23/count_candidate.sql",
+    "docs/evidence/progressive_counts_2026-09-23/scale.sql",
+    "docs/evidence/progressive_counts_2026-09-23/setup_clones.py"
+  ]
+}

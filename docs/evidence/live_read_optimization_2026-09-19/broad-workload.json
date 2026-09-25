@@ -1,0 +1,19 @@
+{
+  "database": "aselbox_opt_broad",
+  "factor": 10,
+  "settlement_facts": 737330,
+  "data_kiosk_facts": 295110,
+  "settlement_headers": 580,
+  "day_headers": 16200,
+  "settlement_versions": 590,
+  "day_versions": 16200,
+  "companies": 20,
+  "accounts": 21,
+  "seller_skus": 1290,
+  "fact_relations_with_rls": 2,
+  "setup_seconds": 22.436,
+  "integrity_checks": "All public/private foreign keys and unpruned inventories verified before commit.",
+  "method": "Copy complete source/dimension graphs into nine additional synthetic tenant namespaces.",
+  "read_security": "Unchanged roles, grants, and RLS; each synthetic company has a non-login test member.",
+  "limitation": "Preserves each original tenant's dates and value distribution; does not model new date/SKU distributions."
+}

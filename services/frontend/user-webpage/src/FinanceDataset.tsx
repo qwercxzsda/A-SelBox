@@ -1,32 +1,29 @@
-import {
-  Alert,
-  Button,
-  CloseButton,
-  Group,
-  NativeSelect,
-  Paper,
-  Table,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import "./FinanceDataset.css";
+import { Alert, Button, CloseButton, Group, NativeSelect, Text, TextInput } from "@mantine/core";
 import { type DatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
 import { DATASET_PRESENTATION, PAGE_SIZES, displayColumns, getErrorMessage } from "./view-model";
-import type { WorkspaceProps } from "./FinanceWorkspace";
+import type { Identity } from "./auth-session";
+import { FinancialTable } from "./FinancialTable";
+import { UpdateStatus } from "./UpdateStatus";
 import { PaginationBar } from "./PaginationBar";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { FinanceColumnHeader } from "./FinanceColumnHeader";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
+import { AmountOrderingLimitError } from "./api/amount-ordering";
 
 export function FinanceDataset({
   identity,
   dataset,
   onRetry,
-  isUpdating,
   viewState,
   onViewStateChange,
-}: WorkspaceProps & { dataset: DatasetKey } & ViewStateProps<DatasetViewState>) {
+}: {
+  identity: Identity;
+  dataset: DatasetKey;
+  onRetry: () => Promise<void>;
+} & ViewStateProps<DatasetViewState>) {
   const {
     table,
     query,
@@ -42,24 +39,39 @@ export function FinanceDataset({
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
   const pageCount = totalCount === null ? null : table.getPageCount();
-  const isBusy = query.isFetching || isUpdating;
+  const isBusy = query.isFetching;
   const selectedRow = table.getSelectedRowModel().rows[0]?.original ?? null;
   const filterCount = activeFilterCount(filters);
   const hasFilters = filterCount > 0;
   const hasRefinements = hasFilters || search.trim().length > 0;
   const columns = displayColumns(dataset, identity.account.access_role === "operator");
   const sort = viewState.sorting[0];
+  const amountLimitExceeded = query.error instanceof AmountOrderingLimitError;
   return (
     <>
       <Text mb="md" role="note" c="dimmed" size="sm">
         {presentation.description}
       </Text>
       {query.error ? (
-        <Alert color="red" role="alert" mb="md">
+        <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
-          <Button variant="subtle" disabled={isBusy} onClick={() => void onRetry()}>
-            Retry
-          </Button>
+          {amountLimitExceeded ? (
+            <Button
+              variant="subtle"
+              onClick={() => {
+                const defaultSort = DATASET_CONFIG[dataset].defaultSort;
+                table.setSorting([
+                  { id: defaultSort.column, desc: defaultSort.direction === "desc" },
+                ]);
+              }}
+            >
+              Order by date
+            </Button>
+          ) : (
+            <Button variant="subtle" disabled={isBusy} onClick={() => void onRetry()}>
+              Retry
+            </Button>
+          )}
         </Alert>
       ) : null}
       <Group className="table-toolbar" justify="space-between" align="end">
@@ -128,129 +140,79 @@ export function FinanceDataset({
           table.setPageIndex(index);
         }}
         summary={
-          query.isPending
-            ? `Loading page ${String(pageIndex + 1)}…`
-            : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} rows`
+          amountLimitExceeded
+            ? "Narrow your filters or order by date to load rows."
+            : query.isPending
+              ? `Loading page ${String(pageIndex + 1)}…`
+              : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} rows`
         }
       />
+      <Group gap="xs" mb="xs" mih={24}>
+        {query.countQuery.isError ? (
+          <>
+            <Text size="xs" c="red" role="status">
+              Row count unavailable.
+            </Text>
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              onClick={() => void query.countQuery.refetch()}
+            >
+              Retry count
+            </Button>
+          </>
+        ) : (
+          <UpdateStatus active={query.countQuery.isFetching}>Counting rows…</UpdateStatus>
+        )}
+      </Group>
       <Text size="xs" c="dimmed" mb="xs">
         Select a row or press Enter to view its details.
       </Text>
-      <Paper withBorder className="table-card" aria-busy={isBusy}>
-        <div
-          className="table-horizontal-scroll"
-          role="region"
-          aria-label="Financial table"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll wide tables horizontally.
-          tabIndex={0}
-        >
-          <Table
-            highlightOnHover
-            fz="sm"
-            aria-label="Financial records"
-            miw={Math.max(900, table.getAllLeafColumns().length * 120)}
-          >
-            <Table.Thead>
-              {table.getHeaderGroups().map((group) => (
-                <Table.Tr key={group.id}>
-                  {group.headers.map((header) => {
-                    const sorted = header.column.getIsSorted();
-                    const column = columns.find(
-                      (definition) => definition.key === header.column.id,
-                    );
-                    return (
-                      <Table.Th
-                        key={header.id}
-                        className={
-                          header.column.columnDef.meta?.align === "right" ? "numeric" : undefined
-                        }
-                        scope="col"
-                        aria-sort={
-                          header.column.getCanSort()
-                            ? sorted === "asc"
-                              ? "ascending"
-                              : sorted === "desc"
-                                ? "descending"
-                                : "none"
-                            : undefined
-                        }
-                      >
-                        {column ? (
-                          <FinanceColumnHeader
-                            column={column}
-                            dataset={dataset}
-                            identity={identity}
-                            filters={filters}
-                            onFiltersChange={changeFilters}
-                            sort={{ column: sort.id, direction: sort.desc ? "desc" : "asc" }}
-                            onSortChange={({ column: id, direction }) => {
-                              table.setSorting([{ id, desc: direction === "desc" }]);
-                            }}
-                          />
-                        ) : (
-                          <table.FlexRender header={header} />
-                        )}
-                      </Table.Th>
-                    );
-                  })}
-                </Table.Tr>
-              ))}
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((row) => (
-                <Table.Tr
-                  key={row.id}
-                  tabIndex={0}
-                  aria-selected={row.getIsSelected()}
-                  aria-haspopup="dialog"
-                  className={row.getIsSelected() ? "inspectable-row selected" : "inspectable-row"}
-                  onClick={(event) => {
-                    if (window.getSelection()?.type === "Range") return;
-                    event.currentTarget.focus();
-                    row.toggleSelected(true);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      row.toggleSelected(true);
-                    }
-                  }}
-                >
-                  {row.getAllCells().map((cell) => (
-                    <Table.Td
-                      key={cell.id}
-                      className={
-                        cell.column.columnDef.meta?.align === "right" ? "numeric" : undefined
-                      }
-                    >
-                      <table.FlexRender cell={cell} />
-                    </Table.Td>
-                  ))}
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-          {query.isPending ? (
-            <div className="loading-state" role="status">
-              Loading rows…
-            </div>
-          ) : null}
-          {!query.isPending && !query.isError && rows.length === 0 ? (
-            <div className="empty-state">
-              <Text fw={600}>
-                {hasRefinements ? "No matching records" : presentation.emptyMessage}
+      <FinancialTable
+        table={table}
+        isBusy={isBusy}
+        renderColumnHeader={(columnId) => {
+          const column = columns.find((definition) => definition.key === columnId);
+          return column ? (
+            <FinanceColumnHeader
+              column={column}
+              dataset={dataset}
+              identity={identity}
+              filters={filters}
+              onFiltersChange={changeFilters}
+              sort={{ column: sort.id, direction: sort.desc ? "desc" : "asc" }}
+              totalCount={query.totalCount}
+              onSortChange={({ column: id, direction }) => {
+                table.setSorting([{ id, desc: direction === "desc" }]);
+              }}
+            />
+          ) : null;
+        }}
+      >
+        {query.isPending ? (
+          <div className="loading-state" role="status">
+            Loading rows…
+          </div>
+        ) : null}
+        {!query.isPending && !query.isError && rows.length === 0 ? (
+          <div className="empty-state">
+            <Text fw={600}>
+              {pageIndex > 0 && totalCount === null
+                ? "No rows on this page"
+                : hasRefinements
+                  ? "No matching records"
+                  : presentation.emptyMessage}
+            </Text>
+            {hasRefinements ? (
+              <Text c="dimmed" size="sm">
+                {hasFilters
+                  ? "Adjust your selections or use Clear filters to see more records."
+                  : "Try a different search or use Clear search to see all records."}
               </Text>
-              {hasRefinements ? (
-                <Text c="dimmed" size="sm">
-                  {hasFilters
-                    ? "Adjust your selections or use Clear filters to see more records."
-                    : "Try a different search or use Clear search to see all records."}
-                </Text>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </Paper>
+            ) : null}
+          </div>
+        ) : null}
+      </FinancialTable>
       <RowDetail
         isAdministrator={identity.account.access_role === "operator"}
         companies={companies}

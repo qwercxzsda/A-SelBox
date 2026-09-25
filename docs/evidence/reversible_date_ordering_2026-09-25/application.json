@@ -1,0 +1,80 @@
+{
+  "applied_at_utc": "2026-09-25T11:36:54.256714+00:00",
+  "checks": [
+    {
+      "role": "member_a",
+      "dataset": "live",
+      "scope_count": 16,
+      "exact_reverse": true,
+      "both_direction_page_equivalence": true
+    },
+    {
+      "role": "member_a",
+      "dataset": "settlement",
+      "scope_count": 15,
+      "exact_reverse": true,
+      "both_direction_page_equivalence": true
+    },
+    {
+      "role": "member_a",
+      "dataset": "data_kiosk",
+      "scope_count": 16,
+      "exact_reverse": true,
+      "both_direction_page_equivalence": true
+    },
+    {
+      "role": "operator",
+      "dataset": "live",
+      "scope_count": 9,
+      "exact_reverse": true,
+      "both_direction_page_equivalence": true
+    },
+    {
+      "role": "operator",
+      "dataset": "settlement",
+      "scope_count": 15,
+      "exact_reverse": true,
+      "both_direction_page_equivalence": true
+    },
+    {
+      "role": "operator",
+      "dataset": "data_kiosk",
+      "scope_count": 9,
+      "exact_reverse": true,
+      "both_direction_page_equivalence": true
+    }
+  ],
+  "removed_index_bytes": 4218880,
+  "removed_index_sizes": {
+    "private.settlement_transactions_date_id_idx": 3006464,
+    "private.data_kiosk_transactions_date_id_idx": 1212416
+  },
+  "indexes_removed": 2,
+  "date_index_definitions": [
+    "CREATE INDEX data_kiosk_transactions_date_id_idx ON private.data_kiosk_transactions USING btree (activity_date, id)",
+    "CREATE INDEX settlement_transactions_date_id_idx ON private.settlement_transactions USING btree (posted_date, id) WHERE (category = 'SETTLEMENT'::allocation_category)"
+  ],
+  "other_schema_and_access_unchanged": true,
+  "unrelated_routines_and_grants_unchanged": true,
+  "source_fact_counts_and_migration_records_unchanged": true,
+  "catalog_before": {
+    "tables_views_security": "5cc493aa81c02e82ff98ab7b81572770274bd1806f96d29b56a3fd634267472d",
+    "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+    "functions": "65b4a8638668d63ef92b223c8866cac9941c8d56b3be948b9459fc7a801d6722",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  },
+  "catalog_after": {
+    "tables_views_security": "5cc493aa81c02e82ff98ab7b81572770274bd1806f96d29b56a3fd634267472d",
+    "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "c7e329419577c9985386a1105198a899271125d38c6ec01027cc985b29766f12",
+    "functions": "89ffd6d32609b10119a1794a1666f46a3dc237ebec4eb22538fed317d3ea4aca",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  }
+}

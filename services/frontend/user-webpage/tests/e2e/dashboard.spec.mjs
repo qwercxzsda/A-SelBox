@@ -46,7 +46,10 @@ test("expanding a SKU loads every marketplace fee period across server pages", a
   fixture.feePageCap = 2;
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  const group = page.getByRole("button", { name: /^Show marketplace fees for GROUP-001,/ });
+  const group = page.getByRole("button", {
+    name: "Show marketplace fees for GROUP-001",
+    exact: true,
+  });
   await expect(group).toHaveAttribute("aria-expanded", "false");
   expect(fixture.feeRequests).toHaveLength(0);
   await group.click();
@@ -64,14 +67,14 @@ test("expanding a SKU loads every marketplace fee period across server pages", a
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Show marketplace fees for GROUP-026,/ }),
+    page.getByRole("button", { name: "Show marketplace fees for GROUP-026", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Show marketplace fees for GROUP-001,/ }),
+    page.getByRole("button", { name: "Show marketplace fees for GROUP-001", exact: true }),
   ).toHaveCount(0);
 });
 
-test("visible periodic updates wait for account revalidation before reloading data", async ({
+test("visible periodic updates wait for the revision check before reloading changed data", async ({
   page,
 }) => {
   await page.clock.install();
@@ -81,11 +84,12 @@ test("visible periodic updates wait for account revalidation before reloading da
   const before = fixture.requests.length;
   const checking = deferred();
   const release = deferred();
-  fixture.beforeAccount = async () => {
+  fixture.beforeRevisions = async () => {
     checking.resolve();
     await release.promise;
   };
   fixture.prefixes["member-a"] = "UPDATED";
+  fixture.revisions.settlement = "1";
   await page.clock.fastForward(60_000);
   await checking.promise;
   expect(fixture.requests).toHaveLength(before);
@@ -110,6 +114,7 @@ test("background tabs pause periodic updates and returning to visibility refresh
     body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.Event("visibilitychange"));
   });
   fixture.prefixes["member-a"] = "VISIBLE";
+  fixture.revisions.settlement = "1";
   await page.clock.fastForward(60_000);
   expect(fixture.requests).toHaveLength(before);
   await page.locator("body").evaluate((body) => {
@@ -130,10 +135,12 @@ test("window focus and reconnect refresh the current account without signing in 
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   fixture.prefixes["member-a"] = "FOCUSED";
+  fixture.revisions.settlement = "1";
   await page.clock.fastForward(31_000);
   await page.evaluate(() => globalThis.dispatchEvent(new globalThis.Event("focus")));
   await expect(rowWithSku(page, "FOCUSED-001")).toBeVisible();
   fixture.prefixes["member-a"] = "RECONNECTED";
+  fixture.revisions.settlement = "2";
   await page.context().setOffline(true);
   await page.context().setOffline(false);
   await expect(rowWithSku(page, "RECONNECTED-001")).toBeVisible();

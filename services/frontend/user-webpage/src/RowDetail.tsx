@@ -1,3 +1,4 @@
+import "./RowDetail.css";
 import { Drawer, Text, Title } from "@mantine/core";
 import type { CanonicalRow, DatasetKey } from "./api";
 import { TableCellValue } from "./Cell";

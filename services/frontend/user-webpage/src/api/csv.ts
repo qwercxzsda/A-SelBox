@@ -1,4 +1,4 @@
-export type CsvRecord = Record<string, string | null>;
+import type { CanonicalRow } from "./types.ts";
 
 interface CsvCell {
   quoted: boolean;
@@ -77,7 +77,7 @@ function parseCsvRows(csv: string): CsvCell[][] {
   return rows;
 }
 
-export function parseCsv(csv: string): CsvRecord[] {
+export function parseCsv(csv: string): CanonicalRow[] {
   if (/^[\r\n]*$/.test(csv)) {
     return [];
   }
@@ -102,7 +102,7 @@ export function parseCsv(csv: string): CsvRecord[] {
       throw new Error("CSV row has an unexpected number of fields");
     }
 
-    const record: CsvRecord = Object.create(null) as CsvRecord;
+    const record: CanonicalRow = Object.create(null) as CanonicalRow;
     headers.forEach((header, index) => {
       const cell = values[index];
       record[header] = cell.value === "" && !cell.quoted ? null : cell.value;

@@ -1,0 +1,42 @@
+{
+  "database": "aselbox_opt_tenants",
+  "factor": 10,
+  "settlement_facts": 737330,
+  "data_kiosk_facts": 295110,
+  "settlement_headers": 580,
+  "day_headers": 16200,
+  "settlement_versions": 590,
+  "day_versions": 16200,
+  "companies": 20,
+  "accounts": 21,
+  "seller_skus": 1290,
+  "fact_relations_with_rls": 2,
+  "setup_seconds": 17.351,
+  "integrity_checks": "All public/private foreign keys and unpruned inventories verified before commit.",
+  "method": "Copy complete source/dimension graphs into nine additional synthetic tenant namespaces.",
+  "read_security": "Unchanged roles, grants, and RLS; each synthetic company has a non-login test member.",
+  "limitation": "Preserves each original tenant's dates and value distribution; does not model new date/SKU distributions.",
+  "schema_indexes_and_access_unchanged": true,
+  "catalog_before": {
+    "format": "2-includes-view-options-and-index-state",
+    "tables_views_security": "c5921318d06fdac3ff7cbd43258b4439d8bcd1090937f502697054dc7ff05ca5",
+    "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "5933df6c99a4fa0ec5fdce097ef8cff74e7315cf0f55d99865a4dbb90c59ca07",
+    "functions": "4dfd057059279ac71f5fd726a4a7c1eec27b3fd85527b8f5cbf630b7da9110ce",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  },
+  "catalog_after": {
+    "format": "2-includes-view-options-and-index-state",
+    "tables_views_security": "c5921318d06fdac3ff7cbd43258b4439d8bcd1090937f502697054dc7ff05ca5",
+    "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "5933df6c99a4fa0ec5fdce097ef8cff74e7315cf0f55d99865a4dbb90c59ca07",
+    "functions": "4dfd057059279ac71f5fd726a4a7c1eec27b3fd85527b8f5cbf630b7da9110ce",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  }
+}

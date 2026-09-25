@@ -1,0 +1,2109 @@
+{
+  "phases": [
+    {
+      "phase": "baseline",
+      "role": "member_a",
+      "case": "all",
+      "median_ms": 857.144,
+      "samples_ms": [
+        926.8286250298843,
+        845.0428330106661,
+        857.1438749786466
+      ],
+      "result_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+    },
+    {
+      "phase": "baseline",
+      "role": "member_a",
+      "case": "marketplace",
+      "median_ms": 848.049,
+      "samples_ms": [
+        848.0486249318346,
+        868.1009999709204,
+        844.3545829504728
+      ],
+      "result_sha256": "7cb025f359c17e4fa784d8c9c2723b27e88e02d10e383548a7cda23e54fd2a57"
+    },
+    {
+      "phase": "baseline",
+      "role": "operator",
+      "case": "all",
+      "median_ms": 655.464,
+      "samples_ms": [
+        653.7517920369282,
+        655.4643330164254,
+        682.9867089400068
+      ],
+      "result_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+    },
+    {
+      "phase": "baseline",
+      "role": "operator",
+      "case": "marketplace",
+      "median_ms": 617.935,
+      "samples_ms": [
+        603.035332984291,
+        666.0559169249609,
+        617.9350839229301
+      ],
+      "result_sha256": "5b49ff87fc4c37547078985e7f7132e4c2128dc39ad8057524789768b1bec402"
+    },
+    {
+      "phase": "baseline",
+      "role": "no_app",
+      "case": "all",
+      "median_ms": 612.748,
+      "samples_ms": [
+        614.7461250657216,
+        612.3915410134941,
+        612.748209037818
+      ],
+      "result_sha256": "98089e6d36f78e9766c9ea34d5acb3611f3a92cd81c5eb102095d924ffc7d08b"
+    },
+    {
+      "phase": "baseline",
+      "role": "no_app",
+      "case": "marketplace",
+      "median_ms": 611.566,
+      "samples_ms": [
+        627.7891250792891,
+        602.6857499964535,
+        611.5657080663368
+      ],
+      "result_sha256": "98089e6d36f78e9766c9ea34d5acb3611f3a92cd81c5eb102095d924ffc7d08b"
+    },
+    {
+      "phase": "baseline",
+      "role": "bypass",
+      "case": "all",
+      "median_ms": 145.838,
+      "samples_ms": [
+        145.83825005684048,
+        145.96024993807077,
+        145.2665840042755
+      ],
+      "result_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+    },
+    {
+      "phase": "baseline",
+      "role": "bypass",
+      "case": "marketplace",
+      "median_ms": 6.293,
+      "samples_ms": [
+        7.0415830705314875,
+        6.2934160232543945,
+        6.079167011193931
+      ],
+      "result_sha256": "5b49ff87fc4c37547078985e7f7132e4c2128dc39ad8057524789768b1bec402"
+    },
+    {
+      "phase": "planned",
+      "role": "member_a",
+      "case": "all",
+      "median_ms": 665.058,
+      "samples_ms": [
+        677.421291009523,
+        651.198707986623,
+        665.057749953121
+      ],
+      "result_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+    },
+    {
+      "phase": "planned",
+      "role": "member_a",
+      "case": "marketplace",
+      "median_ms": 649.503,
+      "samples_ms": [
+        649.5032500242814,
+        671.024415991269,
+        646.7989169759676
+      ],
+      "result_sha256": "7cb025f359c17e4fa784d8c9c2723b27e88e02d10e383548a7cda23e54fd2a57"
+    },
+    {
+      "phase": "planned",
+      "role": "operator",
+      "case": "all",
+      "median_ms": 654.884,
+      "samples_ms": [
+        677.3247920209542,
+        654.8839169554412,
+        647.6619580062106
+      ],
+      "result_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+    },
+    {
+      "phase": "planned",
+      "role": "operator",
+      "case": "marketplace",
+      "median_ms": 631.599,
+      "samples_ms": [
+        611.7776250466704,
+        631.59949996043,
+        639.5964999683201
+      ],
+      "result_sha256": "5b49ff87fc4c37547078985e7f7132e4c2128dc39ad8057524789768b1bec402"
+    },
+    {
+      "phase": "planned",
+      "role": "no_app",
+      "case": "all",
+      "median_ms": 485.645,
+      "samples_ms": [
+        470.74316698126495,
+        526.7677499214187,
+        485.64545903354883
+      ],
+      "result_sha256": "98089e6d36f78e9766c9ea34d5acb3611f3a92cd81c5eb102095d924ffc7d08b"
+    },
+    {
+      "phase": "planned",
+      "role": "no_app",
+      "case": "marketplace",
+      "median_ms": 479.04,
+      "samples_ms": [
+        484.5226249890402,
+        479.040417005308,
+        471.37654200196266
+      ],
+      "result_sha256": "98089e6d36f78e9766c9ea34d5acb3611f3a92cd81c5eb102095d924ffc7d08b"
+    },
+    {
+      "phase": "planned",
+      "role": "bypass",
+      "case": "all",
+      "median_ms": 156.03,
+      "samples_ms": [
+        160.011374973692,
+        156.02983301505446,
+        151.65041701402515
+      ],
+      "result_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+    },
+    {
+      "phase": "planned",
+      "role": "bypass",
+      "case": "marketplace",
+      "median_ms": 7.174,
+      "samples_ms": [
+        8.47754196729511,
+        7.174207945354283,
+        6.7711659939959645
+      ],
+      "result_sha256": "5b49ff87fc4c37547078985e7f7132e4c2128dc39ad8057524789768b1bec402"
+    },
+    {
+      "phase": "baseline_repeat",
+      "role": "member_a",
+      "case": "all",
+      "median_ms": 838.112,
+      "samples_ms": [
+        843.0119999684393,
+        829.8127090092748,
+        838.1124589359388
+      ],
+      "result_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+    },
+    {
+      "phase": "baseline_repeat",
+      "role": "member_a",
+      "case": "marketplace",
+      "median_ms": 837.887,
+      "samples_ms": [
+        891.4230420487002,
+        837.8866659477353,
+        835.4220839682966
+      ],
+      "result_sha256": "7cb025f359c17e4fa784d8c9c2723b27e88e02d10e383548a7cda23e54fd2a57"
+    },
+    {
+      "phase": "baseline_repeat",
+      "role": "operator",
+      "case": "all",
+      "median_ms": 673.226,
+      "samples_ms": [
+        673.2262080768123,
+        704.5532920164987,
+        661.222374998033
+      ],
+      "result_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+    },
+    {
+      "phase": "baseline_repeat",
+      "role": "operator",
+      "case": "marketplace",
+      "median_ms": 617.756,
+      "samples_ms": [
+        617.7562080556527,
+        610.3517499286681,
+        637.8965419717133
+      ],
+      "result_sha256": "5b49ff87fc4c37547078985e7f7132e4c2128dc39ad8057524789768b1bec402"
+    }
+  ],
+  "plans": {
+    "baseline/member_a": {
+      "Plan": {
+        "Node Type": "Aggregate",
+        "Actual Startup Time": 901.878,
+        "Actual Total Time": 901.899,
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 553643,
+        "Shared Read Blocks": 168984,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Startup Time": 716.432,
+            "Actual Total Time": 901.891,
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 553643,
+            "Shared Read Blocks": 168984,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 716.432,
+                "Actual Total Time": 716.443,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 550603,
+                "Shared Read Blocks": 125388,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.051,
+                    "Actual Total Time": 0.052,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.057,
+                    "Actual Total Time": 0.058,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Parent Relationship": "Outer",
+                    "Index Name": "settlement_transactions_owner_version_idx",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Startup Time": 54.752,
+                    "Actual Total Time": 701.26,
+                    "Actual Rows": 370560,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 363070,
+                    "Shared Hit Blocks": 550603,
+                    "Shared Read Blocks": 125388,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.356,
+                        "Actual Total Time": 3.038,
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 2101,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.039,
+                            "Actual Total Time": 0.04,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.031,
+                            "Actual Total Time": 0.031,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.185,
+                            "Actual Total Time": 1.935,
+                            "Actual Rows": 64,
+                            "Actual Loops": 1,
+                            "Rows Removed by Filter": 65,
+                            "Shared Hit Blocks": 1235,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.017,
+                            "Actual Total Time": 0.017,
+                            "Actual Rows": 1,
+                            "Actual Loops": 64,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 866,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.016,
+                                "Actual Total Time": 0.016,
+                                "Actual Rows": 1,
+                                "Actual Loops": 64,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 737,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.028,
+                                    "Actual Total Time": 0.028,
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 51.359,
+                        "Actual Total Time": 51.433,
+                        "Actual Rows": 510,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 70,
+                        "Shared Hit Blocks": 936,
+                        "Shared Read Blocks": 454,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.03,
+                            "Actual Total Time": 0.031,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 51.004,
+                            "Actual Total Time": 51.277,
+                            "Actual Rows": 510,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 924,
+                            "Shared Read Blocks": 451,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 1,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 185.436,
+                "Actual Total Time": 185.445,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 3040,
+                "Shared Read Blocks": 43596,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.186,
+                    "Actual Total Time": 0.186,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.197,
+                    "Actual Total Time": 0.197,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 0,
+                    "Shared Read Blocks": 1
+                  },
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Startup Time": 66.452,
+                    "Actual Total Time": 181.737,
+                    "Actual Rows": 93420,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 201690,
+                    "Shared Hit Blocks": 3040,
+                    "Shared Read Blocks": 43596,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.486,
+                        "Actual Total Time": 3.28,
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 2091,
+                        "Shared Read Blocks": 12,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.06,
+                            "Actual Total Time": 0.06,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.039,
+                            "Actual Total Time": 0.039,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.284,
+                            "Actual Total Time": 2.118,
+                            "Actual Rows": 64,
+                            "Actual Loops": 1,
+                            "Rows Removed by Filter": 65,
+                            "Shared Hit Blocks": 1226,
+                            "Shared Read Blocks": 11
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.018,
+                            "Actual Total Time": 0.018,
+                            "Actual Rows": 1,
+                            "Actual Loops": 64,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 865,
+                            "Shared Read Blocks": 1,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.016,
+                                "Actual Total Time": 0.016,
+                                "Actual Rows": 1,
+                                "Actual Loops": 64,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 736,
+                                "Shared Read Blocks": 1,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.041,
+                                    "Actual Total Time": 0.042,
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 58.675,
+                        "Actual Total Time": 61.232,
+                        "Actual Rows": 13500,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 2700,
+                        "Shared Hit Blocks": 948,
+                        "Shared Read Blocks": 1520,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.038,
+                            "Actual Total Time": 0.038,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 49.162,
+                            "Actual Total Time": 56.58,
+                            "Actual Rows": 13500,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 734,
+                            "Shared Read Blocks": 1517,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.001,
+                                "Actual Rows": 1,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "Planning Time": 0.453,
+      "Execution Time": 902.028
+    },
+    "baseline/operator": {
+      "Plan": {
+        "Node Type": "Aggregate",
+        "Actual Startup Time": 728.439,
+        "Actual Total Time": 728.453,
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 547956,
+        "Shared Read Blocks": 166841,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Startup Time": 632.553,
+            "Actual Total Time": 728.443,
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 547956,
+            "Shared Read Blocks": 166841,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 632.552,
+                "Actual Total Time": 632.559,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 547954,
+                "Shared Read Blocks": 124561,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.036,
+                    "Actual Total Time": 0.036,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.068,
+                    "Actual Total Time": 0.068,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Parent Relationship": "Outer",
+                    "Index Name": "settlement_transactions_owner_version_idx",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Startup Time": 0.394,
+                    "Actual Total Time": 607.532,
+                    "Actual Rows": 726580,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 7050,
+                    "Shared Hit Blocks": 547954,
+                    "Shared Read Blocks": 124561,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.0,
+                                    "Actual Total Time": 0.0,
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 0.038,
+                        "Actual Total Time": 0.118,
+                        "Actual Rows": 580,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 1,
+                        "Shared Read Blocks": 14,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.032,
+                            "Actual Total Time": 0.032,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 95.874,
+                "Actual Total Time": 95.881,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 2,
+                "Shared Read Blocks": 42280,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.047,
+                    "Actual Total Time": 0.047,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.183,
+                    "Actual Total Time": 0.183,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 0,
+                    "Shared Read Blocks": 1
+                  },
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Startup Time": 3.432,
+                    "Actual Total Time": 89.802,
+                    "Actual Rows": 148720,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 146390,
+                    "Shared Hit Blocks": 2,
+                    "Shared Read Blocks": 42280,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.0,
+                                    "Actual Total Time": 0.0,
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 0.042,
+                        "Actual Total Time": 1.605,
+                        "Actual Rows": 16200,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 1,
+                        "Shared Read Blocks": 216,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.035,
+                            "Actual Total Time": 0.035,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "Planning Time": 0.517,
+      "Execution Time": 728.56
+    },
+    "planned/member_a": {
+      "Plan": {
+        "Node Type": "Aggregate",
+        "Actual Startup Time": 678.774,
+        "Actual Total Time": 678.787,
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 6506,
+        "Shared Read Blocks": 135331,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Startup Time": 499.864,
+            "Actual Total Time": 678.78,
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 6506,
+            "Shared Read Blocks": 135331,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 499.863,
+                "Actual Total Time": 499.869,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 3467,
+                "Shared Read Blocks": 91735,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.108,
+                    "Actual Total Time": 0.108,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Bitmap Heap Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Startup Time": 82.183,
+                    "Actual Total Time": 485.201,
+                    "Actual Rows": 370560,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 363070,
+                    "Shared Hit Blocks": 3467,
+                    "Shared Read Blocks": 91735,
+                    "Plans": [
+                      {
+                        "Node Type": "Bitmap Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Index Name": "settlement_transactions_owner_version_idx",
+                        "Actual Startup Time": 22.643,
+                        "Actual Total Time": 22.644,
+                        "Actual Rows": 733630,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 892
+                      },
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.385,
+                        "Actual Total Time": 3.092,
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 2101,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.041,
+                            "Actual Total Time": 0.041,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.034,
+                            "Actual Total Time": 0.035,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.206,
+                            "Actual Total Time": 1.992,
+                            "Actual Rows": 64,
+                            "Actual Loops": 1,
+                            "Rows Removed by Filter": 65,
+                            "Shared Hit Blocks": 1235,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.017,
+                            "Actual Total Time": 0.017,
+                            "Actual Rows": 1,
+                            "Actual Loops": 64,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 866,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.016,
+                                "Actual Total Time": 0.016,
+                                "Actual Rows": 1,
+                                "Actual Loops": 64,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 737,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.031,
+                                    "Actual Total Time": 0.031,
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 50.281,
+                        "Actual Total Time": 50.353,
+                        "Actual Rows": 510,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 70,
+                        "Shared Hit Blocks": 1365,
+                        "Shared Read Blocks": 25,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.034,
+                            "Actual Total Time": 0.034,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 49.927,
+                            "Actual Total Time": 50.193,
+                            "Actual Rows": 510,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1353,
+                            "Shared Read Blocks": 22,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 1,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 178.9,
+                "Actual Total Time": 178.907,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 3039,
+                "Shared Read Blocks": 43596,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.141,
+                    "Actual Total Time": 0.142,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 0,
+                    "Shared Read Blocks": 1
+                  },
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Startup Time": 55.558,
+                    "Actual Total Time": 174.869,
+                    "Actual Rows": 93420,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 201690,
+                    "Shared Hit Blocks": 3039,
+                    "Shared Read Blocks": 43596,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.405,
+                        "Actual Total Time": 3.092,
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 2091,
+                        "Shared Read Blocks": 12,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.04,
+                            "Actual Total Time": 0.04,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.032,
+                            "Actual Total Time": 0.032,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.231,
+                            "Actual Total Time": 1.991,
+                            "Actual Rows": 64,
+                            "Actual Loops": 1,
+                            "Rows Removed by Filter": 65,
+                            "Shared Hit Blocks": 1226,
+                            "Shared Read Blocks": 11
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.017,
+                            "Actual Total Time": 0.017,
+                            "Actual Rows": 1,
+                            "Actual Loops": 64,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 865,
+                            "Shared Read Blocks": 1,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.016,
+                                "Actual Total Time": 0.016,
+                                "Actual Rows": 1,
+                                "Actual Loops": 64,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 736,
+                                "Shared Read Blocks": 1,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.029,
+                                    "Actual Total Time": 0.029,
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 49.011,
+                        "Actual Total Time": 50.979,
+                        "Actual Rows": 13500,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 2700,
+                        "Shared Hit Blocks": 948,
+                        "Shared Read Blocks": 1520,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.032,
+                            "Actual Total Time": 0.035,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 40.64,
+                            "Actual Total Time": 47.41,
+                            "Actual Rows": 13500,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 734,
+                            "Shared Read Blocks": 1517,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 1,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "Planning Time": 0.392,
+      "Execution Time": 678.88
+    },
+    "planned/operator": {
+      "Plan": {
+        "Node Type": "Aggregate",
+        "Actual Startup Time": 703.764,
+        "Actual Total Time": 703.774,
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 547954,
+        "Shared Read Blocks": 166841,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Startup Time": 608.903,
+            "Actual Total Time": 703.768,
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 547954,
+            "Shared Read Blocks": 166841,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 608.902,
+                "Actual Total Time": 608.907,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 547953,
+                "Shared Read Blocks": 124561,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.05,
+                    "Actual Total Time": 0.05,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Parent Relationship": "Outer",
+                    "Index Name": "settlement_transactions_owner_version_idx",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Startup Time": 0.318,
+                    "Actual Total Time": 582.147,
+                    "Actual Rows": 726580,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 7050,
+                    "Shared Hit Blocks": 547953,
+                    "Shared Read Blocks": 124561,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.0,
+                                    "Actual Total Time": 0.0,
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "settlements",
+                        "Actual Startup Time": 0.04,
+                        "Actual Total Time": 0.113,
+                        "Actual Rows": 580,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 1,
+                        "Shared Read Blocks": 14,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.034,
+                            "Actual Total Time": 0.035,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Startup Time": 94.852,
+                "Actual Total Time": 94.857,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 42280,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Actual Startup Time": 0.171,
+                    "Actual Total Time": 0.171,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 0,
+                    "Shared Read Blocks": 1
+                  },
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Startup Time": 3.365,
+                    "Actual Total Time": 88.782,
+                    "Actual Rows": 148720,
+                    "Actual Loops": 1,
+                    "Rows Removed by Filter": 146390,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 42280,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "SubPlan",
+                        "Join Type": "Inner",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Index Name": "sku_terms_versions_pkey",
+                            "Relation Name": "sku_terms_versions",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Index Name": "seller_skus_pkey",
+                                "Relation Name": "seller_skus",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Actual Startup Time": 0.0,
+                                    "Actual Total Time": 0.0,
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 0.0,
+                        "Actual Total Time": 0.0,
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Startup Time": 0.052,
+                        "Actual Total Time": 1.61,
+                        "Actual Rows": 16200,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 1,
+                        "Shared Read Blocks": 216,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Actual Startup Time": 0.045,
+                            "Actual Total Time": 0.045,
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0
+                          },
+                          {
+                            "Node Type": "ProjectSet",
+                            "Parent Relationship": "SubPlan",
+                            "Actual Startup Time": 0.0,
+                            "Actual Total Time": 0.0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "Outer",
+                                "Actual Startup Time": 0.0,
+                                "Actual Total Time": 0.0,
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "Planning Time": 0.433,
+      "Execution Time": 703.863
+    }
+  },
+  "cleanup": {
+    "clones_created": 1,
+    "clones_removed": 1,
+    "remaining_clones": 0,
+    "source_catalog_unchanged": true,
+    "private_dump_removed": true
+  },
+  "equivalent": true,
+  "fixture": {
+    "database": "aselbox_opt_broad",
+    "total_temporal_cohorts": 10,
+    "cohort_stride_days": 366,
+    "cohort_offsets_days": [
+      0,
+      -366,
+      -732,
+      -1098,
+      -1464,
+      -1830,
+      -2196,
+      -2562,
+      -2928,
+      -3294
+    ],
+    "before": {
+      "settlement_facts": 73733,
+      "data_kiosk_facts": 29511,
+      "settlement_headers": 58,
+      "day_headers": 1620,
+      "settlement_versions": 59,
+      "day_versions": 1620,
+      "batches": 18,
+      "settlement_acquisitions": 62,
+      "data_kiosk_acquisitions": 18,
+      "pruned_versions": 0,
+      "companies": 2,
+      "accounts": 3,
+      "seller_skus": 129,
+      "empty_day_versions": 270,
+      "obsolete_settlement_versions": 1,
+      "obsolete_day_versions": 0,
+      "settlement_dates": {
+        "first": "2026-06-03",
+        "last": "2026-09-08",
+        "distinct_days": 98
+      },
+      "data_kiosk_dates": {
+        "first": "2026-06-16",
+        "last": "2026-09-13",
+        "distinct_days": 90
+      }
+    },
+    "after": {
+      "settlement_facts": 737330,
+      "data_kiosk_facts": 295110,
+      "settlement_headers": 580,
+      "day_headers": 16200,
+      "settlement_versions": 590,
+      "day_versions": 16200,
+      "batches": 180,
+      "settlement_acquisitions": 620,
+      "data_kiosk_acquisitions": 180,
+      "pruned_versions": 0,
+      "companies": 2,
+      "accounts": 3,
+      "seller_skus": 129,
+      "empty_day_versions": 2700,
+      "obsolete_settlement_versions": 10,
+      "obsolete_day_versions": 0,
+      "settlement_dates": {
+        "first": "2017-05-27",
+        "last": "2026-09-08",
+        "distinct_days": 980
+      },
+      "data_kiosk_dates": {
+        "first": "2017-06-09",
+        "last": "2026-09-13",
+        "distinct_days": 900
+      }
+    },
+    "new_selected_terms_revisions": 129,
+    "setup_seconds": 22.298,
+    "schema_indexes_and_access_unchanged": true,
+    "original_payouts_and_account_membership_unchanged": true,
+    "normal_trigger_execution_restored": true,
+    "integrity_checks": "All foreign keys/current identity pairs, source/batch/fee inventories, fee exclusions, pruning markers, source/header identity and ownership checked before commit.",
+    "fee_assumption": "Each marketplace's earliest configured fee rate extends backwards in a new selected revision; original terms and payout references are retained.",
+    "limitations": "Shifted seasonal seed windows and repeated value/SKU distributions are synthetic. Raw JSON/archive references are not reconstructed for historical replay. Revision tokens are unchanged during fixture-only trigger suppression; query benchmarks must use fresh reads."
+  }
+}

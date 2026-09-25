@@ -1,0 +1,62 @@
+{
+  "completed_at_utc": "2026-09-24T18:07:59.605743+00:00",
+  "clone_catalogs_restored": {
+    "aselbox_opt_broad": true,
+    "aselbox_opt_large": true,
+    "aselbox_opt_seed": true,
+    "aselbox_opt_tenants": true
+  },
+  "dropped_clones": [
+    "aselbox_opt_broad",
+    "aselbox_opt_large",
+    "aselbox_opt_seed",
+    "aselbox_opt_tenants"
+  ],
+  "source_catalog_unchanged": true,
+  "private_files_removed": [
+    "seed-complete.private.dump"
+  ],
+  "remaining_private_files": 0,
+  "read_runs": [
+    {
+      "file": "density-original.json",
+      "requests_including_warmups": 168,
+      "errors": 0
+    },
+    {
+      "file": "history-ascending-indexes.json",
+      "requests_including_warmups": 48,
+      "errors": 0
+    },
+    {
+      "file": "history-nonzero-index.json",
+      "requests_including_warmups": 48,
+      "errors": 0
+    },
+    {
+      "file": "history-original.json",
+      "requests_including_warmups": 112,
+      "errors": 0
+    },
+    {
+      "file": "history-refined.json",
+      "requests_including_warmups": 312,
+      "errors": 0
+    },
+    {
+      "file": "refinements-seed.json",
+      "requests_including_warmups": 48,
+      "errors": 0
+    },
+    {
+      "file": "seed-final.json",
+      "requests_including_warmups": 224,
+      "errors": 0
+    },
+    {
+      "file": "tenants-original.json",
+      "requests_including_warmups": 264,
+      "errors": 0
+    }
+  ]
+}

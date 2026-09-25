@@ -1,215 +1,158 @@
-# Company Finance webpage
+# A-SelBox web client
 
-React, TypeScript, and Vite client for the current company fee and source-data schema. Mantine
-supplies shared controls, styling, and an accessible row-details drawer. TanStack Table manages
-sorting, pagination, and single-row selection; sorting and pagination still run on the server.
-TanStack Query manages requests, cancellation, and an in-memory page cache.
+React and TypeScript client using Vite, Mantine, TanStack Query, TanStack Table, and Playwright. The
+browser accesses Supabase Auth and REST APIs with the signed-in user's token. It never sends SQL.
+Database row-level security enforces access.
 
-## Data and access
+## Workspace
 
-The app signs in with an existing account, then loads its `app_accounts` role and company. It reads
-these models through Supabase REST with that user's access token:
+| Tab            | API                                                   | Access                                      |
+| -------------- | ----------------------------------------------------- | ------------------------------------------- |
+| Transactions   | `transaction_page`, `transaction_count`               | Current company assignments and fees        |
+| Current fees   | `company_skus`, `current_sku_fee_periods`             | Current company assignments and fee periods |
+| Settlements    | `source_transaction_page`, `source_transaction_count` | Administrators                              |
+| Data Kiosk     | `source_transaction_page`, `source_transaction_count` | Administrators                              |
+| Payout reports | `company_payout_reports`                              | Administrators                              |
+| User access    | `app_accounts`                                        | Administrators                              |
 
-| Tab            | REST model                                | Visibility                                                     |
-| -------------- | ----------------------------------------- | -------------------------------------------------------------- |
-| Transactions   | `live_company_components`                 | Current assignments and fees; members see their company        |
-| Settlements    | `settlement_preprocess_entries`           | Administrators only; retained history                          |
-| Data Kiosk     | `data_kiosk_preprocess_entries`           | Administrators only; retained history                          |
-| Current fees   | `company_skus`, `current_sku_fee_periods` | Current assignments and fee periods; members see their company |
-| Payout reports | `company_payout_reports`                  | Administrators only                                            |
-| User access    | `app_accounts`                            | Administrators only                                            |
+Company members see only their company. Administrators can select companies in Transactions. The
+interface supports reading and inspection; fee editing, account administration, and publication are
+not implemented. See the [access guide](../../../docs/access_control.md) for database permissions.
 
-Company members use Transactions and Current fees. Administrators also have Settlements, Data Kiosk,
-Payout reports, and User access.
+- Column menus filter inclusive dates, SKUs, marketplaces, sources, and types. Company, SKU, and
+  other selections are alternatives within each filter; different filters intersect. Menus offer
+  search when there are more than eight choices. Text search treats punctuation literally.
+- Available sort controls support one ordering at a time. Pagination and sorting run on the server.
+  Enter applies an inline page number; Escape cancels the edit. Tables expand vertically and scroll
+  horizontally when needed. Clicking a row or pressing Enter/Space opens its details.
+- Each tab retains its filters, search, ordering, page, and expanded fees during the session.
+  Changing the user, role, or assigned company clears the workspace and its cache.
+- Current fees groups all assignments by exact SKU, with seller identifiers hidden. Expanding a SKU
+  loads all marketplace fee periods, including server-capped pages. The table appears only when
+  every assignment loads successfully. Administrators see company labels where needed.
+- Data Kiosk zero amounts are excluded before pagination and counting; Settlement zero rows remain.
+  Financial values arrive as CSV or JSON strings and retain their decimal precision. Missing fees
+  display as a dash. Non-applicable fees also display as a dash; applicable zero fees remain zero.
+- Transactions, Settlements, and Data Kiosk allow ordering by Date or Reported amount, the raw
+  amount stored by each source. Amount ordering is available only when at most 10,000 rows match
+  every active filter and search. Larger scopes explain the limit and offer date ordering; an
+  unknown or stale count is checked by the database. Date descending is the default. Company amount
+  remains visible without a sort control. Transactions also shows Quantity. The Fee rate menu
+  filters Applicable or Not applicable by source Type: Settlement product sales/refunds and Data
+  Kiosk net product sales are applicable, including zero bases/rates and missing fee configuration.
+  Selecting both or neither shows all applicability states. Type labels wrap within a maximum width
+  of 20rem.
 
-`companies` and `company_skus` supply company and SKU display names. Lookup queries are paginated so
-deployments with more than 1,000 assignments still resolve SKU labels. The account lookup filters by
-the authenticated user ID even for operators. RLS enforces all data access; hiding tabs is only a
-navigation choice.
+## Totals
 
-The `operator` role is displayed as Administrator. Table labels use Reported amount, Service fee,
-and Company amount for the existing `source_amount`, `fee_amount`, and `company_amount` fields.
-Changing these labels does not change the calculation or the stored values.
+Latest day uses the latest transaction date within the selected company, SKU, and marketplace scope.
+Discovery uses the shared `transaction_page` request with one date-descending row and no count; the
+selected date range and source/type filters are omitted. Latest month uses that date's month if it
+falls on the last calendar day, otherwise the previous month. This rule does not certify complete
+import coverage. Selected dates has no total until at least one DATE bound is set; it supports
+ranges with only a start or end date.
 
-Data Kiosk excludes rows whose monetary amount is zero in the server query before counting or
-paginating results. The Transactions view applies the same filter to Data Kiosk components while
-retaining Settlement zero rows. Current fees paginates SKU assignments; expanding an assignment
-loads every marketplace fee period for that SKU, including results beyond the server's response-page
-limit.
+All three cards follow company, SKU, and marketplace selections. DATE applies only to Selected
+dates. Source/type and fee-applicability filters, text search, ordering, and table pagination do not
+affect the cards. Clicking a day or month applies its date bounds to Transactions and returns to
+page one. Clicking amounts opens a Type breakdown with the effective dates, currency, and filters.
+Related types use expandable groups in a fixed order.
 
-Transaction column headers offer inclusive date ranges, SKU/marketplace/source/type selections, and
-ordering by date or monetary/rate columns. Available choices are loaded when a menu opens across the
-permitted dataset, including records beyond the displayed page. Lists with more than eight choices
-include a search box, which stays available as search results narrow. Multiple selection filters
-combine with the date range and text search. One ordering applies at a time; changing it preserves
-filters. Clear filters resets column filters, while Clear search resets the text search.
+Totals include both transaction sources, keep currencies separate, and identify missing calculated
+amounts. Requests aggregate only the needed periods. Latest-date discovery, each period, and each
+opened breakdown have independent cache and error states. Totals and Type breakdowns call
+`transaction_totals`; compatible source facts are summed before their fee lookup. The response keeps
+exact decimal strings and counts needed to identify missing company amounts.
 
-Each tab remembers search, column filters, sorting, page size, page, and fee expansions for the
-current signed-in workspace. Switching tabs unmounts inactive queries. Sign-out or a user, role, or
-company change clears these view settings. Tables expand to their full height and use document
-scrolling, with horizontal scrolling for wide columns; pagination stays above the records. The
-inline page number accepts a destination directly; Enter applies the page number and Escape cancels.
-Search can be cleared directly, and marketplace fee rates remain visible on narrow screens.
+Filter menus call `dataset_filter_options` for distinct authorized values. Both RPCs return bounded
+JSON pages with explicit continuation information; every page is loaded before displaying the
+result. No separate source-row count is requested. Generated PostgREST aggregation is disabled; the
+frontend never sends aggregate expressions in REST query parameters.
 
-Company members see their company name once above their email in the header. Repeated company fields
-and processing metadata are omitted from their records; administrators retain company columns and
-additional record details for cross-company review. The combined Transactions view identifies the
-source of each record, while source-specific tabs avoid repeating their origin.
+## Requests and session lifecycle
 
-Daily and monthly analytics are not implemented yet. Estimated summaries can use the existing REST
-data after fetching all matching pages and grouping amounts by currency. Server-side aggregation is
-an optimization, not a prerequisite. The current frontend changes use the existing database
-interfaces.
+Date and Reported amount ordering, including text search, use `transaction_page` for Transactions
+and `source_transaction_page` for Settlements and Data Kiosk. The functions page authorized,
+filtered source rows using their stored date or amount; Transactions calculates output fees for the
+chosen page. Date ordering reverses both dates and row IDs (and source ties in Transactions). Amount
+ordering uses signed numeric values with ascending source/ID ties in either direction; currencies
+are not converted. Search is a trimmed, literal, case-insensitive substring passed as `p_search`.
+Page and count RPCs share the same validated filters and search term. Search covers SKU, raw Type,
+Marketplace, and Currency; Transactions also searches Source codes and their displayed labels.
+Seller identifiers, processing versions, fee status, and other metadata are excluded. Matching
+fields are checked before pagination. Settlements uses the same Type column as the other transaction
+tabs; original source classification fields remain in row details. Fee applicability also applies
+before pagination and counting; changing search or filters returns to page one. Financial pages load
+before their independent exact counts: Transactions uses `transaction_count`; Settlements and Data
+Kiosk use `source_transaction_count`. Other datasets retain direct REST reads and filtered HEAD
+counts. Details and Previous/Next remain usable while counting. Page-number entry becomes available
+when the bound is known. Failed counts have their own retry.
 
-The frontend currently supports reading and inspecting these results. Account administration, fee
-publication, and historical fee browsing are not implemented in this UI; the database permissions
-and REST operations are documented in the [access guide](../../../docs/access_control.md).
+Financial counts are cached until a relevant data revision changes. Pages and administrative counts
+have 30-second freshness. Every visible, online workspace polls `workspace_revisions` every 60
+seconds; focus and reconnection also check for changes. Unchanged revisions trigger no financial
+reads. Changes invalidate only dependent rows, options, counts, summaries, and fee lookups. Source
+revisions are global; fee/ownership revisions are company-scoped for members. Active summaries
+require all three revisions even when another tab is selected. Account and payout lists refresh
+separately because their changes are outside those financial revisions.
 
-Financial values arrive as PostgREST CSV and remain exact decimal strings. Missing fees remain NULL
-and display as a dash. Transactions omits the Fee status column; rows with `NOT_APPLICABLE` display
-`-` for Fee rate and Service fee, while applicable zero fees remain numeric zero. Comparison
-components are labeled and are not presented as contributions to a total. The UI does not calculate
-financial totals or combine currencies. Search treats SKU punctuation literally, and pagination uses
-stable identity tie-breakers. Fee date ranges include the start and exclude the end.
-
-Sessions are held in memory, refreshed while the page is open, and cleared on sign-out. Reloading
-the page requires signing in again. Sign-out ends only the current session. User, role, or company
-changes clear the previous workspace's selection and loaded rows.
-
-Each authenticated workspace owns a separate Query cache, discarded on sign-out or a user, role, or
-company change. Pages are fresh for 30 seconds; only network and server errors retry once. While the
-page is visible and online, data updates every 60 seconds, on a sufficiently stale focus/visibility
-event, and after reconnecting. Each update rechecks the account and display-name lookups before
-invalidating active queries. A failed update offers Retry. A changed row count also invalidates
-other pages of the same filtered dataset. Search is debounced by 250 ms.
-
-The [table-loading investigation](../../../docs/evidence/frontend_table_loading_2026-09-19.md)
-records a database bottleneck in the live view, the extra cost of exact counts and complete option
-scans, and frontend factors that expose the wait. These issues are documented without changing
-database or loading behavior.
+A session survives reloads in the same tab through `sessionStorage`, scoped to the Supabase URL.
+Only tokens, expiry, and minimal identity are stored. Reload verifies the token with Auth and
+reloads current permissions before showing the workspace. Token rotation is saved before dependent
+requests. Temporary restore failures offer retry; sign-out immediately clears local session and
+workspace data and ends the current session. Authentication is not synchronized between tabs.
 
 ## Configuration
 
-Set both values in an ignored `services/frontend/user-webpage/.env.local` before starting Vite:
+Apply the project's database migrations and configure Auth accounts using the
+[database guide](../../db/supabase/README.md). Do not reset an existing database to run this
+frontend. Browser tests use synthetic responses and need no database or credentials.
+
+Set both public values in an ignored `.env.local`:
 
 ```dotenv
-VITE_SUPABASE_URL=http://127.0.0.1:55421
-VITE_SUPABASE_PUBLISHABLE_KEY=<public anon or publishable key for that instance>
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=<public publishable key for that instance>
 ```
 
-The URL is used by the browser, so it must be reachable from the browser's host. Port `55421` is the
-existing real-seed test stack; a standard local Supabase stack may use `54321` instead. There is no
-implicit URL or credential fallback in development or production. Only a public publishable key or
-legacy `anon` JWT may enter client code. Never put a secret or `service_role` key in a `VITE_`
-variable. Production requires HTTPS; plain HTTP is accepted only for local hosts.
+Use the API URL reachable from the browser; local instances may use a different port. A public
+`anon` JWT is also accepted. Secret and `service_role` keys must never enter `VITE_` settings.
+Production requires HTTPS; HTTP is accepted only for local hosts. Missing configuration has no
+implicit fallback.
 
-The strict check uses non-routable public test settings to exercise the production build. It does
-not contact or change a database.
+## Docker tooling
 
-## Docker-only Node tooling
-
-Do not run `node`, `npm`, `npx`, `corepack`, or `pnpm` directly on the host. Every Node and
-package-manager command for this project must run in Docker. Run the commands below from
-`services/frontend/user-webpage`.
-
-Use the same pinned Playwright image for development and checks so Vite's native dependencies and
-the browser runner use the same Linux environment. If dependencies were installed with the old
-Alpine image, reinstall them in this image before starting Vite or running checks.
-
-Install the lockfile exactly:
+Run every Node/package-manager command in Docker, from this directory. The pinned image matches
+`@playwright/test` and supplies Chromium. Install the exact lockfile:
 
 ```sh
 docker run --rm -u "$(id -u):$(id -g)" \
-  -e COREPACK_HOME=/tmp/corepack \
-  -v "$PWD":/app \
-  -w /app \
-  mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm install --frozen-lockfile \
-  --store-dir /app/.pnpm-store
+  -e COREPACK_HOME=/tmp/corepack -v "$PWD":/app -w /app \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
+  corepack pnpm install --frozen-lockfile --store-dir /app/.pnpm-store
 ```
 
-Run the complete strict check. It fails on a formatting difference, any ESLint warning, a unit-test
-failure, a TypeScript error, a production-build error, or a browser regression:
+Run formatting, lint, unit tests, TypeScript, a production build with public dummy settings, and
+browser tests:
 
 ```sh
-docker run --rm -u "$(id -u):$(id -g)" \
-  -e COREPACK_HOME=/tmp/corepack \
-  -v "$PWD":/app \
-  -w /app \
+docker run --rm --init --ipc=host -u "$(id -u):$(id -g)" \
+  -e COREPACK_HOME=/tmp/corepack -v "$PWD":/app -w /app \
   mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run check
 ```
 
-Apply Prettier, then rerun the complete check:
+Replace `check` with `format:write`, `test`, or `test:e2e` for an individual task. Browser tests
+start their own Vite server and intercept requests to `example.invalid`. Failures retain traces and
+screenshots in `test-results/`. Set `PLAYWRIGHT_CAPTURE_REVIEW=1` in the container for additional
+responsive screenshots. Use standard Docker networking so online/reconnection tests work.
+
+Start the configured application:
 
 ```sh
 docker run --rm -u "$(id -u):$(id -g)" \
-  -e COREPACK_HOME=/tmp/corepack \
-  -v "$PWD":/app \
-  -w /app \
-  mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run format:write
-```
-
-Start Vite:
-
-```sh
-docker run --rm -u "$(id -u):$(id -g)" \
-  -e COREPACK_HOME=/tmp/corepack \
-  -p 127.0.0.1:5173:5173 \
-  -v "$PWD":/app \
-  -w /app \
+  -e COREPACK_HOME=/tmp/corepack -p 127.0.0.1:5173:5173 \
+  -v "$PWD":/app -w /app \
   mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run dev --host 0.0.0.0
 ```
 
 Open `http://127.0.0.1:5173`.
-
-## Browser regression tests
-
-The Playwright suite exercises the rendered app with synthetic Auth and REST responses. It checks
-row inspection by mouse and keyboard, drawer focus and closing, server pagination/sort/search,
-out-of-order responses, session cache isolation, and recovery after denied requests. Dashboard
-regressions cover automatic authorization checks and updates, zero filtering before pagination, and
-loading all marketplace fees for an expanded SKU. Column-menu regressions cover combined filters,
-inclusive date bounds, independent ordering, options beyond a response page, and mobile menu layout.
-Usability regressions cover saved tab settings, explicit page jumps, search recovery, full-height
-tables with document scrolling, and mobile fee readability. It does not require Supabase, a test
-account, or a database reset. Every API request targets the reserved `example.invalid` domain and is
-intercepted by the test fixture.
-
-Use the Playwright Docker image matching the exact `@playwright/test` version in the lockfile:
-
-```sh
-docker run --rm --init --ipc=host \
-  -u "$(id -u):$(id -g)" \
-  -v "$PWD":/app \
-  -w /app \
-  mcr.microsoft.com/playwright:v1.63.0-noble \
-  node node_modules/@playwright/test/cli.js test
-```
-
-The configuration starts its own Vite server with public dummy settings. A failed test retains a
-trace and screenshot under `test-results/`. The existing fast Node tests continue to verify the CSV,
-exact decimal, API validation, and view-model contracts. Run both suites when changing user
-interactions, request handling, or authentication.
-
-Use Docker's standard networking so Chromium can exercise online and reconnect events. Set
-`PLAYWRIGHT_CAPTURE_REVIEW=1` in the container to also capture desktop and narrow-screen workspace,
-fee, and drawer screenshots under `test-results/`.
-
-## Existing frontend test database
-
-Use the currently running seeded database without resetting it. The September 15, 2026 test stack
-uses API port `55421` and Studio port `55423`, with these dummy accounts:
-
-| Login                   | Role           | Company       |
-| ----------------------- | -------------- | ------------- |
-| `operator@example.test` | Administrator  | All companies |
-| `member-a@example.test` | Company member | Company A     |
-| `member-b@example.test` | Company member | Company B     |
-
-The local-only password for these dummy accounts is `Frontend-Test-2026!`. The test data includes
-roughly 90 days of Data Kiosk results, retained Settlement results, and current fees of 4.8% and
-5.2%. Payout tables are empty, so the payout tab initially shows its empty state. Neither account
-creation nor fee/source/payout publication is part of frontend startup or the offline check.
-
-The seed and source archives are private local artifacts and are not tracked by Git. See the
-[database guide](../../db/supabase/README.md) for database setup and SQL/RLS checks. Do not reset an
-existing test database just to start or validate this frontend.

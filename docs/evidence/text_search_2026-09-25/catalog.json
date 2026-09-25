@@ -1,0 +1,82 @@
+{
+  "object_counts": {
+    "before": {
+      "schemas": 2,
+      "relations": 39,
+      "columns": 457,
+      "constraints": 138,
+      "indexes": 68,
+      "triggers": 49,
+      "policies": 19,
+      "view_definitions": 18,
+      "routines": 47,
+      "routine_definitions": 47,
+      "types": 94,
+      "sequences": 0,
+      "default_privileges": 0
+    },
+    "after": {
+      "schemas": 2,
+      "relations": 39,
+      "columns": 457,
+      "constraints": 138,
+      "indexes": 64,
+      "triggers": 49,
+      "policies": 19,
+      "view_definitions": 18,
+      "routines": 50,
+      "routine_definitions": 50,
+      "types": 94,
+      "sequences": 0,
+      "default_privileges": 0
+    }
+  },
+  "differences": {
+    "indexes": {
+      "added": [],
+      "removed": [
+        "private.data_kiosk_transactions_amount_asc_id_idx",
+        "private.data_kiosk_transactions_amount_id_idx",
+        "private.settlement_transactions_amount_asc_id_idx",
+        "private.settlement_transactions_amount_id_idx"
+      ],
+      "changed": {}
+    },
+    "routines": {
+      "added": [
+        "private.literal_search_pattern(p_search text)",
+        "private.visible_transaction_search_matches(p_pattern text, p_source text, p_sku text, p_component_type text, p_marketplace text, p_currency text)",
+        "public.source_transaction_count(p_dataset text, p_date_from date, p_date_to date, p_skus text[], p_marketplaces amazon_marketplace_name[], p_types text[], p_search text)",
+        "public.source_transaction_page(p_dataset text, p_limit integer, p_offset bigint, p_order_by text, p_direction text, p_date_from date, p_date_to date, p_skus text[], p_marketplaces amazon_marketplace_name[], p_types text[], p_include_count boolean, p_search text)",
+        "public.transaction_count(p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_fee_applicable boolean, p_search text)",
+        "public.transaction_page(p_limit integer, p_offset bigint, p_direction text, p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_include_count boolean, p_fee_applicable boolean, p_order_by text, p_search text)"
+      ],
+      "removed": [
+        "public.source_transaction_page(p_dataset text, p_limit integer, p_offset bigint, p_order_by text, p_direction text, p_date_from date, p_date_to date, p_skus text[], p_marketplaces amazon_marketplace_name[], p_types text[], p_include_count boolean)",
+        "public.transaction_count(p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_fee_applicable boolean)",
+        "public.transaction_page(p_limit integer, p_offset bigint, p_direction text, p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_include_count boolean, p_fee_applicable boolean, p_order_by text)"
+      ],
+      "changed": {}
+    },
+    "routine_definitions": {
+      "added": [
+        "private.literal_search_pattern(p_search text)",
+        "private.visible_transaction_search_matches(p_pattern text, p_source text, p_sku text, p_component_type text, p_marketplace text, p_currency text)",
+        "public.source_transaction_count(p_dataset text, p_date_from date, p_date_to date, p_skus text[], p_marketplaces amazon_marketplace_name[], p_types text[], p_search text)",
+        "public.source_transaction_page(p_dataset text, p_limit integer, p_offset bigint, p_order_by text, p_direction text, p_date_from date, p_date_to date, p_skus text[], p_marketplaces amazon_marketplace_name[], p_types text[], p_include_count boolean, p_search text)",
+        "public.transaction_count(p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_fee_applicable boolean, p_search text)",
+        "public.transaction_page(p_limit integer, p_offset bigint, p_direction text, p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_include_count boolean, p_fee_applicable boolean, p_order_by text, p_search text)"
+      ],
+      "removed": [
+        "public.source_transaction_page(p_dataset text, p_limit integer, p_offset bigint, p_order_by text, p_direction text, p_date_from date, p_date_to date, p_skus text[], p_marketplaces amazon_marketplace_name[], p_types text[], p_include_count boolean)",
+        "public.transaction_count(p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_fee_applicable boolean)",
+        "public.transaction_page(p_limit integer, p_offset bigint, p_direction text, p_date_from date, p_date_to date, p_company_ids uuid[], p_skus text[], p_marketplaces amazon_marketplace_name[], p_sources text[], p_types text[], p_include_count boolean, p_fee_applicable boolean, p_order_by text)"
+      ],
+      "changed": {}
+    }
+  },
+  "contract_errors": [],
+  "cleanup": {
+    "disposable_databases_removed": true
+  }
+}

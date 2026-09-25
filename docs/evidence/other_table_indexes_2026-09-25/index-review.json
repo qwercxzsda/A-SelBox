@@ -1,0 +1,949 @@
+{
+  "scope": "All 50 indexes on the 19 application-owned public/private tables other than settlement_transactions and data_kiosk_transactions. Managed Supabase schemas excluded.",
+  "before_count": 50,
+  "after_count": 44,
+  "constraint_backed_count_unchanged": 35,
+  "secondary_before": 15,
+  "secondary_after": 9,
+  "indexes": [
+    {
+      "schema": "private",
+      "table": "data_kiosk_acquisitions",
+      "index": "data_kiosk_acquisitions_pkey",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_acquisitions_pkey ON private.data_kiosk_acquisitions USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:data_kiosk_acquisitions_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Independent source-observation identity, FK target and provenance/manifest lookup.",
+      "callsites": [
+        "services/sync/src/database/acquisitions.py#_load",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_data_kiosk_preprocess",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#compare_data_kiosk_observations"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_acquisitions",
+      "index": "data_kiosk_acquisitions_seller_namespace_amazon_scope_root__key",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_acquisitions_seller_namespace_amazon_scope_root__key ON private.data_kiosk_acquisitions USING btree (seller_namespace, amazon_scope, root_query_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:data_kiosk_acquisitions_seller_namespace_amazon_scope_root__key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required idempotency/identity uniqueness for a seller/scope/root query; backs the publication conflict lookup.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_data_kiosk_acquisition"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_days",
+      "index": "data_kiosk_days_current_version_idx",
+      "definition": "CREATE INDEX data_kiosk_days_current_version_idx ON private.data_kiosk_days USING btree (current_version_id) WHERE (current_version_id IS NOT NULL)",
+      "bytes": 73728,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 27448508,
+      "decision": "keep",
+      "reason": "Supports current-version membership, member header visibility and protection against pruning selected evidence.",
+      "callsites": [
+        "services/db/supabase/migrations/20260914094640_application_access.sql#current_company_source_versions",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_data_kiosk_retention",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#live_company_components"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_days",
+      "index": "data_kiosk_days_pkey",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_days_pkey ON private.data_kiosk_days USING btree (id)",
+      "bytes": 98304,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:data_kiosk_days_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Stable day identity, version FK target and publication/retention/payout lock target.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_data_kiosk_preprocess",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_data_kiosk_retention",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#publish_company_payout_report"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_days",
+      "index": "data_kiosk_days_seller_namespace_marketplace_name_activity__key",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_days_seller_namespace_marketplace_name_activity__key ON private.data_kiosk_days USING btree (seller_namespace, marketplace_name, activity_date, dataset_key)",
+      "bytes": 196608,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:data_kiosk_days_seller_namespace_marketplace_name_activity__key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required day natural-key uniqueness; supports seller/market/date coverage, current-version capture, and exact day publication lookups.",
+      "callsites": [
+        "services/sync/src/database/source_versions.py#data_kiosk_current_versions",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_data_kiosk_preprocess",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#assert_company_source_scope"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_preprocess_batches",
+      "index": "data_kiosk_batches_acquisition_idx",
+      "definition": "CREATE INDEX data_kiosk_batches_acquisition_idx ON private.data_kiosk_preprocess_batches USING btree (acquisition_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Real reverse acquisition-to-batch path for compatible latest versions and observation retention. The measured compatible-version plan actively used it.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#compare_data_kiosk_observations",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_data_kiosk_retention",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#prune_data_kiosk_preprocess"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_preprocess_batches",
+      "index": "data_kiosk_preprocess_batches_pkey",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_preprocess_batches_pkey ON private.data_kiosk_preprocess_batches USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:data_kiosk_preprocess_batches_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Immutable preprocessing-batch identity, version FK target and provenance join.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_data_kiosk_preprocess",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#compare_data_kiosk_observations"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_preprocess_versions",
+      "index": "data_kiosk_preprocess_versions_batch_id_day_id_key",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_preprocess_versions_batch_id_day_id_key ON private.data_kiosk_preprocess_versions USING btree (batch_id, day_id)",
+      "bytes": 98304,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:data_kiosk_preprocess_versions_batch_id_day_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required uniqueness of each day within a batch. Its leading batch key also serves batch inventory counts, FK reverse lookup and latest-compatible-version joins.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_child_inventory",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#check_complete_inventory",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#complete_batch_insert",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#compare_data_kiosk_observations"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_preprocess_versions",
+      "index": "data_kiosk_preprocess_versions_day_id_id_key",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_preprocess_versions_day_id_id_key ON private.data_kiosk_preprocess_versions USING btree (day_id, id)",
+      "bytes": 98304,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:data_kiosk_preprocess_versions_day_id_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required composite FK target binds selected and payout versions to their day; the day-leading key also serves observation/history lookup.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072531_live_source_versions.sql#data_kiosk_current_version_identity",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#payout_report_data_kiosk_versions",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#compare_data_kiosk_observations"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_preprocess_versions",
+      "index": "data_kiosk_preprocess_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_preprocess_versions_pkey ON private.data_kiosk_preprocess_versions USING btree (id)",
+      "bytes": 73728,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:data_kiosk_preprocess_versions_pkey",
+      "scans_since_stats_reset": 168754,
+      "decision": "keep",
+      "reason": "Immutable version identity and fact/pruning-marker FK target; supports selected versions and payout/source validation.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_current_reference",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_data_kiosk_retention",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#assert_payout_source_versions"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_preprocess_versions",
+      "index": "data_kiosk_versions_batch_idx",
+      "definition": "CREATE INDEX data_kiosk_versions_batch_idx ON private.data_kiosk_preprocess_versions USING btree (batch_id)",
+      "bytes": 32768,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "Logically prefix-redundant with UNIQUE(batch_id, day_id). At 100,000 versions the unique index handled all measured batch lookups after removal; saves 761,856 bytes. Server time for 100 lookups rose from 0.889 to 1.135 ms, a small absolute cost. No result, constraint or access change.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#complete_batch_insert",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#complete_batch_set",
+        "/var/folders/7q/pm6kgttn3tl__cd93wyy8r000000gn/T/aselbox-other-indexes-8omk5_4z/metadata/results.json"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "data_kiosk_pruned_versions",
+      "index": "data_kiosk_pruned_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX data_kiosk_pruned_versions_pkey ON private.data_kiosk_pruned_versions USING btree (version_id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:data_kiosk_pruned_versions_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "One immutable pruning marker per version; direct existence checks prevent publication/reuse or payout selection of pruned evidence.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_data_kiosk_payload_mutation",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_current_reference",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#guard_data_kiosk_retention",
+        "services/db/supabase/migrations/20260912072704_live_company_reads.sql#compare_data_kiosk_observations",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#assert_payout_source_versions"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_data_kiosk_versions",
+      "index": "payout_data_kiosk_version_idx",
+      "definition": "CREATE INDEX payout_data_kiosk_version_idx ON private.payout_report_data_kiosk_versions USING btree (version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Active private.prune_data_kiosk_versions and prune/pin insertion guards probe version_id. Pins protect even empty Data Kiosk days and versions whose components were excluded.",
+      "benchmark_cases": ["pin_retention_hit", "pin_retention_miss"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_data_kiosk_versions",
+      "index": "payout_report_data_kiosk_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX payout_report_data_kiosk_versions_pkey ON private.payout_report_data_kiosk_versions USING btree (report_id, day_id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:payout_report_data_kiosk_versions_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["publication_with_validation_rollback"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_data_kiosk_versions",
+      "index": "payout_report_data_kiosk_versions_report_id_version_id_key",
+      "definition": "CREATE UNIQUE INDEX payout_report_data_kiosk_versions_report_id_version_id_key ON private.payout_report_data_kiosk_versions USING btree (report_id, version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:payout_report_data_kiosk_versions_report_id_version_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["publication_with_validation_rollback"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_settlement_versions",
+      "index": "payout_report_settlement_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX payout_report_settlement_versions_pkey ON private.payout_report_settlement_versions USING btree (report_id, settlement_id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:payout_report_settlement_versions_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["publication_with_validation_rollback"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_settlement_versions",
+      "index": "payout_report_settlement_versions_report_id_version_id_key",
+      "definition": "CREATE UNIQUE INDEX payout_report_settlement_versions_report_id_version_id_key ON private.payout_report_settlement_versions USING btree (report_id, version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:payout_report_settlement_versions_report_id_version_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["publication_with_validation_rollback"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_settlement_versions",
+      "index": "payout_settlement_version_idx",
+      "definition": "CREATE INDEX payout_settlement_version_idx ON private.payout_report_settlement_versions USING btree (version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "No maintained Settlement-version reverse pin reader or pruning path. All current manifest reading and inventory verification is report-led; source-version parent is immutable.",
+      "benchmark_cases": [
+        "settlement_manifest",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_terms_versions",
+      "index": "payout_report_terms_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX payout_report_terms_versions_pkey ON private.payout_report_terms_versions USING btree (report_id, seller_sku_id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:payout_report_terms_versions_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["publication_with_validation_rollback"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_terms_versions",
+      "index": "payout_report_terms_versions_report_id_terms_version_id_key",
+      "definition": "CREATE UNIQUE INDEX payout_report_terms_versions_report_id_terms_version_id_key ON private.payout_report_terms_versions USING btree (report_id, terms_version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:payout_report_terms_versions_report_id_terms_version_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["publication_with_validation_rollback"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "payout_report_terms_versions",
+      "index": "payout_terms_version_idx",
+      "definition": "CREATE INDEX payout_terms_version_idx ON private.payout_report_terms_versions USING btree (terms_version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "No maintained terms-version reverse pin reader. All current manifests are report-led, and terms parents are immutable. Keep unique(report_id,terms_version_id), which is an actual component FK target.",
+      "benchmark_cases": [
+        "terms_manifest",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "private",
+      "table": "settlement_acquisitions",
+      "index": "settlement_acquisition_document_idx",
+      "definition": "CREATE INDEX settlement_acquisition_document_idx ON private.settlement_acquisitions USING btree (seller_namespace, amazon_scope, report_document_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Find prior observations of the same seller/scope/document and reject changed decoded bytes. Must remain nonunique because successful repeated downloads are retained.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_settlement_acquisition"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlement_acquisitions",
+      "index": "settlement_acquisitions_pkey",
+      "definition": "CREATE UNIQUE INDEX settlement_acquisitions_pkey ON private.settlement_acquisitions USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:settlement_acquisitions_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Immutable acquisition identity, FK target and direct offline manifest lookup.",
+      "callsites": [
+        "services/sync/src/database/acquisitions.py#_load",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_settlement_preprocess"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlement_preprocess_versions",
+      "index": "settlement_preprocess_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX settlement_preprocess_versions_pkey ON private.settlement_preprocess_versions USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:settlement_preprocess_versions_pkey",
+      "scans_since_stats_reset": 2776,
+      "decision": "keep",
+      "reason": "Immutable version identity and fact FK target; supports selected-version metadata, payout manifests, and current-pointer resolution.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_settlement_preprocess",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#assert_payout_source_versions",
+        "services/db/supabase/migrations/20260925065535_transaction_page.sql"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlement_preprocess_versions",
+      "index": "settlement_preprocess_versions_settlement_id_id_key",
+      "definition": "CREATE UNIQUE INDEX settlement_preprocess_versions_settlement_id_id_key ON private.settlement_preprocess_versions USING btree (settlement_id, id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:settlement_preprocess_versions_settlement_id_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required composite FK target proves a selected/payout version belongs to the specified Settlement; also supports parent-scoped version access.",
+      "callsites": [
+        "services/db/supabase/migrations/20260912072531_live_source_versions.sql#settlement_current_version_identity",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#payout_report_settlement_versions"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlement_preprocess_versions",
+      "index": "settlement_versions_acquisition_idx",
+      "definition": "CREATE INDEX settlement_versions_acquisition_idx ON private.settlement_preprocess_versions USING btree (acquisition_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "No maintained reverse-acquisition reader exists: offline preprocessing loads acquisitions by their PK and publishes new versions. Parent acquisition UPDATE/DELETE is rejected by a BEFORE immutable trigger before a legitimate reverse FK check can run. Keep the FK and all constraints. Test-only acquisition-filtered assertions do not justify a production index.",
+      "callsites": [
+        "services/sync/src/database/acquisitions.py#_load",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_settlement_preprocess",
+        "services/db/supabase/migrations/20260912072531_live_source_versions.sql#immutable evidence triggers"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlements",
+      "index": "settlements_current_version_idx",
+      "definition": "CREATE INDEX settlements_current_version_idx ON private.settlements USING btree (current_version_id) WHERE (current_version_id IS NOT NULL)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 56,
+      "decision": "keep",
+      "reason": "Current-version membership and reverse source lookup used by live reads and the member visibility helper; not redundant with the natural key or PK.",
+      "callsites": [
+        "services/db/supabase/migrations/20260914094640_application_access.sql#current_company_source_versions",
+        "services/db/supabase/migrations/20260925065535_transaction_page.sql",
+        "services/db/supabase/migrations/20260925065533_transaction_count.sql"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlements",
+      "index": "settlements_pkey",
+      "definition": "CREATE UNIQUE INDEX settlements_pkey ON private.settlements USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:settlements_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Stable Settlement identity, version FK target, publication locks and source selection.",
+      "callsites": [
+        "services/sync/src/database/source_versions.py#publish_settlement",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_settlement_preprocess",
+        "services/db/supabase/migrations/20260914062544_company_payout_reports.sql#publish_company_payout_report"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "settlements",
+      "index": "settlements_seller_namespace_amazon_scope_settlement_id_key",
+      "definition": "CREATE UNIQUE INDEX settlements_seller_namespace_amazon_scope_settlement_id_key ON private.settlements USING btree (seller_namespace, amazon_scope, settlement_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:settlements_seller_namespace_amazon_scope_settlement_id_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required source natural-key uniqueness and exact publication conflict lookup; leading seller/scope also supports capturing current versions.",
+      "callsites": [
+        "services/sync/src/database/source_versions.py#settlement_current_versions",
+        "services/db/supabase/migrations/20260912072703_atomic_publications.sql#publish_settlement_preprocess"
+      ]
+    },
+    {
+      "schema": "private",
+      "table": "workspace_revision_tokens",
+      "index": "workspace_revision_tokens_pkey",
+      "definition": "CREATE UNIQUE INDEX workspace_revision_tokens_pkey ON private.workspace_revision_tokens USING btree (source, scope_company_id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:workspace_revision_tokens_pkey",
+      "scans_since_stats_reset": 57,
+      "decision": "keep",
+      "reason": "Required one token per source/company scope; exactly matches polling join and ON CONFLICT upsert. No caller filters revision/changed_in; adding indexes there would increase every token update cost.",
+      "callsites": [
+        "workspace_revision_polling.sql:9",
+        "workspace_revision_polling.sql:14",
+        "workspace_revision_polling.sql:113"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "app_accounts",
+      "index": "app_accounts_company_idx",
+      "definition": "CREATE INDEX app_accounts_company_idx ON public.app_accounts USING btree (company_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 8248,
+      "decision": "keep",
+      "reason": "Nonconstraint company lookup/FK support. Current ownership authorization joins accounts to terms on company_id. Not redundant with user_id PK; previously observed in current-company-source-version helper plans.",
+      "callsites": [
+        "application_access.sql:13",
+        "application_access.sql:26",
+        "live_source_versions.sql:59"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "app_accounts",
+      "index": "app_accounts_pkey",
+      "definition": "CREATE UNIQUE INDEX app_accounts_pkey ON public.app_accounts USING btree (user_id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:app_accounts_pkey",
+      "scans_since_stats_reset": 613604,
+      "decision": "keep",
+      "reason": "One application grant per Auth identity; exact user_id lookup on every workspace/access check; Auth deletion cascade uses the same key.",
+      "callsites": [
+        "application_access.sql:4",
+        "workspace_revision_polling.sql:100",
+        "src/api/workspace.ts:60"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "companies",
+      "index": "companies_pkey",
+      "definition": "CREATE UNIQUE INDEX companies_pkey ON public.companies USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:companies_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Company identity and referenced company FKs; company lookup uses this ID. No secondary name/order index is justified for the current tiny lookup.",
+      "callsites": [
+        "live_source_versions.sql:42",
+        "application_access.sql:61",
+        "src/api/workspace.ts:80"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_report_components",
+      "index": "company_payout_report_compone_report_id_source_source_row_i_key",
+      "definition": "CREATE UNIQUE INDEX company_payout_report_compone_report_id_source_source_row_i_key ON public.company_payout_report_components USING btree (report_id, source, source_row_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:company_payout_report_compone_report_id_source_source_row_i_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": [
+        "components_report_order",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_report_components",
+      "index": "company_payout_report_components_pkey",
+      "definition": "CREATE UNIQUE INDEX company_payout_report_components_pkey ON public.company_payout_report_components USING btree (id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:company_payout_report_components_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": [
+        "components_report_order",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_report_components",
+      "index": "company_payout_report_components_report_id_row_number_key",
+      "definition": "CREATE UNIQUE INDEX company_payout_report_components_report_id_row_number_key ON public.company_payout_report_components USING btree (report_id, row_number)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:company_payout_report_components_report_id_row_number_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": [
+        "components_report_order",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_report_components",
+      "index": "payout_components_period_idx",
+      "definition": "CREATE INDEX payout_components_period_idx ON public.company_payout_report_components USING btree (fee_period_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "No maintained period-only component reader. Fee-period parent is immutable; normal insertion validates the parent unique pair. Report-scoped component reads remain indexed by unique(report_id,row_number).",
+      "benchmark_cases": [
+        "components_report_order",
+        "components_inventory_totals",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_report_components",
+      "index": "payout_components_sku_idx",
+      "definition": "CREATE INDEX payout_components_sku_idx ON public.company_payout_report_components USING btree (seller_sku_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "No maintained SKU-only component reader. There is no direct seller_sku_id-only component FK; composite terms FK targets immutable parent. Existing report-leading constraints cover actual reads.",
+      "benchmark_cases": [
+        "components_report_order",
+        "components_inventory_totals",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_report_components",
+      "index": "payout_components_terms_idx",
+      "definition": "CREATE INDEX payout_components_terms_idx ON public.company_payout_report_components USING btree (terms_version_id)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "remove",
+      "reason": "No maintained independent terms-only component reader. Immutable terms and report-term parents reject update/delete before reverse FK checks; publication validates references through parent unique indexes. Report-scoped child reads use existing constraint indexes.",
+      "benchmark_cases": [
+        "components_report_order",
+        "components_inventory_totals",
+        "publication_with_validation_rollback"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_reports",
+      "index": "company_payout_reports_company_date_idx",
+      "definition": "CREATE INDEX company_payout_reports_company_date_idx ON public.company_payout_reports USING btree (company_id, start_date, end_date)",
+      "bytes": 8192,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 0,
+      "decision": "replace",
+      "reason": "No maintained caller filters payout reports by company/start/end. Keep company-leading lookup for legitimate mutable-company parent FK checks; add global(created_at DESC NULLS LAST,id ASC) matching operator REST default.",
+      "benchmark_cases": [
+        "http_newest",
+        "http_next",
+        "http_deep",
+        "company_fk_hit",
+        "company_fk_miss"
+      ],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "company_payout_reports",
+      "index": "company_payout_reports_pkey",
+      "definition": "CREATE UNIQUE INDEX company_payout_reports_pkey ON public.company_payout_reports USING btree (id)",
+      "bytes": 8192,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:company_payout_reports_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Constraint-owned index: preserve primary-key or unique guarantee and associated FK targets. Report-leading unique/primary indexes also support actual manifest/components reads and immutable inventory verification.",
+      "benchmark_cases": ["header_by_id"],
+      "evidence_basis": "Maintained callers, schema constraints/triggers, and isolated synthetic benchmark; not live scan counters (payout seed tables are empty)."
+    },
+    {
+      "schema": "public",
+      "table": "seller_skus",
+      "index": "seller_skus_pkey",
+      "definition": "CREATE UNIQUE INDEX seller_skus_pkey ON public.seller_skus USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:seller_skus_pkey",
+      "scans_since_stats_reset": 420481,
+      "decision": "keep",
+      "reason": "Stable SKU identity; terms selection and current-fee reads locate exactly one seller_sku_id. Also adequately narrows the child side of composite current-terms FK because id is unique.",
+      "callsites": [
+        "atomic_publications.sql:275",
+        "live_company_reads.sql:22",
+        "src/api/datasets.ts:144"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "seller_skus",
+      "index": "seller_skus_seller_namespace_sku_key",
+      "definition": "CREATE UNIQUE INDEX seller_skus_seller_namespace_sku_key ON public.seller_skus USING btree (seller_namespace, sku)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:seller_skus_seller_namespace_sku_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required identity uniqueness and ON CONFLICT arbiter for publication; separates equal SKU text across sellers; supports source ownership mapping.",
+      "callsites": ["atomic_publications.sql:331", "live_company_reads.sql:22"]
+    },
+    {
+      "schema": "public",
+      "table": "sku_fee_periods",
+      "index": "sku_fee_periods_pkey",
+      "definition": "CREATE UNIQUE INDEX sku_fee_periods_pkey ON public.sku_fee_periods USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:sku_fee_periods_pkey",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required globally unique fee-period identity used by API rows and immutable report evidence; retain the existing primary-key guarantee.",
+      "callsites": ["live_source_versions.sql:84", "live_company_reads.sql:47"]
+    },
+    {
+      "schema": "public",
+      "table": "sku_fee_periods",
+      "index": "sku_fee_periods_terms_version_id_id_key",
+      "definition": "CREATE UNIQUE INDEX sku_fee_periods_terms_version_id_id_key ON public.sku_fee_periods USING btree (terms_version_id, id)",
+      "bytes": 32768,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:sku_fee_periods_terms_version_id_id_key",
+      "scans_since_stats_reset": 1990,
+      "decision": "keep",
+      "reason": "Required referenced composite key binds report fee evidence to its terms revision. Its leading terms_version_id also supports complete-inventory counts and current-fee expansion.",
+      "callsites": [
+        "company_payout_reports.sql:104",
+        "atomic_publications.sql:200",
+        "atomic_publications.sql:291",
+        "live_company_reads.sql:47"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "sku_fee_periods",
+      "index": "sku_fee_periods_terms_version_id_marketplace_name_valid_pe_excl",
+      "definition": "CREATE INDEX sku_fee_periods_terms_version_id_marketplace_name_valid_pe_excl ON public.sku_fee_periods USING gist (terms_version_id, marketplace_name, valid_period)",
+      "bytes": 32768,
+      "primary": false,
+      "unique": false,
+      "exclusion": true,
+      "constraint": "x:sku_fee_periods_terms_version_id_marketplace_name_valid_pe_excl",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required GiST exclusion index prevents overlapping fee periods for one terms version/marketplace. Also offers date containment lookup; read-plan nonuse on 192 rows is not grounds to drop this integrity index.",
+      "callsites": [
+        "live_source_versions.sql:102",
+        "live_company_reads.sql:314"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "sku_terms_versions",
+      "index": "sku_terms_versions_company_idx",
+      "definition": "CREATE INDEX sku_terms_versions_company_idx ON public.sku_terms_versions USING btree (company_id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": false,
+      "exclusion": false,
+      "constraint": null,
+      "scans_since_stats_reset": 4,
+      "decision": "keep",
+      "reason": "Nonconstraint company lookup/FK support; company-to-owned-SKU authorization/selection needs this path. Old revisions are filtered by current pointer; extra current_terms index is not justified by this seed.",
+      "callsites": [
+        "application_access.sql:26",
+        "live_company_reads.sql:37",
+        "transaction_page.sql company filter"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "sku_terms_versions",
+      "index": "sku_terms_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX sku_terms_versions_pkey ON public.sku_terms_versions USING btree (id)",
+      "bytes": 16384,
+      "primary": true,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "p:sku_terms_versions_pkey",
+      "scans_since_stats_reset": 31428,
+      "decision": "keep",
+      "reason": "Immutable terms-version identity; current/explicit-version reads and revision tracking use exact old/new version IDs.",
+      "callsites": [
+        "atomic_publications.sql:287",
+        "workspace_revision_polling.sql:70",
+        "live_company_reads.sql:116"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "sku_terms_versions",
+      "index": "sku_terms_versions_seller_sku_id_id_key",
+      "definition": "CREATE UNIQUE INDEX sku_terms_versions_seller_sku_id_id_key ON public.sku_terms_versions USING btree (seller_sku_id, id)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:sku_terms_versions_seller_sku_id_id_key",
+      "scans_since_stats_reset": 210506,
+      "decision": "keep",
+      "reason": "Required referenced composite key for current-term pointer and frozen payout manifests/components; guarantees the selected revision belongs to the same SKU, despite globally unique id.",
+      "callsites": [
+        "live_source_versions.sql:79",
+        "company_payout_reports.sql:59",
+        "company_payout_reports.sql:99"
+      ]
+    },
+    {
+      "schema": "public",
+      "table": "sku_terms_versions",
+      "index": "sku_terms_versions_seller_sku_id_version_number_key",
+      "definition": "CREATE UNIQUE INDEX sku_terms_versions_seller_sku_id_version_number_key ON public.sku_terms_versions USING btree (seller_sku_id, version_number)",
+      "bytes": 16384,
+      "primary": false,
+      "unique": true,
+      "exclusion": false,
+      "constraint": "u:sku_terms_versions_seller_sku_id_version_number_key",
+      "scans_since_stats_reset": 0,
+      "decision": "keep",
+      "reason": "Required per-SKU revision-number uniqueness. Publisher computes MAX(version_number) within one seller_sku_id; this key also supports that history access.",
+      "callsites": [
+        "atomic_publications.sql:340",
+        "live_source_versions.sql:76"
+      ]
+    }
+  ],
+  "added_indexes": [
+    {
+      "name": "company_payout_reports_created_idx",
+      "definition": "(created_at DESC NULLS LAST,id ASC)",
+      "purpose": "Actual unfiltered operator REST default ordering with stable ascending id ties."
+    },
+    {
+      "name": "company_payout_reports_company_idx",
+      "definition": "(company_id)",
+      "purpose": "Mutable company parent FK lookup. Existing date tails lack an active caller."
+    }
+  ],
+  "access_additional_indexes_not_justified": [
+    "companies(name,id): existing administrative lookup sorts two companies and is cached; no demonstrated scale problem.",
+    "app_accounts(created_at,user_id): would target large admin user directories, not the hot exact-user authorization/polling path.",
+    "seller_skus(current_terms_version_id): existing identity PK plus version PK/composite FK already locate one current record; no measured missing path.",
+    "sku_fee_periods(terms_version_id,marketplace_name,valid_period,id): complete current-term fee sets are already reached by a mandatory leading-terms B-tree; few periods per current term do not justify another ordering index.",
+    "workspace_revision_tokens(revision) or (changed_in): never queried as filters; would add update/WAL cost and hinder HOT updates."
+  ],
+  "metadata_latest_observation_assessment": "No new time suffix is justified by maintained callers. Latest independent observations are ordered by acquisition.root_query_created_at and acquisition.id after day\u2192version\u2192batch joins; an acquisition-created index alone cannot supply this day-scoped order. Existing indexes measured compatible lookup at~0.036ms server and complete three-observation comparison~2ms even for the busiest day. Global retention ranks all metadata and needs a separate query/workflow review if it becomes expensive.",
+  "payout_limitations": "Synthetic distribution; no claim that all optional reverse indexes can be omitted from a different future application with mutable parent records or new reverse readers."
+}

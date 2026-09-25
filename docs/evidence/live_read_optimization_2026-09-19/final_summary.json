@@ -1,0 +1,305 @@
+{
+  "candidate_sha256": "cadd297c294aad357afb0a8a49ef7db4730f68e2a4aeb8779ca0c0f7065637b5",
+  "method": "Direct SQL; authenticated member/operator claims; 8-second timeout; force_generic_plan; one baseline observation versus three final observations. Final repeat0 is the matched observation; repeats1-2 are additional warm samples.",
+  "limitation": "A local test snapshot, not a production capacity result. Synchronized 4/8-reader bursts are not sustained load. Clones share host/container resources; caches and autovacuum were not frozen. Synthetic density and tenant/physical-layout limitations are documented in the workload manifests and README.",
+  "workloads": [
+    {
+      "name": "density",
+      "serial": [
+        {
+          "role": "company_member",
+          "case": "page_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8000.792,
+          "first_ms": 2122.985,
+          "median_ms": 2122.985,
+          "min_ms": 2096.807,
+          "max_ms": 2143.342,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "date_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8001.855,
+          "first_ms": 596.997,
+          "median_ms": 541.742,
+          "min_ms": 537.848,
+          "max_ms": 596.997,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "sku_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8000.979,
+          "first_ms": 393.52,
+          "median_ms": 372.927,
+          "min_ms": 370.051,
+          "max_ms": 393.52,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "company_amount_count",
+          "baseline_status": "not_measured",
+          "baseline_elapsed_ms": null,
+          "first_ms": 2091.826,
+          "median_ms": 2091.826,
+          "min_ms": 2078.392,
+          "max_ms": 2092.269,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "daily_groups_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8000.827,
+          "first_ms": 2084.394,
+          "median_ms": 2069.14,
+          "min_ms": 2068.836,
+          "max_ms": 2084.394,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "page_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8023.774,
+          "first_ms": 1883.75,
+          "median_ms": 1883.75,
+          "min_ms": 1840.436,
+          "max_ms": 1892.429,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "date_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8026.389,
+          "first_ms": 128.323,
+          "median_ms": 97.533,
+          "min_ms": 96.705,
+          "max_ms": 128.323,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "sku_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8024.141,
+          "first_ms": 13.753,
+          "median_ms": 7.438,
+          "min_ms": 7.309,
+          "max_ms": 13.753,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "company_amount_count",
+          "baseline_status": "not_measured",
+          "baseline_elapsed_ms": null,
+          "first_ms": 1871.359,
+          "median_ms": 1882.058,
+          "min_ms": 1871.359,
+          "max_ms": 1943.639,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "daily_groups_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8027.467,
+          "first_ms": 1976.151,
+          "median_ms": 1976.151,
+          "min_ms": 1906.535,
+          "max_ms": 1982.263,
+          "successes": 3,
+          "attempts": 3
+        }
+      ],
+      "concurrent": [
+        {
+          "readers": 4,
+          "baseline_successes": 1,
+          "baseline_attempts": 4,
+          "final_successes": 12,
+          "final_attempts": 12,
+          "batch_median_ms": 2103.082,
+          "request_min_ms": 1257.62,
+          "request_max_ms": 2119.104
+        },
+        {
+          "readers": 8,
+          "baseline_successes": 1,
+          "baseline_attempts": 8,
+          "final_successes": 24,
+          "final_attempts": 24,
+          "batch_median_ms": 2194.906,
+          "request_min_ms": 1055.343,
+          "request_max_ms": 2563.831
+        }
+      ],
+      "successful_reads": 66,
+      "total_reads": 66
+    },
+    {
+      "name": "broad",
+      "serial": [
+        {
+          "role": "company_member",
+          "case": "page_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8001.324,
+          "first_ms": 1238.07,
+          "median_ms": 1205.344,
+          "min_ms": 1199.099,
+          "max_ms": 1238.07,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "date_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8000.836,
+          "first_ms": 229.262,
+          "median_ms": 226.559,
+          "min_ms": 201.95,
+          "max_ms": 229.262,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "sku_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8000.752,
+          "first_ms": 143.151,
+          "median_ms": 134.31,
+          "min_ms": 134.181,
+          "max_ms": 143.151,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "company_amount_count",
+          "baseline_status": "not_measured",
+          "baseline_elapsed_ms": null,
+          "first_ms": 1184.637,
+          "median_ms": 1184.637,
+          "min_ms": 1183.154,
+          "max_ms": 1196.877,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "company_member",
+          "case": "daily_groups_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8001.989,
+          "first_ms": 1215.91,
+          "median_ms": 1215.91,
+          "min_ms": 1183.753,
+          "max_ms": 1238.797,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "page_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8005.166,
+          "first_ms": 2003.84,
+          "median_ms": 1952.682,
+          "min_ms": 1932.368,
+          "max_ms": 2003.84,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "date_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8005.112,
+          "first_ms": 141.511,
+          "median_ms": 116.203,
+          "min_ms": 113.106,
+          "max_ms": 141.511,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "sku_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8006.82,
+          "first_ms": 31.584,
+          "median_ms": 22.518,
+          "min_ms": 22.018,
+          "max_ms": 31.584,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "company_amount_count",
+          "baseline_status": "not_measured",
+          "baseline_elapsed_ms": null,
+          "first_ms": 2031.701,
+          "median_ms": 2027.636,
+          "min_ms": 1990.258,
+          "max_ms": 2031.701,
+          "successes": 3,
+          "attempts": 3
+        },
+        {
+          "role": "operator",
+          "case": "daily_groups_count",
+          "baseline_status": "error",
+          "baseline_elapsed_ms": 8006.008,
+          "first_ms": 2149.692,
+          "median_ms": 2064.859,
+          "min_ms": 2019.566,
+          "max_ms": 2149.692,
+          "successes": 3,
+          "attempts": 3
+        }
+      ],
+      "concurrent": [
+        {
+          "readers": 4,
+          "baseline_successes": 0,
+          "baseline_attempts": 4,
+          "final_successes": 12,
+          "final_attempts": 12,
+          "batch_median_ms": 1995.672,
+          "request_min_ms": 806.862,
+          "request_max_ms": 2000.718
+        },
+        {
+          "readers": 8,
+          "baseline_successes": 0,
+          "baseline_attempts": 8,
+          "final_successes": 24,
+          "final_attempts": 24,
+          "batch_median_ms": 1904.757,
+          "request_min_ms": 967.672,
+          "request_max_ms": 1915.988
+        }
+      ],
+      "successful_reads": 66,
+      "total_reads": 66
+    }
+  ]
+}

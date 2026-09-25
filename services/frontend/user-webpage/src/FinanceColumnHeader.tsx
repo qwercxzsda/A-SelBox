@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchDatasetFilterOptions } from "./api/client";
+import { fetchDatasetFilterOptions } from "./api";
 import { DATASET_CONFIG } from "./api/config";
 import type { DatasetFilterField, DatasetFilters, DatasetKey, DatasetSort } from "./api/types";
 import { ColumnMenu, type ColumnMenuSort } from "./ColumnMenu";
-import { humanizeCode } from "./categories";
-import type { Identity } from "./use-auth";
-import { getErrorMessage, type ColumnDefinition } from "./view-model";
+import { humanizeCode, transactionTypeLabel } from "./categories";
+import type { Identity } from "./auth-session";
+import { companyLabel, getErrorMessage, type ColumnDefinition } from "./view-model";
+import { MAX_AMOUNT_ORDER_ROWS } from "./api/amount-ordering";
+import { isTransactionDataset } from "./api/transaction-page";
 
 const SELECTION_KEYS = {
   sku: "skus",
@@ -23,6 +25,7 @@ interface FinanceColumnHeaderProps {
   onFiltersChange: (patch: Partial<DatasetFilters>) => void;
   sort: DatasetSort;
   onSortChange: (sort: DatasetSort) => void;
+  totalCount: number | null;
 }
 
 function SelectionColumnHeader({
@@ -67,7 +70,13 @@ function SelectionColumnHeader({
         value: selected,
         options: choices.map((value) => ({
           value,
-          label: field === "source" || field === "component_type" ? humanizeCode(value) : value,
+          title: field === "component_type" ? value : undefined,
+          label:
+            field === "component_type"
+              ? transactionTypeLabel(value)
+              : field === "source"
+                ? humanizeCode(value)
+                : value,
         })),
         onChange: (value) => {
           onFiltersChange({ [key]: value });
@@ -83,7 +92,48 @@ function SelectionColumnHeader({
 }
 
 export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
-  const { column, dataset, filters, onFiltersChange, sort, onSortChange } = props;
+  const { column, dataset, identity, filters, onFiltersChange, sort, onSortChange, totalCount } =
+    props;
+  if (dataset === "live" && column.key === "fee_rate_percent") {
+    return (
+      <ColumnMenu
+        label={column.label}
+        filter={{
+          kind: "selection",
+          value: filters.feeApplicability,
+          options: [
+            { value: "applicable", label: "Applicable" },
+            { value: "not_applicable", label: "Not applicable" },
+          ],
+          onChange: (feeApplicability) => {
+            onFiltersChange({ feeApplicability });
+          },
+        }}
+      />
+    );
+  }
+  if (
+    dataset === "live" &&
+    column.key === "company_id" &&
+    identity.account.access_role === "operator"
+  ) {
+    const companies = new Map(identity.companies.map(({ id, name }) => [id, name]));
+    return (
+      <ColumnMenu
+        label={column.label}
+        filter={{
+          kind: "selection",
+          value: filters.companyIds,
+          options: [...companies.keys()]
+            .map((value) => ({ value, label: companyLabel(value, companies) }))
+            .sort((left, right) => left.label.localeCompare(right.label)),
+          onChange: (companyIds) => {
+            onFiltersChange({ companyIds });
+          },
+        }}
+      />
+    );
+  }
   const config = DATASET_CONFIG[dataset];
   const fields: readonly DatasetFilterField[] = config.filterColumns;
   const field = fields.find((value) => value === column.key);
@@ -101,6 +151,13 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
         },
         ascendingLabel: date ? "Oldest first" : numeric ? "Lowest first" : "Ascending",
         descendingLabel: date ? "Newest first" : numeric ? "Highest first" : "Descending",
+        disabledReason:
+          isTransactionDataset(dataset) &&
+          column.kind === "money" &&
+          totalCount !== null &&
+          totalCount > MAX_AMOUNT_ORDER_ROWS
+            ? `${totalCount.toLocaleString("en-US")} matching rows. Narrow your filters to ${MAX_AMOUNT_ORDER_ROWS.toLocaleString("en-US")} or fewer to order by amount, or order by Date.`
+            : undefined,
       }
     : undefined;
   return (

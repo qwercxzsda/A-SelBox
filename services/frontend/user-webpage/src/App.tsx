@@ -1,44 +1,34 @@
 import { LoginPanel } from "./LoginPanel";
-import { useEffect, useState } from "react";
-import { Button } from "@mantine/core";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { FinanceWorkspace } from "./FinanceWorkspace";
-import { createQueryClient } from "./query-client";
+import { SessionRestorePanel } from "./SessionRestorePanel";
+import { lazy, Suspense, useEffect } from "react";
+import { Alert, Button, Stack, Text } from "@mantine/core";
 import { companyLabel } from "./view-model";
 import { useAuth } from "./use-auth";
-import { useWorkspaceRefresh } from "./use-workspace-refresh";
-import type { Identity } from "./use-auth";
 import "./App.css";
 
-interface AuthenticatedProps {
-  identity: Identity;
-  onRefreshIdentity: () => Promise<boolean>;
-}
+const AuthenticatedWorkspace = lazy(async () => {
+  try {
+    return await import("./AuthenticatedWorkspace");
+  } catch {
+    return { default: WorkspaceLoadError };
+  }
+});
 
-function WorkspaceContent({ identity, onRefreshIdentity }: AuthenticatedProps) {
-  const { refresh, isUpdating, updateError } = useWorkspaceRefresh(onRefreshIdentity);
+function WorkspaceLoadError() {
   return (
-    <FinanceWorkspace
-      identity={identity}
-      onRetry={refresh}
-      isUpdating={isUpdating}
-      updateError={updateError}
-    />
-  );
-}
-
-function AuthenticatedWorkspace(props: AuthenticatedProps) {
-  const [client] = useState(createQueryClient);
-  useEffect(
-    () => () => {
-      client.clear();
-    },
-    [client],
-  );
-  return (
-    <QueryClientProvider client={client}>
-      <WorkspaceContent {...props} />
-    </QueryClientProvider>
+    <Alert color="red" role="alert">
+      <Stack gap="sm" align="start">
+        <Text>Could not load the workspace. Reload to try again.</Text>
+        <Button
+          variant="light"
+          onClick={() => {
+            window.location.reload();
+          }}
+        >
+          Reload workspace
+        </Button>
+      </Stack>
+    </Alert>
   );
 }
 
@@ -51,10 +41,14 @@ function App() {
     identity,
     isSigningIn,
     isSigningOut,
+    isRestoring,
+    restoreError,
     authError,
     handleSignIn,
     handleSignOut,
     refreshIdentity,
+    retryRestore,
+    discardStoredSession,
   } = useAuth();
   const session = identity?.session;
   const account = identity?.account;
@@ -90,7 +84,14 @@ function App() {
           ) : null}
         </header>
 
-        {!identity ? (
+        {isRestoring || restoreError ? (
+          <SessionRestorePanel
+            pending={isRestoring}
+            error={restoreError}
+            onRetry={() => void retryRestore()}
+            onSignIn={discardStoredSession}
+          />
+        ) : !identity ? (
           <LoginPanel
             email={email}
             errorMessage={authError}
@@ -101,11 +102,13 @@ function App() {
             password={password}
           />
         ) : (
-          <AuthenticatedWorkspace
-            key={`${identity.account.user_id}:${identity.account.access_role}:${identity.account.company_id ?? ""}`}
-            identity={identity}
-            onRefreshIdentity={refreshIdentity}
-          />
+          <Suspense fallback={<Text role="status">Loading workspace…</Text>}>
+            <AuthenticatedWorkspace
+              key={`${identity.account.user_id}:${identity.account.access_role}:${identity.account.company_id ?? ""}`}
+              identity={identity}
+              onRefreshIdentity={refreshIdentity}
+            />
+          </Suspense>
         )}
       </div>
     </main>

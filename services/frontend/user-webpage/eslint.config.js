@@ -7,7 +7,14 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", ".pnpm-store", "node_modules", "playwright-report", "test-results"]),
+  globalIgnores([
+    "dist",
+    ".pnpm-store",
+    "node_modules",
+    "coverage",
+    "playwright-report*",
+    "test-results*",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

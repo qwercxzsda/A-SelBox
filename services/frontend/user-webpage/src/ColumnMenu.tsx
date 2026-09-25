@@ -1,41 +1,23 @@
 import { useId, useState } from "react";
+import { DateFilter, SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
 import {
-  Alert,
   Button,
-  Checkbox,
   CloseButton,
   Divider,
   Group,
   Popover,
   Stack,
   Text,
-  TextInput,
   UnstyledButton,
 } from "@mantine/core";
 import "./ColumnMenu.css";
-
-export type ColumnMenuFilter =
-  | {
-      kind: "date";
-      from: string;
-      to: string;
-      onChange: (from: string, to: string) => void;
-    }
-  | {
-      kind: "selection";
-      value: string[];
-      options: { value: string; label: string }[];
-      onChange: (values: string[]) => void;
-      isLoading?: boolean;
-      error?: string;
-      onRetry?: () => void;
-    };
 
 export interface ColumnMenuSort {
   direction: "asc" | "desc" | false;
   onChange: (direction: "asc" | "desc") => void;
   ascendingLabel: string;
   descendingLabel: string;
+  disabledReason?: string;
 }
 
 export interface ColumnMenuProps {
@@ -46,175 +28,10 @@ export interface ColumnMenuProps {
   onClose?: () => void;
 }
 
-function DateFilter({
-  filter,
-  onClose,
-}: {
-  filter: Extract<ColumnMenuFilter, { kind: "date" }>;
-  onClose: () => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const from = form.get("dateFrom");
-        const to = form.get("dateTo");
-        if (typeof from !== "string" || typeof to !== "string") return;
-        if (from && to && from > to) {
-          setError("From date must be on or before To date.");
-          return;
-        }
-        filter.onChange(from, to);
-        onClose();
-      }}
-    >
-      <Stack gap="sm">
-        <div className="column-menu-dates">
-          <TextInput
-            label="From date"
-            type="date"
-            name="dateFrom"
-            data-autofocus
-            defaultValue={filter.from}
-            onChange={() => {
-              setError(null);
-            }}
-          />
-          <TextInput
-            label="To date"
-            type="date"
-            name="dateTo"
-            defaultValue={filter.to}
-            onChange={() => {
-              setError(null);
-            }}
-          />
-        </div>
-        {error ? (
-          <Alert role="alert" color="red">
-            {error}
-          </Alert>
-        ) : null}
-        <Group gap="xs" justify="space-between">
-          <Button
-            variant="subtle"
-            onClick={() => {
-              filter.onChange("", "");
-              onClose();
-            }}
-          >
-            Clear dates
-          </Button>
-          <Button type="submit">Apply dates</Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
-
-function SelectionFilter({
-  label,
-  filter,
-}: {
-  label: string;
-  filter: Extract<ColumnMenuFilter, { kind: "selection" }>;
-}) {
-  const [search, setSearch] = useState("");
-  const searchable = filter.options.length > 8;
-  const query = searchable ? search.trim().toLocaleLowerCase() : "";
-  const options = filter.options.filter((option) =>
-    option.label.toLocaleLowerCase().includes(query),
-  );
-
-  return (
-    <Stack gap="sm">
-      {searchable ? (
-        <TextInput
-          label={`Search ${label.toLowerCase()}`}
-          placeholder="Find an option"
-          data-autofocus
-          value={search}
-          onChange={(event) => {
-            setSearch(event.currentTarget.value);
-          }}
-          rightSectionPointerEvents="auto"
-          rightSection={
-            search ? (
-              <CloseButton
-                aria-label="Clear option search"
-                size="sm"
-                onClick={() => {
-                  setSearch("");
-                }}
-              />
-            ) : undefined
-          }
-        />
-      ) : null}
-      <Group justify="space-between" gap="xs">
-        <Text size="xs" c="dimmed" aria-live="polite">
-          {filter.value.length === 0 ? "All" : `${String(filter.value.length)} selected`}
-        </Text>
-        <Button
-          variant="subtle"
-          size="compact-sm"
-          disabled={filter.value.length === 0}
-          onClick={() => {
-            filter.onChange([]);
-          }}
-        >
-          Clear {label.toLowerCase()}
-        </Button>
-      </Group>
-      {filter.isLoading ? (
-        <Text role="status" size="sm" c="dimmed">
-          Loading options…
-        </Text>
-      ) : null}
-      {filter.error ? (
-        <Alert role="alert" color="red">
-          <Stack align="start" gap="xs">
-            {filter.error}
-            {filter.onRetry ? (
-              <Button variant="subtle" color="red" onClick={filter.onRetry}>
-                Retry options
-              </Button>
-            ) : null}
-          </Stack>
-        </Alert>
-      ) : null}
-      <div className="column-menu-options" aria-busy={filter.isLoading}>
-        {options.map((option) => (
-          <Checkbox
-            key={option.value}
-            className="column-menu-option"
-            label={option.label}
-            checked={filter.value.includes(option.value)}
-            onChange={(event) => {
-              filter.onChange(
-                event.currentTarget.checked
-                  ? [...filter.value, option.value]
-                  : filter.value.filter((value) => value !== option.value),
-              );
-            }}
-          />
-        ))}
-        {!filter.isLoading && !filter.error && options.length === 0 ? (
-          <Text c="dimmed" size="sm" py="sm">
-            {query ? "No matching options." : "No options available."}
-          </Text>
-        ) : null}
-      </div>
-    </Stack>
-  );
-}
-
 export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuProps) {
   const [opened, setOpened] = useState(false);
   const titleId = useId();
+  const disabledSortId = useId();
   const filterCount =
     filter?.kind === "selection"
       ? filter.value.length
@@ -242,6 +59,7 @@ export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuP
       trapFocus
       returnFocus
       withinPortal
+      hideDetached={false}
     >
       <Popover.Target>
         <UnstyledButton
@@ -288,7 +106,9 @@ export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuP
                   key={direction}
                   variant={sort.direction === direction ? "light" : "subtle"}
                   aria-pressed={sort.direction === direction}
-                  data-autofocus={(!filter && index === 0) || undefined}
+                  disabled={Boolean(sort.disabledReason)}
+                  aria-describedby={sort.disabledReason ? disabledSortId : undefined}
+                  data-autofocus={(!filter && !sort.disabledReason && index === 0) || undefined}
                   justify="flex-start"
                   fullWidth
                   onClick={() => {
@@ -299,6 +119,11 @@ export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuP
                   {direction === "asc" ? sort.ascendingLabel : sort.descendingLabel}
                 </Button>
               ))}
+              {sort.disabledReason ? (
+                <Text id={disabledSortId} size="sm" c="dimmed" role="note">
+                  {sort.disabledReason}
+                </Text>
+              ) : null}
             </Stack>
           ) : null}
         </Stack>

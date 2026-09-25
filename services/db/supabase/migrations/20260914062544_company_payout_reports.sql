@@ -27,8 +27,11 @@ create table public.company_payout_reports (
     created_at timestamptz not null default now(),
     check (company_amount = source_amount + fee_amount)
 );
-create index company_payout_reports_company_date_idx
-on public.company_payout_reports (company_id, start_date, end_date);
+-- Company lookup also supports FK checks when a company is changed or removed.
+create index company_payout_reports_company_idx
+on public.company_payout_reports (company_id);
+create index company_payout_reports_created_idx
+on public.company_payout_reports (created_at desc nulls last, id asc);
 
 -- These complete manifests are also the retention pins. They include empty
 -- source versions and ownership inputs used to exclude other companies' rows.
@@ -41,8 +44,6 @@ create table private.payout_report_settlement_versions (
     foreign key (settlement_id, version_id)
     references private.settlement_preprocess_versions (settlement_id, id)
 );
-create index payout_settlement_version_idx
-on private.payout_report_settlement_versions (version_id);
 
 create table private.payout_report_data_kiosk_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
@@ -65,8 +66,6 @@ create table private.payout_report_terms_versions (
     foreign key (seller_sku_id, terms_version_id)
     references public.sku_terms_versions (seller_sku_id, id)
 );
-create index payout_terms_version_idx
-on private.payout_report_terms_versions (terms_version_id);
 
 create table public.company_payout_report_components (
     id public.local_uuid primary key default private.uuid7(),
@@ -112,13 +111,6 @@ create table public.company_payout_report_components (
         )
     )
 );
-create index payout_components_terms_idx on public.company_payout_report_components (
-    terms_version_id
-);
-create index payout_components_period_idx on public.company_payout_report_components (
-    fee_period_id
-);
-create index payout_components_sku_idx on public.company_payout_report_components (seller_sku_id);
 
 -- Reject payload loss even from trusted direct SQL, and serialize pins with
 -- pruning using the same day locks. There is no independent pin/unpin API.

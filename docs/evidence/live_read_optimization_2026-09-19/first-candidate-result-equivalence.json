@@ -1,0 +1,36 @@
+{
+  "checks": [
+    {
+      "baseline": "bounded",
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "page",
+      "readers": 4,
+      "reader": 3,
+      "before_rows": 25,
+      "after_rows": 25,
+      "digests_match": true
+    },
+    {
+      "baseline": "bounded",
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "page",
+      "readers": 8,
+      "reader": 3,
+      "before_rows": 25,
+      "after_rows": 25,
+      "digests_match": true
+    },
+    {
+      "baseline": "separate_long_observation",
+      "role": "company_member",
+      "case": "page",
+      "before_rows": 25,
+      "after_rows": 25,
+      "digests_match": true
+    }
+  ],
+  "all_available_successful_baselines_match": true,
+  "limitation": "Only completed baseline queries can supply a digest. Timed-out page/count/aggregate cases require the independent semantic regression suite."
+}

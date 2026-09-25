@@ -1,0 +1,191 @@
+import { DATASET_CONFIG } from "./config.ts";
+import { parseTotalCount, parseExactCount } from "./content-range.ts";
+import { applyDatasetFilters, requireFilterField } from "./filters.ts";
+import { mapDatasetRows } from "./row-mappers.ts";
+import { buildSearchFilter } from "./search.ts";
+import {
+  decodeTransactionPage,
+  isTransactionDataset,
+  transactionFilterArguments,
+  transactionPageArguments,
+} from "./transaction-page.ts";
+import { ApiError, requireAccessToken, type ApiTransport } from "./transport.ts";
+import { readAllCsvRows, LOOKUP_PAGE_SIZE } from "./pagination.ts";
+import { readCursorRpcValues } from "./rpc-pagination.ts";
+import type {
+  CanonicalRow,
+  DatasetKey,
+  DatasetSort,
+  DatasetFilterField,
+  FetchDatasetPageOptions,
+  FetchDatasetCountOptions,
+  PageResult,
+} from "./types.ts";
+
+const SORT_DIRECTIONS: ReadonlySet<string> = new Set(["asc", "desc"]);
+
+function validatePageRequest(
+  dataset: DatasetKey,
+  pageIndex: number,
+  pageSize: number,
+  sort: DatasetSort,
+): void {
+  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+  if (!Number.isSafeInteger(pageIndex) || pageIndex < 0) {
+    throw new Error("Page index must be a non-negative safe integer");
+  }
+  if (!Number.isSafeInteger(pageSize) || pageSize <= 0 || pageSize > LOOKUP_PAGE_SIZE) {
+    throw new Error("Page size must be a positive integer of at most 1000");
+  }
+  if (!SORT_DIRECTIONS.has(sort.direction)) throw new Error("Sort direction is invalid");
+  if (!DATASET_CONFIG[dataset].sortColumns.some((column) => column === sort.column)) {
+    throw new Error(`Sort column is not allowed for ${dataset}`);
+  }
+  if (!Number.isSafeInteger(pageIndex * pageSize)) {
+    throw new Error("Page offset exceeds JavaScript's safe range");
+  }
+}
+
+function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchParams {
+  const { dataset, search, filters } = options;
+  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+  const params = new URLSearchParams();
+  const searchFilter = buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
+  if (searchFilter !== null) params.set("or", searchFilter);
+  applyDatasetFilters(dataset, params, filters);
+  return params;
+}
+
+function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
+  const { dataset, pageIndex, pageSize, sort } = options;
+  const config = DATASET_CONFIG[dataset];
+  const order = [
+    `${sort.column}.${sort.direction}.nullslast`,
+    ...config.idColumns.filter((column) => column !== sort.column).map((column) => `${column}.asc`),
+  ];
+  const params = buildMembershipParams(options);
+  params.set("select", config.selectColumns.join(","));
+  params.set("limit", String(pageSize));
+  params.set("offset", String(pageIndex * pageSize));
+  params.set("order", order.join(","));
+  return params;
+}
+
+export function createDatasetApi(transport: ApiTransport) {
+  const { request, postRpc, authenticatedHeaders, readCsvPage } = transport;
+  return {
+    async fetchDatasetCount(options: FetchDatasetCountOptions): Promise<number> {
+      requireAccessToken(options.accessToken);
+      const { dataset } = options;
+      if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+      const operation = `${DATASET_CONFIG[dataset].label} count`;
+      if (isTransactionDataset(dataset)) {
+        return parseExactCount(
+          await postRpc(
+            options.accessToken,
+            dataset === "live" ? "transaction_count" : "source_transaction_count",
+            transactionFilterArguments({ ...options, dataset }),
+            operation,
+            options.signal,
+          ),
+        );
+      }
+      const config = DATASET_CONFIG[dataset];
+      const params = buildMembershipParams(options);
+      params.set("select", config.idColumns.join(","));
+      params.set("limit", "0");
+      params.set("offset", "0");
+      const response = await request(
+        `/rest/v1/${config.endpoint}?${params.toString()}`,
+        {
+          method: "HEAD",
+          signal: options.signal,
+          headers: {
+            ...authenticatedHeaders(options.accessToken),
+            Prefer: "count=exact",
+          },
+        },
+        operation,
+      );
+      if (!response.ok) throw new ApiError(operation, response.status);
+      const count = parseTotalCount(response.headers.get("Content-Range"));
+      if (count === null) throw new Error("Record count was not returned");
+      return count;
+    },
+
+    async fetchDatasetPage(options: FetchDatasetPageOptions): Promise<PageResult> {
+      requireAccessToken(options.accessToken);
+      validatePageRequest(options.dataset, options.pageIndex, options.pageSize, options.sort);
+      const { dataset } = options;
+      if (isTransactionDataset(dataset)) {
+        return decodeTransactionPage(
+          options.dataset,
+          await postRpc(
+            options.accessToken,
+            options.dataset === "live" ? "transaction_page" : "source_transaction_page",
+            transactionPageArguments({ ...options, dataset }),
+            DATASET_CONFIG[dataset].label,
+            options.signal,
+          ),
+        );
+      }
+      const config = DATASET_CONFIG[dataset];
+      const result = await readCsvPage(
+        options.accessToken,
+        config.endpoint,
+        buildDatasetParams(options),
+        config.label,
+        options.signal,
+        options.includeCount ?? true,
+      );
+      return { ...result, rows: mapDatasetRows(options.dataset, result.rows) };
+    },
+
+    async fetchSkuFees(
+      accessToken: string,
+      sellerSkuId: string,
+      signal?: AbortSignal,
+    ): Promise<CanonicalRow[]> {
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(sellerSkuId)) {
+        throw new Error("A valid seller SKU ID is required");
+      }
+      const rows = await readAllCsvRows(
+        transport,
+        accessToken,
+        DATASET_CONFIG.fees.endpoint,
+        new URLSearchParams({
+          select: DATASET_CONFIG.fees.selectColumns.join(","),
+          seller_sku_id: `eq.${sellerSkuId}`,
+          order: "marketplace_name.asc,valid_period.asc,fee_period_id.asc",
+        }),
+        "Fee rates",
+        DATASET_CONFIG.fees.idColumns,
+        signal,
+      );
+      return mapDatasetRows("fees", rows);
+    },
+
+    async fetchDatasetFilterOptions(
+      accessToken: string,
+      dataset: DatasetKey,
+      field: DatasetFilterField,
+      signal?: AbortSignal,
+    ): Promise<string[]> {
+      requireFilterField(dataset, field);
+      requireAccessToken(accessToken);
+      const operation = `${DATASET_CONFIG[dataset].label} filter options`;
+      return readCursorRpcValues(
+        (after) =>
+          postRpc(
+            accessToken,
+            "dataset_filter_options",
+            { p_dataset: dataset, p_field: field, p_limit: LOOKUP_PAGE_SIZE, p_after: after },
+            operation,
+            signal,
+          ),
+        operation,
+        signal,
+      );
+    },
+  };
+}

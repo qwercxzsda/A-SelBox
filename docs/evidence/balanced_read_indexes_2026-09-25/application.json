@@ -1,0 +1,148 @@
+{
+  "applied_at_utc": "2026-09-25T13:51:33.263876+00:00",
+  "index_only_change": true,
+  "canonical_definitions": {
+    "settlement_transactions_date_id_idx": "create index settlement_transactions_date_id_idx\non private.settlement_transactions (posted_date asc nulls last, id asc);",
+    "data_kiosk_transactions_date_id_idx": "create index data_kiosk_transactions_date_id_idx\non private.data_kiosk_transactions (activity_date asc nulls last, id asc);",
+    "settlement_transactions_sku_date_idx": "create index settlement_transactions_sku_date_idx\non private.settlement_transactions (sku, posted_date);",
+    "data_kiosk_transactions_sku_date_idx": "create index data_kiosk_transactions_sku_date_idx\non private.data_kiosk_transactions (sku, activity_date);",
+    "settlement_transactions_type_date_idx": "create index settlement_transactions_type_date_idx\non private.settlement_transactions (component_type, posted_date);",
+    "data_kiosk_transactions_type_date_idx": "create index data_kiosk_transactions_type_date_idx\non private.data_kiosk_transactions (component_type, activity_date);",
+    "data_kiosk_transactions_marketplace_date_idx": "create index data_kiosk_transactions_marketplace_date_idx\non private.data_kiosk_transactions (marketplace_name, activity_date);"
+  },
+  "tables_functions_policies_grants_constraints_types_unchanged": true,
+  "unrelated_indexes_unchanged": true,
+  "source_fact_counts_migration_records_unchanged": true,
+  "seed_read_index_bytes_before": 9338880,
+  "seed_read_index_bytes_after": 8339456,
+  "exact_response_checks": [
+    {
+      "role": "member_a",
+      "dataset": "live",
+      "case": "asc",
+      "result_sha256": "a2e7adbf516d68071bfb2525177d2942be1e420a43513dfec2d18fdab3c3e00e"
+    },
+    {
+      "role": "member_a",
+      "dataset": "settlement",
+      "case": "asc",
+      "result_sha256": "7f96bfca29ca71604ded70ae3c36c105af4b46e7abaa64716603bb0b07390fdb"
+    },
+    {
+      "role": "member_a",
+      "dataset": "data_kiosk",
+      "case": "asc",
+      "result_sha256": "f039b6f00af3c0e905f70abb2368320a06cfa1727d8666382d2b94e781e2b564"
+    },
+    {
+      "role": "member_a",
+      "dataset": "live",
+      "case": "desc",
+      "result_sha256": "e798c1346f4693b73f65a7b9a360b327958aab8dd1b28ad328672e0850bbea04"
+    },
+    {
+      "role": "member_a",
+      "dataset": "settlement",
+      "case": "desc",
+      "result_sha256": "45b09616971e7db459474c8f7fea03b15d8ecfdb18cb03c933eac6054491fc84"
+    },
+    {
+      "role": "member_a",
+      "dataset": "data_kiosk",
+      "case": "desc",
+      "result_sha256": "8c86675f9e7e1697df0b5b9d174576d4882f630a6f2704ef3ccb98dd9fcce887"
+    },
+    {
+      "role": "member_a",
+      "dataset": "live",
+      "case": "sku",
+      "result_sha256": "d34db1d4fa6d2bf55d47ab8de159b52dbc9c1d18e76d97d449722a64e9d41640"
+    },
+    {
+      "role": "member_a",
+      "dataset": "live",
+      "case": "type",
+      "result_sha256": "a7297276ebd263d073616154805b417818ae00b1d0dc67d3049c2bafa8a55630"
+    },
+    {
+      "role": "member_a",
+      "dataset": "live",
+      "case": "day_totals",
+      "result_sha256": "67c12eadb33dea737e4c90d42df840edf0b0c1b15e834c043f8fab50519b2856"
+    },
+    {
+      "role": "operator",
+      "dataset": "live",
+      "case": "asc",
+      "result_sha256": "9914c48c576d34828481e98e86c2d20274546f63fbcc505290e15f3c161c3731"
+    },
+    {
+      "role": "operator",
+      "dataset": "settlement",
+      "case": "asc",
+      "result_sha256": "c947dc40fc794995e3e0b19da3147724b868d6fffe0c3fbd8c65c41930b01bd9"
+    },
+    {
+      "role": "operator",
+      "dataset": "data_kiosk",
+      "case": "asc",
+      "result_sha256": "c78148d46cac8e2d762a63a36dc5ca894a06703be0af465906258f213f8e27bb"
+    },
+    {
+      "role": "operator",
+      "dataset": "live",
+      "case": "desc",
+      "result_sha256": "c61f783ddca4a7229ab571e39d158a4947ff8f1b8ab20b13c81735459a7c1531"
+    },
+    {
+      "role": "operator",
+      "dataset": "settlement",
+      "case": "desc",
+      "result_sha256": "b2970cea031397d65dbd19fceb8d1f051aeaeb5a7c4da5a6f117bc0d221a036c"
+    },
+    {
+      "role": "operator",
+      "dataset": "data_kiosk",
+      "case": "desc",
+      "result_sha256": "c046b64bec8cf8efc26b3b35695286b6328f98b95aac7e955dc3c411533e4c89"
+    },
+    {
+      "role": "operator",
+      "dataset": "live",
+      "case": "sku",
+      "result_sha256": "d34db1d4fa6d2bf55d47ab8de159b52dbc9c1d18e76d97d449722a64e9d41640"
+    },
+    {
+      "role": "operator",
+      "dataset": "live",
+      "case": "type",
+      "result_sha256": "ce1338aa135a010e71f03c523ee99ec49339d64f8273767076083754218e781b"
+    },
+    {
+      "role": "operator",
+      "dataset": "live",
+      "case": "day_totals",
+      "result_sha256": "213ade91b50eb8fe392d281ffabc92e06f514a00ede26ba90bb95c97e3d382be"
+    }
+  ],
+  "catalog_before": {
+    "tables_views_security": "5cc493aa81c02e82ff98ab7b81572770274bd1806f96d29b56a3fd634267472d",
+    "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "c7e329419577c9985386a1105198a899271125d38c6ec01027cc985b29766f12",
+    "functions": "89ffd6d32609b10119a1794a1666f46a3dc237ebec4eb22538fed317d3ea4aca",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  },
+  "catalog_after": {
+    "tables_views_security": "5cc493aa81c02e82ff98ab7b81572770274bd1806f96d29b56a3fd634267472d",
+    "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "2a23ab2ace8d7f09441e9cd0ddd4a0201706f2398effe02fca070be2acf12bb9",
+    "functions": "89ffd6d32609b10119a1794a1666f46a3dc237ebec4eb22538fed317d3ea4aca",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  }
+}

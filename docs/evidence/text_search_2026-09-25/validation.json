@@ -1,0 +1,33 @@
+{
+  "database_tests_passed": 180,
+  "frontend_unit_tests_passed": 129,
+  "browser_tests": {
+    "full_suite_passed": 132,
+    "source_alias_targeted_passed": 3
+  },
+  "format_lint_typescript_production_build_passed": true,
+  "targeted_sql_python_lint_typechecks_passed": true,
+  "implementation_scope": "Visible fields only; 10000-row amount ordering limit; four amount indexes removed; date sorting/counts uncapped",
+  "real_auth_postgrest_e2e_suites_passed": ["raw_ordering", "text_search"],
+  "million_row_benchmark": {
+    "fixtures": 2,
+    "cases_per_fixture": 24,
+    "measured_repetitions": 3,
+    "source_facts_per_fixture": 1032440,
+    "parity_passed": true,
+    "source_catalog_unchanged": true,
+    "clones_removed": true,
+    "evidence": "performance.json"
+  },
+  "security_advisors": {
+    "errors": 0,
+    "warnings": 3,
+    "warning_type": "function_search_path_mutable",
+    "functions": [
+      "private.settlement_fee_applicable",
+      "private.calculate_service_fee",
+      "private.visible_transaction_search_matches"
+    ],
+    "review": "Relation-free immutable scalar helpers deliberately omit a SET clause for SQL inlining. No definer privileges. Data-reading RPCs retain an empty fixed search_path."
+  }
+}

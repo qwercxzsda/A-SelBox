@@ -1,0 +1,8 @@
+.muted-value {
+  color: #7a8792;
+}
+
+.missing-value {
+  color: #9b4c0b;
+  font-weight: 600;
+}
