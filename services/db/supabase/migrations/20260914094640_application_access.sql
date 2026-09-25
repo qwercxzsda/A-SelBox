@@ -22,26 +22,31 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Header policies cannot query RLS-filtered facts: facts themselves need headers.
--- This bounded boolean lookup breaks that cycle and hides unrelated opaque IDs.
-create function private.can_read_current_source_version(p_source text, p_version_id uuid)
-returns boolean language sql stable security definer set search_path = '' as $$
-    select exists (
-        select 1 from public.app_accounts a
+-- Return only the current source versions already visible through owned SKUs.
+create function private.current_company_source_versions(p_source text)
+returns setof uuid
+language sql stable security definer set search_path = '' as $$
+    with owned_skus as materialized (
+        select s.seller_namespace, s.sku
+        from public.app_accounts a
         join public.sku_terms_versions v on v.company_id = a.company_id
-        join public.seller_skus s on s.id = v.seller_sku_id and s.current_terms_version_id = v.id
+        join public.seller_skus s
+            on s.id = v.seller_sku_id and s.current_terms_version_id = v.id
         where a.user_id = (select auth.uid()) and a.access_role = 'company_member'
-          and ((p_source = 'SETTLEMENT' and exists (
-              select 1 from private.settlement_transactions t
-              join private.settlements h on h.current_version_id = t.version_id
-              where t.version_id = p_version_id and t.category = 'SETTLEMENT'
-                and t.seller_namespace = s.seller_namespace and t.sku = s.sku
-          )) or (p_source = 'DATA_KIOSK' and exists (
-              select 1 from private.data_kiosk_transactions t
-              join private.data_kiosk_days h on h.current_version_id = t.version_id
-              where t.version_id = p_version_id and t.category <> 'SELBOX'
-                and t.seller_namespace = s.seller_namespace and t.sku = s.sku
-          )))
-    );
+    )
+    select distinct t.version_id::uuid
+    from owned_skus o
+    join private.settlement_transactions t
+        on t.seller_namespace = o.seller_namespace and t.sku = o.sku
+    join private.settlements h on h.current_version_id = t.version_id
+    where p_source = 'SETTLEMENT' and t.category = 'SETTLEMENT'
+    union all
+    select distinct t.version_id::uuid
+    from owned_skus o
+    join private.data_kiosk_transactions t
+        on t.seller_namespace = o.seller_namespace and t.sku = o.sku
+    join private.data_kiosk_days h on h.current_version_id = t.version_id
+    where p_source = 'DATA_KIOSK' and t.category <> 'SELBOX';
 $$;
 
 create policy app_accounts_read on public.app_accounts for select to authenticated
@@ -99,20 +104,22 @@ for select to authenticated using (
 create policy settlement_selection_read on private.settlements for select to authenticated
 using (
     (select private.is_operator())
-    or private.can_read_current_source_version('SETTLEMENT', current_version_id)
+    or current_version_id in (select private.current_company_source_versions('SETTLEMENT'))
 );
 create policy settlement_version_reference_read on private.settlement_preprocess_versions
 for select to authenticated using (
-    (select private.is_operator()) or private.can_read_current_source_version('SETTLEMENT', id)
+    (select private.is_operator())
+    or id in (select private.current_company_source_versions('SETTLEMENT'))
 );
 create policy data_kiosk_selection_read on private.data_kiosk_days for select to authenticated
 using (
     (select private.is_operator())
-    or private.can_read_current_source_version('DATA_KIOSK', current_version_id)
+    or current_version_id in (select private.current_company_source_versions('DATA_KIOSK'))
 );
 create policy data_kiosk_version_reference_read on private.data_kiosk_preprocess_versions
 for select to authenticated using (
-    (select private.is_operator()) or private.can_read_current_source_version('DATA_KIOSK', id)
+    (select private.is_operator())
+    or id in (select private.current_company_source_versions('DATA_KIOSK'))
 );
 
 -- Full source headers contain account-wide amounts and inventories. Column grants
@@ -261,14 +268,19 @@ grant select on public.settlement_preprocess_results, public.data_kiosk_preproce
 public.settlement_preprocess_entries, public.data_kiosk_preprocess_entries,
 public.settlement_sku_entries, public.settlement_account_entries, public.settlement_others_entries,
 public.data_kiosk_sku_entries, public.data_kiosk_account_entries, public.data_kiosk_others_entries,
-public.live_company_components to authenticated;
+public.live_company_components, private.live_company_component_inputs to authenticated;
 grant select on public.company_payout_reports, public.company_payout_report_components,
 private.payout_report_settlement_versions, private.payout_report_data_kiosk_versions,
 private.payout_report_terms_versions, public.payout_report_settlement_versions,
 public.payout_report_data_kiosk_versions, public.payout_report_terms_versions to authenticated;
 grant execute on function private.is_operator(), private.can_read_current_seller_sku(uuid),
-private.can_read_current_source_version(text, uuid), private.read_settlement_preprocess_results(),
+private.current_company_source_versions(text), private.read_settlement_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
 private.publish_operator_sku_terms(text, text, uuid, uuid, text, jsonb),
 public.publish_sku_terms(text, text, uuid, uuid, text, jsonb) to authenticated;
+
+-- Apply after the application-access private revocations. Helpers remain private.
+grant select on private.current_sku_terms to authenticated;
+grant execute on function private.settlement_fee_applicable(text, text, text),
+private.calculate_service_fee(numeric, numeric) to authenticated;

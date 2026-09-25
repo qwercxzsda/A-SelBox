@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDebouncedValue } from "@mantine/hooks";
 import {
   useTable,
@@ -15,7 +15,7 @@ import { TableCellValue } from "./Cell";
 import { lastPageIndex } from "./pagination";
 import { displayColumns, rowId } from "./view-model";
 import { useDatasetQuery } from "./use-dataset-query";
-import type { Identity } from "./use-auth";
+import type { Identity } from "./auth-session";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { normalizeDatasetFilters } from "./dataset-filters";
 
@@ -35,7 +35,7 @@ export function useFinanceTable(
   onViewStateChange: ViewStateProps<DatasetViewState>["onViewStateChange"],
 ) {
   const { pagination, sorting, search } = viewState;
-  const filters = normalizeDatasetFilters(viewState.filters);
+  const filters = useMemo(() => normalizeDatasetFilters(viewState.filters), [viewState.filters]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [debouncedSearch] = useDebouncedValue(search.trim(), 250);
   const sort = sorting[0];
@@ -47,29 +47,40 @@ export function useFinanceTable(
     sort: { column: sort.id, direction: sort.desc ? "desc" : "asc" },
   });
   const rows = query.isError ? EMPTY_ROWS : (query.data?.rows ?? EMPTY_ROWS);
-  const totalCount = query.isError ? null : (query.data?.totalCount ?? null);
-  const companies = new Map(identity.companies.map((company) => [company.id, company.name]));
-  const skuNames = new Map(
-    identity.assignments.map((assignment) => [assignment.id, assignment.sku]),
+  const totalCount = query.isError ? null : query.totalCount;
+  const finalPage = totalCount === null ? null : lastPageIndex(totalCount, pagination.pageSize);
+  const companies = useMemo(
+    () => new Map(identity.companies.map((company) => [company.id, company.name])),
+    [identity.companies],
   );
-  const columns: ColumnDef<typeof features, CanonicalRow>[] = displayColumns(
-    dataset,
-    identity.account.access_role === "operator",
-  ).map((column) => ({
-    id: column.key,
-    accessorFn: (row) => row[column.key],
-    header: column.label,
-    enableSorting: Boolean(column.sortable),
-    meta: { align: column.align },
-    cell: ({ row }) => (
-      <TableCellValue
-        column={column}
-        row={row.original}
-        companies={companies}
-        skuNames={skuNames}
-      />
-    ),
-  }));
+  const skuNames = useMemo(
+    () => new Map(identity.assignments.map((assignment) => [assignment.id, assignment.sku])),
+    [identity.assignments],
+  );
+  function updateView(update: (current: DatasetViewState) => DatasetViewState) {
+    setRowSelection({});
+    onViewStateChange(update);
+  }
+  const isAdministrator = identity.account.access_role === "operator";
+  const columns = useMemo<ColumnDef<typeof features, CanonicalRow>[]>(
+    () =>
+      displayColumns(dataset, isAdministrator).map((column) => ({
+        id: column.key,
+        accessorFn: (row) => row[column.key],
+        header: column.label,
+        enableSorting: Boolean(column.sortable),
+        meta: { align: column.align },
+        cell: ({ row }) => (
+          <TableCellValue
+            column={column}
+            row={row.original}
+            companies={companies}
+            skuNames={skuNames}
+          />
+        ),
+      })),
+    [dataset, isAdministrator, companies, skuNames],
+  );
   const table = useTable({
     features,
     columns,
@@ -78,21 +89,19 @@ export function useFinanceTable(
     state: { pagination, sorting, rowSelection },
     manualSorting: true,
     manualPagination: true,
-    pageCount: totalCount === null ? -1 : Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
+    pageCount: finalPage === null ? -1 : finalPage + 1,
     enableMultiSort: false,
     enableSortingRemoval: false,
     sortDescFirst: false,
     enableMultiRowSelection: false,
     onPaginationChange: (update) => {
-      setRowSelection({});
-      onViewStateChange((current) => ({
+      updateView((current) => ({
         ...current,
         pagination: typeof update === "function" ? update(current.pagination) : update,
       }));
     },
     onSortingChange: (update) => {
-      setRowSelection({});
-      onViewStateChange((current) => ({
+      updateView((current) => ({
         ...current,
         pagination: { ...current.pagination, pageIndex: 0 },
         sorting: typeof update === "function" ? update(current.sorting) : update,
@@ -101,24 +110,21 @@ export function useFinanceTable(
     onRowSelectionChange: setRowSelection,
   });
   // Synchronize server-side shrinkage (including HTTP 416) after the query updates.
-  const finalPage = totalCount === null ? null : lastPageIndex(totalCount, pagination.pageSize);
   useEffect(() => {
     if (finalPage !== null && pagination.pageIndex > finalPage) table.setPageIndex(finalPage);
   }, [finalPage, pagination.pageIndex, table]);
 
   function changeSearch(value: string) {
-    setRowSelection({});
-    onViewStateChange((current) => ({
+    updateView((current) => ({
       ...current,
       search: value,
       pagination: { ...current.pagination, pageIndex: 0 },
     }));
   }
   function changeFilters(patch: Partial<DatasetFilters>) {
-    setRowSelection({});
-    onViewStateChange((current) => ({
+    updateView((current) => ({
       ...current,
-      filters: normalizeDatasetFilters({ ...normalizeDatasetFilters(current.filters), ...patch }),
+      filters: normalizeDatasetFilters({ ...current.filters, ...patch }),
       pagination: { ...current.pagination, pageIndex: 0 },
     }));
   }

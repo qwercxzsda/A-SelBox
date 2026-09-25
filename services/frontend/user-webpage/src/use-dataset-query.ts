@@ -1,58 +1,42 @@
-import { hashKey, queryOptions, useQuery } from "@tanstack/react-query";
-import { fetchDatasetPage } from "./api/client.ts";
-import type { FetchDatasetPageOptions, PageResult } from "./api/types.ts";
-import type { Identity } from "./use-auth.ts";
-import { normalizeDatasetFilters } from "./dataset-filters.ts";
+import { useEffect, useEffectEvent } from "react";
+import { hashKey, useQuery, useQueryClient } from "@tanstack/react-query";
+import { datasetCountQueryOptions, datasetQueryOptions } from "./dataset-queries.ts";
+import type { DatasetPageOptions, DatasetQueryIdentity } from "./dataset-query-cache.ts";
 
-type DatasetQueryIdentity = Pick<Identity, "session" | "account">;
-type DatasetQueryOptions = Omit<FetchDatasetPageOptions, "accessToken" | "signal">;
-
-export function datasetQueryOptions(
-  identity: DatasetQueryIdentity,
-  options: DatasetQueryOptions,
-  fetchPage = fetchDatasetPage,
-) {
-  const { session, account } = identity;
-  const { dataset, search, sort, pageSize, pageIndex } = options;
-  const filters = normalizeDatasetFilters(options.filters);
-  const scope = [
-    "dataset",
-    session.user.id,
-    account.access_role,
-    account.company_id,
-    dataset,
-    search,
-    filters,
-  ];
-  const scopeHash = hashKey(scope);
-  return queryOptions({
-    queryKey: [...scope, sort.column, sort.direction, pageSize, pageIndex],
-    queryFn: async ({ signal, client }) => {
-      const result = await fetchPage({
-        ...options,
-        filters,
-        accessToken: session.access_token,
-        signal,
-      });
-      if (result.totalCount !== null) {
-        // A shrinking dataset can clamp navigation onto an otherwise fresh, outdated page.
-        await client.invalidateQueries({
-          queryKey: scope,
-          predicate: (query) => {
-            // Query-key prefix matching treats empty arrays as wildcards; filtered
-            // result sets must be compared exactly before invalidating their pages.
-            if (hashKey(query.queryKey.slice(0, scope.length)) !== scopeHash) return false;
-            const cached = client.getQueryData<PageResult>(query.queryKey);
-            return cached !== undefined && cached.totalCount !== result.totalCount;
-          },
-          refetchType: "none",
-        });
-      }
-      return result;
-    },
+export function useDatasetQuery(identity: DatasetQueryIdentity, options: DatasetPageOptions) {
+  const client = useQueryClient();
+  const pageOptions = datasetQueryOptions(identity, options);
+  const countOptions = datasetCountQueryOptions(identity, options);
+  const query = useQuery(pageOptions);
+  const countQuery = useQuery({
+    ...countOptions,
+    enabled: query.isSuccess && !query.isFetching,
   });
-}
-
-export function useDatasetQuery(identity: DatasetQueryIdentity, options: DatasetQueryOptions) {
-  return useQuery(datasetQueryOptions(identity, options));
+  const pageHash = hashKey(pageOptions.queryKey);
+  const acquireCount = useEffectEvent((completedPageHash: string) => {
+    // An old page can finish between a scope change and its effect cleanup.
+    if (completedPageHash !== pageHash) return;
+    void client.query(countOptions).catch(() => {
+      // The count observer exposes its own error and Retry action.
+    });
+  });
+  useEffect(
+    () =>
+      client.getQueryCache().subscribe((event) => {
+        if (event.type === "updated" && event.action.type === "success" && !event.action.manual) {
+          // Fast refetches can finish within one React batch. Keep this subscription
+          // stable while using the latest credentials to acquire/dedupe the count.
+          acquireCount(event.query.queryHash);
+        }
+      }),
+    [client],
+  );
+  return {
+    ...query,
+    countQuery,
+    totalCount:
+      countQuery.isError || client.getQueryState(countOptions.queryKey)?.isInvalidated
+        ? null
+        : (countQuery.data ?? null),
+  };
 }

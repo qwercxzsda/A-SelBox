@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { feeRow, skuAssignment } from "./api-fixtures.mjs";
-import { liveRow, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { feeRow, skuAssignment, liveRow } from "./api-fixtures.mjs";
+import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
 test("tab roundtrips retain working filters, sorting, pages, and fee expansions until sign-out", async ({
   page,
@@ -29,7 +29,10 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByLabel("Search SKUs", { exact: true }).fill("GROUP-001");
-  const group = page.getByRole("button", { name: /^Show marketplace fees for GROUP-001,/ });
+  const group = page.getByRole("button", {
+    name: "Show marketplace fees for GROUP-001",
+    exact: true,
+  });
   await group.click();
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
 
@@ -107,6 +110,7 @@ for (const width of [320, 390]) {
     await signIn(page);
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Pagination", exact: true });
+    await nav.scrollIntoViewIfNeeded();
     const previous = nav.getByRole("button", { name: "Previous", exact: true });
     const current = nav.getByRole("form", { name: "Page 1 of 20", exact: true });
     const next = nav.getByRole("button", { name: "Next", exact: true });
@@ -215,9 +219,13 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   ];
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  const group = page.getByRole("button", { name: /^Show marketplace fees for GROUP-001,/ });
+  const group = page.getByRole("button", {
+    name: "Show marketplace fees for GROUP-001",
+    exact: true,
+  });
   await group.click();
   const rate = page.getByRole("cell", { name: "5.123456%", exact: true });
+  await rate.scrollIntoViewIfNeeded();
   await expect(rate).toBeInViewport();
   const bounds = await rate.boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -325,7 +333,10 @@ for (const role of ["company_member", "operator"]) {
     }
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    const group = page.getByRole("button", { name: /^Show marketplace fees for GROUP-001/ });
+    const group = page.getByRole("button", {
+      name: "Show marketplace fees for GROUP-001",
+      exact: true,
+    });
     if (role === "operator") await expect(group).toContainText(companyName);
     else {
       await expect(group).not.toContainText(companyName);

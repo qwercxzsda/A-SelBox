@@ -1,0 +1,38 @@
+{
+  "method": "source_topn_deferred_joins",
+  "scenarios": {
+    "missing_fee": {
+      "comparisons": 16,
+      "observed_target_statuses": [
+        "MISSING_FEE"
+      ],
+      "ownership_and_company_filter_assertions": 16
+    },
+    "unassigned": {
+      "comparisons": 16,
+      "observed_target_statuses": [
+        "MISSING_OWNERSHIP"
+      ],
+      "ownership_and_company_filter_assertions": 16
+    },
+    "reassigned": {
+      "comparisons": 16,
+      "observed_target_statuses": [
+        "APPLIED"
+      ],
+      "ownership_and_company_filter_assertions": 16
+    },
+    "zero_rate": {
+      "comparisons": 16,
+      "observed_target_statuses": [
+        "APPLIED"
+      ],
+      "ownership_and_company_filter_assertions": 16
+    }
+  },
+  "comparison_count": 64,
+  "fixture_versions_removed": 4,
+  "baseline_restored": true,
+  "schema_definitions_changed": false,
+  "authenticated_reads_replica_mode": false
+}

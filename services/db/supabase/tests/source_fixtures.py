@@ -213,12 +213,15 @@ class SourceModelFixture(DatabaseTestCase):
         category: str = "SETTLEMENT",
         description: str = "Principal",
     ) -> dict[str, object]:
+        component_type = f"{kind}/ItemPrice/{description}"
+        if kind in {"Order", "Refund"} and description == "Principal":
+            component_type = "PRODUCT_REFUNDS" if kind == "Refund" else "PRODUCT_SALES"
         return {
             "id": new_id(),
             "source_line_number": line,
             "category": category,
             "family": "F1",
-            "component_type": "PRODUCT_REFUNDS" if kind == "Refund" else "PRODUCT_SALES",
+            "component_type": component_type,
             "sku": sku,
             "marketplace_name": "Amazon.com",
             "amount": amount,

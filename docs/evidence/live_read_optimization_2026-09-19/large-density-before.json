@@ -1,0 +1,69 @@
+{
+  "started_at_utc": "2026-09-19T02:31:52.906370+00:00",
+  "database": "aselbox_opt_large",
+  "transport": "direct loopback PostgreSQL; no HTTP or response-serialization overhead",
+  "security": "SET ROLE authenticated plus normal dummy user's JWT claims; all reads read-only",
+  "cache_note": "DB/OS caches are not flushed; plan_cache_mode=force_generic_plan on every reader gives comparable legacy steady-state function plans",
+  "infrastructure_note": "Clones share the existing local PostgreSQL container and host; timings are not a production capacity promise",
+  "repeat": 1,
+  "timeout_ms": 60000,
+  "records": [
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "page",
+      "status": "ok",
+      "elapsed_ms": 37757.248,
+      "rows": 25,
+      "result_sha256": "8d7498f4e56f73cfa1126feb6fafd4b5710293e5200b15553b60f2787f567e67"
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "page_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 60009.876
+    }
+  ],
+  "batches": [],
+  "database_settings": {
+    "jit": "on",
+    "max_connections": "100",
+    "max_parallel_workers_per_gather": "2",
+    "server_version": "17.6",
+    "shared_buffers": "16384",
+    "work_mem": "4096"
+  },
+  "facts": {
+    "data_kiosk": 295110,
+    "settlement": 737330
+  },
+  "summary": [
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "case": "page",
+      "readers": 1,
+      "successes": 1,
+      "errors": 0,
+      "median_ms": 37757.248,
+      "min_ms": 37757.248,
+      "max_ms": 37757.248
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "case": "page_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    }
+  ],
+  "finished_at_utc": "2026-09-19T02:34:03.236096+00:00"
+}

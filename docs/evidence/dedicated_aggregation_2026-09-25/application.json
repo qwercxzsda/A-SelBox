@@ -1,0 +1,49 @@
+{
+  "installed_at_utc": "2026-09-25T06:31:49.189398+00:00",
+  "migration": "20260925061654_restrict_aggregation_to_summary_rpcs.sql",
+  "stage": "RPC migration complete; generated REST aggregation disabled",
+  "totals_comparisons": 8,
+  "option_comparisons": 32,
+  "roles_checked": [
+    "two members",
+    "operator",
+    "no application access"
+  ],
+  "catalog_before": {
+    "format": "2-includes-view-options-and-index-state",
+    "tables_views_security": "e33044cad0ca670c892bed86ab3fd7dc6accce060c78ba9390654d5f7a8d7e4d",
+    "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+    "functions": "eaf87a38d626e2637b8bf89d73ddc9548686b21f71a14849a0d3f701883440ad",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  },
+  "catalog_after": {
+    "format": "2-includes-view-options-and-index-state",
+    "tables_views_security": "e33044cad0ca670c892bed86ab3fd7dc6accce060c78ba9390654d5f7a8d7e4d",
+    "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+    "functions": "eab1489efecb158f6111ae90ab6e6d081796a3bf1ef489e21fffe4446c6730a9",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  },
+  "completed_at_utc": "2026-09-25T06:34:47.429051+00:00",
+  "authenticator_aggregate_setting": "false",
+  "actual_gateway_checks": [
+    {
+      "endpoint": "live_company_components?select=source_amount.sum()",
+      "http_status": 400,
+      "code": "PGRST123"
+    },
+    {
+      "endpoint": "company_skus?select=sku,count()",
+      "http_status": 400,
+      "code": "PGRST123"
+    }
+  ],
+  "existing_tables_and_row_access_unchanged": true
+}

@@ -1,0 +1,3620 @@
+{
+  "scope": "Final visible-field search, uncapped date ordering, and amount ordering limited to 10,000 fully filtered authorized matches; four retired amount indexes absent.",
+  "method": "Independent authorized SQL view oracle; local HTTP RPC timings, warm cache, one warmup, three measured repetitions. Two separate completed fixture measurements; not one continuous run.",
+  "runs": [
+    {
+      "fixture": "density",
+      "source_artifact": "/var/folders/7q/pm6kgttn3tl__cd93wyy8r000000gn/T/aselbox-text-search-_j79h38r/final-capped-benchmark/results.json",
+      "started_at_utc": "2026-09-25T11:16:18.731094+00:00",
+      "finished_at_utc": "2026-09-25T11:17:31.314830+00:00",
+      "cleanup": {
+        "clones_created": 2,
+        "clones_removed": 2,
+        "remaining_clones": 0,
+        "source_catalog_unchanged": true,
+        "private_dump_removed": true
+      },
+      "measurement": {
+        "database": "aselbox_opt_large",
+        "repeat": 3,
+        "warmups": 1,
+        "settlement_facts": 737330,
+        "data_kiosk_facts": 295110,
+        "catalog_before": {
+          "format": "2-includes-view-options-and-index-state",
+          "tables_views_security": "9c5c49e060ff0d5d18629618dc9d639ab73faa227db07a071ab4af4734f843b2",
+          "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+          "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+          "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+          "functions": "65b4a8638668d63ef92b223c8866cac9941c8d56b3be948b9459fc7a801d6722",
+          "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+          "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+          "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+        },
+        "amount_indexes_absent": true,
+        "records": [
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 169.273,
+            "count_request_ms": 288.514,
+            "all_ready_ms": 457.866,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "ea2b3559769aee96b6def316d42b879b33a331fe2b1ed631ec661a6f7cc5b8cd"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 80.98,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 121.035,
+            "count_request_ms": 33.917,
+            "all_ready_ms": 154.992,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 98.76,
+            "count_request_ms": 95.082,
+            "all_ready_ms": 193.855,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 431.579,
+            "count_request_ms": 282.685,
+            "all_ready_ms": 714.367,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "24b477272e1fdf6534acbe904dc89bdd7346c31d1e75475a3e4198396b1982b4"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 69.07,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 110.05,
+            "count_request_ms": 58.32,
+            "all_ready_ms": 168.409,
+            "rows": 10,
+            "page_bytes": 7236,
+            "result_sha256": "1eae3165a576774240d1059f23b0eb42b2eafd98934b59bd215852aef2068e8c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 66.68,
+            "count_request_ms": 70.03,
+            "all_ready_ms": 136.725,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 57.592,
+            "count_request_ms": 133.539,
+            "all_ready_ms": 191.188,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 48.626,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 57.4,
+            "count_request_ms": 33.333,
+            "all_ready_ms": 90.768,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 37.492,
+            "count_request_ms": 40.633,
+            "all_ready_ms": 78.14,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 7.881,
+            "count_request_ms": 176.903,
+            "all_ready_ms": 184.859,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "7246d6415d8c4a637613a8c2672bf5e6c078aa6b887c7d385a262b2a5ff53bb2"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 11.93,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 7.201,
+            "count_request_ms": 5.075,
+            "all_ready_ms": 12.305,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 15.355,
+            "count_request_ms": 13.766,
+            "all_ready_ms": 29.133,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 330.07,
+            "count_request_ms": 157.489,
+            "all_ready_ms": 487.619,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "5c80f7df436b091eb36e7b8fd2532ac9f08279fbf8c06d0e4f22b94a99fb7de2"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 9.93,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 5.594,
+            "count_request_ms": 3.837,
+            "all_ready_ms": 9.463,
+            "rows": 10,
+            "page_bytes": 7400,
+            "result_sha256": "c72d98ac112211d5866f6c511075794a7c5a8e5f3aa265092fc591f242614218"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 25.37,
+            "count_request_ms": 25.299,
+            "all_ready_ms": 50.685,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 5.084,
+            "count_request_ms": 78.098,
+            "all_ready_ms": 83.239,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 16.552,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 4.843,
+            "count_request_ms": 3.7,
+            "all_ready_ms": 8.575,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 7.674,
+            "count_request_ms": 6.631,
+            "all_ready_ms": 14.314,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 11.416,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.546,
+            "count_request_ms": 5.101,
+            "all_ready_ms": 12.658,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 16.06,
+            "count_request_ms": 14.229,
+            "all_ready_ms": 30.295,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 325.916,
+            "count_request_ms": 161.994,
+            "all_ready_ms": 487.969,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "5c80f7df436b091eb36e7b8fd2532ac9f08279fbf8c06d0e4f22b94a99fb7de2"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 10.508,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 5.59,
+            "count_request_ms": 3.663,
+            "all_ready_ms": 9.286,
+            "rows": 10,
+            "page_bytes": 7400,
+            "result_sha256": "c72d98ac112211d5866f6c511075794a7c5a8e5f3aa265092fc591f242614218"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 24.913,
+            "count_request_ms": 24.179,
+            "all_ready_ms": 49.103,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 5.095,
+            "count_request_ms": 86.603,
+            "all_ready_ms": 91.751,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 16.082,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 5.394,
+            "count_request_ms": 3.745,
+            "all_ready_ms": 9.172,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.546,
+            "count_request_ms": 6.849,
+            "all_ready_ms": 14.405,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.088,
+            "count_request_ms": 156.635,
+            "all_ready_ms": 163.786,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "7246d6415d8c4a637613a8c2672bf5e6c078aa6b887c7d385a262b2a5ff53bb2"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 70.444,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 117.189,
+            "count_request_ms": 34.805,
+            "all_ready_ms": 152.028,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 95.245,
+            "count_request_ms": 93.569,
+            "all_ready_ms": 188.83,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 425.378,
+            "count_request_ms": 285.295,
+            "all_ready_ms": 710.738,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "24b477272e1fdf6534acbe904dc89bdd7346c31d1e75475a3e4198396b1982b4"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 70.18,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 111.024,
+            "count_request_ms": 57.575,
+            "all_ready_ms": 168.636,
+            "rows": 10,
+            "page_bytes": 7236,
+            "result_sha256": "1eae3165a576774240d1059f23b0eb42b2eafd98934b59bd215852aef2068e8c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 64.558,
+            "count_request_ms": 61.449,
+            "all_ready_ms": 126.021,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 59.308,
+            "count_request_ms": 134.009,
+            "all_ready_ms": 193.374,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 44.487,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 57.766,
+            "count_request_ms": 32.347,
+            "all_ready_ms": 90.15,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 36.302,
+            "count_request_ms": 35.626,
+            "all_ready_ms": 71.941,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 174.07,
+            "count_request_ms": 288.233,
+            "all_ready_ms": 462.366,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "ea2b3559769aee96b6def316d42b879b33a331fe2b1ed631ec661a6f7cc5b8cd"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 117.829,
+            "count_request_ms": 35.004,
+            "all_ready_ms": 152.874,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 100.274,
+            "count_request_ms": 99.13,
+            "all_ready_ms": 199.418,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 430.634,
+            "count_request_ms": 286.421,
+            "all_ready_ms": 717.122,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "24b477272e1fdf6534acbe904dc89bdd7346c31d1e75475a3e4198396b1982b4"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 73.335,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 114.14,
+            "count_request_ms": 57.538,
+            "all_ready_ms": 171.714,
+            "rows": 10,
+            "page_bytes": 7236,
+            "result_sha256": "1eae3165a576774240d1059f23b0eb42b2eafd98934b59bd215852aef2068e8c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 64.812,
+            "count_request_ms": 64.005,
+            "all_ready_ms": 128.831,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 59.286,
+            "count_request_ms": 141.007,
+            "all_ready_ms": 200.349,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 46.239,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 57.635,
+            "count_request_ms": 31.885,
+            "all_ready_ms": 89.553,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 34.945,
+            "count_request_ms": 34.779,
+            "all_ready_ms": 69.736,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 169.579,
+            "count_request_ms": 292.333,
+            "all_ready_ms": 461.974,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "ea2b3559769aee96b6def316d42b879b33a331fe2b1ed631ec661a6f7cc5b8cd"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 69.546,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.869,
+            "count_request_ms": 4.999,
+            "all_ready_ms": 12.909,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 15.442,
+            "count_request_ms": 14.297,
+            "all_ready_ms": 29.75,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 344.125,
+            "count_request_ms": 158.291,
+            "all_ready_ms": 502.478,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "5c80f7df436b091eb36e7b8fd2532ac9f08279fbf8c06d0e4f22b94a99fb7de2"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 10.072,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 5.441,
+            "count_request_ms": 8.465,
+            "all_ready_ms": 13.944,
+            "rows": 10,
+            "page_bytes": 7400,
+            "result_sha256": "c72d98ac112211d5866f6c511075794a7c5a8e5f3aa265092fc591f242614218"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 26.293,
+            "count_request_ms": 24.307,
+            "all_ready_ms": 50.612,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.749,
+            "count_request_ms": 79.894,
+            "all_ready_ms": 84.702,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 15.001,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.778,
+            "count_request_ms": 3.733,
+            "all_ready_ms": 8.543,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.377,
+            "count_request_ms": 6.561,
+            "all_ready_ms": 13.947,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.01,
+            "count_request_ms": 176.933,
+            "all_ready_ms": 184.003,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "7246d6415d8c4a637613a8c2672bf5e6c078aa6b887c7d385a262b2a5ff53bb2"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 13.287,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 16.219,
+            "count_request_ms": 14.817,
+            "all_ready_ms": 31.044,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 328.714,
+            "count_request_ms": 158.138,
+            "all_ready_ms": 486.913,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "5c80f7df436b091eb36e7b8fd2532ac9f08279fbf8c06d0e4f22b94a99fb7de2"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 10.238,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 5.278,
+            "count_request_ms": 3.666,
+            "all_ready_ms": 8.978,
+            "rows": 10,
+            "page_bytes": 7400,
+            "result_sha256": "c72d98ac112211d5866f6c511075794a7c5a8e5f3aa265092fc591f242614218"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 25.194,
+            "count_request_ms": 24.026,
+            "all_ready_ms": 49.232,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.919,
+            "count_request_ms": 74.894,
+            "all_ready_ms": 79.871,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 13.493,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.873,
+            "count_request_ms": 3.584,
+            "all_ready_ms": 8.489,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.478,
+            "count_request_ms": 6.453,
+            "all_ready_ms": 13.941,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 6.587,
+            "count_request_ms": 173.214,
+            "all_ready_ms": 179.874,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "7246d6415d8c4a637613a8c2672bf5e6c078aa6b887c7d385a262b2a5ff53bb2"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 13.929,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.496,
+            "count_request_ms": 5.087,
+            "all_ready_ms": 12.611,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 97.523,
+            "count_request_ms": 95.722,
+            "all_ready_ms": 193.26,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 419.295,
+            "count_request_ms": 281.618,
+            "all_ready_ms": 701.014,
+            "rows": 25,
+            "page_bytes": 17597,
+            "result_sha256": "24b477272e1fdf6534acbe904dc89bdd7346c31d1e75475a3e4198396b1982b4"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 71.862,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 111.545,
+            "count_request_ms": 59.392,
+            "all_ready_ms": 170.974,
+            "rows": 10,
+            "page_bytes": 7236,
+            "result_sha256": "1eae3165a576774240d1059f23b0eb42b2eafd98934b59bd215852aef2068e8c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 66.646,
+            "count_request_ms": 61.64,
+            "all_ready_ms": 128.301,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 59.424,
+            "count_request_ms": 134.263,
+            "all_ready_ms": 193.751,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 50.584,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 58.141,
+            "count_request_ms": 34.546,
+            "all_ready_ms": 92.726,
+            "rows": 10,
+            "page_bytes": 7297,
+            "result_sha256": "c38d18849a7da24d952ed1ba012b03f7b9942aa480345f4d0371cf5058c633e7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 39.537,
+            "count_request_ms": 36.056,
+            "all_ready_ms": 75.606,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 171.955,
+            "count_request_ms": 285.301,
+            "all_ready_ms": 457.325,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "ea2b3559769aee96b6def316d42b879b33a331fe2b1ed631ec661a6f7cc5b8cd"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 70.205,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 119.67,
+            "count_request_ms": 35.901,
+            "all_ready_ms": 155.603,
+            "rows": 10,
+            "page_bytes": 8221,
+            "result_sha256": "f2ff76b6e9e3c4d0e3c9b5a4c1127cd80166e8766750f36e33730f31cd750ca7"
+          }
+        ],
+        "summary": [
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 57.766,
+                "min": 57.635,
+                "max": 58.141
+              },
+              "count_request_ms": {
+                "median": 32.347,
+                "min": 31.885,
+                "max": 34.546
+              },
+              "all_ready_ms": {
+                "median": 90.15,
+                "min": 89.553,
+                "max": 92.726
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 46.239,
+                "min": 44.487,
+                "max": 50.584
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 59.308,
+                "min": 59.286,
+                "max": 59.424
+              },
+              "count_request_ms": {
+                "median": 134.263,
+                "min": 134.009,
+                "max": 141.007
+              },
+              "all_ready_ms": {
+                "median": 193.751,
+                "min": 193.374,
+                "max": 200.349
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 36.302,
+                "min": 34.945,
+                "max": 39.537
+              },
+              "count_request_ms": {
+                "median": 35.626,
+                "min": 34.779,
+                "max": 36.056
+              },
+              "all_ready_ms": {
+                "median": 71.941,
+                "min": 69.736,
+                "max": 75.606
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 117.829,
+                "min": 117.189,
+                "max": 119.67
+              },
+              "count_request_ms": {
+                "median": 35.004,
+                "min": 34.805,
+                "max": 35.901
+              },
+              "all_ready_ms": {
+                "median": 152.874,
+                "min": 152.028,
+                "max": 155.603
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 70.205,
+                "min": 69.546,
+                "max": 70.444
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 171.955,
+                "min": 169.579,
+                "max": 174.07
+              },
+              "count_request_ms": {
+                "median": 288.233,
+                "min": 285.301,
+                "max": 292.333
+              },
+              "all_ready_ms": {
+                "median": 461.974,
+                "min": 457.325,
+                "max": 462.366
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 97.523,
+                "min": 95.245,
+                "max": 100.274
+              },
+              "count_request_ms": {
+                "median": 95.722,
+                "min": 93.569,
+                "max": 99.13
+              },
+              "all_ready_ms": {
+                "median": 193.26,
+                "min": 188.83,
+                "max": 199.418
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 111.545,
+                "min": 111.024,
+                "max": 114.14
+              },
+              "count_request_ms": {
+                "median": 57.575,
+                "min": 57.538,
+                "max": 59.392
+              },
+              "all_ready_ms": {
+                "median": 170.974,
+                "min": 168.636,
+                "max": 171.714
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 71.862,
+                "min": 70.18,
+                "max": 73.335
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 425.378,
+                "min": 419.295,
+                "max": 430.634
+              },
+              "count_request_ms": {
+                "median": 285.295,
+                "min": 281.618,
+                "max": 286.421
+              },
+              "all_ready_ms": {
+                "median": 710.738,
+                "min": 701.014,
+                "max": 717.122
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 64.812,
+                "min": 64.558,
+                "max": 66.646
+              },
+              "count_request_ms": {
+                "median": 61.64,
+                "min": 61.449,
+                "max": 64.005
+              },
+              "all_ready_ms": {
+                "median": 128.301,
+                "min": 126.021,
+                "max": 128.831
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 4.873,
+                "min": 4.778,
+                "max": 5.394
+              },
+              "count_request_ms": {
+                "median": 3.733,
+                "min": 3.584,
+                "max": 3.745
+              },
+              "all_ready_ms": {
+                "median": 8.543,
+                "min": 8.489,
+                "max": 9.172
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 15.001,
+                "min": 13.493,
+                "max": 16.082
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 4.919,
+                "min": 4.749,
+                "max": 5.095
+              },
+              "count_request_ms": {
+                "median": 79.894,
+                "min": 74.894,
+                "max": 86.603
+              },
+              "all_ready_ms": {
+                "median": 84.702,
+                "min": 79.871,
+                "max": 91.751
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 7.478,
+                "min": 7.377,
+                "max": 7.546
+              },
+              "count_request_ms": {
+                "median": 6.561,
+                "min": 6.453,
+                "max": 6.849
+              },
+              "all_ready_ms": {
+                "median": 13.947,
+                "min": 13.941,
+                "max": 14.405
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 7.546,
+                "min": 7.496,
+                "max": 7.869
+              },
+              "count_request_ms": {
+                "median": 5.087,
+                "min": 4.999,
+                "max": 5.101
+              },
+              "all_ready_ms": {
+                "median": 12.658,
+                "min": 12.611,
+                "max": 12.909
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 13.287,
+                "min": 11.416,
+                "max": 13.929
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 7.01,
+                "min": 6.587,
+                "max": 7.088
+              },
+              "count_request_ms": {
+                "median": 173.214,
+                "min": 156.635,
+                "max": 176.933
+              },
+              "all_ready_ms": {
+                "median": 179.874,
+                "min": 163.786,
+                "max": 184.003
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 16.06,
+                "min": 15.442,
+                "max": 16.219
+              },
+              "count_request_ms": {
+                "median": 14.297,
+                "min": 14.229,
+                "max": 14.817
+              },
+              "all_ready_ms": {
+                "median": 30.295,
+                "min": 29.75,
+                "max": 31.044
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 5.441,
+                "min": 5.278,
+                "max": 5.59
+              },
+              "count_request_ms": {
+                "median": 3.666,
+                "min": 3.663,
+                "max": 8.465
+              },
+              "all_ready_ms": {
+                "median": 9.286,
+                "min": 8.978,
+                "max": 13.944
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 10.238,
+                "min": 10.072,
+                "max": 10.508
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 328.714,
+                "min": 325.916,
+                "max": 344.125
+              },
+              "count_request_ms": {
+                "median": 158.291,
+                "min": 158.138,
+                "max": 161.994
+              },
+              "all_ready_ms": {
+                "median": 487.969,
+                "min": 486.913,
+                "max": 502.478
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 25.194,
+                "min": 24.913,
+                "max": 26.293
+              },
+              "count_request_ms": {
+                "median": 24.179,
+                "min": 24.026,
+                "max": 24.307
+              },
+              "all_ready_ms": {
+                "median": 49.232,
+                "min": 49.103,
+                "max": 50.612
+              }
+            }
+          }
+        ],
+        "catalog_after": {
+          "format": "2-includes-view-options-and-index-state",
+          "tables_views_security": "9c5c49e060ff0d5d18629618dc9d639ab73faa227db07a071ab4af4734f843b2",
+          "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+          "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+          "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+          "functions": "65b4a8638668d63ef92b223c8866cac9941c8d56b3be948b9459fc7a801d6722",
+          "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+          "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+          "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+        },
+        "cases_verified": 24,
+        "fixture_setup": {
+          "database": "aselbox_opt_large",
+          "factor": 10,
+          "settlement_facts": 737330,
+          "data_kiosk_facts": 295110,
+          "fact_relations_with_rls": 2,
+          "setup_seconds": 16.481,
+          "method": "Copy each fact with new identity/key; update clone-only source inventories.",
+          "limitation": "Date, SKU, company and source-version cardinalities stay seed-sized.",
+          "read_security": "Roles, grants and RLS unchanged; setup trigger suppression ends before reads."
+        }
+      },
+      "run_note": "Density completed all repetitions. Subsequent history selection rejected a fixture without a multi-row group before history timing. Cleanup completed; history was measured separately with a corrected positive-group selection.",
+      "filtered_scope": "One date, SKU, marketplace, type and matching currency search; 10 matching rows for every actor/dataset."
+    },
+    {
+      "fixture": "history",
+      "source_artifact": "/var/folders/7q/pm6kgttn3tl__cd93wyy8r000000gn/T/aselbox-text-search-_j79h38r/final-capped-history/results.json",
+      "started_at_utc": "2026-09-25T11:18:11.448405+00:00",
+      "finished_at_utc": "2026-09-25T11:19:04.730583+00:00",
+      "cleanup": {
+        "clones_created": 1,
+        "clones_removed": 1,
+        "remaining_clones": 0,
+        "source_catalog_unchanged": true,
+        "private_dump_removed": true,
+        "private_temporary_directory_removed": true
+      },
+      "measurement": {
+        "database": "aselbox_opt_broad",
+        "repeat": 3,
+        "warmups": 1,
+        "settlement_facts": 737330,
+        "data_kiosk_facts": 295110,
+        "catalog_before": {
+          "format": "2-includes-view-options-and-index-state",
+          "tables_views_security": "9c5c49e060ff0d5d18629618dc9d639ab73faa227db07a071ab4af4734f843b2",
+          "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+          "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+          "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+          "functions": "65b4a8638668d63ef92b223c8866cac9941c8d56b3be948b9459fc7a801d6722",
+          "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+          "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+          "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+        },
+        "amount_indexes_absent": true,
+        "records": [
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 224.204,
+            "count_request_ms": 322.977,
+            "all_ready_ms": 547.247,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "6f7d9308853ef0892b4357242a779adf391491020b6dde60a2b2462bdf518322"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 87.569,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 123.066,
+            "count_request_ms": 60.958,
+            "all_ready_ms": 184.094,
+            "rows": 25,
+            "page_bytes": 21206,
+            "result_sha256": "d38bbc0aa06d1446353f96585995c480cf09fe629aee11cfdf5adbab1aae6c5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 121.771,
+            "count_request_ms": 122.147,
+            "all_ready_ms": 243.932,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 431.75,
+            "count_request_ms": 294.547,
+            "all_ready_ms": 726.318,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "5a48194d1f5287f145f18305b6c88ed40990d98ece160013c153d52f5bc1199f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 72.045,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 118.191,
+            "count_request_ms": 61.979,
+            "all_ready_ms": 180.19,
+            "rows": 25,
+            "page_bytes": 18981,
+            "result_sha256": "379de1fb7a28a6a545a9781644e622a014c86c4efed7f13b792d9cbf17a50563"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 65.723,
+            "count_request_ms": 64.738,
+            "all_ready_ms": 130.468,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 108.984,
+            "count_request_ms": 177.478,
+            "all_ready_ms": 286.482,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 78.631,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 109.649,
+            "count_request_ms": 55.719,
+            "all_ready_ms": 165.378,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 55.451,
+            "count_request_ms": 55.767,
+            "all_ready_ms": 111.23,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 9.274,
+            "count_request_ms": 155.987,
+            "all_ready_ms": 165.316,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "4d128855dca9e84a5563e96e4eac9a16b06618fd0789d33cfc7c448d505f26c7"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 13.526,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 6.841,
+            "count_request_ms": 4.24,
+            "all_ready_ms": 11.131,
+            "rows": 25,
+            "page_bytes": 20906,
+            "result_sha256": "f02a848bcc5a6591a69b17e363245c04d0e0438577386e23f78dd86c8615f835"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 7.479,
+            "count_request_ms": 6.092,
+            "all_ready_ms": 13.58,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 316.771,
+            "count_request_ms": 147.225,
+            "all_ready_ms": 464.063,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "c16942eb4f2b1a763bd3486c056c7a2a0492e16ec6a00263a1c7e3ea646c7641"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 10.945,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 6.462,
+            "count_request_ms": 4.415,
+            "all_ready_ms": 10.943,
+            "rows": 25,
+            "page_bytes": 18100,
+            "result_sha256": "d3372b4df65ec068d8a8ea86856508b7e71ae97f6d1999c5eb840a47a9f34f2a"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 6.723,
+            "count_request_ms": 6.048,
+            "all_ready_ms": 12.78,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 4.822,
+            "count_request_ms": 79.917,
+            "all_ready_ms": 84.848,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": true,
+            "rejection_ms": 16.969,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 4.287,
+            "count_request_ms": 3.348,
+            "all_ready_ms": 7.649,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 0,
+            "warmup": true,
+            "rejected": false,
+            "rows_ready_ms": 4.203,
+            "count_request_ms": 3.703,
+            "all_ready_ms": 7.918,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 12.841,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.318,
+            "count_request_ms": 4.309,
+            "all_ready_ms": 11.689,
+            "rows": 25,
+            "page_bytes": 20906,
+            "result_sha256": "f02a848bcc5a6591a69b17e363245c04d0e0438577386e23f78dd86c8615f835"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.816,
+            "count_request_ms": 6.303,
+            "all_ready_ms": 14.132,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 321.942,
+            "count_request_ms": 147.862,
+            "all_ready_ms": 469.867,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "c16942eb4f2b1a763bd3486c056c7a2a0492e16ec6a00263a1c7e3ea646c7641"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 10.617,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 6.277,
+            "count_request_ms": 4.333,
+            "all_ready_ms": 10.677,
+            "rows": 25,
+            "page_bytes": 18100,
+            "result_sha256": "d3372b4df65ec068d8a8ea86856508b7e71ae97f6d1999c5eb840a47a9f34f2a"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.313,
+            "count_request_ms": 5.906,
+            "all_ready_ms": 13.23,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.313,
+            "count_request_ms": 78.067,
+            "all_ready_ms": 82.467,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 14.844,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.113,
+            "count_request_ms": 3.174,
+            "all_ready_ms": 7.302,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.172,
+            "count_request_ms": 3.679,
+            "all_ready_ms": 7.859,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 8.497,
+            "count_request_ms": 158.408,
+            "all_ready_ms": 166.96,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "4d128855dca9e84a5563e96e4eac9a16b06618fd0789d33cfc7c448d505f26c7"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 72.392,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 121.003,
+            "count_request_ms": 60.533,
+            "all_ready_ms": 181.594,
+            "rows": 25,
+            "page_bytes": 21206,
+            "result_sha256": "d38bbc0aa06d1446353f96585995c480cf09fe629aee11cfdf5adbab1aae6c5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 116.741,
+            "count_request_ms": 115.58,
+            "all_ready_ms": 232.335,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 424.081,
+            "count_request_ms": 279.657,
+            "all_ready_ms": 703.802,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "5a48194d1f5287f145f18305b6c88ed40990d98ece160013c153d52f5bc1199f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 71.672,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 115.099,
+            "count_request_ms": 60.869,
+            "all_ready_ms": 176.025,
+            "rows": 25,
+            "page_bytes": 18981,
+            "result_sha256": "379de1fb7a28a6a545a9781644e622a014c86c4efed7f13b792d9cbf17a50563"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 63.656,
+            "count_request_ms": 62.843,
+            "all_ready_ms": 126.512,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 104.969,
+            "count_request_ms": 178.888,
+            "all_ready_ms": 283.915,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 71.143,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 104.389,
+            "count_request_ms": 55.748,
+            "all_ready_ms": 160.155,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 56.554,
+            "count_request_ms": 57.556,
+            "all_ready_ms": 114.125,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 1,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 220.455,
+            "count_request_ms": 322.809,
+            "all_ready_ms": 543.331,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "6f7d9308853ef0892b4357242a779adf391491020b6dde60a2b2462bdf518322"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 121.461,
+            "count_request_ms": 62.862,
+            "all_ready_ms": 184.385,
+            "rows": 25,
+            "page_bytes": 21206,
+            "result_sha256": "d38bbc0aa06d1446353f96585995c480cf09fe629aee11cfdf5adbab1aae6c5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 117.881,
+            "count_request_ms": 116.522,
+            "all_ready_ms": 234.417,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 414.698,
+            "count_request_ms": 277.096,
+            "all_ready_ms": 691.86,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "5a48194d1f5287f145f18305b6c88ed40990d98ece160013c153d52f5bc1199f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 74.045,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 114.275,
+            "count_request_ms": 61.918,
+            "all_ready_ms": 176.22,
+            "rows": 25,
+            "page_bytes": 18981,
+            "result_sha256": "379de1fb7a28a6a545a9781644e622a014c86c4efed7f13b792d9cbf17a50563"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 63.216,
+            "count_request_ms": 61.964,
+            "all_ready_ms": 125.193,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 108.998,
+            "count_request_ms": 169.088,
+            "all_ready_ms": 278.146,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 75.261,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 106.349,
+            "count_request_ms": 57.114,
+            "all_ready_ms": 163.481,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 56.908,
+            "count_request_ms": 55.94,
+            "all_ready_ms": 112.861,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 216.826,
+            "count_request_ms": 317.881,
+            "all_ready_ms": 534.772,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "6f7d9308853ef0892b4357242a779adf391491020b6dde60a2b2462bdf518322"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 73.071,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.8,
+            "count_request_ms": 4.263,
+            "all_ready_ms": 12.113,
+            "rows": 25,
+            "page_bytes": 20906,
+            "result_sha256": "f02a848bcc5a6591a69b17e363245c04d0e0438577386e23f78dd86c8615f835"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.911,
+            "count_request_ms": 6.403,
+            "all_ready_ms": 14.325,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 325.102,
+            "count_request_ms": 148.671,
+            "all_ready_ms": 473.842,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "c16942eb4f2b1a763bd3486c056c7a2a0492e16ec6a00263a1c7e3ea646c7641"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 10.069,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 6.516,
+            "count_request_ms": 4.392,
+            "all_ready_ms": 10.957,
+            "rows": 25,
+            "page_bytes": 18100,
+            "result_sha256": "d3372b4df65ec068d8a8ea86856508b7e71ae97f6d1999c5eb840a47a9f34f2a"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 6.849,
+            "count_request_ms": 5.778,
+            "all_ready_ms": 12.636,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.725,
+            "count_request_ms": 78.653,
+            "all_ready_ms": 83.477,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 17.369,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 3.947,
+            "count_request_ms": 2.841,
+            "all_ready_ms": 6.795,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 3.927,
+            "count_request_ms": 3.552,
+            "all_ready_ms": 7.482,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 8.504,
+            "count_request_ms": 157.291,
+            "all_ready_ms": 165.826,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "4d128855dca9e84a5563e96e4eac9a16b06618fd0789d33cfc7c448d505f26c7"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 2,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 13.532,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.974,
+            "count_request_ms": 6.332,
+            "all_ready_ms": 14.313,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 324.157,
+            "count_request_ms": 149.788,
+            "all_ready_ms": 474.01,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "c16942eb4f2b1a763bd3486c056c7a2a0492e16ec6a00263a1c7e3ea646c7641"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 9.49,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 6.268,
+            "count_request_ms": 5.091,
+            "all_ready_ms": 11.414,
+            "rows": 25,
+            "page_bytes": 18100,
+            "result_sha256": "d3372b4df65ec068d8a8ea86856508b7e71ae97f6d1999c5eb840a47a9f34f2a"
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 6.952,
+            "count_request_ms": 5.929,
+            "all_ready_ms": 12.891,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.26,
+            "count_request_ms": 79.903,
+            "all_ready_ms": 84.246,
+            "rows": 25,
+            "page_bytes": 17926,
+            "result_sha256": "b8083d454f7dfba2aca7e86f404ec8855901c92a0fffb4caf258698c0e7a1c8a"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 14.135,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.128,
+            "count_request_ms": 3.013,
+            "all_ready_ms": 7.154,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 4.137,
+            "count_request_ms": 3.463,
+            "all_ready_ms": 7.609,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 8.669,
+            "count_request_ms": 164.201,
+            "all_ready_ms": 172.926,
+            "rows": 25,
+            "page_bytes": 20821,
+            "result_sha256": "4d128855dca9e84a5563e96e4eac9a16b06618fd0789d33cfc7c448d505f26c7"
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 13.438,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 7.008,
+            "count_request_ms": 4.21,
+            "all_ready_ms": 11.272,
+            "rows": 25,
+            "page_bytes": 20906,
+            "result_sha256": "f02a848bcc5a6591a69b17e363245c04d0e0438577386e23f78dd86c8615f835"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 122.12,
+            "count_request_ms": 117.853,
+            "all_ready_ms": 239.987,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 415.811,
+            "count_request_ms": 277.648,
+            "all_ready_ms": 693.533,
+            "rows": 25,
+            "page_bytes": 17798,
+            "result_sha256": "5a48194d1f5287f145f18305b6c88ed40990d98ece160013c153d52f5bc1199f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 71.725,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 116.113,
+            "count_request_ms": 63.515,
+            "all_ready_ms": 179.689,
+            "rows": 25,
+            "page_bytes": 18981,
+            "result_sha256": "379de1fb7a28a6a545a9781644e622a014c86c4efed7f13b792d9cbf17a50563"
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 63.273,
+            "count_request_ms": 61.958,
+            "all_ready_ms": 125.245,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 106.323,
+            "count_request_ms": 166.607,
+            "all_ready_ms": 272.994,
+            "rows": 25,
+            "page_bytes": 17776,
+            "result_sha256": "a133ebe8c6e1e6f038651d354c22c0780de6114f7f20a02ae34b41b85a5f147f"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 75.122,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 101.425,
+            "count_request_ms": 55.836,
+            "all_ready_ms": 157.28,
+            "rows": 1,
+            "page_bytes": 742,
+            "result_sha256": "3a2cfebd127595c4a83ba73e0bc775ea6ee1c36e7870a86318d3b33b5b55ff5b"
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 56.787,
+            "count_request_ms": 56.111,
+            "all_ready_ms": 112.913,
+            "rows": 0,
+            "page_bytes": 33,
+            "result_sha256": "948021225c0bc1af0936da1d41390428dd5abe48b753241a63443a012e14850c"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 219.914,
+            "count_request_ms": 320.595,
+            "all_ready_ms": 540.583,
+            "rows": 25,
+            "page_bytes": 20677,
+            "result_sha256": "6f7d9308853ef0892b4357242a779adf391491020b6dde60a2b2462bdf518322"
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": true,
+            "rejection_ms": 74.236,
+            "matching_rows_exceed": 10000
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "iteration": 3,
+            "warmup": false,
+            "rejected": false,
+            "rows_ready_ms": 122.372,
+            "count_request_ms": 62.815,
+            "all_ready_ms": 185.259,
+            "rows": 25,
+            "page_bytes": 21206,
+            "result_sha256": "d38bbc0aa06d1446353f96585995c480cf09fe629aee11cfdf5adbab1aae6c5b"
+          }
+        ],
+        "summary": [
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 104.389,
+                "min": 101.425,
+                "max": 106.349
+              },
+              "count_request_ms": {
+                "median": 55.836,
+                "min": 55.748,
+                "max": 57.114
+              },
+              "all_ready_ms": {
+                "median": 160.155,
+                "min": 157.28,
+                "max": 163.481
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 75.122,
+                "min": 71.143,
+                "max": 75.261
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 106.323,
+                "min": 104.969,
+                "max": 108.998
+              },
+              "count_request_ms": {
+                "median": 169.088,
+                "min": 166.607,
+                "max": 178.888
+              },
+              "all_ready_ms": {
+                "median": 278.146,
+                "min": 272.994,
+                "max": 283.915
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 56.787,
+                "min": 56.554,
+                "max": 56.908
+              },
+              "count_request_ms": {
+                "median": 56.111,
+                "min": 55.94,
+                "max": 57.556
+              },
+              "all_ready_ms": {
+                "median": 112.913,
+                "min": 112.861,
+                "max": 114.125
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 121.461,
+                "min": 121.003,
+                "max": 122.372
+              },
+              "count_request_ms": {
+                "median": 62.815,
+                "min": 60.533,
+                "max": 62.862
+              },
+              "all_ready_ms": {
+                "median": 184.385,
+                "min": 181.594,
+                "max": 185.259
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 73.071,
+                "min": 72.392,
+                "max": 74.236
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 219.914,
+                "min": 216.826,
+                "max": 220.455
+              },
+              "count_request_ms": {
+                "median": 320.595,
+                "min": 317.881,
+                "max": 322.809
+              },
+              "all_ready_ms": {
+                "median": 540.583,
+                "min": 534.772,
+                "max": 543.331
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "live",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 117.881,
+                "min": 116.741,
+                "max": 122.12
+              },
+              "count_request_ms": {
+                "median": 116.522,
+                "min": 115.58,
+                "max": 117.853
+              },
+              "all_ready_ms": {
+                "median": 234.417,
+                "min": 232.335,
+                "max": 239.987
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 115.099,
+                "min": 114.275,
+                "max": 116.113
+              },
+              "count_request_ms": {
+                "median": 61.918,
+                "min": 60.869,
+                "max": 63.515
+              },
+              "all_ready_ms": {
+                "median": 176.22,
+                "min": 176.025,
+                "max": 179.689
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 71.725,
+                "min": 71.672,
+                "max": 74.045
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 415.811,
+                "min": 414.698,
+                "max": 424.081
+              },
+              "count_request_ms": {
+                "median": 277.648,
+                "min": 277.096,
+                "max": 279.657
+              },
+              "all_ready_ms": {
+                "median": 693.533,
+                "min": 691.86,
+                "max": 703.802
+              }
+            }
+          },
+          {
+            "role": "member_a",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 63.273,
+                "min": 63.216,
+                "max": 63.656
+              },
+              "count_request_ms": {
+                "median": 61.964,
+                "min": 61.958,
+                "max": 62.843
+              },
+              "all_ready_ms": {
+                "median": 125.245,
+                "min": 125.193,
+                "max": 126.512
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 4.113,
+                "min": 3.947,
+                "max": 4.128
+              },
+              "count_request_ms": {
+                "median": 3.013,
+                "min": 2.841,
+                "max": 3.174
+              },
+              "all_ready_ms": {
+                "median": 7.154,
+                "min": 6.795,
+                "max": 7.302
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 14.844,
+                "min": 14.135,
+                "max": 17.369
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 4.313,
+                "min": 4.26,
+                "max": 4.725
+              },
+              "count_request_ms": {
+                "median": 78.653,
+                "min": 78.067,
+                "max": 79.903
+              },
+              "all_ready_ms": {
+                "median": 83.477,
+                "min": 82.467,
+                "max": 84.246
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "data_kiosk",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 4.137,
+                "min": 3.927,
+                "max": 4.172
+              },
+              "count_request_ms": {
+                "median": 3.552,
+                "min": 3.463,
+                "max": 3.679
+              },
+              "all_ready_ms": {
+                "median": 7.609,
+                "min": 7.482,
+                "max": 7.859
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 7.318,
+                "min": 7.008,
+                "max": 7.8
+              },
+              "count_request_ms": {
+                "median": 4.263,
+                "min": 4.21,
+                "max": 4.309
+              },
+              "all_ready_ms": {
+                "median": 11.689,
+                "min": 11.272,
+                "max": 12.113
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 13.438,
+                "min": 12.841,
+                "max": 13.532
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 8.504,
+                "min": 8.497,
+                "max": 8.669
+              },
+              "count_request_ms": {
+                "median": 158.408,
+                "min": 157.291,
+                "max": 164.201
+              },
+              "all_ready_ms": {
+                "median": 166.96,
+                "min": 165.826,
+                "max": 172.926
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "live",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 7.911,
+                "min": 7.816,
+                "max": 7.974
+              },
+              "count_request_ms": {
+                "median": 6.332,
+                "min": 6.303,
+                "max": 6.403
+              },
+              "all_ready_ms": {
+                "median": 14.313,
+                "min": 14.132,
+                "max": 14.325
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_filtered",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 6.277,
+                "min": 6.268,
+                "max": 6.516
+              },
+              "count_request_ms": {
+                "median": 4.392,
+                "min": 4.333,
+                "max": 5.091
+              },
+              "all_ready_ms": {
+                "median": 10.957,
+                "min": 10.677,
+                "max": 11.414
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "amount_over_limit",
+            "metrics": {
+              "rejection_ms": {
+                "median": 10.069,
+                "min": 9.49,
+                "max": 10.617
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_blank",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 324.157,
+                "min": 321.942,
+                "max": 325.102
+              },
+              "count_request_ms": {
+                "median": 148.671,
+                "min": 147.862,
+                "max": 149.788
+              },
+              "all_ready_ms": {
+                "median": 473.842,
+                "min": 469.867,
+                "max": 474.01
+              }
+            }
+          },
+          {
+            "role": "operator",
+            "dataset": "settlement",
+            "case": "date_no_match",
+            "metrics": {
+              "rows_ready_ms": {
+                "median": 6.952,
+                "min": 6.849,
+                "max": 7.313
+              },
+              "count_request_ms": {
+                "median": 5.906,
+                "min": 5.778,
+                "max": 5.929
+              },
+              "all_ready_ms": {
+                "median": 12.891,
+                "min": 12.636,
+                "max": 13.23
+              }
+            }
+          }
+        ],
+        "catalog_after": {
+          "format": "2-includes-view-options-and-index-state",
+          "tables_views_security": "9c5c49e060ff0d5d18629618dc9d639ab73faa227db07a071ab4af4734f843b2",
+          "columns": "5ace489a0b01ee0ae84b0f89f98d8e6bac80a5503e7c6bdf217cf35b2b3247ea",
+          "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+          "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+          "functions": "65b4a8638668d63ef92b223c8866cac9941c8d56b3be948b9459fc7a801d6722",
+          "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+          "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+          "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+        },
+        "cases_verified": 24,
+        "fixture_setup": {
+          "database": "aselbox_opt_broad",
+          "total_temporal_cohorts": 10,
+          "cohort_stride_days": 366,
+          "cohort_offsets_days": [0, -366, -732, -1098, -1464, -1830, -2196, -2562, -2928, -3294],
+          "before": {
+            "settlement_facts": 73733,
+            "data_kiosk_facts": 29511,
+            "settlement_headers": 58,
+            "day_headers": 1620,
+            "settlement_versions": 59,
+            "day_versions": 1620,
+            "batches": 18,
+            "settlement_acquisitions": 62,
+            "data_kiosk_acquisitions": 18,
+            "pruned_versions": 0,
+            "companies": 2,
+            "accounts": 3,
+            "seller_skus": 129,
+            "empty_day_versions": 270,
+            "obsolete_settlement_versions": 1,
+            "obsolete_day_versions": 0,
+            "settlement_dates": {
+              "first": "2026-06-03",
+              "last": "2026-09-08",
+              "distinct_days": 98
+            },
+            "data_kiosk_dates": {
+              "first": "2026-06-16",
+              "last": "2026-09-13",
+              "distinct_days": 90
+            }
+          },
+          "after": {
+            "settlement_facts": 737330,
+            "data_kiosk_facts": 295110,
+            "settlement_headers": 580,
+            "day_headers": 16200,
+            "settlement_versions": 590,
+            "day_versions": 16200,
+            "batches": 180,
+            "settlement_acquisitions": 620,
+            "data_kiosk_acquisitions": 180,
+            "pruned_versions": 0,
+            "companies": 2,
+            "accounts": 3,
+            "seller_skus": 129,
+            "empty_day_versions": 2700,
+            "obsolete_settlement_versions": 10,
+            "obsolete_day_versions": 0,
+            "settlement_dates": {
+              "first": "2017-05-27",
+              "last": "2026-09-08",
+              "distinct_days": 980
+            },
+            "data_kiosk_dates": {
+              "first": "2017-06-09",
+              "last": "2026-09-13",
+              "distinct_days": 900
+            }
+          },
+          "new_selected_terms_revisions": 129,
+          "setup_seconds": 19.643,
+          "schema_indexes_and_access_unchanged": true,
+          "original_payouts_and_account_membership_unchanged": true,
+          "normal_trigger_execution_restored": true,
+          "integrity_checks": "All foreign keys/current identity pairs, source/batch/fee inventories, fee exclusions, pruning markers, source/header identity and ownership checked before commit.",
+          "fee_assumption": "Each marketplace's earliest configured fee rate extends backwards in a new selected revision; original terms and payout references are retained.",
+          "limitations": "Shifted seasonal seed windows and repeated value/SKU distributions are synthetic. Raw JSON/archive references are not reconstructed for historical replay. Revision tokens are unchanged during fixture-only trigger suppression; query benchmarks must use fresh reads."
+        }
+      },
+      "run_note": "History completed all repetitions after allowing a one-row positive group. Uses largest qualifying group, unlike the density run, which selected the smallest multi-row group.",
+      "filtered_scope": "One date, SKU, marketplace, type and matching currency search; returned 25 rows for live/settlement and 1 for Data Kiosk. Exact full count was verified <=10,000 but was not saved in this run."
+    }
+  ]
+}

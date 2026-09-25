@@ -37,25 +37,47 @@ def isolated_database(database_url: str = DEFAULT_DATABASE_URL) -> Generator[str
             sql.SQL("create database {} template template0").format(sql.Identifier(database_name))
         )
         try:
-            with psycopg.connect(connection_info) as connection:
-                connection.execute(
-                    """
-                    create schema extensions;
-                    create schema auth;
-                    create table auth.users(id uuid primary key);
-                    create function auth.uid() returns uuid language sql stable
-                    set search_path = '' as $$
-                        select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
-                    $$;
-                    grant usage on schema auth to authenticated;
-                    create schema storage;
-                    create table storage.buckets(
-                        id text primary key,name text not null,public boolean not null
-                    );
-                    """
-                )
-                for path in sorted((Path(__file__).parents[1] / "migrations").glob("*.sql")):
-                    connection.execute(read_trusted_sql(path))
+            # ALTER ROLE is cluster-wide, even inside a disposable database.
+            # Serialize baseline installation and restore the original aggregate
+            # setting before committing, so the development API never sees it.
+            admin.execute("select pg_advisory_lock(845529714503291)")
+            try:
+                aggregate_setting = admin.execute(
+                    "select setting from pg_roles r cross join lateral unnest(r.rolconfig) setting "
+                    "where r.rolname='authenticator' "
+                    "and setting like 'pgrst.db_aggregates_enabled=%'"
+                ).fetchone()
+                with psycopg.connect(connection_info) as connection:
+                    connection.execute(
+                        """
+                        create schema extensions;
+                        create schema auth;
+                        create table auth.users(id uuid primary key);
+                        create function auth.uid() returns uuid language sql stable
+                        set search_path = '' as $$
+                            select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
+                        $$;
+                        grant usage on schema auth to authenticated;
+                        create schema storage;
+                        create table storage.buckets(
+                            id text primary key,name text not null,public boolean not null
+                        );
+                        """
+                    )
+                    for path in sorted((Path(__file__).parents[1] / "migrations").glob("*.sql")):
+                        connection.execute(read_trusted_sql(path))
+                    if aggregate_setting is None:
+                        connection.execute(
+                            'alter role authenticator reset "pgrst.db_aggregates_enabled"'
+                        )
+                    else:
+                        connection.execute(
+                            sql.SQL(
+                                'alter role authenticator set "pgrst.db_aggregates_enabled" = {}'
+                            ).format(sql.Literal(aggregate_setting[0].split("=", 1)[1]))
+                        )
+            finally:
+                admin.execute("select pg_advisory_unlock(845529714503291)")
             yield connection_info
         finally:
             admin.execute(

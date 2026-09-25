@@ -112,7 +112,12 @@ function parseDecimal(value: string | null): DecimalParts | null {
 }
 
 function groupIntegerDigits(value: string): string {
-  return value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const firstGroupLength = value.length % 3 || 3;
+  const groups = [value.slice(0, firstGroupLength)];
+  for (let index = firstGroupLength; index < value.length; index += 3) {
+    groups.push(value.slice(index, index + 3));
+  }
+  return groups.join(",");
 }
 
 function formatParts(parts: DecimalParts): string {
@@ -143,11 +148,29 @@ export function formatExactMoney(value: string | null, currency: string | null):
     : `${formatParts(parts)} ${currencyCode}`;
 }
 
-export function formatExactQuantity(value: string | null): string {
-  return formatExactDecimal(value);
-}
-
-export function isNonZeroDecimal(value: string | null): boolean {
-  const parts = parseDecimal(value);
-  return parts !== null && (parts.integer !== "0" || /[1-9]/.test(parts.fraction));
+/** Add known decimal values without converting financial amounts to Number. */
+export function sumExactDecimals(values: Iterable<string | null>): string | null {
+  let total = 0n;
+  let scale = 0;
+  let hasValue = false;
+  for (const value of values) {
+    if (value === null) continue;
+    const parts = parseDecimal(value);
+    if (parts === null) throw new Error("Cannot sum an invalid decimal amount");
+    hasValue = true;
+    if (parts.fraction.length > scale) {
+      total *= 10n ** BigInt(parts.fraction.length - scale);
+      scale = parts.fraction.length;
+    }
+    const magnitude =
+      BigInt(parts.integer + parts.fraction) * 10n ** BigInt(scale - parts.fraction.length);
+    total += parts.negative ? -magnitude : magnitude;
+  }
+  if (!hasValue) return null;
+  if (total === 0n) return "0";
+  const negative = total < 0n;
+  const digits = (negative ? -total : total).toString().padStart(scale + 1, "0");
+  const integer = scale === 0 ? digits : digits.slice(0, -scale);
+  const fraction = scale === 0 ? "" : digits.slice(-scale).replace(/0+$/, "");
+  return `${negative ? "-" : ""}${integer}${fraction ? `.${fraction}` : ""}`;
 }

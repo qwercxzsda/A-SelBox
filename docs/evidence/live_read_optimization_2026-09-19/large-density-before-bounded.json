@@ -1,0 +1,472 @@
+{
+  "started_at_utc": "2026-09-19T02:34:14.336707+00:00",
+  "database": "aselbox_opt_large",
+  "transport": "direct loopback PostgreSQL; no HTTP or response-serialization overhead",
+  "security": "SET ROLE authenticated plus normal dummy user's JWT claims; all reads read-only",
+  "cache_note": "DB/OS caches are not flushed; plan_cache_mode=force_generic_plan on every reader gives comparable legacy steady-state function plans",
+  "infrastructure_note": "Clones share the existing local PostgreSQL container and host; timings are not a production capacity promise",
+  "repeat": 1,
+  "timeout_ms": 8000,
+  "records": [
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "page_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8000.792
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "date_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8001.855
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "sku_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8000.979
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "daily_groups_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8000.827
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "repeat": 0,
+      "case": "page_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8023.774
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "repeat": 0,
+      "case": "date_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8026.389
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "repeat": 0,
+      "case": "sku_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8024.141
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "repeat": 0,
+      "case": "daily_groups_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8027.467
+    },
+    {
+      "phase": "concurrent",
+      "readers": 4,
+      "reader": 0,
+      "scope": "reader-scope-1",
+      "role": "operator",
+      "repeat": 0,
+      "case": "page_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8025.074
+    },
+    {
+      "phase": "concurrent",
+      "readers": 4,
+      "reader": 1,
+      "scope": "reader-scope-2",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "daily_groups_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8000.814
+    },
+    {
+      "phase": "concurrent",
+      "readers": 4,
+      "reader": 2,
+      "scope": "reader-scope-3",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "sku_options_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8000.994
+    },
+    {
+      "phase": "concurrent",
+      "readers": 4,
+      "reader": 3,
+      "scope": "reader-scope-1",
+      "role": "operator",
+      "repeat": 0,
+      "case": "page",
+      "status": "ok",
+      "elapsed_ms": 7022.212,
+      "rows": 25,
+      "result_sha256": "f8765754477defc762a889232c2b8b43b41956e08ba67b0374233c3034764336"
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 0,
+      "scope": "reader-scope-1",
+      "role": "operator",
+      "repeat": 0,
+      "case": "page_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8023.824
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 1,
+      "scope": "reader-scope-2",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "daily_groups_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8001.295
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 2,
+      "scope": "reader-scope-3",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "sku_options_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8001.43
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 3,
+      "scope": "reader-scope-1",
+      "role": "operator",
+      "repeat": 0,
+      "case": "page",
+      "status": "ok",
+      "elapsed_ms": 7448.65,
+      "rows": 25,
+      "result_sha256": "f8765754477defc762a889232c2b8b43b41956e08ba67b0374233c3034764336"
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 4,
+      "scope": "reader-scope-2",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "page_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8001.077
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 5,
+      "scope": "reader-scope-3",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "daily_groups_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8000.946
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 6,
+      "scope": "reader-scope-1",
+      "role": "operator",
+      "repeat": 0,
+      "case": "sku_options_count",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8024.306
+    },
+    {
+      "phase": "concurrent",
+      "readers": 8,
+      "reader": 7,
+      "scope": "reader-scope-2",
+      "role": "company_member",
+      "repeat": 0,
+      "case": "page",
+      "status": "error",
+      "sqlstate": "57014",
+      "elapsed_ms": 8001.074
+    }
+  ],
+  "batches": [
+    {
+      "readers": 4,
+      "repeat": 0,
+      "elapsed_ms": 8039.598,
+      "successful_reads": 1,
+      "attempts_per_second": 0.498,
+      "successful_reads_per_second": 0.124
+    },
+    {
+      "readers": 8,
+      "repeat": 0,
+      "elapsed_ms": 8057.648,
+      "successful_reads": 1,
+      "attempts_per_second": 0.993,
+      "successful_reads_per_second": 0.124
+    }
+  ],
+  "database_settings": {
+    "jit": "on",
+    "max_connections": "100",
+    "max_parallel_workers_per_gather": "2",
+    "server_version": "17.6",
+    "shared_buffers": "16384",
+    "work_mem": "4096"
+  },
+  "facts": {
+    "data_kiosk": 295110,
+    "settlement": 737330
+  },
+  "summary": [
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "case": "page_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "case": "date_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "case": "sku_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "company_member",
+      "case": "daily_groups_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "case": "page_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "case": "date_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "case": "sku_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "serial",
+      "role": "operator",
+      "case": "daily_groups_count",
+      "readers": 1,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "page_count",
+      "readers": 4,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "company_member",
+      "case": "daily_groups_count",
+      "readers": 4,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "company_member",
+      "case": "sku_options_count",
+      "readers": 4,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "page",
+      "readers": 4,
+      "successes": 1,
+      "errors": 0,
+      "median_ms": 7022.212,
+      "min_ms": 7022.212,
+      "max_ms": 7022.212
+    },
+    {
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "page_count",
+      "readers": 8,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "company_member",
+      "case": "daily_groups_count",
+      "readers": 8,
+      "successes": 0,
+      "errors": 2,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "company_member",
+      "case": "sku_options_count",
+      "readers": 8,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "page",
+      "readers": 8,
+      "successes": 1,
+      "errors": 0,
+      "median_ms": 7448.65,
+      "min_ms": 7448.65,
+      "max_ms": 7448.65
+    },
+    {
+      "phase": "concurrent",
+      "role": "company_member",
+      "case": "page_count",
+      "readers": 8,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "operator",
+      "case": "sku_options_count",
+      "readers": 8,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    },
+    {
+      "phase": "concurrent",
+      "role": "company_member",
+      "case": "page",
+      "readers": 8,
+      "successes": 0,
+      "errors": 1,
+      "median_ms": null,
+      "min_ms": null,
+      "max_ms": null
+    }
+  ],
+  "finished_at_utc": "2026-09-19T02:35:34.682686+00:00"
+}

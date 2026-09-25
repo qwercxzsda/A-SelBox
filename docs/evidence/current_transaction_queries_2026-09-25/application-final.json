@@ -1,0 +1,34 @@
+{
+  "applied_at_utc": "2026-09-25T04:40:45.315520+00:00",
+  "migration": "20260925035539_optimize_current_transaction_queries.sql",
+  "finalizes_uncommitted_migration": true,
+  "exact_result_comparisons": 24,
+  "same_table_access_rules": true,
+  "old_index_bytes_on_seed": 581632,
+  "final_index_definition": "CREATE INDEX settlement_transactions_owner_version_idx ON private.settlement_transactions USING btree (seller_namespace, sku, version_id, category, marketplace_name) WHERE (category = 'SETTLEMENT'::allocation_category)",
+  "final_index_bytes_on_seed": 589824,
+  "valid": true,
+  "ready": true,
+  "catalog_before": {
+    "format": "2-includes-view-options-and-index-state",
+    "tables_views_security": "e33044cad0ca670c892bed86ab3fd7dc6accce060c78ba9390654d5f7a8d7e4d",
+    "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "072cdf8fffdaccbf2942d6cf197b25ad8f5222a36c55cb3e83a6f05c4ba41f76",
+    "functions": "e27b7f3588ce5a23015870e220e1596b449ef72c14fe93ebde03c53ab87f80b4",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  },
+  "catalog_after": {
+    "format": "2-includes-view-options-and-index-state",
+    "tables_views_security": "e33044cad0ca670c892bed86ab3fd7dc6accce060c78ba9390654d5f7a8d7e4d",
+    "columns": "a58e2528ae97b1e34c173c4f23d8f769bf5fc29e2dfbd4f3c7447fa8f7d32af9",
+    "constraints": "46dd1398030c4958964def07dc7fd7be5b99dd2a1353e99a61fbf2d4eff011fd",
+    "indexes": "3a9361d6b1bf74233b78a31d990a009a2764b3a1a4c6db75431f25aea2c6bbf7",
+    "functions": "55d2c479d1c81d828ee28a03e0a377b5628f8d897cc7b73f840ca20313a8fb6d",
+    "policies": "3781b9be51239b9db2d6a45e746df632b42e240fc50f1d6cc6b794a0118029d5",
+    "triggers": "7a05b278b3d3a8fe4a5a40481ddb2796ebfdfa5ee480338b9bec98362c479aa8",
+    "types_and_schemas": "5ae603a606a19b9d7ea5472b41f0fa61d0a4a74fa829710a19a34d2d5d11064c"
+  }
+}

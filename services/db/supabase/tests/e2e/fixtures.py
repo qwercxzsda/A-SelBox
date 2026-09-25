@@ -33,7 +33,7 @@ MARKETPLACE_ID = "ATVPDKIKX0DER"
 SKU = "SKU-1"
 
 
-def settlement_document(identity: str) -> bytes:
+def settlement_document(identity: str, *, sku: str = SKU) -> bytes:
     """A 100 USD sale, full refund, and account-level disposal reconciliation."""
     rows = [
         {
@@ -57,7 +57,7 @@ def settlement_document(identity: str) -> bytes:
                 "amount": amount,
                 "posted-date": day.isoformat(),
                 "posted-date-time": f"{day.isoformat()}T12:00:00Z",
-                "sku": SKU,
+                "sku": sku,
                 "quantity-purchased": "1",
             }
         )
@@ -78,7 +78,9 @@ def settlement_document(identity: str) -> bytes:
     return ("\r\n".join(lines) + "\r\n").encode()
 
 
-def archived_settlement(storage: ArchiveStorage, seller: str) -> SettlementAcquisition:
+def archived_settlement(
+    storage: ArchiveStorage, seller: str, *, sku: str = SKU
+) -> SettlementAcquisition:
     """Upload a real immutable archive and retain complete Reports provenance."""
     identifier = uuid7()
     report_id = f"report-{identifier}"
@@ -101,14 +103,16 @@ def archived_settlement(storage: ArchiveStorage, seller: str) -> SettlementAcqui
         downloaded_at=datetime.now(UTC),
         document=archive_document(
             storage,
-            settlement_document(str(identifier)),
+            settlement_document(str(identifier), sku=sku),
             source_compression=None,
         ),
         api_metadata=metadata,
     )
 
 
-def archived_data_kiosk(storage: ArchiveStorage, seller: str) -> DataKioskAcquisition:
+def archived_data_kiosk(
+    storage: ArchiveStorage, seller: str, *, sku: str = SKU
+) -> DataKioskAcquisition:
     """Two complete pages cover separate days and contribute 12 USD of disposal fees."""
     identifier = uuid7()
     query = build_daily_msku_economics_query(START, END, MARKETPLACE_ID)
@@ -127,7 +131,7 @@ def archived_data_kiosk(storage: ArchiveStorage, seller: str) -> DataKioskAcquis
             metadata["pagination"] = {"nextToken": f"next-{identifier}"}
         fee = economics_fee("DisposalFee", amount=amount, identifier=f"disposal-{identifier}")
         content = complete_economics_document(
-            msku=SKU,
+            msku=sku,
             start_date=day.isoformat(),
             end_date=day.isoformat(),
             fees="[" + fee.replace(START.isoformat(), day.isoformat()) + "]",
@@ -162,13 +166,13 @@ def archived_data_kiosk(storage: ArchiveStorage, seller: str) -> DataKioskAcquis
     )
 
 
-def company_with_fees(database: DatabaseConnection, seller: str) -> str:
+def company_with_fees(database: DatabaseConnection, seller: str, *, sku: str = SKU) -> str:
     """Assign SKU ownership and the 5% sale / 7% refund fee periods."""
     company = create_company(database, f"Local E2E {seller}")
     publish_sku_terms(
         database,
         seller_namespace=seller,
-        sku=SKU,
+        sku=sku,
         company_id=company,
         expected_current_version_id=None,
         change_reason="Synthetic local end-to-end fixture",

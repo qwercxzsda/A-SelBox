@@ -1,0 +1,1109 @@
+{
+  "captured_at_utc": "2026-09-19T05:29:04.028316+00:00",
+  "environment": "Local seeded API on loopback 55421; normal authenticated RLS",
+  "iterations_per_strategy": 5,
+  "warmups_per_strategy": 1,
+  "method": "Warm each strategy, then rotate all-history / discovery+parallel periods / discovery+bounded daily order each round. Strategy wall time includes serial discovery and parallel-period completion plus parsing/exact sums.",
+  "roles": {
+    "company_member": {
+      "samples": [
+        {
+          "strategy": "all_history",
+          "wall_ms": 271.036,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 269.452,
+          "response_bytes": 22846,
+          "returned_groups": 493,
+          "processed_source_counts": [41132],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 269.452,
+              "ttfb_ms": 269.423,
+              "body_completion_ms": 0.029,
+              "bytes": 22846,
+              "kind": "all_history_daily",
+              "returned_rows": 493,
+              "source_count": 41132
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 1,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 321.799,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 427.813,
+          "response_bytes": 615,
+          "returned_groups": 11,
+          "processed_source_counts": [51, 15812],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 120.285,
+              "ttfb_ms": 120.272,
+              "body_completion_ms": 0.012,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 106.817,
+              "ttfb_ms": 106.805,
+              "body_completion_ms": 0.012,
+              "bytes": 252,
+              "kind": "day_currency_totals",
+              "returned_rows": 5,
+              "source_count": 51
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 200.711,
+              "ttfb_ms": 200.7,
+              "body_completion_ms": 0.011,
+              "bytes": 339,
+              "kind": "month_currency_totals",
+              "returned_rows": 6,
+              "source_count": 15812
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 1,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 321.041,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 319.996,
+          "response_bytes": 7745,
+          "returned_groups": 162,
+          "processed_source_counts": [15863],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 121.022,
+              "ttfb_ms": 121.009,
+              "body_completion_ms": 0.012,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 198.974,
+              "ttfb_ms": 198.961,
+              "body_completion_ms": 0.014,
+              "bytes": 7721,
+              "kind": "bounded_daily",
+              "returned_rows": 162,
+              "source_count": 15863
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 1,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 314.693,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 419.782,
+          "response_bytes": 615,
+          "returned_groups": 11,
+          "processed_source_counts": [51, 15812],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 117.445,
+              "ttfb_ms": 117.432,
+              "body_completion_ms": 0.012,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 105.871,
+              "ttfb_ms": 105.86,
+              "body_completion_ms": 0.011,
+              "bytes": 252,
+              "kind": "day_currency_totals",
+              "returned_rows": 5,
+              "source_count": 51
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 196.466,
+              "ttfb_ms": 196.453,
+              "body_completion_ms": 0.013,
+              "bytes": 339,
+              "kind": "month_currency_totals",
+              "returned_rows": 6,
+              "source_count": 15812
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 2,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 303.749,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 301.393,
+          "response_bytes": 7745,
+          "returned_groups": 162,
+          "processed_source_counts": [15863],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 112.333,
+              "ttfb_ms": 112.312,
+              "body_completion_ms": 0.021,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 189.06,
+              "ttfb_ms": 189.026,
+              "body_completion_ms": 0.035,
+              "bytes": 7721,
+              "kind": "bounded_daily",
+              "returned_rows": 162,
+              "source_count": 15863
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 2,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 248.56,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 244.755,
+          "response_bytes": 22846,
+          "returned_groups": 493,
+          "processed_source_counts": [41132],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 244.755,
+              "ttfb_ms": 244.697,
+              "body_completion_ms": 0.058,
+              "bytes": 22846,
+              "kind": "all_history_daily",
+              "returned_rows": 493,
+              "source_count": 41132
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 2,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 287.14,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 283.235,
+          "response_bytes": 7745,
+          "returned_groups": 162,
+          "processed_source_counts": [15863],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 104.387,
+              "ttfb_ms": 104.368,
+              "body_completion_ms": 0.019,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 178.848,
+              "ttfb_ms": 178.814,
+              "body_completion_ms": 0.034,
+              "bytes": 7721,
+              "kind": "bounded_daily",
+              "returned_rows": 162,
+              "source_count": 15863
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 3,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 244.365,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 240.535,
+          "response_bytes": 22846,
+          "returned_groups": 493,
+          "processed_source_counts": [41132],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 240.535,
+              "ttfb_ms": 240.491,
+              "body_completion_ms": 0.044,
+              "bytes": 22846,
+              "kind": "all_history_daily",
+              "returned_rows": 493,
+              "source_count": 41132
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 3,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 287.697,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 388.528,
+          "response_bytes": 615,
+          "returned_groups": 11,
+          "processed_source_counts": [51, 15812],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 107.647,
+              "ttfb_ms": 107.615,
+              "body_completion_ms": 0.032,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 102.709,
+              "ttfb_ms": 102.679,
+              "body_completion_ms": 0.03,
+              "bytes": 252,
+              "kind": "day_currency_totals",
+              "returned_rows": 5,
+              "source_count": 51
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 178.172,
+              "ttfb_ms": 178.155,
+              "body_completion_ms": 0.017,
+              "bytes": 339,
+              "kind": "month_currency_totals",
+              "returned_rows": 6,
+              "source_count": 15812
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 3,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 245.742,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 241.914,
+          "response_bytes": 22846,
+          "returned_groups": 493,
+          "processed_source_counts": [41132],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 241.914,
+              "ttfb_ms": 241.855,
+              "body_completion_ms": 0.059,
+              "bytes": 22846,
+              "kind": "all_history_daily",
+              "returned_rows": 493,
+              "source_count": 41132
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 4,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 283.751,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 382.988,
+          "response_bytes": 615,
+          "returned_groups": 11,
+          "processed_source_counts": [51, 15812],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 104.5,
+              "ttfb_ms": 104.481,
+              "body_completion_ms": 0.019,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 100.398,
+              "ttfb_ms": 100.38,
+              "body_completion_ms": 0.018,
+              "bytes": 252,
+              "kind": "day_currency_totals",
+              "returned_rows": 5,
+              "source_count": 51
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 178.09,
+              "ttfb_ms": 178.071,
+              "body_completion_ms": 0.02,
+              "bytes": 339,
+              "kind": "month_currency_totals",
+              "returned_rows": 6,
+              "source_count": 15812
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 4,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 341.266,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 340.291,
+          "response_bytes": 7745,
+          "returned_groups": 162,
+          "processed_source_counts": [15863],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 137.148,
+              "ttfb_ms": 137.137,
+              "body_completion_ms": 0.011,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 203.143,
+              "ttfb_ms": 203.132,
+              "body_completion_ms": 0.011,
+              "bytes": 7721,
+              "kind": "bounded_daily",
+              "returned_rows": 162,
+              "source_count": 15863
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 4,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 313.558,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 418.849,
+          "response_bytes": 615,
+          "returned_groups": 11,
+          "processed_source_counts": [51, 15812],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 121.393,
+              "ttfb_ms": 121.38,
+              "body_completion_ms": 0.013,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 106.3,
+              "ttfb_ms": 106.288,
+              "body_completion_ms": 0.012,
+              "bytes": 252,
+              "kind": "day_currency_totals",
+              "returned_rows": 5,
+              "source_count": 51
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 191.156,
+              "ttfb_ms": 191.135,
+              "body_completion_ms": 0.021,
+              "bytes": 339,
+              "kind": "month_currency_totals",
+              "returned_rows": 6,
+              "source_count": 15812
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 5,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 300.604,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 296.789,
+          "response_bytes": 7745,
+          "returned_groups": 162,
+          "processed_source_counts": [15863],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 116.299,
+              "ttfb_ms": 116.278,
+              "body_completion_ms": 0.021,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 180.49,
+              "ttfb_ms": 180.467,
+              "body_completion_ms": 0.023,
+              "bytes": 7721,
+              "kind": "bounded_daily",
+              "returned_rows": 162,
+              "source_count": 15863
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 5,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 273.299,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 267.67,
+          "response_bytes": 22846,
+          "returned_groups": 493,
+          "processed_source_counts": [41132],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 267.67,
+              "ttfb_ms": 267.627,
+              "body_completion_ms": 0.043,
+              "bytes": 22846,
+              "kind": "all_history_daily",
+              "returned_rows": 493,
+              "source_count": 41132
+            }
+          ],
+          "exact_summary_sha256": "0b3c20ad709398c4e848f8dc3a150cef343745ae765a9cfee528b7beec4ce578",
+          "iteration": 5,
+          "matches_reference_exactly": true
+        }
+      ],
+      "summary": [
+        {
+          "strategy": "all_history",
+          "samples": 5,
+          "median_wall_ms": 248.56,
+          "min_wall_ms": 244.365,
+          "max_wall_ms": 273.299,
+          "response_bytes": [22846],
+          "returned_groups": [493],
+          "http_requests": [1],
+          "all_exact_summaries_match": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "samples": 5,
+          "median_wall_ms": 313.558,
+          "min_wall_ms": 283.751,
+          "max_wall_ms": 321.799,
+          "response_bytes": [615],
+          "returned_groups": [11],
+          "http_requests": [3],
+          "all_exact_summaries_match": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "samples": 5,
+          "median_wall_ms": 303.749,
+          "min_wall_ms": 287.14,
+          "max_wall_ms": 341.266,
+          "response_bytes": [7745],
+          "returned_groups": [162],
+          "http_requests": [2],
+          "all_exact_summaries_match": true
+        }
+      ],
+      "exact_comparison_passed": true
+    },
+    "operator": {
+      "samples": [
+        {
+          "strategy": "all_history",
+          "wall_ms": 199.371,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 192.524,
+          "response_bytes": 29597,
+          "returned_groups": 637,
+          "processed_source_counts": [87530],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 192.524,
+              "ttfb_ms": 192.45,
+              "body_completion_ms": 0.074,
+              "bytes": 29597,
+              "kind": "all_history_daily",
+              "returned_rows": 637,
+              "source_count": 87530
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 1,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 149.659,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 156.0,
+          "response_bytes": 749,
+          "returned_groups": 14,
+          "processed_source_counts": [113, 37466],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 61.65,
+              "ttfb_ms": 61.631,
+              "body_completion_ms": 0.02,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 7.734,
+              "ttfb_ms": 7.712,
+              "body_completion_ms": 0.022,
+              "bytes": 289,
+              "kind": "day_currency_totals",
+              "returned_rows": 6,
+              "source_count": 113
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 86.616,
+              "ttfb_ms": 86.597,
+              "body_completion_ms": 0.019,
+              "bytes": 436,
+              "kind": "month_currency_totals",
+              "returned_rows": 8,
+              "source_count": 37466
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 1,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 152.174,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 149.513,
+          "response_bytes": 9806,
+          "returned_groups": 206,
+          "processed_source_counts": [37579],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 60.671,
+              "ttfb_ms": 60.653,
+              "body_completion_ms": 0.018,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 88.842,
+              "ttfb_ms": 88.821,
+              "body_completion_ms": 0.021,
+              "bytes": 9782,
+              "kind": "bounded_daily",
+              "returned_rows": 206,
+              "source_count": 37579
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 1,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 154.578,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 160.533,
+          "response_bytes": 749,
+          "returned_groups": 14,
+          "processed_source_counts": [113, 37466],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 66.198,
+              "ttfb_ms": 66.167,
+              "body_completion_ms": 0.031,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 7.951,
+              "ttfb_ms": 7.938,
+              "body_completion_ms": 0.013,
+              "bytes": 289,
+              "kind": "day_currency_totals",
+              "returned_rows": 6,
+              "source_count": 113
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 86.384,
+              "ttfb_ms": 86.366,
+              "body_completion_ms": 0.018,
+              "bytes": 436,
+              "kind": "month_currency_totals",
+              "returned_rows": 8,
+              "source_count": 37466
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 2,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 149.697,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 146.804,
+          "response_bytes": 9806,
+          "returned_groups": 206,
+          "processed_source_counts": [37579],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 60.629,
+              "ttfb_ms": 60.612,
+              "body_completion_ms": 0.018,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 86.175,
+              "ttfb_ms": 86.157,
+              "body_completion_ms": 0.018,
+              "bytes": 9782,
+              "kind": "bounded_daily",
+              "returned_rows": 206,
+              "source_count": 37579
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 2,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 199.869,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 195.002,
+          "response_bytes": 29597,
+          "returned_groups": 637,
+          "processed_source_counts": [87530],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 195.002,
+              "ttfb_ms": 194.955,
+              "body_completion_ms": 0.047,
+              "bytes": 29597,
+              "kind": "all_history_daily",
+              "returned_rows": 637,
+              "source_count": 87530
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 2,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 152.487,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 148.324,
+          "response_bytes": 9806,
+          "returned_groups": 206,
+          "processed_source_counts": [37579],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 60.553,
+              "ttfb_ms": 60.536,
+              "body_completion_ms": 0.017,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 87.771,
+              "ttfb_ms": 87.751,
+              "body_completion_ms": 0.02,
+              "bytes": 9782,
+              "kind": "bounded_daily",
+              "returned_rows": 206,
+              "source_count": 37579
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 3,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 210.662,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 205.79,
+          "response_bytes": 29597,
+          "returned_groups": 637,
+          "processed_source_counts": [87530],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 205.79,
+              "ttfb_ms": 205.745,
+              "body_completion_ms": 0.044,
+              "bytes": 29597,
+              "kind": "all_history_daily",
+              "returned_rows": 637,
+              "source_count": 87530
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 3,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 153.006,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 159.063,
+          "response_bytes": 749,
+          "returned_groups": 14,
+          "processed_source_counts": [113, 37466],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 64.044,
+              "ttfb_ms": 64.01,
+              "body_completion_ms": 0.033,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 7.905,
+              "ttfb_ms": 7.891,
+              "body_completion_ms": 0.015,
+              "bytes": 289,
+              "kind": "day_currency_totals",
+              "returned_rows": 6,
+              "source_count": 113
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 87.114,
+              "ttfb_ms": 87.097,
+              "body_completion_ms": 0.017,
+              "bytes": 436,
+              "kind": "month_currency_totals",
+              "returned_rows": 8,
+              "source_count": 37466
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 3,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 216.591,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 211.746,
+          "response_bytes": 29597,
+          "returned_groups": 637,
+          "processed_source_counts": [87530],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 211.746,
+              "ttfb_ms": 211.694,
+              "body_completion_ms": 0.052,
+              "bytes": 29597,
+              "kind": "all_history_daily",
+              "returned_rows": 637,
+              "source_count": 87530
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 4,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 155.054,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 166.337,
+          "response_bytes": 749,
+          "returned_groups": 14,
+          "processed_source_counts": [113, 37466],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 64.068,
+              "ttfb_ms": 64.038,
+              "body_completion_ms": 0.03,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 13.149,
+              "ttfb_ms": 13.127,
+              "body_completion_ms": 0.022,
+              "bytes": 289,
+              "kind": "day_currency_totals",
+              "returned_rows": 6,
+              "source_count": 113
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 89.12,
+              "ttfb_ms": 89.102,
+              "body_completion_ms": 0.018,
+              "bytes": 436,
+              "kind": "month_currency_totals",
+              "returned_rows": 8,
+              "source_count": 37466
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 4,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 172.978,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 171.637,
+          "response_bytes": 9806,
+          "returned_groups": 206,
+          "processed_source_counts": [37579],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 64.038,
+              "ttfb_ms": 64.016,
+              "body_completion_ms": 0.022,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 107.599,
+              "ttfb_ms": 107.588,
+              "body_completion_ms": 0.011,
+              "bytes": 9782,
+              "kind": "bounded_daily",
+              "returned_rows": 206,
+              "source_count": 37579
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 4,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "wall_ms": 156.02,
+          "http_requests": 3,
+          "sum_request_elapsed_ms": 164.288,
+          "response_bytes": 749,
+          "returned_groups": 14,
+          "processed_source_counts": [113, 37466],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 64.702,
+              "ttfb_ms": 64.671,
+              "body_completion_ms": 0.031,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 10.173,
+              "ttfb_ms": 10.157,
+              "body_completion_ms": 0.016,
+              "bytes": 289,
+              "kind": "day_currency_totals",
+              "returned_rows": 6,
+              "source_count": 113
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 89.413,
+              "ttfb_ms": 89.385,
+              "body_completion_ms": 0.028,
+              "bytes": 436,
+              "kind": "month_currency_totals",
+              "returned_rows": 8,
+              "source_count": 37466
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 5,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "wall_ms": 164.428,
+          "http_requests": 2,
+          "sum_request_elapsed_ms": 161.529,
+          "response_bytes": 9806,
+          "returned_groups": 206,
+          "processed_source_counts": [37579],
+          "requests": [
+            {
+              "http_status": 200,
+              "elapsed_ms": 63.451,
+              "ttfb_ms": 63.421,
+              "body_completion_ms": 0.03,
+              "bytes": 24,
+              "kind": "latest_date",
+              "returned_rows": 1,
+              "source_count": null
+            },
+            {
+              "http_status": 206,
+              "elapsed_ms": 98.078,
+              "ttfb_ms": 98.051,
+              "body_completion_ms": 0.027,
+              "bytes": 9782,
+              "kind": "bounded_daily",
+              "returned_rows": 206,
+              "source_count": 37579
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 5,
+          "matches_reference_exactly": true
+        },
+        {
+          "strategy": "all_history",
+          "wall_ms": 221.071,
+          "http_requests": 1,
+          "sum_request_elapsed_ms": 214.029,
+          "response_bytes": 29597,
+          "returned_groups": 637,
+          "processed_source_counts": [87530],
+          "requests": [
+            {
+              "http_status": 206,
+              "elapsed_ms": 214.029,
+              "ttfb_ms": 213.974,
+              "body_completion_ms": 0.055,
+              "bytes": 29597,
+              "kind": "all_history_daily",
+              "returned_rows": 637,
+              "source_count": 87530
+            }
+          ],
+          "exact_summary_sha256": "2bfe72164714b3b7f5a7b047db1042bd85a16cb7d1cbb997ca2e115efaf74232",
+          "iteration": 5,
+          "matches_reference_exactly": true
+        }
+      ],
+      "summary": [
+        {
+          "strategy": "all_history",
+          "samples": 5,
+          "median_wall_ms": 210.662,
+          "min_wall_ms": 199.371,
+          "max_wall_ms": 221.071,
+          "response_bytes": [29597],
+          "returned_groups": [637],
+          "http_requests": [1],
+          "all_exact_summaries_match": true
+        },
+        {
+          "strategy": "latest_then_parallel_periods",
+          "samples": 5,
+          "median_wall_ms": 154.578,
+          "min_wall_ms": 149.659,
+          "max_wall_ms": 156.02,
+          "response_bytes": [749],
+          "returned_groups": [14],
+          "http_requests": [3],
+          "all_exact_summaries_match": true
+        },
+        {
+          "strategy": "latest_then_bounded_daily",
+          "samples": 5,
+          "median_wall_ms": 152.487,
+          "min_wall_ms": 149.697,
+          "max_wall_ms": 172.978,
+          "response_bytes": [9806],
+          "returned_groups": [206],
+          "http_requests": [2],
+          "all_exact_summaries_match": true
+        }
+      ],
+      "exact_comparison_passed": true
+    }
+  }
+}

@@ -1,0 +1,99 @@
+.type-breakdown-table {
+  width: 100%;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+
+.type-breakdown-table th,
+.type-breakdown-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.type-breakdown-control-label {
+  min-width: 0;
+}
+
+.type-breakdown-chevron {
+  margin-inline-start: 12px;
+}
+
+.type-breakdown-control-text {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-block: 4px;
+}
+
+.type-breakdown-group-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.type-breakdown-group-amount {
+  max-width: 55%;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.type-breakdown-group-summary {
+  padding: 4px 0 20px;
+}
+
+.type-breakdown-mobile {
+  display: none;
+}
+
+.type-breakdown-total {
+  background: var(--mantine-color-gray-0);
+}
+
+.type-breakdown-total .type-breakdown-amounts > div:last-child {
+  border-top: 1px solid var(--mantine-color-default-border);
+  padding-top: 10px;
+}
+
+.type-breakdown-total .type-breakdown-amounts > div:last-child dd {
+  font-size: 20px;
+}
+
+@media (min-width: 721px) {
+  .type-breakdown-group-summary .type-breakdown-amounts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .type-breakdown-group-summary .type-breakdown-amounts > div {
+    display: block;
+  }
+
+  .type-breakdown-group-summary .type-breakdown-amounts dd {
+    margin-top: 4px;
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .type-breakdown-table {
+    display: none;
+  }
+
+  .type-breakdown-mobile {
+    display: grid;
+  }
+
+  .type-breakdown-mobile article {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .type-breakdown-type {
+    padding: 14px 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+}

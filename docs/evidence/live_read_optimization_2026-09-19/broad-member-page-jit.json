@@ -1,0 +1,33 @@
+[
+  {
+    "case": "member_page_explain_jit_on",
+    "status": "ok",
+    "wall_ms": 6316.982,
+    "execution_ms": 6299.937,
+    "planning_ms": 8.326,
+    "jit": null,
+    "settings": {
+      "effective_cache_size": "128MB",
+      "search_path": "\"\\$user\", public, extensions",
+      "plan_cache_mode": "force_generic_plan"
+    }
+  },
+  {
+    "jit": "off",
+    "repeat": 0,
+    "case": "member_page",
+    "status": "ok",
+    "elapsed_ms": 6038.394,
+    "rows": 25,
+    "result_sha256": "67e85f7c1b80ad784c0d03b60c28b9af98b14317774c6c452893763ce4725e56"
+  },
+  {
+    "jit": "off",
+    "repeat": 1,
+    "case": "member_page",
+    "status": "ok",
+    "elapsed_ms": 6076.922,
+    "rows": 25,
+    "result_sha256": "67e85f7c1b80ad784c0d03b60c28b9af98b14317774c6c452893763ce4725e56"
+  }
+]

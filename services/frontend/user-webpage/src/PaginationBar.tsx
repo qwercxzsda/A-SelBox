@@ -1,3 +1,4 @@
+import "./PaginationBar.css";
 import { useState } from "react";
 import { Button, Group, NumberInput, Text } from "@mantine/core";
 

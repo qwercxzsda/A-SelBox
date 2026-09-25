@@ -1,0 +1,159 @@
+{
+  "method": "Installed ownership-guard and aggregate-return SQL, privileged postgres, bound typed arguments; ordinary planner",
+  "function_sha256": "9c0b09ee5dfc8bcec4f5a447245f438308cca1170e5d92930579dc1e21ce31ea",
+  "initial_header_validation_excluded": true,
+  "records": [
+    {
+      "phase": "ownership_guard",
+      "indexes": [
+        "bench_kiosk_market_date_idx",
+        "settlement_preprocess_versions_settlement_id_id_key",
+        "settlement_transactions_date_id_idx",
+        "settlement_transactions_version_id_source_line_number_key",
+        "settlements_current_version_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Index Name": "settlement_preprocess_versions_settlement_id_id_key",
+          "Relation Name": "settlement_preprocess_versions",
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "condition_columns": ["settlement_id"]
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Index Name": "settlements_current_version_idx",
+          "Relation Name": "settlements",
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "condition_columns": ["current_version_id"]
+        },
+        {
+          "Node Type": "Bitmap Index Scan",
+          "Index Name": "settlement_transactions_version_id_source_line_number_key",
+          "Actual Rows": 10872,
+          "Actual Loops": 1,
+          "condition_columns": ["current_version_id", "version_id"]
+        },
+        {
+          "Node Type": "Bitmap Index Scan",
+          "Index Name": "settlement_transactions_date_id_idx",
+          "Actual Rows": 20865,
+          "Actual Loops": 1,
+          "condition_columns": ["posted_date"]
+        },
+        {
+          "Node Type": "Index Scan",
+          "Index Name": "bench_kiosk_market_date_idx",
+          "Relation Name": "data_kiosk_transactions",
+          "Actual Rows": 0,
+          "Actual Loops": 1,
+          "condition_columns": ["activity_date", "marketplace_name"]
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 258,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 129,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Relation Name": "settlement_transactions",
+          "Actual Rows": 10856,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 384,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "phase": "aggregate_return",
+      "indexes": [
+        "bench_kiosk_market_date_idx",
+        "settlement_preprocess_versions_settlement_id_id_key",
+        "settlement_transactions_date_id_idx",
+        "settlement_transactions_version_id_source_line_number_key",
+        "settlements_current_version_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Index Name": "settlement_preprocess_versions_settlement_id_id_key",
+          "Relation Name": "settlement_preprocess_versions",
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "condition_columns": ["settlement_id"]
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Index Name": "settlements_current_version_idx",
+          "Relation Name": "settlements",
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "condition_columns": ["current_version_id"]
+        },
+        {
+          "Node Type": "Bitmap Index Scan",
+          "Index Name": "settlement_transactions_version_id_source_line_number_key",
+          "Actual Rows": 10872,
+          "Actual Loops": 1,
+          "condition_columns": ["current_version_id", "version_id"]
+        },
+        {
+          "Node Type": "Bitmap Index Scan",
+          "Index Name": "settlement_transactions_date_id_idx",
+          "Actual Rows": 20865,
+          "Actual Loops": 1,
+          "condition_columns": ["posted_date"]
+        },
+        {
+          "Node Type": "Index Scan",
+          "Index Name": "bench_kiosk_market_date_idx",
+          "Relation Name": "data_kiosk_transactions",
+          "Actual Rows": 0,
+          "Actual Loops": 1,
+          "condition_columns": ["activity_date", "marketplace_name"]
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 258,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 129,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Relation Name": "settlement_transactions",
+          "Actual Rows": 10856,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 384,
+          "Actual Loops": 1
+        }
+      ]
+    }
+  ]
+}

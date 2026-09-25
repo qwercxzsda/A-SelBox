@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DATASET_CONFIG } from "../src/api/config.ts";
-import { categoryLabel } from "../src/categories.ts";
+import { humanizeCode } from "../src/categories.ts";
 import {
   DATASET_ORDER,
   DATASET_PRESENTATION,
@@ -9,7 +9,6 @@ import {
   companyLabel,
   displayColumns,
   rowId,
-  rowText,
   visibleDatasets,
 } from "../src/view-model.ts";
 
@@ -36,7 +35,7 @@ test("every displayed sort uses a real allowed API column", () => {
     displayColumns("live", false)
       .filter((column) => column.sortable)
       .map((column) => column.key),
-    ["activity_date", "source_amount", "fee_rate_percent", "fee_amount", "company_amount"],
+    ["activity_date", "source_amount"],
   );
 });
 
@@ -51,10 +50,8 @@ test("row selection uses source-qualified IDs and each other view's stable ident
 });
 
 test("missing ownership and fee configuration do not become zero or an assigned company", () => {
-  assert.equal(rowText({ fee_amount: null }, "fee_amount"), null);
-  assert.equal(rowText({ fee_amount: "0" }, "fee_amount"), "0");
   assert.equal(companyLabel(null, new Map()), "Unassigned");
   assert.equal(companyLabel("company-a", new Map([["company-a", "Company A"]])), "Company A");
-  assert.notEqual(categoryLabel("MISSING_FEE"), categoryLabel("NOT_APPLICABLE"));
-  assert.notEqual(categoryLabel("MISSING_OWNERSHIP"), categoryLabel("APPLIED"));
+  assert.notEqual(humanizeCode("MISSING_FEE"), humanizeCode("NOT_APPLICABLE"));
+  assert.notEqual(humanizeCode("MISSING_OWNERSHIP"), humanizeCode("APPLIED"));
 });

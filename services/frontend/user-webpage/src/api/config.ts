@@ -2,7 +2,7 @@ import type { DatasetFilterField, DatasetKey, DatasetSort } from "./types.ts";
 
 export interface DatasetConfig {
   label: string;
-  endpoint: string;
+  endpoint?: string;
   selectColumns: readonly string[];
   searchColumns: readonly string[];
   sortColumns: readonly string[];
@@ -28,7 +28,6 @@ const LIVE_COLUMNS = [
   "quantity",
   "fee_base",
   "category",
-  "authoritative",
   "seller_sku_id",
   "terms_version_id",
   "company_id",
@@ -118,23 +117,14 @@ const PAYOUT_COLUMNS = [
 
 const ACCOUNT_COLUMNS = ["user_id", "access_role", "company_id", "created_at"] as const;
 
-// Search only actual text columns. PostgREST cannot apply ilike to our enums
-// or private domains, even when their CSV representation looks like text.
+// Transaction RPCs search visible text fields, casting marketplace enums to text.
+// Other REST datasets search only native text fields.
 export const DATASET_CONFIG = {
   live: {
     label: "Transactions",
-    endpoint: "live_company_components",
     selectColumns: LIVE_COLUMNS,
-    searchColumns: [
-      "source",
-      "seller_namespace",
-      "sku",
-      "component_type",
-      "currency",
-      "resolution_status",
-      "preprocess_version",
-    ],
-    sortColumns: LIVE_COLUMNS,
+    searchColumns: ["sku", "component_type", "source", "marketplace_name", "currency"],
+    sortColumns: ["activity_date", "source_amount"],
     defaultSort: { column: "activity_date", direction: "desc" },
     idColumns: ["source", "source_row_id"],
     dateColumn: "activity_date",
@@ -142,10 +132,9 @@ export const DATASET_CONFIG = {
   },
   settlement: {
     label: "Settlements",
-    endpoint: "settlement_preprocess_entries",
     selectColumns: SETTLEMENT_COLUMNS,
-    searchColumns: ["sku", "currency", "family", "accounting_subtype"],
-    sortColumns: SETTLEMENT_COLUMNS,
+    searchColumns: ["sku", "component_type", "marketplace_name", "currency"],
+    sortColumns: ["posted_date", "amount"],
     defaultSort: { column: "posted_date", direction: "desc" },
     idColumns: ["id"],
     dateColumn: "posted_date",
@@ -153,10 +142,9 @@ export const DATASET_CONFIG = {
   },
   data_kiosk: {
     label: "Data Kiosk",
-    endpoint: "data_kiosk_preprocess_entries",
     selectColumns: DATA_KIOSK_COLUMNS,
-    searchColumns: ["sku", "currency", "source_document_id"],
-    sortColumns: DATA_KIOSK_COLUMNS,
+    searchColumns: ["sku", "component_type", "marketplace_name", "currency"],
+    sortColumns: ["activity_date", "amount"],
     defaultSort: { column: "activity_date", direction: "desc" },
     idColumns: ["id"],
     dateColumn: "activity_date",
@@ -167,8 +155,8 @@ export const DATASET_CONFIG = {
     endpoint: "current_sku_fee_periods",
     selectColumns: FEE_COLUMNS,
     searchColumns: [],
-    sortColumns: FEE_COLUMNS,
-    defaultSort: { column: "fee_rate_percent", direction: "asc" },
+    sortColumns: ["marketplace_name", "valid_period"],
+    defaultSort: { column: "marketplace_name", direction: "asc" },
     idColumns: ["fee_period_id"],
     dateColumn: null,
     filterColumns: ["marketplace_name"],
@@ -178,7 +166,7 @@ export const DATASET_CONFIG = {
     endpoint: "company_payout_reports",
     selectColumns: PAYOUT_COLUMNS,
     searchColumns: ["currency", "dataset_key", "calculation_version"],
-    sortColumns: PAYOUT_COLUMNS,
+    sortColumns: ["created_at", "start_date", "end_date", "company_amount"],
     defaultSort: { column: "created_at", direction: "desc" },
     idColumns: ["id"],
     dateColumn: null,
@@ -189,7 +177,7 @@ export const DATASET_CONFIG = {
     endpoint: "app_accounts",
     selectColumns: ACCOUNT_COLUMNS,
     searchColumns: [],
-    sortColumns: ACCOUNT_COLUMNS,
+    sortColumns: ["user_id", "access_role", "created_at"],
     defaultSort: { column: "created_at", direction: "desc" },
     idColumns: ["user_id"],
     dateColumn: null,

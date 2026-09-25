@@ -1,0 +1,32 @@
+.table-toolbar {
+  margin-bottom: 10px;
+}
+
+.search-field {
+  width: min(430px, 55vw);
+}
+
+.loading-state,
+.empty-state {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  color: #65727e;
+  padding: 28px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .table-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .table-toolbar-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 80px;
+    width: 100%;
+  }
+  .search-field {
+    width: 100%;
+  }
+}

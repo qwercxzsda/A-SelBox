@@ -1,8 +1,6 @@
 import type { ApiClientConfig } from "./client-config.ts";
 import { isJsonObject } from "./validation.ts";
 
-export { validateApiConfig, type ApiClientConfig } from "./client-config.ts";
-
 export function readBuildConfig(environment: unknown = import.meta.env): ApiClientConfig {
   if (!isJsonObject(environment)) {
     throw new Error("VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be configured");

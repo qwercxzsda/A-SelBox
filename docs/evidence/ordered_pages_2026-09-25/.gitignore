@@ -1,0 +1,4 @@
+*.private.dump
+*.private.json
+*.restore-error.txt
+__pycache__/

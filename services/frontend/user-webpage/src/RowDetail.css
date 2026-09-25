@@ -1,0 +1,64 @@
+.field-label {
+  color: #687582;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.detail-grid,
+.audit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid #e0e6ea;
+  border-radius: var(--mantine-radius-sm);
+  background: #fafbfc;
+  padding: 11px 12px;
+}
+
+.field-value {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.audit-details {
+  margin-top: 20px;
+  border-top: 1px solid #e1e6ea;
+}
+
+.audit-details summary {
+  cursor: pointer;
+  padding: 14px 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.audit-value {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.audit-value code {
+  overflow-wrap: anywhere;
+}
+
+.audit-details summary:focus-visible {
+  outline: 3px solid var(--mantine-primary-color-filled);
+  outline-offset: -3px;
+}
+
+@media (max-width: 720px) {
+  .detail-grid,
+  .audit-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,649 @@
+{
+  "database": "aselbox_opt_broad",
+  "source_facts": 1032440,
+  "repeat": 3,
+  "migration_sha256": "2dd976f7f64e7c2fa58e8a18e4bef32f6eb9fc54162961977f99bd5a14b1ad05",
+  "all_payloads_equal": true,
+  "records": [
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 2901.388,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 662.39,
+      "response_bytes": 21152,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 696.966,
+      "response_bytes": 21152,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 681.639,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 664.588,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 648.869,
+      "response_bytes": 21152,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 639.75,
+      "response_bytes": 21152,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 644.709,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "d329da4e4fffea3a96d8342d2b94b058f52c7e6c6ff21ac17dd5ea1a5a72a009"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 1275.353,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 660.12,
+      "response_bytes": 21155,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 661.992,
+      "response_bytes": 21155,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 1304.801,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 1276.248,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 700.491,
+      "response_bytes": 21155,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 731.522,
+      "response_bytes": 21155,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 1336.206,
+      "response_bytes": 10050,
+      "rows": 25,
+      "result_sha256": "63621d54ec1f6c63e1d943681dca957333be06d07578da44b912cc87173f9317"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 1307.376,
+      "response_bytes": 11025,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 657.84,
+      "response_bytes": 22024,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 653.559,
+      "response_bytes": 22024,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 1264.294,
+      "response_bytes": 11025,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 1288.538,
+      "response_bytes": 11025,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 696.165,
+      "response_bytes": 22024,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 650.908,
+      "response_bytes": 22024,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 1252.982,
+      "response_bytes": 11025,
+      "rows": 25,
+      "result_sha256": "ed57d8b87f88d758c5de3dde5627df7513c10adee2d90130f9b69d64206d6e86"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 277.28,
+      "response_bytes": 9969,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 124.891,
+      "response_bytes": 21081,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 124.307,
+      "response_bytes": 21081,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 246.322,
+      "response_bytes": 9969,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 239.797,
+      "response_bytes": 9969,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 124.936,
+      "response_bytes": 21081,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 121.311,
+      "response_bytes": 21081,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "company_member",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 235.537,
+      "response_bytes": 9969,
+      "rows": 25,
+      "result_sha256": "dc34df528d5afe2140964bf1a710bd10ea5c473259d0ec7817c6a38e4be471d1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 1259.96,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 991.402,
+      "response_bytes": 20821,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 927.613,
+      "response_bytes": 20821,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 1304.939,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 1263.646,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 1003.961,
+      "response_bytes": 20821,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 989.58,
+      "response_bytes": 20821,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 1224.217,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "b2d2f73a05e3de5c7ad3d949813eb69f22d10078bd347919bcd33d65d21ec3c1"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 2173.959,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 1472.986,
+      "response_bytes": 20825,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 1396.359,
+      "response_bytes": 20825,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 2066.15,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 2128.94,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 1569.423,
+      "response_bytes": 20825,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 1510.603,
+      "response_bytes": 20825,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "date_page_count",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 2062.29,
+      "response_bytes": 9725,
+      "rows": 25,
+      "result_sha256": "5bf132a9edd55fa0e3d303c9aa65e51f00bd96fbff0f516b61f147f12c98e6ff"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 2121.705,
+      "response_bytes": 11078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 1477.669,
+      "response_bytes": 22078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 1507.513,
+      "response_bytes": 22078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 2104.424,
+      "response_bytes": 11078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 2096.515,
+      "response_bytes": 11078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 1530.658,
+      "response_bytes": 22078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 1576.655,
+      "response_bytes": 22078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "amount_page_count",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 2128.564,
+      "response_bytes": 11078,
+      "rows": 25,
+      "result_sha256": "8dedd5d39beb1ab2343925327b0c7e37827499a0576e52b4333e9cff65c4d7e1"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 0,
+      "elapsed_ms": 152.252,
+      "response_bytes": 9646,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 0,
+      "elapsed_ms": 89.879,
+      "response_bytes": 20755,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 1,
+      "elapsed_ms": 91.246,
+      "response_bytes": 20755,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 1,
+      "elapsed_ms": 123.934,
+      "response_bytes": 9646,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 2,
+      "elapsed_ms": 120.216,
+      "response_bytes": 9646,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 2,
+      "elapsed_ms": 92.904,
+      "response_bytes": 20755,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "page_first",
+      "iteration": 3,
+      "elapsed_ms": 90.319,
+      "response_bytes": 20755,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    },
+    {
+      "role": "operator",
+      "case": "filtered_date_count",
+      "method": "baseline",
+      "iteration": 3,
+      "elapsed_ms": 124.832,
+      "response_bytes": 9646,
+      "rows": 25,
+      "result_sha256": "6886b2604cedfa659b8ea65c48f4b6c9518ff8f4a93cea472632cbf3432855a5"
+    }
+  ]
+}

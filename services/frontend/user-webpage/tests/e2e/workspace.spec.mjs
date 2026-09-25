@@ -5,6 +5,7 @@ import {
   mockSupabase,
   rowWithSku,
   signIn,
+  waitForRequestSettled,
 } from "./fixtures.mjs";
 
 for (const activation of ["click", "Enter", "Space"]) {
@@ -114,7 +115,7 @@ test("automatic refresh detects a company reassignment using the existing sessio
   expect(fixture.authRequests).toBe(1);
 });
 
-test("automatic refresh clamps a removed last page after an HTTP 416 response", async ({
+test("automatic refresh clamps a removed last page after its updated count arrives", async ({
   page,
 }) => {
   await page.clock.install();
@@ -124,6 +125,7 @@ test("automatic refresh clamps a removed last page after an HTTP 416 response", 
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   fixture.totalCount = 5;
+  fixture.revisions.settlement = "1";
   await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("row")).toHaveCount(6);
@@ -145,13 +147,13 @@ test("a delayed earlier search cannot replace newer search results", async ({ pa
   };
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-  const olderRequestSettled = new Promise((resolve) => {
-    const onSettled = (request) => {
-      if (new URL(request.url()).searchParams.get("or")?.includes("STALE")) resolve();
-    };
-    page.on("requestfinished", onSettled);
-    page.on("requestfailed", onSettled);
-  });
+  const olderRequestSettled = waitForRequestSettled(
+    page,
+    (request) =>
+      new URL(request.url()).pathname === "/rest/v1/rpc/transaction_page" &&
+      request.method() === "POST" &&
+      request.postDataJSON().p_search === "STALE",
+  );
   await page.getByLabel("Search", { exact: true }).fill("STALE");
   await started.promise;
   await page.getByLabel("Search", { exact: true }).fill("FRESH");

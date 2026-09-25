@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { Alert, Button, Group, Tabs, Text } from "@mantine/core";
+import { Alert, Button, Group, Tabs } from "@mantine/core";
+import { UpdateStatus } from "./UpdateStatus";
 import type { DatasetKey } from "./api";
 import { FinanceDataset } from "./FinanceDataset";
 import { visibleDatasets, DATASET_PRESENTATION } from "./view-model";
-import type { Identity } from "./use-auth";
+import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
+import { TransactionSummaries } from "./TransactionSummaries";
+import type { DateRange } from "./estimated-periods";
 import {
   createDatasetViewState,
   createFeeViewState,
   type DatasetViewState,
 } from "./workspace-view-state";
 
-export interface WorkspaceProps {
+interface WorkspaceProps {
   identity: Identity;
   onRetry: () => Promise<void>;
   isUpdating: boolean;
@@ -25,6 +28,22 @@ export function FinanceWorkspace(props: WorkspaceProps) {
   );
   const [feeViewState, setFeeViewState] = useState(createFeeViewState);
   const datasets = visibleDatasets(props.identity.account);
+  const transactions = datasetViews.live ?? createDatasetViewState("live");
+
+  function selectPeriod(range: DateRange) {
+    setDatasetViews((current) => {
+      const previous = current.live ?? createDatasetViewState("live");
+      return {
+        ...current,
+        live: {
+          ...previous,
+          filters: { ...previous.filters, dateFrom: range.from, dateTo: range.to },
+          pagination: { ...previous.pagination, pageIndex: 0 },
+        },
+      };
+    });
+    setDataset("live");
+  }
   return (
     <>
       {props.updateError ? (
@@ -37,11 +56,18 @@ export function FinanceWorkspace(props: WorkspaceProps) {
           </Group>
         </Alert>
       ) : null}
-      {props.isUpdating ? (
-        <Text role="status" size="xs" c="dimmed" mb="xs">
-          Updating…
-        </Text>
-      ) : null}
+      <UpdateStatus active={props.isUpdating} mb="xs">
+        Updating…
+      </UpdateStatus>
+      <TransactionSummaries
+        identity={props.identity}
+        onRetry={props.onRetry}
+        companyIds={transactions.filters.companyIds}
+        skus={transactions.filters.skus}
+        marketplaces={transactions.filters.marketplaces}
+        dateRange={{ from: transactions.filters.dateFrom, to: transactions.filters.dateTo }}
+        onPeriodSelect={selectPeriod}
+      />
       <Tabs
         value={dataset}
         onChange={(value) => {
@@ -69,7 +95,8 @@ export function FinanceWorkspace(props: WorkspaceProps) {
         <FinanceDataset
           key={dataset}
           dataset={dataset}
-          {...props}
+          identity={props.identity}
+          onRetry={props.onRetry}
           viewState={datasetViews[dataset] ?? createDatasetViewState(dataset)}
           onViewStateChange={(update) => {
             setDatasetViews((current) => {
