@@ -6,14 +6,13 @@ import psycopg
 from psycopg import sql
 
 from services.db.supabase.tests import test_live_view_equivalence as live_fixture
+from services.db.supabase.tests.rpc_support import assert_rpc_security
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
-from services.db.supabase.tests.test_transaction_totals import assert_rpc_security
 
 _DATASETS = {
     "live": ("live_company_components", ("sku", "marketplace_name", "source", "component_type")),
     "settlement": ("settlement_preprocess_entries", ("sku", "marketplace_name", "component_type")),
     "data_kiosk": ("data_kiosk_preprocess_entries", ("sku", "marketplace_name", "component_type")),
-    "fees": ("current_sku_fee_periods", ("marketplace_name",)),
 }
 
 
@@ -143,7 +142,6 @@ class DatasetFilterOptionsTests(SourceModelFixture):
         self.assign("SKU", None, expected=terms)
         for user in users:
             self.assert_matches_view(user, "live", "sku")
-            self.assert_matches_view(user, "fees", "marketplace_name")
 
     def test_more_than_one_thousand_options_use_unique_unicode_keyset_pages(self) -> None:
         company, _ = self.owner()
@@ -175,7 +173,6 @@ class DatasetFilterOptionsTests(SourceModelFixture):
             (None, "sku"),
             ("live", None),
             ("unknown", "sku"),
-            ("fees", "sku"),
             ("settlement", "source"),
             ("payouts", "sku"),
             ("live", "fee_rate_percent"),

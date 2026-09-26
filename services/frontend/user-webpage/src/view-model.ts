@@ -1,16 +1,7 @@
-import type { AppAccount, CanonicalRow, DatasetKey } from "./api/types.ts";
+import type { AppAccount, CanonicalRow, DatasetKey, TableDatasetKey } from "./api/types.ts";
 import { DATASET_CONFIG } from "./api/config.ts";
 
-type CellKind =
-  | "code"
-  | "company"
-  | "date"
-  | "money"
-  | "percent"
-  | "number"
-  | "text"
-  | "sku"
-  | "period";
+type CellKind = "code" | "company" | "date" | "money" | "percent" | "number" | "text" | "period";
 
 export interface ColumnDefinition {
   align?: "right";
@@ -20,10 +11,13 @@ export interface ColumnDefinition {
   sortable?: string;
 }
 
-export interface DatasetPresentation {
+interface WorkspacePresentation {
   description: string;
-  emptyMessage: string;
   label: string;
+}
+
+interface DatasetPresentation extends WorkspacePresentation {
+  emptyMessage: string;
   searchPlaceholder: string;
 }
 
@@ -40,7 +34,7 @@ export function visibleDatasets(account: AppAccount): readonly DatasetKey[] {
   return account.access_role === "operator" ? DATASET_ORDER : ["live", "fees"];
 }
 
-export const DATASET_PRESENTATION: Record<DatasetKey, DatasetPresentation> = {
+export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description: "Amounts reported by Amazon, service fees, and estimated company amounts.",
@@ -64,8 +58,6 @@ export const DATASET_PRESENTATION: Record<DatasetKey, DatasetPresentation> = {
     label: "Current fees",
     description:
       "Fee rates by SKU and marketplace. Each rate applies from its start date up to, but excluding, its end date.",
-    searchPlaceholder: "Search unavailable for this view",
-    emptyMessage: "No fee rates match this view.",
   },
   payouts: {
     label: "Payout reports",
@@ -80,9 +72,16 @@ export const DATASET_PRESENTATION: Record<DatasetKey, DatasetPresentation> = {
     searchPlaceholder: "Search unavailable for this view",
     emptyMessage: "No users match this view.",
   },
-};
+} satisfies Record<DatasetKey, WorkspacePresentation> &
+  Record<TableDatasetKey, DatasetPresentation>;
 
 export const PAGE_SIZES = [25, 50, 100] as const;
+
+export const FINANCIAL_AMOUNTS = [
+  ["reportedAmount", "Reported amount"],
+  ["serviceFee", "Service fee"],
+  ["companyAmount", "Company amount"],
+] as const;
 
 function column(key: string, label: string, kind: CellKind = "text"): ColumnDefinition {
   return {
@@ -128,7 +127,6 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("preprocess_version", "Processing version"),
   ],
   fees: [
-    column("seller_sku_id", "SKU", "sku"),
     column("company_id", "Company", "company"),
     column("marketplace_name", "Marketplace"),
     column("valid_period", "Effective dates", "period"),
@@ -156,7 +154,7 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function displayColumns(
-  dataset: DatasetKey,
+  dataset: TableDatasetKey,
   isAdministrator: boolean,
 ): readonly ColumnDefinition[] {
   const sortColumns: readonly string[] = DATASET_CONFIG[dataset].sortColumns;
@@ -175,9 +173,7 @@ export function displayColumns(
 }
 
 export function rowId(row: CanonicalRow): string {
-  return [row.source, row.id ?? row.source_row_id ?? row.fee_period_id ?? row.user_id]
-    .filter(Boolean)
-    .join(":");
+  return [row.source, row.id ?? row.source_row_id ?? row.user_id].filter(Boolean).join(":");
 }
 
 export function companyLabel(companyId: string | null, companies: Map<string, string>): string {

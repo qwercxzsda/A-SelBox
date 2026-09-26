@@ -3,14 +3,6 @@ create schema private;
 revoke all on schema private from public, anon, authenticated, service_role;
 create extension if not exists btree_gist with schema extensions;
 
-create type public.amazon_marketplace_name as enum (
-    'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-    'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl', 'Amazon.se',
-    'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr', 'Amazon.ae',
-    'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za', 'Amazon.co.jp',
-    'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
-);
-
 create type public.allocation_category as enum (
     'SETTLEMENT', 'SELBOX', 'DATA_KIOSK', 'ANALYSIS_ONLY'
 );
@@ -82,7 +74,13 @@ references public.sku_terms_versions (seller_sku_id, id);
 create table public.sku_fee_periods (
     id public.local_uuid primary key default private.uuid7(),
     terms_version_id public.local_uuid not null references public.sku_terms_versions (id),
-    marketplace_name public.amazon_marketplace_name not null,
+    marketplace_name text not null check (marketplace_name in (
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+    )),
     valid_period daterange not null check (
         not isempty(valid_period) and not lower_inf(valid_period)
         and lower(valid_period) not in ('-infinity'::date, 'infinity'::date)
@@ -185,7 +183,13 @@ create table private.settlement_transactions (
         accounting_subtype in ('OPERATING_EXPENSE', 'BALANCE_MOVEMENT', 'TAX_RECLASSIFICATION')
     ),
     sku text check (length(btrim(sku)) > 0),
-    marketplace_name public.amazon_marketplace_name,
+    marketplace_name text check (marketplace_name in (
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+    )),
     amount private.exact_numeric not null,
     currency text not null check (currency ~ '^[A-Z]{3}$'),
     quantity bigint check (quantity >= 0),
@@ -208,7 +212,13 @@ create table private.settlement_transactions (
 create table private.data_kiosk_days (
     id public.local_uuid primary key default private.uuid7(),
     seller_namespace private.nonblank not null,
-    marketplace_name public.amazon_marketplace_name not null,
+    marketplace_name text not null check (marketplace_name in (
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+    )),
     activity_date date not null,
     dataset_key private.nonblank not null,
     current_version_id public.local_uuid,
@@ -241,7 +251,13 @@ create table private.data_kiosk_transactions (
     id public.local_uuid primary key default private.uuid7(),
     version_id public.local_uuid not null references private.data_kiosk_preprocess_versions (id),
     seller_namespace private.nonblank not null,
-    marketplace_name public.amazon_marketplace_name not null,
+    marketplace_name text not null check (marketplace_name in (
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+    )),
     activity_date date not null,
     component_key private.nonblank not null,
     sku text check (length(btrim(sku)) > 0),
@@ -313,8 +329,11 @@ on private.settlement_transactions (component_type, posted_date);
 create index data_kiosk_transactions_type_date_idx
 on private.data_kiosk_transactions (component_type, activity_date);
 
--- Retain the compact Data Kiosk marketplace/date path for privileged financial
--- reads. Authenticated enum filters may stay behind the RLS security barrier.
+-- Compact marketplace/date access supports exact text selections. The planner
+-- still chooses its scan strategy according to visibility and filter selectivity.
+create index settlement_transactions_marketplace_date_idx
+on private.settlement_transactions (marketplace_name, posted_date);
+
 create index data_kiosk_transactions_marketplace_date_idx
 on private.data_kiosk_transactions (marketplace_name, activity_date);
 

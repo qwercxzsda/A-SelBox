@@ -195,7 +195,11 @@ def discover(connection: Connection, subjects: dict[str, str]) -> tuple[list[Ind
                             },
                         )
                     )
-    cases.append(IndexCase("member_a", "authorization/current_versions", "sql_versions", {}))
+    cases.append(
+        IndexCase(
+            "member_a", "metadata/current_source_references", "sql_current_source_references", {}
+        )
+    )
     scope = connection.execute(
         "select seller_namespace,source_identity_id::text,preprocess_version,"
         "min(activity_date),max(activity_date) from public.live_company_components "
@@ -285,7 +289,7 @@ def final_guardrails(connection: Connection, subjects: dict[str, str]) -> list[I
 def sql_result(connection: Connection, case: IndexCase, subjects: dict[str, str]) -> list[Any]:
     with connection.transaction():
         connection.execute("set transaction read only")
-        if case.endpoint == "sql_versions":
+        if case.endpoint == "sql_current_source_references":
             connection.execute("set local role authenticated")
             connection.execute(
                 "select set_config('request.jwt.claims',%s,true)",
@@ -293,16 +297,18 @@ def sql_result(connection: Connection, case: IndexCase, subjects: dict[str, str]
             )
             rows = connection.execute(
                 "select source,id::text from ("
-                "select 'SETTLEMENT' source,"
-                "private.current_company_source_versions('SETTLEMENT') id "
-                "union all select 'DATA_KIOSK',"
-                "private.current_company_source_versions('DATA_KIOSK')"
+                "select 'SETTLEMENT' source,current_version_id id from private.settlements "
+                "where current_version_id is not null "
+                "union all select 'DATA_KIOSK',current_version_id from private.data_kiosk_days "
+                "where current_version_id is not null"
                 ") q order by source,id"
             ).fetchall()
             return [list(row) for row in rows]
+        if case.endpoint != "sql_progress":
+            raise ValueError("Unsupported SQL benchmark case")
         rows = connection.execute(
             "select row_to_json(q)::text from (select * from private.company_financial_progress("
-            "%s,%s::date,%s::date,%s,%s::uuid[],%s::public.amazon_marketplace_name[],%s) "
+            "%s,%s::date,%s::date,%s,%s::uuid[],%s::text[],%s) "
             "order by company_id,currency) q",
             case.arguments["scope"],
         ).fetchall()

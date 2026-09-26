@@ -2,11 +2,7 @@ import "./FinancialAmounts.css";
 import type { CurrencyTotal } from "./api";
 import { formatExactMoney } from "./decimal";
 
-const AMOUNTS = [
-  ["reportedAmount", "Reported amount"],
-  ["serviceFee", "Service fee"],
-  ["companyAmount", "Company amount"],
-] as const;
+import { FINANCIAL_AMOUNTS } from "./view-model";
 
 export function FinancialAmounts({
   total,
@@ -17,7 +13,7 @@ export function FinancialAmounts({
 }) {
   return (
     <dl className={className}>
-      {AMOUNTS.map(([field, label]) => (
+      {FINANCIAL_AMOUNTS.map(([field, label]) => (
         <div key={field}>
           <dt>
             {field === "companyAmount" && total.missingFeeCount > 0

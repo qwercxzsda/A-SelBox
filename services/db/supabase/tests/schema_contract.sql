@@ -6,7 +6,7 @@ begin
         where n.nspname in ('public','private') and c.relkind = 'r' and not c.relrowsecurity
     ) then raise exception 'All application tables require row level security'; end if;
     if (select provolatile from pg_proc where oid =
-        'private.company_financial_totals(text,date,date,text,uuid[],public.amazon_marketplace_name[],text)'::regprocedure
+        'private.company_financial_totals(text,date,date,text,uuid[],text[],text)'::regprocedure
     ) <> 's' then
         raise exception 'Strict completeness checks and totals must share a statement snapshot';
     end if;
@@ -54,8 +54,19 @@ begin
         or has_column_privilege('authenticated','public.app_accounts','user_id','UPDATE') then
         raise exception 'Application access management must not promote roles or move Auth identities';
     end if;
-    if (select enum_range(null::public.amazon_marketplace_name)::text[] @> array['Non-Amazon US','Amazon.com']) is not true then
-        raise exception 'Readable canonical marketplaces must retain Non-Amazon US independently';
+    if exists (
+        select 1 from information_schema.columns
+        where table_schema in ('public','private') and column_name = 'marketplace_name'
+          and (udt_schema <> 'pg_catalog' or udt_name <> 'text')
+    ) then
+        raise exception 'Every marketplace name projection must retain native text';
+    end if;
+    if exists (
+        select 1 from information_schema.columns
+        where table_schema in ('public','private') and column_name = 'marketplace_names'
+          and (udt_schema <> 'pg_catalog' or udt_name <> '_text')
+    ) then
+        raise exception 'Marketplace scopes must retain native text arrays';
     end if;
 end;
 $$;

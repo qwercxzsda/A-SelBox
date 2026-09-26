@@ -9,7 +9,7 @@ import {
   type ColumnDef,
   type RowSelectionState,
 } from "@tanstack/react-table";
-import type { CanonicalRow, DatasetKey } from "./api";
+import type { CanonicalRow, TableDatasetKey } from "./api";
 import type { DatasetFilters } from "./api/types";
 import { TableCellValue } from "./Cell";
 import { lastPageIndex } from "./pagination";
@@ -30,7 +30,7 @@ const EMPTY_ROWS: CanonicalRow[] = [];
 
 export function useFinanceTable(
   identity: Identity,
-  dataset: DatasetKey,
+  dataset: TableDatasetKey,
   viewState: DatasetViewState,
   onViewStateChange: ViewStateProps<DatasetViewState>["onViewStateChange"],
 ) {
@@ -53,10 +53,6 @@ export function useFinanceTable(
     () => new Map(identity.companies.map((company) => [company.id, company.name])),
     [identity.companies],
   );
-  const skuNames = useMemo(
-    () => new Map(identity.assignments.map((assignment) => [assignment.id, assignment.sku])),
-    [identity.assignments],
-  );
   function updateView(update: (current: DatasetViewState) => DatasetViewState) {
     setRowSelection({});
     onViewStateChange(update);
@@ -71,15 +67,10 @@ export function useFinanceTable(
         enableSorting: Boolean(column.sortable),
         meta: { align: column.align },
         cell: ({ row }) => (
-          <TableCellValue
-            column={column}
-            row={row.original}
-            companies={companies}
-            skuNames={skuNames}
-          />
+          <TableCellValue column={column} row={row.original} companies={companies} />
         ),
       })),
-    [dataset, isAdministrator, companies, skuNames],
+    [dataset, isAdministrator, companies],
   );
   const table = useTable({
     features,
@@ -137,6 +128,5 @@ export function useFinanceTable(
     filters,
     changeFilters,
     companies,
-    skuNames,
   };
 }

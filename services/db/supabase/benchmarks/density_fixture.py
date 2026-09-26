@@ -45,15 +45,25 @@ where v.id=actual.version_id;
 
 
 def build_density(factor: int = 10) -> dict[str, object]:
-    if isinstance(factor, bool) or not 2 <= factor <= 20:
+    if type(factor) is not int or not 2 <= factor <= 20:
         raise ValueError("Density factor must be between 2 and 20")
     original = psql(
         DATABASE,
         "select (select count(*) from private.settlement_transactions),"
         "(select count(*) from private.data_kiosk_transactions);",
     )
-    if original != "73733|29511":
-        raise ValueError("Expected an unexpanded seed clone; refusing repeated density setup")
+    settlement_count, kiosk_count = (int(value) for value in original.split("|"))
+    if not settlement_count or not kiosk_count:
+        raise ValueError("Density setup requires source facts in both datasets")
+    if (
+        psql(
+            DATABASE,
+            "select exists(select 1 from private.data_kiosk_transactions "
+            "where strpos(component_key,':benchmark-copy:')>0)",
+        )
+        != "f"
+    ):
+        raise ValueError("Refusing repeated density expansion")
     started = time.perf_counter()
     statements = [
         "begin; set local statement_timeout='5min'; set local session_replication_role=replica;"
@@ -76,11 +86,16 @@ def build_density(factor: int = 10) -> dict[str, object]:
             "'private.data_kiosk_transactions'::regclass) and relrowsecurity));",
         )
     )
-    if counts["settlement_facts"] != 73733 * factor or counts["data_kiosk_facts"] != 29511 * factor:
+    if (
+        counts["settlement_facts"] != settlement_count * factor
+        or counts["data_kiosk_facts"] != kiosk_count * factor
+    ):
         raise RuntimeError("Density fixture row counts are inconsistent")
     return {
         "database": DATABASE,
         "factor": factor,
+        "seed_settlement_facts": settlement_count,
+        "seed_data_kiosk_facts": kiosk_count,
         **counts,
         "setup_seconds": round(time.perf_counter() - started, 3),
         "method": "Copy each fact with new identity/key; update clone-only source inventories.",

@@ -28,11 +28,8 @@ function datasetDependencies(dataset: DatasetKey, operator: boolean): readonly R
 
 export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   const [family] = key;
-  if (family === "dataset" || family === "dataset-options") {
+  if (family === "dataset" || family === "dataset-options" || family === "dataset-count") {
     return datasetDependencies(key[4] as DatasetKey, key[2] === "operator");
-  }
-  if (family === "dataset-count") {
-    return datasetDependencies(key[2] as DatasetKey, key[3] === "operator");
   }
   if (family === "current-fees") return ["fees"];
   if (
@@ -64,7 +61,7 @@ export function changedRevisionSources(
   );
 }
 
-export function needsRevisionRefresh(query: Query, changed: readonly RevisionSource[]): boolean {
+function needsRevisionRefresh(query: Query, changed: readonly RevisionSource[]): boolean {
   return queryRevisionSources(query.queryKey).some((source) => changed.includes(source));
 }
 
@@ -75,7 +72,7 @@ export function isAdministrativeDataset(dataset: unknown): boolean {
 
 export function isAdministrativeQuery(query: Query): boolean {
   const [family] = query.queryKey;
-  const dataset = family === "dataset-count" ? query.queryKey[2] : query.queryKey[4];
+  const dataset = query.queryKey[4];
   return (family === "dataset" || family === "dataset-count") && isAdministrativeDataset(dataset);
 }
 

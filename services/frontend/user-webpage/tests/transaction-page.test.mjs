@@ -282,7 +282,7 @@ test("transaction page responses reject lossy numbers and malformed counts or ro
 });
 
 test("non-transaction datasets keep their existing CSV API", async () => {
-  for (const dataset of ["fees", "payouts", "accounts"]) {
+  for (const dataset of ["payouts", "accounts"]) {
     const client = createApiClient(SETTINGS, async (url, init) => {
       assert.equal(new URL(url).pathname, `/rest/v1/${DATASET_CONFIG[dataset].endpoint}`);
       assert.equal(init.headers.Accept, "text/csv");

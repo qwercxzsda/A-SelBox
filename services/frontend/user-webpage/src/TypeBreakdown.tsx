@@ -8,7 +8,7 @@ import { UpdateStatus } from "./UpdateStatus";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import "./TypeBreakdown.css";
 
-export interface TypeBreakdownProps {
+interface TypeBreakdownProps {
   opened: boolean;
   onClose: () => void;
   title: string;

@@ -14,7 +14,13 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = "operator";
     const rows = Array.from({ length: 30 }, (_, index) => {
-      const amount = String(index - 15);
+      const exactExtremes = {
+        0: "-9007199254740993.000000000000000002",
+        1: "-9007199254740993.000000000000000001",
+        28: "9007199254740993.000000000000000001",
+        29: "9007199254740993.000000000000000002",
+      };
+      const amount = exactExtremes[index] ?? String(index - 15);
       const row =
         dataset === "live"
           ? liveRow("RAW", index + 1)

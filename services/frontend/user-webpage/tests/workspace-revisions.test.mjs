@@ -55,6 +55,14 @@ test("poll rejects omitted/malformed revisions, another user's account, and unau
     { account, revisions: { settlement: 1, fees: "1" } },
     { account, revisions: { settlement: "1", fees: " " } },
     { account: { ...account, user_id: "user-b" }, revisions: { settlement: "1", fees: "1" } },
+    ...[
+      { ...account, access_role: "unregistered" },
+      { ...account, company_id: null },
+      { ...account, access_role: "operator" },
+    ].map((invalidAccount) => ({
+      account: invalidAccount,
+      revisions: { settlement: "1", fees: "1" },
+    })),
   ]) {
     const client = createApiClient(SETTINGS, async () => json(body));
     await assert.rejects(client.fetchWorkspaceRevisions(options));
@@ -93,7 +101,7 @@ test("changed opaque tokens are compared only for requested sources, including n
 });
 
 test("pages, choices, counts, cards and fees carry the correct source dependencies", () => {
-  for (const family of ["dataset", "dataset-options"]) {
+  for (const family of ["dataset", "dataset-options", "dataset-count"]) {
     assert.deepEqual(queryRevisionSources([family, "u", "operator", null, "settlement"]), [
       "settlement",
     ]);
@@ -110,7 +118,7 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
       "fees",
     ]);
   }
-  assert.deepEqual(queryRevisionSources(["dataset-count", "scope", "settlement", "operator"]), [
+  assert.deepEqual(queryRevisionSources(["dataset-count", "u", "operator", null, "settlement"]), [
     "settlement",
   ]);
   assert.deepEqual(queryRevisionSources(["current-fees", "u", "operator"]), ["fees"]);
@@ -146,7 +154,7 @@ test("administrative refresh policy applies only to account and payout pages and
     assert.equal(isAdministrativeDataset(dataset), expected);
     for (const key of [
       ["dataset", "u", "operator", null, dataset],
-      ["dataset-count", "scope", dataset, "operator"],
+      ["dataset-count", "u", "operator", null, dataset],
     ])
       assert.equal(isAdministrativeQuery({ queryKey: key }), expected);
     assert.equal(
@@ -161,7 +169,7 @@ test("revision refresh invalidates matching counts and inactive pages but only f
   const reads = [];
   const keys = [
     ["dataset", "u", "operator", null, "live"],
-    ["dataset-count", "scope", "live", "operator"],
+    ["dataset-count", "u", "operator", null, "live"],
     ["dataset", "u", "operator", null, "settlement"],
   ];
   const unsubscribers = keys.map((key) =>

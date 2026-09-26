@@ -5,7 +5,6 @@ export const ACCOUNT_PATHS = new Set([
   "/auth/v1/logout",
   "/auth/v1/user",
   "/rest/v1/rpc/workspace_revisions",
-  "/rest/v1/app_accounts",
   "/rest/v1/companies",
   "/rest/v1/company_skus",
 ]);
@@ -85,32 +84,13 @@ export function createAccountHandlers(fixture) {
         if (status !== 200) return reply({ message: "Revision fixture unavailable" }, status);
         return reply(response);
       }
-      if (
-        ["/rest/v1/app_accounts", "/rest/v1/companies", "/rest/v1/company_skus"].includes(
-          url.pathname,
-        )
-      ) {
+      if (["/rest/v1/companies", "/rest/v1/company_skus"].includes(url.pathname)) {
         fixture.identityRequests.push({
           user,
           accessToken,
           endpoint: url.pathname,
           params: url.searchParams,
         });
-      }
-      if (url.pathname === "/rest/v1/app_accounts") {
-        await fixture.beforeAccount({ user, accessToken });
-        if (fixture.accountNetworkFailure) return route.abort("internetdisconnected");
-        if (fixture.accountStatus !== 200)
-          return reply({ message: "Account fixture unavailable" }, fixture.accountStatus);
-        const role = fixture.roles[user];
-        if (!role) return reply([]);
-        return reply([
-          {
-            user_id: user,
-            access_role: role,
-            company_id: role === "operator" ? null : fixture.companyIds[user],
-          },
-        ]);
       }
       if (url.pathname === "/rest/v1/companies") {
         await fixture.beforeCompanies({ user, accessToken });

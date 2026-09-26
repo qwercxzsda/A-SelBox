@@ -2,7 +2,7 @@
 
 React and TypeScript client using Vite, Mantine, TanStack Query, TanStack Table, and Playwright. The
 browser accesses Supabase Auth and REST APIs with the signed-in user's token. It never sends SQL.
-Database row-level security enforces access.
+Database row-level security enforces access. UI copy and browser review fixtures use English.
 
 ## Workspace
 
@@ -92,15 +92,17 @@ Financial counts are cached until a relevant data revision changes. Pages and ad
 have 30-second freshness. Every visible, online workspace polls `workspace_revisions` every 60
 seconds; focus and reconnection also check for changes. Unchanged revisions trigger no financial
 reads. Changes invalidate only dependent rows, options, counts, summaries, and fee lookups. Source
-revisions are global; fee/ownership revisions are company-scoped for members. Active summaries
-require all three revisions even when another tab is selected. Account and payout lists refresh
-separately because their changes are outside those financial revisions.
+revisions cover current pointers, historical publications, and Data Kiosk pruning. They are global;
+fee/ownership revisions are company-scoped for members. Active summaries require all three revisions
+even when another tab is selected. Account and payout lists refresh separately because their changes
+are outside those financial revisions.
 
 A session survives reloads in the same tab through `sessionStorage`, scoped to the Supabase URL.
-Only tokens, expiry, and minimal identity are stored. Reload verifies the token with Auth and
-reloads current permissions before showing the workspace. Token rotation is saved before dependent
-requests. Temporary restore failures offer retry; sign-out immediately clears local session and
-workspace data and ends the current session. Authentication is not synchronized between tabs.
+Only tokens, expiry, and minimal identity are stored. Reload verifies the token with Auth and uses
+the account returned by the revision RPC, then reloads company and SKU lookups before showing the
+workspace. Token rotation is saved before dependent requests. Temporary restore failures offer
+retry; sign-out immediately clears local session and workspace data and ends the current session.
+Authentication is not synchronized between tabs.
 
 ## Configuration
 

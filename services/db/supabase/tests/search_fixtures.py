@@ -1,4 +1,4 @@
-"""Independent old REST-search predicates for RPC/view equivalence tests."""
+"""Independent literal-search predicates for RPC/view equivalence tests."""
 
 import re
 
@@ -22,7 +22,7 @@ def append_literal_search(
     columns: tuple[str, ...],
     search: object,
 ) -> None:
-    """Reproduce buildSearchFilter's escaped regular expression, not the new helper."""
+    """Build an independently escaped regex for literal visible-field matching."""
     if search is None:
         return
     if not isinstance(search, str):

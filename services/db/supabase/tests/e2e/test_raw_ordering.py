@@ -130,7 +130,7 @@ class RawOrderingTests(LocalWorkflowCase):
                             self.assert_equivalent(token, dataset, order_by, direction, sellers)
                 args = Case(dataset, "invalid", "amount", "desc").arguments()
                 for patch, code in (
-                    ({"p_marketplaces": ["not-a-marketplace"]}, "22P02"),
+                    ({"p_marketplaces": ["not-a-marketplace"]}, "22023"),
                     ({"p_order_by": "company_amount"}, "22023"),
                 ):
                     invalid = self.stack.request(

@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
-from .common import DATABASES, PORT, docker
+from .common import DATABASES, PORT, docker, local_docker_environment
 
 
 def _ready(base: str) -> None:
@@ -41,8 +41,6 @@ def rest_server(
     password: str,
     image: str,
     temporary: Path,
-    *,
-    aggregates_enabled: bool = False,
 ) -> Generator[tuple[str, str]]:
     if database not in DATABASES:
         raise ValueError("REST benchmark requires an allowlisted disposable clone")
@@ -57,7 +55,7 @@ def rest_server(
         stream.write(
             f"PGRST_DB_URI={uri}\nPGRST_JWT_SECRET={secret}\nPGRST_DB_SCHEMAS=public\n"
             "PGRST_DB_ANON_ROLE=anon\nPGRST_DB_POOL=10\nPGRST_LOG_LEVEL=crit\n"
-            f"PGRST_DB_AGGREGATES_ENABLED={str(aggregates_enabled).lower()}\n"
+            "PGRST_DB_AGGREGATES_ENABLED=false\n"
         )
     base = f"http://127.0.0.1:{port}"
     try:
@@ -79,7 +77,12 @@ def rest_server(
     finally:
         # The unique name belongs to this invocation, including a partly failed start.
         try:
-            removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, check=False)
+            removed = subprocess.run(
+                ["docker", "rm", "-f", name],
+                env=local_docker_environment(),
+                capture_output=True,
+                check=False,
+            )
             if removed.returncode and b"No such container" not in removed.stderr:
                 raise RuntimeError("Could not remove the temporary REST container")
         finally:

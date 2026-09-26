@@ -1,4 +1,4 @@
-"""Compare optional index families on one owned, disposable 1M history clone."""
+"""Compare optional index families on one owned, disposable history clone."""
 
 from __future__ import annotations
 
@@ -11,11 +11,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, cast
 
-from .common import REST_CONTAINER, catalog_fingerprint, connect, docker, identities, local_password
+from .common import catalog_fingerprint, connect, identities
 from .fixtures import clone_session
 from .index_cases import discover, final_guardrails
-from .index_measurement import measure, save
+from .index_measurement import measure
 from .index_variants import PILOTS, apply, assert_rules_unchanged, capture, inventory, restore
+from .runner import cli, runtime, save
 
 Record = dict[str, Any]
 
@@ -38,13 +39,12 @@ def main() -> None:
     args = parser.parse_args()
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    password = local_password()
-    image = docker("inspect", REST_CONTAINER, "--format", "{{.Config.Image}}").decode().strip()
+    password, image = runtime()
     result: Record = {
         "started_at_utc": datetime.now(UTC).isoformat(),
         "status": "running",
         "method": (
-            "One 1M history clone; unchanged installed RPCs and RLS; normal planner. "
+            "One history clone; unchanged installed RPCs and RLS; normal planner. "
             "Each optional index set freshly built, one warmup, one pilot repetition, "
             "three finalist repetitions. Exact rows and decimal strings match baseline. "
             "Plans are separate, untimed installed-query diagnostics. No assumed workload weights."
@@ -150,7 +150,6 @@ def main() -> None:
         result["failure"] = {
             "type": type(error).__name__,
             "sqlstate": getattr(error, "sqlstate", None),
-            "reason": str(error),
             "trace": [
                 {"file": Path(frame.filename).name, "line": frame.lineno, "function": frame.name}
                 for frame in traceback.extract_tb(error.__traceback__)
@@ -165,13 +164,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as error:
-        print(
-            json.dumps(
-                {"failed": type(error).__name__, "sqlstate": getattr(error, "sqlstate", None)}
-            ),
-            flush=True,
-        )
-        raise SystemExit(1) from None
+    cli(main)

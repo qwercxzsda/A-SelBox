@@ -34,14 +34,15 @@ class AllocationCategoryTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select category,amount from public.data_kiosk_others_entries"
+                "select category,source_amount from public.live_company_components "
+                "where source='DATA_KIOSK' and authoritative"
             ).fetchall(),
             [("DATA_KIOSK", Decimal("-10"))],
         )
         query = (
             "select source_amount,fee_amount,company_amount from "
             "private.company_financial_totals(%s,'2026-06-15','2026-06-15',"
-            "'v0','{}',array['Amazon.com']::public.amazon_marketplace_name[])"
+            "'v0','{}',array['Amazon.com']::text[])"
         )
         self.assertEqual(
             self.connection.execute(query, (self.seller,)).fetchall(),

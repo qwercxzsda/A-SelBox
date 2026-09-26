@@ -20,8 +20,10 @@ facts or saved payouts.
 
 Date bounds are inclusive, finite calendar dates. If both are supplied, the start cannot exceed the
 end. Selection arrays are one-dimensional and cannot contain null members. Omitted, null, or empty
-arrays mean no selection restriction. Marketplace arguments use `amazon_marketplace_name[]`; clients
-send JSON string arrays and unknown enum labels are rejected.
+arrays mean no selection restriction. Marketplace arguments use `text[]`; clients send JSON string
+arrays. The shared validator rejects unsupported names, including mixed valid/invalid selections,
+with SQLSTATE `22023`. Stored marketplace names have `CHECK` constraints preserving the same
+24-name vocabulary validated by Python. Optional scalar nulls retain their existing meaning.
 
 Row amounts, quantities, rates, aggregate sums, and counts are exact decimal strings in RPC JSON.
 Unknown financial amounts remain null. Explicit zero amounts and rates remain zero. Currency groups
@@ -42,7 +44,7 @@ accepts:
 | `p_date_from`, `p_date_to` | `null`  | Optional inclusive date bounds.                                   |
 | `p_company_ids`            | `null`  | Current company UUID selection.                                   |
 | `p_skus`                   | `null`  | Exact SKU text selection.                                         |
-| `p_marketplaces`           | `null`  | Native marketplace enum selection.                                |
+| `p_marketplaces`           | `null`  | Exact supported marketplace text selection.                       |
 | `p_sources`                | `null`  | Source text selection.                                            |
 | `p_types`                  | `null`  | Raw component-type selection.                                     |
 | `p_include_count`          | `true`  | Whether to include an exact matching-row count.                   |
@@ -63,8 +65,17 @@ response uses one statement and snapshot.
 
 Date and Reported amount ordering, with or without text search, use this RPC. Reported amount is the
 stored numeric source amount, ordered with its sign; values are not converted between currencies.
-The frontend no longer offers Company amount ordering for Transactions. Text predicates apply before
+Text predicates apply before
 each source candidate limit; fee calculation still follows global page selection.
+
+A single marketplace uses scalar text equality so its index prefix is fixed for date ordering.
+Multiple selected marketplaces use distinct, date-ordered candidate reads per marketplace, each
+bounded by `offset + limit`, before the normal source/global merge. All filters and RLS apply inside
+those reads. A 4,096-candidate budget per source keeps this strategy bounded: if the selected array
+length times `offset + limit` would exceed it, the query retains the direct array-filter path.
+The budget only chooses an execution strategy; it does not restrict dates, results, or valid offsets.
+Raw-source pages preserve an unbounded matching relation for exact counts. Reported amount ordering
+retains its separate 10,000-match contract.
 
 Amount ordering is available only when the full filtered result contains **at most 10,000 rows**.
 The function gathers at most 10,001 matching candidates without ordering, checks that count, and
@@ -151,8 +162,8 @@ zero; it never becomes an empty selection array that means no filter.
 | Settlements / Data Kiosk | SKU, Type, Marketplace, Currency         |
 
 Type searches match the stored type code/keywords. Source accepts both its canonical code and the
-fixed displayed names, `Settlements` and `Data Kiosk`. Marketplace enum values are cast to text only
-for substring search; selected marketplace filters continue comparing the native enum type. Fee
+fixed displayed names, `Settlements` and `Data Kiosk`. Marketplace search and selections both use
+the stored text directly. Fee
 status, processing version, seller identifiers, and other hidden metadata are not searchable. The
 Source field is omitted for raw tabs, where every row comes from the same source.
 
@@ -207,15 +218,14 @@ requires `p_dataset` and `p_field`. It accepts `p_limit` (default 1,000, range 1
 | `live`       | `sku`, `marketplace_name`, `source`, `component_type` |
 | `settlement` | `sku`, `marketplace_name`, `component_type`           |
 | `data_kiosk` | `sku`, `marketplace_name`, `component_type`           |
-| `fees`       | `marketplace_name`                                    |
 
 Response: `{ "values": ["A", "B"], "next_cursor": "B" }`. Values are unique, non-null strings in `C`
 collation order. The next cursor is the last returned value only when another value exists;
 otherwise it is null. Clients pass that exact value as `p_after` for the next page. One lookahead
 value detects continuation; occurrence counts are not calculated.
 
-Live options read eligible current facts without fee joins. Raw source options and fee options
-retain the matching existing view/RLS visibility. Zero Data Kiosk rows remain excluded. The RPC
+Live options read eligible current facts without fee joins. Raw source options retain the matching
+source view/RLS visibility. Zero Data Kiosk rows remain excluded. The RPC
 rejects unsupported dataset/field combinations rather than accepting arbitrary SQL identifiers.
 
 ## Index access paths
@@ -229,7 +239,7 @@ Here `date` means Settlement `posted_date` or Data Kiosk `activity_date`.
 | `(date, id)`                    | Full index    | Full index    | Both date directions, including raw historical/account rows. |
 | `(sku, date)`                   | Compact index | Compact index | Exact single/multiple SKU selections and date ranges.        |
 | `(component_type, date)`        | Compact index | Compact index | Type selections, fee-applicable Types, and date ranges.      |
-| `(marketplace_name, date)`      | Not retained  | Compact index | Privileged backend Data Kiosk financial reads.               |
+| `(marketplace_name, date)`      | Compact index | Compact index | Marketplace filtering and bounded date candidates.           |
 | Existing ownership/version keys | Unchanged     | Unchanged     | Current ownership and source-version eligibility.            |
 
 The full date/ID indexes have no category or nonzero-amount predicate. Filtering and existing RLS
@@ -240,33 +250,29 @@ would prevent sharing those repeated keys and increase storage. Compact indexes 
 sorting within a date or merging selected values; they are not a promise of a sort-free plan.
 [B-tree deduplication](https://www.postgresql.org/docs/17/btree.html#BTREE-DEDUPLICATION)
 
-Native enum parameters remove the earlier cast mismatch, but do not guarantee that a marketplace
-filter becomes an index condition under RLS. PostgreSQL 17's `enum_eq` is not marked leakproof;
-security-policy ordering can therefore prevent the comparison from reaching the fact scan as an
-index restriction. The retained Data Kiosk marketplace/date index serves privileged backend
-financial reads. Its usefulness there does not imply the same plan for authenticated UI requests.
-[PostgreSQL 17 enum catalog](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/include/catalog/pg_proc.dat),
+Marketplace columns and arguments use native text, preserving the allowed names with write
+constraints and input validation. PostgreSQL 17's built-in text equality is leakproof, allowing
+marketplace conditions to reach fact scans under RLS. This permits
+an index condition; it does not require the planner to choose a particular index for every scope.
+No equality wrapper, catalog flag change, or RLS relaxation is involved.
+[PostgreSQL 17 function catalog](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/include/catalog/pg_proc.dat),
 [RLS and leakproof predicates](https://www.postgresql.org/docs/17/sql-createfunction.html)
 
-The former `(seller_namespace, sku, date)` indexes and Settlement marketplace/date index are
-removed. The ownership/version indexes, current-pointer indexes, primary/unique constraints,
-and fee-period GiST exclusion remain. No amount-ordering index is
-retained. This index selection changes access paths only: function contracts, tables, authorization,
-financial results, and the 10,000-match amount-sort limit stay the same.
+Ownership/version indexes, current-pointer indexes, primary/unique constraints, and the fee-period
+GiST exclusion support eligibility and data integrity. There is no amount-ordering index;
+sorting uses the bounded 10,000-match result.
 
 Plans remain dependent on role, filter selectivity, dates, and requested page depth. Exact counts
 and sums still process their matching rows, and multi-value filters may choose a different plan from
-singleton filters. Historical evidence describes the index definitions at its recorded checkpoint;
-the module map identifies the current definitions. The
-[balanced-index experiment](evidence/balanced_read_indexes_2026-09-25/README.md) records the
-selected workload, repeated comparisons, footprint and write-cost tradeoffs.
+singleton filters. Type indexes also narrow applicable-only counts; ordinary date pages can use
+date/ID scans. The [performance guide](database_performance.md) records measurements and scaling
+limits.
 
-The [fee-applicability benchmark](evidence/fee_type_filter_2026-09-26/README.md) confirms these Type
-indexes also narrow applicable-only counts; ordinary date pages continue using date/ID scans.
-
-The [other-table audit](evidence/other_table_indexes_2026-09-25/README.md) covers source metadata,
-accounts, terms/fees, revision tokens, and frozen payouts. It removes redundant or unused secondary
-indexes and adds the payout list's creation-order index without changing these transaction paths.
+Outside the fact tables, primary/unique indexes cover natural identities and version inventories.
+Current-pointer indexes support currentness. The fee-period GiST constraint provides date coverage
+and prevents overlap. Data Kiosk payout references have a version-leading index for retention
+checks. Payout listings use `(created_at DESC NULLS LAST, id ASC)`; their separate company key
+supports company references. Batch lookups reuse `UNIQUE(batch_id, day_id)`.
 
 ## Shared rules and API configuration
 
@@ -286,6 +292,19 @@ strings are bound parameters and are never interpolated into SQL.
 The current-pointer shortcut applies only to authenticated non-operators with active fact RLS that
 already requires current versions. Operators, owners, and bypass contexts retain explicit pointer
 checks. These helpers preserve the existing access rules and financial results.
+
+[Application access](../services/db/supabase/migrations/20260914094640_application_access.sql)
+separates transaction authorization from reference visibility. Fact policies match current source
+pointers directly and still enforce each row's category and current seller/SKU ownership. Metadata
+policies do not inspect facts: `private.is_company_member()` establishes registered member access,
+headers require a nonnull current pointer, and version references must match a current pointer.
+Members may read current references across companies, including empty or unowned versions; operators
+retain historical reference access. Existing column grants continue to exclude full report metadata,
+and its operator-only functions remain guarded. The private member helper has a fixed search path and
+authenticated-only application execution.
+
+Public RPCs use invoker security. Reference visibility does not grant transaction access. See the
+[simplified metadata evidence](evidence/simple_metadata_access_2026-09-26/README.md).
 
 [REST configuration](../services/db/supabase/migrations/20260925065542_rest_api_configuration.sql)
 sets `pgrst.db_aggregates_enabled=false`. General REST aggregate selections fail with `PGRST123`;

@@ -104,7 +104,9 @@ class LiveSourceModelTests(SourceModelFixture):
         self.assertEqual(self.totals([canonical])[0][-1], Decimal("95"))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.settlement_others_entries"
+                "select count(*) from public.settlement_preprocess_entries "
+                "where category='DATA_KIOSK' and version_id in "
+                "(select current_version_id from private.settlements)"
             ).fetchone(),
             (1,),
         )
@@ -125,7 +127,8 @@ class LiveSourceModelTests(SourceModelFixture):
         _, two = self.kiosk(2, [], expected=one)
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.data_kiosk_others_entries"
+                "select count(*) from public.live_company_components "
+                "where source='DATA_KIOSK' and authoritative"
             ).fetchone(),
             (0,),
         )
@@ -193,7 +196,7 @@ class LiveSourceModelTests(SourceModelFixture):
         sql = (
             "select * from "
             "private.company_financial_totals(%s,'2026-06-15','2026-06-15',%s,'{}',"
-            "array['Amazon.com']::public.amazon_marketplace_name[])"
+            "array['Amazon.com']::text[])"
         )
         self.assertEqual(
             require_row(self.connection.execute(sql, (self.seller, "v0")).fetchone())[-1],
@@ -244,7 +247,9 @@ class LiveSourceModelTests(SourceModelFixture):
             ):
                 self.connection.execute(statement)
         self.assertEqual(
-            self.connection.execute("select * from public.settlement_others_entries").fetchall(),
+            self.connection.execute(
+                "select * from public.settlement_preprocess_entries where category='DATA_KIOSK'"
+            ).fetchall(),
             [],
         )
         self.connection.execute("reset role")

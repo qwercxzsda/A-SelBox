@@ -67,7 +67,7 @@ test("initial sign-in captures revisions before loading dependent lookups and fi
     release.resolve();
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     expect(fixture.revisionRequests).toHaveLength(1);
-    expect(fixture.identityRequests).toHaveLength(3);
+    expect(fixture.identityRequests).toHaveLength(2);
   } finally {
     release.resolve();
   }
@@ -424,7 +424,7 @@ test("token rotation cancels an old-token revision check before its late rejecti
           fixture.identityRequests.filter(({ accessToken }) => accessToken === "rotated-access")
             .length,
       )
-      .toBe(3);
+      .toBe(2);
     await expect
       .poll(() =>
         page.evaluate(

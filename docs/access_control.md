@@ -52,6 +52,7 @@ service-role API key is a separate capability and is not a PostgreSQL login.
 | Read company assignments and fee periods                | All versions            | All versions                         | Current terms for own company's SKUs            |
 | Publish a complete seller/SKU terms version             | Python/SQL              | REST RPC                             | No                                              |
 | Read source preprocessing facts                         | All retained versions   | All retained versions and categories | Current versions of permitted own-company facts |
+| Read narrow report/day/version references               | All                     | All, including historical versions   | All current references across companies         |
 | Read full preprocessing headers and diagnostics         | Yes                     | Yes                                  | No                                              |
 | Read payout reports, components, and input references   | All                     | All                                  | No                                              |
 | Publish acquisitions, source results, or payout reports | Python/SQL              | No                                   | No                                              |
@@ -63,6 +64,10 @@ except `SELBOX`. Category rules keep account/control amounts
 outside company access. Both the source version and SKU assignment must be
 current. Historical activity dates inside a current result remain visible;
 "current" refers to the selected version, not a recent-date window.
+
+Current report/day/version references are shared with all registered company members, including
+members whose company has no SKUs. Those references expose only the granted IDs, parent links and
+preprocessing labels. Their visibility does not grant access to transactions or full report metadata.
 
 Operators can read every retained historical result. A pruned Data Kiosk version
 keeps its header and pruning marker, but its removed component payload is
@@ -130,15 +135,15 @@ publisher; stale replacements fail. The submission replaces all marketplaces
 for that seller/SKU. A NULL company unassigns the SKU, and an empty fee inventory
 withdraws fee coverage; payout publication rejects unresolved required inputs.
 
-| Read endpoint under `/rest/v1/`                                                                          | Operator                                         | Company member                     |
-| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------- |
-| `seller_skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                     | Own company's selected terms       |
-| `company_skus`, `current_sku_fee_periods`                                                                | Current projections across companies             | Own company current projections    |
-| `settlement_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                         | Permitted current own-company rows |
-| `settlement_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                  | Denied                             |
-| Company category views and `live_company_components`                                                     | Current data permitted by each view's definition | Current own-company data           |
-| `company_payout_reports`, `company_payout_report_components`                                             | All saved reports and components                 | No rows                            |
-| `payout_report_settlement_versions`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                       | No rows                            |
+| Read endpoint under `/rest/v1/`                                                                          | Operator                                        | Company member                     |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------- |
+| `seller_skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                    | Own company's selected terms       |
+| `company_skus`, `current_sku_fee_periods`                                                                | Current projections across companies            | Own company current projections    |
+| `settlement_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                        | Permitted current own-company rows |
+| `settlement_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                 | Denied                             |
+| `live_company_components`                                                                                | Current data permitted by the view's definition | Current own-company data           |
+| `company_payout_reports`, `company_payout_report_components`                                             | All saved reports and components                | No rows                            |
+| `payout_report_settlement_versions`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                      | No rows                            |
 
 ## How RLS enforces this
 
@@ -153,16 +158,34 @@ and DELETE policies restrict the actor and target role. UPDATE checks both the
 existing row and its resulting company-member state. Source-row RLS enforces
 current-version and current-company access even beneath the public views.
 
+Fact policies check current source pointers directly, alongside each fact's category and current
+seller/SKU ownership. Their header reads have simple account/current-pointer policies and never
+inspect transaction rows to prove metadata ownership. Settlement eligibility remains category
+`SETTLEMENT`; Data Kiosk eligibility remains every category except `SELBOX`, including `ANALYSIS_ONLY`.
+
+`private.is_company_member()` checks the caller's stored account using `auth.uid()`. It is a narrow
+definer helper with a fixed empty search path and execution granted only to `authenticated` among
+application roles. A member can read every header with a nonnull selected version and every version
+currently selected by a header, including foreign, empty and excluded-category-only versions.
+Unselected headers and historical versions remain hidden from members. Operators retain their
+separate branch allowing historical references. Unregistered users and missing user IDs see none.
+
+SKU reassignment changes fact
+access without changing a registered member's reference visibility; removing the application account
+revokes both. Reference identifiers and their currentness are intentionally shared, while amounts,
+counts, diagnostics and raw evidence retain their separate restrictions.
+
 Member grants on source headers remain limited to the identifiers needed by
 current views. Operator-only metadata functions provide full headers without
 granting those account-wide controls to company members. Payout RLS requires an
 operator, so full saved report columns and manifests are operator-only.
 
-The private schema remains outside the REST API's exposed schemas. Source and
-payout publication, pruning, acquisition manifests, and raw Storage objects are
-not exposed through an operator endpoint. Authorization follows the database
-snapshot of each request; changing access does not cancel a request already
-running with an earlier snapshot.
+The private schema remains outside the REST API's exposed schemas. Source and payout publication,
+pruning, acquisition manifests, and raw Storage objects are not exposed through an operator
+endpoint. Authorization follows the database snapshot of each request; changing access does not
+cancel a request already running with an earlier snapshot. See the
+[simplified metadata review](evidence/simple_metadata_access_2026-09-26/README.md) for the query
+comparison and verification.
 
 Supabase checks [grants and RLS together](https://supabase.com/docs/guides/database/postgres/row-level-security);
 Auth identities and [application profile data](https://supabase.com/docs/guides/auth/managing-user-data)

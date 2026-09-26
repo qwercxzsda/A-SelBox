@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import statistics
 import time
 from pathlib import Path
@@ -163,9 +162,3 @@ def measure(
         "summary": summary,
         "plans": plans,
     }
-
-
-def save(path: Path, result: Record) -> None:
-    temporary = path.with_suffix(".pending")
-    temporary.write_text(json.dumps(result, indent=2) + "\n")
-    temporary.replace(path)

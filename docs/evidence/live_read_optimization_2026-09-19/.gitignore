@@ -1,7 +1,0 @@
-*.private*
-*.restore-error.txt
-.ruff_cache/
-__pycache__/
-*.log
-scale.sql
-expand_tenants.sql

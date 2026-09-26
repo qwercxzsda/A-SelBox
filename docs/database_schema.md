@@ -5,10 +5,11 @@ A-SelBox separates **archived Amazon evidence**, **complete versions of source f
 Company assignment and fee periods are selected together in a SKU terms version.
 Changing terms updates live results without rewriting source facts or saved reports.
 
-The PostgreSQL 17/Supabase schema contains **20 application tables: 7 in `public`,
-13 in `private`**. Supabase also supplies Auth and Storage tables. The five
-fresh-install migration modules define source/terms records, atomic publication
-and retention, live reads, frozen payouts, and application access. They do not
+The PostgreSQL 17/Supabase schema contains **21 application tables: 7 in `public`,
+14 in `private`**. Supabase also supplies Auth and Storage tables. The
+[migration modules](../services/db/supabase/README.md#schema-modules) define source/terms records,
+atomic publication and retention, financial reads, frozen payouts, application access,
+and revision polling. They do not
 provide an upgrade or backfill path for an existing deployment.
 
 ```mermaid
@@ -24,8 +25,9 @@ flowchart LR
 
 Strict live totals use the privileged function
 `private.company_financial_totals(...)`. The `public.live_company_components`
-view also contains diagnostic rows, so a plain sum of that view is not a complete
-financial total.
+view also contains diagnostic rows. Dashboard estimates include those rows under the
+[Transactions contract](transaction_query_contracts.md); they do not certify strict financial
+completeness.
 
 ## Ownership and fee terms
 
@@ -208,17 +210,17 @@ contributes to company totals.
 | `DATA_KIOSK`    | Reconciliation amounts; excluded from company totals    | Authoritative company costs; SKU required             |
 | `ANALYSIS_ONLY` | Not permitted                                           | Diagnostic amounts; excluded from company totals      |
 
-Each source has three category views. The suffixes have the same mapping for both
-sources: `*_sku_entries` selects `SETTLEMENT`, `*_account_entries` selects
-`SELBOX`, and `*_others_entries` selects `DATA_KIOSK`. Consequently,
-**`data_kiosk_others_entries` is the Data Kiosk category used in authoritative
-company totals**. `ANALYSIS_ONLY` stays outside these six category views.
+Strict financial reads include Settlement `SETTLEMENT` and Data Kiosk `DATA_KIOSK`
+facts. `ANALYSIS_ONLY` stays outside that calculation. Raw source entry views expose
+the facts permitted by RLS; dashboard queries use their own documented category scope.
 
 `private.resolve_company_components(...)` calculates from explicit source and
 terms version arrays, marks authority, and exposes source/terms/period references,
-the applicable rate, and a resolution status. `public.live_company_components`
-passes current selections to this shared resolver. Frozen reports pass their
-captured version UUIDs.
+the applicable rate, and a resolution status. Frozen reports pass their captured
+version UUIDs. `public.live_company_components` joins facts to current source pointers
+and selected terms directly so filters can reach the fact scans. Both paths use the
+same fee rules. Dashboard page RPCs select eligible rows before resolving their fees;
+total RPCs combine compatible facts before fee lookup.
 
 For fee-bearing rows:
 
@@ -282,6 +284,18 @@ Report capture and pruning require `READ COMMITTED` and acquire Data Kiosk day
 locks in the same natural order. Reports retain whole referenced versions even
 when their component inventory is empty. See the [payout API and guarantees](company_payout_reports.md).
 
+## Revision tokens
+
+`private.workspace_revision_tokens` stores opaque revisions keyed by source and company scope.
+Settlement and Data Kiosk tokens are global; fee/ownership/name tokens also have company scopes.
+The authenticated `workspace_revisions` RPC returns the caller's stored account and only the
+requested tokens. It does not expose source metadata or scan transaction history. Publications
+rotate affected tokens atomically; multiple changes in one transaction share one rotation. Source
+tokens also track retained-version publication and historical Data Kiosk pruning, so administrator
+history reads refresh even when current selections stay the same.
+The [frontend guide](../services/frontend/user-webpage/README.md#requests-and-session-lifecycle)
+describes selective refresh and account changes.
+
 ## Access boundaries and scope
 
 `public` is a PostgreSQL schema name, not a promise of public access. All
@@ -289,13 +303,14 @@ application tables enable row-level security. `app_accounts` and `auth.uid()`
 determine the caller's `operator` or `company_member` role; a direct PostgreSQL
 administrator has no application-account requirement.
 
-Company members read their current company, selected ownership/fee terms,
+Company members read all narrow current source references, their current company, selected ownership/fee terms,
 current owned Settlement `SETTLEMENT` facts, and current owned Data Kiosk facts
 except `SELBOX`. Operators read all retained source and terms versions, manage
 member access, and publish complete SKU terms through the guarded REST RPC.
 Public views use `security_invoker = true`. Operator-only metadata helpers expose
 complete historical headers while member grants retain only necessary opaque
-selection/version columns. Raw archives remain outside application access.
+selection/version columns. Reference visibility does not grant access to transaction
+amounts or full metadata. Raw archives remain outside application access.
 
 Payout reports, components, all inventory counts, and exact input references are
 operator-only. Company members have no saved-payout access. Source and payout

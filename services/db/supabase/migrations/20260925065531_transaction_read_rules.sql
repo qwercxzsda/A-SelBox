@@ -6,7 +6,7 @@ create function private.validate_transaction_filters(
     p_date_to date,
     p_company_ids uuid[],
     p_skus text[],
-    p_marketplaces public.amazon_marketplace_name[],
+    p_marketplaces text[],
     p_sources text[] default null,
     p_types text[] default null,
     p_require_date boolean default false
@@ -32,6 +32,15 @@ begin
         or array_position(p_marketplaces, null) is not null or array_position(p_sources, null) is not null
         or array_position(p_types, null) is not null then
         raise exception 'Selection filters must not contain null values' using errcode = '22023';
+    end if;
+    if p_marketplaces is not null and not (p_marketplaces <@ array[
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+    ]::text[]) then
+        raise exception 'Unsupported marketplace selection' using errcode = '22023';
     end if;
 end;
 $$;
@@ -68,11 +77,11 @@ revoke all on function private.member_policy_covers_current_version(regclass)
 from public, anon, authenticated, service_role;
 
 revoke all on function private.validate_transaction_filters(
-    date, date, uuid[], text[], public.amazon_marketplace_name[], text[], text[], boolean
+    date, date, uuid[], text[], text[], text[], text[], boolean
 ), private.validate_page_bounds(integer, bigint)
 from public, anon, authenticated, service_role;
 grant execute on function private.validate_transaction_filters(
-    date, date, uuid[], text[], public.amazon_marketplace_name[], text[], text[], boolean
+    date, date, uuid[], text[], text[], text[], text[], boolean
 ), private.validate_page_bounds(integer, bigint),
 private.member_policy_covers_current_version(regclass) to authenticated;
 
@@ -89,7 +98,7 @@ $$;
 
 -- Search only visible text fields. Raw-source tabs pass NULL for their hidden,
 -- redundant Source field. No SET clause/data access keeps this rule inlinable.
--- Enum values are cast to text only for text search; exact filters stay native.
+-- Marketplace selections and text search use the same stored text values.
 create function private.visible_transaction_search_matches(
     p_pattern text, p_source text, p_sku text, p_component_type text,
     p_marketplace text, p_currency text

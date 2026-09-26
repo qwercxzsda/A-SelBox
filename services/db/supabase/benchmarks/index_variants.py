@@ -18,14 +18,9 @@ BASE_NAMES = tuple(
     for table, _ in TABLES.values()
     for suffix in (
         "_date_id_idx",
-        "_owner_date_idx",
         "_marketplace_date_idx",
         "_sku_date_idx",
-        "_sku_date_id_idx",
         "_type_date_idx",
-        "_type_date_id_idx",
-        "_marketplace_date_id_idx",
-        "_seller_date_idx",
     )
 )
 FAMILIES = {
@@ -38,7 +33,7 @@ FAMILIES = {
     "type_date_id": ("component_type",),
 }
 CANDIDATE_NAMES = tuple(f"bench_{source}_{family}_idx" for source in TABLES for family in FAMILIES)
-PILOTS = ("baseline", "broad_date", "minimal", *FAMILIES)
+PILOTS = ("baseline", "minimal", *FAMILIES)
 
 
 def _guard(connection: Connection) -> None:
@@ -117,15 +112,9 @@ def apply(connection: Connection, variant: str | Record, definitions: dict[str, 
             raise ValueError("Invalid finalist name")
         families = _selected_families(variant["families"])
     _clear(connection)
-    if name in {"baseline", "broad_date"}:
-        for index, definition in definitions.items():
-            if name == "broad_date" and index == "settlement_transactions_date_id_idx":
-                connection.execute(
-                    "create index settlement_transactions_date_id_idx "
-                    "on private.settlement_transactions (posted_date,id)"
-                )
-            else:
-                connection.execute(cast(LiteralString, definition))
+    if name == "baseline":
+        for definition in definitions.values():
+            connection.execute(cast(LiteralString, definition))
         return name
     for source, (table, day) in TABLES.items():
         connection.execute(

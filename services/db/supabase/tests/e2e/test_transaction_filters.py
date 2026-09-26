@@ -26,7 +26,6 @@ class TransactionFilterTests(LocalWorkflowCase):
             token=token,
             json={**filters, "p_include_count": False},
         )
-        # A retained text[] overload would cause PostgREST's PGRST203 ambiguity here.
         self.assertEqual(page.status_code, 200)
         payload = cast(dict[str, object], page.json())
         self.assertEqual(set(payload), {"rows", "total_count"})
@@ -84,14 +83,6 @@ class TransactionFilterTests(LocalWorkflowCase):
             self.assert_page_and_count(
                 token, {"p_fee_applicable": False}, companies=set(), expected_count=0
             )
-            rejected_sort = self.stack.request(
-                "POST",
-                "/rest/v1/rpc/transaction_page",
-                token=token,
-                json={"p_sort": "source_amount"},
-            )
-            self.assertEqual(rejected_sort.status_code, 404)
-            self.assertEqual(rejected_sort.json()["code"], "PGRST202")
             for direction in ("asc", "desc"):
                 dated = self.stack.request(
                     "POST",
@@ -120,7 +111,7 @@ class TransactionFilterTests(LocalWorkflowCase):
                             json={"p_marketplaces": selected},
                         )
                         self.assertEqual(rejected.status_code, 400)
-                        self.assertEqual(rejected.json()["code"], "22P02")
+                        self.assertEqual(rejected.json()["code"], "22023")
 
         self.assert_page_and_count(
             member_token,

@@ -1,6 +1,26 @@
 const SELECTABLE_COLUMNS = new Set(["sku", "marketplace_name", "source", "component_type"]);
 const DATE_COLUMNS = ["activity_date", "posted_date", "created_at"];
-const NUMERIC_COLUMNS = new Set(["amount", "source_amount"]);
+const NUMERIC_COLUMNS = new Set(["amount", "source_amount", "company_amount"]);
+
+function decimalParts(value) {
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(value))
+    throw new Error("Expected canonical decimal fixture text");
+  const [integer, fraction = ""] = value.split(".");
+  return { coefficient: BigInt(integer + fraction), scale: fraction.length };
+}
+
+function compareAmounts(left, right) {
+  const a = decimalParts(left);
+  const b = decimalParts(right);
+  const scale = Math.max(a.scale, b.scale);
+  const difference =
+    a.coefficient * 10n ** BigInt(scale - a.scale) - b.coefficient * 10n ** BigInt(scale - b.scale);
+  return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+}
+
+export function isZeroAmount(value) {
+  return value !== null && value !== undefined && compareAmounts(value, "0") === 0;
+}
 
 function matchesSearch(row, filter) {
   if (!filter) return true;
@@ -30,11 +50,12 @@ export function filterRecordRows(rows, params) {
     if (company?.startsWith("eq.") && row.company_id !== company.slice(3)) return false;
     if (company?.startsWith("in.(") && !company.slice(4, -1).split(",").includes(row.company_id))
       return false;
-    if (params.get("amount") === "neq.0" && Number(row.amount) === 0) return false;
+    if (params.get("amount") === "neq.0" && (row.amount === null || isZeroAmount(row.amount)))
+      return false;
     if (
       params.get("and")?.includes("or(source.neq.DATA_KIOSK,source_amount.neq.0)") &&
       row.source === "DATA_KIOSK" &&
-      Number(row.source_amount) === 0
+      (row.source_amount === null || isZeroAmount(row.source_amount))
     )
       return false;
     for (const key of SELECTABLE_COLUMNS) {
@@ -45,8 +66,16 @@ export function filterRecordRows(rows, params) {
     }
     for (const key of DATE_COLUMNS) {
       for (const filter of params.getAll(key)) {
-        if (filter.startsWith("gte.") && row[key] < filter.slice(4)) return false;
-        if (filter.startsWith("lte.") && row[key] > filter.slice(4)) return false;
+        if (
+          filter.startsWith("gte.") &&
+          (row[key] === null || row[key] === undefined || row[key] < filter.slice(4))
+        )
+          return false;
+        if (
+          filter.startsWith("lte.") &&
+          (row[key] === null || row[key] === undefined || row[key] > filter.slice(4))
+        )
+          return false;
       }
     }
     return matchesSearch(row, params.get("or"));
@@ -67,7 +96,7 @@ export function sortRecordRows(rows, params) {
         return (aIsNull ? 1 : -1) * (nullsLast ? 1 : -1);
       }
       const comparison = NUMERIC_COLUMNS.has(column)
-        ? Number(a) - Number(b)
+        ? compareAmounts(a, b)
         : a < b
           ? -1
           : a > b

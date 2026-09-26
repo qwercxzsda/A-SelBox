@@ -17,8 +17,7 @@ _INLINE_HELPERS = (
 _HELPERS = (
     *_INLINE_HELPERS,
     "private.literal_search_pattern(text)",
-    "private.validate_transaction_filters(date,date,uuid[],text[],"
-    "public.amazon_marketplace_name[],text[],text[],boolean)",
+    "private.validate_transaction_filters(date,date,uuid[],text[],text[],text[],text[],boolean)",
     "private.validate_page_bounds(integer,bigint)",
     "private.member_policy_covers_current_version(regclass)",
 )

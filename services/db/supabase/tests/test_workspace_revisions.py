@@ -113,7 +113,7 @@ class WorkspaceRevisionTests(SourceModelFixture):
         self.connection.commit()
         self.assertNotEqual(self.revisions(member)["settlement"], first["settlement"])
 
-    def test_kiosk_history_without_selection_does_not_rotate_and_empty_replacement_does(
+    def test_kiosk_history_and_empty_replacement_rotate_source_at_commit(
         self,
     ) -> None:
         company, _ = self.owner()
@@ -123,13 +123,54 @@ class WorkspaceRevisionTests(SourceModelFixture):
         self.connection.commit()
         first = self.revisions(member)
         self.kiosk(1, [self.component("-9")], acquisition_id=older, expected=current)
-        self.connection.commit()
         self.assertEqual(self.revisions(member), first)
+        self.connection.commit()
+        historical = self.revisions(member)
+        self.assertNotEqual(historical["data_kiosk"], first["data_kiosk"])
+        self.assertEqual(historical["settlement"], first["settlement"])
+        self.assertEqual(historical["fees"], first["fees"])
+        self.assertEqual(
+            self.connection.execute(
+                "select current_version_id::text from private.data_kiosk_days"
+            ).fetchone(),
+            (current,),
+        )
         self.kiosk(3, [], expected=current)
         self.connection.commit()
         second = self.revisions(member)
-        self.assertNotEqual(second["data_kiosk"], first["data_kiosk"])
+        self.assertNotEqual(second["data_kiosk"], historical["data_kiosk"])
         self.assertEqual(second["settlement"], first["settlement"])
+
+    def test_pruning_rotates_source_token_only_when_history_is_removed(self) -> None:
+        company, _ = self.owner()
+        operator, member = self.operator(), self.member(company)
+        current = None
+        for observation in range(1, 5):
+            _, current = self.kiosk(observation, [self.component()], expected=current)
+        self.connection.commit()
+        initial = self.revisions(operator)
+        self.assertEqual(self.revisions(member)["data_kiosk"], initial["data_kiosk"])
+        self.assertEqual(
+            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(),
+            (1,),
+        )
+        self.assertEqual(self.revisions(operator), initial)
+        self.connection.commit()
+        pruned = self.revisions(operator)
+        self.assertNotEqual(pruned["data_kiosk"], initial["data_kiosk"])
+        self.assertEqual(pruned["settlement"], initial["settlement"])
+        self.assertEqual(pruned["fees"], initial["fees"])
+        self.assertEqual(self.revisions(member)["data_kiosk"], pruned["data_kiosk"])
+        self.assertEqual(
+            self.as_user(operator, "select count(*) from public.data_kiosk_preprocess_entries"),
+            [(3,)],
+        )
+        self.assertEqual(
+            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(),
+            (0,),
+        )
+        self.connection.commit()
+        self.assertEqual(self.revisions(operator), pruned)
 
     def test_source_tokens_are_global_but_fees_are_company_scoped(self) -> None:
         company_a, sku_a = self.owner()

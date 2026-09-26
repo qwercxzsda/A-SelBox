@@ -11,7 +11,7 @@ create function public.transaction_count(
     p_date_to date default null,
     p_company_ids uuid[] default null,
     p_skus text[] default null,
-    p_marketplaces public.amazon_marketplace_name[] default null,
+    p_marketplaces text[] default null,
     p_sources text[] default null,
     p_types text[] default null,
     p_fee_applicable boolean default null,
@@ -80,7 +80,7 @@ begin
                 )
                 and private.visible_transaction_search_matches(
                     search_pattern, 'SETTLEMENT', t.sku, t.component_type,
-                    t.marketplace_name::text, t.currency
+                    t.marketplace_name, t.currency
                 )
             union all
             select count(*) as row_count
@@ -116,17 +116,17 @@ begin
                 and (p_fee_applicable is null or (t.component_type = 'NET_PRODUCT_SALES') = p_fee_applicable)
                 and private.visible_transaction_search_matches(
                     search_pattern, 'DATA_KIOSK', t.sku, t.component_type,
-                    t.marketplace_name::text, t.currency
+                    t.marketplace_name, t.currency
                 )
         ) as source_counts
     );
 end;
 $$;
 revoke all on function public.transaction_count(
-    date, date, uuid[], text[], public.amazon_marketplace_name[], text[], text[], boolean, text
+    date, date, uuid[], text[], text[], text[], text[], boolean, text
 )
 from public, anon, authenticated, service_role;
 grant execute on function public.transaction_count(
-    date, date, uuid[], text[], public.amazon_marketplace_name[], text[], text[], boolean, text
+    date, date, uuid[], text[], text[], text[], text[], boolean, text
 )
 to authenticated;

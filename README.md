@@ -21,7 +21,8 @@ and source coverage.
 One named enum category selects the allocation: `SETTLEMENT`, `SELBOX`,
 `DATA_KIOSK`, or `ANALYSIS_ONLY`. Settlement supplies direct company facts and
 account controls; selected Data Kiosk components supply company costs.
-Analysis-only components remain available outside financial totals. Complete day
+Analysis-only components stay outside strict financial totals. Dashboard estimates
+combine all eligible transaction sources, as described in the query contract. Complete day
 versions include empty days and retain independent Amazon observation ordering.
 Application accounts distinguish operators from company members. Members read
 current own-company facts and terms; operators also read retained history and all
@@ -71,6 +72,10 @@ Node tooling runs in Docker and connects to an explicitly configured Supabase in
 - [Source allocation](docs/source_allocation.md).
 - [Payout reports](docs/company_payout_reports.md): publication and saved evidence.
 - [Database schema diagrams](docs/database_schema.md).
+- [Transaction query contracts](docs/transaction_query_contracts.md): page, count,
+  filter, and summary APIs.
+- [Database performance](docs/database_performance.md): current read design,
+  measurements, and remaining scaling limits.
 - [Settlement family rules](docs/settlement_component_categories.md): classification,
   SKU requirements, and validation boundaries.
 - [Known issues](docs/known_issues.md): operational assumptions, unresolved source

@@ -1,8 +1,8 @@
-import { DATASET_CONFIG, type DatasetConfig } from "./config.ts";
-import type { DatasetFilterField, DatasetFilters, DatasetKey } from "./types.ts";
+import { DATASET_CONFIG, isTableDataset, type DatasetConfig } from "./config.ts";
+import type { DatasetFilterField, DatasetFilters, TableDatasetKey } from "./types.ts";
 
-export function requireFilterField(dataset: DatasetKey, field: DatasetFilterField): void {
-  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+export function requireFilterField(dataset: TableDatasetKey, field: DatasetFilterField): void {
+  if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   const config: DatasetConfig = DATASET_CONFIG[dataset];
   if (!config.filterColumns.includes(field)) {
     throw new Error(`This column cannot be filtered in ${config.label}`);
@@ -17,10 +17,6 @@ export function requireCalendarDate(value: string): void {
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
     throw new Error("Choose a valid calendar date");
   }
-}
-
-function quoteListValue(value: string): string {
-  return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 export function textSelectionValues(field: DatasetFilterField, selection?: string[]): string[] {
@@ -58,8 +54,8 @@ export function requireDateRange(dateFrom: string, dateTo: string): void {
 }
 
 /** Validate once for both RPC arguments and direct non-transaction REST requests. */
-export function datasetFilterValues(dataset: DatasetKey, filters?: DatasetFilters) {
-  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+export function datasetFilterValues(dataset: TableDatasetKey, filters?: DatasetFilters) {
+  if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   const companyIds = companySelectionValues(filters?.companyIds);
   const feeApplicable = feeApplicabilityValue(filters?.feeApplicability);
   const dateFrom = filters?.dateFrom ?? "";
@@ -83,20 +79,8 @@ export function datasetFilterValues(dataset: DatasetKey, filters?: DatasetFilter
   return { companyIds, dateFrom, dateTo, feeApplicable, selections };
 }
 
-/** Direct view reads currently support only the Current fees marketplace selection. */
-export function applyDatasetFilters(
-  dataset: DatasetKey,
-  params: URLSearchParams,
-  filters?: DatasetFilters,
-): void {
-  const { selections } = datasetFilterValues(dataset, filters);
-  for (const [field, values] of Object.entries(selections)) {
-    if (values.length > 0) params.set(field, `in.(${values.map(quoteListValue).join(",")})`);
-  }
-}
-
-/** Applicability depends on the source fee base, including zero and missing configured rates. */
-export function feeApplicabilityValue(selection: string[] = []): boolean | null {
+/** Type applicability is independent of whether a fee rate is zero, missing, or configured. */
+function feeApplicabilityValue(selection: string[] = []): boolean | null {
   if (!Array.isArray(selection)) throw new Error("Choose valid fee applicability values");
   const values = [...new Set(selection)];
   if (values.some((value) => value !== "applicable" && value !== "not_applicable")) {

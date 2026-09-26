@@ -1,4 +1,4 @@
--- Option discovery needs source identities only; it never joins fee periods.
+-- Transaction option discovery reads source fields without resolving fees.
 -- Raw datasets use their existing views so their historical and caller scope
 -- remains identical. COLLATE C defines an unambiguous, stable text cursor order.
 create function public.dataset_filter_options(
@@ -18,7 +18,6 @@ begin
         (p_dataset = 'live' and p_field in ('sku', 'marketplace_name', 'source', 'component_type'))
         or (p_dataset in ('settlement', 'data_kiosk')
             and p_field in ('sku', 'marketplace_name', 'component_type'))
-        or (p_dataset = 'fees' and p_field = 'marketplace_name')
     ) then
         raise exception 'Unsupported dataset filter field' using errcode = '22023';
     end if;
@@ -35,7 +34,7 @@ begin
     return (
         with option_values as (
             select case p_field when 'sku' then t.sku::text
-                when 'marketplace_name' then t.marketplace_name::text
+                when 'marketplace_name' then t.marketplace_name
                 when 'source' then 'SETTLEMENT'::text
                 when 'component_type' then t.component_type::text end as value
             from private.settlement_transactions as t
@@ -45,7 +44,7 @@ begin
                 ))
             union all
             select case p_field when 'sku' then t.sku::text
-                when 'marketplace_name' then t.marketplace_name::text
+                when 'marketplace_name' then t.marketplace_name
                 when 'source' then 'DATA_KIOSK'::text
                 when 'component_type' then t.component_type::text end
             from private.data_kiosk_transactions as t
@@ -55,18 +54,15 @@ begin
                 ))
             union all
             select case p_field when 'sku' then t.sku::text
-                when 'marketplace_name' then t.marketplace_name::text
+                when 'marketplace_name' then t.marketplace_name
                 when 'component_type' then t.component_type::text end
             from public.settlement_preprocess_entries as t where p_dataset = 'settlement'
             union all
             select case p_field when 'sku' then t.sku::text
-                when 'marketplace_name' then t.marketplace_name::text
+                when 'marketplace_name' then t.marketplace_name
                 when 'component_type' then t.component_type::text end
             from public.data_kiosk_preprocess_entries as t
             where p_dataset = 'data_kiosk' and t.amount <> 0
-            union all
-            select t.marketplace_name::text
-            from public.current_sku_fee_periods as t where p_dataset = 'fees'
         ),
         selected as materialized (
             select distinct v.value collate "C" as value from option_values as v

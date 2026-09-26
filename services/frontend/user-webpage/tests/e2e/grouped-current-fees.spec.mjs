@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { assignmentId, feeRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 
-const SKU = "GROUP 001 / 한글 %";
+const SKU = "GROUP 001 / SAMPLE";
 const groupButton = (page) =>
   page.getByRole("button", {
     name: `Show marketplace fees for ${SKU}`,

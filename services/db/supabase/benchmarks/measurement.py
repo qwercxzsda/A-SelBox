@@ -45,10 +45,9 @@ def _metadata(connection: Connection, repeat: int) -> Record:
         "and proname in ('transaction_page','transaction_count') order by proname"
     ).fetchall()
     if len(signatures) != 2 or not all(
-        "p_marketplaces amazon_marketplace_name[]" in arguments
+        "p_marketplaces text[]" in arguments
         and "p_fee_applicable boolean" in arguments
         and "p_search text" in arguments
-        and "p_sort " not in arguments
         and (name != "transaction_page" or "p_order_by text" in arguments)
         for name, arguments in signatures
     ):

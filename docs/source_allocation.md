@@ -1,5 +1,9 @@
 # Financial source allocation
 
+This policy governs strict financial reads and frozen payout reports. Dashboard estimates
+use the separate [Transactions contract](transaction_query_contracts.md), which includes
+all eligible current sources, including Data Kiosk comparison and analysis rows.
+
 Use Settlement amounts for recognized `SETTLEMENT` families and historical Data
 Kiosk amounts for explicitly approved `DATA_KIOSK` costs. Other settlement
 families default to `SELBOX`, preserving raw SKU and a review signal for unfamiliar
@@ -39,15 +43,15 @@ Every monetary content row belongs to exactly one category. The TSV column heade
 and first metadata row are not transactions. Preserve source-line/document
 references, original signs, amounts, and raw SKU; archives preserve every cell.
 
-| Category     | Settlement treatment                                                          | Company amount                         | View                         |
-| ------------ | ----------------------------------------------------------------------------- | -------------------------------------- | ---------------------------- |
-| `SETTLEMENT` | Known family requires nonblank SKU                                            | Settlement through exact SKU ownership | `settlement_sku_entries`     |
-| `SELBOX`     | Known account families keep blank-SKU checks; unmatched rows preserve any SKU | No allocation from that row            | `settlement_account_entries` |
-| `DATA_KIOSK` | Explicit cost family preserves any SKU and its control amount                 | Selected Data Kiosk components         | `settlement_others_entries`  |
+| Category     | Settlement treatment                                                          | Company amount                         |
+| ------------ | ----------------------------------------------------------------------------- | -------------------------------------- |
+| `SETTLEMENT` | Known family requires nonblank SKU                                            | Settlement through exact SKU ownership |
+| `SELBOX`     | Known account families keep blank-SKU checks; unmatched rows preserve any SKU | No allocation from that row            |
+| `DATA_KIOSK` | Explicit cost family preserves any SKU and its control amount                 | Selected Data Kiosk components         |
 
-Each source has one fact table and three category views. Both store a required
+Each source has one fact table. Both store a required
 `public.allocation_category` matching Python `AllocationCategory`. Data Kiosk also
-permits explicit `ANALYSIS_ONLY` diagnostic facts outside the three views; Settlement
+permits explicit `ANALYSIS_ONLY` diagnostic facts; Settlement
 does not. Unrecognized Data Kiosk monetary components fail preprocessing rather
 than receiving a provisional category. There is no stored unresolved category.
 

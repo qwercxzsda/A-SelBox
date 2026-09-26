@@ -8,7 +8,7 @@ import type {
   WorkspaceRevisionSnapshot,
   WorkspaceRevisions,
 } from "./types.ts";
-import { isJsonObject, requiredJsonString, parseObjectRows } from "./validation.ts";
+import { isJsonObject, requiredJsonString } from "./validation.ts";
 
 function parseAppAccount(value: Record<string, unknown>, userId: string): AppAccount {
   const user_id = requiredJsonString(value, "user_id");
@@ -39,7 +39,7 @@ export function createWorkspaceApi(transport: ApiTransport) {
         throw new Error("Invalid workspace revision source");
       }
       const params = new URLSearchParams({ p_sources: `{${requested.join(",")}}` });
-      const operation = "Data update check";
+      const operation = "Workspace access";
       const value = await requestJson(
         `/rest/v1/rpc/workspace_revisions?${params.toString()}`,
         { signal, cache: "no-store", headers: authenticatedHeaders(accessToken) },
@@ -55,26 +55,6 @@ export function createWorkspaceApi(transport: ApiTransport) {
         revisions[source] = revision;
       }
       return { account: parseAppAccount(value.account, userId), revisions };
-    },
-
-    async fetchAppAccount(accessToken: string, userId: string): Promise<AppAccount> {
-      if (userId.trim() === "") throw new Error("An Auth user ID is required");
-      const params = new URLSearchParams({
-        select: "user_id,access_role,company_id",
-        user_id: `eq.${userId}`,
-        limit: "1",
-      });
-      const operation = "Account access";
-      const value = await requestJson(
-        `/rest/v1/app_accounts?${params.toString()}`,
-        { headers: authenticatedHeaders(accessToken) },
-        operation,
-      );
-      const rows = parseObjectRows(value, operation);
-      if (rows.length === 0)
-        throw new Error("This account does not have access. Contact your administrator.");
-      if (rows.length !== 1) throw new Error(`${operation} returned multiple accounts`);
-      return parseAppAccount(rows[0], userId);
     },
 
     async fetchCompanies(accessToken: string): Promise<Company[]> {
@@ -97,13 +77,12 @@ export function createWorkspaceApi(transport: ApiTransport) {
         transport,
         accessToken,
         "company_skus",
-        "id,seller_namespace,sku,company_id,terms_version_id",
+        "id,sku,company_id,terms_version_id",
         "id.asc",
         "Product assignments",
       );
       return rows.map((row) => ({
         id: requiredJsonString(row, "id"),
-        seller_namespace: requiredJsonString(row, "seller_namespace"),
         sku: requiredJsonString(row, "sku"),
         company_id: requiredJsonString(row, "company_id"),
         terms_version_id: requiredJsonString(row, "terms_version_id"),

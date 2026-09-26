@@ -21,7 +21,7 @@ create function public.transaction_page(
     p_date_to date default null,
     p_company_ids uuid[] default null,
     p_skus text[] default null,
-    p_marketplaces public.amazon_marketplace_name[] default null,
+    p_marketplaces text[] default null,
     p_sources text[] default null,
     p_types text[] default null,
     p_include_count boolean default true,
@@ -38,6 +38,10 @@ declare
     sort_nulls text;
     tie_direction text;
     source_order text;
+    marketplace_candidate_budget constant bigint := 4096;
+    marketplace_prefix text := '';
+    marketplace_suffix text := '';
+    marketplace_predicate text;
     candidate_materialization text;
     candidate_cap text;
     candidate_limit bigint;
@@ -80,9 +84,29 @@ begin
         candidate_cap := '';
     end if;
 
+    -- Bound each selected market before merging a date-ordered source page.
+    -- Only fixed SQL fragments are interpolated; selected values remain bound.
+    marketplace_predicate := $market$case when cardinality($5::text[]) = 1
+        then t.marketplace_name = ($5::text[])[array_lower($5::text[], 1)]
+        else coalesce(cardinality($5::text[]), 0) = 0
+            or t.marketplace_name = any($5)
+        end$market$;
+    -- This is a candidate-work heuristic, never a result limit or rejection.
+    -- Divide to avoid overflow for large offsets or repeated filter values.
+    if p_order_by = 'date' and cardinality(p_marketplaces) > 1
+        and p_offset + p_limit <= marketplace_candidate_budget / nullif(cardinality(p_marketplaces), 0) then
+        marketplace_prefix := $market$select market_page.*
+        from (select distinct marketplace_name
+              from unnest($5::text[]) as requested_marketplaces(marketplace_name)) selected_marketplaces
+        cross join lateral ($market$;
+        marketplace_predicate := 't.marketplace_name = selected_marketplaces.marketplace_name';
+        marketplace_suffix := ') as market_page ' || source_order || ' limit $8::bigint';
+    end if;
+
     execute format($query$
         with candidates as %4$s (
             (
+                %8$s
                 select
                     'SETTLEMENT'::text as source,
                     t.id as source_row_id,
@@ -123,8 +147,7 @@ begin
                         )
                     )
                     and (coalesce(cardinality($4::text[]), 0) = 0 or t.sku = any($4))
-                    and (coalesce(cardinality($5::public.amazon_marketplace_name[]), 0) = 0
-                        or t.marketplace_name = any($5))
+                    and %9$s
                     and (coalesce(cardinality($6::text[]), 0) = 0
                         or 'SETTLEMENT'::text = any($6))
                     and (coalesce(cardinality($7::text[]), 0) = 0
@@ -135,13 +158,15 @@ begin
                     )
                     and private.visible_transaction_search_matches(
                         $13::text, 'SETTLEMENT', t.sku, t.component_type,
-                        t.marketplace_name::text, t.currency
+                        t.marketplace_name, t.currency
                     )
                 %3$s
                 limit $8::bigint
+                %10$s
             )
             union all
             (
+                %8$s
                 select
                     'DATA_KIOSK'::text as source,
                     t.id as source_row_id,
@@ -178,8 +203,7 @@ begin
                         )
                     )
                     and (coalesce(cardinality($4::text[]), 0) = 0 or t.sku = any($4))
-                    and (coalesce(cardinality($5::public.amazon_marketplace_name[]), 0) = 0
-                        or t.marketplace_name = any($5))
+                    and %9$s
                     and (coalesce(cardinality($6::text[]), 0) = 0
                         or 'DATA_KIOSK'::text = any($6))
                     and (coalesce(cardinality($7::text[]), 0) = 0
@@ -187,10 +211,11 @@ begin
                     and ($12::boolean is null or (t.component_type = 'NET_PRODUCT_SALES') = $12)
                     and private.visible_transaction_search_matches(
                         $13::text, 'DATA_KIOSK', t.sku, t.component_type,
-                        t.marketplace_name::text, t.currency
+                        t.marketplace_name, t.currency
                     )
                 %3$s
                 limit $8::bigint
+                %10$s
             )
             %5$s
         ),
@@ -278,12 +303,12 @@ begin
                 case when $15::boolean then (select value::text from candidate_count)
                 else public.transaction_count(
                 $1::date, $2::date, $3::uuid[], $4::text[],
-                $5::public.amazon_marketplace_name[], $6::text[], $7::text[], $12::boolean, $14::text
+                $5::text[], $6::text[], $7::text[], $12::boolean, $14::text
                 ) end
             end
         ) end
     $query$, sort_direction, sort_column, source_order, candidate_materialization, candidate_cap,
-        sort_nulls, tie_direction)
+        sort_nulls, tie_direction, marketplace_prefix, marketplace_predicate, marketplace_suffix)
     into result
     using p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
         p_sources, p_types, candidate_limit, p_limit, p_offset, p_include_count,
@@ -297,12 +322,12 @@ end;
 $$;
 revoke all on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    public.amazon_marketplace_name[], text[], text[], boolean, boolean, text, text
+    text[], text[], text[], boolean, boolean, text, text
 ) from public,
 anon,
 authenticated,
 service_role;
 grant execute on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    public.amazon_marketplace_name[], text[], text[], boolean, boolean, text, text
+    text[], text[], text[], boolean, boolean, text, text
 ) to authenticated;

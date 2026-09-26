@@ -1,4 +1,5 @@
 import { liveRow } from "../api-fixtures.mjs";
+import { isZeroAmount } from "../record-fixtures.mjs";
 
 export function respondWithOptions(fixture, { request, url, user, reply }) {
   if (request.method() !== "POST" || request.headers().prefer)
@@ -13,11 +14,10 @@ export function respondWithOptions(fixture, { request, url, user, reply }) {
       Array.from({ length: fixture.totalCount }, (_, index) =>
         liveRow(fixture.prefixes[user], index + 1, fixture.companyIds[user]),
       )
-    ).filter((row) => row.source !== "DATA_KIOSK" || Number(row.source_amount) !== 0);
+    ).filter((row) => row.source !== "DATA_KIOSK" || !isZeroAmount(row.source_amount));
   } else if (dataset === "settlement") rows = fixture.settlementRows;
   else if (dataset === "data_kiosk")
-    rows = fixture.kioskRows.filter((row) => Number(row.amount) !== 0);
-  else if (dataset === "fees") rows = fixture.feeRows;
+    rows = fixture.kioskRows.filter((row) => !isZeroAmount(row.amount));
   else throw new Error(`Unsupported option dataset ${dataset}`);
   const compare = (left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right));
   const values = [

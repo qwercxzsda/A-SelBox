@@ -2,212 +2,19 @@
 
 from decimal import Decimal, localcontext
 from itertools import combinations, product
-from typing import Literal, LiteralString, cast
+from typing import cast
 
 import psycopg
-from psycopg import sql
 
-from services.db.supabase.tests import test_live_view_equivalence as live_fixture
-from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_COLUMNS, append_literal_search
-from services.db.supabase.tests.source_fixtures import SourceModelFixture
-
-_NUMERIC_COLUMNS = (
-    "source_amount",
-    "quantity",
-    "fee_base",
-    "fee_rate_percent",
-    "fee_amount",
-    "company_amount",
+from services.db.supabase.tests.rpc_support import assert_rpc_contract
+from services.db.supabase.tests.transaction_fixtures import (
+    TRANSACTION_ARRAY_FILTERS,
+    TRANSACTION_PARAMETER_TYPES,
+    TransactionPageFixture,
 )
-_ROW_COLUMNS = {
-    "source",
-    "source_row_id",
-    "source_version_id",
-    "preprocess_version",
-    "source_identity_id",
-    "seller_namespace",
-    "marketplace_name",
-    "activity_date",
-    "sku",
-    "component_type",
-    "currency",
-    "source_amount",
-    "quantity",
-    "fee_base",
-    "category",
-    "seller_sku_id",
-    "terms_version_id",
-    "company_id",
-    "fee_period_id",
-    "fee_rate_percent",
-    "resolution_status",
-    "fee_amount",
-    "company_amount",
-}
-_ARRAY_FILTERS: dict[str, tuple[str, LiteralString]] = {
-    "p_company_ids": ("company_id", "uuid"),
-    "p_skus": ("sku", "text"),
-    "p_marketplaces": ("marketplace_name", "public.amazon_marketplace_name"),
-    "p_sources": ("source", "text"),
-    "p_types": ("component_type", "text"),
-}
-_PARAMETER_TYPES = {
-    "p_limit": "integer",
-    "p_offset": "bigint",
-    "p_direction": "text",
-    "p_date_from": "date",
-    "p_date_to": "date",
-    **{name: type_name + "[]" for name, (_, type_name) in _ARRAY_FILTERS.items()},
-    "p_include_count": "boolean",
-    "p_fee_applicable": "boolean",
-    "p_order_by": "text",
-    "p_search": "text",
-}
 
 
-def assert_native_marketplace_contract(
-    fixture: SourceModelFixture,
-    function: Literal[
-        "transaction_page",
-        "transaction_count",
-        "source_transaction_page",
-        "source_transaction_count",
-    ],
-    parameter_types: dict[str, str],
-) -> None:
-    """One native-enum RPC, without an old overload or broader execution grants."""
-    signature = f"public.{function}({','.join(parameter_types.values())})"
-    previous = signature.replace("public.amazon_marketplace_name[]", "text[]")
-    fixture.assertEqual(
-        fixture.connection.execute(
-            "select count(*) from pg_proc where pronamespace='public'::regnamespace and proname=%s",
-            (function,),
-        ).fetchone(),
-        (1,),
-    )
-    fixture.assertEqual(
-        fixture.connection.execute("select to_regprocedure(%s)", (previous,)).fetchone(),
-        (None,),
-    )
-    row = require_row(
-        fixture.connection.execute(
-            "select p.prosecdef,p.provolatile::text,p.proconfig,"
-            "has_function_privilege('authenticated',p.oid,'EXECUTE'),"
-            "has_function_privilege('anon',p.oid,'EXECUTE'),"
-            "has_function_privilege('service_role',p.oid,'EXECUTE'),"
-            "exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a "
-            "where a.grantee=0 and a.privilege_type='EXECUTE') "
-            "from pg_proc p where p.oid=%s::regprocedure",
-            (signature,),
-        ).fetchone()
-    )
-    fixture.assertFalse(row[0])
-    fixture.assertEqual(row[1], "s")
-    configuration = cast(list[str], row[2])
-    fixture.assertIn("plan_cache_mode=force_custom_plan", configuration)
-    fixture.assertIn('search_path=""', configuration)
-    fixture.assertEqual(row[3:], (True, False, False, False))
-
-
-class TransactionPageTests(SourceModelFixture):
-    # Share the same financial edge cases without inheriting its test methods.
-    assign = live_fixture.LiveViewEquivalenceTests.assign
-    financial_fixture = live_fixture.LiveViewEquivalenceTests.financial_fixture
-
-    def page(self, user: str, **options: object) -> dict[str, object]:
-        arguments = sql.SQL(", ").join(
-            sql.SQL("{} => %s::{}").format(
-                sql.Identifier(name), sql.SQL(cast(LiteralString, _PARAMETER_TYPES[name]))
-            )
-            for name in options
-        )
-        query = sql.SQL("select public.transaction_page({})").format(arguments)
-        result = self.as_user(
-            user, cast(LiteralString, query.as_string(self.connection)), tuple(options.values())
-        )
-        return cast(dict[str, object], result[0][0])
-
-    def expected(self, user: str, **options: object) -> dict[str, object]:
-        predicates: list[sql.Composable] = [
-            sql.SQL("(source <> 'DATA_KIOSK' or source_amount <> 0)")
-        ]
-        parameters: list[object] = []
-        for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
-            if options.get(name) is not None:
-                predicates.append(
-                    sql.SQL("activity_date {} %s::date").format(
-                        sql.SQL(cast(LiteralString, comparison))
-                    )
-                )
-                parameters.append(options[name])
-        for name, (column, type_name) in _ARRAY_FILTERS.items():
-            if options.get(name):
-                predicates.append(
-                    sql.SQL("{}::{} = any(%s::{}[])").format(
-                        sql.Identifier(column), sql.SQL(type_name), sql.SQL(type_name)
-                    )
-                )
-                parameters.append(options[name])
-        if options.get("p_fee_applicable") is not None:
-            # Canonical preprocessing keeps TYPE and fee-base presence equivalent.
-            # Keep this independent financial oracle for the ordinary fixtures.
-            predicates.append(sql.SQL("(fee_base is not null) = %s::boolean"))
-            parameters.append(options["p_fee_applicable"])
-        append_literal_search(predicates, parameters, LIVE_SEARCH_COLUMNS, options.get("p_search"))
-        date_order = options.get("p_order_by", "date") == "date"
-        direction = cast(LiteralString, options.get("p_direction", "desc"))
-        ties = direction if date_order else "asc"
-        nulls = "first" if date_order and direction == "desc" else "last"
-        ordering = sql.SQL("{} {} nulls {}, source {}, source_row_id {}").format(
-            sql.Identifier(
-                "source_amount" if options.get("p_order_by") == "amount" else "activity_date"
-            ),
-            sql.SQL(direction),
-            sql.SQL(nulls),
-            sql.SQL(ties),
-            sql.SQL(ties),
-        )
-        numeric_strings = sql.SQL(", ").join(
-            sql.SQL("{}, p.{}::text").format(sql.Literal(column), sql.Identifier(column))
-            for column in _NUMERIC_COLUMNS
-        )
-        query = sql.SQL(
-            "with matching as not materialized ("
-            " select * from public.live_company_components where {predicates}"
-            "), page as (select * from matching order by {ordering} limit %s offset %s) "
-            "select jsonb_build_object("
-            " 'rows', coalesce((select jsonb_agg("
-            "   (to_jsonb(p) - 'authoritative') || jsonb_build_object({numeric_strings})"
-            "   order by {ordering}) from page p), '[]'::jsonb),"
-            " 'total_count', case when %s then (select count(*)::text from matching) end)"
-        ).format(
-            predicates=sql.SQL(" and ").join(predicates),
-            ordering=ordering,
-            numeric_strings=numeric_strings,
-        )
-        parameters.extend(
-            (
-                options.get("p_limit", 25),
-                options.get("p_offset", 0),
-                options.get("p_include_count", True),
-            )
-        )
-        result = self.as_user(
-            user, cast(LiteralString, query.as_string(self.connection)), parameters
-        )
-        return cast(dict[str, object], result[0][0])
-
-    def assert_matches_view(self, user: str, **options: object) -> dict[str, object]:
-        actual = self.page(user, **options)
-        self.assertEqual(actual, self.expected(user, **options))
-        self.assertEqual(set(actual), {"rows", "total_count"})
-        for row in cast(list[dict[str, object]], actual["rows"]):
-            self.assertEqual(set(row), _ROW_COLUMNS)
-            for column in _NUMERIC_COLUMNS:
-                self.assertTrue(row[column] is None or isinstance(row[column], str), column)
-        return actual
-
+class TransactionPageTests(TransactionPageFixture):
     def test_all_roles_preserve_exact_rows_null_states_and_visibility(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, count in (
@@ -267,7 +74,7 @@ class TransactionPageTests(SourceModelFixture):
         for user in (self.operator(), member):
             for empty in empty_selections:
                 with self.subTest(user=user, empty=empty):
-                    options = dict.fromkeys(_ARRAY_FILTERS, empty)
+                    options = dict.fromkeys(TRANSACTION_ARRAY_FILTERS, empty)
                     self.assert_matches_view(user, p_date_from=None, p_date_to=None, **options)
             self.assert_matches_view(
                 user,
@@ -580,10 +387,6 @@ class TransactionPageTests(SourceModelFixture):
         self.assertEqual(Decimal(cast(str, rows[0]["company_amount"])), Decimal("50"))
         self.assertEqual(page["total_count"], "2")
 
-    def test_removed_sort_parameter_has_no_legacy_overload(self) -> None:
-        with self.assertRaises(psycopg.errors.UndefinedFunction), self.connection.transaction():
-            self.connection.execute("select public.transaction_page(p_sort => 'source_amount')")
-
     def test_current_reprocessing_and_ownership_changes_are_immediately_reflected(self) -> None:
         company_a, sku = self.owner()
         company_b, _ = self.owner("OTHER")
@@ -620,9 +423,9 @@ class TransactionPageTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.transaction_page()")
-        assert_native_marketplace_contract(self, "transaction_page", _PARAMETER_TYPES)
+        assert_rpc_contract(self, "transaction_page", TRANSACTION_PARAMETER_TYPES)
 
-    def test_native_marketplaces_preserve_rows_and_counts_for_all_roles(self) -> None:
+    def test_text_marketplaces_preserve_rows_and_counts_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
             (self.operator(), "19"),
@@ -671,7 +474,7 @@ class TransactionPageTests(SourceModelFixture):
             ):
                 with (
                     self.subTest(selection=selection),
-                    self.assertRaises(psycopg.errors.InvalidTextRepresentation),
+                    self.assertRaises(psycopg.errors.InvalidParameterValue),
                 ):
                     self.page(user, p_marketplaces=selection)
 
@@ -705,7 +508,7 @@ class TransactionPageTests(SourceModelFixture):
     def test_invalid_filter_array_shapes_are_rejected(self) -> None:
         company, _ = self.owner()
         operator = self.operator()
-        for name in _ARRAY_FILTERS:
+        for name in TRANSACTION_ARRAY_FILTERS:
             value = (
                 company
                 if name == "p_company_ids"

@@ -155,19 +155,23 @@ class TestArchiveToLive(DatabaseTestCase):
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.settlement_sku_entries"
+                "select count(*) from public.live_company_components where source='SETTLEMENT'"
             ).fetchone(),
             (2,),
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*),sum(amount) from public.settlement_others_entries"
+                "select count(*),sum(amount) from public.settlement_preprocess_entries "
+                "where category='DATA_KIOSK' and version_id in "
+                "(select current_version_id from private.settlements)"
             ).fetchone(),
             (1, Numeric(-10)),
         )
         self.assertEqual(
             self.connection.execute(
-                "select family,sku from public.settlement_others_entries"
+                "select family,sku from public.settlement_preprocess_entries "
+                "where category='DATA_KIOSK' and version_id in "
+                "(select current_version_id from private.settlements)"
             ).fetchone(),
             ("C3_DISPOSAL", None),
         )

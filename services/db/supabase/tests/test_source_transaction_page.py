@@ -7,6 +7,7 @@ import psycopg
 from psycopg import sql
 
 from services.db.supabase.tests import test_transaction_page as live_fixture
+from services.db.supabase.tests.rpc_support import assert_rpc_contract
 from services.db.supabase.tests.search_fixtures import SOURCE_SEARCH_COLUMNS, append_literal_search
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -19,14 +20,14 @@ _PARAMETER_TYPES = {
     "p_date_from": "date",
     "p_date_to": "date",
     "p_skus": "text[]",
-    "p_marketplaces": "public.amazon_marketplace_name[]",
+    "p_marketplaces": "text[]",
     "p_types": "text[]",
     "p_include_count": "boolean",
     "p_search": "text",
 }
 _ARRAY_FILTERS: dict[str, tuple[str, LiteralString]] = {
     "p_skus": ("sku", "text"),
-    "p_marketplaces": ("marketplace_name", "public.amazon_marketplace_name"),
+    "p_marketplaces": ("marketplace_name", "text"),
     "p_types": ("component_type", "text"),
 }
 
@@ -246,9 +247,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             )
 
     def test_invoker_signature_and_execution_grants(self) -> None:
-        live_fixture.assert_native_marketplace_contract(
-            self, "source_transaction_page", _PARAMETER_TYPES
-        )
+        assert_rpc_contract(self, "source_transaction_page", _PARAMETER_TYPES)
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.source_transaction_page('settlement')")
@@ -285,5 +284,5 @@ class SourceTransactionPageTests(SourceModelFixture):
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
                 self.page(operator, "settlement", **options)
-        with self.assertRaises(psycopg.errors.InvalidTextRepresentation):
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
             self.page(operator, "data_kiosk", p_marketplaces=["Unknown marketplace"])

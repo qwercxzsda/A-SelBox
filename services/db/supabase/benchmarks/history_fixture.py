@@ -24,7 +24,6 @@ from .common import catalog_fingerprint, digest
 Connection = psycopg.Connection[tuple[object, ...]]
 DATABASE = "aselbox_opt_broad"
 PORT = 55422
-SEED_COUNTS = {"settlement_facts": 73_733, "data_kiosk_facts": 29_511}
 
 # All cloned primary/FK identities are allocated before any inserts. Cyclic
 # current-version FKs are checked explicitly after transaction-local setup mode.
@@ -358,8 +357,13 @@ def build_history(connection: Connection, copies: int = 10) -> dict[str, object]
         if mode != ("origin",):
             raise ValueError("History setup requires normal trigger execution on entry")
         before = _stats(connection)
-        if any(before[key] != value for key, value in SEED_COUNTS.items()):
-            raise ValueError("Expected an unexpanded seed clone; refusing repeated expansion")
+        if not before["settlement_facts"] or not before["data_kiosk_facts"]:
+            raise ValueError("History setup requires source facts in both datasets")
+        if connection.execute(
+            "select exists(select 1 from private.data_kiosk_acquisitions "
+            "where strpos(root_query_id,':synthetic-history:')>0)"
+        ).fetchone() != (False,):
+            raise ValueError("Refusing repeated history expansion")
         shape = catalog_fingerprint(connection)
         protected = _protected_data(connection)
         span = connection.execute(
