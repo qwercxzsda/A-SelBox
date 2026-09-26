@@ -20,7 +20,7 @@ export interface ColumnMenuSort {
   disabledReason?: string;
 }
 
-export interface ColumnMenuProps {
+interface ColumnMenuProps {
   label: string;
   filter?: ColumnMenuFilter;
   sort?: ColumnMenuSort;

@@ -14,8 +14,7 @@ export type DatasetCountOptions = Omit<FetchDatasetCountOptions, "accessToken" |
 export function createDatasetScope(identity: DatasetQueryIdentity, options: DatasetCountOptions) {
   const filters = normalizeDatasetFilters(options.filters);
   const { access_role, company_id } = identity.account;
-  const key = [
-    "dataset",
+  const membership = [
     identity.session.user.id,
     access_role,
     company_id,
@@ -23,11 +22,12 @@ export function createDatasetScope(identity: DatasetQueryIdentity, options: Data
     options.search,
     filters,
   ] as const;
+  const key = ["dataset", ...membership] as const;
   const scopeHash = hashKey(key);
   return {
     key,
     filters,
-    countKey: ["dataset-count", scopeHash, options.dataset, access_role] as const,
+    countKey: ["dataset-count", ...membership] as const,
     // Partial query-key matching treats empty filter arrays as wildcards.
     matches: (query: Query) => hashKey(query.queryKey.slice(0, key.length)) === scopeHash,
   };

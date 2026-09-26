@@ -1,11 +1,7 @@
-"""Compare installed summary RPCs with generated REST aggregation on local clones."""
+"""Current summary/option RPC timings with independent authorized SQL references."""
 
-# HTTP targets come only from the guarded temporary REST server.
-# ruff: noqa: S310
 from __future__ import annotations
 
-import csv
-import io
 import json
 import statistics
 import time
@@ -14,141 +10,160 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
-from urllib.error import HTTPError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
-from .common import catalog_fingerprint, connect, digest, identities, synthetic_token
+from psycopg import sql
+
+from .common import Connection, catalog_fingerprint, connect, digest, identities, synthetic_token
 from .transport import request, rest_server
 
 Record = dict[str, Any]
-SELECT_TOTALS = (
-    "reported_amount:source_amount.sum(),service_fee:fee_amount.sum(),"
-    "company_amount:company_amount.sum(),row_count:count(),"
-    "known_company_count:company_amount.count()"
-)
-VISIBILITY = ("and", "(or(source.neq.DATA_KIOSK,source_amount.neq.0))")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Case:
     name: str
     endpoint: str
     arguments: Record
-    reference: str
-    parameters: list[tuple[str, str]]
-    option: bool = False
+    relation: str = "live_company_components"
+    field: str | None = None
 
 
-def _totals_case(name: str, start: date, end: date, *, by_type: bool = False) -> Case:
-    groups = "component_type,currency" if by_type else "currency"
-    parameters = [
-        ("select", groups + "," + SELECT_TOTALS),
-        ("order", "component_type.asc,currency.asc" if by_type else "currency.asc"),
-        ("activity_date", "gte." + start.isoformat()),
-        ("activity_date", "lte." + end.isoformat()),
-        VISIBILITY,
-    ]
-    arguments: Record = {
-        "p_date_from": start.isoformat(),
-        "p_date_to": end.isoformat(),
-        "p_group_by_type": by_type,
-        "p_currency": "USD" if by_type else None,
+def _cases(latest: date, marketplace: str, currency: str) -> list[Case]:
+    month_end = (
+        latest
+        if (latest + timedelta(days=1)).day == 1
+        else latest.replace(day=1) - timedelta(days=1)
+    )
+    month = {
+        "p_date_from": month_end.replace(day=1).isoformat(),
+        "p_date_to": month_end.isoformat(),
     }
-    if by_type:
-        parameters.append(("currency", "eq.USD"))
-    return Case(name, "transaction_totals", arguments, "live_company_components", parameters)
-
-
-def _cases(latest: date, operator: bool) -> list[Case]:
-    next_day = latest + timedelta(days=1)
-    month_end = latest if next_day.day == 1 else latest.replace(day=1) - timedelta(days=1)
-    month_start = month_end.replace(day=1)
-    result = [
-        _totals_case("latest_day", latest, latest),
-        _totals_case("latest_month", month_start, month_end),
-        _totals_case("month_types", month_start, month_end, by_type=True),
+    cases = [
+        Case(
+            "latest_day",
+            "transaction_totals",
+            {"p_date_from": latest.isoformat(), "p_date_to": latest.isoformat()},
+        ),
+        Case("latest_month", "transaction_totals", month),
+        Case(
+            "month_types",
+            "transaction_totals",
+            {**month, "p_group_by_type": True, "p_currency": currency},
+        ),
+        Case("month_marketplace", "transaction_totals", {**month, "p_marketplaces": [marketplace]}),
     ]
-    scoped = _totals_case("month_marketplace", month_start, month_end)
-    scoped.arguments["p_marketplaces"] = ["Amazon.com"]
-    scoped.parameters.append(("marketplace_name", "eq.Amazon.com"))
-    result.append(scoped)
-    datasets = [
-        ("live", "live_company_components", field)
-        for field in ("sku", "marketplace_name", "source", "component_type")
-    ]
-    datasets.append(("fees", "current_sku_fee_periods", "marketplace_name"))
-    if operator:
-        datasets.extend(
-            [
-                ("settlement", "settlement_preprocess_entries", "sku"),
-                ("data_kiosk", "data_kiosk_preprocess_entries", "component_type"),
-            ]
-        )
-    for dataset, endpoint, field in datasets:
-        params = [
-            ("select", field + ",option_count:count()"),
-            ("order", field + ".asc"),
-            (field, "not.is.null"),
-        ]
-        if dataset == "live":
-            params.append(VISIBILITY)
-        elif dataset == "data_kiosk":
-            params.append(("amount", "neq.0"))
-        result.append(
+    for dataset, relation, fields in (
+        (
+            "live",
+            "live_company_components",
+            ("sku", "marketplace_name", "source", "component_type"),
+        ),
+        ("settlement", "settlement_preprocess_entries", ("sku",)),
+        ("data_kiosk", "data_kiosk_preprocess_entries", ("component_type",)),
+    ):
+        cases.extend(
             Case(
                 f"options_{dataset}_{field}",
                 "dataset_filter_options",
                 {"p_dataset": dataset, "p_field": field},
-                endpoint,
-                params,
-                True,
+                relation,
+                field,
             )
+            for field in fields
         )
-    return result
+    return cases
 
 
-def _reference(base: str, bearer: str, case: Case) -> tuple[list[Record], int, int]:
-    rows: list[Record] = []
-    size = calls = covered = 0
-    expected = None
-    while True:
-        parameters = [*case.parameters, ("limit", "1000"), ("offset", str(len(rows)))]
-        headers = {"Authorization": "Bearer " + bearer, "Accept": "text/csv"}
-        if expected is None:
-            headers["Prefer"] = "count=exact"
-        with urlopen(
-            Request(base + "/" + case.reference + "?" + urlencode(parameters), headers=headers),
-            timeout=30,
-        ) as response:
-            body = response.read()
-            page = list(csv.DictReader(io.StringIO(body.decode())))
-            if expected is None:
-                expected = int(response.headers["Content-Range"].rsplit("/", 1)[1])
-        calls += 1
-        size += len(body)
-        covered += sum(int(row["option_count" if case.option else "row_count"]) for row in page)
-        rows.extend(page)
-        if covered == expected:
-            return rows, size, calls
-        if not page or covered > expected:
-            raise RuntimeError("Reference aggregate pagination did not cover its source count")
+def _reference(connection: Connection, case: Case) -> list[Any]:
+    if case.field is not None:
+        visibility = {
+            "live": sql.SQL("(source <> 'DATA_KIOSK' or source_amount <> 0)"),
+            "settlement": sql.SQL("true"),
+            "data_kiosk": sql.SQL("amount <> 0"),
+        }[case.arguments["p_dataset"]]
+        rows = connection.execute(
+            sql.SQL(
+                'select distinct {field} collate "C" as value from public.{relation} '
+                "where {field} is not null and {visibility} order by value"
+            ).format(
+                field=sql.Identifier(case.field),
+                relation=sql.Identifier(case.relation),
+                visibility=visibility,
+            )
+        ).fetchall()
+        return [row[0] for row in rows]
+    grouped = case.arguments.get("p_group_by_type", False)
+    query = sql.SQL(
+        "select currency,{kind} as component_type,sum(source_amount)::text as reported_amount,"
+        "sum(fee_amount)::text as service_fee,sum(company_amount)::text as company_amount,"
+        "count(*)::text as row_count,count(company_amount)::text as known_company_count "
+        "from public.live_company_components "
+        "where (source <> 'DATA_KIOSK' or source_amount <> 0) "
+        "and activity_date between %s::date and %s::date "
+        "and (%s::text is null or currency=%s::text) "
+        "and (%s::text[] is null or marketplace_name=any(%s::text[])) "
+        "group by currency{group}"
+    ).format(
+        kind=sql.SQL("component_type" if grouped else "null::text"),
+        group=sql.SQL(",component_type" if grouped else ""),
+    )
+    rows = connection.execute(
+        query,
+        (
+            case.arguments["p_date_from"],
+            case.arguments["p_date_to"],
+            case.arguments.get("p_currency"),
+            case.arguments.get("p_currency"),
+            case.arguments.get("p_marketplaces"),
+            case.arguments.get("p_marketplaces"),
+        ),
+    ).fetchall()
+    fields = (
+        "currency",
+        "component_type",
+        "reported_amount",
+        "service_fee",
+        "company_amount",
+        "row_count",
+        "known_company_count",
+    )
+    return [dict(zip(fields, row, strict=True)) for row in rows]
+
+
+def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, list[Any]]]:
+    with connection.transaction():
+        connection.execute("set transaction read only")
+        connection.execute("set local role authenticated")
+        connection.execute(
+            "select set_config('request.jwt.claims',%s,true)",
+            (json.dumps({"sub": user, "role": "authenticated"}),),
+        )
+        scope = connection.execute(
+            "select max(activity_date),min(marketplace_name),min(currency) "
+            "from public.live_company_components "
+            "where source <> 'DATA_KIOSK' or source_amount <> 0"
+        ).fetchone()
+        if scope is None or any(value is None for value in scope):
+            raise RuntimeError("Summary benchmark identity has no visible transaction scope")
+        cases = _cases(scope[0], scope[1], scope[2])
+        return cases, {case.name: _canonical(_reference(connection, case), case) for case in cases}
 
 
 def _rpc(base: str, bearer: str, case: Case) -> tuple[list[Any], int, int]:
     rows: list[Any] = []
     size = calls = 0
+    option = case.field is not None
     arguments = {
         **case.arguments,
         "p_limit": 1000,
-        ("p_after" if case.option else "p_offset"): None if case.option else 0,
+        "p_after" if option else "p_offset": None if option else 0,
     }
     while True:
         value, page_bytes = request(base, case.endpoint, arguments, bearer)
         if not isinstance(value, dict):
             raise RuntimeError("RPC returned an invalid envelope")
         envelope = cast(Record, value)
-        raw_page = envelope["values" if case.option else "rows"]
+        raw_page = envelope["values" if option else "rows"]
         if not isinstance(raw_page, list):
             raise RuntimeError("RPC returned an invalid bounded page")
         page = cast(list[Any], raw_page)
@@ -157,27 +172,26 @@ def _rpc(base: str, bearer: str, case: Case) -> tuple[list[Any], int, int]:
         rows.extend(page)
         size += page_bytes
         calls += 1
-        following = envelope["next_cursor" if case.option else "next_offset"]
+        following = envelope["next_cursor" if option else "next_offset"]
         if following is None:
             return rows, size, calls
-        if not page or (case.option and following != page[-1]):
+        if not page or (option and following != page[-1]):
             raise RuntimeError("RPC pagination did not advance")
-        if not case.option and following != len(rows):
+        if not option and following != len(rows):
             raise RuntimeError("RPC offset is inconsistent")
-        arguments["p_after" if case.option else "p_offset"] = following
+        arguments["p_after" if option else "p_offset"] = following
 
 
-def _canonical(rows: list[Any], case: Case, strategy: str) -> list[Any]:
-    if case.option:
-        values = [row[case.arguments["p_field"]] for row in rows] if strategy == "rest" else rows
-        if len(values) != len(set(values)):
-            raise RuntimeError("Duplicate options")
-        return sorted(values)
+def _canonical(rows: list[Any], case: Case) -> list[Any]:
+    if case.field is not None:
+        if any(not isinstance(value, str) for value in rows) or len(rows) != len(set(rows)):
+            raise RuntimeError("Option values must be unique strings")
+        return rows
     result: list[list[Any]] = []
     for row in rows:
-        entry: list[Any] = [row["currency"], row.get("component_type") or None]
+        entry: list[Any] = [row["currency"], row.get("component_type")]
         for key in ("reported_amount", "service_fee", "company_amount"):
-            if row[key] in (None, ""):
+            if row[key] is None:
                 entry.append(None)
             else:
                 number = Decimal(row[key])
@@ -200,87 +214,53 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         ).fetchone()
         if counts is None:
             raise RuntimeError("Missing fixture metadata")
+        scopes = {role: _discover(connection, user) for role, user in users.items()}
     records: list[Record] = []
-    cases_by_role: dict[str, list[Case]] = {}
-    with rest_server(database, password, image, temporary, aggregates_enabled=True) as (
-        base,
-        secret,
-    ):
-        for role, user in users.items():
-            bearer = synthetic_token(secret, user)
-            latest_value, _ = request(
-                base,
-                "transaction_page",
-                {
-                    "p_limit": 1,
-                    "p_include_count": False,
-                    "p_direction": "desc",
-                },
-                bearer,
-            )
-            if not isinstance(latest_value, dict):
-                raise RuntimeError("Latest-date discovery returned an invalid envelope")
-            latest = date.fromisoformat(cast(Record, latest_value)["rows"][0]["activity_date"])
-            cases_by_role[role] = _cases(latest, role == "operator")
-            for case in cases_by_role[role]:
-                reference = None
-                for iteration in range(repeat + 1):
-                    for strategy in ("rest", "rpc") if iteration % 2 == 0 else ("rpc", "rest"):
-                        start = time.perf_counter()
-                        rows, size, calls = (_reference if strategy == "rest" else _rpc)(
-                            base, bearer, case
-                        )
-                        elapsed = (time.perf_counter() - start) * 1000
-                        canonical = _canonical(rows, case, strategy)
-                        if reference is None:
-                            reference = canonical
-                        if canonical != reference:
-                            raise RuntimeError(f"Unequal {role} {case.name} {strategy} result")
-                        records.append(
-                            {
-                                "role": role,
-                                "case": case.name,
-                                "strategy": strategy,
-                                "iteration": iteration,
-                                "warmup": iteration == 0,
-                                "elapsed_ms": round(elapsed, 3),
-                                "groups": len(rows),
-                                "response_bytes": size,
-                                "requests": calls,
-                                "result_sha256": digest(canonical),
-                            }
-                        )
-                print(
-                    json.dumps({"measured": database, "role": role, "case": case.name}), flush=True
-                )
     with rest_server(database, password, image, temporary) as (base, secret):
-        bearer = synthetic_token(secret, users["member_a"])
-        try:
-            _reference(base, bearer, cases_by_role["member_a"][0])
-        except HTTPError as error:
-            rejected = error.code == 400 and json.loads(error.read())["code"] == "PGRST123"
-        else:
-            rejected = False
-        if not rejected:
-            raise RuntimeError("REST aggregates were not disabled")
-        for case in cases_by_role["member_a"]:
-            _rpc(base, bearer, case)
+        tokens = {role: synthetic_token(secret, user) for role, user in users.items()}
+        for iteration in range(repeat + 1):
+            roles = list(users) if iteration % 2 == 0 else list(reversed(users))
+            for role in roles:
+                cases, references = scopes[role]
+                shift = iteration % len(cases)
+                for case in cases[shift:] + cases[:shift]:
+                    start = time.perf_counter()
+                    rows, size, calls = _rpc(base, tokens[role], case)
+                    elapsed = (time.perf_counter() - start) * 1000
+                    canonical = _canonical(rows, case)
+                    if canonical != references[case.name]:
+                        raise RuntimeError(
+                            f"Summary differs from authorized view for {role} {case.name}"
+                        )
+                    records.append(
+                        {
+                            "role": role,
+                            "case": case.name,
+                            "iteration": iteration,
+                            "warmup": iteration == 0,
+                            "elapsed_ms": round(elapsed, 3),
+                            "groups": len(rows),
+                            "response_bytes": size,
+                            "requests": calls,
+                            "result_sha256": digest(canonical),
+                        }
+                    )
+            print(json.dumps({"fixture": database, "iteration_complete": iteration}), flush=True)
     with connect(database, password) as connection:
         after = catalog_fingerprint(connection)
     if before != after:
         raise RuntimeError("Measurement changed clone definitions")
     summary: list[Record] = []
-    for role, case, strategy in sorted({(r["role"], r["case"], r["strategy"]) for r in records}):
+    for role, case in sorted({(record["role"], record["case"]) for record in records}):
         samples = [
-            r["elapsed_ms"]
-            for r in records
-            if not r["warmup"] and (r["role"], r["case"], r["strategy"]) == (role, case, strategy)
+            record["elapsed_ms"]
+            for record in records
+            if not record["warmup"] and (record["role"], record["case"]) == (role, case)
         ]
         summary.append(
             {
                 "role": role,
                 "case": case,
-                "strategy": strategy,
                 "median_ms": statistics.median(samples),
                 "min_ms": min(samples),
                 "max_ms": max(samples),
@@ -294,7 +274,6 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         "warmups": 1,
         "records": records,
         "summary": summary,
-        "rest_aggregation_disabled_verified": True,
         "catalog_before": before,
         "catalog_after": after,
     }

@@ -20,9 +20,10 @@ transactions contain no copied company, fee-rate, or payable values. Missing
 business configuration does not prevent preprocessing, but it prevents complete
 financial totals for the affected scope.
 
-Both sources use the same `PREPROCESS_VERSION`, currently `v0`. A combined read
+Both sources use the same `PREPROCESS_VERSION`, currently `v0`. A strict combined read
 requires this exact name on every required selected source version. Marketplace
-names join through the shared `amazon_marketplace_name` enum. Original API IDs
+names join as exact `text`, validated against the same supported-name list in Python and database
+`CHECK` constraints. Original API IDs
 remain in source provenance. Queries accept explicit dates without a rolling
 30-day limit or age-dependent source switch.
 
@@ -62,11 +63,6 @@ The selected company applies across all dates in live reads. An assigned SKU
 with no fee periods still has ownership for noncommission expenses. Unassigned
 source keys resolve as `MISSING_OWNERSHIP`, retaining a selected terms reference
 when available. Periods retained in an unassigned revision are inactive.
-
-An administrator's unassigned list combines distinct nonblank seller/SKU keys
-from current source facts with configured `seller_skus`, then selects keys with
-no current company. It needs no registration job, history classification, or
-persisted Default company. An optional frontend Default label grants no access.
 
 ### Publish complete terms across marketplaces
 
@@ -135,8 +131,9 @@ fee_amount = -(fee_base * fee_rate_percent * 0.01)
 company_amount = source_amount + fee_amount
 ```
 
-Calculate each row before aggregating, preserve currencies separately, and use
-exact decimal arithmetic without currency rounding or a zero floor. At 5%,
+Preserve each row's fee inputs when aggregating, keep currencies separate, and use
+exact decimal arithmetic without currency rounding or a zero floor. Dashboard totals can
+combine rows sharing the same fee inputs before fee lookup without changing the result. At 5%,
 sales of 100 and refunds of 20 produce a fee of -4. Noncommission costs require
 ownership but no rate. Fee-eligible zero amounts still require fee coverage.
 Every ordinary Order/Refund row independently requires its explicit source
@@ -185,10 +182,18 @@ returns exact `Decimal` values.
 These partial sums support live administration. Payout publication uses the
 strict complete calculation and rejects missing fees.
 
+### Dashboard estimates
+
+The browser calls `public.transaction_totals(...)` for approximate totals over the
+Transactions dataset. These include all eligible current transaction sources, including
+Data Kiosk comparison and analysis rows, while excluding zero-amount Data Kiosk rows.
+They preserve currencies and unknown amounts but do not certify complete imports or apply
+the strict payout source exclusions. See the [summary API contract](transaction_query_contracts.md#period-totals-and-type-breakdowns)
+for scope, grouping, and missing-fee counts.
+
 ### Source authority and views
 
-Each source has one fact table and three category views: SKU, account, and
-others. The required `allocation_category` enum contains `SETTLEMENT`, `SELBOX`,
+Each source has one fact table. The required `allocation_category` enum contains `SETTLEMENT`, `SELBOX`,
 `DATA_KIOSK`, and `ANALYSIS_ONLY`; Settlement permits the first three only.
 
 Settlement `SETTLEMENT` rows supply company amounts and eligible commissions.
@@ -196,7 +201,7 @@ Settlement `SELBOX` rows remain with SelBox. Settlement `DATA_KIOSK` rows are
 reconciliation controls even when they contain an owned SKU. Approved Data Kiosk
 `DATA_KIOSK` components supply company costs; its `SETTLEMENT` counterparts remain
 available for comparison. `ANALYSIS_ONLY` facts stay outside authoritative totals
-and the three category views.
+under the strict financial contract.
 
 Data Kiosk's DAY/MSKU query requires SKU and produces no account entries. A
 known account component with MSKU fails preprocessing. Unknown financial labels
@@ -217,13 +222,15 @@ reports. Company members have no payout access. See the
 defines how invoker permissions and base-table policies apply.
 
 Indexes cover application accounts, seller/SKU identity, selected terms, company lookup,
-and source marketplace/date access. Ordinary views are the current read path;
-introduce caches only for a measured need. Filtered multi-company workloads in
+and source marketplace/date access. Dashboard RPCs page eligible source facts before
+fee calculation and group compatible facts for totals. Views provide complete relational
+reads; the [performance guide](database_performance.md) explains the access paths.
+Filtered multi-company workloads in
 the local database tests verify access and exact results, not production capacity.
 
 ## Implementation and acceptance
 
-The five migration modules install this schema into a fresh database; they do
+The [migration modules](../services/db/supabase/README.md#schema-modules) install this schema into a fresh database; they do
 not provide an upgrade or backfill path for an existing deployment. The
 [database suite](../services/db/supabase/README.md#verification) tests versioned
 ownership, complete terms replacement, stale publication, frozen children,

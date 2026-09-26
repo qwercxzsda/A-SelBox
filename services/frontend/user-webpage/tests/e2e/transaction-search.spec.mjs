@@ -16,7 +16,7 @@ for (const [dataset, tab] of [
     const cases = DATASET_CONFIG[dataset].searchColumns.map((field, index) => {
       const term =
         { source: "SETTLEMENT", currency: "USD", marketplace_name: "Amazon.co.jp" }[field] ??
-        `Needle_${field}%*.\\"(한글)`;
+        `Needle_${field}%*.\\"(sample)`;
       const base =
         dataset === "live"
           ? liveRow("SEARCH", index + 1)

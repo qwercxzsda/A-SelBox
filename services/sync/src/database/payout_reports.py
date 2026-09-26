@@ -129,7 +129,7 @@ def load_company_payout_report(
         cursor.execute(
             """
             select id, company_id, seller_namespace, currency, start_date, end_date,
-                preprocess_version, dataset_key, marketplace_names::text[], report_name,
+                preprocess_version, dataset_key, marketplace_names, report_name,
                 change_reason, calculation_version, component_count, settlement_version_count,
                 data_kiosk_version_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at

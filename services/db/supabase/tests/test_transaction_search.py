@@ -1,4 +1,4 @@
-"""Optimized literal search stays equivalent to the former view-level REST regex."""
+"""Literal search matches independent view predicates without broadening access."""
 
 from itertools import product
 from typing import LiteralString, cast
@@ -9,6 +9,7 @@ from psycopg import sql
 from services.db.supabase.tests import test_source_transaction_page as source_fixture
 from services.db.supabase.tests import test_transaction_count as count_fixture
 from services.db.supabase.tests import test_transaction_page as page_fixture
+from services.db.supabase.tests.rpc_support import assert_rpc_contract
 from services.db.supabase.tests.search_fixtures import JS_TRIM_CHARACTERS
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -17,7 +18,7 @@ _SOURCE_COUNT_TYPES = {
     "p_date_from": "date",
     "p_date_to": "date",
     "p_skus": "text[]",
-    "p_marketplaces": "public.amazon_marketplace_name[]",
+    "p_marketplaces": "text[]",
     "p_types": "text[]",
     "p_search": "text",
 }
@@ -308,9 +309,7 @@ class SourceTransactionSearchTests(SourceModelFixture):
             )
 
     def test_source_count_signature_invoker_grants_and_invalid_requests(self) -> None:
-        page_fixture.assert_native_marketplace_contract(
-            self, "source_transaction_count", _SOURCE_COUNT_TYPES
-        )
+        assert_rpc_contract(self, "source_transaction_count", _SOURCE_COUNT_TYPES)
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.source_transaction_count('settlement')")
@@ -327,5 +326,5 @@ class SourceTransactionSearchTests(SourceModelFixture):
         ):
             with self.assertRaises(psycopg.errors.InvalidParameterValue):
                 self.count(operator, "settlement", **options)
-        with self.assertRaises(psycopg.errors.InvalidTextRepresentation):
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
             self.count(operator, "data_kiosk", p_marketplaces=["Not a marketplace"])

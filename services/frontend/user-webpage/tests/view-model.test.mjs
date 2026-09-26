@@ -45,7 +45,6 @@ test("row selection uses source-qualified IDs and each other view's stable ident
     rowId({ source: "DATA_KIOSK", source_row_id: "shared-id" }),
   );
   assert.equal(rowId({ id: "source-fact" }), "source-fact");
-  assert.equal(rowId({ fee_period_id: "fee-id" }), "fee-id");
   assert.equal(rowId({ user_id: "member-id" }), "member-id");
 });
 

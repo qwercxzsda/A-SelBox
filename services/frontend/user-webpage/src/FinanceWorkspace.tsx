@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Button, Group, Tabs } from "@mantine/core";
 import { UpdateStatus } from "./UpdateStatus";
-import type { DatasetKey } from "./api";
+import type { DatasetKey, TableDatasetKey } from "./api";
 import { FinanceDataset } from "./FinanceDataset";
 import { visibleDatasets, DATASET_PRESENTATION } from "./view-model";
 import type { Identity } from "./auth-session";
@@ -23,9 +23,9 @@ interface WorkspaceProps {
 
 export function FinanceWorkspace(props: WorkspaceProps) {
   const [dataset, setDataset] = useState<DatasetKey>("live");
-  const [datasetViews, setDatasetViews] = useState<Partial<Record<DatasetKey, DatasetViewState>>>(
-    {},
-  );
+  const [datasetViews, setDatasetViews] = useState<
+    Partial<Record<TableDatasetKey, DatasetViewState>>
+  >({});
   const [feeViewState, setFeeViewState] = useState(createFeeViewState);
   const datasets = visibleDatasets(props.identity.account);
   const transactions = datasetViews.live ?? createDatasetViewState("live");

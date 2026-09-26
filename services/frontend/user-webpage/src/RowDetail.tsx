@@ -1,6 +1,6 @@
 import "./RowDetail.css";
 import { Drawer, Text, Title } from "@mantine/core";
-import type { CanonicalRow, DatasetKey } from "./api";
+import type { CanonicalRow, TableDatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
 import { humanizeCode } from "./categories";
 import {
@@ -15,14 +15,12 @@ export function RowDetail({
   companies,
   dataset,
   row,
-  skuNames,
   onClose,
   isAdministrator,
 }: {
   companies: Map<string, string>;
-  dataset: DatasetKey;
+  dataset: TableDatasetKey;
   row: CanonicalRow | null;
-  skuNames: Map<string, string>;
   onClose: () => void;
   isAdministrator: boolean;
 }) {
@@ -57,12 +55,7 @@ export function RowDetail({
               <div className="detail-field" key={column.key}>
                 <span className="field-label">{column.label}</span>
                 <span className="field-value">
-                  <TableCellValue
-                    column={column}
-                    companies={companies}
-                    row={row}
-                    skuNames={skuNames}
-                  />
+                  <TableCellValue column={column} companies={companies} row={row} />
                 </span>
               </div>
             ))}

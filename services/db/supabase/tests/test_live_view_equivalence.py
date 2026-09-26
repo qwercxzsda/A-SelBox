@@ -5,11 +5,11 @@ from typing import LiteralString, cast
 
 from psycopg import sql
 
+from services.db.supabase.tests.financial_fixtures import FinancialFixture
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 _COMPARISON: LiteralString = """
-with legacy as materialized (
+with reference as materialized (
     select * from private.resolve_company_components(
         array(select current_version_id::uuid from private.settlements
             where current_version_id is not null),
@@ -22,7 +22,7 @@ with legacy as materialized (
     select * from public.live_company_components where {predicate}
     order by activity_date desc nulls last, source, source_row_id {limit_clause}
 ), expected as materialized (
-    select * from legacy where {predicate}
+    select * from reference where {predicate}
     order by activity_date desc nulls last, source, source_row_id {limit_clause}
 ), differences as (
     (select * from actual except all select * from expected)
@@ -34,7 +34,7 @@ from differences
 """
 
 
-class LiveViewEquivalenceTests(SourceModelFixture):
+class LiveViewEquivalenceTests(FinancialFixture):
     def assert_matches_resolver(
         self,
         user: str | None,
@@ -61,81 +61,6 @@ class LiveViewEquivalenceTests(SourceModelFixture):
                 self.connection.execute("reset role")
         count = expected_rows if limit is None else min(limit, expected_rows)
         self.assertEqual(result, (count, count, 0))
-
-    def assign(
-        self,
-        sku: str,
-        company: str | None,
-        *,
-        rate: str | None = None,
-        expected: str | None = None,
-    ) -> str:
-        return self.call(
-            "publish_sku_terms",
-            {
-                "id": new_id(),
-                "seller_sku_id": new_id(),
-                "seller_namespace": self.seller,
-                "sku": sku,
-                "company_id": company,
-                "expected_current_version_id": expected,
-                "change_reason": "Live-view regression fixture",
-                "periods": []
-                if rate is None
-                else [
-                    {
-                        "id": new_id(),
-                        "marketplace_name": "Amazon.com",
-                        "valid_from": "2026-01-01",
-                        "valid_to": None,
-                        "fee_rate_percent": rate,
-                    }
-                ],
-            },
-        )
-
-    def financial_fixture(self) -> tuple[str, str]:
-        company_a, sku = self.owner()
-        company_b, other = self.owner("OTHER")
-        self.fee(sku, [("2026-01-01", "2026-07-01", "5.125"), ("2026-07-01", None, "7")])
-        self.fee(other, [("2026-01-01", None, "7")])
-        self.assign("GAP", company_a)
-        self.assign("UNASSIGNED", None, rate="9")
-        self.settlement(
-            [
-                self.transaction("100.123456789012345678901"),
-                self.transaction("-2.5", 4, kind="Refund", activity_date="2026-07-01"),
-                self.transaction("12", 5, description="Shipping"),
-                self.transaction("0", 6, activity_date="2026-06-16"),
-                self.transaction("5", 7, sku="GAP"),
-                self.transaction("7", 8, sku="UNKNOWN"),
-                self.transaction("11", 9, sku="UNASSIGNED"),
-                self.transaction("13", 10, sku="UNASSIGNED", description="Shipping"),
-                self.transaction("20", 11, sku="OTHER"),
-                self.transaction("999", 12, category="DATA_KIOSK"),
-                self.transaction("999", 13, category="SELBOX") | {"family": None},
-            ]
-        )
-        self.kiosk(
-            1,
-            [
-                self.component("-10"),
-                self.component("3", category="SETTLEMENT"),
-                self.component("2", category="ANALYSIS_ONLY"),
-                self.component("0"),
-                self.component("4", sku="OTHER"),
-                self.component("6", sku="UNKNOWN"),
-                self.component("8", sku="UNASSIGNED"),
-                self.component("9") | {"component_type": "NET_PRODUCT_SALES", "fee_base": "9"},
-                self.component("17", category="SELBOX") | {"sku": None},
-            ],
-        )
-        self.seller = "seller-two"
-        self.assign("SKU", company_b, rate="11")
-        self.settlement([self.transaction("100")])
-        self.kiosk(1, [self.component("-7")])
-        self.seller = "seller-one"
-        return company_a, company_b
 
     def test_all_fields_match_for_roles_filters_categories_and_exact_amounts(self) -> None:
         company_a, company_b = self.financial_fixture()
@@ -296,87 +221,3 @@ class LiveViewEquivalenceTests(SourceModelFixture):
                     ),
                     "The date bound must reach the source scan, regardless of the chosen scan type",
                 )
-
-    def assert_source_visible(
-        self, user: str, source: str | None, version: str | None, expected: bool
-    ) -> None:
-        self.assertEqual(
-            self.as_user(
-                user,
-                "select coalesce(%s::uuid in ("
-                "select private.current_company_source_versions(%s::text)),false)",
-                (version, source),
-            ),
-            [(expected,)],
-        )
-
-    def test_source_visibility_helper_checks_current_owner_namespace_and_role(self) -> None:
-        company_a, identity = self.owner()
-        terms = str(
-            require_row(
-                self.connection.execute(
-                    "select current_terms_version_id from public.seller_skus where id=%s",
-                    (identity,),
-                ).fetchone()
-            )[0]
-        )
-        acquisition = self.acquisition()
-        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
-        _, current_settlement = self.settlement(
-            [self.transaction("110")], acquisition_id=acquisition, expected=old_settlement
-        )
-        _, old_kiosk = self.kiosk(1, [self.component()])
-        _, current_kiosk = self.kiosk(2, [self.component("-11")], expected=old_kiosk)
-        excluded_acquisition = self.acquisition(document_id="comparison-only")
-        _, excluded_settlement = self.settlement(
-            [self.transaction("3", category="DATA_KIOSK")],
-            acquisition_id=excluded_acquisition,
-            identity="comparison-only",
-        )
-
-        self.seller = "seller-two"
-        company_b, _ = self.owner("SKU")
-        _, other_settlement = self.settlement([self.transaction("50")])
-        _, other_kiosk = self.kiosk(1, [self.component("-7")])
-        self.seller = "account-only-seller"
-        self.assign("SKU", company_a)
-        _, excluded_kiosk = self.kiosk(1, [self.component("-9", category="SELBOX") | {"sku": None}])
-        self.seller = "seller-one"
-
-        member_a, member_b = self.member(company_a), self.member(company_b)
-        operator, unregistered = self.operator(), self.auth_user()
-        for source, current, historical, other, excluded in (
-            (
-                "SETTLEMENT",
-                current_settlement,
-                old_settlement,
-                other_settlement,
-                excluded_settlement,
-            ),
-            ("DATA_KIOSK", current_kiosk, old_kiosk, other_kiosk, excluded_kiosk),
-        ):
-            with self.subTest(source=source):
-                self.assert_source_visible(member_a, source, current, True)
-                self.assert_source_visible(member_a, source, historical, False)
-                self.assert_source_visible(member_a, source, other, False)
-                self.assert_source_visible(member_a, source, excluded, False)
-                self.assert_source_visible(member_b, source, current, False)
-                self.assert_source_visible(member_b, source, other, True)
-                self.assert_source_visible(operator, source, current, False)
-                self.assert_source_visible(unregistered, source, current, False)
-                self.assert_source_visible(member_a, source, None, False)
-        self.assert_source_visible(member_a, "UNSUPPORTED", current_settlement, False)
-        self.assert_source_visible(member_a, None, current_settlement, False)
-
-        revised = self.assign("SKU", company_b, expected=terms)
-        for source, current, historical in (
-            ("SETTLEMENT", current_settlement, old_settlement),
-            ("DATA_KIOSK", current_kiosk, old_kiosk),
-        ):
-            self.assert_source_visible(member_a, source, current, False)
-            self.assert_source_visible(member_b, source, current, True)
-            self.assert_source_visible(member_b, source, historical, False)
-        self.assign("SKU", None, expected=revised)
-        self.assert_source_visible(member_b, "SETTLEMENT", current_settlement, False)
-        self.assert_source_visible(member_b, "DATA_KIOSK", current_kiosk, False)
-        self.connection.execute("set constraints all immediate")

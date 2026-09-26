@@ -32,7 +32,7 @@ test("cached pages are separated by account access and every server-side query o
       assert.equal(client.getQueryData(datasetQueryOptions(identity, OPTIONS).queryKey), undefined);
     }
     for (const options of [
-      { dataset: "fees" },
+      { dataset: "settlement" },
       { search: "SKU_100" },
       { sort: { ...OPTIONS.sort, column: "sku" } },
       { sort: { ...OPTIONS.sort, direction: OPTIONS.sort.direction === "asc" ? "desc" : "asc" } },

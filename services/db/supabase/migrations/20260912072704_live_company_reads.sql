@@ -56,60 +56,6 @@ select
 from public.company_skus as s
 inner join public.sku_fee_periods as p on s.terms_version_id = p.terms_version_id;
 
-create view public.settlement_sku_entries with (security_invoker = true) as
-select
-    t.*,
-    v.preprocess_version,
-    v.settlement_id
-from private.settlement_transactions as t
-inner join private.settlement_preprocess_versions as v on t.version_id = v.id
-inner join private.settlements as s on v.settlement_id = s.id and v.id = s.current_version_id
-where t.category = 'SETTLEMENT';
-create view public.settlement_account_entries with (security_invoker = true) as
-select
-    t.*,
-    v.preprocess_version,
-    v.settlement_id
-from private.settlement_transactions as t
-inner join private.settlement_preprocess_versions as v on t.version_id = v.id
-inner join private.settlements as s on v.settlement_id = s.id and v.id = s.current_version_id
-where t.category = 'SELBOX';
-create view public.settlement_others_entries with (security_invoker = true) as
-select
-    t.*,
-    v.preprocess_version,
-    v.settlement_id
-from private.settlement_transactions as t
-inner join private.settlement_preprocess_versions as v on t.version_id = v.id
-inner join private.settlements as s on v.settlement_id = s.id and v.id = s.current_version_id
-where t.category = 'DATA_KIOSK';
-create view public.data_kiosk_sku_entries with (security_invoker = true) as
-select
-    t.*,
-    v.preprocess_version,
-    v.day_id
-from private.data_kiosk_transactions as t
-inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
-inner join private.data_kiosk_days as d on v.day_id = d.id and v.id = d.current_version_id
-where t.category = 'SETTLEMENT';
-create view public.data_kiosk_account_entries with (security_invoker = true) as
-select
-    t.*,
-    v.preprocess_version,
-    v.day_id
-from private.data_kiosk_transactions as t
-inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
-inner join private.data_kiosk_days as d on v.day_id = d.id and v.id = d.current_version_id
-where t.category = 'SELBOX';
-create view public.data_kiosk_others_entries with (security_invoker = true) as
-select
-    t.*,
-    v.preprocess_version,
-    v.day_id
-from private.data_kiosk_transactions as t
-inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
-inner join private.data_kiosk_days as d on v.day_id = d.id and v.id = d.current_version_id
-where t.category = 'DATA_KIOSK';
 
 -- This payout/reference resolver uses explicit versions, never current pointers.
 -- It shares fee applicability and arithmetic rules with the current live reads.
@@ -117,7 +63,7 @@ create function private.resolve_company_components(
     p_settlement_version_ids uuid[], p_data_kiosk_version_ids uuid[], p_terms_version_ids uuid[]
 ) returns table (
     source text, source_row_id uuid, source_version_id uuid, preprocess_version text,
-    source_identity_id uuid, seller_namespace text, marketplace_name public.amazon_marketplace_name,
+    source_identity_id uuid, seller_namespace text, marketplace_name text,
     activity_date date, sku text, component_type text, currency text, source_amount numeric,
     quantity numeric, fee_base numeric, category public.allocation_category, authoritative boolean,
     seller_sku_id uuid, terms_version_id uuid, company_id uuid, fee_period_id uuid,
@@ -237,7 +183,6 @@ $$;
 -- This private view is not a new Data API resource. Callers still need the same
 -- underlying column privileges, and every underlying row policy remains active.
 -- Wildcards below expand only explicitly defined CTEs and this input view.
--- noqa: disable=AM04
 create view private.live_company_component_inputs with (security_invoker = true) as
 with components as (
     select
@@ -309,8 +254,8 @@ from components as c
 left join selected_terms as o
     on c.seller_namespace = o.seller_namespace and c.sku = o.sku;
 
--- Complete current rows support company-amount ordering, text search, and
--- strict financial reads. Bounded transaction RPCs share the same arithmetic.
+-- Complete current rows support strict financial reads and diagnostics.
+-- Bounded transaction RPCs share the same arithmetic.
 create view public.live_company_components with (security_invoker = true) as
 with resolved as (
     select
@@ -376,7 +321,7 @@ from calculated as c;
 create function private.assert_company_source_scope(
     p_seller_namespace text, p_start date, p_end date, p_preprocess_version text,
     p_settlement_ids uuid[],
-    p_marketplaces public.amazon_marketplace_name[],
+    p_marketplaces text[],
     p_dataset_key text default 'economics'
 ) returns void
 language plpgsql stable set search_path = '' as $$
@@ -385,7 +330,14 @@ begin
         or p_start is null or p_end is null or p_end < p_start
         or p_settlement_ids is null or p_marketplaces is null
         or p_dataset_key is distinct from 'economics'
-        or array_position(p_settlement_ids,null) is not null or array_position(p_marketplaces,null) is not null then
+        or array_position(p_settlement_ids,null) is not null or array_position(p_marketplaces,null) is not null
+        or not (p_marketplaces <@ array[
+            'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+            'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+            'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+            'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+        ]::text[]) then
         raise exception 'Explicit valid financial input scope required' using errcode = '23514';
     end if;
     if exists (
@@ -408,7 +360,7 @@ $$;
 
 create function private.company_financial_totals(
     p_seller_namespace text, p_start date, p_end date, p_preprocess_version text,
-    p_settlement_ids uuid[], p_marketplaces public.amazon_marketplace_name[],
+    p_settlement_ids uuid[], p_marketplaces text[],
     p_dataset_key text default 'economics'
 ) returns table (
     company_id uuid,
@@ -442,7 +394,7 @@ $$;
 -- zero for an absent sum and never hide missing ownership or source coverage.
 create function private.company_financial_progress(
     p_seller_namespace text, p_start date, p_end date, p_preprocess_version text,
-    p_settlement_ids uuid[], p_marketplaces public.amazon_marketplace_name[],
+    p_settlement_ids uuid[], p_marketplaces text[],
     p_dataset_key text default 'economics'
 ) returns table (
     company_id uuid, currency text, source_amount numeric, known_fee_amount numeric,
@@ -494,12 +446,21 @@ with observations as (
         where v.day_id = p_day_id and b.acquisition_id = o.id and v.preprocess_version = p_preprocess_version
         order by v.id desc limit 1
     ) v on true
+), summary as (
+    select
+        count(*) = 3 and count(id) = 3 and not bool_or(exists (
+            select 1 from private.data_kiosk_pruned_versions p where p.version_id = versions.id
+        )) as available,
+        count(distinct content_sha256) = 1 as matching_contents,
+        coalesce(jsonb_agg(jsonb_build_object(
+            'acquisition_id', acquisition_id, 'version_id', id,
+            'content_sha256', content_sha256, 'row_count', row_count
+        )), '[]'::jsonb) as observations
+    from versions
 )
-select jsonb_build_object('available',count(*) = 3 and count(id) = 3 and not bool_or(exists (
-        select 1 from private.data_kiosk_pruned_versions p where p.version_id = versions.id
-    )), 'equal',case when count(*) = 3 and count(id) = 3 and not bool_or(exists (
-        select 1 from private.data_kiosk_pruned_versions p where p.version_id = versions.id
-    )) then count(distinct content_sha256) = 1 else null end,
-    'observations',coalesce(jsonb_agg(jsonb_build_object('acquisition_id',acquisition_id,'version_id',id,
-        'content_sha256',content_sha256,'row_count',row_count)),'[]'::jsonb)) from versions;
+select jsonb_build_object(
+    'available', available,
+    'equal', case when available then matching_contents else null end,
+    'observations', observations
+) from summary;
 $$;

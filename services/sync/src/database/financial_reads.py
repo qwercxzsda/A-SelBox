@@ -99,7 +99,7 @@ def load_company_financial_totals(
             from private.company_financial_totals(
                 %(seller_namespace)s, %(start_date)s::date, %(end_date)s::date,
                 %(preprocess_version)s, %(settlement_ids)s::uuid[],
-                %(marketplace_names)s::public.amazon_marketplace_name[], %(dataset_key)s
+                %(marketplace_names)s::text[], %(dataset_key)s
             ) order by company_id, currency
             """,
             parameters,
@@ -152,7 +152,7 @@ def load_company_financial_progress(
             from private.company_financial_progress(
                 %(seller_namespace)s, %(start_date)s::date, %(end_date)s::date,
                 %(preprocess_version)s, %(settlement_ids)s::uuid[],
-                %(marketplace_names)s::public.amazon_marketplace_name[], %(dataset_key)s
+                %(marketplace_names)s::text[], %(dataset_key)s
             ) order by company_id, currency
             """,
             parameters,

@@ -43,13 +43,16 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
     ? fixture.breakdownStatus
     : (fixture.aggregateStatusForRequest?.(entry) ?? fixture.aggregateStatus);
   if (status !== 200) return reply({ message: "Summary fixture unavailable" }, status);
+  // Type fixtures already represent groups for the requested period, so they have no date column.
+  const rowFilters = new URLSearchParams(params);
+  if (breakdown) rowFilters.delete("activity_date");
   const rows =
     (breakdown ? fixture.breakdownRowsForRequest?.(entry) : undefined) ??
     filterRecordRows(
       breakdown
         ? (fixture.breakdownRowsByUser[user] ?? fixture.breakdownRows)
         : (fixture.aggregateRowsByUser[user] ?? fixture.aggregateRows),
-      params,
+      rowFilters,
     );
   const allRows = breakdown
     ? rows

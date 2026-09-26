@@ -1,6 +1,6 @@
 import "./FinanceDataset.css";
 import { Alert, Button, CloseButton, Group, NativeSelect, Text, TextInput } from "@mantine/core";
-import { type DatasetKey, DATASET_CONFIG } from "./api";
+import { type TableDatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
 import { DATASET_PRESENTATION, PAGE_SIZES, displayColumns, getErrorMessage } from "./view-model";
@@ -21,20 +21,11 @@ export function FinanceDataset({
   onViewStateChange,
 }: {
   identity: Identity;
-  dataset: DatasetKey;
+  dataset: TableDatasetKey;
   onRetry: () => Promise<void>;
 } & ViewStateProps<DatasetViewState>) {
-  const {
-    table,
-    query,
-    totalCount,
-    search,
-    changeSearch,
-    filters,
-    changeFilters,
-    companies,
-    skuNames,
-  } = useFinanceTable(identity, dataset, viewState, onViewStateChange);
+  const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
+    useFinanceTable(identity, dataset, viewState, onViewStateChange);
   const { pageIndex, pageSize } = table.state.pagination;
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
@@ -60,9 +51,7 @@ export function FinanceDataset({
               variant="subtle"
               onClick={() => {
                 const defaultSort = DATASET_CONFIG[dataset].defaultSort;
-                table.setSorting([
-                  { id: defaultSort.column, desc: defaultSort.direction === "desc" },
-                ]);
+                table.setSorting([{ id: defaultSort.column, desc: true }]);
               }}
             >
               Order by date
@@ -218,7 +207,6 @@ export function FinanceDataset({
         companies={companies}
         dataset={dataset}
         row={selectedRow}
-        skuNames={skuNames}
         onClose={() => {
           table.resetRowSelection();
         }}

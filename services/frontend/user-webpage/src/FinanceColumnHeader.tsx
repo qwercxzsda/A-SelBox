@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDatasetFilterOptions } from "./api";
 import { DATASET_CONFIG } from "./api/config";
-import type { DatasetFilterField, DatasetFilters, DatasetKey, DatasetSort } from "./api/types";
+import type { DatasetFilterField, DatasetFilters, TableDatasetKey, DatasetSort } from "./api/types";
 import { ColumnMenu, type ColumnMenuSort } from "./ColumnMenu";
 import { humanizeCode, transactionTypeLabel } from "./categories";
 import type { Identity } from "./auth-session";
@@ -19,7 +19,7 @@ const SELECTION_KEYS = {
 
 interface FinanceColumnHeaderProps {
   column: ColumnDefinition;
-  dataset: DatasetKey;
+  dataset: TableDatasetKey;
   identity: Identity;
   filters: DatasetFilters;
   onFiltersChange: (patch: Partial<DatasetFilters>) => void;

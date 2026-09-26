@@ -59,12 +59,13 @@ test("latest date uses the shared one-row page RPC without table refinements or 
   assert.equal(requests, 1);
 });
 
-test("latest date distinguishes an empty or undated scope from malformed or multiple rows", async () => {
-  for (const rows of [[], [datasetRecord("live", { activity_date: null })]]) {
-    const client = createApiClient(SETTINGS, async () => responseJson({ rows, total_count: null }));
-    assert.equal(await client.fetchLatestTransactionDate(latestDateRequest()), null);
-  }
+test("latest date distinguishes an empty scope from malformed or multiple rows", async () => {
+  const empty = createApiClient(SETTINGS, async () =>
+    responseJson({ rows: [], total_count: null }),
+  );
+  assert.equal(await empty.fetchLatestTransactionDate(latestDateRequest()), null);
   for (const rows of [
+    [datasetRecord("live", { activity_date: null })],
     [datasetRecord("live", { activity_date: "" })],
     [datasetRecord("live", { activity_date: "2026-02-29" })],
     [datasetRecord("live", { activity_date: "0000-01-01" })],

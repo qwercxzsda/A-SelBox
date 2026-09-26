@@ -12,8 +12,16 @@ create table public.company_payout_reports (
     end_date date not null check (isfinite(end_date) and end_date >= start_date),
     preprocess_version private.nonblank not null,
     dataset_key text not null check (dataset_key = 'economics'),
-    marketplace_names public.amazon_marketplace_name[] not null
-    check (array_position(marketplace_names, null) is null),
+    marketplace_names text[] not null check (
+        array_position(marketplace_names, null) is null
+        and marketplace_names <@ array[
+            'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+            'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+            'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+            'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+        ]::text[]
+    ),
     report_name private.nonblank not null,
     change_reason private.nonblank not null,
     calculation_version text not null check (calculation_version = 'v0'),
@@ -79,7 +87,13 @@ create table public.company_payout_report_components (
     terms_version_id public.local_uuid not null,
     fee_period_id public.local_uuid,
     sku private.nonblank not null,
-    marketplace_name public.amazon_marketplace_name,
+    marketplace_name text check (marketplace_name in (
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+    )),
     activity_date date not null,
     component_type private.nonblank not null,
     source_amount private.calculated_amount not null,
@@ -153,7 +167,7 @@ $$;
 
 create function private.assert_payout_source_versions(
     p_seller_namespace text, p_start date, p_end date, p_preprocess_version text,
-    p_marketplaces public.amazon_marketplace_name[], p_dataset_key text,
+    p_marketplaces text[], p_dataset_key text,
     p_settlement_versions uuid[], p_data_kiosk_versions uuid[]
 ) returns void language plpgsql set search_path = '' as $$
 begin
@@ -165,6 +179,13 @@ begin
         or array_position(p_settlement_versions,null) is not null
         or array_position(p_data_kiosk_versions,null) is not null
         or array_position(p_marketplaces,null) is not null
+        or not (p_marketplaces <@ array[
+            'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+            'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+            'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+            'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+        ]::text[])
         or (select count(distinct value) from unnest(p_marketplaces) value) <> cardinality(p_marketplaces)
         or (select count(distinct value) from unnest(p_settlement_versions) value) <> cardinality(p_settlement_versions)
         or (select count(distinct value) from unnest(p_data_kiosk_versions) value) <> cardinality(p_data_kiosk_versions) then
@@ -275,6 +296,16 @@ begin
         from jsonb_array_elements_text(p_payload->'settlement_ids') value;
     if report_input.id is null or report_input.company_id is null
         or report_input.currency is null or report_input.currency !~ '^[A-Z]{3}$'
+        or report_input.marketplace_names is null
+        or array_ndims(report_input.marketplace_names) > 1
+        or array_position(report_input.marketplace_names,null) is not null
+        or not (report_input.marketplace_names <@ array[
+            'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+            'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+            'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+            'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+        ]::text[])
         or report_input.report_name is null or report_input.change_reason is null
         or report_input.start_date is null or report_input.end_date is null
         or not isfinite(report_input.start_date) or not isfinite(report_input.end_date)
@@ -291,7 +322,7 @@ begin
           and d.marketplace_name = any(report_input.marketplace_names)
           and d.activity_date between report_input.start_date and report_input.end_date
           and d.dataset_key = report_input.dataset_key
-        order by d.seller_namespace,d.marketplace_name::text,d.activity_date,d.dataset_key
+        order by d.seller_namespace,d.marketplace_name,d.activity_date,d.dataset_key
     loop
         perform 1 from private.data_kiosk_days where id = locked_identity.id for update;
         locked_day_ids := array_append(locked_day_ids,locked_identity.id);
@@ -354,7 +385,7 @@ begin
     insert into private.payout_report_data_kiosk_versions(report_id,day_id,version_id)
         select report_input.id,v.day_id,v.id from private.data_kiosk_preprocess_versions v
         join private.data_kiosk_days d on d.id = v.day_id where v.id = any(kiosk_versions)
-        order by d.seller_namespace,d.marketplace_name::text,d.activity_date,d.dataset_key;
+        order by d.seller_namespace,d.marketplace_name,d.activity_date,d.dataset_key;
     insert into private.payout_report_terms_versions(report_id,seller_sku_id,terms_version_id)
         select report_input.id,v.seller_sku_id,v.id from public.sku_terms_versions v
         where v.id = any(used_terms);
@@ -374,7 +405,7 @@ end;
 $$;
 
 revoke all on function private.assert_payout_source_versions(
-    text, date, date, text, public.amazon_marketplace_name[], text, uuid[], uuid[]
+    text, date, date, text, text[], text, uuid[], uuid[]
 ) from public,
 anon,
 authenticated,

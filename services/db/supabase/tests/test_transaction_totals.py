@@ -7,7 +7,7 @@ import psycopg
 from psycopg import sql
 
 from services.db.supabase.tests import test_live_view_equivalence as live_fixture
-from services.db.supabase.tests.local_database import require_row
+from services.db.supabase.tests.rpc_support import assert_rpc_security
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _PARAMETER_TYPES = {
@@ -15,7 +15,7 @@ _PARAMETER_TYPES = {
     "p_date_to": "date",
     "p_company_ids": "uuid[]",
     "p_skus": "text[]",
-    "p_marketplaces": "public.amazon_marketplace_name[]",
+    "p_marketplaces": "text[]",
     "p_currency": "text",
     "p_group_by_type": "boolean",
     "p_limit": "integer",
@@ -28,35 +28,6 @@ _NUMERIC_FIELDS = (
     "row_count",
     "known_company_count",
 )
-
-
-def assert_rpc_security(fixture: SourceModelFixture, signature: str) -> None:
-    """Only the current RPC signature exists, with the intended invocation grants."""
-    schema, name = signature.split("(", 1)[0].split(".", 1)
-    fixture.assertEqual(
-        fixture.connection.execute(
-            "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace "
-            "where n.nspname=%s and p.proname=%s",
-            (schema, name),
-        ).fetchone(),
-        (1,),
-        "Obsolete overloads must not remain exposed alongside the current RPC.",
-    )
-    row = fixture.connection.execute(
-        "select p.prosecdef, p.provolatile::text, p.proconfig, "
-        "has_function_privilege('authenticated',p.oid,'EXECUTE'), "
-        "has_function_privilege('anon',p.oid,'EXECUTE'), "
-        "has_function_privilege('service_role',p.oid,'EXECUTE'), "
-        "exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a "
-        "where a.grantee=0 and a.privilege_type='EXECUTE') "
-        "from pg_proc p where p.oid=%s::regprocedure",
-        (signature,),
-    ).fetchone()
-    row = require_row(row)
-    fixture.assertEqual(row[:2], (False, "s"))
-    fixture.assertIn('search_path=""', row[2])
-    fixture.assertIn("plan_cache_mode=force_custom_plan", row[2])
-    fixture.assertEqual(row[3:], (True, False, False, False))
 
 
 class TransactionTotalsTests(SourceModelFixture):
@@ -104,7 +75,7 @@ class TransactionTotalsTests(SourceModelFixture):
         for name, column, type_name in (
             ("p_company_ids", "company_id", "uuid[]"),
             ("p_skus", "sku", "text[]"),
-            ("p_marketplaces", "marketplace_name", "public.amazon_marketplace_name[]"),
+            ("p_marketplaces", "marketplace_name", "text[]"),
         ):
             if options.get(name):
                 predicates.append(
@@ -311,7 +282,7 @@ class TransactionTotalsTests(SourceModelFixture):
             for values in ([None], [value, None], [[value]]):
                 with self.assertRaises(psycopg.errors.InvalidParameterValue):
                     self.read_totals(user, **{name: values})
-        with self.assertRaises(psycopg.errors.InvalidTextRepresentation):
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
             self.read_totals(user, p_marketplaces=["unknown"])
 
     def test_security_invoker_grants_and_anonymous_denial(self) -> None:

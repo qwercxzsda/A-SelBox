@@ -5,7 +5,7 @@ import { DATASET_CONFIG } from "../src/api/config.ts";
 import { SETTINGS, responseJson, datasetRecord, csvRecord, pageRequest } from "./api-fixtures.mjs";
 
 test("206 CSV pages retain exact money and stable dataset-specific ordering", async () => {
-  for (const dataset of ["fees", "payouts", "accounts"]) {
+  for (const dataset of ["payouts", "accounts"]) {
     let requested;
     const record = datasetRecord(dataset);
     const client = createApiClient(SETTINGS, async (url, init) => {

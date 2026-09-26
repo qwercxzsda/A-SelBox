@@ -7,6 +7,7 @@ import { respondWithSourceRows } from "./mocks/source-rows.mjs";
 import { respondWithLatestDate, respondWithSummary } from "./mocks/summaries.mjs";
 import { respondWithTransactions } from "./mocks/transactions.mjs";
 import { respondWithOptions } from "./mocks/options.mjs";
+import { respondWithAdminRows } from "./mocks/admin-rows.mjs";
 import { transactionPageParams } from "./transaction-page-fixtures.mjs";
 
 export function deferred() {
@@ -56,6 +57,8 @@ export async function mockSupabase(page) {
     )
       return respondWithCount(fixture, context);
     if (ACCOUNT_PATHS.has(url.pathname)) return accounts.respond(context);
+    if (["/rest/v1/app_accounts", "/rest/v1/company_payout_reports"].includes(url.pathname))
+      return respondWithAdminRows(fixture, context);
     if (
       ["/rest/v1/current_sku_fee_periods", "/rest/v1/rpc/source_transaction_page"].includes(
         url.pathname,

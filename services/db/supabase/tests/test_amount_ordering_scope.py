@@ -138,14 +138,3 @@ class AmountOrderingScopeTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.InvalidParameterValue) as raised:
             self.live_page(operator, p_order_by="amount")
         self.assertEqual(raised.exception.diag.message_primary, _AMOUNT_SCOPE_MESSAGE)
-
-    def test_no_dedicated_amount_indexes_remain(self) -> None:
-        self.assertEqual(
-            self.connection.execute(
-                "select indexname from pg_indexes where schemaname='private' "
-                "and indexname in ('settlement_transactions_amount_id_idx',"
-                "'settlement_transactions_amount_asc_id_idx','data_kiosk_transactions_amount_id_idx',"
-                "'data_kiosk_transactions_amount_asc_id_idx')"
-            ).fetchall(),
-            [],
-        )

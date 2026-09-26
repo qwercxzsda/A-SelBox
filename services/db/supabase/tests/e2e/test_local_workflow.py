@@ -146,7 +146,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             components,
         )
         self.assertEqual(self.read_rows("live_company_components", original_token), [])
-        self.assertEqual(len(self.read_rows("settlement_sku_entries", next_token)), 2)
+        self.assertEqual(len(self.read_rows("settlement_preprocess_entries", next_token)), 2)
         self.assertEqual(
             self.read_rows(
                 "company_payout_reports",
@@ -221,11 +221,13 @@ class LocalWorkflowTests(LocalWorkflowCase):
                     sum((Decimal(str(row["company_amount"])) for row in rows), Decimal(0)),
                     Decimal(-10),
                 )
-                for relation, expected in (
-                    ("settlement_sku_entries", [100, -100]),
-                    ("data_kiosk_others_entries", [-7, -5]),
+                for relation, category, expected in (
+                    ("settlement_preprocess_entries", "SETTLEMENT", [100, -100]),
+                    ("data_kiosk_preprocess_entries", "DATA_KIOSK", [-7, -5]),
                 ):
-                    values = self.read_rows(relation, token, select="seller_namespace,amount")
+                    values = self.read_rows(
+                        relation, token, select="seller_namespace,amount", category="eq." + category
+                    )
                     self.assertEqual({row["seller_namespace"] for row in values}, {seller})
                     self.assertCountEqual([row["amount"] for row in values], expected)
                 other_seller = next(item[0] for item in members if item[0] != seller)
@@ -242,17 +244,22 @@ class LocalWorkflowTests(LocalWorkflowCase):
         acquisition = archived_settlement(self.storage, self.seller)
         identifier = persist_settlement_acquisition(self.database, acquisition)
         preprocess_settlement_report(self.database, self.storage, identifier)
-        self.assertEqual(len(self.read_rows("settlement_sku_entries", token)), 2)
+        self.assertEqual(len(self.read_rows("settlement_preprocess_entries", token)), 2)
 
         anonymous = self.stack.request("GET", "/rest/v1/live_company_components")
         self.assertEqual(anonymous.status_code, 401)
-        for relation in (
-            "settlement_account_entries",
-            "settlement_others_entries",
-            "data_kiosk_account_entries",
+        for relation, category in (
+            ("settlement_preprocess_entries", "SELBOX"),
+            ("settlement_preprocess_entries", "DATA_KIOSK"),
+            ("data_kiosk_preprocess_entries", "SELBOX"),
         ):
             with self.subTest(relation=relation):
-                denied = self.stack.request("GET", "/rest/v1/" + relation, token=token)
+                denied = self.stack.request(
+                    "GET",
+                    "/rest/v1/" + relation,
+                    token=token,
+                    params={"category": "eq." + category},
+                )
                 self.assertEqual(denied.status_code, 200)
                 self.assertEqual(denied.json(), [])
         for relation in ("settlement_acquisitions", "data_kiosk_acquisitions"):

@@ -8,12 +8,10 @@ export function TableCellValue({
   column,
   companies,
   row,
-  skuNames,
 }: {
   column: ColumnDefinition;
   companies: Map<string, string>;
   row: CanonicalRow;
-  skuNames?: Map<string, string>;
 }) {
   if (
     row.resolution_status === "NOT_APPLICABLE" &&
@@ -43,8 +41,6 @@ export function TableCellValue({
       );
     case "company":
       return companyLabel(value, companies);
-    case "sku":
-      return skuNames?.get(value) ?? value;
     case "date":
       return value || "—";
     case "period": {

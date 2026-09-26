@@ -344,6 +344,6 @@ class SourceModelFixture(DatabaseTestCase):
     ) -> list[tuple[object, ...]]:
         return self.connection.execute(
             "select * from private.company_financial_totals("
-            "%s,'2026-06-01','2026-08-31',%s,%s::uuid[],%s::public.amazon_marketplace_name[])",
+            "%s,'2026-06-01','2026-08-31',%s,%s::uuid[],%s::text[])",
             (self.seller, version, settlements, marketplaces or []),
         ).fetchall()

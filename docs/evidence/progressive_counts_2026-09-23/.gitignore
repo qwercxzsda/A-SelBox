@@ -1,3 +1,0 @@
-*.private.dump
-*.restore-error.txt
-__pycache__/

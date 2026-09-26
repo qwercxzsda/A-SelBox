@@ -10,6 +10,16 @@ language sql stable security definer set search_path = '' as $$
     );
 $$;
 
+-- Registered members may read current source references across companies.
+-- Transaction ownership remains a separate fact-policy requirement.
+create function private.is_company_member() returns boolean
+language sql stable security definer set search_path = '' as $$
+    select exists (
+        select 1 from public.app_accounts a
+        where a.user_id = (select auth.uid()) and a.access_role = 'company_member'
+    );
+$$;
+
 create function private.can_read_current_seller_sku(p_seller_sku_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
     select exists (
@@ -19,34 +29,6 @@ language sql stable security definer set search_path = '' as $$
         where s.id = p_seller_sku_id and a.user_id = (select auth.uid())
           and a.access_role = 'company_member'
     );
-$$;
-
--- Header policies cannot query RLS-filtered facts: facts themselves need headers.
--- Return only the current source versions already visible through owned SKUs.
-create function private.current_company_source_versions(p_source text)
-returns setof uuid
-language sql stable security definer set search_path = '' as $$
-    with owned_skus as materialized (
-        select s.seller_namespace, s.sku
-        from public.app_accounts a
-        join public.sku_terms_versions v on v.company_id = a.company_id
-        join public.seller_skus s
-            on s.id = v.seller_sku_id and s.current_terms_version_id = v.id
-        where a.user_id = (select auth.uid()) and a.access_role = 'company_member'
-    )
-    select distinct t.version_id::uuid
-    from owned_skus o
-    join private.settlement_transactions t
-        on t.seller_namespace = o.seller_namespace and t.sku = o.sku
-    join private.settlements h on h.current_version_id = t.version_id
-    where p_source = 'SETTLEMENT' and t.category = 'SETTLEMENT'
-    union all
-    select distinct t.version_id::uuid
-    from owned_skus o
-    join private.data_kiosk_transactions t
-        on t.seller_namespace = o.seller_namespace and t.sku = o.sku
-    join private.data_kiosk_days h on h.current_version_id = t.version_id
-    where p_source = 'DATA_KIOSK' and t.category <> 'SELBOX';
 $$;
 
 create policy app_accounts_read on public.app_accounts for select to authenticated
@@ -83,43 +65,62 @@ create policy settlement_facts_read on private.settlement_transactions
 for select to authenticated using (
     (select private.is_operator()) or (
         category = 'SETTLEMENT'
-        and (seller_namespace, sku) in (select
-            seller_namespace,
-            sku
-        from public.company_skus)
-        and version_id in (select current_version_id from private.settlements)
+        and (seller_namespace, sku) in (
+            select
+                seller_namespace,
+                sku
+            from public.company_skus
+        )
+        and version_id in (
+            select h.current_version_id from private.settlements as h
+        )
     )
 );
 create policy data_kiosk_facts_read on private.data_kiosk_transactions
 for select to authenticated using (
     (select private.is_operator()) or (
         category <> 'SELBOX'
-        and (seller_namespace, sku) in (select
-            seller_namespace,
-            sku
-        from public.company_skus)
-        and version_id in (select current_version_id from private.data_kiosk_days)
+        and (seller_namespace, sku) in (
+            select
+                seller_namespace,
+                sku
+            from public.company_skus
+        )
+        and version_id in (
+            select h.current_version_id from private.data_kiosk_days as h
+        )
     )
 );
-create policy settlement_selection_read on private.settlements for select to authenticated
-using (
+-- Current metadata needs registration and a selected pointer, never a fact scan.
+create policy settlement_selection_read on private.settlements
+for select to authenticated using (
     (select private.is_operator())
-    or current_version_id in (select private.current_company_source_versions('SETTLEMENT'))
+    or ((select private.is_company_member()) and current_version_id is not null)
 );
 create policy settlement_version_reference_read on private.settlement_preprocess_versions
 for select to authenticated using (
-    (select private.is_operator())
-    or id in (select private.current_company_source_versions('SETTLEMENT'))
+    (select private.is_operator()) or (
+        (select private.is_company_member())
+        and exists (
+            select 1 from private.settlements as h
+            where h.current_version_id = settlement_preprocess_versions.id
+        )
+    )
 );
-create policy data_kiosk_selection_read on private.data_kiosk_days for select to authenticated
-using (
+create policy data_kiosk_selection_read on private.data_kiosk_days
+for select to authenticated using (
     (select private.is_operator())
-    or current_version_id in (select private.current_company_source_versions('DATA_KIOSK'))
+    or ((select private.is_company_member()) and current_version_id is not null)
 );
 create policy data_kiosk_version_reference_read on private.data_kiosk_preprocess_versions
 for select to authenticated using (
-    (select private.is_operator())
-    or id in (select private.current_company_source_versions('DATA_KIOSK'))
+    (select private.is_operator()) or (
+        (select private.is_company_member())
+        and exists (
+            select 1 from private.data_kiosk_days as h
+            where h.current_version_id = data_kiosk_preprocess_versions.id
+        )
+    )
 );
 
 -- Full source headers contain account-wide amounts and inventories. Column grants
@@ -150,7 +151,7 @@ end;
 $$;
 create function private.read_data_kiosk_preprocess_results() returns table (
     id uuid, day_id uuid, batch_id uuid, acquisition_id uuid, seller_namespace text,
-    amazon_scope text, marketplace_name public.amazon_marketplace_name, activity_date date,
+    amazon_scope text, marketplace_name text, activity_date date,
     dataset_key text, preprocess_version text, row_count integer, content_sha256 text,
     created_at timestamptz, is_current boolean, is_pruned boolean
 )
@@ -255,7 +256,7 @@ public.current_sku_fee_periods to authenticated;
 grant insert (user_id, company_id), update (company_id) on public.app_accounts to authenticated;
 grant delete on public.app_accounts to authenticated;
 grant select on private.settlement_transactions, private.data_kiosk_transactions to authenticated;
--- Members need these references to join their visible rows, never report totals.
+-- Members can read current references across companies, never report totals.
 grant select (id, current_version_id) on private.settlements,
 private.data_kiosk_days to authenticated;
 grant select (
@@ -266,15 +267,14 @@ grant select (
 ) on private.data_kiosk_preprocess_versions to authenticated;
 grant select on public.settlement_preprocess_results, public.data_kiosk_preprocess_results,
 public.settlement_preprocess_entries, public.data_kiosk_preprocess_entries,
-public.settlement_sku_entries, public.settlement_account_entries, public.settlement_others_entries,
-public.data_kiosk_sku_entries, public.data_kiosk_account_entries, public.data_kiosk_others_entries,
 public.live_company_components, private.live_company_component_inputs to authenticated;
 grant select on public.company_payout_reports, public.company_payout_report_components,
 private.payout_report_settlement_versions, private.payout_report_data_kiosk_versions,
 private.payout_report_terms_versions, public.payout_report_settlement_versions,
 public.payout_report_data_kiosk_versions, public.payout_report_terms_versions to authenticated;
-grant execute on function private.is_operator(), private.can_read_current_seller_sku(uuid),
-private.current_company_source_versions(text), private.read_settlement_preprocess_results(),
+grant execute on function private.is_operator(), private.is_company_member(),
+private.can_read_current_seller_sku(uuid),
+private.read_settlement_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
 private.publish_operator_sku_terms(text, text, uuid, uuid, text, jsonb),

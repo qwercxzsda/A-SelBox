@@ -4,7 +4,6 @@ import psycopg
 
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 from services.sync.src.allocation import AllocationCategory
-from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAMES
 
 
 class SchemaContractTests(SourceModelFixture):
@@ -15,28 +14,6 @@ class SchemaContractTests(SourceModelFixture):
         self.assertEqual(
             tuple(row[0] for row in categories),
             tuple(category.value for category in AllocationCategory),
-        )
-
-    def test_marketplace_enum_and_source_category_views_match_the_contract(self) -> None:
-        marketplaces = self.connection.execute(
-            "select unnest(enum_range(null::public.amazon_marketplace_name))::text"
-        ).fetchall()
-        self.assertEqual(frozenset(row[0] for row in marketplaces), MARKETPLACE_NAMES)
-
-        category_views = self.connection.execute(
-            "select viewname from pg_views where schemaname='public' "
-            "and viewname ~ '^(settlement|data_kiosk)_(sku|account|others)_entries$'"
-        ).fetchall()
-        self.assertEqual(
-            {row[0] for row in category_views},
-            {
-                "settlement_sku_entries",
-                "settlement_account_entries",
-                "settlement_others_entries",
-                "data_kiosk_sku_entries",
-                "data_kiosk_account_entries",
-                "data_kiosk_others_entries",
-            },
         )
 
     def test_default_settlement_account_retains_sku_without_company_access(self) -> None:

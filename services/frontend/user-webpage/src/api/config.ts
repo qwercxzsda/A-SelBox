@@ -1,13 +1,16 @@
-import type { DatasetFilterField, DatasetKey, DatasetSort } from "./types.ts";
+import type { DatasetFilterField, DatasetKey, DatasetSort, TableDatasetKey } from "./types.ts";
 
-export interface DatasetConfig {
+interface RowConfig {
   label: string;
   endpoint?: string;
   selectColumns: readonly string[];
+  idColumns: readonly string[];
+}
+
+export interface DatasetConfig extends RowConfig {
   searchColumns: readonly string[];
   sortColumns: readonly string[];
   defaultSort: DatasetSort;
-  idColumns: readonly string[];
   dateColumn: string | null;
   filterColumns: readonly DatasetFilterField[];
 }
@@ -117,7 +120,7 @@ const PAYOUT_COLUMNS = [
 
 const ACCOUNT_COLUMNS = ["user_id", "access_role", "company_id", "created_at"] as const;
 
-// Transaction RPCs search visible text fields, casting marketplace enums to text.
+// Transaction RPCs search the visible text fields directly.
 // Other REST datasets search only native text fields.
 export const DATASET_CONFIG = {
   live: {
@@ -154,12 +157,7 @@ export const DATASET_CONFIG = {
     label: "Current fees",
     endpoint: "current_sku_fee_periods",
     selectColumns: FEE_COLUMNS,
-    searchColumns: [],
-    sortColumns: ["marketplace_name", "valid_period"],
-    defaultSort: { column: "marketplace_name", direction: "asc" },
     idColumns: ["fee_period_id"],
-    dateColumn: null,
-    filterColumns: ["marketplace_name"],
   },
   payouts: {
     label: "Payout reports",
@@ -183,4 +181,8 @@ export const DATASET_CONFIG = {
     dateColumn: null,
     filterColumns: [],
   },
-} as const satisfies Record<DatasetKey, DatasetConfig>;
+} as const satisfies Record<DatasetKey, RowConfig> & Record<TableDatasetKey, DatasetConfig>;
+
+export function isTableDataset(dataset: string): dataset is TableDatasetKey {
+  return dataset !== "fees" && Object.hasOwn(DATASET_CONFIG, dataset);
+}

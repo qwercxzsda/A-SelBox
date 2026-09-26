@@ -42,12 +42,16 @@ class DataKioskAccessTests(SourceModelFixture):
             ],
         )
         self.assertEqual(
-            self.connection.execute("select amount from public.data_kiosk_sku_entries").fetchall(),
+            self.connection.execute(
+                "select amount from public.data_kiosk_preprocess_entries "
+                "where category='SETTLEMENT'"
+            ).fetchall(),
             [(Decimal("100"),)],
         )
         self.assertEqual(
             self.connection.execute(
-                "select amount from public.data_kiosk_others_entries"
+                "select amount from public.data_kiosk_preprocess_entries "
+                "where category='DATA_KIOSK'"
             ).fetchall(),
             [(Decimal("-3"),)],
         )
@@ -77,7 +81,9 @@ class DataKioskAccessTests(SourceModelFixture):
             ):
                 self.connection.execute(statement)
         self.assertEqual(
-            self.connection.execute("select * from public.data_kiosk_account_entries").fetchall(),
+            self.connection.execute(
+                "select * from public.data_kiosk_preprocess_entries where category='SELBOX'"
+            ).fetchall(),
             [],
         )
 

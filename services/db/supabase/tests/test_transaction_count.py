@@ -7,6 +7,7 @@ import psycopg
 from psycopg import sql
 
 from services.db.supabase.tests import test_transaction_page as page_fixture
+from services.db.supabase.tests.rpc_support import assert_rpc_contract
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _ARRAY_FILTERS = ("p_company_ids", "p_skus", "p_marketplaces", "p_sources", "p_types")
@@ -14,7 +15,7 @@ _PARAMETER_TYPES = {
     "p_date_from": "date",
     "p_date_to": "date",
     **{name: "uuid[]" if name == "p_company_ids" else "text[]" for name in _ARRAY_FILTERS},
-    "p_marketplaces": "public.amazon_marketplace_name[]",
+    "p_marketplaces": "text[]",
     "p_fee_applicable": "boolean",
     "p_search": "text",
 }
@@ -149,9 +150,9 @@ class TransactionCountTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.transaction_count()")
-        page_fixture.assert_native_marketplace_contract(self, "transaction_count", _PARAMETER_TYPES)
+        assert_rpc_contract(self, "transaction_count", _PARAMETER_TYPES)
 
-    def test_native_marketplace_counts_match_pages_for_all_roles(self) -> None:
+    def test_text_marketplace_counts_match_pages_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
             (self.operator(), "19"),
@@ -195,7 +196,7 @@ class TransactionCountTests(SourceModelFixture):
             ):
                 with (
                     self.subTest(selection=selection),
-                    self.assertRaises(psycopg.errors.InvalidTextRepresentation),
+                    self.assertRaises(psycopg.errors.InvalidParameterValue),
                 ):
                     self.count(user, p_marketplaces=selection)
 

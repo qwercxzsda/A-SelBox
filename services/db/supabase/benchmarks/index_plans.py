@@ -69,6 +69,73 @@ def _bind_names(body: str, typed_values: Mapping[str, tuple[str, object]]) -> Qu
     return tokens.sub(bind, body), values
 
 
+def _uses_marketplace_candidates(definition: str, args: dict[str, Any]) -> bool:
+    """Read the current function's work budget; never assume a historical template."""
+    budget = re.search(
+        r"\bmarketplace_candidate_budget\s+constant\s+bigint\s*:=\s*(\d+)\s*;",
+        definition,
+    )
+    if budget is None:
+        raise ValueError("Install the current marketplace page functions before explaining")
+    marketplaces = args.get("p_marketplaces")
+    return (
+        args.get("p_order_by", "date") == "date"
+        and marketplaces is not None
+        and len(marketplaces) > 1
+        and args.get("p_offset", 0) + args.get("p_limit", 25) <= int(budget[1]) // len(marketplaces)
+    )
+
+
+def _marketplace_page_parts(
+    bounded: bool, direction: str, nulls: str, tie: str
+) -> tuple[str, str, str]:
+    if not bounded:
+        return (
+            "",
+            """case when cardinality($5::text[]) = 1
+                then t.marketplace_name = ($5::text[])[array_lower($5::text[], 1)]
+                else coalesce(cardinality($5::text[]), 0) = 0
+                    or t.marketplace_name = any($5)
+                end""",
+            "",
+        )
+    return (
+        """select market_page.*
+        from (select distinct marketplace_name
+              from unnest($5::text[]) as requested_marketplaces(marketplace_name))
+              selected_marketplaces
+        cross join lateral (""",
+        "t.marketplace_name = selected_marketplaces.marketplace_name",
+        ") as market_page "
+        f"order by activity_date {direction} nulls {nulls}, source {tie}, source_row_id {tie} "
+        "limit $8::bigint",
+    )
+
+
+def _source_candidate_query(
+    bounded: bool, amount: bool, date: str, direction: str, nulls: str, tie: str
+) -> str:
+    if not bounded:
+        return (
+            "select t.* from matching as t limit 10001"
+            if amount
+            else "select t.* from matching as t"
+        )
+    # Only validated identifiers/order keywords are interpolated; filters stay parameters.
+    return f"""select market_page.*
+        from (select distinct marketplace_name
+              from unnest($4::text[]) as requested_marketplaces(marketplace_name))
+              selected_marketplaces
+        cross join lateral (
+            select t.* from matching as t
+            where t.marketplace_name = selected_marketplaces.marketplace_name
+            order by t.{date} {direction} nulls {nulls}, t.id {tie}
+            limit ($6::bigint + $7::bigint)
+        ) as market_page
+        order by market_page.{date} {direction} nulls {nulls}, market_page.id {tie}
+        limit ($6::bigint + $7::bigint)"""  # noqa: S608
+
+
 def _page_query(
     connection: Connection, definition: str, function: str, args: dict[str, Any]
 ) -> Query:
@@ -83,6 +150,7 @@ def _page_query(
     offset = args.get("p_offset", 0)
     materialization = "materialized" if amount else "not materialized"
     cap = "limit 10001" if amount else ""
+    marketplace_candidates = _uses_marketplace_candidates(definition, args)
     pattern_row = connection.execute(
         "select private.literal_search_pattern(%s)", (args.get("p_search"),)
     ).fetchone()
@@ -104,12 +172,13 @@ def _page_query(
             cap,
             nulls,
             tie,
+            *_marketplace_page_parts(marketplace_candidates, direction, nulls, tie),
         )
         values = [
             *common,
             ("uuid[]", args.get("p_company_ids")),
             ("text[]", args.get("p_skus")),
-            ("public.amazon_marketplace_name[]", args.get("p_marketplaces")),
+            ("text[]", args.get("p_marketplaces")),
             ("text[]", args.get("p_sources")),
             ("text[]", args.get("p_types")),
             ("bigint", 10001 if amount else offset + limit),
@@ -150,7 +219,7 @@ def _page_query(
             dataset + "_preprocess_versions",
             "r.amount::numeric" if amount else "r." + date,
             materialization,
-            cap,
+            _source_candidate_query(marketplace_candidates, amount, date, direction, nulls, tie),
             candidate_projection,
             nulls,
             tie,
@@ -158,7 +227,7 @@ def _page_query(
         values = [
             *common,
             ("text[]", args.get("p_skus")),
-            ("public.amazon_marketplace_name[]", args.get("p_marketplaces")),
+            ("text[]", args.get("p_marketplaces")),
             ("text[]", args.get("p_types")),
             ("integer", limit),
             ("bigint", offset),
@@ -180,7 +249,7 @@ def _read_query(
         "p_date_to": ("date", args.get("p_date_to")),
         "p_company_ids": ("uuid[]", args.get("p_company_ids")),
         "p_skus": ("text[]", args.get("p_skus")),
-        "p_marketplaces": ("public.amazon_marketplace_name[]", args.get("p_marketplaces")),
+        "p_marketplaces": ("text[]", args.get("p_marketplaces")),
         "p_sources": ("text[]", args.get("p_sources")),
         "p_types": ("text[]", args.get("p_types")),
         "p_fee_applicable": ("boolean", args.get("p_fee_applicable")),

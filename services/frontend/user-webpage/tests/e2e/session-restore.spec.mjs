@@ -46,9 +46,9 @@ for (const originalRole of ["company_member", "operator"]) {
       session.user = { id: "member-b", email: "cached-wrong@example.test" };
       sessionStorage.setItem(key, JSON.stringify(session));
     }, SESSION_KEY);
-    const gates = [deferred(), deferred(), deferred()];
-    const started = [deferred(), deferred(), deferred()];
-    ["beforeAccount", "beforeCompanies", "beforeAssignments"].forEach((hook, index) => {
+    const gates = [deferred(), deferred()];
+    const started = [deferred(), deferred()];
+    ["beforeCompanies", "beforeAssignments"].forEach((hook, index) => {
       fixture[hook] = async () => {
         started[index].resolve();
         await gates[index].promise;
@@ -64,18 +64,14 @@ for (const originalRole of ["company_member", "operator"]) {
       gates[0].resolve();
       await expect(restoring(page)).toBeVisible();
       gates[1].resolve();
-      await expect(restoring(page)).toBeVisible();
-      gates[2].resolve();
       await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
       await expect(page.getByRole("tab")).toHaveCount(nextRole === "operator" ? 6 : 2);
       await expect(page.locator("header")).toContainText("member-a@example.test");
       await expect(page.locator("header")).not.toContainText("cached-wrong@example.test");
-      expect(
-        fixture.identityRequests
-          .filter(({ endpoint }) => endpoint === "/rest/v1/app_accounts")
-          .at(-1)
-          .params.get("user_id"),
-      ).toBe("eq.member-a");
+      expect(fixture.revisionRequests.at(-1).user).toBe("member-a");
+      expect(fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/app_accounts")).toBe(
+        false,
+      );
       expect(fixture.sessionUserRequests.at(-1).accessToken).toBe("token-member-a");
       expect(fixture.authRequests).toBe(1);
       expect(refreshCalls(fixture)).toHaveLength(0);
@@ -123,7 +119,7 @@ test("relative token expiry becomes absolute and reload refreshes once, saving r
     expires_in: 3600,
     user: { id: user, email: `${user}@example.test` },
   });
-  fixture.beforeAccount = async ({ accessToken }) => {
+  fixture.beforeRevisions = async ({ accessToken }) => {
     if (accessToken === "rotated-access-token") {
       checking.resolve();
       await releaseIdentity.promise;
@@ -257,7 +253,7 @@ test("reload uses a changed company assignment and never restores the previous c
   fixture.prefixes["member-a"] = "REASSIGNED";
   const checking = deferred();
   const release = deferred();
-  fixture.beforeAccount = async () => {
+  fixture.beforeRevisions = async () => {
     checking.resolve();
     await release.promise;
   };
@@ -350,7 +346,7 @@ test("a failed identity lookup retains rotated tokens and retry verifies the new
     expires_in: 3600,
     user: { id: user, email: `${user}@example.test` },
   });
-  fixture.accountStatus = 503;
+  fixture.revisionStatus = 503;
   await page.reload();
   await expect(page.getByRole("alert")).toContainText("Could not restore your session:");
   await expect(page.getByRole("alert")).toContainText("HTTP 503");
@@ -363,7 +359,7 @@ test("a failed identity lookup retains rotated tokens and retry verifies the new
   );
   expect(refreshCalls(fixture)).toHaveLength(1);
   expect(fixture.sessionUserRequests).toHaveLength(0);
-  fixture.accountStatus = 200;
+  fixture.revisionStatus = 200;
   await page.getByRole("button", { name: "Retry session", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);

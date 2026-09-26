@@ -1,11 +1,10 @@
 import { createApiClient } from "./api/client.ts";
 import { readBuildConfig } from "./api/runtime-config.ts";
 import type {
-  AppAccount,
   CanonicalRow,
   Company,
   CurrencyTotal,
-  DatasetKey,
+  TableDatasetKey,
   DatasetFilterField,
   FetchDatasetPageOptions,
   FetchDatasetCountOptions,
@@ -30,6 +29,7 @@ export type {
   CurrencyTotal,
   DatasetFilters,
   DatasetKey,
+  TableDatasetKey,
   Session,
   SkuAssignment,
   WorkspaceRevisions,
@@ -37,7 +37,7 @@ export type {
 
 let defaultClient: ReturnType<typeof createApiClient> | undefined;
 function getDefaultClient(): ReturnType<typeof createApiClient> {
-  defaultClient ??= createApiClient(readBuildConfig());
+  defaultClient ??= createApiClient(readBuildConfig(import.meta.env));
   return defaultClient;
 }
 
@@ -49,8 +49,6 @@ export const fetchSessionUser = (accessToken: string): Promise<SessionUser> =>
   getDefaultClient().fetchSessionUser(accessToken);
 export const signOut = (accessToken: string): Promise<void> =>
   getDefaultClient().signOut(accessToken);
-export const fetchAppAccount = (accessToken: string, userId: string): Promise<AppAccount> =>
-  getDefaultClient().fetchAppAccount(accessToken, userId);
 export const fetchWorkspaceRevisions = (
   options: FetchWorkspaceRevisionsOptions,
 ): Promise<WorkspaceRevisionSnapshot> => getDefaultClient().fetchWorkspaceRevisions(options);
@@ -69,7 +67,7 @@ export const fetchSkuFees = (
 ): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, sellerSkuId, signal);
 export const fetchDatasetFilterOptions = (
   accessToken: string,
-  dataset: DatasetKey,
+  dataset: TableDatasetKey,
   field: DatasetFilterField,
   signal?: AbortSignal,
 ): Promise<string[]> =>

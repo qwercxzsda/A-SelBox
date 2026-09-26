@@ -57,7 +57,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(
             {
                 row["seller_namespace"]
-                for row in self.read_rows("settlement_sku_entries", member_token)
+                for row in self.read_rows("settlement_preprocess_entries", member_token)
             },
             {self.seller},
         )
@@ -84,7 +84,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(
             {
                 row["seller_namespace"]
-                for row in self.read_rows("settlement_sku_entries", member_token)
+                for row in self.read_rows("settlement_preprocess_entries", member_token)
             },
             {self.seller + "-second"},
         )
@@ -104,7 +104,7 @@ class AppAccessTests(LocalWorkflowCase):
             "company_skus",
             "companies",
             "live_company_components",
-            "settlement_sku_entries",
+            "settlement_preprocess_entries",
         ):
             self.assertEqual(self.read_rows(relation, member_token), [])
         # Removing app access leaves the existing Auth identity and session intact.

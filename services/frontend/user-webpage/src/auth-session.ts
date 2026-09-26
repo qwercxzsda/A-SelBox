@@ -1,6 +1,5 @@
 import {
   ApiError,
-  fetchAppAccount,
   fetchCompanies,
   fetchSessionUser,
   fetchSkuAssignments,
@@ -28,7 +27,7 @@ export interface Identity {
 
 export function browserSessionStore() {
   try {
-    const { supabaseUrl } = validateApiConfig(readBuildConfig());
+    const { supabaseUrl } = validateApiConfig(readBuildConfig(import.meta.env));
     return createSessionStore(window.sessionStorage, sessionStorageKey(supabaseUrl));
   } catch {
     return createSessionStore(null, "");
@@ -45,13 +44,12 @@ export function isTemporaryAuthError(error: unknown): boolean {
 export async function loadIdentity(session: Session): Promise<Identity> {
   // Capture the baseline before loading any dependent lookups or financial data.
   // A publication during those reads will then be detected by the next poll.
-  const { revisions } = await fetchWorkspaceRevisions({
+  const { account, revisions } = await fetchWorkspaceRevisions({
     accessToken: session.access_token,
     userId: session.user.id,
     sources: REVISION_SOURCES,
   });
-  const [account, companies, assignments] = await Promise.all([
-    fetchAppAccount(session.access_token, session.user.id),
+  const [companies, assignments] = await Promise.all([
     fetchCompanies(session.access_token),
     fetchSkuAssignments(session.access_token),
   ]);

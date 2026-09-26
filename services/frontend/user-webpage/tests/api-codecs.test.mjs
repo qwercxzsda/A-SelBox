@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DATASET_CONFIG } from "../src/api/config.ts";
+import { DATASET_CONFIG, isTableDataset } from "../src/api/config.ts";
 import { parseTotalCount } from "../src/api/content-range.ts";
 import { parseCsv } from "../src/api/csv.ts";
 import { mapDatasetRows } from "../src/api/row-mappers.ts";
@@ -39,7 +39,8 @@ test("search uses visible transaction text and excludes hidden or computed field
     "fee_amount",
     "company_amount",
   ]);
-  for (const config of Object.values(DATASET_CONFIG)) {
+  for (const dataset of Object.keys(DATASET_CONFIG).filter(isTableDataset)) {
+    const config = DATASET_CONFIG[dataset];
     for (const column of config.searchColumns)
       assert.equal(nonTextColumns.has(column), false, `${config.endpoint}: ${column}`);
     for (const column of config.idColumns)
@@ -59,7 +60,6 @@ test("search uses visible transaction text and excludes hidden or computed field
       "marketplace_name",
       "currency",
     ]);
-  assert.deepEqual(DATASET_CONFIG.fees.searchColumns, []);
   assert.deepEqual(DATASET_CONFIG.accounts.searchColumns, []);
 });
 

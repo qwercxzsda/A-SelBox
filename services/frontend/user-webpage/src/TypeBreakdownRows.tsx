@@ -6,11 +6,7 @@ import { transactionTypeLabel } from "./categories";
 import { formatExactMoney } from "./decimal";
 import type { TransactionTypeGroup } from "./type-breakdown-groups";
 
-const AMOUNTS = [
-  ["reportedAmount", "Reported amount"],
-  ["serviceFee", "Service fee"],
-  ["companyAmount", "Company amount"],
-] as const;
+import { FINANCIAL_AMOUNTS } from "./view-model";
 
 function UncalculatedNote({ total }: { total: CurrencyTotal }) {
   return total.missingFeeCount > 0 ? (
@@ -30,7 +26,7 @@ function AmountRow({ total }: { total: TransactionTypeTotal }) {
         </Text>
         <UncalculatedNote total={total} />
       </Table.Th>
-      {AMOUNTS.map(([field]) => (
+      {FINANCIAL_AMOUNTS.map(([field]) => (
         <Table.Td key={field} ta="right">
           {formatExactMoney(total[field], total.currency)}
         </Table.Td>
@@ -77,7 +73,7 @@ function OriginalTypes({ types }: { types: TransactionTypeTotal[] }) {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Type</Table.Th>
-            {AMOUNTS.map(([field, label]) => (
+            {FINANCIAL_AMOUNTS.map(([field, label]) => (
               <Table.Th key={field} ta="right">
                 {label}
               </Table.Th>

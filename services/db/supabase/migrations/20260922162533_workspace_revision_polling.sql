@@ -29,11 +29,13 @@ $$;
 create function private.track_source_revision() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-    if tg_op = 'UPDATE' and new.current_version_id is not distinct from old.current_version_id then
-        return null;
+    if tg_table_name in ('settlements', 'data_kiosk_days') then
+        if tg_op = 'UPDATE' and new.current_version_id is not distinct from old.current_version_id then
+            return null;
+        end if;
+        if tg_op = 'INSERT' and new.current_version_id is null then return null; end if;
+        if tg_op = 'DELETE' and old.current_version_id is null then return null; end if;
     end if;
-    if tg_op = 'INSERT' and new.current_version_id is null then return null; end if;
-    if tg_op = 'DELETE' and old.current_version_id is null then return null; end if;
     perform private.bump_workspace_revision(tg_argv[0], '{}'::uuid[]);
     return null;
 end;
@@ -47,6 +49,22 @@ deferrable initially deferred for each row
 execute function private.track_source_revision('settlement');
 create constraint trigger workspace_data_kiosk_revision
 after insert or update or delete on private.data_kiosk_days
+deferrable initially deferred for each row
+execute function private.track_source_revision('data_kiosk');
+
+-- Administrator raw reads include retained history. Publishing an older version
+-- or pruning its payload changes those reads without moving a current pointer.
+-- These small metadata inventories cover both events without fact-row triggers.
+create constraint trigger workspace_settlement_version_revision
+after insert on private.settlement_preprocess_versions
+deferrable initially deferred for each row
+execute function private.track_source_revision('settlement');
+create constraint trigger workspace_data_kiosk_version_revision
+after insert on private.data_kiosk_preprocess_versions
+deferrable initially deferred for each row
+execute function private.track_source_revision('data_kiosk');
+create constraint trigger workspace_data_kiosk_pruning_revision
+after insert on private.data_kiosk_pruned_versions
 deferrable initially deferred for each row
 execute function private.track_source_revision('data_kiosk');
 

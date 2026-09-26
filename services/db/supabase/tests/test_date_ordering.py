@@ -123,8 +123,7 @@ class DateOrderingTests(SourceModelFixture):
             "pg_get_expr(i.indpred,i.indrelid) "
             "from pg_index i join pg_class c on c.oid=i.indexrelid "
             "where c.relnamespace='private'::regnamespace and c.relname in "
-            "('settlement_transactions_date_id_idx','data_kiosk_transactions_date_id_idx',"
-            "'settlement_transactions_date_asc_id_idx','data_kiosk_transactions_date_asc_id_idx') "
+            "('settlement_transactions_date_id_idx','data_kiosk_transactions_date_id_idx') "
             "order by c.relname"
         ).fetchall()
         self.assertEqual(len(indexes), 2)

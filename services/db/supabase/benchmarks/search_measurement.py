@@ -23,12 +23,6 @@ from .table_verification import (
 from .transport import request, rest_server
 
 Record = dict[str, Any]
-RETIRED_AMOUNT_INDEXES = (
-    "settlement_transactions_amount_id_idx",
-    "settlement_transactions_amount_asc_id_idx",
-    "data_kiosk_transactions_amount_id_idx",
-    "data_kiosk_transactions_amount_asc_id_idx",
-)
 
 
 def assert_cap_rejected(base: str, token: str, case: SearchCase) -> None:
@@ -87,12 +81,6 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         ).fetchall()
         if len(signatures) != 4 or not all("p_search text" in args for _, args in signatures):
             raise RuntimeError("Install all four current table RPCs before benchmarking")
-        old_indexes = connection.execute(
-            "select indexname from pg_indexes where schemaname='private' and indexname=any(%s)",
-            (list(RETIRED_AMOUNT_INDEXES),),
-        ).fetchall()
-        if old_indexes:
-            raise RuntimeError("Remove the retired amount indexes before benchmarking")
         before = catalog_fingerprint(connection)
         subjects = identities(connection)
         facts = connection.execute(
@@ -114,7 +102,6 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         "settlement_facts": facts[0],
         "data_kiosk_facts": facts[1],
         "catalog_before": before,
-        "amount_indexes_absent": True,
         "records": [],
         "summary": [],
     }

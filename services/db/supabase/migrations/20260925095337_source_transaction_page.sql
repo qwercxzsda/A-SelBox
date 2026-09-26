@@ -5,7 +5,7 @@
 -- Keep large source JSON out of the bounded amount candidate inventory.
 -- Date ordering reverses the entire date/ID key; amount ties stay ascending.
 -- The unchanged fact/version RLS policies guarantee a visible parent version
--- for every visible fact (operators see all; members see owned current versions).
+-- for every visible fact (operators see all versions; members see all current references).
 -- This allows pagination and counts to omit the metadata join; the final join
 -- remains SECURITY INVOKER. Recheck that implication if those policies change.
 create function public.source_transaction_page(
@@ -17,7 +17,7 @@ create function public.source_transaction_page(
     p_date_from date default null,
     p_date_to date default null,
     p_skus text[] default null,
-    p_marketplaces public.amazon_marketplace_name[] default null,
+    p_marketplaces text[] default null,
     p_types text[] default null,
     p_include_count boolean default true,
     p_search text default null
@@ -36,6 +36,8 @@ declare
     tie_direction text;
     candidate_materialization text;
     candidate_cap text;
+    candidate_query text;
+    marketplace_candidate_budget constant bigint := 4096;
     projection text;
     candidate_projection text;
     source_predicate text;
@@ -88,6 +90,29 @@ begin
     candidate_materialization := case p_order_by when 'amount' then 'materialized' else 'not materialized' end;
     candidate_cap := case p_order_by when 'amount' then 'limit 10001' else '' end;
 
+    -- Keep matching unbounded: exact date counts read it independently.
+    -- Only date candidates are bounded per distinct marketplace and merged.
+    candidate_query := 'select t.* from matching as t ' || candidate_cap;
+    -- This is a candidate-work heuristic, never a result limit or rejection.
+    -- Divide to avoid overflow for large offsets or repeated filter values.
+    if p_order_by = 'date' and cardinality(p_marketplaces) > 1
+        and p_offset + p_limit <= marketplace_candidate_budget / nullif(cardinality(p_marketplaces), 0) then
+        candidate_query := format($markets$
+            select market_page.*
+            from (select distinct marketplace_name
+                  from unnest($4::text[]) as requested_marketplaces(marketplace_name)) selected_marketplaces
+            cross join lateral (
+                select t.* from matching as t
+                where t.marketplace_name = selected_marketplaces.marketplace_name
+                order by t.%I %s nulls %s, t.id %s
+                limit ($6::bigint + $7::bigint)
+            ) as market_page
+            order by market_page.%I %s nulls %s, market_page.id %s
+            limit ($6::bigint + $7::bigint)
+        $markets$, date_column, sort_direction, sort_nulls, tie_direction,
+            date_column, sort_direction, sort_nulls, tie_direction);
+    end if;
+
     execute format($query$
         with matching as not materialized (
             select t.id, t.version_id, t.seller_namespace, t.source_line_number,
@@ -98,15 +123,18 @@ begin
                 and ($1::date is null or t.%3$I >= $1)
                 and ($2::date is null or t.%3$I <= $2)
                 and (coalesce(cardinality($3::text[]), 0) = 0 or t.sku = any($3))
-                and (coalesce(cardinality($4::public.amazon_marketplace_name[]), 0) = 0
-                    or t.marketplace_name = any($4))
+                and case when cardinality($4::text[]) = 1
+                    then t.marketplace_name = ($4::text[])[array_lower($4::text[], 1)]
+                    else coalesce(cardinality($4::text[]), 0) = 0
+                        or t.marketplace_name = any($4)
+                end
                 and (coalesce(cardinality($5::text[]), 0) = 0 or t.component_type = any($5))
                 and private.visible_transaction_search_matches(
-                    $9::text, null, t.sku, t.component_type, t.marketplace_name::text, t.currency
+                    $9::text, null, t.sku, t.component_type, t.marketplace_name, t.currency
                 )
         ),
         candidates as %10$s (
-            select t.* from matching as t %11$s
+            %11$s
         ),
         candidate_count as materialized (
             select count(*) as value from candidates
@@ -143,7 +171,7 @@ begin
     $query$, fact_relation, source_predicate, date_column, sort_column,
         sort_direction, identity_column, projection, version_relation,
         case p_order_by when 'amount' then 'r.amount::numeric' else format('r.%I', date_column) end,
-        candidate_materialization, candidate_cap, candidate_projection, sort_nulls, tie_direction)
+        candidate_materialization, candidate_query, candidate_projection, sort_nulls, tie_direction)
     into result
     using p_date_from, p_date_to, p_skus, p_marketplaces, p_types,
         p_limit, p_offset, p_include_count, search_pattern, p_order_by = 'amount';
@@ -157,11 +185,11 @@ $$;
 
 revoke all on function public.source_transaction_page(
     text, integer, bigint, text, text, date, date, text[],
-    public.amazon_marketplace_name[], text[], boolean, text
+    text[], text[], boolean, text
 ) from public, anon, authenticated, service_role;
 grant execute on function public.source_transaction_page(
     text, integer, bigint, text, text, date, date, text[],
-    public.amazon_marketplace_name[], text[], boolean, text
+    text[], text[], boolean, text
 ) to authenticated;
 
 notify pgrst, 'reload schema';

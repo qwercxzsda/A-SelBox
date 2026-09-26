@@ -1,6 +1,6 @@
-import { DATASET_CONFIG } from "./config.ts";
+import { DATASET_CONFIG, isTableDataset } from "./config.ts";
 import { parseTotalCount, parseExactCount } from "./content-range.ts";
-import { applyDatasetFilters, requireFilterField } from "./filters.ts";
+import { datasetFilterValues, requireFilterField } from "./filters.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
 import { buildSearchFilter } from "./search.ts";
 import {
@@ -14,7 +14,7 @@ import { readAllCsvRows, LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import { readCursorRpcValues } from "./rpc-pagination.ts";
 import type {
   CanonicalRow,
-  DatasetKey,
+  TableDatasetKey,
   DatasetSort,
   DatasetFilterField,
   FetchDatasetPageOptions,
@@ -25,12 +25,12 @@ import type {
 const SORT_DIRECTIONS: ReadonlySet<string> = new Set(["asc", "desc"]);
 
 function validatePageRequest(
-  dataset: DatasetKey,
+  dataset: TableDatasetKey,
   pageIndex: number,
   pageSize: number,
   sort: DatasetSort,
 ): void {
-  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+  if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   if (!Number.isSafeInteger(pageIndex) || pageIndex < 0) {
     throw new Error("Page index must be a non-negative safe integer");
   }
@@ -48,11 +48,11 @@ function validatePageRequest(
 
 function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchParams {
   const { dataset, search, filters } = options;
-  if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+  if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   const params = new URLSearchParams();
   const searchFilter = buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
   if (searchFilter !== null) params.set("or", searchFilter);
-  applyDatasetFilters(dataset, params, filters);
+  datasetFilterValues(dataset, filters);
   return params;
 }
 
@@ -77,7 +77,7 @@ export function createDatasetApi(transport: ApiTransport) {
     async fetchDatasetCount(options: FetchDatasetCountOptions): Promise<number> {
       requireAccessToken(options.accessToken);
       const { dataset } = options;
-      if (!Object.hasOwn(DATASET_CONFIG, dataset)) throw new Error("Dataset is invalid");
+      if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
       const operation = `${DATASET_CONFIG[dataset].label} count`;
       if (isTransactionDataset(dataset)) {
         return parseExactCount(
@@ -167,7 +167,7 @@ export function createDatasetApi(transport: ApiTransport) {
 
     async fetchDatasetFilterOptions(
       accessToken: string,
-      dataset: DatasetKey,
+      dataset: TableDatasetKey,
       field: DatasetFilterField,
       signal?: AbortSignal,
     ): Promise<string[]> {

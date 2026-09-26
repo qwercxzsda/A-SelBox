@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, BinaryIO, LiteralString
 
@@ -24,9 +25,37 @@ DATABASES = {"aselbox_opt_large", "aselbox_opt_broad"}
 Connection = psycopg.Connection[tuple[Any, ...]]
 
 
+@lru_cache(maxsize=1)
+def local_docker_environment() -> dict[str, str]:
+    """Pin one validated local Docker socket for the complete clone lifecycle."""
+    allowed = ("PATH", "HOME", "TMPDIR", "DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG")
+    environment = {name: os.environ[name] for name in allowed if name in os.environ}
+    host = environment.get("DOCKER_HOST", "")
+    if environment.get("DOCKER_CONTEXT") or not host:
+        result = subprocess.run(
+            ["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
+            env=environment,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode:
+            raise RuntimeError("Could not inspect the local Docker context")
+        host = result.stdout.decode().strip()
+    if not host.startswith("unix://"):
+        raise ValueError("Benchmark Docker access requires a local Unix socket")
+    environment.pop("DOCKER_CONTEXT", None)
+    environment["DOCKER_HOST"] = host
+    return environment
+
+
 def docker(*arguments: str, stdin: BinaryIO | None = None, input: bytes | None = None) -> bytes:
     result = subprocess.run(
-        ["docker", *arguments], stdin=stdin, input=input, capture_output=True, check=False
+        ["docker", *arguments],
+        env=local_docker_environment(),
+        stdin=stdin,
+        input=input,
+        capture_output=True,
+        check=False,
     )
     if result.returncode:
         raise RuntimeError("Local Docker operation failed: " + arguments[0])

@@ -77,26 +77,6 @@ test("company and SKU lookups advance by actual returned rows under a smaller se
   }
 });
 
-test("own account lookup filters the authenticated identity even for operators", async () => {
-  let requested;
-  const account = { user_id: "operator-id", access_role: "operator", company_id: null };
-  const client = createApiClient(SETTINGS, async (url) => {
-    requested = new URL(url);
-    return responseJson([account]);
-  });
-  assert.deepEqual(await client.fetchAppAccount("test-access", "operator-id"), account);
-  assert.equal(requested.searchParams.get("user_id"), "eq.operator-id");
-  assert.equal(requested.pathname, "/rest/v1/app_accounts");
-});
-
-test("an Auth user without an application account does not gain a default role", async () => {
-  const client = createApiClient(SETTINGS, async () => responseJson([]));
-  await assert.rejects(
-    client.fetchAppAccount("test-access", "unregistered-user"),
-    /does not have access/,
-  );
-});
-
 test("sign out revokes only the current session", async () => {
   let requested;
   const client = createApiClient(SETTINGS, async (url, init) => {

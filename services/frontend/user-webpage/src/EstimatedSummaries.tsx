@@ -7,7 +7,7 @@ import { UpdateStatus } from "./UpdateStatus";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import "./EstimatedSummaries.css";
 
-export interface EstimatedSummariesProps {
+interface EstimatedSummariesProps {
   day: SummaryState;
   month: SummaryState;
   selected: SummaryState;

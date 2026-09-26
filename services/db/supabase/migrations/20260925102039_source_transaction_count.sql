@@ -6,7 +6,7 @@ create function public.source_transaction_count(
     p_date_from date default null,
     p_date_to date default null,
     p_skus text[] default null,
-    p_marketplaces public.amazon_marketplace_name[] default null,
+    p_marketplaces text[] default null,
     p_types text[] default null,
     p_search text default null
 ) returns text
@@ -33,7 +33,7 @@ begin
                     or t.marketplace_name = any(p_marketplaces))
                 and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
                 and private.visible_transaction_search_matches(
-                    search_pattern, null, t.sku, t.component_type, t.marketplace_name::text, t.currency
+                    search_pattern, null, t.sku, t.component_type, t.marketplace_name, t.currency
                 )
         );
     end if;
@@ -47,17 +47,17 @@ begin
                 or t.marketplace_name = any(p_marketplaces))
             and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
             and private.visible_transaction_search_matches(
-                search_pattern, null, t.sku, t.component_type, t.marketplace_name::text, t.currency
+                search_pattern, null, t.sku, t.component_type, t.marketplace_name, t.currency
             )
     );
 end;
 $$;
 
 revoke all on function public.source_transaction_count(
-    text, date, date, text[], public.amazon_marketplace_name[], text[], text
+    text, date, date, text[], text[], text[], text
 ) from public, anon, authenticated, service_role;
 grant execute on function public.source_transaction_count(
-    text, date, date, text[], public.amazon_marketplace_name[], text[], text
+    text, date, date, text[], text[], text[], text
 ) to authenticated;
 
 notify pgrst, 'reload schema';

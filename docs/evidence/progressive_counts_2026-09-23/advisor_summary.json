@@ -1,9 +1,0 @@
-{
-  "database": "aselbox_opt_seed",
-  "type": "all",
-  "minimum_level": "warn",
-  "connection": "loopback clone with sslmode=disable",
-  "before": {"exit_code": 0, "findings": []},
-  "after": {"exit_code": 0, "findings": []},
-  "original_database_changed": false
-}

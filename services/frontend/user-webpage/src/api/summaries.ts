@@ -94,8 +94,6 @@ export function createSummaryApi(
       if (rows.length === 0) return null;
       if (rows.length !== 1) throw new Error("Latest transaction date returned multiple rows");
       const date = rows[0].activity_date;
-      // Date ordering puts NULL last; an all-undated scope has no latest calendar date.
-      if (date === null) return null;
       try {
         if (typeof date !== "string") throw new Error("Missing date");
         requireCalendarDate(date);

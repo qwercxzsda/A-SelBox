@@ -26,6 +26,7 @@ export function createFixtureState() {
     settlementRows: [],
     kioskRows: [],
     feeRows: [],
+    payoutRows: [],
     feePageCap: 1000,
     beforeFees: async () => {},
     feeStatusForRequest: () => 200,
@@ -66,13 +67,10 @@ export function createFixtureState() {
     beforeDataset: async () => {},
     datasetStatusForRequest: null,
     amountOrderCountForRequest: null,
-    beforeAccount: async () => {},
     beforeCompanies: async () => {},
     beforeAssignments: async () => {},
-    accountStatus: 200,
     companiesStatus: 200,
     assignmentsStatus: 200,
-    accountNetworkFailure: false,
     status: 200,
   };
 }

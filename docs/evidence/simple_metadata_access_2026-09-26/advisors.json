@@ -1,0 +1,30 @@
+{
+  "command": [
+    "supabase",
+    "db",
+    "advisors",
+    "--db-url",
+    "postgresql://postgres@127.0.0.1:55422/postgres?sslmode=disable",
+    "--type",
+    "security",
+    "--output",
+    "json"
+  ],
+  "warnings": [
+    {
+      "name": "function_search_path_mutable",
+      "object": "private.settlement_fee_applicable"
+    },
+    {
+      "name": "function_search_path_mutable",
+      "object": "private.calculate_service_fee"
+    },
+    {
+      "name": "function_search_path_mutable",
+      "object": "private.visible_transaction_search_matches"
+    }
+  ],
+  "new_warnings": [],
+  "review": "Same three existing relation-free scalar-helper warnings. New member helper has fixed search_path and narrow authenticated execution.",
+  "baseline": "../sparse_marketplace_2026-09-26/advisors.json"
+}

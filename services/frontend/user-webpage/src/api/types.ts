@@ -1,6 +1,7 @@
-export type DatasetKey = "live" | "settlement" | "data_kiosk" | "fees" | "payouts" | "accounts";
-export type SortDirection = "asc" | "desc";
-export type DecimalString = string;
+export type TableDatasetKey = "live" | "settlement" | "data_kiosk" | "payouts" | "accounts";
+export type DatasetKey = TableDatasetKey | "fees";
+type SortDirection = "asc" | "desc";
+type DecimalString = string;
 
 export interface SessionUser {
   id: string;
@@ -44,7 +45,6 @@ export interface FetchWorkspaceRevisionsOptions {
 
 export interface SkuAssignment {
   id: string;
-  seller_namespace: string;
   sku: string;
   company_id: string;
   terms_version_id: string;
@@ -79,7 +79,7 @@ export interface DatasetFilters {
 export interface FetchDatasetPageOptions {
   accessToken: string;
   signal?: AbortSignal;
-  dataset: DatasetKey;
+  dataset: TableDatasetKey;
   pageIndex: number;
   pageSize: number;
   search: string;
@@ -102,7 +102,7 @@ export interface CurrencyTotal {
   missingFeeCount: number;
 }
 
-export interface TransactionSummaryFilters {
+interface TransactionSummaryFilters {
   companyIds?: string[];
   skus?: string[];
   marketplaces?: string[];

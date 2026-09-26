@@ -8,9 +8,11 @@ export function transactionPageParams(args) {
   params.set("offset", String(args.p_offset));
   const column = args.p_order_by === "amount" ? "source_amount" : "activity_date";
   const tieDirection = args.p_order_by === "amount" ? "asc" : args.p_direction;
+  const nulls =
+    args.p_order_by !== "amount" && args.p_direction === "desc" ? "nullsfirst" : "nullslast";
   params.set(
     "order",
-    `${column}.${args.p_direction}.nullslast,source.${tieDirection},source_row_id.${tieDirection}`,
+    `${column}.${args.p_direction}.${nulls},source.${tieDirection},source_row_id.${tieDirection}`,
   );
   return params;
 }
@@ -22,7 +24,9 @@ export function sourceTransactionPageParams(args) {
   params.set("offset", String(args.p_offset));
   const column = args.p_order_by === "amount" ? "amount" : date;
   const tieDirection = args.p_order_by === "amount" ? "asc" : args.p_direction;
-  params.set("order", `${column}.${args.p_direction}.nullslast,id.${tieDirection}`);
+  const nulls =
+    args.p_order_by !== "amount" && args.p_direction === "desc" ? "nullsfirst" : "nullslast";
+  params.set("order", `${column}.${args.p_direction}.${nulls},id.${tieDirection}`);
   return params;
 }
 

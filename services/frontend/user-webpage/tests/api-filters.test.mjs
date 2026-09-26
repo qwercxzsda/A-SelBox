@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
-import { DATASET_CONFIG } from "../src/api/config.ts";
+import { DATASET_CONFIG, isTableDataset } from "../src/api/config.ts";
 import {
   SETTINGS,
   responseJson,
@@ -299,7 +299,9 @@ test("invalid company UUIDs and company filters on other datasets fail before HT
       /valid company IDs/,
     );
   }
-  for (const dataset of Object.keys(DATASET_CONFIG).filter((key) => key !== "live")) {
+  for (const dataset of Object.keys(DATASET_CONFIG).filter(
+    (key) => isTableDataset(key) && key !== "live",
+  )) {
     await assert.rejects(
       client.fetchDatasetPage(
         pageRequest(dataset, { filters: datasetFilters({ companyIds: [COMPANY_ID] }) }),
@@ -344,7 +346,7 @@ test("invalid calendar periods and unsupported column filters fail before sendin
   for (const [dataset, filters] of [
     ["settlement", datasetFilters({ sources: ["SETTLEMENT"] })],
     ["accounts", datasetFilters({ marketplaces: ["Amazon.com"] })],
-    ["fees", datasetFilters({ dateFrom: "2026-09-01" })],
+    ["payouts", datasetFilters({ dateFrom: "2026-09-01" })],
     ["live", datasetFilters({ skus: ["invalid\0value"] })],
   ]) {
     await assert.rejects(client.fetchDatasetPage(pageRequest(dataset, { filters })));
@@ -402,7 +404,7 @@ test("option RPC fetches over a thousand distinct values with no extra empty req
 });
 
 test("a complete option response preserves exact text and database Unicode ordering without extra requests", async () => {
-  const options = ["", '  SKU,"quote"\\path.(value)  ', "\uE000", "ＳＫＵ－１", "😀"];
+  const options = ['  SKU,"quote"\\path.(value)  ', "\uE000", "ＳＫＵ－１", "😀"];
   let requests = 0;
   const client = createApiClient(SETTINGS, async () => {
     requests += 1;
@@ -421,6 +423,8 @@ test("option scans reject malformed, oversized, duplicate, truncated or non-adva
     { values: "A", next_cursor: null },
     { values: [null], next_cursor: null },
     { values: [1], next_cursor: null },
+    { values: [""], next_cursor: null },
+    { values: ["invalid\0value"], next_cursor: null },
     { values: ["A", "A"], next_cursor: null },
     { values: ["A"], next_cursor: "B" },
     { values: ["A"], next_cursor: 1 },
@@ -539,7 +543,9 @@ test("invalid fee selections and unsupported dataset fee filters fail before HTT
       /fee applicability/,
     );
   }
-  for (const dataset of Object.keys(DATASET_CONFIG).filter((dataset) => dataset !== "live")) {
+  for (const dataset of Object.keys(DATASET_CONFIG).filter(
+    (dataset) => isTableDataset(dataset) && dataset !== "live",
+  )) {
     await assert.rejects(
       client.fetchDatasetPage(
         pageRequest(dataset, {
@@ -558,7 +564,6 @@ test("removed monetary orderings are rejected before sending any request", async
   for (const [dataset, columns] of [
     ["live", ["company_amount", "fee_rate_percent", "fee_amount"]],
     ["payouts", ["source_amount", "fee_amount"]],
-    ["fees", ["fee_rate_percent"]],
   ]) {
     for (const column of columns) {
       await assert.rejects(

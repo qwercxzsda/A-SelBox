@@ -240,30 +240,27 @@ caller-bound source authorization. Date and SKU filters can reach source facts. 
 reported-amount page requests, including text search, select the visible page before calculating its
 fees. Search uses the visible text fields directly, without fee-status or version matching. Amount
 ordering is limited to 10,000 fully filtered, authorized matches; a 10,001-row probe rejects larger
-scopes before sorting. Its four dedicated indexes have been removed. Company amount ordering is no
-longer offered in Transactions. See the
-[amount-ordering measurements](evidence/reported_amount_ordering_2026-09-25/README.md) and
-[text-search verification](evidence/text_search_2026-09-25/README.md).
+scopes before sorting. The [query contract](transaction_query_contracts.md) defines supported
+ordering, filters, and result shapes.
 
 The frontend renders rows before requesting their exact count. Financial counts are reused across
 page and sort changes until a relevant source or fee revision invalidates them; account and payout
 counts expire after 30 seconds. This reduces repeat work and often improves first-row latency, but a
-cold page and separate count can consume more database time than a combined request. The
-[progressive-count measurements](evidence/progressive_counts_2026-09-23/README.md) record that
-tradeoff.
+cold page and separate count can consume more database time than a combined request.
 
 Summary cards discover the latest transaction date and aggregate only the requested day, month, or
 selected DATE range through dedicated RPCs. Compatible facts are combined before resolving fees;
 filter options return distinct authorized values without fee calculations or source-row counts.
 Option discovery still spans visible history. Full-period totals and exact counts must process all
 matching records. Selective or absent literal search terms can still scan many source rows under
-RLS. Tested trigram indexes were not used by authenticated search plans and were not adopted.
+RLS. Search has no dedicated substring index.
 Explicit continuation markers protect against response caps, but multiple pages are live estimates
 and do not share an atomic database snapshot.
 
 Synthetic larger-data checks and short concurrent-read bursts do not establish sustained production
 capacity, storage locality, or a latency bound. Monitor real query plans and timings as the workload
-grows.
+grows. The [performance guide](database_performance.md) records the current design, measurements,
+and possible responses to those costs.
 
 ### Storage and database publication
 
@@ -298,6 +295,6 @@ publication and retention. Their Amazon documents are synthetic; these tests mak
 requests and do not modify existing application databases.
 
 The verification suites establish behavior for their fixtures, not universal Amazon payload support,
-country coverage, financial finality, or production capacity. The original five-module schema is a
-fresh-install baseline; subsequent read migrations can update a database already using that baseline
-without a data backfill. No upgrade path from an unrelated deployed schema is provided.
+country coverage, financial finality, or production capacity. All canonical migrations form a
+fresh-install baseline. Existing development databases need reviewed, data-preserving updates;
+replaying initial table definitions is not an upgrade path.

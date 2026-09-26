@@ -3,16 +3,16 @@ import { DATASET_CONFIG } from "./config.ts";
 import { datasetFilterValues } from "./filters.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
 import type {
-  DatasetKey,
+  TableDatasetKey,
   FetchDatasetCountOptions,
   FetchDatasetPageOptions,
   PageResult,
 } from "./types.ts";
 import { isJsonObject } from "./validation.ts";
 
-export type TransactionDataset = Extract<DatasetKey, "live" | "settlement" | "data_kiosk">;
+type TransactionDataset = Extract<TableDatasetKey, "live" | "settlement" | "data_kiosk">;
 
-export function isTransactionDataset(dataset: DatasetKey): dataset is TransactionDataset {
+export function isTransactionDataset(dataset: TableDatasetKey): dataset is TransactionDataset {
   return dataset === "live" || dataset === "settlement" || dataset === "data_kiosk";
 }
 
@@ -54,7 +54,7 @@ export function transactionPageArguments(
 }
 
 /** The RPC casts numerics to text so JSON parsing never rounds money or quantities. */
-export function decodeTransactionPage(dataset: DatasetKey, value: unknown): PageResult {
+export function decodeTransactionPage(dataset: TableDatasetKey, value: unknown): PageResult {
   if (!isJsonObject(value) || !Array.isArray(value.rows)) {
     throw new Error("Transaction page returned invalid rows");
   }

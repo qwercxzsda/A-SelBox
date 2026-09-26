@@ -1,0 +1,14 @@
+{
+  "member_helper_matches_measured_candidate": true,
+  "policy_predicates_match_measured_candidate": [
+    "settlement_facts_read",
+    "data_kiosk_facts_read",
+    "settlement_selection_read",
+    "settlement_version_reference_read",
+    "data_kiosk_selection_read",
+    "data_kiosk_version_reference_read"
+  ],
+  "normalization": "Whitespace and optional AS keyword for table alias h only",
+  "obsolete_helpers_removed_from_canonical": true,
+  "source_database_modified": false
+}

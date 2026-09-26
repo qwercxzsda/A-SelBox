@@ -77,7 +77,8 @@ export async function readCursorRpcValues(
       throw new Error(`${operation} returned an invalid next cursor`);
     }
     for (const entry of batch) {
-      if (typeof entry !== "string") throw new Error(`${operation} returned an invalid value`);
+      if (typeof entry !== "string" || entry.length === 0 || entry.includes("\0"))
+        throw new Error(`${operation} returned an invalid value`);
       if (seen.has(entry)) throw new Error(`${operation} returned a duplicate value`);
       seen.add(entry);
       values.push(entry);

@@ -48,7 +48,7 @@ def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
         (
             "marketplace_name",
             (case.marketplace,) if case.marketplace is not None else (),
-            sql.SQL("public.amazon_marketplace_name[]"),
+            sql.SQL("text[]"),
         ),
     ):
         if values:

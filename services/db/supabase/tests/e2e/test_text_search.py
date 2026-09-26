@@ -24,7 +24,7 @@ class TextSearchTests(LocalWorkflowCase):
 
     def assert_matches_view(self, token: str, case: SearchCase) -> list[dict[str, str | None]]:
         # The view oracle runs under this authenticated actor. SQL allows the
-        # marketplace enum cast; JSON retains exact text/backslash/numeric data.
+        # marketplace text; JSON retains exact text/backslash/numeric data.
         with self.database.connection() as connection:
             reference = read_reference(connection, self.users[token], case)
         if reference is None:

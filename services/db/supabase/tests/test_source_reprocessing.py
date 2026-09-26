@@ -172,8 +172,9 @@ class TestSourceReprocessing(DatabaseTestCase):
         self.assertEqual(self.totals(end_date=date(2026, 8, 2))[0].source_amount, Numeric(-7))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.data_kiosk_others_entries "
-                "where seller_namespace=%s and sku='SKU-1'",
+                "select count(*) from public.live_company_components "
+                "where source='DATA_KIOSK' and authoritative "
+                "and seller_namespace=%s and sku='SKU-1'",
                 (self.seller,),
             ).fetchone(),
             (0,),

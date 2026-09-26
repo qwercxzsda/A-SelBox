@@ -26,5 +26,5 @@ class MigrationStructureTests(unittest.TestCase):
             duplicates,
             {},
             "Edit the current baseline definition instead of retaining superseded SQL. "
-            "Retire this baseline-only check when deployed installations need upgrade migrations.",
+            "The repository maintains a single current baseline.",
         )

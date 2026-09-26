@@ -49,7 +49,8 @@ begin
         raise exception 'Acquisition document digest mismatch' using errcode = '23514';
     end if;
     perform pg_advisory_xact_lock(hashtextextended(
-        concat_ws(':', 'settlement-download', acquisition_payload.seller_namespace, acquisition_payload.amazon_scope, acquisition_payload.report_document_id), 0));
+        jsonb_build_array('settlement-download', acquisition_payload.seller_namespace,
+            acquisition_payload.amazon_scope, acquisition_payload.report_document_id)::text, 0));
     if exists (select 1 from private.settlement_acquisitions a
         where (a.seller_namespace, a.amazon_scope, a.report_document_id) =
               (acquisition_payload.seller_namespace, acquisition_payload.amazon_scope, acquisition_payload.report_document_id)
@@ -143,7 +144,8 @@ begin
         raise exception 'Duplicate Data Kiosk document identity' using errcode = '23514';
     end if;
     perform pg_advisory_xact_lock(hashtextextended(
-        concat_ws(':', 'data-kiosk-download', acquisition_payload.seller_namespace, acquisition_payload.amazon_scope, acquisition_payload.root_query_id), 0));
+        jsonb_build_array('data-kiosk-download', acquisition_payload.seller_namespace,
+            acquisition_payload.amazon_scope, acquisition_payload.root_query_id)::text, 0));
     select * into existing from private.data_kiosk_acquisitions a
         where (a.seller_namespace,a.amazon_scope,a.root_query_id) = (acquisition_payload.seller_namespace,acquisition_payload.amazon_scope,acquisition_payload.root_query_id);
     if found then
@@ -344,7 +346,7 @@ begin
             jsonb_array_length(p_payload->'periods'),p_payload->>'change_reason');
     insert into public.sku_fee_periods(id,terms_version_id,marketplace_name,valid_period,fee_rate_percent)
         select (period_payload->>'id')::uuid,published_version_id,
-            (period_payload->>'marketplace_name')::public.amazon_marketplace_name,
+            period_payload->>'marketplace_name',
             daterange((period_payload->>'valid_from')::date,(period_payload->>'valid_to')::date,'[)'),
             (period_payload->>'fee_rate_percent')::numeric
         from jsonb_array_elements(p_payload->'periods') as periods(period_payload);
@@ -369,8 +371,9 @@ begin
         raise exception 'Settlement transactions require category'
             using errcode = '23514';
     end if;
-    perform pg_advisory_xact_lock(hashtextextended(concat_ws(':', 'settlement', acquisition.seller_namespace,
-        acquisition.amazon_scope,p_payload->>'settlement_id'),0));
+    perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
+        'settlement', acquisition.seller_namespace, acquisition.amazon_scope,
+        p_payload->>'settlement_id')::text, 0));
     insert into private.settlements(seller_namespace,amazon_scope,settlement_id,document_sha256)
         values (acquisition.seller_namespace,acquisition.amazon_scope,p_payload->>'settlement_id',acquisition.document_sha256)
         on conflict (seller_namespace,amazon_scope,settlement_id) do nothing;
@@ -448,10 +451,25 @@ begin
             raise exception 'Data Kiosk transactions require category'
                 using errcode = '23514';
         end if;
-        perform pg_advisory_xact_lock(hashtextextended(concat_ws(':','data-kiosk',acquisition.seller_namespace,
-            day_payload->>'marketplace_name',day_payload->>'activity_date',dataset),0));
+        -- The persisted marketplace comes from the day. Still validate an optional
+        -- transaction value rather than accepting an unsupported ignored field.
+        if exists (select 1 from jsonb_array_elements(day_payload->'transactions') entry
+            where entry->>'marketplace_name' is not null
+                and entry->>'marketplace_name' not in (
+                    'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+                    'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+                    'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+                    'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+                    'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+                )) then
+            raise exception 'Unsupported Data Kiosk transaction marketplace'
+                using errcode = '23514';
+        end if;
+        perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
+            'data-kiosk', acquisition.seller_namespace, day_payload->>'marketplace_name',
+            day_payload->>'activity_date', dataset)::text, 0));
         insert into private.data_kiosk_days(seller_namespace,marketplace_name,activity_date,dataset_key)
-            values (acquisition.seller_namespace,(day_payload->>'marketplace_name')::public.amazon_marketplace_name,
+            values (acquisition.seller_namespace,day_payload->>'marketplace_name',
                 (day_payload->>'activity_date')::date,dataset)
             on conflict (seller_namespace,marketplace_name,activity_date,dataset_key) do nothing;
     end loop;
@@ -461,7 +479,7 @@ begin
     loop
         select * into strict current_day from private.data_kiosk_days d where
             (d.seller_namespace,d.marketplace_name,d.activity_date,d.dataset_key) =
-            (acquisition.seller_namespace,(day_payload->>'marketplace_name')::public.amazon_marketplace_name,
+            (acquisition.seller_namespace,day_payload->>'marketplace_name',
                 (day_payload->>'activity_date')::date,dataset) for update;
         if current_day.current_version_id is distinct from (day_payload->>'expected_current_version_id')::uuid then
             raise exception 'Stale Data Kiosk day publication' using errcode = '40001';
@@ -581,7 +599,7 @@ begin
         join ranked r on r.day_id = v.day_id and r.id = b.acquisition_id
         where r.observation_rank > p_keep_observations
           and not exists (select 1 from private.data_kiosk_pruned_versions p where p.version_id = v.id)
-        order by d.seller_namespace,d.marketplace_name::text,d.activity_date,d.dataset_key,v.id
+        order by d.seller_namespace,d.marketplace_name,d.activity_date,d.dataset_key,v.id
     loop
         perform 1 from private.data_kiosk_days d where d.id = candidate.day_id for update;
         -- Recheck after waiting: another retention operation may have completed.

@@ -5,6 +5,10 @@ and archive exact documents first; preprocess successful acquisitions offline in
 Python; resolve current company ownership and calculate live company fees in SQL;
 freeze exact inputs and amounts when publishing company payout reports.
 
+Strict financial reads and payouts apply the source-allocation policy. The dashboard's
+approximate totals instead sum all eligible Transactions rows, including comparison and
+analysis rows. Their scope is defined by the [transaction query contract](transaction_query_contracts.md).
+
 The [sync guide](../services/sync/README.md) owns commands and retry settings, the
 [database guide](../services/db/supabase/README.md) owns setup and schema operations,
 the [company-fee contract](company_fees.md) owns fee publication and
@@ -31,23 +35,23 @@ fee coverage. Running/failed attempts produce Python logs. There are no
 intermediate parsed-row tables or persisted derived company, commission, rate, or
 payable copies in the source facts. Original Amazon fees remain source facts.
 
-Each source has one transaction/component table and three category views: SKU,
-account level, and others. Thus there are two source fact tables and six category
-views; metadata, versions, ownership, and fee configuration have separate tables.
+Each source has one transaction/component table. Metadata, versions, ownership,
+and fee configuration have separate tables. Financial queries select the categories
+required by their contract.
 The required `category` uses Python `AllocationCategory` and PostgreSQL
 `public.allocation_category`:
 
-| Category        | Settlement                                          | Data Kiosk                                        |
-| --------------- | --------------------------------------------------- | ------------------------------------------------- |
-| `SETTLEMENT`    | Company source amounts                              | Comparison counterparts                           |
-| `SELBOX`        | Account reconciliation and unmatched-family default | Forbidden on the current MSKU rows                |
-| `DATA_KIOSK`    | Cost reconciliation controls                        | Approved company costs                            |
-| `ANALYSIS_ONLY` | Not allowed                                         | Diagnostic facts outside the three category views |
+| Category        | Settlement                                          | Data Kiosk                                       |
+| --------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `SETTLEMENT`    | Company source amounts                              | Comparison counterparts                          |
+| `SELBOX`        | Account reconciliation and unmatched-family default | Forbidden on the current MSKU rows               |
+| `DATA_KIOSK`    | Cost reconciliation controls                        | Approved company costs                           |
+| `ANALYSIS_ONLY` | Not allowed                                         | Diagnostic facts outside strict financial totals |
 
 Unknown Data Kiosk monetary components fail preprocessing. There is no stored
 unresolved category. The [family rules](settlement_component_categories.md) and
 [payout component policy](source_allocation.md#4-select-data-kiosk-components-without-counting-costs-twice)
-define classification; view membership alone does not establish complete source coverage.
+define classification; category selection alone does not establish complete source coverage.
 
 ### Naming conventions
 
@@ -70,14 +74,11 @@ and the batch references its acquisition. Settlement versions reference their
 acquisition directly. Days can later select different batches, but children
 within one selected day stay together. Fee periods have no separate current selection.
 
-Both sources use parallel view names: `settlement_sku_entries`,
-`settlement_account_entries`, `settlement_others_entries`, and corresponding
-`data_kiosk_*` names. “Others” means `DATA_KIOSK`.
-
 ### Marketplace names
 
-Preprocessed facts and fee periods share the `amazon_marketplace_name` enum,
-with readable canonical values such as `Amazon.com`. Each fee period requires a
+Preprocessed facts and fee periods store marketplace names as `text`, with database `CHECK`
+constraints for the same supported-name list used by Python. Values remain readable canonical
+names such as `Amazon.com`. Each fee period requires a
 name; source facts keep their category-specific requirements. Optional absent
 names remain null. Python's fixed API-ID mapping is part of the preprocessor definition.
 Settlement validates its explicit row name; Data Kiosk validates the returned ID
@@ -85,12 +86,13 @@ against archived query scope before mapping it. Preprocessing never calls Seller
 
 `Non-Amazon US` is a separate allowed settlement literal. It is not an alias for
 `Amazon.com` and has no API ID mapping. Required unknown
-marketplaces fail. Keep the Python mapping and SQL enum consistent when names change.
+marketplaces fail. Keep the Python mapping, SQL constraints, and RPC validators consistent when
+names change; the database tests check the supported-name sets agree.
 See the [marketplace evidence](evidence/settlement_classification_audit_2026-09-08.md#marketplace-evidence)
 for the observed row names and the limits of Reports API hints.
 
 Original API IDs remain in acquisition/query provenance. Reports marketplace IDs
-are unmodified hints, unconstrained by the canonical-name enum; never use them,
+are unmodified hints, unconstrained by the canonical-name checks; never use them,
 currency, endpoint, or another row to fill a missing required settlement name.
 
 ### Shared preprocessor version
@@ -413,7 +415,9 @@ queries rather than fetching all history for client filtering.
 Application accounts and current seller/SKU assignment determine live company
 visibility without repeating company IDs on source transactions. Public views
 use `security_invoker = true`, underlying grants, and RLS. Company members see
-only permitted current source versions and selected terms for their own company.
+only permitted current source facts and selected terms for their own company. Narrow current
+report/day/version references are shared across registered company members; full metadata is
+administrator-only.
 Operators manage member access, publish complete terms, and read all retained
 source/terms history and all payout reports, components, and input references.
 Company members have no payout access. Original archives, source/payout

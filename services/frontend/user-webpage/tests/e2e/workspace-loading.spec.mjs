@@ -23,7 +23,7 @@ test("a failed workspace download offers reload and restores the verified sessio
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("tab")).toHaveCount(0);
   expect(fixture.authRequests).toBe(1);
-  expect(fixture.identityRequests).toHaveLength(3);
+  expect(fixture.identityRequests).toHaveLength(2);
 
   await reload.click();
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
@@ -35,5 +35,5 @@ test("a failed workspace download offers reload and restores the verified sessio
   expect(fixture.sessionUserRequests).toEqual([
     { user: "member-a", accessToken: "token-member-a" },
   ]);
-  expect(fixture.identityRequests).toHaveLength(6);
+  expect(fixture.identityRequests).toHaveLength(4);
 });
