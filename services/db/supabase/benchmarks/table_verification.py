@@ -10,8 +10,9 @@ from typing import TypedDict, cast
 from psycopg import sql
 
 from .common import Connection
-from .ordering_cases import DATASETS, canonical_rows
+from .datasets import DATASETS, canonical_rows
 from .search_cases import SEARCH_COLUMNS, SearchCase
+from .search_resolution import resolve_search_values
 from .transport import request
 
 AMOUNT_LIMIT = 10_000
@@ -200,7 +201,7 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
             ).fetchone()
             if scope is None:
                 raise RuntimeError("Fixture has no positive below-cap filtered amount group")
-            sku, marketplace, kind, day, currency = scope
+            sku, marketplace, kind, day, _currency = scope
             cases.extend(
                 [
                     blank,
@@ -215,7 +216,7 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
                         "amount_filtered",
                         "amount",
                         "desc",
-                        search=str(currency),
+                        search=str(kind),
                         skus=(str(sku),),
                         marketplace=str(marketplace),
                         types=(str(kind),),
@@ -233,4 +234,10 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
                     ),
                 ]
             )
-    return cases
+        return [
+            replace(
+                case,
+                search_values=resolve_search_values(connection, case.search, case.dataset.key),
+            )
+            for case in cases
+        ]

@@ -24,6 +24,10 @@ export function isZeroAmount(value) {
 
 function matchesSearch(row, filter) {
   if (!filter) return true;
+  if (filter.startsWith("{"))
+    return Object.entries(JSON.parse(filter)).some(([field, values]) =>
+      values.includes(row[field]),
+    );
   return [...filter.matchAll(/(\w+)\.imatch\.("(?:\\.|[^"\\])*")/g)].some((match) => {
     const pattern = new RegExp(JSON.parse(match[2]), "i");
     const field = match[1];

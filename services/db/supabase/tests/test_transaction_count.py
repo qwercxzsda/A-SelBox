@@ -8,6 +8,7 @@ from psycopg import sql
 
 from services.db.supabase.tests import test_transaction_page as page_fixture
 from services.db.supabase.tests.rpc_support import assert_rpc_contract
+from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _ARRAY_FILTERS = ("p_company_ids", "p_skus", "p_marketplaces", "p_sources", "p_types")
@@ -17,7 +18,7 @@ _PARAMETER_TYPES = {
     **{name: "uuid[]" if name == "p_company_ids" else "text[]" for name in _ARRAY_FILTERS},
     "p_marketplaces": "text[]",
     "p_fee_applicable": "boolean",
-    "p_search": "text",
+    **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
 }
 
 

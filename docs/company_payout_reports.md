@@ -19,6 +19,7 @@ from services.sync.src.database.payout_reports import (
     load_company_payout_report_components,
     publish_company_payout_report,
 )
+from services.sync.src.preprocess_version import PREPROCESS_VERSION
 
 report_id = publish_company_payout_report(
     database,
@@ -27,7 +28,7 @@ report_id = publish_company_payout_report(
     currency="USD",
     start_date=date(2026, 6, 1),
     end_date=date(2026, 6, 30),
-    preprocess_version="v0",
+    preprocess_version=PREPROCESS_VERSION,
     settlement_ids=required_settlement_ids,
     marketplace_names=["Amazon.com"],
     dataset_key="economics",
@@ -129,7 +130,7 @@ preserves that formula; it does not resolve the policy. Approval,
 payment execution, cutoff policy, adjustments, negative-balance handling, and
 currency rounding remain separate work.
 
-Sources: [payout migration](../services/db/supabase/migrations/20260914062544_company_payout_reports.sql),
+Sources: [payout migration](../services/db/supabase/migrations/20260927080054_company_payout_reports.sql),
 [Python repository](../services/sync/src/database/payout_reports.py),
-[retention guards](../services/db/supabase/migrations/20260912072703_atomic_publications.sql),
+[retention guards](../services/db/supabase/migrations/20260927080056_source_retention.sql),
 and [live fee contract](company_fees.md).

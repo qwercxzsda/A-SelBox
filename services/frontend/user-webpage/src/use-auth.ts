@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
+import { flushSync } from "react-dom";
 import { ApiError, signIn, signOut, type Session } from "./api";
 import {
   browserSessionStore,
@@ -7,6 +8,7 @@ import {
   renewIdentity,
   restoreIdentity,
   type Identity,
+  type IdentityRefreshOptions,
 } from "./auth-session";
 import { sessionRefreshDelayMs } from "./session";
 import { getErrorMessage } from "./view-model";
@@ -19,6 +21,12 @@ export function useAuth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [identity, setIdentity] = useState<Identity | null>(null);
+  const latestIdentity = useRef<Identity | null>(null);
+  const identityLoad = useRef(0);
+  const updateIdentity = useCallback((next: Identity | null) => {
+    latestIdentity.current = next;
+    setIdentity(next);
+  }, []);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
@@ -42,13 +50,13 @@ export function useAuth() {
       const pending = task(save)
         .then((next) => {
           if (!current()) return;
-          setIdentity(next);
+          updateIdentity(next);
           setAuthError(null);
           setRestoreError(null);
         })
         .catch((error: unknown) => {
           if (!current()) return;
-          setIdentity(null);
+          updateIdentity(null);
           if (isTemporaryAuthError(error)) {
             setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
           } else {
@@ -64,7 +72,7 @@ export function useAuth() {
       pendingAuth.current = pending;
       return pending;
     },
-    [store],
+    [store, updateIdentity],
   );
 
   const restoreSavedSession = useCallback(
@@ -87,7 +95,9 @@ export function useAuth() {
   useEffect(() => {
     if (!session || isSigningOut) return;
     const timeout = window.setTimeout(() => {
-      void runSessionTask((save) => renewIdentity(session, save));
+      const current = latestIdentity.current;
+      if (current?.session !== session) return;
+      void runSessionTask((save) => renewIdentity(current.session, save, { previous: current }));
     }, sessionRefreshDelayMs(session));
     return () => {
       window.clearTimeout(timeout);
@@ -104,7 +114,7 @@ export function useAuth() {
     ++operation.current;
     pendingAuth.current = null;
     store.clear();
-    setIdentity(null);
+    updateIdentity(null);
     setPassword("");
     setIsRestoring(false);
     setRestoreError(null);
@@ -119,7 +129,7 @@ export function useAuth() {
     setIsSigningIn(true);
     setAuthError(null);
     setRestoreError(null);
-    setIdentity(null);
+    updateIdentity(null);
     store.clear();
     let saved: Session | null = null;
     try {
@@ -128,7 +138,7 @@ export function useAuth() {
       saved = store.write(received);
       setPassword("");
       const next = await loadIdentity(saved);
-      if (current()) setIdentity(next);
+      if (current()) updateIdentity(next);
     } catch (error) {
       if (!current()) return;
       if (saved && isTemporaryAuthError(error)) {
@@ -158,19 +168,28 @@ export function useAuth() {
     }
   }
 
-  async function refreshIdentity(): Promise<boolean> {
-    if (!identity || isSigningOut || pendingAuth.current) return false;
+  async function refreshIdentity(options: IdentityRefreshOptions = {}): Promise<boolean> {
+    const previous = latestIdentity.current;
+    if (!previous || isSigningOut || pendingAuth.current) return false;
     const generation = operation.current;
+    const load = ++identityLoad.current;
+    const current = () =>
+      mounted.current && generation === operation.current && load === identityLoad.current;
     try {
-      const next = await loadIdentity(identity.session);
-      if (!mounted.current || generation !== operation.current) return false;
-      setIdentity(next);
-      return sameAccount(next.account, identity.account);
+      const next = await loadIdentity(previous.session, { previous, ...options });
+      if (!current()) return false;
+      // Commit fresh catalogs and their search keys before revision-driven query refetches.
+      flushSync(() => {
+        updateIdentity(next);
+      });
+      return sameAccount(next.account, previous.account);
     } catch (error) {
-      if (!mounted.current || generation !== operation.current) return false;
+      if (!current()) return false;
       if (isTemporaryAuthError(error)) throw error;
       if (error instanceof ApiError && error.status === 401) {
-        await runSessionTask((save) => renewIdentity(identity.session, save));
+        await runSessionTask((save) =>
+          renewIdentity(previous.session, save, { previous, ...options }),
+        );
       } else {
         discardStoredSession();
         setAuthError(`Please sign in again: ${getErrorMessage(error)}`);

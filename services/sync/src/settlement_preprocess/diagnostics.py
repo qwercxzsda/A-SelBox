@@ -14,15 +14,6 @@ def transaction_diagnostics(
         "preprocess_version": PREPROCESS_VERSION,
         "amount": str(row.amount),
     }
-    if row.family is None:
-        diagnostics.append(
-            {
-                **base,
-                "kind": "UNMATCHED_SETTLEMENT_FAMILY",
-                "sku": row.sku,
-                "component_type": row.component_type,
-            }
-        )
     if not header.settlement_start_at <= row.posted_at <= header.settlement_end_at:
         before = row.posted_at < header.settlement_start_at
         boundary = header.settlement_start_at if before else header.settlement_end_at

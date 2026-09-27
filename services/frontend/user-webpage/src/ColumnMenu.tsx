@@ -24,11 +24,9 @@ interface ColumnMenuProps {
   label: string;
   filter?: ColumnMenuFilter;
   sort?: ColumnMenuSort;
-  onOpen?: () => void;
-  onClose?: () => void;
 }
 
-export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuProps) {
+export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
   const [opened, setOpened] = useState(false);
   const titleId = useId();
   const disabledSortId = useId();
@@ -39,22 +37,17 @@ export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuP
         ? 1
         : 0;
 
-  function changeOpened(nextOpened: boolean) {
-    if (nextOpened === opened) return;
-    setOpened(nextOpened);
-    if (nextOpened) onOpen?.();
-    else onClose?.();
-  }
   function close() {
-    changeOpened(false);
+    setOpened(false);
   }
 
   return (
     <Popover
       opened={opened}
-      onChange={changeOpened}
+      onChange={setOpened}
       width="min(340px, calc(100vw - 24px))"
       position="bottom-start"
+      middlewares={{ shift: { crossAxis: true } }}
       shadow="md"
       trapFocus
       returnFocus
@@ -67,7 +60,7 @@ export function ColumnMenu({ label, filter, sort, onOpen, onClose }: ColumnMenuP
           aria-label={label}
           data-filtered={filterCount > 0 || undefined}
           onClick={() => {
-            changeOpened(!opened);
+            setOpened(!opened);
           }}
         >
           <span>{label}</span>

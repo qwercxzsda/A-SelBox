@@ -1,5 +1,9 @@
 # Data Kiosk EPR and storage-adjustment coverage: 2026-09-13
 
+Historical source observations are retained as evidence. Current preprocessing uses the
+[explicit Type registry](../transaction_type_registry.md): reviewed retained charges are
+registered as `SELBOX`, and unknown types abort rather than defaulting.
+
 **Finding:** fresh US and GB Economics queries returned ordinary storage fees,
 but no explicit EPR service fee, EPR eco-contribution, or storage-adjustment fee
 or component. Coverage of the three historical Settlement charges remains

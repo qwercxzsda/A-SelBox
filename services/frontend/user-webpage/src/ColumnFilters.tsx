@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { Alert, Button, Checkbox, CloseButton, Group, Stack, Text, TextInput } from "@mantine/core";
 import { requireCalendarDate } from "./api/filters";
-
-interface ColumnMenuOption {
-  value: string;
-  label: string;
-  title?: string;
-}
+import type { FilterOption } from "./filter-options";
 
 export type ColumnMenuFilter =
   | {
@@ -18,11 +13,8 @@ export type ColumnMenuFilter =
   | {
       kind: "selection";
       value: string[];
-      options: ColumnMenuOption[];
+      options: FilterOption[];
       onChange: (values: string[]) => void;
-      isLoading?: boolean;
-      error?: string;
-      onRetry?: () => void;
     };
 
 export function DateFilter({
@@ -167,24 +159,7 @@ export function SelectionFilter({
           Clear {label.toLowerCase()}
         </Button>
       </Group>
-      {filter.isLoading ? (
-        <Text role="status" size="sm" c="dimmed">
-          Loading options…
-        </Text>
-      ) : null}
-      {filter.error ? (
-        <Alert role="alert" color="red">
-          <Stack align="start" gap="xs">
-            {filter.error}
-            {filter.onRetry ? (
-              <Button variant="subtle" color="red" onClick={filter.onRetry}>
-                Retry options
-              </Button>
-            ) : null}
-          </Stack>
-        </Alert>
-      ) : null}
-      <div className="column-menu-options" aria-busy={filter.isLoading}>
+      <div className="column-menu-options">
         {options.map((option) => (
           <Checkbox
             key={option.value}
@@ -200,7 +175,7 @@ export function SelectionFilter({
             }}
           />
         ))}
-        {!filter.isLoading && !filter.error && options.length === 0 ? (
+        {options.length === 0 ? (
           <Text c="dimmed" size="sm" py="sm">
             {query ? "No matching options." : "No options available."}
           </Text>

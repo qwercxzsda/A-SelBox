@@ -1,3 +1,4 @@
+import { skuAssignments } from "./api-fixtures.mjs";
 import { liveRow } from "./api-fixtures.mjs";
 import { applyDates } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
@@ -83,6 +84,7 @@ test("daily and previous-month estimates include both sources, stay exact, and i
       rowCount: 2,
     }),
   ];
+  fixture.assignments = skuAssignments(fixture.liveRows.map(({ sku }) => sku));
   await signIn(page);
   const { summaries, day, month } = cards(page);
   await expect(amount(day, "Reported amount")).toHaveText("150.123456789012345678 USD");

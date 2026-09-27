@@ -1,0 +1,587 @@
+{
+  "plans": [
+    {
+      "role": "member_a",
+      "case": "window_newest",
+      "rpc": "transaction_page",
+      "installed_definition_sha256": "a28b14a6ac0f31674320ad3c6c3794446799f0f953768ae60d89769257817004",
+      "indexes": [
+        "data_kiosk_days_current_version_idx",
+        "data_kiosk_preprocess_versions_pkey",
+        "data_kiosk_transactions_date_id_idx",
+        "settlement_preprocess_versions_pkey",
+        "settlement_transactions_date_count_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_date_count_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 48,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_date_id_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Index Name": "settlement_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 0,
+          "Actual Loops": 25
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Index Name": "data_kiosk_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Relation Name": "data_kiosk_days",
+          "Index Name": "data_kiosk_days_current_version_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 580,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 16200,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 64,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 64,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 99,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "role": "member_a",
+      "case": "window_oldest",
+      "rpc": "transaction_page",
+      "installed_definition_sha256": "a28b14a6ac0f31674320ad3c6c3794446799f0f953768ae60d89769257817004",
+      "indexes": [
+        "data_kiosk_days_current_version_idx",
+        "data_kiosk_preprocess_versions_pkey",
+        "data_kiosk_transactions_date_id_idx",
+        "settlement_preprocess_versions_pkey",
+        "settlement_transactions_date_count_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_date_count_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 453,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_date_id_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Index Name": "settlement_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 0,
+          "Actual Loops": 25
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Index Name": "data_kiosk_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Relation Name": "data_kiosk_days",
+          "Index Name": "data_kiosk_days_current_version_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 580,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 16200,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 64,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 64,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 99,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "role": "member_a",
+      "case": "latest_date_lookup",
+      "rpc": "transaction_page",
+      "installed_definition_sha256": "a28b14a6ac0f31674320ad3c6c3794446799f0f953768ae60d89769257817004",
+      "indexes": [
+        "data_kiosk_days_current_version_idx",
+        "data_kiosk_preprocess_versions_pkey",
+        "data_kiosk_transactions_date_id_idx",
+        "settlement_preprocess_versions_pkey",
+        "settlement_transactions_date_id_idx",
+        "sku_fee_periods_terms_version_id_marketplace_name_valid_pe_excl",
+        "sku_terms_versions_pkey"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_date_id_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_date_id_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "sku_terms_versions",
+          "Index Name": "sku_terms_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Index Name": "settlement_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 0,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Index Name": "data_kiosk_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Relation Name": "data_kiosk_days",
+          "Index Name": "data_kiosk_days_current_version_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "sku_fee_periods",
+          "Index Name": "sku_fee_periods_terms_version_id_marketplace_name_valid_pe_excl",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 580,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 16200,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 64,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "role": "operator",
+      "case": "window_newest",
+      "rpc": "transaction_page",
+      "installed_definition_sha256": "a28b14a6ac0f31674320ad3c6c3794446799f0f953768ae60d89769257817004",
+      "indexes": [
+        "data_kiosk_preprocess_versions_pkey",
+        "data_kiosk_transactions_date_id_idx",
+        "settlement_preprocess_versions_pkey",
+        "settlement_transactions_date_count_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_date_count_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 48,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_date_id_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Index Name": "settlement_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 0,
+          "Actual Loops": 25
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Index Name": "data_kiosk_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 580,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 16200,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 258,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 129,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 384,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "role": "operator",
+      "case": "window_oldest",
+      "rpc": "transaction_page",
+      "installed_definition_sha256": "a28b14a6ac0f31674320ad3c6c3794446799f0f953768ae60d89769257817004",
+      "indexes": [
+        "data_kiosk_preprocess_versions_pkey",
+        "data_kiosk_transactions_date_id_idx",
+        "settlement_preprocess_versions_pkey",
+        "settlement_transactions_date_count_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_date_count_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 982,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_date_id_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Index Name": "settlement_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 0,
+          "Actual Loops": 25
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Index Name": "data_kiosk_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 580,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 16200,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 258,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "seller_skus",
+          "Actual Rows": 129,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 384,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "role": "operator",
+      "case": "settlement_window_newest",
+      "rpc": "source_transaction_page",
+      "installed_definition_sha256": "7f18c2f7053cbab7636bc86ea6b4dd2399bf762e2e89aa4bac2a3b276014e7c9",
+      "indexes": [
+        "settlement_preprocess_versions_pkey",
+        "settlement_transactions_date_id_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_date_id_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Index Name": "settlement_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        }
+      ],
+      "relation_scans": [],
+      "sorts": []
+    },
+    {
+      "role": "operator",
+      "case": "data_kiosk_window_newest",
+      "rpc": "source_transaction_page",
+      "installed_definition_sha256": "7f18c2f7053cbab7636bc86ea6b4dd2399bf762e2e89aa4bac2a3b276014e7c9",
+      "indexes": [
+        "data_kiosk_preprocess_versions_pkey",
+        "data_kiosk_transactions_date_id_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_date_id_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Index Name": "data_kiosk_preprocess_versions_pkey",
+          "Scan Direction": "Forward",
+          "Actual Rows": 1,
+          "Actual Loops": 25
+        }
+      ],
+      "relation_scans": [],
+      "sorts": []
+    }
+  ]
+}

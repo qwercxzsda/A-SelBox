@@ -12,6 +12,9 @@ plans. Execution is granted to `authenticated`, with grants revoked from `PUBLIC
 company data. Company ownership and account access come from database state. An explicit company
 filter can narrow the caller's visible data but cannot expand it.
 
+The SKU discovery RPC additionally requires a current stored application-operator account. Company
+members use their assigned SKUs and cannot call that administrator endpoint.
+
 Current transaction reads combine Settlement rows classified `SETTLEMENT` and nonzero Data Kiosk
 rows from selected current versions. Settlement zero rows remain visible. Dashboard estimates sum
 these eligible rows; strict financial and payout functions retain their separate completeness and
@@ -20,7 +23,8 @@ facts or saved payouts.
 
 Date bounds are inclusive, finite calendar dates. If both are supplied, the start cannot exceed the
 end. Selection arrays are one-dimensional and cannot contain null members. Omitted, null, or empty
-arrays mean no selection restriction. Marketplace arguments use `text[]`; clients send JSON string
+arrays mean no ordinary selection restriction. Search arrays have separate NULL/empty semantics
+described below. Marketplace arguments use `text[]`; clients send JSON string
 arrays. The shared validator rejects unsupported names, including mixed valid/invalid selections,
 with SQLSTATE `22023`. Stored marketplace names have `CHECK` constraints preserving the same
 24-name vocabulary validated by Python. Optional scalar nulls retain their existing meaning.
@@ -31,14 +35,14 @@ are always separate; database calculations do not convert currencies.
 
 ## Transaction pages
 
-[`public.transaction_page`](../services/db/supabase/migrations/20260925065535_transaction_page.sql)
+[`public.transaction_page`](../services/db/supabase/migrations/20260927080107_transaction_page.sql)
 accepts:
 
 | Parameter                  | Default | Meaning                                                           |
 | -------------------------- | ------- | ----------------------------------------------------------------- |
 | `p_limit`                  | `25`    | Integer page size, 1–1,000.                                       |
 | `p_offset`                 | `0`     | Nonnegative safe integer, at most 9,007,199,254,740,991.          |
-| `p_search`                 | `null`  | Literal case-insensitive substring search; empty means no search. |
+| `p_search_skus`, `p_search_types`, `p_search_marketplaces`, `p_search_sources` | `null` | Exact frontend-resolved search sets, combined with OR. All null disables search; empty active sets match nothing. |
 | `p_order_by`               | `date`  | Sort key: `date` or `amount` (stored reported amount).            |
 | `p_direction`              | `desc`  | Ordering direction: `asc` or `desc`.                              |
 | `p_date_from`, `p_date_to` | `null`  | Optional inclusive date bounds.                                   |
@@ -63,9 +67,14 @@ forward/backward scans of one ascending date/ID index per source; source dates a
 ordering keeps ascending source/ID ties and `NULLS LAST` in both directions. A combined page/count
 response uses one statement and snapshot.
 
+The materialized terms projection includes only seller/SKU keys present on that selected page.
+It reads the existing invoker-security current-terms view and retains left joins, including
+unassigned or unregistered operator-visible facts. Member RLS independently checks membership in
+the caller's current ownership set before candidate selection; page limits cannot bypass it.
+
 Date and Reported amount ordering, with or without text search, use this RPC. Reported amount is the
 stored numeric source amount, ordered with its sign; values are not converted between currencies.
-Text predicates apply before
+Exact search-set predicates apply before
 each source candidate limit; fee calculation still follows global page selection.
 
 A single marketplace uses scalar text equality so its index prefix is fixed for date ordering.
@@ -103,11 +112,11 @@ inconsistent fields; it does not rewrite a base or fabricate a configured rate.
 
 ## Raw source pages
 
-[`public.source_transaction_page`](../services/db/supabase/migrations/20260925095337_source_transaction_page.sql)
+[`public.source_transaction_page`](../services/db/supabase/migrations/20260927080109_source_transaction_page.sql)
 serves the Settlements and Data Kiosk tabs. Its required `p_dataset` is `settlement` or
 `data_kiosk`. Optional parameters are `p_limit` (25), `p_offset` (0), `p_order_by` (`date`),
 `p_direction` (`desc`), `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`, `p_types`,
-`p_search` (all null), and `p_include_count` (true). Sort keys, direction, bounds, date and array
+`p_search_skus`, `p_search_types`, `p_search_marketplaces` (all null), and `p_include_count` (true). Sort keys, direction, bounds, date and array
 validation follow the transaction page contract.
 
 Response: `{ "rows": [...], "total_count": "123" }`, with a null count when disabled. Rows contain
@@ -132,50 +141,56 @@ search arguments.
 
 ## Exact transaction counts
 
-[`public.transaction_count`](../services/db/supabase/migrations/20260925065533_transaction_count.sql)
+[`public.transaction_count`](../services/db/supabase/migrations/20260927080105_transaction_counts.sql)
 accepts the same date, company, SKU, marketplace, source, Type, and fee-applicability filters as the
-page RPC, including `p_search`. It returns one exact count string, such as `"123"`, including `"0"`
+page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
 for no matching rows. There are no paging or ordering parameters.
 
 The function counts eligible source facts without calculating financial amounts or resolving fees.
-Search is an ordinary predicate over the same visible text fields used by the page request. The
+Search uses the same exact OR-set predicates as the page request. The
 frontend can show rows before this separate request finishes, and reuses counts across page/order
 changes until the relevant revision invalidates them.
 
-[`public.source_transaction_count`](../services/db/supabase/migrations/20260925102039_source_transaction_count.sql)
+[`public.source_transaction_count`](../services/db/supabase/migrations/20260927080105_transaction_counts.sql)
 accepts required `p_dataset` and optional `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`,
-`p_types`, and `p_search` (all null by default). It returns the same exact count string and shares
+`p_types`, `p_search_skus`, `p_search_types`, and `p_search_marketplaces` (all null by default). It returns the same exact count string and shares
 raw source visibility/search rules with `source_transaction_page`. No page, ordering, or financial
 calculation is needed.
 
 ## Text search
 
-Search is a case-insensitive literal substring within the supported visible fields. The frontend
-trims input and debounces it by 250 ms; the database applies the same whitespace normalization.
-Null, empty, and whitespace-only input disables search. Characters such as `*`, `%`, `_`, brackets,
-quotes, and backslashes stay literal. A nonempty term with no matches returns zero rows and count
-zero; it never becomes an empty selection array that means no filter.
+The frontend trims the search text, debounces it by 250 ms, and performs literal substring matching
+against its complete option catalogs with JavaScript `toLowerCase()`. It matches raw values and
+formatted Type/Source labels. Characters such as `*`, `%`, `_`, brackets, quotes, and backslashes
+remain literal. Currency is not a searchable field on any transaction tab.
 
-| Dataset                  | Searchable fields                        |
-| ------------------------ | ---------------------------------------- |
-| Transactions             | SKU, Type, Source, Marketplace, Currency |
-| Settlements / Data Kiosk | SKU, Type, Marketplace, Currency         |
+| Dataset | Searchable fields |
+| --- | --- |
+| Transactions | SKU, Type, Source, Marketplace |
+| Settlements / Data Kiosk | SKU, Type, Marketplace |
 
-Type searches match the stored type code/keywords. Source accepts both its canonical code and the
-fixed displayed names, `Settlements` and `Data Kiosk`. Marketplace search and selections both use
-the stored text directly. Fee
-status, processing version, seller identifiers, and other hidden metadata are not searchable. The
-Source field is omitted for raw tabs, where every row comes from the same source.
+The frontend sends matching exact strings in `p_search_skus`, `p_search_types`, and
+`p_search_marketplaces`, plus `p_search_sources` for Transactions. Search matches any supplied field
+(OR). Ordinary column filters, dates, fee applicability, and RLS still intersect that result (AND).
+A SKU match does not require a Type match. Source is not searchable on raw tabs.
 
-One shared inlinable predicate keeps page/count matching identical. The database applies it directly
-with the existing filters before date pagination or the amount-sort cap. It does not fetch filter
-option lists, join fee metadata, interpret fuzzy queries, or calculate fees to determine a search
-match. The frontend sends plain `p_search`; it never constructs SQL or financial REST-view
-predicates.
+All search arrays null or omitted means no search. Supplying any search array activates search;
+empty arrays contribute no matches. Thus an active search with all empty arrays returns zero rows
+and count zero, not an unrestricted read. Page and count requests use identical resolved arrays.
+The API client rejects unresolved active searches and malformed arrays before sending a request.
+The database validates array shape and members, then performs exact comparisons before paging or
+the amount-sort cap. It no longer evaluates substring expressions over transaction rows.
+
+Company SKUs come from loaded current assignments. Administrators preload the complete
+SKU catalog before the workspace is shown, including historical, unassigned, unregistered, and
+registered-only values. Source/fee revision changes reload that catalog before dependent search
+queries refresh. Resolved sets are part of page/count cache keys. Catalogs are not authorization:
+the backend enforces the same RLS even if a caller sends arbitrary values. Non-transaction account
+and payout searches retain their existing REST query behavior.
 
 ## Period totals and Type breakdowns
 
-[`public.transaction_totals`](../services/db/supabase/migrations/20260925065538_transaction_totals.sql)
+[`public.transaction_totals`](../services/db/supabase/migrations/20260927080111_transaction_totals.sql)
 accepts:
 
 | Parameter                                   | Default | Meaning                                                    |
@@ -202,6 +217,10 @@ fee applicability before resolving ownership and fee periods. Exact sums remain 
 individual row calculations. Groups sort by currency and raw Type using database `C` collation; one
 extra group determines continuation without another exact source-row count.
 
+The materialized current-terms projection includes only seller/SKU keys in those filtered fact
+groups. It preserves invoker RLS and left joins, including missing-ownership and missing-rate
+diagnostics; it does not materialize unrelated assignments for financial projection.
+
 Only company, SKU, and marketplace selections scope every summary card. Date selection scopes the
 Selected dates card; Latest day and Latest month use their independently chosen periods. Source,
 Type, fee-applicability, and search selections do not change these summary contracts. Period
@@ -209,38 +228,62 @@ discovery and the Latest month rule belong to the frontend; this RPC calculates 
 
 ## Filter options
 
-[`public.dataset_filter_options`](../services/db/supabase/migrations/20260925065540_dataset_filter_options.sql)
-requires `p_dataset` and `p_field`. It accepts `p_limit` (default 1,000, range 1–1,000) and
-`p_after` (default null, otherwise nonempty text).
+Source, Marketplace, and Type menus use static application catalogs. All SKU menus use an already
+loaded catalog: company members reuse their current `company_skus` assignments; administrators
+preload [`public.sku_filter_options`](../services/db/supabase/migrations/20260927080113_sku_filter_options.sql)
+during identity bootstrap. Opening a menu makes no database request. Options may return zero rows
+under the selected dataset and other filters.
 
-| Dataset      | Allowed fields                                        |
-| ------------ | ----------------------------------------------------- |
-| `live`       | `sku`, `marketplace_name`, `source`, `component_type` |
-| `settlement` | `sku`, `marketplace_name`, `component_type`           |
-| `data_kiosk` | `sku`, `marketplace_name`, `component_type`           |
+Administrators receive every known Type for the dataset's source scope. Company members receive
+every known Type except category `SELBOX`. These are local registry choices, not occurrence-based
+database discovery. After selection, page/count RPCs still query matching transaction rows for the
+table and exact pagination; knowing valid Type names does not establish their transaction counts.
 
-Response: `{ "values": ["A", "B"], "next_cursor": "B" }`. Values are unique, non-null strings in `C`
-collation order. The next cursor is the last returned value only when another value exists;
-otherwise it is null. Clients pass that exact value as `p_after` for the next page. One lookahead
-value detects continuation; occurrence counts are not calculated.
+The SKU RPC takes no arguments and returns `{ "values": ["A", "B"] }`. SKUs are distinct,
+non-null strings in `C` collation order. One scalar JSON response contains the complete list from
+one database snapshot; REST row limits do not paginate the nested array. There is no cursor,
+occurrence count, or client loop repeating discovery. An empty catalog returns an empty array.
+The client validates the complete response before using it for filters or search.
 
-Live options read eligible current facts without fee joins. Raw source options retain the matching
-source view/RLS visibility. Zero Data Kiosk rows remain excluded. The RPC
-rejects unsupported dataset/field combinations rather than accepting arbitrary SQL identifiers.
+The function checks `private.is_operator()` before executing discovery. Company members,
+unregistered users, and callers without an application operator identity receive SQLSTATE `42501`
+(`Administrator access required`; HTTP 403 for authenticated requests). Operators and members
+share Supabase's `authenticated` database role, so its execution grant remains while the function
+enforces the application-role restriction. Invoker RLS still applies to the permitted query.
+
+Administrator identity refreshes may reuse the in-memory catalog after checking the current account
+and all three source/fee revision tokens. Changed scope or revisions and an explicit workspace
+retry reload it. A page reload or new sign-in starts a fresh catalog load; catalogs are not persisted
+alongside session credentials. The response and browser memory still grow with distinct SKU count.
+
+The catalog unions both fact tables and `seller_skus` under caller RLS. For administrators this
+includes all source history and categories, zero-amount rows, unregistered imports, and registered
+SKUs without transactions or company assignments. It is a superset for all three transaction tabs;
+it intentionally has no dataset, current-version, or occurrence filter. SKU strings remain
+exact, including case, punctuation, Unicode, and surrounding whitespace.
+
+Administrator discovery seeks to the first nonnull source SKU and then repeatedly
+seeks to the next greater value in the existing `(sku, date)` indexes. These seeks use the SKU
+columns' native deterministic collation; the final combined catalog is deduplicated and ordered
+with `C` collation. The recursive work stays inside one SQL statement and snapshot. Every lookup
+retains caller RLS, and registered-only SKUs still come from the ordinary registry read.
+
+There is no member discovery branch. Company-user menus continue to use loaded assignments.
 
 ## Index access paths
 
 The source tables use the following optional read indexes in the
-[canonical baseline](../services/db/supabase/migrations/20260912072531_live_source_versions.sql).
+[canonical baseline](../services/db/supabase/migrations/20260927080039_schema_foundation.sql).
 Here `date` means Settlement `posted_date` or Data Kiosk `activity_date`.
 
 | Key shape                       | Settlement    | Data Kiosk    | Intended access                                              |
 | ------------------------------- | ------------- | ------------- | ------------------------------------------------------------ |
 | `(date, id)`                    | Full index    | Full index    | Both date directions, including raw historical/account rows. |
-| `(sku, date)`                   | Compact index | Compact index | Exact single/multiple SKU selections and date ranges.        |
+| `(sku, date)`                   | Compact index | Compact index | Exact SKU selections/date ranges and distinct-SKU index seeks. |
 | `(component_type, date)`        | Compact index | Compact index | Type selections, fee-applicable Types, and date ranges.      |
 | `(marketplace_name, date)`      | Compact index | Compact index | Marketplace filtering and bounded date candidates.           |
-| Existing ownership/version keys | Unchanged     | Unchanged     | Current ownership and source-version eligibility.            |
+| Compact ownership/version keys | Partial index | —             | Settlement's inexpensive unfiltered and marketplace counts.  |
+| Covering count keys             | Date-leading  | Date-leading  | Date-bounded count predicates and authorization without reading full facts when visibility permits. |
 
 The full date/ID indexes have no category or nonzero-amount predicate. Filtering and existing RLS
 still determine which rows qualify. Forward and backward scans serve the complete ascending and
@@ -258,7 +301,33 @@ No equality wrapper, catalog flag change, or RLS relaxation is involved.
 [PostgreSQL 17 function catalog](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/include/catalog/pg_proc.dat),
 [RLS and leakproof predicates](https://www.postgresql.org/docs/17/sql-createfunction.html)
 
-Ownership/version indexes, current-pointer indexes, primary/unique constraints, and the fee-period
+Settlement retains its compact ownership/version index and has a partial count index on
+`(posted_date, component_type, seller_namespace, sku, version_id, category, marketplace_name)`
+where `category = 'SETTLEMENT'`. Date leads bounded-window counts even when no Type, SKU, or
+marketplace is selected; trailing keys cover the other filters and eligibility checks. The
+existing full Type/date index still serves selective Type/date reads and raw operator categories
+outside that partial predicate.
+
+Data Kiosk uses
+`(activity_date, component_type, seller_namespace, sku, version_id, category, marketplace_name)`
+where `amount <> 0`. The predicate matches UI reads while covering every category, including
+administrator account rows. Amount is not stored in the key. Zero-inclusive source/reference
+queries retain their semantics and use the remaining full indexes or table scans.
+
+These indexes support bounded periods and unbounded reads. API dates remain optional, and the
+frontend does not apply dates by default. Date predicates apply to source facts before counting, aggregation, or page fee
+calculation. Leading with date narrows the index range; later columns can filter entries but do
+not generally narrow that range further.
+[PostgreSQL multicolumn indexes](https://www.postgresql.org/docs/17/indexes-multicolumn.html)
+
+Both count indexes use ordinary key columns, retaining eligibility for B-tree deduplication;
+there are no `INCLUDE` columns. They do not cover financial sums or full row projections.
+Index-only reads also depend on the visibility map maintained by vacuum. Broader coverage does
+not guarantee an index-only plan. See the
+[bounded and unbounded measurements](evidence/date_bounded_indexes_2026-09-27/README.md).
+[PostgreSQL index-only scans](https://www.postgresql.org/docs/17/indexes-index-only-scans.html)
+
+Ownership/count indexes, current-pointer indexes, primary/unique constraints, and the fee-period
 GiST exclusion support eligibility and data integrity. There is no amount-ordering index;
 sorting uses the bounded 10,000-match result.
 
@@ -276,24 +345,24 @@ supports company references. Batch lookups reuse `UNIQUE(batch_id, day_id)`.
 
 ## Shared rules and API configuration
 
-[Financial read rules](../services/db/supabase/migrations/20260912072704_live_company_reads.sql)
+[Financial read rules](../services/db/supabase/migrations/20260927080050_financial_relations.sql)
 provide `private.settlement_fee_applicable`, `private.calculate_service_fee`, and the invoker view
 `private.current_sku_terms`. The exact formula remains `-(fee_base * fee_rate_percent * 0.01)`;
 callers retain the existing missing/non-applicable branches. Current terms include explicit
 unassignment, while the explicit-version payout resolver retains its captured version scope.
 
-[Transaction read rules](../services/db/supabase/migrations/20260925065531_transaction_read_rules.sql)
+[Transaction read rules](../services/db/supabase/migrations/20260927080103_transaction_read_rules.sql)
 provide `private.validate_transaction_filters`, `private.validate_page_bounds`, and
 `private.member_policy_covers_current_version`. Validation runs once before query execution;
-source-specific fact selection and candidate limits remain in each optimized query. The same module
-provides literal search normalization and one inlinable visible-field predicate. Caller search
-strings are bound parameters and are never interpolated into SQL.
+source-specific fact selection and candidate limits remain in each optimized query. The frontend
+normalizes search text and resolves exact catalog values. SQL receives those values as bound arrays,
+not raw search text; caller values are never interpolated into SQL.
 
 The current-pointer shortcut applies only to authenticated non-operators with active fact RLS that
 already requires current versions. Operators, owners, and bypass contexts retain explicit pointer
 checks. These helpers preserve the existing access rules and financial results.
 
-[Application access](../services/db/supabase/migrations/20260914094640_application_access.sql)
+[Application access](../services/db/supabase/migrations/20260927080058_application_access.sql)
 separates transaction authorization from reference visibility. Fact policies match current source
 pointers directly and still enforce each row's category and current seller/SKU ownership. Metadata
 policies do not inspect facts: `private.is_company_member()` establishes registered member access,
@@ -304,8 +373,8 @@ and its operator-only functions remain guarded. The private member helper has a 
 authenticated-only application execution.
 
 Public RPCs use invoker security. Reference visibility does not grant transaction access. See the
-[simplified metadata evidence](evidence/simple_metadata_access_2026-09-26/README.md).
+[access contract](access_control.md#how-rls-enforces-this).
 
-[REST configuration](../services/db/supabase/migrations/20260925065542_rest_api_configuration.sql)
+[REST configuration](../services/db/supabase/migrations/20260927080115_rest_api_configuration.sql)
 sets `pgrst.db_aggregates_enabled=false`. General REST aggregate selections fail with `PGRST123`;
 ordinary row reads, pagination counts, and these dedicated RPCs remain available.

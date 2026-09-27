@@ -1,4 +1,4 @@
-import { liveRow } from "./api-fixtures.mjs";
+import { liveRow, skuAssignment } from "./api-fixtures.mjs";
 import { applyDates } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn, waitForRequestSettled } from "./fixtures.mjs";
@@ -22,6 +22,11 @@ async function skuFixture(page, role = "company_member") {
   fixture.roles["member-a"] = role;
   fixture.companyIds = { "member-a": COMPANY_A, "member-b": COMPANY_B };
   fixture.companyNames = { [COMPANY_A]: "Company A", [COMPANY_B]: "Company B" };
+  fixture.assignments = SKUS.map((sku, index) => ({
+    ...skuAssignment(index + 1),
+    sku,
+    company_id: COMPANY_A,
+  }));
   const bucket = (companyId, sku, date, value, options) => ({
     ...summaryBucket(date, value, options),
     company_id: companyId,
@@ -397,6 +402,11 @@ test("signing into another member clears SKU and marketplace selections and thei
   fixture.liveRows = fixture.aggregateRowsByUser["member-b"].map((row, index) => ({
     ...liveRow("BRAVO", index + 1, COMPANY_B),
     ...row,
+  }));
+  fixture.assignments = ["ALPHA", "BETA"].map((sku, index) => ({
+    ...skuAssignment(index + 1),
+    sku,
+    company_id: COMPANY_B,
   }));
   await signIn(page, "member-b");
   await expect(amount(cards(page).day, "Reported amount")).toHaveText("1,000 USD");

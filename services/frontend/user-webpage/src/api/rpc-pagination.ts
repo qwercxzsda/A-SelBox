@@ -1,12 +1,8 @@
 import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import { isJsonObject } from "./validation.ts";
 
-function requirePage(value: unknown, field: string, operation: string) {
-  if (
-    !isJsonObject(value) ||
-    !Array.isArray(value[field]) ||
-    value[field].length > LOOKUP_PAGE_SIZE
-  ) {
+function requirePage(value: unknown, operation: string) {
+  if (!isJsonObject(value) || !Array.isArray(value.rows) || value.rows.length > LOOKUP_PAGE_SIZE) {
     throw new Error(`${operation} returned an invalid page`);
   }
   return value;
@@ -27,7 +23,7 @@ export async function readOffsetRpcRows<Row>(
     signal?.throwIfAborted();
     const value = await readPage(offset);
     signal?.throwIfAborted();
-    const page = requirePage(value, "rows", operation);
+    const page = requirePage(value, operation);
     const batch = decodeRows(page.rows as unknown[]);
     if (offset > 0 && batch.length === 0)
       throw new Error(`${operation} returned an incomplete page. Please retry.`);
@@ -49,41 +45,5 @@ export async function readOffsetRpcRows<Row>(
     }
     if (next === null) return rows;
     offset = next;
-  }
-}
-
-/** Preserve the database's C collation order; JavaScript string ordering differs for Unicode. */
-export async function readCursorRpcValues(
-  readPage: (after: string | null) => Promise<unknown>,
-  operation: string,
-  signal?: AbortSignal,
-): Promise<string[]> {
-  const values: string[] = [];
-  const seen = new Set<string>();
-  let after: string | null = null;
-  for (;;) {
-    signal?.throwIfAborted();
-    const value = await readPage(after);
-    signal?.throwIfAborted();
-    const page = requirePage(value, "values", operation);
-    const batch = page.values as unknown[];
-    if (after !== null && batch.length === 0)
-      throw new Error(`${operation} returned an incomplete page. Please retry.`);
-    const next = page.next_cursor;
-    if (
-      next !== null &&
-      (typeof next !== "string" || next !== batch.at(-1) || next === after || seen.has(next))
-    ) {
-      throw new Error(`${operation} returned an invalid next cursor`);
-    }
-    for (const entry of batch) {
-      if (typeof entry !== "string" || entry.length === 0 || entry.includes("\0"))
-        throw new Error(`${operation} returned an invalid value`);
-      if (seen.has(entry)) throw new Error(`${operation} returned a duplicate value`);
-      seen.add(entry);
-      values.push(entry);
-    }
-    if (next === null) return values;
-    after = next;
   }
 }

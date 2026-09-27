@@ -9,6 +9,7 @@ import type {
   PageResult,
 } from "./types.ts";
 import { isJsonObject } from "./validation.ts";
+import { validateTransactionSearch } from "./transaction-search.ts";
 
 type TransactionDataset = Extract<TableDatasetKey, "live" | "settlement" | "data_kiosk">;
 
@@ -16,24 +17,28 @@ export function isTransactionDataset(dataset: TableDatasetKey): dataset is Trans
   return dataset === "live" || dataset === "settlement" || dataset === "data_kiosk";
 }
 
-/** Pages and counts must use the same validated filters and literal search term. */
+/** Pages and counts share validated filters and the same exact search sets. */
 export function transactionFilterArguments(
   options: FetchDatasetCountOptions & { dataset: TransactionDataset },
 ) {
   const filters = datasetFilterValues(options.dataset, options.filters);
+  const search = validateTransactionSearch(options.search, options.searchValues);
   const common = {
     p_date_from: filters.dateFrom || null,
     p_date_to: filters.dateTo || null,
     p_skus: filters.selections.sku,
     p_marketplaces: filters.selections.marketplace_name,
     p_types: filters.selections.component_type,
-    p_search: options.search.trim() || null,
+    p_search_skus: search?.skus ?? null,
+    p_search_types: search?.types ?? null,
+    p_search_marketplaces: search?.marketplaces ?? null,
   };
   return options.dataset === "live"
     ? {
         ...common,
         p_company_ids: filters.companyIds,
         p_sources: filters.selections.source,
+        p_search_sources: search?.sources ?? null,
         p_fee_applicable: filters.feeApplicable,
       }
     : { ...common, p_dataset: options.dataset };

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import type { Identity } from "./auth-session";
+import type { Identity, IdentityRefreshOptions } from "./auth-session";
 import { FinanceWorkspace } from "./FinanceWorkspace";
 import { createQueryClient } from "./query-client";
 import { useWorkspaceRefresh } from "./use-workspace-refresh";
 
 interface AuthenticatedProps {
   identity: Identity;
-  onRefreshIdentity: () => Promise<boolean>;
+  onRefreshIdentity: (options?: IdentityRefreshOptions) => Promise<boolean>;
 }
 
 function WorkspaceContent({ identity, onRefreshIdentity }: AuthenticatedProps) {

@@ -90,7 +90,7 @@ class DateOrderingTests(SourceModelFixture):
                     "p_date_to": "2026-06-15",
                     "p_skus": ["SKU"],
                     "p_marketplaces": ["Amazon.com"],
-                    "p_search": "sKu",
+                    "p_search_skus": ["SKU"],
                 }
                 ascending = self.page(user, dataset, p_direction="asc", **filters)
                 descending = self.page(user, dataset, p_direction="desc", **filters)

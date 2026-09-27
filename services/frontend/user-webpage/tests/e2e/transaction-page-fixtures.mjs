@@ -1,6 +1,3 @@
-import { DATASET_CONFIG } from "../../src/api/config.ts";
-import { buildSearchFilter } from "../../src/api/search.ts";
-
 /** Expose the RPC's query semantics to the shared table fixtures and assertions. */
 export function transactionPageParams(args) {
   const params = transactionFilterParams(args);
@@ -33,7 +30,7 @@ export function sourceTransactionPageParams(args) {
 export function sourceTransactionFilterParams(args) {
   const date = args.p_dataset === "settlement" ? "posted_date" : "activity_date";
   const params = new URLSearchParams();
-  addSearch(params, args.p_dataset, args.p_search);
+  addSearch(params, args);
   if (args.p_dataset === "data_kiosk") params.set("amount", "neq.0");
   if (args.p_date_from) params.append(date, `gte.${args.p_date_from}`);
   if (args.p_date_to) params.append(date, `lte.${args.p_date_to}`);
@@ -49,7 +46,7 @@ export function sourceTransactionFilterParams(args) {
 
 export function transactionFilterParams(args) {
   const params = new URLSearchParams({ and: "(or(source.neq.DATA_KIOSK,source_amount.neq.0))" });
-  addSearch(params, "live", args.p_search);
+  addSearch(params, args);
   if (args.p_fee_applicable !== null) params.set("fee_applicable", String(args.p_fee_applicable));
   if (args.p_date_from) params.append("activity_date", `gte.${args.p_date_from}`);
   if (args.p_date_to) params.append("activity_date", `lte.${args.p_date_to}`);
@@ -66,7 +63,17 @@ export function transactionFilterParams(args) {
   return params;
 }
 
-function addSearch(params, dataset, term) {
-  const filter = buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, term ?? "");
-  if (filter !== null) params.set("or", filter);
+function addSearch(params, args) {
+  if ("p_search" in args) throw new Error("Transaction search must use exact value arrays");
+  const values = {
+    sku: args.p_search_skus,
+    component_type: args.p_search_types,
+    marketplace_name: args.p_search_marketplaces,
+    ...(Object.hasOwn(args, "p_search_sources") ? { source: args.p_search_sources } : {}),
+  };
+  if (Object.values(values).some((selection) => selection !== null)) {
+    if (Object.values(values).some((selection) => !Array.isArray(selection)))
+      throw new Error("Active transaction searches require all exact value arrays");
+    params.set("or", JSON.stringify(values));
+  }
 }

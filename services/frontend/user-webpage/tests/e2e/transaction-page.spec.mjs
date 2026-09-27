@@ -39,8 +39,8 @@ test("Transactions use page-first REST reads and reuse counts while both date an
     "descending",
   );
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-  await page.getByLabel("Search", { exact: true }).fill("SKU_100%");
-  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("SKU_100%");
+  await page.getByLabel("Search", { exact: true }).fill("Amazon");
+  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   expect(fixture.requests.at(-1).transport).toBe("rpc");
 });
 

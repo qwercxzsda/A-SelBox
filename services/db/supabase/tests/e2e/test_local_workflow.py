@@ -36,6 +36,7 @@ from services.sync.src.database.acquisitions import (
 )
 from services.sync.src.database.company_terms import create_company, publish_sku_terms
 from services.sync.src.database.payout_reports import publish_company_payout_report
+from services.sync.src.preprocess_version import PREPROCESS_VERSION
 from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
 from services.sync.src.settlements.download import archive_settlement_report
 
@@ -76,7 +77,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             currency="USD",
             start_date=START,
             end_date=END,
-            preprocess_version="v0",
+            preprocess_version=PREPROCESS_VERSION,
             settlement_ids=[str(canonical[0])],
             marketplace_names=["Amazon.com"],
             report_name="Frozen company report",

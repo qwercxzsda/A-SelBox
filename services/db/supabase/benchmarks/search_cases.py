@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from .ordering_cases import Case
+from .datasets import Dataset
 
 SEARCH_COLUMNS = {
     "live": (
@@ -10,28 +10,48 @@ SEARCH_COLUMNS = {
         "sku",
         "component_type",
         "marketplace_name",
-        "currency",
     ),
-    "settlement": ("sku", "component_type", "marketplace_name", "currency"),
-    "data_kiosk": ("sku", "component_type", "marketplace_name", "currency"),
+    "settlement": ("sku", "component_type", "marketplace_name"),
+    "data_kiosk": ("sku", "component_type", "marketplace_name"),
 }
 
 
 @dataclass(frozen=True)
-class SearchCase(Case):
+class SearchCase:
+    dataset: Dataset
+    name: str
+    order_by: str
+    direction: str
+    offset: int = 0
+    marketplace: str | None = None
     search: str = ""
     date_from: str | None = None
     date_to: str | None = None
     skus: tuple[str, ...] = ()
     types: tuple[str, ...] = ()
     expect_cap: bool = False
+    search_values: dict[str, object] | None = None
+
+    @property
+    def descending_date(self) -> bool:
+        return self.order_by == "date" and self.direction == "desc"
 
     def arguments(self, *, include_count: bool = False) -> dict[str, object]:
-        return {**super().arguments(include_count=include_count), **self.filters()}
+        return {
+            "p_limit": 25,
+            "p_offset": self.offset,
+            "p_order_by": self.order_by,
+            "p_direction": self.direction,
+            "p_include_count": include_count,
+            **({"p_dataset": self.dataset.key} if self.dataset.key != "live" else {}),
+            **self.filters(),
+        }
 
     def filters(self) -> dict[str, object]:
+        if self.search.strip() and self.search_values is None:
+            raise ValueError("Resolve search choices before building benchmark requests")
         return {
-            "p_search": self.search,
+            **(self.search_values or {}),
             "p_date_from": self.date_from,
             "p_date_to": self.date_to,
             "p_skus": list(self.skus),

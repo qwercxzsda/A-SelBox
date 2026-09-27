@@ -101,7 +101,7 @@ test("changed opaque tokens are compared only for requested sources, including n
 });
 
 test("pages, choices, counts, cards and fees carry the correct source dependencies", () => {
-  for (const family of ["dataset", "dataset-options", "dataset-count"]) {
+  for (const family of ["dataset", "dataset-count"]) {
     assert.deepEqual(queryRevisionSources([family, "u", "operator", null, "settlement"]), [
       "settlement",
     ]);

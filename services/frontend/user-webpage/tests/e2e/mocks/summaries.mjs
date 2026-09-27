@@ -31,6 +31,10 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
     p_sources: [],
     p_types: [],
     p_fee_applicable: null,
+    p_search_skus: null,
+    p_search_types: null,
+    p_search_marketplaces: null,
+    p_search_sources: null,
   });
   params.set("offset", String(args.p_offset));
   params.set("limit", String(args.p_limit));

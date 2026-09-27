@@ -77,7 +77,7 @@ coverage.
 version**, including historical date ranges. The source row's activity date
 selects the applicable period; it does not use today's date.
 
-Source: [ownership and fee DDL](../services/db/supabase/migrations/20260912072531_live_source_versions.sql),
+Source: [ownership and fee DDL](../services/db/supabase/migrations/20260927080039_schema_foundation.sql),
 [ownership and fee contract](company_fees.md).
 
 ## Settlement source tables
@@ -112,8 +112,8 @@ contribute principal, tax, shipping, promotions, and fee lines. Publication chec
 the complete row inventory, one currency, and the exact signed sum against the
 version's report control total.
 
-Source: [Settlement DDL](../services/db/supabase/migrations/20260912072531_live_source_versions.sql),
-[publication functions](../services/db/supabase/migrations/20260912072703_atomic_publications.sql).
+Source: [Settlement DDL](../services/db/supabase/migrations/20260927080039_schema_foundation.sql),
+[publication functions](../services/db/supabase/migrations/20260927080047_source_publications.sql).
 
 ## Data Kiosk source tables
 
@@ -168,8 +168,9 @@ observations; equal observations do not establish financial finality.
 immutable references include empty required days and protect entire versions;
 there is no standalone pin/unpin API.
 
-Source: [Data Kiosk DDL](../services/db/supabase/migrations/20260912072531_live_source_versions.sql),
-[publication and retention](../services/db/supabase/migrations/20260912072703_atomic_publications.sql),
+Source: [Data Kiosk DDL](../services/db/supabase/migrations/20260927080039_schema_foundation.sql),
+[publication](../services/db/supabase/migrations/20260927080047_source_publications.sql),
+[retention](../services/db/supabase/migrations/20260927080056_source_retention.sql),
 [workflow contract](data_workflows.md).
 
 ## Archives and complete publication
@@ -190,7 +191,7 @@ Expected-current checks reject stale replacements. Composite foreign keys ensure
 the selected version belongs to its own settlement, day, or seller/SKU.
 Published inventories cannot later be appended to or rewritten.
 
-Both preprocessors currently use the definition label `v0`. This label identifies
+Both preprocessors currently use the definition label `v1`. This label identifies
 the interpretation rules; it is separate from a result's UUID and SKU terms'
 numeric `version_number`. Strict reads require matching processor labels across
 the declared required inputs.
@@ -206,7 +207,7 @@ contributes to company totals.
 | Category        | Settlement facts                                        | Data Kiosk facts                                      |
 | --------------- | ------------------------------------------------------- | ----------------------------------------------------- |
 | `SETTLEMENT`    | Authoritative company amounts; SKU required             | Comparison counterparts; excluded from company totals |
-| `SELBOX`        | Account/control or unmatched amounts retained by SelBox | Account amounts; excluded from company totals         |
+| `SELBOX`        | Explicitly registered account/control and retained amounts | Account amounts; excluded from company totals         |
 | `DATA_KIOSK`    | Reconciliation amounts; excluded from company totals    | Authoritative company costs; SKU required             |
 | `ANALYSIS_ONLY` | Not permitted                                           | Diagnostic amounts; excluded from company totals      |
 
@@ -259,7 +260,8 @@ company and currency. Dates are inclusive. The caller supplies the required
 source scope; the function does not discover an externally complete settlement
 list itself.
 
-Source: [live views and total function](../services/db/supabase/migrations/20260912072704_live_company_reads.sql).
+Source: [financial relations](../services/db/supabase/migrations/20260927080050_financial_relations.sql),
+[complete and partial financial reads](../services/db/supabase/migrations/20260927080052_financial_reads.sql).
 
 ## Frozen payout tables
 
@@ -312,6 +314,12 @@ complete historical headers while member grants retain only necessary opaque
 selection/version columns. Reference visibility does not grant access to transaction
 amounts or full metadata. Raw archives remain outside application access.
 
+Current ownership policies use the private caller-bound `current_owned_sku_terms()` helper to
+obtain allowed seller/SKU keys and selected terms IDs together. It resolves the stored account and
+current pointers under definer security; invoker views and RPCs still enforce the resulting row
+policies. Page and totals queries further restrict their financial terms projection to the selected
+page or grouped facts. This changes execution work, not the tables or visibility contract.
+
 Payout reports, components, all inventory counts, and exact input references are
 operator-only. Company members have no saved-payout access. Source and payout
 publication, pruning, and strict completeness functions remain direct-database
@@ -328,5 +336,5 @@ over-credit treatment remain deferred. A selected source or terms change may
 restate live history; immutable saved reports preserve the original calculation
 without establishing that a payment was approved or made.
 
-Source: [access policies](../services/db/supabase/migrations/20260914094640_application_access.sql),
+Source: [access policies](../services/db/supabase/migrations/20260927080058_application_access.sql),
 [known limitations](known_issues.md).

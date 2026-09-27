@@ -168,8 +168,8 @@ test("company selection resets only the page and clearing it preserves other ref
   const fixture = await companyFixture(page);
   await signIn(page);
   await applyDates(page, "2026-01-01", "2026-04-30");
-  await page.getByLabel("Search", { exact: true }).fill("USD");
-  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("USD");
+  await page.getByLabel("Search", { exact: true }).fill("Amazon");
+  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   await page.getByRole("button", { name: "Source", exact: true }).click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
   await source.getByRole("checkbox", { name: "Settlements", exact: true }).check();
@@ -189,7 +189,7 @@ test("company selection resets only the page and clearing it preserves other ref
   expect(scoped.get("company_id")).toBe(companyScope(COMPANY_A));
   expect(scoped.get("offset")).toBe("0");
   expect(scoped.get("source")).toBe('in.("SETTLEMENT")');
-  expect(scoped.get("or")).toContain("USD");
+  expect(scoped.get("or")).toContain("Amazon");
   expect(scoped.get("order")).toBe(order);
   expect(scoped.getAll("activity_date")).toEqual(["gte.2026-01-01", "lte.2026-04-30"]);
   await expect(amount(cards(page).selected, "Reported amount")).toHaveText(
@@ -222,7 +222,7 @@ test("company selection resets only the page and clearing it preserves other ref
   expect(cleared.get("source")).toBeNull();
   expect(cleared.getAll("activity_date")).toEqual([]);
   expect(cleared.get("order")).toBe(order);
-  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("USD");
+  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
   await expect(cards(page).selected).toContainText("Select a date range to see totals.");
 });
 

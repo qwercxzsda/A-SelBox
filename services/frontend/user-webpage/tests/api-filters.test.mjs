@@ -1,3 +1,4 @@
+import { searchValues } from "./search-fixtures.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
@@ -5,7 +6,6 @@ import { DATASET_CONFIG, isTableDataset } from "../src/api/config.ts";
 import {
   SETTINGS,
   responseJson,
-  assertRpcRequest,
   pageRequest,
   datasetFilters,
   COMPANY_ID,
@@ -15,7 +15,7 @@ import {
   typeTotalsRequest,
 } from "./api-fixtures.mjs";
 
-test("column filters and literal search share typed page and count arguments", async () => {
+test("column filters and resolved search share typed page and count arguments", async () => {
   const requests = [];
   const filters = datasetFilters({
     dateFrom: "2024-02-29",
@@ -34,12 +34,20 @@ test("column filters and literal search share typed page and count arguments", a
       new URL(url).pathname.endsWith("_count") ? "0" : { rows: [], total_count: "0" },
     );
   });
-  await client.fetchDatasetPage(pageRequest("live", { filters, search: " SKU ", pageIndex: 2 }));
+  await client.fetchDatasetPage(
+    pageRequest("live", {
+      filters,
+      search: " SKU ",
+      searchValues: searchValues({ skus: ["SKU"] }),
+      pageIndex: 2,
+    }),
+  );
   await client.fetchDatasetCount({
     accessToken: "test-access",
     dataset: "live",
     filters,
     search: " SKU ",
+    searchValues: searchValues({ skus: ["SKU"] }),
   });
   const { p_limit, p_offset, p_direction, p_order_by, p_include_count, ...pageFilters } =
     requests[0];
@@ -53,7 +61,10 @@ test("column filters and literal search share typed page and count arguments", a
     p_sources: filters.sources,
     p_types: filters.types,
     p_fee_applicable: null,
-    p_search: "SKU",
+    p_search_skus: ["SKU"],
+    p_search_types: [],
+    p_search_marketplaces: [],
+    p_search_sources: [],
   });
   assert.deepEqual(
     [p_limit, p_offset, p_direction, p_order_by, p_include_count],
@@ -62,6 +73,7 @@ test("column filters and literal search share typed page and count arguments", a
   await client.fetchDatasetPage(
     pageRequest("settlement", {
       search: "SKU",
+      searchValues: searchValues({ skus: ["SKU"] }),
       filters: datasetFilters({ dateTo: "2026-09-18", skus: ["SKU"] }),
     }),
   );
@@ -85,13 +97,13 @@ test("company, SKU, and marketplace selections compose across table and dedicate
   const signal = new AbortController().signal;
   const client = createApiClient(SETTINGS, async (url, init) => {
     const endpoint = new URL(url).pathname;
-    const args = init.body ? JSON.parse(init.body) : null;
-    requests.push({ params: new URL(url).searchParams, init, args, endpoint });
+    const args = JSON.parse(init.body);
+    requests.push({ init, args, endpoint });
     if (endpoint.endsWith("/transaction_page"))
       return responseJson({ rows: [], total_count: null });
     if (endpoint.endsWith("/transaction_totals"))
       return responseJson({ rows: [], next_offset: null });
-    return new Response("", { headers: { "Content-Range": "*/0" } });
+    assert.fail(`Unexpected summary request: ${endpoint}`);
   });
   const dates = { dateFrom: "2024-02-01", dateTo: "2024-02-29" };
   const companyIds = Object.freeze([OTHER_COMPANY_ID, COMPANY_ID, OTHER_COMPANY_ID]);
@@ -120,6 +132,7 @@ test("company, SKU, and marketplace selections compose across table and dedicate
     pageRequest("live", {
       signal,
       search: "SKU",
+      searchValues: searchValues({ skus: ["SKU"] }),
       filters: datasetFilters({ ...dates, ...scope, types: ["PRODUCT_SALES"] }),
     }),
   );
@@ -150,7 +163,8 @@ test("company, SKU, and marketplace selections compose across table and dedicate
   assert.equal(table.args.p_date_from, dates.dateFrom);
   assert.equal(table.args.p_date_to, dates.dateTo);
   assert.deepEqual(table.args.p_types, ["PRODUCT_SALES"]);
-  assert.equal(table.args.p_search, "SKU");
+  assert.deepEqual(table.args.p_search_skus, ["SKU"]);
+  assert.equal("p_search" in table.args, false);
   assert.equal(new Headers(table.init.headers).has("Prefer"), false);
   assert.deepEqual(table.args.p_skus, [...new Set(skus)]);
   assert.deepEqual(table.args.p_marketplaces, [...new Set(marketplaces)]);
@@ -351,125 +365,7 @@ test("invalid calendar periods and unsupported column filters fail before sendin
   ]) {
     await assert.rejects(client.fetchDatasetPage(pageRequest(dataset, { filters })));
   }
-  await assert.rejects(
-    client.fetchDatasetFilterOptions("test-access", "live", "company_id"),
-    /cannot be filtered/,
-  );
   assert.equal(requests, 0);
-});
-
-test("filter options use explicit cursors across capped pages and preserve exact values", async () => {
-  const expected = ["A", 'B,quoted"SKU', "C.(sku)", "D\\backslash", "ＳＫＵ－１"];
-  const cursors = [];
-  const signal = new AbortController().signal;
-  const client = createApiClient(SETTINGS, async (url, init) => {
-    const args = assertRpcRequest(assert, url, init, "dataset_filter_options");
-    cursors.push(args.p_after);
-    assert.deepEqual(args, {
-      p_dataset: "live",
-      p_field: "sku",
-      p_limit: 1000,
-      p_after: cursors.at(-1),
-    });
-    assert.equal(init.signal, signal);
-    const offset = args.p_after === null ? 0 : expected.indexOf(args.p_after) + 1;
-    const values = expected.slice(offset, offset + 2);
-    return responseJson({
-      values,
-      next_cursor: offset + values.length < expected.length ? values.at(-1) : null,
-    });
-  });
-  assert.deepEqual(
-    await client.fetchDatasetFilterOptions("test-access", "live", "sku", signal),
-    expected,
-  );
-  assert.deepEqual(cursors, [null, expected[1], expected[3]]);
-});
-
-test("option RPC fetches over a thousand distinct values with no extra empty request", async () => {
-  const expected = Array.from({ length: 1002 }, (_, i) => `SKU-${String(i).padStart(4, "0")}`);
-  const cursors = [];
-  const client = createApiClient(SETTINGS, async (url, init) => {
-    const args = assertRpcRequest(assert, url, init, "dataset_filter_options");
-    cursors.push(args.p_after);
-    const offset = args.p_after === null ? 0 : expected.indexOf(args.p_after) + 1;
-    const values = expected.slice(offset, offset + args.p_limit);
-    return responseJson({
-      values,
-      next_cursor: offset + values.length < expected.length ? values.at(-1) : null,
-    });
-  });
-  assert.deepEqual(await client.fetchDatasetFilterOptions("test-access", "live", "sku"), expected);
-  assert.deepEqual(cursors, [null, "SKU-0999"]);
-});
-
-test("a complete option response preserves exact text and database Unicode ordering without extra requests", async () => {
-  const options = ['  SKU,"quote"\\path.(value)  ', "\uE000", "ＳＫＵ－１", "😀"];
-  let requests = 0;
-  const client = createApiClient(SETTINGS, async () => {
-    requests += 1;
-    return responseJson({ values: options, next_cursor: null });
-  });
-  assert.deepEqual(await client.fetchDatasetFilterOptions("test-access", "live", "sku"), options);
-  assert.equal(requests, 1);
-});
-
-test("option scans reject malformed, oversized, duplicate, truncated or non-advancing responses", async () => {
-  for (const payload of [
-    null,
-    [],
-    {},
-    { values: [] },
-    { values: "A", next_cursor: null },
-    { values: [null], next_cursor: null },
-    { values: [1], next_cursor: null },
-    { values: [""], next_cursor: null },
-    { values: ["invalid\0value"], next_cursor: null },
-    { values: ["A", "A"], next_cursor: null },
-    { values: ["A"], next_cursor: "B" },
-    { values: ["A"], next_cursor: 1 },
-    { values: [], next_cursor: "A" },
-    { values: Array.from({ length: 1001 }, (_, i) => `SKU-${i}`), next_cursor: null },
-  ]) {
-    let requests = 0;
-    const client = createApiClient(SETTINGS, async () => {
-      requests += 1;
-      return responseJson(payload);
-    });
-    await assert.rejects(client.fetchDatasetFilterOptions("test-access", "live", "sku"));
-    assert.equal(requests, 1);
-  }
-  for (const second of [
-    { values: [], next_cursor: null },
-    { values: ["A"], next_cursor: "A" },
-  ]) {
-    let requests = 0;
-    const client = createApiClient(SETTINGS, async () =>
-      responseJson(++requests === 1 ? { values: ["A"], next_cursor: "A" } : second),
-    );
-    await assert.rejects(client.fetchDatasetFilterOptions("test-access", "live", "sku"));
-    assert.equal(requests, 2);
-  }
-});
-
-test("filter-option cancellation interrupts the second page with the original reason", async () => {
-  const controller = new AbortController();
-  const started = Promise.withResolvers();
-  let calls = 0;
-  const client = createApiClient(SETTINGS, async (_url, { signal }) => {
-    assert.equal(signal, controller.signal);
-    if (++calls === 1) return responseJson({ values: ["A"], next_cursor: "A" });
-    return new Promise((_resolve, reject) => {
-      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
-      started.resolve();
-    });
-  });
-  const pending = client.fetchDatasetFilterOptions("test-access", "live", "sku", controller.signal);
-  const rejected = assert.rejects(pending, (error) => error === controller.signal.reason);
-  await started.promise;
-  controller.abort();
-  await rejected;
-  assert.equal(calls, 2);
 });
 
 test("fee applicability uses the same selection for page RPC, counts, search, and reported amount ordering", async () => {
@@ -482,12 +378,11 @@ test("fee applicability uses the same selection for page RPC, counts, search, an
   ]) {
     const requests = [];
     const client = createApiClient(SETTINGS, async (url, init) => {
-      const params = new URL(url).searchParams;
-      const args = init.body ? JSON.parse(init.body) : null;
-      requests.push({ params, args });
+      const args = JSON.parse(init.body);
+      requests.push(args);
       if (new URL(url).pathname.endsWith("/transaction_count")) return responseJson("0");
-      if (args) return responseJson({ rows: [], total_count: "0" });
-      return new Response(null, { headers: { "Content-Range": "*/0" } });
+      assert.equal(new URL(url).pathname, "/rest/v1/rpc/transaction_page");
+      return responseJson({ rows: [], total_count: "0" });
     });
     const filters = datasetFilters({ feeApplicability, skus: ["SKU"], dateFrom: "2026-09-01" });
     await client.fetchDatasetPage(pageRequest("live", { filters }));
@@ -500,14 +395,21 @@ test("fee applicability uses the same selection for page RPC, counts, search, an
     await client.fetchDatasetPage(
       pageRequest("live", { filters, sort: { column: "source_amount", direction: "desc" } }),
     );
-    await client.fetchDatasetPage(pageRequest("live", { filters, search: "SKU" }));
+    await client.fetchDatasetPage(
+      pageRequest("live", {
+        filters,
+        search: "SKU",
+        searchValues: searchValues({ skus: ["SKU"] }),
+      }),
+    );
     await client.fetchDatasetCount({
       accessToken: "test-access",
       dataset: "live",
       search: "SKU",
+      searchValues: searchValues({ skus: ["SKU"] }),
       filters,
     });
-    for (const { args } of requests) {
+    for (const args of requests) {
       assert.equal(args.p_fee_applicable, expected);
       assert.deepEqual(args.p_skus, ["SKU"]);
       assert.equal(args.p_date_from, "2026-09-01");
@@ -557,7 +459,7 @@ test("invalid fee selections and unsupported dataset fee filters fail before HTT
   }
 });
 
-test("removed monetary orderings are rejected before sending any request", async () => {
+test("unsupported monetary orderings are rejected before sending any request", async () => {
   const client = createApiClient(SETTINGS, () =>
     assert.fail("Unsupported sorts must not reach HTTP"),
   );

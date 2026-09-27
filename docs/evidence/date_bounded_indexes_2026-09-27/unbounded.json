@@ -1,0 +1,1244 @@
+{
+  "measurement": {
+    "label": "selected_final",
+    "cases": [
+      {
+        "role": "member_a",
+        "name": "unbounded_newest",
+        "kind": "page",
+        "reference": {
+          "sha256": "d5d1f4bae841e31df4572e5bb4c82280d79f7b8e0f8e03c8e9cb8faaf53fe4ce",
+          "metadata": {
+            "matching_rows": 463980,
+            "returned_rows": 25
+          }
+        }
+      },
+      {
+        "role": "member_a",
+        "name": "unbounded_oldest",
+        "kind": "page",
+        "reference": {
+          "sha256": "aa87baf808d6c9edb6e7c55f8f862479c2f614b6d6be0656bd2aca7cb3970554",
+          "metadata": {
+            "matching_rows": 463980,
+            "returned_rows": 25
+          }
+        }
+      },
+      {
+        "role": "member_a",
+        "name": "unbounded_all_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7",
+          "metadata": {
+            "matching_rows": 463980
+          }
+        }
+      },
+      {
+        "role": "member_a",
+        "name": "unbounded_fee_search_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b",
+          "metadata": {
+            "matching_rows": 215410
+          }
+        }
+      },
+      {
+        "role": "member_a",
+        "name": "unbounded_plain_fee_types_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b",
+          "metadata": {
+            "matching_rows": 215410
+          }
+        }
+      },
+      {
+        "role": "member_a",
+        "name": "unbounded_fee_applicable_count",
+        "kind": "direct_count",
+        "reference": {
+          "sha256": "399c6f7a5088d003999ec8221373bf325af6a5128e56fd70ba5d2fa05dae034b",
+          "metadata": {
+            "matching_rows": 76060
+          }
+        }
+      },
+      {
+        "role": "member_a",
+        "name": "unbounded_fee_not_applicable_count",
+        "kind": "direct_count",
+        "reference": {
+          "sha256": "e9b1cc8dc286ba3fbfda4dd872e24da1ee89c91a079328122b640fa5b360697a",
+          "metadata": {
+            "matching_rows": 387920
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_newest",
+        "kind": "page",
+        "reference": {
+          "sha256": "bbdde527ab6048a3abbaaf35afef884b212c5c7c2d1801984ccbc0f806f470e4",
+          "metadata": {
+            "matching_rows": 875300,
+            "returned_rows": 25
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_oldest",
+        "kind": "page",
+        "reference": {
+          "sha256": "73d7e5be2fbdb25e27edfb3d08bf53d42a225d5939ebf4bbef0d8cec896a95f4",
+          "metadata": {
+            "matching_rows": 875300,
+            "returned_rows": 25
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_all_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3",
+          "metadata": {
+            "matching_rows": 875300
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_fee_search_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c",
+          "metadata": {
+            "matching_rows": 402240
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_plain_fee_types_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c",
+          "metadata": {
+            "matching_rows": 402240
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_fee_applicable_count",
+        "kind": "direct_count",
+        "reference": {
+          "sha256": "9f2cfd621d36fc1fb8476ebbf8dbad35befcdc319e4cfc506429748917025f66",
+          "metadata": {
+            "matching_rows": 140630
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_fee_not_applicable_count",
+        "kind": "direct_count",
+        "reference": {
+          "sha256": "4ea1ead37cb95019751af4575b8ace02aa5f5a90c6163a9f533605ffebd534bd",
+          "metadata": {
+            "matching_rows": 734670
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "settlement_unbounded_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "916b3542d89352e588d0311459cd9eb8e86924f32d6944f9304305d8be2c11e0",
+          "metadata": {
+            "matching_rows": 737330
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "data_kiosk_unbounded_count",
+        "kind": "count",
+        "reference": {
+          "sha256": "dcaee0a48a27b2301b6d28c299e0584f1f326211bdb218257b8707e536fd7a60",
+          "metadata": {
+            "matching_rows": 148720
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "unbounded_company_count",
+        "kind": "direct_count",
+        "reference": {
+          "sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7",
+          "metadata": {
+            "matching_rows": 463980
+          }
+        }
+      },
+      {
+        "role": "operator",
+        "name": "explicit_full_range_totals",
+        "kind": "aggregate",
+        "reference": {
+          "sha256": "74cb9f6724f51e36c516bb47b0256c0310c46e9bbddf59b6c506cddbc73f4a56",
+          "metadata": {
+            "arguments": {
+              "p_date_from": "2017-05-27",
+              "p_date_to": "2026-09-13"
+            },
+            "matching_rows": 875300,
+            "currency_scope": "all_currencies",
+            "returned_groups": 9
+          }
+        }
+      }
+    ],
+    "records": [
+      {
+        "role": "member_a",
+        "case": "unbounded_newest",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 19.071,
+        "response_bytes": 20642,
+        "requests": 1,
+        "response_sha256": "d5d1f4bae841e31df4572e5bb4c82280d79f7b8e0f8e03c8e9cb8faaf53fe4ce"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_oldest",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 13.106,
+        "response_bytes": 20887,
+        "requests": 1,
+        "response_sha256": "aa87baf808d6c9edb6e7c55f8f862479c2f614b6d6be0656bd2aca7cb3970554"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_all_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 155.344,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_search_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 149.911,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 107.031,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 43.7,
+        "response_bytes": 7,
+        "requests": 1,
+        "response_sha256": "399c6f7a5088d003999ec8221373bf325af6a5128e56fd70ba5d2fa05dae034b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 151.457,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "e9b1cc8dc286ba3fbfda4dd872e24da1ee89c91a079328122b640fa5b360697a"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_newest",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 10.335,
+        "response_bytes": 20635,
+        "requests": 1,
+        "response_sha256": "bbdde527ab6048a3abbaaf35afef884b212c5c7c2d1801984ccbc0f806f470e4"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_oldest",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 8.754,
+        "response_bytes": 20923,
+        "requests": 1,
+        "response_sha256": "73d7e5be2fbdb25e27edfb3d08bf53d42a225d5939ebf4bbef0d8cec896a95f4"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_all_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 94.008,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_search_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 346.049,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 96.814,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 34.748,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "9f2cfd621d36fc1fb8476ebbf8dbad35befcdc319e4cfc506429748917025f66"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 120.676,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "4ea1ead37cb95019751af4575b8ace02aa5f5a90c6163a9f533605ffebd534bd"
+      },
+      {
+        "role": "operator",
+        "case": "settlement_unbounded_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 153.179,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "916b3542d89352e588d0311459cd9eb8e86924f32d6944f9304305d8be2c11e0"
+      },
+      {
+        "role": "operator",
+        "case": "data_kiosk_unbounded_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 17.299,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "dcaee0a48a27b2301b6d28c299e0584f1f326211bdb218257b8707e536fd7a60"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_company_count",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 157.197,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "operator",
+        "case": "explicit_full_range_totals",
+        "iteration": 0,
+        "warmup": true,
+        "elapsed_ms": 2275.944,
+        "response_bytes": 1778,
+        "requests": 1,
+        "response_sha256": "74cb9f6724f51e36c516bb47b0256c0310c46e9bbddf59b6c506cddbc73f4a56"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_company_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 158.663,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "operator",
+        "case": "data_kiosk_unbounded_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 17.828,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "dcaee0a48a27b2301b6d28c299e0584f1f326211bdb218257b8707e536fd7a60"
+      },
+      {
+        "role": "operator",
+        "case": "settlement_unbounded_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 149.262,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "916b3542d89352e588d0311459cd9eb8e86924f32d6944f9304305d8be2c11e0"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 121.974,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "4ea1ead37cb95019751af4575b8ace02aa5f5a90c6163a9f533605ffebd534bd"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 32.917,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "9f2cfd621d36fc1fb8476ebbf8dbad35befcdc319e4cfc506429748917025f66"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 82.707,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_search_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 341.806,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_all_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 101.623,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_oldest",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 9.456,
+        "response_bytes": 20923,
+        "requests": 1,
+        "response_sha256": "73d7e5be2fbdb25e27edfb3d08bf53d42a225d5939ebf4bbef0d8cec896a95f4"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_newest",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 8.67,
+        "response_bytes": 20635,
+        "requests": 1,
+        "response_sha256": "bbdde527ab6048a3abbaaf35afef884b212c5c7c2d1801984ccbc0f806f470e4"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 160.476,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "e9b1cc8dc286ba3fbfda4dd872e24da1ee89c91a079328122b640fa5b360697a"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 39.727,
+        "response_bytes": 7,
+        "requests": 1,
+        "response_sha256": "399c6f7a5088d003999ec8221373bf325af6a5128e56fd70ba5d2fa05dae034b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 106.57,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_search_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 136.91,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_all_count",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 134.033,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_oldest",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 10.215,
+        "response_bytes": 20887,
+        "requests": 1,
+        "response_sha256": "aa87baf808d6c9edb6e7c55f8f862479c2f614b6d6be0656bd2aca7cb3970554"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_newest",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 9.486,
+        "response_bytes": 20642,
+        "requests": 1,
+        "response_sha256": "d5d1f4bae841e31df4572e5bb4c82280d79f7b8e0f8e03c8e9cb8faaf53fe4ce"
+      },
+      {
+        "role": "operator",
+        "case": "explicit_full_range_totals",
+        "iteration": 1,
+        "warmup": false,
+        "elapsed_ms": 2309.27,
+        "response_bytes": 1778,
+        "requests": 1,
+        "response_sha256": "74cb9f6724f51e36c516bb47b0256c0310c46e9bbddf59b6c506cddbc73f4a56"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_all_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 149.339,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_search_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 140.399,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 106.453,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 40.667,
+        "response_bytes": 7,
+        "requests": 1,
+        "response_sha256": "399c6f7a5088d003999ec8221373bf325af6a5128e56fd70ba5d2fa05dae034b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 154.259,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "e9b1cc8dc286ba3fbfda4dd872e24da1ee89c91a079328122b640fa5b360697a"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_newest",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 9.902,
+        "response_bytes": 20635,
+        "requests": 1,
+        "response_sha256": "bbdde527ab6048a3abbaaf35afef884b212c5c7c2d1801984ccbc0f806f470e4"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_oldest",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 8.298,
+        "response_bytes": 20923,
+        "requests": 1,
+        "response_sha256": "73d7e5be2fbdb25e27edfb3d08bf53d42a225d5939ebf4bbef0d8cec896a95f4"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_all_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 92.138,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_search_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 336.841,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 93.611,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 32.546,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "9f2cfd621d36fc1fb8476ebbf8dbad35befcdc319e4cfc506429748917025f66"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 115.4,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "4ea1ead37cb95019751af4575b8ace02aa5f5a90c6163a9f533605ffebd534bd"
+      },
+      {
+        "role": "operator",
+        "case": "settlement_unbounded_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 154.08,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "916b3542d89352e588d0311459cd9eb8e86924f32d6944f9304305d8be2c11e0"
+      },
+      {
+        "role": "operator",
+        "case": "data_kiosk_unbounded_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 17.253,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "dcaee0a48a27b2301b6d28c299e0584f1f326211bdb218257b8707e536fd7a60"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_company_count",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 154.624,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "operator",
+        "case": "explicit_full_range_totals",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 2301.948,
+        "response_bytes": 1778,
+        "requests": 1,
+        "response_sha256": "74cb9f6724f51e36c516bb47b0256c0310c46e9bbddf59b6c506cddbc73f4a56"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_newest",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 11.418,
+        "response_bytes": 20642,
+        "requests": 1,
+        "response_sha256": "d5d1f4bae841e31df4572e5bb4c82280d79f7b8e0f8e03c8e9cb8faaf53fe4ce"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_oldest",
+        "iteration": 2,
+        "warmup": false,
+        "elapsed_ms": 10.706,
+        "response_bytes": 20887,
+        "requests": 1,
+        "response_sha256": "aa87baf808d6c9edb6e7c55f8f862479c2f614b6d6be0656bd2aca7cb3970554"
+      },
+      {
+        "role": "operator",
+        "case": "settlement_unbounded_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 153.883,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "916b3542d89352e588d0311459cd9eb8e86924f32d6944f9304305d8be2c11e0"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 128.24,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "4ea1ead37cb95019751af4575b8ace02aa5f5a90c6163a9f533605ffebd534bd"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 32.864,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "9f2cfd621d36fc1fb8476ebbf8dbad35befcdc319e4cfc506429748917025f66"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 81.792,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_search_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 348.617,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_all_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 104.379,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_oldest",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 9.767,
+        "response_bytes": 20923,
+        "requests": 1,
+        "response_sha256": "73d7e5be2fbdb25e27edfb3d08bf53d42a225d5939ebf4bbef0d8cec896a95f4"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_newest",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 8.244,
+        "response_bytes": 20635,
+        "requests": 1,
+        "response_sha256": "bbdde527ab6048a3abbaaf35afef884b212c5c7c2d1801984ccbc0f806f470e4"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_not_applicable_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 163.237,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "e9b1cc8dc286ba3fbfda4dd872e24da1ee89c91a079328122b640fa5b360697a"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_applicable_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 40.824,
+        "response_bytes": 7,
+        "requests": 1,
+        "response_sha256": "399c6f7a5088d003999ec8221373bf325af6a5128e56fd70ba5d2fa05dae034b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_plain_fee_types_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 104.474,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_search_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 128.488,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_all_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 133.91,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_oldest",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 10.578,
+        "response_bytes": 20887,
+        "requests": 1,
+        "response_sha256": "aa87baf808d6c9edb6e7c55f8f862479c2f614b6d6be0656bd2aca7cb3970554"
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_newest",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 9.697,
+        "response_bytes": 20642,
+        "requests": 1,
+        "response_sha256": "d5d1f4bae841e31df4572e5bb4c82280d79f7b8e0f8e03c8e9cb8faaf53fe4ce"
+      },
+      {
+        "role": "operator",
+        "case": "explicit_full_range_totals",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 2269.259,
+        "response_bytes": 1778,
+        "requests": 1,
+        "response_sha256": "74cb9f6724f51e36c516bb47b0256c0310c46e9bbddf59b6c506cddbc73f4a56"
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_company_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 158.983,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7"
+      },
+      {
+        "role": "operator",
+        "case": "data_kiosk_unbounded_count",
+        "iteration": 3,
+        "warmup": false,
+        "elapsed_ms": 17.248,
+        "response_bytes": 8,
+        "requests": 1,
+        "response_sha256": "dcaee0a48a27b2301b6d28c299e0584f1f326211bdb218257b8707e536fd7a60"
+      }
+    ],
+    "catalog_before": {
+      "format": "2-includes-view-options-and-index-state",
+      "tables_views_security": "2eaab74dab667ff39b82b6a0719b963ba792fdc4c1a06b42f5fb990b5a956bb9",
+      "columns": "f585a595e2ac92eaa2d772840ebd39a81f504c04e520a011251c5300d5c884d5",
+      "constraints": "f5536f32681dd1ac811fe0904ac6daa2f83651cb91399243cbf7727f59dce0ab",
+      "indexes": "f9e5867b754de7a47fe39b2f8e9566049640b5e207d595abe63fae0fd3fa7066",
+      "functions": "10b485037a48f69feb7943cc2b40cda30223ac41f1c981284cc008dac444c85a",
+      "policies": "a4af6ac9e581da9b6473f9284930873e65543c9087ff5167c334630e8785ef45",
+      "triggers": "5ba4cb107dbcb3fcf4d1f4380c2cbb78303a91c8256c923965f848b7be9c35ca",
+      "types_and_schemas": "71ec52542ed515477b83763ed156e959f01458ed6fe55ed1375dcbe78b28eaec"
+    },
+    "catalog_after": {
+      "format": "2-includes-view-options-and-index-state",
+      "tables_views_security": "2eaab74dab667ff39b82b6a0719b963ba792fdc4c1a06b42f5fb990b5a956bb9",
+      "columns": "f585a595e2ac92eaa2d772840ebd39a81f504c04e520a011251c5300d5c884d5",
+      "constraints": "f5536f32681dd1ac811fe0904ac6daa2f83651cb91399243cbf7727f59dce0ab",
+      "indexes": "f9e5867b754de7a47fe39b2f8e9566049640b5e207d595abe63fae0fd3fa7066",
+      "functions": "10b485037a48f69feb7943cc2b40cda30223ac41f1c981284cc008dac444c85a",
+      "policies": "a4af6ac9e581da9b6473f9284930873e65543c9087ff5167c334630e8785ef45",
+      "triggers": "5ba4cb107dbcb3fcf4d1f4380c2cbb78303a91c8256c923965f848b7be9c35ca",
+      "types_and_schemas": "71ec52542ed515477b83763ed156e959f01458ed6fe55ed1375dcbe78b28eaec"
+    },
+    "summary": [
+      {
+        "role": "member_a",
+        "case": "unbounded_newest",
+        "median_ms": 9.697,
+        "min_ms": 9.486,
+        "max_ms": 11.418,
+        "matching_rows": 463980,
+        "returned_rows": 25
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_oldest",
+        "median_ms": 10.578,
+        "min_ms": 10.215,
+        "max_ms": 10.706,
+        "matching_rows": 463980,
+        "returned_rows": 25
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_all_count",
+        "median_ms": 134.033,
+        "min_ms": 133.91,
+        "max_ms": 149.339,
+        "matching_rows": 463980
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_search_count",
+        "median_ms": 136.91,
+        "min_ms": 128.488,
+        "max_ms": 140.399,
+        "matching_rows": 215410
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_plain_fee_types_count",
+        "median_ms": 106.453,
+        "min_ms": 104.474,
+        "max_ms": 106.57,
+        "matching_rows": 215410
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_applicable_count",
+        "median_ms": 40.667,
+        "min_ms": 39.727,
+        "max_ms": 40.824,
+        "matching_rows": 76060
+      },
+      {
+        "role": "member_a",
+        "case": "unbounded_fee_not_applicable_count",
+        "median_ms": 160.476,
+        "min_ms": 154.259,
+        "max_ms": 163.237,
+        "matching_rows": 387920
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_newest",
+        "median_ms": 8.67,
+        "min_ms": 8.244,
+        "max_ms": 9.902,
+        "matching_rows": 875300,
+        "returned_rows": 25
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_oldest",
+        "median_ms": 9.456,
+        "min_ms": 8.298,
+        "max_ms": 9.767,
+        "matching_rows": 875300,
+        "returned_rows": 25
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_all_count",
+        "median_ms": 101.623,
+        "min_ms": 92.138,
+        "max_ms": 104.379,
+        "matching_rows": 875300
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_search_count",
+        "median_ms": 341.806,
+        "min_ms": 336.841,
+        "max_ms": 348.617,
+        "matching_rows": 402240
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_plain_fee_types_count",
+        "median_ms": 82.707,
+        "min_ms": 81.792,
+        "max_ms": 93.611,
+        "matching_rows": 402240
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_applicable_count",
+        "median_ms": 32.864,
+        "min_ms": 32.546,
+        "max_ms": 32.917,
+        "matching_rows": 140630
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_fee_not_applicable_count",
+        "median_ms": 121.974,
+        "min_ms": 115.4,
+        "max_ms": 128.24,
+        "matching_rows": 734670
+      },
+      {
+        "role": "operator",
+        "case": "settlement_unbounded_count",
+        "median_ms": 153.883,
+        "min_ms": 149.262,
+        "max_ms": 154.08,
+        "matching_rows": 737330
+      },
+      {
+        "role": "operator",
+        "case": "data_kiosk_unbounded_count",
+        "median_ms": 17.253,
+        "min_ms": 17.248,
+        "max_ms": 17.828,
+        "matching_rows": 148720
+      },
+      {
+        "role": "operator",
+        "case": "unbounded_company_count",
+        "median_ms": 158.663,
+        "min_ms": 154.624,
+        "max_ms": 158.983,
+        "matching_rows": 463980
+      },
+      {
+        "role": "operator",
+        "case": "explicit_full_range_totals",
+        "median_ms": 2301.948,
+        "min_ms": 2269.259,
+        "max_ms": 2309.27,
+        "arguments": {
+          "p_date_from": "2017-05-27",
+          "p_date_to": "2026-09-13"
+        },
+        "matching_rows": 875300,
+        "currency_scope": "all_currencies",
+        "returned_groups": 9
+      }
+    ]
+  },
+  "method": "Current date-leading implementation, one warmup and three measured authenticated HTTP repetitions per case.",
+  "reference_equivalence": [
+    {
+      "role": "member_a",
+      "case": "unbounded_all_count",
+      "verified_responses": 8,
+      "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7",
+      "response_bytes": 8
+    },
+    {
+      "role": "member_a",
+      "case": "unbounded_fee_applicable_count",
+      "verified_responses": 8,
+      "response_sha256": "399c6f7a5088d003999ec8221373bf325af6a5128e56fd70ba5d2fa05dae034b",
+      "response_bytes": 7
+    },
+    {
+      "role": "member_a",
+      "case": "unbounded_fee_not_applicable_count",
+      "verified_responses": 8,
+      "response_sha256": "e9b1cc8dc286ba3fbfda4dd872e24da1ee89c91a079328122b640fa5b360697a",
+      "response_bytes": 8
+    },
+    {
+      "role": "member_a",
+      "case": "unbounded_fee_search_count",
+      "verified_responses": 8,
+      "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b",
+      "response_bytes": 8
+    },
+    {
+      "role": "member_a",
+      "case": "unbounded_newest",
+      "verified_responses": 8,
+      "response_sha256": "d5d1f4bae841e31df4572e5bb4c82280d79f7b8e0f8e03c8e9cb8faaf53fe4ce",
+      "response_bytes": 20642
+    },
+    {
+      "role": "member_a",
+      "case": "unbounded_oldest",
+      "verified_responses": 8,
+      "response_sha256": "aa87baf808d6c9edb6e7c55f8f862479c2f614b6d6be0656bd2aca7cb3970554",
+      "response_bytes": 20887
+    },
+    {
+      "role": "member_a",
+      "case": "unbounded_plain_fee_types_count",
+      "verified_responses": 8,
+      "response_sha256": "2a7cc81d0fb04db807b7e52592cd3ce929384ff1c1822b2a78f843c5c68e704b",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "data_kiosk_unbounded_count",
+      "verified_responses": 8,
+      "response_sha256": "dcaee0a48a27b2301b6d28c299e0584f1f326211bdb218257b8707e536fd7a60",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "explicit_full_range_totals",
+      "verified_responses": 8,
+      "response_sha256": "74cb9f6724f51e36c516bb47b0256c0310c46e9bbddf59b6c506cddbc73f4a56",
+      "response_bytes": 1778
+    },
+    {
+      "role": "operator",
+      "case": "settlement_unbounded_count",
+      "verified_responses": 8,
+      "response_sha256": "916b3542d89352e588d0311459cd9eb8e86924f32d6944f9304305d8be2c11e0",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_all_count",
+      "verified_responses": 8,
+      "response_sha256": "288c5cc99b13e8035ec89faeea0c1b79abd38baca3b7046a27154ed8b55446f3",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_company_count",
+      "verified_responses": 8,
+      "response_sha256": "a1602ac54528ddc02ee408944593587b840171f4efca78f564a781ee996028f7",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_fee_applicable_count",
+      "verified_responses": 8,
+      "response_sha256": "9f2cfd621d36fc1fb8476ebbf8dbad35befcdc319e4cfc506429748917025f66",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_fee_not_applicable_count",
+      "verified_responses": 8,
+      "response_sha256": "4ea1ead37cb95019751af4575b8ace02aa5f5a90c6163a9f533605ffebd534bd",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_fee_search_count",
+      "verified_responses": 8,
+      "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c",
+      "response_bytes": 8
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_newest",
+      "verified_responses": 8,
+      "response_sha256": "bbdde527ab6048a3abbaaf35afef884b212c5c7c2d1801984ccbc0f806f470e4",
+      "response_bytes": 20635
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_oldest",
+      "verified_responses": 8,
+      "response_sha256": "73d7e5be2fbdb25e27edfb3d08bf53d42a225d5939ebf4bbef0d8cec896a95f4",
+      "response_bytes": 20923
+    },
+    {
+      "role": "operator",
+      "case": "unbounded_plain_fee_types_count",
+      "verified_responses": 8,
+      "response_sha256": "81a5da68afc791d881f2c3e9a4b41912d912ae6e1a537998a3a42898b2c7740c",
+      "response_bytes": 8
+    }
+  ]
+}

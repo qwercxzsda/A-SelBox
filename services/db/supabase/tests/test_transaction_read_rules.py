@@ -12,11 +12,9 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture
 _INLINE_HELPERS = (
     "private.settlement_fee_applicable(text,text,text)",
     "private.calculate_service_fee(numeric,numeric)",
-    "private.visible_transaction_search_matches(text,text,text,text,text,text)",
 )
 _HELPERS = (
     *_INLINE_HELPERS,
-    "private.literal_search_pattern(text)",
     "private.validate_transaction_filters(date,date,uuid[],text[],text[],text[],text[],boolean)",
     "private.validate_page_bounds(integer,bigint)",
     "private.member_policy_covers_current_version(regclass)",

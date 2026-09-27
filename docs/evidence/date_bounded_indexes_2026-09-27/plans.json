@@ -1,0 +1,2725 @@
+{
+  "label": "selected_final",
+  "plans": [
+    {
+      "role": "member_a",
+      "case": "window_all",
+      "rpc": "transaction_count",
+      "date_from": "2026-07-16",
+      "date_to": "2026-09-13",
+      "execution_ms": 15.437,
+      "planning_ms": 0.299,
+      "jit": null,
+      "plan": {
+        "Node Type": "Aggregate",
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 805,
+        "Shared Read Blocks": 368,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 805,
+            "Shared Read Blocks": 368,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 291,
+                "Shared Read Blocks": 227,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 1",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Only Scan",
+                    "Parent Relationship": "Outer",
+                    "Scan Direction": "Forward",
+                    "Index Name": "settlement_transactions_date_count_idx",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Rows": 29623,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 28042,
+                    "Heap Fetches": 0,
+                    "Shared Hit Blocks": 291,
+                    "Shared Read Blocks": 227,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "index_date_bounds": {
+                      "columns": [
+                        "posted_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 2",
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 287,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 5",
+                        "Relation Name": "settlements",
+                        "Actual Rows": 580,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 2,
+                        "Shared Read Blocks": 14,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 3",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 4",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 514,
+                "Shared Read Blocks": 141,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 6",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Only Scan",
+                    "Parent Relationship": "Outer",
+                    "Scan Direction": "Forward",
+                    "Index Name": "data_kiosk_transactions_nonzero_count_idx",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Rows": 6008,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 3738,
+                    "Heap Fetches": 0,
+                    "Shared Hit Blocks": 514,
+                    "Shared Read Blocks": 141,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "index_date_bounds": {
+                      "columns": [
+                        "activity_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 7",
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 287,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 10",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Rows": 16200,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 225,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 8",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 9",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "role": "member_a",
+      "case": "window_fee_search",
+      "rpc": "transaction_count",
+      "date_from": "2026-07-16",
+      "date_to": "2026-09-13",
+      "execution_ms": 11.986,
+      "planning_ms": 0.348,
+      "jit": null,
+      "plan": {
+        "Node Type": "Aggregate",
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1173,
+        "Shared Read Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 1173,
+            "Shared Read Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 518,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 1",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Only Scan",
+                    "Parent Relationship": "Outer",
+                    "Scan Direction": "Forward",
+                    "Index Name": "settlement_transactions_date_count_idx",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Rows": 11100,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 46565,
+                    "Heap Fetches": 0,
+                    "Shared Hit Blocks": 518,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "index_date_bounds": {
+                      "columns": [
+                        "posted_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 2",
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 287,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 5",
+                        "Relation Name": "settlements",
+                        "Actual Rows": 580,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 16,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 3",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 4",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 655,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 6",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Only Scan",
+                    "Parent Relationship": "Outer",
+                    "Scan Direction": "Forward",
+                    "Index Name": "data_kiosk_transactions_nonzero_count_idx",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Rows": 4653,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 5093,
+                    "Heap Fetches": 0,
+                    "Shared Hit Blocks": 655,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "index_date_bounds": {
+                      "columns": [
+                        "activity_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 7",
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 287,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 10",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Rows": 16200,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 225,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 8",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 9",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "role": "member_a",
+      "case": "window_totals",
+      "rpc": "transaction_totals",
+      "date_from": "2026-07-16",
+      "date_to": "2026-09-13",
+      "execution_ms": 74.687,
+      "planning_ms": 0.721,
+      "jit": null,
+      "plan": {
+        "Node Type": "Result",
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 1905,
+        "Shared Read Blocks": 10251,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Aggregate",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "CTE fact_groups",
+            "Actual Rows": 3485,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 1032,
+            "Shared Read Blocks": 10246,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Result",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 35631,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1032,
+                "Shared Read Blocks": 10246,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Append",
+                    "Parent Relationship": "Outer",
+                    "Actual Rows": 35631,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1032,
+                    "Shared Read Blocks": 10246,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Subquery Scan",
+                        "Parent Relationship": "Member",
+                        "Actual Rows": 29623,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 517,
+                        "Shared Read Blocks": 7272,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Bitmap Heap Scan",
+                            "Parent Relationship": "Subquery",
+                            "Relation Name": "settlement_transactions",
+                            "Actual Rows": 29623,
+                            "Actual Loops": 1,
+                            "Rows Removed by Index Recheck": 0,
+                            "Rows Removed by Filter": 28042,
+                            "Exact Heap Blocks": 7272,
+                            "Lossy Heap Blocks": 0,
+                            "Shared Hit Blocks": 517,
+                            "Shared Read Blocks": 7272,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "filter_date_bounds": {
+                              "columns": [],
+                              "contains_lower_day": false,
+                              "contains_upper_day": false
+                            },
+                            "recheck_date_bounds": {
+                              "columns": [
+                                "posted_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            },
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "InitPlan",
+                                "Subplan Name": "InitPlan 1",
+                                "Actual Rows": 1,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 1,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              },
+                              {
+                                "Node Type": "Bitmap Index Scan",
+                                "Parent Relationship": "Outer",
+                                "Index Name": "settlement_transactions_date_count_idx",
+                                "Actual Rows": 57665,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 213,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "index_date_bounds": {
+                                  "columns": [
+                                    "posted_date"
+                                  ],
+                                  "contains_lower_day": true,
+                                  "contains_upper_day": true
+                                }
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Subplan Name": "SubPlan 2",
+                                "Actual Rows": 64,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 287,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              },
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Subplan Name": "SubPlan 5",
+                                "Relation Name": "settlements",
+                                "Actual Rows": 580,
+                                "Actual Loops": 1,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 16,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "filter_date_bounds": {
+                                  "columns": [],
+                                  "contains_lower_day": false,
+                                  "contains_upper_day": false
+                                },
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Subplan Name": "InitPlan 3",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Subplan Name": "InitPlan 4",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Subquery Scan",
+                        "Parent Relationship": "Member",
+                        "Actual Rows": 6008,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 515,
+                        "Shared Read Blocks": 2974,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Bitmap Heap Scan",
+                            "Parent Relationship": "Subquery",
+                            "Relation Name": "data_kiosk_transactions",
+                            "Actual Rows": 6008,
+                            "Actual Loops": 1,
+                            "Rows Removed by Index Recheck": 0,
+                            "Rows Removed by Filter": 13485,
+                            "Exact Heap Blocks": 2877,
+                            "Lossy Heap Blocks": 0,
+                            "Shared Hit Blocks": 515,
+                            "Shared Read Blocks": 2974,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "filter_date_bounds": {
+                              "columns": [],
+                              "contains_lower_day": false,
+                              "contains_upper_day": false
+                            },
+                            "recheck_date_bounds": {
+                              "columns": [
+                                "activity_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            },
+                            "Plans": [
+                              {
+                                "Node Type": "Result",
+                                "Parent Relationship": "InitPlan",
+                                "Subplan Name": "InitPlan 6",
+                                "Actual Rows": 1,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 1,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              },
+                              {
+                                "Node Type": "Bitmap Index Scan",
+                                "Parent Relationship": "Outer",
+                                "Index Name": "data_kiosk_transactions_date_id_idx",
+                                "Actual Rows": 19493,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 2,
+                                "Shared Read Blocks": 97,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "index_date_bounds": {
+                                  "columns": [
+                                    "activity_date"
+                                  ],
+                                  "contains_lower_day": true,
+                                  "contains_upper_day": true
+                                }
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Subplan Name": "SubPlan 7",
+                                "Actual Rows": 64,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 287,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              },
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Subplan Name": "SubPlan 10",
+                                "Relation Name": "data_kiosk_days",
+                                "Actual Rows": 16200,
+                                "Actual Loops": 1,
+                                "Rows Removed by Filter": 0,
+                                "Shared Hit Blocks": 225,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "filter_date_bounds": {
+                                  "columns": [],
+                                  "contains_lower_day": false,
+                                  "contains_upper_day": false
+                                },
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Subplan Name": "InitPlan 8",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Subplan Name": "InitPlan 9",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Hash Join",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "CTE selected_terms",
+            "Join Type": "Inner",
+            "Actual Rows": 33,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 585,
+            "Shared Read Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Result",
+                "Parent Relationship": "InitPlan",
+                "Subplan Name": "InitPlan 12",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              {
+                "Node Type": "Result",
+                "Parent Relationship": "InitPlan",
+                "Subplan Name": "InitPlan 14",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Relation Name": "sku_terms_versions",
+                "Actual Rows": 64,
+                "Actual Loops": 1,
+                "Rows Removed by Filter": 194,
+                "Shared Hit Blocks": 293,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "filter_date_bounds": {
+                  "columns": [],
+                  "contains_lower_day": false,
+                  "contains_upper_day": false
+                },
+                "Plans": [
+                  {
+                    "Node Type": "Function Scan",
+                    "Parent Relationship": "SubPlan",
+                    "Subplan Name": "SubPlan 15",
+                    "Actual Rows": 64,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 287,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              },
+              {
+                "Node Type": "Hash",
+                "Parent Relationship": "Inner",
+                "Actual Rows": 33,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 292,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Hash Join",
+                    "Parent Relationship": "Outer",
+                    "Join Type": "Inner",
+                    "Actual Rows": 33,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 292,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Aggregate",
+                        "Parent Relationship": "Outer",
+                        "Actual Rows": 33,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "CTE Scan",
+                            "Parent Relationship": "Outer",
+                            "Actual Rows": 3485,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Hash",
+                        "Parent Relationship": "Inner",
+                        "Actual Rows": 64,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 292,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Rows": 64,
+                            "Actual Loops": 1,
+                            "Rows Removed by Filter": 65,
+                            "Shared Hit Blocks": 292,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "filter_date_bounds": {
+                              "columns": [],
+                              "contains_lower_day": false,
+                              "contains_upper_day": false
+                            },
+                            "Plans": [
+                              {
+                                "Node Type": "Function Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Subplan Name": "SubPlan 13",
+                                "Actual Rows": 64,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 287,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Limit",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "CTE selected",
+            "Actual Rows": 9,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 1905,
+            "Shared Read Blocks": 10251,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 9,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1905,
+                "Shared Read Blocks": 10251,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Subquery Scan",
+                    "Parent Relationship": "Outer",
+                    "Actual Rows": 9,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1905,
+                    "Shared Read Blocks": 10251,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Aggregate",
+                        "Parent Relationship": "Subquery",
+                        "Actual Rows": 9,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 1905,
+                        "Shared Read Blocks": 10251,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 17",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Hash Join",
+                            "Parent Relationship": "Outer",
+                            "Join Type": "Left",
+                            "Actual Rows": 3485,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1905,
+                            "Shared Read Blocks": 10251,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Hash Join",
+                                "Parent Relationship": "Outer",
+                                "Join Type": "Left",
+                                "Actual Rows": 3485,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 1617,
+                                "Shared Read Blocks": 10246,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "CTE Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Actual Rows": 3485,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1032,
+                                    "Shared Read Blocks": 10246,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Hash",
+                                    "Parent Relationship": "Inner",
+                                    "Actual Rows": 33,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 585,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "CTE Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Actual Rows": 33,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 585,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Hash",
+                                "Parent Relationship": "Inner",
+                                "Actual Rows": 99,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 288,
+                                "Shared Read Blocks": 5,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Relation Name": "sku_fee_periods",
+                                    "Actual Rows": 99,
+                                    "Actual Loops": 1,
+                                    "Rows Removed by Filter": 285,
+                                    "Shared Hit Blocks": 288,
+                                    "Shared Read Blocks": 5,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "filter_date_bounds": {
+                                      "columns": [],
+                                      "contains_lower_day": false,
+                                      "contains_upper_day": false
+                                    },
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Function Scan",
+                                        "Parent Relationship": "SubPlan",
+                                        "Subplan Name": "SubPlan 18",
+                                        "Actual Rows": 64,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 287,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Aggregate",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "InitPlan 20",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 1905,
+            "Shared Read Blocks": 10251,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Limit",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 9,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1905,
+                "Shared Read Blocks": 10251,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "CTE Scan",
+                    "Parent Relationship": "Outer",
+                    "Actual Rows": 9,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1905,
+                    "Shared Read Blocks": 10251,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Aggregate",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "InitPlan 21",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "CTE Scan",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 9,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "role": "operator",
+      "case": "window_all",
+      "rpc": "transaction_count",
+      "date_from": "2026-07-16",
+      "date_to": "2026-09-13",
+      "execution_ms": 11.392,
+      "planning_ms": 0.314,
+      "jit": null,
+      "plan": {
+        "Node Type": "Aggregate",
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 229,
+        "Shared Read Blocks": 368,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 229,
+            "Shared Read Blocks": 368,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 227,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 7",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Only Scan",
+                    "Parent Relationship": "Outer",
+                    "Scan Direction": "Forward",
+                    "Index Name": "settlement_transactions_date_count_idx",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Rows": 57665,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 0,
+                    "Heap Fetches": 0,
+                    "Shared Hit Blocks": 3,
+                    "Shared Read Blocks": 227,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "index_date_bounds": {
+                      "columns": [
+                        "posted_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 8",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 11",
+                        "Relation Name": "settlements",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 9",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 10",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 6",
+                        "Relation Name": "settlements",
+                        "Actual Rows": 580,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 1,
+                        "Shared Read Blocks": 14,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 4",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 5",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 226,
+                "Shared Read Blocks": 141,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 18",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Only Scan",
+                    "Parent Relationship": "Outer",
+                    "Scan Direction": "Forward",
+                    "Index Name": "data_kiosk_transactions_nonzero_count_idx",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Rows": 9746,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 0,
+                    "Heap Fetches": 0,
+                    "Shared Hit Blocks": 226,
+                    "Shared Read Blocks": 141,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "index_date_bounds": {
+                      "columns": [
+                        "activity_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 19",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 22",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 20",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 21",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 17",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Rows": 16200,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 224,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 15",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 16",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "role": "operator",
+      "case": "window_fee_search",
+      "rpc": "transaction_count",
+      "date_from": "2026-07-16",
+      "date_to": "2026-09-13",
+      "execution_ms": 37.953,
+      "planning_ms": 1.875,
+      "jit": null,
+      "plan": {
+        "Node Type": "Aggregate",
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 482,
+        "Shared Read Blocks": 9527,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Append",
+            "Parent Relationship": "Outer",
+            "Actual Rows": 2,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 482,
+            "Shared Read Blocks": 9527,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 229,
+                "Shared Read Blocks": 7209,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 7",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Bitmap Heap Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "settlement_transactions",
+                    "Actual Rows": 22398,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 0,
+                    "Exact Heap Blocks": 7209,
+                    "Lossy Heap Blocks": 0,
+                    "Shared Hit Blocks": 229,
+                    "Shared Read Blocks": 7209,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "recheck_date_bounds": {
+                      "columns": [
+                        "posted_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "BitmapOr",
+                        "Parent Relationship": "Outer",
+                        "Actual Rows": 0,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 213,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Member",
+                            "Index Name": "settlement_transactions_sku_date_idx",
+                            "Actual Rows": 0,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "index_date_bounds": {
+                              "columns": [
+                                "posted_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            }
+                          },
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Member",
+                            "Index Name": "settlement_transactions_date_count_idx",
+                            "Actual Rows": 22398,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 213,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "index_date_bounds": {
+                              "columns": [
+                                "posted_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            }
+                          },
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Member",
+                            "Index Name": "settlement_transactions_marketplace_date_idx",
+                            "Actual Rows": 0,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "index_date_bounds": {
+                              "columns": [
+                                "posted_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 8",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 11",
+                        "Relation Name": "settlements",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 9",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 10",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 6",
+                        "Relation Name": "settlements",
+                        "Actual Rows": 580,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 15,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 4",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 5",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "Aggregate",
+                "Parent Relationship": "Member",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 253,
+                "Shared Read Blocks": 2318,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "InitPlan 18",
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  },
+                  {
+                    "Node Type": "Bitmap Heap Scan",
+                    "Parent Relationship": "Outer",
+                    "Relation Name": "data_kiosk_transactions",
+                    "Actual Rows": 7619,
+                    "Actual Loops": 1,
+                    "Rows Removed by Index Recheck": 0,
+                    "Rows Removed by Filter": 172,
+                    "Exact Heap Blocks": 2288,
+                    "Lossy Heap Blocks": 0,
+                    "Shared Hit Blocks": 253,
+                    "Shared Read Blocks": 2318,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "filter_date_bounds": {
+                      "columns": [],
+                      "contains_lower_day": false,
+                      "contains_upper_day": false
+                    },
+                    "recheck_date_bounds": {
+                      "columns": [
+                        "activity_date"
+                      ],
+                      "contains_lower_day": true,
+                      "contains_upper_day": true
+                    },
+                    "Plans": [
+                      {
+                        "Node Type": "BitmapOr",
+                        "Parent Relationship": "Outer",
+                        "Actual Rows": 0,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 28,
+                        "Shared Read Blocks": 30,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Member",
+                            "Index Name": "data_kiosk_transactions_sku_date_idx",
+                            "Actual Rows": 0,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "index_date_bounds": {
+                              "columns": [
+                                "activity_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            }
+                          },
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Member",
+                            "Index Name": "data_kiosk_transactions_type_date_idx",
+                            "Actual Rows": 7791,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 28,
+                            "Shared Read Blocks": 30,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "index_date_bounds": {
+                              "columns": [
+                                "activity_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            }
+                          },
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Member",
+                            "Index Name": "data_kiosk_transactions_marketplace_date_idx",
+                            "Actual Rows": 0,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "index_date_bounds": {
+                              "columns": [
+                                "activity_date"
+                              ],
+                              "contains_lower_day": true,
+                              "contains_upper_day": true
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 19",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 22",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Rows": 0,
+                        "Actual Loops": 0,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 0,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 20",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 21",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "SubPlan",
+                        "Subplan Name": "SubPlan 17",
+                        "Relation Name": "data_kiosk_days",
+                        "Actual Rows": 16200,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 224,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 15",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 16",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "role": "operator",
+      "case": "window_totals",
+      "rpc": "transaction_totals",
+      "date_from": "2026-07-16",
+      "date_to": "2026-09-13",
+      "execution_ms": 126.655,
+      "planning_ms": 0.765,
+      "jit": null,
+      "plan": {
+        "Node Type": "Result",
+        "Actual Rows": 1,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 9965,
+        "Shared Read Blocks": 762,
+        "Temp Read Blocks": 628,
+        "Temp Written Blocks": 629,
+        "Plans": [
+          {
+            "Node Type": "Aggregate",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "CTE fact_groups",
+            "Actual Rows": 5394,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 9958,
+            "Shared Read Blocks": 752,
+            "Temp Read Blocks": 628,
+            "Temp Written Blocks": 629,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 67411,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 9958,
+                "Shared Read Blocks": 752,
+                "Temp Read Blocks": 628,
+                "Temp Written Blocks": 629,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Actual Rows": 67411,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 9953,
+                    "Shared Read Blocks": 749,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Append",
+                        "Parent Relationship": "Outer",
+                        "Actual Rows": 67411,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 9953,
+                        "Shared Read Blocks": 749,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Subquery Scan",
+                            "Parent Relationship": "Member",
+                            "Actual Rows": 57665,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 7438,
+                            "Shared Read Blocks": 63,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Bitmap Heap Scan",
+                                "Parent Relationship": "Subquery",
+                                "Relation Name": "settlement_transactions",
+                                "Actual Rows": 57665,
+                                "Actual Loops": 1,
+                                "Rows Removed by Index Recheck": 0,
+                                "Rows Removed by Filter": 0,
+                                "Exact Heap Blocks": 7272,
+                                "Lossy Heap Blocks": 0,
+                                "Shared Hit Blocks": 7438,
+                                "Shared Read Blocks": 63,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "filter_date_bounds": {
+                                  "columns": [],
+                                  "contains_lower_day": false,
+                                  "contains_upper_day": false
+                                },
+                                "recheck_date_bounds": {
+                                  "columns": [
+                                    "posted_date"
+                                  ],
+                                  "contains_lower_day": true,
+                                  "contains_upper_day": true
+                                },
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Subplan Name": "InitPlan 7",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Bitmap Index Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Index Name": "settlement_transactions_date_count_idx",
+                                    "Actual Rows": 57665,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 213,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "index_date_bounds": {
+                                      "columns": [
+                                        "posted_date"
+                                      ],
+                                      "contains_lower_day": true,
+                                      "contains_upper_day": true
+                                    }
+                                  },
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Parent Relationship": "SubPlan",
+                                    "Subplan Name": "SubPlan 8",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "SubPlan",
+                                    "Subplan Name": "SubPlan 11",
+                                    "Relation Name": "settlements",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Rows Removed by Filter": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "filter_date_bounds": {
+                                      "columns": [],
+                                      "contains_lower_day": false,
+                                      "contains_upper_day": false
+                                    },
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 9",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      },
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 10",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "SubPlan",
+                                    "Subplan Name": "SubPlan 6",
+                                    "Relation Name": "settlements",
+                                    "Actual Rows": 580,
+                                    "Actual Loops": 1,
+                                    "Rows Removed by Filter": 0,
+                                    "Shared Hit Blocks": 15,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "filter_date_bounds": {
+                                      "columns": [],
+                                      "contains_lower_day": false,
+                                      "contains_upper_day": false
+                                    },
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 4",
+                                        "Actual Rows": 1,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 1,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      },
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 5",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Subquery Scan",
+                            "Parent Relationship": "Member",
+                            "Actual Rows": 9746,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 2515,
+                            "Shared Read Blocks": 686,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Bitmap Heap Scan",
+                                "Parent Relationship": "Subquery",
+                                "Relation Name": "data_kiosk_transactions",
+                                "Actual Rows": 9746,
+                                "Actual Loops": 1,
+                                "Rows Removed by Index Recheck": 0,
+                                "Rows Removed by Filter": 9747,
+                                "Exact Heap Blocks": 2877,
+                                "Lossy Heap Blocks": 0,
+                                "Shared Hit Blocks": 2515,
+                                "Shared Read Blocks": 686,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "filter_date_bounds": {
+                                  "columns": [],
+                                  "contains_lower_day": false,
+                                  "contains_upper_day": false
+                                },
+                                "recheck_date_bounds": {
+                                  "columns": [
+                                    "activity_date"
+                                  ],
+                                  "contains_lower_day": true,
+                                  "contains_upper_day": true
+                                },
+                                "Plans": [
+                                  {
+                                    "Node Type": "Result",
+                                    "Parent Relationship": "InitPlan",
+                                    "Subplan Name": "InitPlan 18",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Bitmap Index Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Index Name": "data_kiosk_transactions_date_id_idx",
+                                    "Actual Rows": 19493,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 2,
+                                    "Shared Read Blocks": 97,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "index_date_bounds": {
+                                      "columns": [
+                                        "activity_date"
+                                      ],
+                                      "contains_lower_day": true,
+                                      "contains_upper_day": true
+                                    }
+                                  },
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Parent Relationship": "SubPlan",
+                                    "Subplan Name": "SubPlan 19",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0
+                                  },
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "SubPlan",
+                                    "Subplan Name": "SubPlan 22",
+                                    "Relation Name": "data_kiosk_days",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Rows Removed by Filter": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "filter_date_bounds": {
+                                      "columns": [],
+                                      "contains_lower_day": false,
+                                      "contains_upper_day": false
+                                    },
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 20",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      },
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 21",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "SubPlan",
+                                    "Subplan Name": "SubPlan 17",
+                                    "Relation Name": "data_kiosk_days",
+                                    "Actual Rows": 16200,
+                                    "Actual Loops": 1,
+                                    "Rows Removed by Filter": 0,
+                                    "Shared Hit Blocks": 224,
+                                    "Shared Read Blocks": 0,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "filter_date_bounds": {
+                                      "columns": [],
+                                      "contains_lower_day": false,
+                                      "contains_upper_day": false
+                                    },
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 15",
+                                        "Actual Rows": 1,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 1,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      },
+                                      {
+                                        "Node Type": "Result",
+                                        "Parent Relationship": "InitPlan",
+                                        "Subplan Name": "InitPlan 16",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Merge Join",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "CTE selected_terms",
+            "Join Type": "Semi",
+            "Actual Rows": 62,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 6,
+            "Shared Read Blocks": 5,
+            "Temp Read Blocks": 134,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Result",
+                "Parent Relationship": "InitPlan",
+                "Subplan Name": "InitPlan 24",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              {
+                "Node Type": "Result",
+                "Parent Relationship": "InitPlan",
+                "Subplan Name": "InitPlan 26",
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 127,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 6,
+                "Shared Read Blocks": 5,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Hash Join",
+                    "Parent Relationship": "Outer",
+                    "Join Type": "Inner",
+                    "Actual Rows": 129,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 6,
+                    "Shared Read Blocks": 5,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "Outer",
+                        "Relation Name": "sku_terms_versions",
+                        "Actual Rows": 258,
+                        "Actual Loops": 1,
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 1,
+                        "Shared Read Blocks": 5,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "filter_date_bounds": {
+                          "columns": [],
+                          "contains_lower_day": false,
+                          "contains_upper_day": false
+                        },
+                        "Plans": [
+                          {
+                            "Node Type": "Function Scan",
+                            "Parent Relationship": "SubPlan",
+                            "Subplan Name": "SubPlan 27",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Hash",
+                        "Parent Relationship": "Inner",
+                        "Actual Rows": 129,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 5,
+                        "Shared Read Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Relation Name": "seller_skus",
+                            "Actual Rows": 129,
+                            "Actual Loops": 1,
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 5,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "filter_date_bounds": {
+                              "columns": [],
+                              "contains_lower_day": false,
+                              "contains_upper_day": false
+                            },
+                            "Plans": [
+                              {
+                                "Node Type": "Function Scan",
+                                "Parent Relationship": "SubPlan",
+                                "Subplan Name": "SubPlan 25",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Node Type": "CTE Scan",
+                "Parent Relationship": "Inner",
+                "Actual Rows": 5394,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 134,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          {
+            "Node Type": "Limit",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "CTE selected",
+            "Actual Rows": 9,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 9965,
+            "Shared Read Blocks": 762,
+            "Temp Read Blocks": 628,
+            "Temp Written Blocks": 629,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 9,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 9965,
+                "Shared Read Blocks": 762,
+                "Temp Read Blocks": 628,
+                "Temp Written Blocks": 629,
+                "Plans": [
+                  {
+                    "Node Type": "Subquery Scan",
+                    "Parent Relationship": "Outer",
+                    "Actual Rows": 9,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 9965,
+                    "Shared Read Blocks": 762,
+                    "Temp Read Blocks": 628,
+                    "Temp Written Blocks": 629,
+                    "Plans": [
+                      {
+                        "Node Type": "Aggregate",
+                        "Parent Relationship": "Subquery",
+                        "Actual Rows": 9,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 9965,
+                        "Shared Read Blocks": 762,
+                        "Temp Read Blocks": 628,
+                        "Temp Written Blocks": 629,
+                        "Plans": [
+                          {
+                            "Node Type": "Result",
+                            "Parent Relationship": "InitPlan",
+                            "Subplan Name": "InitPlan 29",
+                            "Actual Rows": 1,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 1,
+                            "Shared Read Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Hash Join",
+                            "Parent Relationship": "Outer",
+                            "Join Type": "Left",
+                            "Actual Rows": 5394,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 9965,
+                            "Shared Read Blocks": 762,
+                            "Temp Read Blocks": 628,
+                            "Temp Written Blocks": 629,
+                            "Plans": [
+                              {
+                                "Node Type": "Merge Join",
+                                "Parent Relationship": "Outer",
+                                "Join Type": "Left",
+                                "Actual Rows": 5394,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 9964,
+                                "Shared Read Blocks": 757,
+                                "Temp Read Blocks": 628,
+                                "Temp Written Blocks": 629,
+                                "Plans": [
+                                  {
+                                    "Node Type": "CTE Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Actual Rows": 5394,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 9958,
+                                    "Shared Read Blocks": 752,
+                                    "Temp Read Blocks": 494,
+                                    "Temp Written Blocks": 629
+                                  },
+                                  {
+                                    "Node Type": "Sort",
+                                    "Parent Relationship": "Inner",
+                                    "Actual Rows": 5394,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 6,
+                                    "Shared Read Blocks": 5,
+                                    "Temp Read Blocks": 134,
+                                    "Temp Written Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "CTE Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Actual Rows": 62,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 6,
+                                        "Shared Read Blocks": 5,
+                                        "Temp Read Blocks": 134,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Hash",
+                                "Parent Relationship": "Inner",
+                                "Actual Rows": 384,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 1,
+                                "Shared Read Blocks": 5,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Relation Name": "sku_fee_periods",
+                                    "Actual Rows": 384,
+                                    "Actual Loops": 1,
+                                    "Rows Removed by Filter": 0,
+                                    "Shared Hit Blocks": 1,
+                                    "Shared Read Blocks": 5,
+                                    "Temp Read Blocks": 0,
+                                    "Temp Written Blocks": 0,
+                                    "filter_date_bounds": {
+                                      "columns": [],
+                                      "contains_lower_day": false,
+                                      "contains_upper_day": false
+                                    },
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Function Scan",
+                                        "Parent Relationship": "SubPlan",
+                                        "Subplan Name": "SubPlan 30",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Temp Read Blocks": 0,
+                                        "Temp Written Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Aggregate",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "InitPlan 32",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 9965,
+            "Shared Read Blocks": 762,
+            "Temp Read Blocks": 628,
+            "Temp Written Blocks": 629,
+            "Plans": [
+              {
+                "Node Type": "Limit",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 9,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 9965,
+                "Shared Read Blocks": 762,
+                "Temp Read Blocks": 628,
+                "Temp Written Blocks": 629,
+                "Plans": [
+                  {
+                    "Node Type": "CTE Scan",
+                    "Parent Relationship": "Outer",
+                    "Actual Rows": 9,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 9965,
+                    "Shared Read Blocks": 762,
+                    "Temp Read Blocks": 628,
+                    "Temp Written Blocks": 629
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Node Type": "Aggregate",
+            "Parent Relationship": "InitPlan",
+            "Subplan Name": "InitPlan 33",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "CTE Scan",
+                "Parent Relationship": "Outer",
+                "Actual Rows": 9,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "definition_sha256": {
+    "transaction_count": "9daa4325bdf1e459ab5cdf5d3a31116f84f124c1818c8325cb47b961a3ec21a9",
+    "transaction_totals": "5d6e999caacd6ebd7f57ce2b867fd27fcbd5c254ce1f1d4d13e9084fd3e28928"
+  }
+}

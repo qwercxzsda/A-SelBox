@@ -48,7 +48,7 @@ export async function mockSupabase(page) {
       throw new Error("REST aggregates are disabled; use a dedicated RPC");
     if (url.pathname === "/rest/v1/rpc/transaction_totals")
       return respondWithSummary(fixture, context);
-    if (url.pathname === "/rest/v1/rpc/dataset_filter_options")
+    if (url.pathname === "/rest/v1/rpc/sku_filter_options")
       return respondWithOptions(fixture, context);
     if (
       ["/rest/v1/rpc/transaction_count", "/rest/v1/rpc/source_transaction_count"].includes(

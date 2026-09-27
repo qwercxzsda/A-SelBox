@@ -20,7 +20,7 @@ transactions contain no copied company, fee-rate, or payable values. Missing
 business configuration does not prevent preprocessing, but it prevents complete
 financial totals for the affected scope.
 
-Both sources use the same `PREPROCESS_VERSION`, currently `v0`. A strict combined read
+Both sources use the same `PREPROCESS_VERSION`, currently `v1`. A strict combined read
 requires this exact name on every required selected source version. Marketplace
 names join as exact `text`, validated against the same supported-name list in Python and database
 `CHECK` constraints. Original API IDs
@@ -138,6 +138,12 @@ sales of 100 and refunds of 20 produce a fee of -4. Noncommission costs require
 ownership but no rate. Fee-eligible zero amounts still require fee coverage.
 Every ordinary Order/Refund row independently requires its explicit source
 marketplace, including noncommission rows.
+
+Dashboard page queries project current terms only for seller/SKU keys on the selected page;
+totals use keys in the already-filtered fact groups. Both retain left joins so missing ownership
+and fee coverage remain visible as unresolved amounts. Member authorization separately uses a
+caller-bound set of all currently owned keys; narrowing financial projection never narrows or
+substitutes for the access check.
 
 Refunds currently use their own posting-date rate. A sale of 100 at 5% followed
 by a full refund at 7% produces fees of -5 and +7. The resulting over-credit is

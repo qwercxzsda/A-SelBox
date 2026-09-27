@@ -28,7 +28,7 @@ function datasetDependencies(dataset: DatasetKey, operator: boolean): readonly R
 
 export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   const [family] = key;
-  if (family === "dataset" || family === "dataset-options" || family === "dataset-count") {
+  if (family === "dataset" || family === "dataset-count") {
     return datasetDependencies(key[4] as DatasetKey, key[2] === "operator");
   }
   if (family === "current-fees") return ["fees"];

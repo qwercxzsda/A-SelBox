@@ -1,12 +1,9 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchDatasetFilterOptions } from "./api";
 import { DATASET_CONFIG } from "./api/config";
 import type { DatasetFilterField, DatasetFilters, TableDatasetKey, DatasetSort } from "./api/types";
 import { ColumnMenu, type ColumnMenuSort } from "./ColumnMenu";
-import { humanizeCode, transactionTypeLabel } from "./categories";
+import { filterOptions, localFilterValues } from "./filter-options";
 import type { Identity } from "./auth-session";
-import { companyLabel, getErrorMessage, type ColumnDefinition } from "./view-model";
+import { companyLabel, type ColumnDefinition } from "./view-model";
 import { MAX_AMOUNT_ORDER_ROWS } from "./api/amount-ordering";
 import { isTransactionDataset } from "./api/transaction-page";
 
@@ -36,55 +33,23 @@ function SelectionColumnHeader({
   onFiltersChange,
   field,
 }: FinanceColumnHeaderProps & { field: DatasetFilterField }) {
-  const [opened, setOpened] = useState(false);
-  const { session, account } = identity;
-  const query = useQuery({
-    queryKey: [
-      "dataset-options",
-      session.user.id,
-      account.access_role,
-      account.company_id,
-      dataset,
-      field,
-    ],
-    queryFn: ({ signal }) =>
-      fetchDatasetFilterOptions(session.access_token, dataset, field, signal),
-    enabled: opened,
-  });
   const key = SELECTION_KEYS[field];
   const selected = filters[key];
-  const choices = [...new Set([...(query.data ?? []), ...selected])].sort((a, b) =>
-    a.localeCompare(b),
+  const choices = localFilterValues(
+    field,
+    dataset,
+    identity.account.access_role,
+    identity.skuOptions,
   );
   return (
     <ColumnMenu
       label={column.label}
-      onOpen={() => {
-        setOpened(true);
-      }}
-      onClose={() => {
-        setOpened(false);
-      }}
       filter={{
         kind: "selection",
         value: selected,
-        options: choices.map((value) => ({
-          value,
-          title: field === "component_type" ? value : undefined,
-          label:
-            field === "component_type"
-              ? transactionTypeLabel(value)
-              : field === "source"
-                ? humanizeCode(value)
-                : value,
-        })),
+        options: filterOptions(field, choices, selected),
         onChange: (value) => {
           onFiltersChange({ [key]: value });
-        },
-        isLoading: query.isPending,
-        error: query.error ? getErrorMessage(query.error) : undefined,
-        onRetry: () => {
-          void query.refetch();
         },
       }}
     />

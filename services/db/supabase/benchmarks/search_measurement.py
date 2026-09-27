@@ -79,7 +79,9 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
             "where pronamespace='public'::regnamespace and proname in "
             "('transaction_page','transaction_count','source_transaction_page','source_transaction_count')"
         ).fetchall()
-        if len(signatures) != 4 or not all("p_search text" in args for _, args in signatures):
+        if len(signatures) != 4 or not all(
+            "p_search_skus text[]" in args for _, args in signatures
+        ):
             raise RuntimeError("Install all four current table RPCs before benchmarking")
         before = catalog_fingerprint(connection)
         subjects = identities(connection)

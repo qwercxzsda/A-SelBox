@@ -27,7 +27,7 @@ trigger. Neither status establishes the cause of a discrepancy or guarantees sou
 | [Retrocharge validation](#retrocharge-validation)                                                   | Postponed             |
 | [Refund commission over-credit](#deferred-refund-commission-over-credit-risk)                       | Postponed             |
 | [Company payout workflow](#company-payout-workflow)                                                 | Postponed             |
-| [Unmatched Settlement amounts retained by SelBox](#unmatched-settlement-amounts-retained-by-selbox) | Accepted              |
+| [Reviewed Settlement amounts retained by SelBox](#reviewed-settlement-amounts-retained-by-selbox) | Accepted              |
 | [Archive bucket visibility race](#archive-bucket-visibility-race)                                   | Accepted              |
 | [Marketplace routing configuration race](#marketplace-routing-configuration-race)                   | Accepted              |
 | [Data Kiosk disposal discrepancy](#data-kiosk-disposal-discrepancy)                                 | Accepted              |
@@ -97,22 +97,22 @@ and [payout scope](source_allocation.md#6-live-calculation-and-frozen-payout-rep
 
 ## Accepted
 
-### Unmatched Settlement amounts retained by SelBox
+### Reviewed Settlement amounts retained by SelBox
 
-The policy explicitly defines `SETTLEMENT` and `DATA_KIOSK` families; unmatched Settlement rows use
-`SELBOX`. Preserve their source SKU, signed amount, and nonblocking review diagnostic without
-asserting that every defaulted transaction is an operating expense. A missed sale, credit, or
-company cost can consequently remain with SelBox until a reviewed rule is added.
+The registry explicitly defines all accepted Settlement types, including reviewed `SELBOX`
+charges. Preserve their source SKU and signed amount without asserting that every retained
+transaction is an operating expense. Unknown types reject the complete report before publication;
+there is no automatic retained category.
 
 EPR charges, generic `Fee Adjustment`, Vine enrollment, advertiser refunds, and inbound defect fees
 currently have no approved settlement cost rule. Their Data Kiosk representation remains unverified;
 ordinary storage evidence does not justify a universal interpretation of generic adjustments. These
-limitations are retained under the default policy, not silently mapped to company costs. The
+reviewed types remain explicitly retained, rather than being mapped to company costs. The
 [EPR and adjustment investigation](evidence/data_kiosk_epr_and_adjustment_coverage_2026-09-13.md)
 records the checked responses and why they do not establish individual cost coverage.
 
 An approved Data Kiosk cost is selected independently of an individual settlement match. The
-fallback applies only to Settlement: unknown Data Kiosk monetary components abort preprocessing, and
+registry controls both sources: unknown monetary components abort preprocessing, and
 missing required source coverage still blocks authoritative totals. See the
 [explicit rules](settlement_component_categories.md).
 
@@ -238,7 +238,8 @@ an identity-locked revision counter instead.
 Live reads use relational current-source joins, selected terms evaluated once per query, and
 caller-bound source authorization. Date and SKU filters can reach source facts. Date and
 reported-amount page requests, including text search, select the visible page before calculating its
-fees. Search uses the visible text fields directly, without fee-status or version matching. Amount
+fees. Search matches visible text through frontend-resolved exact value sets; fee status and
+versions are excluded. Amount
 ordering is limited to 10,000 fully filtered, authorized matches; a 10,001-row probe rejects larger
 scopes before sorting. The [query contract](transaction_query_contracts.md) defines supported
 ordering, filters, and result shapes.
@@ -250,10 +251,11 @@ cold page and separate count can consume more database time than a combined requ
 
 Summary cards discover the latest transaction date and aggregate only the requested day, month, or
 selected DATE range through dedicated RPCs. Compatible facts are combined before resolving fees;
-filter options return distinct authorized values without fee calculations or source-row counts.
-Option discovery still spans visible history. Full-period totals and exact counts must process all
-matching records. Selective or absent literal search terms can still scan many source rows under
-RLS. Search has no dedicated substring index.
+Source, Marketplace, and Type options come from static catalogs. Company-member SKU options reuse
+loaded assignments. Administrator SKU catalogs are preloaded from source history and registrations,
+then reused by menus and table search. Search text is resolved on the frontend to exact OR sets;
+Currency is excluded. Empty matches avoid a source scan, while broad matching sets, full-period
+totals, and exact counts can still process many rows under RLS. No substring index is required.
 Explicit continuation markers protect against response caps, but multiple pages are live estimates
 and do not share an atomic database snapshot.
 

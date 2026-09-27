@@ -1,4 +1,4 @@
-"""Measure installed summary and filter-option RPCs against authorized view results."""
+"""Measure current summaries and the administrator SKU catalog against authorized views."""
 
 from .aggregation_measurement import measure
 from .runner import cli, run

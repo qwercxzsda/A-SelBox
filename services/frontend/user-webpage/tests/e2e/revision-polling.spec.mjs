@@ -98,10 +98,10 @@ test("unchanged periodic revisions perform one small request and retain every fi
 });
 
 for (const source of ["settlement", "data_kiosk"]) {
-  test(`${source} changes reload the live table, summaries, open details and active filter options without identity lookups`, async ({
+  test(`${source} changes reload the live table, summaries, open details and administrator SKU options after refreshing identity catalogs`, async ({
     page,
   }) => {
-    const fixture = await setup(page);
+    const fixture = await setup(page, "operator");
     await page.getByRole("button", { name: "SKU", exact: true }).click();
     await expect(
       page.getByRole("dialog", { name: "SKU options", exact: true }).getByRole("checkbox").first(),
@@ -117,7 +117,7 @@ for (const source of ["settlement", "data_kiosk"]) {
     await expect(rowWithSku(page, "UPDATED-001")).toBeVisible();
     await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30 USD");
     await expect.poll(() => fixture.optionRequests.length).toBeGreaterThan(options);
-    expect(fixture.identityRequests).toHaveLength(identity);
+    expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 
     await page
       .getByRole("dialog", { name: "SKU options", exact: true })
@@ -134,7 +134,7 @@ for (const source of ["settlement", "data_kiosk"]) {
     await finishPoll(page, fixture, next);
     await expect(summaryAmount(total, "Reported amount")).toHaveText("30 USD");
     expect(fixture.breakdownRequests.length).toBeGreaterThan(details);
-    expect(fixture.identityRequests).toHaveLength(identity);
+    expect(fixture.identityRequests.length).toBeGreaterThan(identity);
   });
 }
 
@@ -160,7 +160,7 @@ for (const [source, tab, other] of [
     await finishPoll(page, fixture, pollCount);
     await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30 USD");
     expect(rows()).toBe(initialRows);
-    expect(fixture.identityRequests).toHaveLength(identity);
+    expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 
     pollCount = completedPolls(fixture).length;
     fixture.revisions.fees = "1";

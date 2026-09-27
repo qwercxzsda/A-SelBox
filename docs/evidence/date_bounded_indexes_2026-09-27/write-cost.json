@@ -1,0 +1,93 @@
+{
+  "label": "selected_final",
+  "rows_requested_per_source": 10000,
+  "sources": {
+    "settlement_transactions": {
+      "median_execution_ms": 120.703,
+      "trials": [
+        {
+          "execution_ms": 117.349,
+          "rows": 10000,
+          "index_bytes": 4407296,
+          "wal_records": 92146,
+          "wal_bytes": 19602240,
+          "shared_dirtied_blocks": 1789,
+          "warmup": true
+        },
+        {
+          "execution_ms": 120.703,
+          "rows": 10000,
+          "index_bytes": 4407296,
+          "wal_records": 92146,
+          "wal_bytes": 19602240,
+          "shared_dirtied_blocks": 1789,
+          "warmup": false
+        },
+        {
+          "execution_ms": 119.579,
+          "rows": 10000,
+          "index_bytes": 4407296,
+          "wal_records": 92146,
+          "wal_bytes": 19602240,
+          "shared_dirtied_blocks": 1789,
+          "warmup": false
+        },
+        {
+          "execution_ms": 120.903,
+          "rows": 10000,
+          "index_bytes": 4407296,
+          "wal_records": 92146,
+          "wal_bytes": 19602240,
+          "shared_dirtied_blocks": 1789,
+          "warmup": false
+        }
+      ],
+      "median_wal_bytes": 19602240
+    },
+    "data_kiosk_transactions": {
+      "median_execution_ms": 101.704,
+      "trials": [
+        {
+          "execution_ms": 98.527,
+          "rows": 10000,
+          "index_bytes": 4390912,
+          "wal_records": 76075,
+          "wal_bytes": 19391784,
+          "shared_dirtied_blocks": 1956,
+          "warmup": true
+        },
+        {
+          "execution_ms": 101.704,
+          "rows": 10000,
+          "index_bytes": 4390912,
+          "wal_records": 76075,
+          "wal_bytes": 19391784,
+          "shared_dirtied_blocks": 1956,
+          "warmup": false
+        },
+        {
+          "execution_ms": 106.818,
+          "rows": 10000,
+          "index_bytes": 4390912,
+          "wal_records": 76075,
+          "wal_bytes": 19391784,
+          "shared_dirtied_blocks": 1956,
+          "warmup": false
+        },
+        {
+          "execution_ms": 100.901,
+          "rows": 10000,
+          "index_bytes": 4390912,
+          "wal_records": 76075,
+          "wal_bytes": 19391784,
+          "shared_dirtied_blocks": 1956,
+          "warmup": false
+        }
+      ],
+      "median_wal_bytes": 19391784
+    }
+  },
+  "persistent_catalog_unchanged": true,
+  "scratch_schema_removed": true,
+  "method": "Each source uses an identical deterministic 10,000-row sample inserted into a newly created regular scratch table with LIKE INCLUDING ALL (all checks, required and secondary indexes). One warmup and three measured trials; EXPLAIN executor time and WAL bytes. Excludes source foreign keys, RLS, publication triggers, commit durability and import orchestration. This isolates index maintenance, not production ingestion throughput."
+}

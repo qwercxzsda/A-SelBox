@@ -1,3 +1,4 @@
+import { skuAssignments } from "./api-fixtures.mjs";
 import { expect, test } from "@playwright/test";
 import { liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
@@ -37,6 +38,7 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   const fixture = await mockSupabase(page);
   fixture.liveRows = applicabilityRows();
   fixture.aggregateRows = [summaryBucket("2026-09-01", "280"), summaryBucket("2026-08-31", "100")];
+  fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
   await applyDates(page, "2026-09-01", "2026-09-01");
   const summaries = summaryCards(page);

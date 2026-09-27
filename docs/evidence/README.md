@@ -1,25 +1,25 @@
 # Source and performance evidence
 
-These investigations support the current [classification](../settlement_component_categories.md),
-[source-allocation](../source_allocation.md), and [workflow](../data_workflows.md) contracts.
-Source observations retain their dates and coverage limits; they are evidence for active rules,
-not additional runtime requirements.
+These records support the current [classification](../settlement_component_categories.md),
+[source allocation](../source_allocation.md), and [workflow](../data_workflows.md) contracts.
+Source observations retain their dates and coverage limits. The performance snapshot records the
+current date-leading implementation; intermediate query and index experiments are not maintained.
 
-| Investigation                                                                        | Purpose                                                                                                              |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| [Blank marketplaces](blank_marketplace_investigation_2026-09-06.md)                  | Distinguish source row names from Reports API hints and account-level activity.                                      |
-| [SKU completeness](settlement_sku_completeness_2026-09-07.md)                        | Observed SKU-bearing families; [aggregate measurements](settlement_sku_completeness_2026-09-07.json).                |
-| [Classification audit](settlement_classification_audit_2026-09-08.md)                | Wider country/date coverage and retrocharge checks; [measurements](settlement_classification_audit_2026-09-08.json). |
-| [Trailing columns](settlement_trailing_columns_investigation_2026-09-11.md)          | Optional suffix-cell omissions and the limits of the parsing convention.                                             |
-| [Data Kiosk disposal discrepancy](data_kiosk_disposal_discrepancy_2026-09-07.md)     | Accepted source variance and [sanitized controls](data_kiosk_disposal_discrepancy_2026-09-07.json).                  |
-| [Company-cost country evidence](category3_country_evidence_2026-09-13.md)            | Native cost labels, taxes, credits, and [coverage measurements](category3_country_evidence_2026-09-13.json).         |
-| [EPR and adjustment coverage](data_kiosk_epr_and_adjustment_coverage_2026-09-13.md)  | Why the checked sources do not establish an approved counterpart mapping.                                            |
-| [Current metadata and read performance](simple_metadata_access_2026-09-26/README.md) | Current-reference access contract, exact-result checks, million-row fixtures, and concurrent-reader measurements.    |
+| Record | Purpose |
+| --- | --- |
+| [Current read performance](date_bounded_indexes_2026-09-27/README.md) | Date-bounded and unbounded requests, active indexes, query plans, and workload limits. |
+| [Type registry validation](type_registry_2026-09-26/README.md) | Real-seed coverage and complete Settlement replay for the active explicit registry. |
+| [Blank marketplaces](blank_marketplace_investigation_2026-09-06.md) | Source names, Reports API hints, and account-level activity. |
+| [SKU completeness](settlement_sku_completeness_2026-09-07.md) | Observed SKU-bearing families and their coverage. |
+| [Settlement classification](settlement_classification_audit_2026-09-08.md) | Country coverage, retrocharge groups, and out-of-period postings. |
+| [Trailing columns](settlement_trailing_columns_investigation_2026-09-11.md) | Source rows supporting optional trailing-omission parsing. |
+| [Data Kiosk disposal discrepancy](data_kiosk_disposal_discrepancy_2026-09-07.md) | Measured variance, fresh-query controls, and unresolved cause. |
+| [Company-cost countries](category3_country_evidence_2026-09-13.md) | Source cost labels, taxes, credits, and observed country coverage. |
+| [EPR and adjustments](data_kiosk_epr_and_adjustment_coverage_2026-09-13.md) | Checked responses and the limits of individual cost mapping. |
 
-The [performance guide](../database_performance.md) describes the current query design and remaining
-costs. New measurements use the [maintained benchmark harness](../../services/db/supabase/benchmarks/README.md).
-Superseded query experiments and intermediate performance snapshots are not part of the maintained
-codebase. The retained performance report is a dated local checkpoint, not a production guarantee.
+The [performance guide](../database_performance.md) describes current access paths and remaining
+costs. The [benchmark package](../../services/db/supabase/benchmarks/README.md) measures installed
+queries on disposable local clones.
 
 Historical FBA and Finances comparisons corroborate source findings; those APIs are not application
 inputs. Evidence excludes raw financial documents, seller/customer identifiers, credentials, and
