@@ -1,5 +1,9 @@
 # Settlement classification audit: 2026-09-08
 
+Historical source observations are retained as evidence. Current preprocessing uses the
+[explicit Type registry](../transaction_type_registry.md): reviewed retained charges are
+registered as `SELBOX`, and unknown types abort rather than defaulting.
+
 **Finding:** no observed row contradicted the F1–F7 SKU and
 component assumptions in **116 structurally valid, distinct settlement documents
 containing 174,249 content rows**. Rows outside those families were counted separately. This

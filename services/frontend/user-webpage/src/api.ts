@@ -4,8 +4,6 @@ import type {
   CanonicalRow,
   Company,
   CurrencyTotal,
-  TableDatasetKey,
-  DatasetFilterField,
   FetchDatasetPageOptions,
   FetchDatasetCountOptions,
   FetchLatestTransactionDateOptions,
@@ -65,13 +63,8 @@ export const fetchSkuFees = (
   sellerSkuId: string,
   signal?: AbortSignal,
 ): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, sellerSkuId, signal);
-export const fetchDatasetFilterOptions = (
-  accessToken: string,
-  dataset: TableDatasetKey,
-  field: DatasetFilterField,
-  signal?: AbortSignal,
-): Promise<string[]> =>
-  getDefaultClient().fetchDatasetFilterOptions(accessToken, dataset, field, signal);
+export const fetchSkuOptions = (accessToken: string, signal?: AbortSignal): Promise<string[]> =>
+  getDefaultClient().fetchSkuOptions(accessToken, signal);
 
 export const fetchLatestTransactionDate = (
   options: FetchLatestTransactionDateOptions,

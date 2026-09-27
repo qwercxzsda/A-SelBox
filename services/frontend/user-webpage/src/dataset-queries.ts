@@ -26,6 +26,7 @@ export function datasetQueryOptions(
         result = await fetchPage({
           ...options,
           filters: scope.filters,
+          searchValues: scope.searchValues,
           accessToken: identity.session.access_token,
           signal,
           includeCount: false,
@@ -69,6 +70,7 @@ export function datasetCountQueryOptions(
       const total = await fetchCount({
         ...options,
         filters: scope.filters,
+        searchValues: scope.searchValues,
         accessToken: identity.session.access_token,
         signal,
       });

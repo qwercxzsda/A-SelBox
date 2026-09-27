@@ -3,17 +3,25 @@ import type { FetchDatasetCountOptions, FetchDatasetPageOptions, PageResult } fr
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import { lastPageIndex } from "./pagination.ts";
 import type { Identity } from "./auth-session.ts";
+import { isTransactionDataset } from "./api/transaction-page.ts";
+import { resolveTransactionSearch } from "./transaction-search.ts";
 
-export type DatasetQueryIdentity = Pick<Identity, "session" | "account">;
+export type DatasetQueryIdentity = Pick<Identity, "session" | "account" | "skuOptions">;
 export type DatasetPageOptions = Omit<
   FetchDatasetPageOptions,
-  "accessToken" | "signal" | "includeCount"
+  "accessToken" | "signal" | "includeCount" | "searchValues"
 >;
-export type DatasetCountOptions = Omit<FetchDatasetCountOptions, "accessToken" | "signal">;
+export type DatasetCountOptions = Omit<
+  FetchDatasetCountOptions,
+  "accessToken" | "signal" | "searchValues"
+>;
 
 export function createDatasetScope(identity: DatasetQueryIdentity, options: DatasetCountOptions) {
   const filters = normalizeDatasetFilters(options.filters);
   const { access_role, company_id } = identity.account;
+  const searchValues = isTransactionDataset(options.dataset)
+    ? resolveTransactionSearch(options.dataset, access_role, identity.skuOptions, options.search)
+    : null;
   const membership = [
     identity.session.user.id,
     access_role,
@@ -21,12 +29,14 @@ export function createDatasetScope(identity: DatasetQueryIdentity, options: Data
     options.dataset,
     options.search,
     filters,
+    searchValues,
   ] as const;
   const key = ["dataset", ...membership] as const;
   const scopeHash = hashKey(key);
   return {
     key,
     filters,
+    searchValues,
     countKey: ["dataset-count", ...membership] as const,
     // Partial query-key matching treats empty filter arrays as wildcards.
     matches: (query: Query) => hashKey(query.queryKey.slice(0, key.length)) === scopeHash,

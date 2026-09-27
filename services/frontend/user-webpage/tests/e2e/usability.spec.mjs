@@ -7,13 +7,12 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
 }) => {
   const fixture = await mockSupabase(page);
   fixture.totalCount = 120;
-  fixture.searchCount = 120;
   fixture.assignments = [skuAssignment(1), skuAssignment(2)];
   fixture.feeRows = [feeRow(0)];
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-  await page.getByLabel("Search", { exact: true }).fill("ALPHA");
-  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("ALPHA");
+  await page.getByLabel("Search", { exact: true }).fill("Amazon");
+  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   await page.getByLabel("Rows", { exact: true }).selectOption("50");
   await expect(rowWithSku(page, "ALPHA-050")).toBeVisible();
   await page.getByRole("button", { name: "Date", exact: true }).click();
@@ -37,7 +36,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("ALPHA");
+  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
@@ -153,7 +152,6 @@ test("an unsuccessful search explains the empty result and offers a clear recove
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.searchCount = 0;
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill("DOES-NOT-EXIST");

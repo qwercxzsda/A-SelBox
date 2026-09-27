@@ -1,7 +1,7 @@
 import { sortBy } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { kioskRow, liveRow } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, skuAssignment } from "./api-fixtures.mjs";
 
 const pagination = (page, number, total) =>
   page.getByRole("form", { name: `Page ${number} of ${total}`, exact: true });
@@ -108,6 +108,7 @@ test("financial counts survive page and sort changes and unchanged revision poll
 test("an older unfiltered count cannot replace the selected SKU count", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = Array.from({ length: 60 }, (_, index) => liveRow("ALPHA", index + 1));
+  fixture.assignments = [{ ...skuAssignment(1), sku: "ALPHA-001" }];
   const started = deferred();
   const release = deferred();
   fixture.beforeCount = async ({ params }) => {

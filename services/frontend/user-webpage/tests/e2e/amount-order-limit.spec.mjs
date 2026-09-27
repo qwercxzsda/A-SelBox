@@ -40,7 +40,7 @@ for (const [dataset, tab] of [
   }) => {
     const { fixture, open } = await prepare(page, dataset, tab);
     fixture.countTotalForRequest = ({ dataset: requested, args, count }) =>
-      requested === dataset && !args.p_search ? 10_001 : count;
+      requested === dataset && args.p_search_skus === null ? 10_001 : count;
     await open();
     await expect(page.getByRole("form", { name: "Page 1 of 401", exact: true })).toBeVisible();
     const before = fixture.requests.length;
@@ -55,7 +55,7 @@ for (const [dataset, tab] of [
     await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
     await sortBy(page, "Reported amount", "Highest first");
     await expect.poll(() => fixture.requests.at(-1).args?.p_order_by).toBe("amount");
-    expect(fixture.requests.at(-1).args.p_search).toBe("CAP-000");
+    expect(fixture.requests.at(-1).args.p_search_skus).toEqual(["CAP-000"]);
     await expect(page.getByRole("alert")).toHaveCount(0);
   });
 

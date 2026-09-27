@@ -51,14 +51,12 @@ test("search uses visible transaction text and excludes hidden or computed field
     "component_type",
     "source",
     "marketplace_name",
-    "currency",
   ]);
   for (const dataset of ["settlement", "data_kiosk"])
     assert.deepEqual(DATASET_CONFIG[dataset].searchColumns, [
       "sku",
       "component_type",
       "marketplace_name",
-      "currency",
     ]);
   assert.deepEqual(DATASET_CONFIG.accounts.searchColumns, []);
 });

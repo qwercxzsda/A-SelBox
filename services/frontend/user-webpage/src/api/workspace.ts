@@ -24,9 +24,33 @@ function parseAppAccount(value: Record<string, unknown>, userId: string): AppAcc
   return { user_id, access_role, company_id };
 }
 
+/** One complete catalog; preserve PostgreSQL's ordering and exact SKU text. */
+function parseSkuCatalog(value: unknown, operation: string): string[] {
+  if (!isJsonObject(value) || Object.keys(value).length !== 1 || !Array.isArray(value.values))
+    throw new Error(`${operation} returned an invalid catalog`);
+  const values: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value.values) {
+    if (typeof entry !== "string" || entry.length === 0 || entry.includes("\0"))
+      throw new Error(`${operation} returned an invalid value`);
+    if (seen.has(entry)) throw new Error(`${operation} returned a duplicate value`);
+    seen.add(entry);
+    values.push(entry);
+  }
+  return values;
+}
+
 export function createWorkspaceApi(transport: ApiTransport) {
-  const { requestJson, authenticatedHeaders } = transport;
+  const { requestJson, authenticatedHeaders, postRpc } = transport;
   return {
+    async fetchSkuOptions(accessToken: string, signal?: AbortSignal): Promise<string[]> {
+      const operation = "SKU options";
+      signal?.throwIfAborted();
+      const value = await postRpc(accessToken, "sku_filter_options", {}, operation, signal);
+      signal?.throwIfAborted();
+      return parseSkuCatalog(value, operation);
+    },
+
     async fetchWorkspaceRevisions({
       accessToken,
       userId,

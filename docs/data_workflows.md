@@ -44,11 +44,11 @@ The required `category` uses Python `AllocationCategory` and PostgreSQL
 | Category        | Settlement                                          | Data Kiosk                                       |
 | --------------- | --------------------------------------------------- | ------------------------------------------------ |
 | `SETTLEMENT`    | Company source amounts                              | Comparison counterparts                          |
-| `SELBOX`        | Account reconciliation and unmatched-family default | Forbidden on the current MSKU rows               |
+| `SELBOX`        | Registered account and retained charges | Forbidden on the current MSKU rows               |
 | `DATA_KIOSK`    | Cost reconciliation controls                        | Approved company costs                           |
 | `ANALYSIS_ONLY` | Not allowed                                         | Diagnostic facts outside strict financial totals |
 
-Unknown Data Kiosk monetary components fail preprocessing. There is no stored
+Unknown source types in either preprocessor fail before publication. There is no stored
 unresolved category. The [family rules](settlement_component_categories.md) and
 [payout component policy](source_allocation.md#4-select-data-kiosk-components-without-counting-costs-twice)
 define classification; category selection alone does not establish complete source coverage.
@@ -97,7 +97,7 @@ currency, endpoint, or another row to fill a missing required settlement name.
 
 ### Shared preprocessor version
 
-One Python `PREPROCESS_VERSION = "v0"` applies to both sources. Successful result
+One Python `PREPROCESS_VERSION = "v1"` applies to both sources. Successful result
 headers store the actual nonblank `preprocess_version`; children reference their
 result UUID. The UUID identifies an execution's result, while the version string
 identifies its parsing, normalization, marketplace mapping, classification, and
@@ -266,9 +266,10 @@ records the observed shortened rows and acquisition controls behind this convent
 
 Apply the [family rules](settlement_component_categories.md) before validation:
 `SETTLEMENT` requires its known SKU family, explicit cost families use `DATA_KIOSK`,
-and recognized account families or unmatched families use `SELBOX`. Failed known
-checks never fall through to the default. Unmatched families preserve raw SKU and
-emit a nonblocking review signal without an invented accounting subtype.
+and registered account or retained types use `SELBOX`. Exact source types must
+appear in the shared registry; a recognized broad family does not admit a new
+description. Unknown types and failed known checks abort the complete report.
+Registered retained types preserve raw SKU without an invented accounting subtype.
 
 Every F1 `Order`/`Refund` row requires an explicit usable marketplace, including
 noncommission and zero-valued rows. Other families may retain null where permitted.
@@ -329,7 +330,7 @@ that category as a fallback.
 
 Exclude Data Kiosk sales and other `SETTLEMENT` counterparts, including related
 taxes/reversals, from authoritative company totals. Keep approved costs even when
-the SKU also has settlement activity or its settlement counterpart defaults to
+the SKU also has settlement activity or its registered settlement counterpart belongs to
 `SELBOX`. Classification does not prove required coverage. The
 [payout policy](source_allocation.md) defines source authority;
 frontend windows and same-day counterpart presence do not switch it.

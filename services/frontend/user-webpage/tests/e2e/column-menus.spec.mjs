@@ -1,4 +1,4 @@
-import { liveRow } from "./api-fixtures.mjs";
+import { liveRow, skuAssignment } from "./api-fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
@@ -42,10 +42,11 @@ test("column filters combine with search and inclusive dates, reset the page, an
 }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = filteredRows();
+  fixture.assignments = [{ ...skuAssignment(1), sku: "TARGET" }];
   await signIn(page);
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
-  await page.getByLabel("Search", { exact: true }).fill("USD");
-  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("USD");
+  await page.getByLabel("Search", { exact: true }).fill("Amazon");
+  await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
   const originalOrder = fixture.requests.at(-1).params.get("order");
@@ -73,7 +74,7 @@ test("column filters combine with search and inclusive dates, reset the page, an
   expect(params.get("source")).toBe('in.("DATA_KIOSK")');
   expect(params.get("component_type")).toBe('in.("FBA_STORAGE_FEE")');
   expect(params.get("and")).toBe("(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
-  expect(params.get("or")).toContain("USD");
+  expect(params.get("or")).toContain("Amazon");
   expect(params.get("order")).toBe(originalOrder);
   expect(params.get("offset")).toBe("0");
 
@@ -95,15 +96,15 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   await expect(table.getByRole("row")).toHaveCount(26);
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("USD");
+  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
   await expect(page.getByRole("button", { name: "Clear filters", exact: true })).toHaveCount(0);
 });
 
-test("SKU options use complete cursor pages despite many repeated transaction values", async ({
+test("administrator SKU options include unassigned imports from one complete catalog despite repeated transaction values", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.optionPageCap = 3;
+  fixture.roles["member-a"] = "operator";
   const lastSku = "ZZZ, last (special)";
   fixture.liveRows = [
     ...Array.from({ length: 1001 }, (_, index) => ({ ...liveRow("FIRST", index + 1), sku: "AAA" })),
@@ -116,29 +117,24 @@ test("SKU options use complete cursor pages despite many repeated transaction va
   ];
   await signIn(page);
   await expect(page.getByRole("form", { name: "Page 1 of 41", exact: true })).toBeVisible();
-  expect(fixture.optionRequests).toHaveLength(0);
+  expect(fixture.optionRequests).toHaveLength(1);
   await expect(page.getByRole("cell", { name: lastSku, exact: true })).toHaveCount(0);
   const originalOrder = fixture.requests.at(-1).params.get("order");
   const menu = await openColumn(page, "SKU");
   await menu.getByLabel("Search sku", { exact: true }).fill("ZZZ");
   const lastOption = menu.getByRole("checkbox", { name: lastSku, exact: true });
   await expect(lastOption).toBeVisible();
-  await expect(menu.getByRole("checkbox")).toHaveCount(1);
+  await expect(menu.getByRole("checkbox")).toHaveCount(2);
   await expect(menu.getByLabel("Search sku", { exact: true })).toBeVisible();
-  await expect(menu.getByRole("checkbox", { name: "ZZZ-ZERO-ONLY", exact: true })).toHaveCount(0);
-  expect(fixture.optionRequests).toHaveLength(4);
-  expect(fixture.optionRequests.map((request) => request.args.p_after)).toEqual([
-    null,
-    "MIDDLE-1",
-    "MIDDLE-4",
-    "MIDDLE-7",
-  ]);
+  await expect(menu.getByRole("checkbox", { name: "ZZZ-ZERO-ONLY", exact: true })).toHaveCount(1);
+  expect(fixture.optionRequests).toHaveLength(1);
+  expect(fixture.optionRequests[0].args).toEqual({});
   expect(fixture.optionRequests.every((request) => !request.includeCount)).toBe(true);
   expect(
     fixture.optionRequests.every(
       (request) =>
-        request.endpoint === "/rest/v1/rpc/dataset_filter_options" &&
-        request.args.p_field === "sku",
+        request.endpoint === "/rest/v1/rpc/sku_filter_options" &&
+        Object.keys(request.args).length === 0,
     ),
   ).toBe(true);
   await lastOption.check();

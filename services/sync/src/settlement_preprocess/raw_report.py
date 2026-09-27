@@ -14,7 +14,7 @@ from ..amazon.settlement_values import (
 )
 from ..numeric import ZERO
 from ..preprocess_version import PREPROCESS_VERSION
-from .classification import classify_settlement_row
+from .classification import UnknownSettlementTypeError, classify_settlement_row
 from .diagnostics import transaction_diagnostics
 from .models import PreparedSettlement, SettlementHeader, SettlementTransaction
 from .retrocharges import validate_retrocharge_groups
@@ -45,24 +45,10 @@ def prepare_settlement_report(
         }
         for item in parsed.normalization_diagnostics
     ]
-    transactions: list[SettlementTransaction] = []
-    for source in parsed.content_rows:
-        fields = dict(zip(parsed.tsv_columns, source.column_values, strict=True))
-        try:
-            row = _parse_transaction(fields, source.source_line_number, header)
-        except ValueError as error:
-            component = tuple(
-                fields[name] for name in ("transaction-type", "amount-type", "amount-description")
-            )
-            error.add_note(
-                f"Settlement={header.settlement_id}; source_line={source.source_line_number}; "
-                f"component={component!r}; sku={fields['sku']!r}; "
-                f"marketplace={fields['marketplace-name']!r}; amount={fields['amount']!r}; "
-                f"preprocess_version={PREPROCESS_VERSION}."
-            )
-            raise
-        transactions.append(row)
-        diagnostics.extend(transaction_diagnostics(row, header))
+    transactions = _parse_transactions(parsed, header)
+    diagnostics.extend(
+        diagnostic for row in transactions for diagnostic in transaction_diagnostics(row, header)
+    )
     content_total = sum((row.amount for row in transactions), ZERO)
     if content_total != header.total_amount:
         raise ValueError(
@@ -88,8 +74,43 @@ def prepare_settlement_report(
             }
         )
     return PreparedSettlement(
-        header, tuple(transactions), tuple(diagnostics), parsed.decoded_content_sha256
+        header, transactions, tuple(diagnostics), parsed.decoded_content_sha256
     )
+
+
+def _parse_transactions(
+    parsed: ParsedSettlementReport, header: SettlementHeader
+) -> tuple[SettlementTransaction, ...]:
+    """Reject unreviewed types together before a report can reach publication."""
+    transactions: list[SettlementTransaction] = []
+    unknown: dict[tuple[str, str, str], list[int]] = {}
+    for source in parsed.content_rows:
+        fields = dict(zip(parsed.tsv_columns, source.column_values, strict=True))
+        try:
+            transactions.append(_parse_transaction(fields, source.source_line_number, header))
+        except UnknownSettlementTypeError as error:
+            unknown.setdefault(error.component, []).append(source.source_line_number)
+        except ValueError as error:
+            component = tuple(
+                fields[name] for name in ("transaction-type", "amount-type", "amount-description")
+            )
+            error.add_note(
+                f"Settlement={header.settlement_id}; source_line={source.source_line_number}; "
+                f"component={component!r}; sku={fields['sku']!r}; "
+                f"marketplace={fields['marketplace-name']!r}; amount={fields['amount']!r}; "
+                f"preprocess_version={PREPROCESS_VERSION}."
+            )
+            raise
+    if unknown:
+        details = "; ".join(
+            f"{component!r} at source lines {lines}" for component, lines in unknown.items()
+        )
+        raise ValueError(
+            f"Unsupported Settlement types; settlement={header.settlement_id}; {details}; "
+            f"preprocess_version={PREPROCESS_VERSION}. "
+            "Add reviewed registry entries before retrying."
+        )
+    return tuple(transactions)
 
 
 def _parse_header(parsed: ParsedSettlementReport) -> SettlementHeader:

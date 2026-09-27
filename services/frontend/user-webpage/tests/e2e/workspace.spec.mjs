@@ -1,3 +1,4 @@
+import { liveRow, skuAssignments } from "./api-fixtures.mjs";
 import { expect, test } from "@playwright/test";
 import {
   captureResponsiveReview,
@@ -45,6 +46,7 @@ test("pagination, sorting, and literal search make server requests and reset the
   page,
 }) => {
   const fixture = await mockSupabase(page);
+  fixture.assignments = skuAssignments(["SKU.(special)"]);
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -67,11 +69,10 @@ test("pagination, sorting, and literal search make server requests and reset the
   expect(fixture.requests.at(-1).params.get("limit")).toBe("50");
   await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
 
+  fixture.liveRows = [{ ...liveRow("SPECIAL", 1), sku: "SKU.(special)" }];
   await page.getByLabel("Search", { exact: true }).fill("SKU.(special)");
   await expect(page.getByRole("row")).toHaveCount(2);
-  expect(fixture.requests.at(-1).params.get("or")).toContain(
-    String.raw`sku.imatch."SKU\\.\\(special\\)"`,
-  );
+  expect(fixture.requests.at(-1).args.p_search_skus).toEqual(["SKU.(special)"]);
   expect(fixture.requests.at(-1).params.get("offset")).toBe("0");
 });
 
@@ -137,6 +138,8 @@ test("automatic refresh clamps a removed last page after its updated count arriv
 
 test("a delayed earlier search cannot replace newer search results", async ({ page }) => {
   const fixture = await mockSupabase(page);
+  fixture.liveRows = [liveRow("ALPHA", 1), liveRow("STALE", 1), liveRow("FRESH", 1)];
+  fixture.assignments = skuAssignments(fixture.liveRows.map(({ sku }) => sku));
   const started = deferred();
   const release = deferred();
   fixture.beforeDataset = async ({ params }) => {
@@ -152,7 +155,7 @@ test("a delayed earlier search cannot replace newer search results", async ({ pa
     (request) =>
       new URL(request.url()).pathname === "/rest/v1/rpc/transaction_page" &&
       request.method() === "POST" &&
-      request.postDataJSON().p_search === "STALE",
+      request.postDataJSON().p_search_skus?.includes("STALE-001"),
   );
   await page.getByLabel("Search", { exact: true }).fill("STALE");
   await started.promise;

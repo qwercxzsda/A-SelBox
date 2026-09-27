@@ -2,7 +2,8 @@
 
 These harnesses measure the currently installed database API on disposable local clones. Current
 query/index guidance is in [Database performance](../../../../docs/database_performance.md); the
-latest recorded results are in the [current-reference access evidence](../../../../docs/evidence/simple_metadata_access_2026-09-26/README.md).
+latest [date-bounded comparison](../../../../docs/evidence/date_bounded_indexes_2026-09-27/README.md)
+records current bounded and unbounded behavior.
 
 Run from the repository root with the frontend seed database and REST containers available:
 
@@ -23,16 +24,20 @@ cleanup status and writes results atomically.
 
 ## Workloads
 
-- **Pages and counts:** member/operator newest, oldest, marketplace, and recent-date reads. A separate
+- **Pages and counts:** member/operator newest, oldest, and marketplace reads with and without a 60-day range. A separate
   exact count starts after page rows arrive; its result must match the combined page/count response.
-- **Summaries and options:** date-bounded totals, type/currency groups, marketplace totals, and option
-  lists from current live/raw datasets. Untimed queries against the same authorized views provide
-  independent exact-value references. Only current RPCs are timed; general REST aggregates stay disabled.
-- **Search and amount ordering:** all three datasets, literal visible-field search, filtered date and
-  amount pages, stable ties, offsets, exact counts, and the 10,000-row amount-ordering guard. Independent
-  view queries verify results without sorting over-limit scopes.
+- **Summaries and options:** latest-day/month and 60-day totals, Type/currency groups, marketplace totals, and the
+  operator's complete SKU catalog, including historical facts and registered-only SKUs. Untimed
+  authorized SQL provides independent exact-value references. Only current RPCs are timed;
+  general REST aggregates stay disabled.
+- **Search and amount ordering:** all three datasets, exact OR search sets resolved from raw SKU,
+  Type, Marketplace, and Source values before timing; currency is excluded. Filtered date and amount
+  pages cover stable ties, offsets, exact counts, and the 10,000-row amount-ordering guard. Independent
+  raw-view substring queries verify these benchmark terms without sorting over-limit scopes.
+  Frontend tests separately cover humanized labels and Unicode matching.
 
-Each actor's visible data supplies its scope. One warm-up precedes measured repetitions; request
+Each actor's visible data supplies its scope. Summary filter values are selected from positive
+transactions inside the recent window; records include actual date bounds and matching row counts. One warm-up precedes measured repetitions; request
 order rotates across runs. Results contain timings, counts, sizes, digests, catalog fingerprints,
 and cleanup status. Financial rows, filter literals, account identities, credentials, and tokens
 remain in memory.
@@ -63,39 +68,15 @@ These are warm database/OS workloads with fresh reads. They do not measure brows
 application caches, sustained production concurrency, or replayable Amazon import evidence. Do not
 run simultaneous instances against the same clone names.
 
-## Index experiments
+## Query plans
 
-```sh
-conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.index_benchmark \
-  --output-dir /private/tmp/aselbox-index-results
-```
+`plans.explain_rpc(connection, user_id, function_name, arguments)` inspects current installed
+query definitions on an idle connection. It binds the current request parameters and runs the
+extracted SELECT under `authenticated` with the supplied actor in a read-only transaction. The
+SKU catalog path first invokes its actual administrator gate. Check the real RPC response before
+using a plan as diagnostic evidence; this helper does not replace API validation.
 
-This harness owns a history clone and compares its current optional indexes, a minimal date-index
-set, and allowlisted SKU/type/marketplace/owner index families. It preserves constraints, RLS,
-functions, and required reference indexes. Each set is rebuilt before measurement; exact responses
-must match the first baseline. Installed-query EXPLAIN diagnostics run after timing and omit data
-and filter literals.
-
-After `pilot-ready.json`, write `selection.json` with a `selected` set and optional `finalists` list
-(starting with `"baseline"`, at most four entries). For example:
-
-```json
-{
-  "selected": {
-    "name": "selected",
-    "families": {
-      "settlement": ["sku_date", "type_date", "market_date"],
-      "kiosk": ["sku_date", "type_date", "market_date"]
-    }
-  }
-}
-```
-
-Pilots use one measured repetition; finalists use three and add unfiltered totals, latest-date,
-sparse-type, oldest/deep-offset SKU, and company-filtered checks. Compare page and count latency
-separately; repeated equivalent counts are not independent workload weights.
-
-`write-probe-ready.json` marks the end of timed reads. A separately coordinated clone-only write
-probe may then run. After it removes its objects, write `release.json` containing `{"release": true}`.
-Handoffs time out after 15 minutes. Errors and timeouts still restore captured indexes and remove
-owned clones, containers, dumps, and temporary files.
+The adapter supports current page, count, total, and administrator SKU-catalog RPCs. It records
+technical node/index names and cardinalities without saving filter values or financial rows.
+Plans are collected after timing; they are not HTTP latency measurements. No benchmark runner
+changes application indexes, query functions, or access rules.

@@ -1,3 +1,4 @@
+import { searchValues } from "./search-fixtures.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiError, createApiClient } from "../src/api/client.ts";
@@ -16,7 +17,11 @@ test("206 CSV pages retain exact money and stable dataset-specific ordering", as
       });
     });
     const result = await client.fetchDatasetPage(
-      pageRequest(dataset, { pageIndex: 1, search: "row" }),
+      pageRequest(dataset, {
+        pageIndex: 1,
+        search: "row",
+        searchValues: searchValues({ skus: ["row"] }),
+      }),
     );
     assert.equal(result.totalCount, 129);
     assert.equal(result.rows.length, 1);
@@ -40,7 +45,13 @@ test("416 page responses retain the count needed to clamp pagination", async () 
     async () => new Response("", { status: 416, headers: { "Content-Range": "*/10" } }),
   );
   assert.deepEqual(
-    await client.fetchDatasetPage(pageRequest("payouts", { pageIndex: 9, search: "row" })),
+    await client.fetchDatasetPage(
+      pageRequest("payouts", {
+        pageIndex: 9,
+        search: "row",
+        searchValues: searchValues({ skus: ["row"] }),
+      }),
+    ),
     {
       rows: [],
       totalCount: 10,
@@ -58,7 +69,7 @@ test("invalid local pagination and sorting fail before any HTTP request", async 
     { pageIndex: -1 },
     { pageSize: 0 },
     { pageIndex: Number.MAX_SAFE_INTEGER, pageSize: 100 },
-    { sort: { column: "removed_legacy_column", direction: "asc" } },
+    { sort: { column: "unsupported_column", direction: "asc" } },
   ]) {
     await assert.rejects(client.fetchDatasetPage(pageRequest("live", overrides)));
   }
@@ -105,13 +116,14 @@ test("transport failures have a retryable status without exposing private networ
   );
 });
 
-test("transaction text search stays a literal RPC argument on all three tabs", async () => {
+test("resolved search values stay literal JSON arrays on all three transaction tabs", async () => {
   const search = ' SKU_100%*,or(source.eq.DATA_KIOSK)"\\ 한글 ';
   for (const dataset of ["live", "settlement", "data_kiosk"]) {
     const client = createApiClient(SETTINGS, async (url, init) => {
       assert.equal(new URL(url).search, "");
       assert.equal(init.method, "POST");
-      assert.equal(JSON.parse(init.body).p_search, search.trim());
+      assert.deepEqual(JSON.parse(init.body).p_search_skus, [search.trim()]);
+      assert.equal("p_search" in JSON.parse(init.body), false);
       assert.equal(JSON.parse(init.body).p_offset, 50);
       assert.equal(
         new URL(url).pathname,
@@ -119,7 +131,13 @@ test("transaction text search stays a literal RPC argument on all three tabs", a
       );
       return responseJson({ rows: [], total_count: "0" });
     });
-    await client.fetchDatasetPage(pageRequest(dataset, { search, pageIndex: 2 }));
+    await client.fetchDatasetPage(
+      pageRequest(dataset, {
+        search,
+        searchValues: searchValues({ skus: [search.trim()] }),
+        pageIndex: 2,
+      }),
+    );
   }
 });
 
@@ -183,6 +201,7 @@ test("body-read failures preserve cancellations and classify interrupted downloa
         client.fetchDatasetPage(
           pageRequest(dataset, {
             search: "literal search",
+            searchValues: searchValues(),
             signal: controller.signal,
           }),
         ),

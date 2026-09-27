@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, fetchWorkspaceRevisions } from "./api";
-import type { Identity } from "./auth-session";
+import type { Identity, IdentityRefreshOptions } from "./auth-session";
 import { getErrorMessage } from "./view-model";
 import {
   activeRevisionSources,
@@ -9,6 +9,7 @@ import {
   isAdministrativeQuery,
   refreshWorkspaceQueries,
   sameAccount,
+  REVISION_SOURCES,
 } from "./workspace-revisions";
 
 interface PendingCheck {
@@ -17,7 +18,10 @@ interface PendingCheck {
 }
 
 /** Poll tiny revision tokens; financial reads run only when their dependencies change. */
-export function useWorkspaceRefresh(identity: Identity, checkIdentity: () => Promise<boolean>) {
+export function useWorkspaceRefresh(
+  identity: Identity,
+  checkIdentity: (options?: IdentityRefreshOptions) => Promise<boolean>,
+) {
   const client = useQueryClient();
   const baseline = useRef(identity.revisions);
   const pending = useRef<PendingCheck | null>(null);
@@ -41,12 +45,15 @@ export function useWorkspaceRefresh(identity: Identity, checkIdentity: () => Pro
           const snapshot = await fetchWorkspaceRevisions({
             accessToken: identity.session.access_token,
             userId: identity.session.user.id,
-            sources: activeRevisionSources(client),
+            sources:
+              identity.account.access_role === "operator"
+                ? REVISION_SOURCES
+                : activeRevisionSources(client),
             signal: controller.signal,
           });
           if (!current()) return;
           if (!sameAccount(snapshot.account, identity.account)) {
-            await checkIdentity();
+            await checkIdentity({ forceCatalog: force || retryRequested() });
             return;
           }
           const changed = changedRevisionSources(baseline.current, snapshot.revisions);
@@ -58,7 +65,11 @@ export function useWorkspaceRefresh(identity: Identity, checkIdentity: () => Pro
             forceRequested.current = false;
             if (changed.length > 0 || forced || administrative) {
               setIsUpdating(true);
-              if ((forced || changed.includes("fees")) && !(await checkIdentity())) return;
+              const refreshCatalogs =
+                forced ||
+                changed.includes("fees") ||
+                (identity.account.access_role === "operator" && changed.length > 0);
+              if (refreshCatalogs && !(await checkIdentity({ forceCatalog: forced }))) return;
               if (!current()) return;
               await refreshWorkspaceQueries(client, changed, forced, controller.signal);
             }
@@ -72,7 +83,7 @@ export function useWorkspaceRefresh(identity: Identity, checkIdentity: () => Pro
           if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
             // Reuse token renewal/access-removal handling; never trust cached permissions.
             try {
-              await checkIdentity();
+              await checkIdentity({ forceCatalog: force || retryRequested() });
             } catch (identityError) {
               if (current())
                 setUpdateError(`Could not check for updates: ${getErrorMessage(identityError)}`);

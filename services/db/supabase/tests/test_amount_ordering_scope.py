@@ -81,11 +81,11 @@ class AmountOrderingScopeTests(SourceModelFixture):
 
         for dataset in ("settlement", "data_kiosk"):
             source = dataset.upper()
-            filters = (
+            filters: tuple[dict[str, object], ...] = (
                 {"p_skus": ["OTHER"]},
                 {"p_types": ["FOCUS"]},
-                {"p_search": "OTHER"},
-                {"p_search": "no such visible text"},
+                {"p_search_skus": ["OTHER"]},
+                {"p_search_skus": []},
                 {"p_date_from": "2026-07-01"},
                 {"p_marketplaces": ["Amazon.co.uk"]},
             )
@@ -98,7 +98,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
                     expected_count = (
                         "1"
                         if any(key in selection for key in ("p_skus", "p_types"))
-                        or selection.get("p_search") == "OTHER"
+                        or selection.get("p_search_skus") == ["OTHER"]
                         else "0"
                     )
                     self.assertEqual(raw["total_count"], expected_count)
@@ -123,7 +123,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
         # The limit covers the combined Transactions result, not each source.
         with self.assertRaises(psycopg.errors.InvalidParameterValue):
             self.live_page(member, p_order_by="amount")
-        selected = self.live_page(operator, p_order_by="amount", p_search="FOCUS")
+        selected = self.live_page(operator, p_order_by="amount", p_search_types=["FOCUS"])
         self.assertEqual(selected["total_count"], "2")
         self.assertEqual(self.live_page(operator)["total_count"], "20002")
         self.assertEqual(self.live_count(operator), "20002")

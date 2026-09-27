@@ -1,0 +1,802 @@
+[
+  {
+    "source": "DATA_KIOSK",
+    "category": "ANALYSIS_ONLY",
+    "type": "COST_OF_GOODS_SOLD"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "ANALYSIS_ONLY",
+    "type": "MFN_FULFILLMENT_COST"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "ANALYSIS_ONLY",
+    "type": "MFN_STORAGE_COST"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "ANALYSIS_ONLY",
+    "type": "MISCELLANEOUS_COST"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "ANALYSIS_ONLY",
+    "type": "SHIPPING_TO_AMAZON_COST"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "COUPON_PARTICIPATION_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "COUPON_PERFORMANCE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "DEAL_PARTICIPATION_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "DEAL_PERFORMANCE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "DISPOSAL_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "FBA_AGED_INVENTORY_SURCHARGE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "FBA_INBOUND_CONVENIENCE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "FBA_INBOUND_PLACEMENT_SERVICE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "FBA_INBOUND_TRANSPORTATION_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "FBA_STORAGE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "LABELING_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "LONG_TERM_STORAGE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "MONTHLY_INVENTORY_STORAGE_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "REMOVAL_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_BRANDS"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_BRANDS_CHARGE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_BRANDS_CHARGES"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_DISPLAY"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_DISPLAY_CHARGE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_DISPLAY_CHARGES"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_PRODUCTS"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_PRODUCTS_CHARGE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_PRODUCTS_CHARGES"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
+    "type": "SPONSORED_PRODUCT_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SELBOX",
+    "type": "SUBSCRIPTION_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "DIGITAL_SERVICES_FEE_FBA"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "DIGITAL_SERVICES_FEE_SOA"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "FBA_FULFILLMENT_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "FBA_FULFILLMENT_FEES"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "FBA_FULFILMENT_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "FBA_INVENTORY_REIMBURSEMENT"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "LIQUIDATION_PROCESSING_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "LIQUIDATION_REFERRAL_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "NET_PRODUCT_SALES"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "REFERRAL_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "REFERRAL_FEES"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "REFUNDED_REFERRAL_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "SETTLEMENT",
+    "type": "REFUND_COMMISSION_FEE"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "AmazonFees/Coupon Participation Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "AmazonFees/Coupon Performance Based Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "AmazonFees/Deal Participation Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "AmazonFees/Deal Performance Based Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Amazon-Partnered Carrier Shipment Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Inbound Placement Service Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Inventory Storage Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Inventory Storage Fee/Tax on fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Long Term Storage Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Long Term Storage Fee/Tax on fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Removal Order: Disposal Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Removal Order: Disposal Fee/Tax on fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/FBA Removal Order: Return Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "FBAFees/Inbound Transportation Program Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "ServiceFee/Cost of Advertising/TransactionTotalAmount"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/DisposalComplete"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/FBA Inbound Placement Service Fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/FBAInboundTransportationFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/FBAInboundTransportationProgramFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/Inbound Transportation Fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/RemovalComplete"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/Storage Fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "DATA_KIOSK",
+    "type": "other-transaction/other-transaction/StorageRenewalBilling"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "AmazonFees/Amazon service fee for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "AmazonFees/Eco-contribution for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "AmazonFees/Eco-contribution for EPR Pay on Behalf - GB/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "AmazonFees/Vine Enrollment Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, ES, NL"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, FR, ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, FR, ES, NL"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, NL"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, NL, ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against DE"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against DE, BE, ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against DE, NL, ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against ES, NL"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against FR"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against NL, ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment for BE"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment for DE"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment for ES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment for FR"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment for IT"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment for NL"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "FBAFees/Inbound Defect Fee/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Order_Retrocharge/ItemPrice/ShippingTax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Order_Retrocharge/ItemPrice/Tax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Order_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorTax-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Order_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorTax-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Order_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Order_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorVAT-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Refund_Retrocharge/ItemPrice/ShippingTax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Refund_Retrocharge/ItemPrice/Tax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Refund_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorTax-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Refund_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorTax-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Refund_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Refund_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorVAT-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "ServiceFee/Refund for Advertiser/TransactionTotalAmount"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Current Reserve Amount"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Fee Adjustment"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Payable to Amazon"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Previous Reserve Amount Balance"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Subscription Fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Successful charge"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "other-transaction/other-transaction/Transfer of funds unsuccessful: We could not transfer funds to your bank account because the account information on file is invalid. Please update your bank account information."
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "AmazonFees/FBA fulfilment fee per unit - Correction/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "AmazonFees/FBA fulfilment fee per unit - Reversal/Base fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Liquidations Adjustments/ItemFees/LiquidationsBrokerageFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Liquidations Adjustments/ItemPrice/Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Liquidations Adjustments/ItemPrice/Tax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Liquidations/ItemFees/LiquidationsBrokerageFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Liquidations/ItemPrice/Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Liquidations/ItemPrice/Tax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemFees/Commission"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemFees/Digital Services Fee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemFees/DigitalServicesFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemFees/FBAPerUnitFulfillmentFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemFees/ShippingChargeback"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemPrice/Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemPrice/ShippingTax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemPrice/Tax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemWithheldTax/LowValueGoodsTax-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemWithheldTax/LowValueGoodsTax-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemWithheldTax/MarketplaceFacilitatorTax-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemWithheldTax/MarketplaceFacilitatorTax-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/ItemWithheldTax/MarketplaceFacilitatorVAT-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/Promotion/Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/Promotion/Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Order/Promotion/TaxDiscount"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "PRODUCT_REFUNDS"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "PRODUCT_SALES"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemFees/Commission"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemFees/DigitalServicesFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemFees/RefundCommission"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemFees/ShippingChargeback"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemPrice/RestockingFee"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemPrice/Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemPrice/ShippingTax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemPrice/Tax"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemWithheldTax/MarketplaceFacilitatorTax-Other"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemWithheldTax/MarketplaceFacilitatorTax-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemWithheldTax/MarketplaceFacilitatorTax-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/ItemWithheldTax/MarketplaceFacilitatorVAT-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/Promotion/Principal"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/Promotion/Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "Refund/Promotion/TaxDiscount"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "other-transaction/FBA Inventory Reimbursement/COMPENSATED_CLAWBACK"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "other-transaction/FBA Inventory Reimbursement/FREE_REPLACEMENT_REFUND_ITEMS"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "other-transaction/FBA Inventory Reimbursement/REVERSAL_REIMBURSEMENT"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "other-transaction/FBA Inventory Reimbursement/WAREHOUSE_DAMAGE"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SETTLEMENT",
+    "type": "other-transaction/FBA Inventory Reimbursement/WAREHOUSE_LOST"
+  }
+]

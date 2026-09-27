@@ -1,4 +1,4 @@
-"""Compare current combined versus sequential page/count RPC responses and timings."""
+"""Measure current page-first reads and their separate exact-count requests."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class Payload(TypedDict):
 
 class Case(TypedDict):
     name: str
-    filters: dict[str, object]
+    filters: Mapping[str, object]
     direction: str
 
 
@@ -47,7 +47,7 @@ def _metadata(connection: Connection, repeat: int) -> Record:
     if len(signatures) != 2 or not all(
         "p_marketplaces text[]" in arguments
         and "p_fee_applicable boolean" in arguments
-        and "p_search text" in arguments
+        and "p_search_skus text[]" in arguments
         and (name != "transaction_page" or "p_order_by text" in arguments)
         for name, arguments in signatures
     ):
@@ -110,6 +110,10 @@ def _cases(base: str, bearer: str) -> list[Case]:
         raise RuntimeError("Benchmark identity has no visible transactions")
     latest = date.fromisoformat(first["rows"][0]["activity_date"])
     marketplace = next(row["marketplace_name"] for row in first["rows"] if row["marketplace_name"])
+    recent = {
+        "p_date_from": (latest - timedelta(days=59)).isoformat(),
+        "p_date_to": latest.isoformat(),
+    }
     return [
         {"name": "latest", "filters": {}, "direction": "desc"},
         {"name": "oldest", "filters": {}, "direction": "asc"},
@@ -119,11 +123,14 @@ def _cases(base: str, bearer: str) -> list[Case]:
             "direction": "desc",
         },
         {
-            "name": "latest_ten_dates",
-            "filters": {
-                "p_date_from": (latest - timedelta(days=9)).isoformat(),
-                "p_date_to": latest.isoformat(),
-            },
+            "name": "latest_sixty_days",
+            "filters": recent,
+            "direction": "desc",
+        },
+        {"name": "sixty_days_oldest", "filters": recent, "direction": "asc"},
+        {
+            "name": "sixty_days_marketplace",
+            "filters": {**recent, "p_marketplaces": [marketplace]},
             "direction": "desc",
         },
     ]
@@ -155,6 +162,7 @@ def _sample(base: str, case: Case, bearer: str, reference: Payload) -> Record:
         "count_request_ms": round(count_duration, 3),
         "all_ready_ms": round(completed, 3),
         "rows": len(payload["rows"]),
+        "matching_rows": int(total),
         "response_bytes": page_bytes + count_bytes,
         "result_sha256": digest(reference),
     }
@@ -190,6 +198,8 @@ def _run_samples(base: str, tokens: dict[str, str], repeat: int, result: Record)
                         "case": case["name"],
                         "iteration": iteration,
                         "warmup": iteration == 0,
+                        "date_from": case["filters"].get("p_date_from"),
+                        "date_to": case["filters"].get("p_date_to"),
                         **sample,
                     }
                 )

@@ -38,20 +38,20 @@ export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description: "Amounts reported by Amazon, service fees, and estimated company amounts.",
-    searchPlaceholder: "SKU, type, source, marketplace, or currency",
+    searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
   settlement: {
     label: "Settlements",
     description: "Sales, refunds, and charges from Amazon settlement reports.",
-    searchPlaceholder: "SKU, type, marketplace, or currency",
+    searchPlaceholder: "SKU, type, or marketplace",
     emptyMessage: "No settlement transactions match this view.",
   },
   data_kiosk: {
     label: "Data Kiosk",
     description:
       "Daily sales, refunds, and charges reported by Amazon. Rows with a zero amount are hidden.",
-    searchPlaceholder: "SKU, type, marketplace, or currency",
+    searchPlaceholder: "SKU, type, or marketplace",
     emptyMessage: "No Data Kiosk records match this view.",
   },
   fees: {

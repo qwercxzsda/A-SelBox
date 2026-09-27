@@ -12,10 +12,7 @@ from ...src.allocation import AllocationCategory
 from ...src.data_kiosk_economics.components import build_components, classify_fee
 from ...src.data_kiosk_economics.errors import UnresolvedDataKioskComponentError
 from ...src.settlement_preprocess.classification import classify_settlement_row
-from ...src.settlement_preprocess.cost_families import (
-    _NAMED_COSTS,  # pyright: ignore[reportPrivateUsage]
-    _OTHER_COSTS,  # pyright: ignore[reportPrivateUsage]
-)
+from ...src.transaction_types.settlement import SETTLEMENT_TYPES
 from ..support.economics import complete_economics_fact
 
 # Reviewed family correspondence; the raw names need not match across sources.
@@ -50,14 +47,12 @@ def _settlement_category(
 
 class SourceCategoryAlignmentTests(unittest.TestCase):
     def test_every_reviewed_settlement_cost_family_agrees_with_data_kiosk(self) -> None:
-        # Inspect the private registries to require coverage when their families change.
         settlement_costs: defaultdict[str, list[tuple[str, str, str]]] = defaultdict(list)
-        for (transaction, amount_type), cost in _NAMED_COSTS.items():
-            settlement_costs[cost.name].extend(
-                (transaction, amount_type, description) for description in cost.descriptions
-            )
-        for description, family in _OTHER_COSTS.items():
-            settlement_costs[family].append(("other-transaction", "other-transaction", description))
+        for definition in SETTLEMENT_TYPES:
+            if definition.category is AllocationCategory.DATA_KIOSK:
+                self.assertIsNotNone(definition.family)
+                family = str(definition.family).removeprefix("C3_")
+                settlement_costs[family].append(definition.source_key)
 
         # A new Settlement family must add a reviewed Data Kiosk correspondence.
         self.assertEqual(set(settlement_costs), set(_DATA_KIOSK_COST_LABELS))
@@ -120,9 +115,7 @@ class SourceCategoryAlignmentTests(unittest.TestCase):
             build_components(
                 replace(fact, fees=(replace(fact.fees[0], fee_type_name="SubscriptionFee"),))
             )
-        self.assertIs(
-            _settlement_category("UnreviewedTransaction", "UnknownAmount", "UnknownFee"),
-            AllocationCategory.SELBOX,
-        )
+        with self.assertRaisesRegex(ValueError, "Unsupported Settlement type"):
+            _settlement_category("UnreviewedTransaction", "UnknownAmount", "UnknownFee")
         with self.assertRaises(UnresolvedDataKioskComponentError):
             classify_fee("UnknownFee")

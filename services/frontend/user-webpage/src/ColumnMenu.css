@@ -42,6 +42,8 @@
 
 .column-menu-dropdown {
   color: var(--mantine-color-text);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   white-space: normal;
 }
 

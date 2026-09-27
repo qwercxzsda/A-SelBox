@@ -1,3 +1,4 @@
+import { searchValues } from "./search-fixtures.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiError, createApiClient } from "../src/api/client.ts";
@@ -39,7 +40,10 @@ test("financial counts use typed filters without ordering, pagination, or lossy 
     p_sources: filters.sources,
     p_types: filters.types,
     p_fee_applicable: null,
-    p_search: null,
+    p_search_skus: null,
+    p_search_types: null,
+    p_search_marketplaces: null,
+    p_search_sources: null,
   });
 });
 
@@ -64,7 +68,13 @@ test("all transaction counts use the same literal search RPC arguments as their 
       marketplaces: ["Amazon.com"],
       types: ["PRINCIPAL"],
     });
-    const options = { ...OPTIONS, dataset, search: " MISSING_FEE%*\\ ", filters };
+    const options = {
+      ...OPTIONS,
+      dataset,
+      search: " MISSING_FEE%*\\ ",
+      searchValues: searchValues({ skus: ["MISSING_FEE%*\\"] }),
+      filters,
+    };
     assert.equal(await client.fetchDatasetCount(options), 31);
     await client.fetchDatasetPage({
       ...options,
@@ -76,7 +86,7 @@ test("all transaction counts use the same literal search RPC arguments as their 
     const { p_limit, p_offset, p_direction, p_order_by, p_include_count, ...pageFilters } =
       requests[1];
     assert.deepEqual(requests[0], pageFilters);
-    assert.equal(requests[0].p_search, options.search.trim());
+    assert.deepEqual(requests[0].p_search_skus, options.searchValues.skus);
     assert.deepEqual(
       [p_limit, p_offset, p_direction, p_order_by, p_include_count],
       [25, 25, "desc", "amount", false],

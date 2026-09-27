@@ -64,10 +64,20 @@ opened breakdown have independent cache and error states. Totals and Type breakd
 `transaction_totals`; compatible source facts are summed before their fee lookup. The response keeps
 exact decimal strings and counts needed to identify missing company amounts.
 
-Filter menus call `dataset_filter_options` for distinct authorized values. Both RPCs return bounded
-JSON pages with explicit continuation information; every page is loaded before displaying the
-result. No separate source-row count is requested. Generated PostgREST aggregation is disabled; the
-frontend never sends aggregate expressions in REST query parameters.
+Source menus always offer Settlement and Data Kiosk. Marketplace menus include all 24 canonical
+marketplace names. Type menus use the generated preprocessing registry: company Transactions
+includes every known type except category `SELBOX` (including `ANALYSIS_ONLY`). Administrator
+Transactions offers every known type from both sources; administrator source tabs offer every known
+type from that source. Options remain available with no matching rows, and actual rows keep their
+existing access and category rules. The JSON files in `src/generated/` are generated from the Python
+registries; do not edit them manually.
+
+Company-member SKU catalogs use assignments already loaded with identity. Administrator identity
+preloads one complete `sku_filter_options` response, covering registered SKUs and imported
+source-history SKUs under database access rules, including unassigned imports. All SKU menus use
+this preloaded catalog and send no option requests when opened. Selected values stay available after
+options change. No separate source-row count is requested. Generated PostgREST aggregation is
+disabled; the frontend never sends aggregate expressions in REST query parameters.
 
 ## Requests and session lifecycle
 
@@ -76,17 +86,32 @@ and `source_transaction_page` for Settlements and Data Kiosk. The functions page
 filtered source rows using their stored date or amount; Transactions calculates output fees for the
 chosen page. Date ordering reverses both dates and row IDs (and source ties in Transactions). Amount
 ordering uses signed numeric values with ascending source/ID ties in either direction; currencies
-are not converted. Search is a trimmed, literal, case-insensitive substring passed as `p_search`.
-Page and count RPCs share the same validated filters and search term. Search covers SKU, raw Type,
-Marketplace, and Currency; Transactions also searches Source codes and their displayed labels.
-Seller identifiers, processing versions, fee status, and other metadata are excluded. Matching
-fields are checked before pagination. Settlements uses the same Type column as the other transaction
-tabs; original source classification fields remain in row details. Fee applicability also applies
-before pagination and counting; changing search or filters returns to page one. Financial pages load
-before their independent exact counts: Transactions uses `transaction_count`; Settlements and Data
-Kiosk use `source_transaction_count`. Other datasets retain direct REST reads and filtered HEAD
-counts. Details and Previous/Next remain usable while counting. Page-number entry becomes available
-when the bound is known. Failed counts have their own retry.
+are not converted. Search is a trimmed, literal, case-insensitive substring resolved locally against
+complete SKU, Type, Marketplace, and (for Transactions) Source catalogs. Raw Type and Source codes
+and their displayed labels both match; Currency is excluded. The browser sends matching exact values
+as `p_search_skus`, `p_search_types`, `p_search_marketplaces`, and the Transactions-only
+`p_search_sources`. Matching fields combine with OR, then intersect with column filters. Blank
+search sends null arrays; an active search with no catalog matches sends empty arrays and returns no
+rows. Page and count RPCs share the same validated sets and include them in cache keys. Seller
+identifiers, processing versions, fee status, and other metadata are excluded. Matching fields are
+checked before pagination. Settlements uses the same Type column as the other transaction tabs;
+original source classification fields remain in row details. Fee applicability also applies before
+pagination and counting; changing search or filters returns to page one. Financial pages load before
+their independent exact counts: Transactions uses `transaction_count`; Settlements and Data Kiosk
+use `source_transaction_count`. Other datasets retain direct REST reads and filtered HEAD counts.
+Details and Previous/Next remain usable while counting. Page-number entry becomes available when the
+bound is known. Failed counts have their own retry.
+
+Administrators reload their SKU catalog on any source or fee revision before dependent search reads;
+members reload assigned SKUs on fee revisions. Refreshed catalogs update search keys before queries
+refetch, including when a previously unmatched search gains a newly imported SKU.
+
+Identity refreshes reuse an in-memory administrator SKU catalog only after fetching the current
+account and all three revision tokens and confirming they match its existing scope and revisions. An
+explicit workspace retry forces catalog reload. Reuse does not cross sign-out, account/role/company
+changes, or page reloads. Missing revision tokens never authorize reuse. Company names and
+assignments still reload on identity refresh; members derive SKU options from those fresh
+assignments.
 
 Financial counts are cached until a relevant data revision changes. Pages and administrative counts
 have 30-second freshness. Every visible, online workspace polls `workspace_revisions` every 60
@@ -103,6 +128,22 @@ the account returned by the revision RPC, then reloads company and SKU lookups b
 workspace. Token rotation is saved before dependent requests. Temporary restore failures offer
 retry; sign-out immediately clears local session and workspace data and ends the current session.
 Authentication is not synchronized between tabs.
+
+Successful token renewal within the same account scope preserves the mounted workspace:
+
+| Data                                                          | Renewal behavior                                                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Access token, refresh token, expiry, minimal Auth user fields | Replace with the Auth response and save before dependent reads.                                         |
+| Application account, role/company, revision tokens            | Fetch from the database again.                                                                          |
+| Company names and current SKU assignments                     | Fetch again.                                                                                            |
+| Administrator SKU catalog                                     | Reuse only when the fresh account and all three revisions match; otherwise load the complete list once. |
+| Member SKU options                                            | Rebuild from refreshed assignments.                                                                     |
+| Selected tab, filters, sorting, pagination, expanded details  | Keep while the workspace remains mounted.                                                               |
+| Cached pages, counts, summaries and fee details               | Keep; normal query freshness and revision invalidation still apply.                                     |
+
+Tokens are not query-cache keys. A changed user, application role, or company mounts a new workspace
+and discards the previous workspace's query cache. Sign-out and failed access verification also
+remove the authenticated workspace; no catalog or financial result is restored from session storage.
 
 ## Configuration
 

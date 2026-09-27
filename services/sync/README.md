@@ -94,16 +94,18 @@ conda run -n A-SelBox python -m services.sync.run_preprocess_data_kiosk \
 
 Preprocessing checks archive integrity before parsing. Missing or corrupt input
 fails locally. Failure preserves the acquisition and publishes no partial source
-version. Reruns use the shared `src/preprocess_version.py` definition and preserve
-historical result names. Bump that constant when source interpretation changes;
+version. Reruns use the shared `src/preprocess_version.py` definition; historical
+source versions remain immutable. Bump that constant when source interpretation changes;
 ownership and fee edits do not change it.
 
-The current definition is `v0`. Both sources use the same named category enum:
+The current definition is `v1`. Both sources use the same named category enum:
 `SETTLEMENT`, `SELBOX`, `DATA_KIOSK`, or `ANALYSIS_ONLY`. Settlement accepts the
-first three. Its recognized families must pass their checks; unmatched families
-remain `SELBOX` with review diagnostics. Data Kiosk rejects unknown monetary
+first three. Exact Settlement types must be registered and pass their family checks;
+known retained charges explicitly use `SELBOX`. Unknown types abort the entire report.
+Data Kiosk rejects unknown monetary
 components and missing required amounts before publishing any day. Its explicit
-analysis-only components remain outside company totals.
+analysis-only components remain outside strict financial totals and remain available
+in dashboard estimates. The [shared registry](../../docs/transaction_type_registry.md) also generates the frontend Type catalog.
 
 Preprocessing preserves exact signed amounts and nonblank SKU text verbatim,
 including surrounding whitespace. Settlement requires exact report reconciliation
@@ -209,6 +211,7 @@ over-credit policy remain deferred.
 
 ```sh
 conda run -n A-SelBox python -m unittest discover -s services/sync/tests/unit -t .
+conda run -n A-SelBox python -m services.sync.src.transaction_types.generate --check
 conda run -n A-SelBox python -m unittest services.db.supabase.tests.test_archive_to_live
 conda run -n A-SelBox ruff format --check .
 conda run -n A-SelBox ruff check .

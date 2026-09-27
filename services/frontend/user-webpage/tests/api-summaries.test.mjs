@@ -23,7 +23,10 @@ test("latest date uses the shared one-row page RPC without table refinements or 
       p_offset: 0,
       p_direction: "desc",
       p_order_by: "date",
-      p_search: null,
+      p_search_skus: null,
+      p_search_types: null,
+      p_search_marketplaces: null,
+      p_search_sources: null,
       p_date_from: null,
       p_date_to: null,
       p_company_ids: [],
@@ -287,10 +290,10 @@ test("totals reject invalid financial fields and preserve missing-fee informatio
   assert.deepEqual(await client.fetchTransactionPeriodTotals(periodTotalsRequest()), []);
 });
 
-test("aggregate and option pagination preserve cancellation even if the transport ignores abort", async () => {
+test("aggregate pagination and SKU catalogs preserve cancellation even if transport ignores abort", async () => {
   for (const action of [
     (client, signal) => client.fetchTransactionPeriodTotals(periodTotalsRequest({ signal })),
-    (client, signal) => client.fetchDatasetFilterOptions("test-access", "live", "sku", signal),
+    (client, signal) => client.fetchSkuOptions("test-access", signal),
   ]) {
     const alreadyAborted = new AbortController();
     const reason = new Error("cancelled request");
@@ -302,7 +305,7 @@ test("aggregate and option pagination preserve cancellation even if the transpor
     const client = createApiClient(SETTINGS, async () => {
       calls += 1;
       controller.abort(reason);
-      return responseJson({ rows: [], next_offset: null, values: [], next_cursor: null });
+      return responseJson({ rows: [], next_offset: null, values: [] });
     });
     await assert.rejects(action(client, controller.signal), (error) => error === reason);
     assert.equal(calls, 1);

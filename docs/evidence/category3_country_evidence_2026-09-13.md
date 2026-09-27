@@ -1,5 +1,9 @@
 # Company-cost country evidence: 2026-09-13
 
+Historical source observations are retained as evidence. Current preprocessing uses the
+[explicit Type registry](../transaction_type_registry.md): reviewed retained charges are
+registered as `SELBOX`, and unknown types abort rather than defaulting.
+
 **Finding:** Economics responses in the September 13, 2026 snapshot contain 24,768 daily MSKU rows across 15 countries. The approved company-cost families have concrete native fee evidence, including Japan's reviewed `LabelingFee` family.
 
 This note preserves the source observations supporting the
@@ -93,7 +97,7 @@ Twelve `getReportDocument` downloads succeeded: nine EU, two NA, and one Singapo
 
 The fee-candidate review contains **254 rows across 18 exact triples**; all 254 have blank SKU. Of these, **250 rows across 16 triples** match the approved `DATA_KIOSK` registry. The remaining three Vine enrollment rows and one advertiser-refund row default to `SELBOX` under the policy. The historical 107-triple catalog is independent evidence; its counts are not added to these replay counts.
 
-The [explicit Settlement registry](../../services/sync/src/settlement_preprocess/cost_families.py) contains **23 approved triples**, including previously retained variants not present in this particular replay. Its families cover storage, aged storage, disposal, removal, inbound placement and transportation, coupons, deals, and advertising. Matching a known family precedes validation of its permitted description, so a malformed known charge cannot escape through the default.
+At this review, the explicit cost registry contained **23 approved triples** (now part of the [shared Type registry](../../services/sync/src/transaction_types/settlement.py)), including previously retained variants not present in this particular replay. Its families cover storage, aged storage, disposal, removal, inbound placement and transportation, coupons, deals, and advertising. Matching a known family precedes validation of its permitted description, so a malformed known charge cannot escape through the default.
 
 The following remain outside the explicit Settlement `DATA_KIOSK` registry: inbound defect charges, Vine enrollment, `Refund for Advertiser`, EPR service fees, EPR eco-contributions, and generic `Fee Adjustment`. Ordinary storage observations do not prove storage-adjustment coverage, and advertising observations do not prove that an advertiser refund is represented in Data Kiosk. One historical advertiser-refund candidate is a positive USD5.27 credit; that sign alone does not establish its Data Kiosk representation.
 

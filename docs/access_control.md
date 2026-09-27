@@ -139,6 +139,7 @@ withdraws fee coverage; payout publication rejects unresolved required inputs.
 | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------- |
 | `seller_skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                    | Own company's selected terms       |
 | `company_skus`, `current_sku_fee_periods`                                                                | Current projections across companies            | Own company current projections    |
+| `rpc/sku_filter_options`                                                                                | Complete distinct SKU catalog                   | Denied (`42501`)                   |
 | `settlement_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                        | Permitted current own-company rows |
 | `settlement_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                 | Denied                             |
 | `live_company_components`                                                                                | Current data permitted by the view's definition | Current own-company data           |
@@ -153,10 +154,30 @@ Role and company checks read `app_accounts` using the authenticated caller's
 guarded privileged reads or terms publication. Their search paths are fixed.
 REST views and the public RPC wrapper use invoker security.
 
+The complete SKU discovery RPC checks `private.is_operator()` before reading source history.
+Its shared `authenticated` SQL execution grant supports operator sessions; stored application
+membership still rejects company members and missing/revoked operator accounts. The member
+frontend derives options from its `company_skus` assignments instead. This restriction applies to
+the RPC, including direct SQL calls without an operator identity; ordinary table permissions stay
+separate.
+
 Explicit column grants restrict account writes, while separate INSERT, UPDATE,
 and DELETE policies restrict the actor and target role. UPDATE checks both the
 existing row and its resulting company-member state. Source-row RLS enforces
 current-version and current-company access even beneath the public views.
+
+`private.current_owned_sku_terms()` resolves the caller's current ownership as a set of
+seller/SKU identities and selected terms IDs. It reads the stored account, joins that company's
+terms, and requires each SKU's current pointer to select the returned version. The helper accepts
+no user or company argument, has an empty search path, and is executable only by `authenticated`
+among application roles. Its definer security avoids recursively applying the same ownership
+policies inside this lookup; it does not expose another company's assignments or historical terms.
+Operators use their separate policy branch, not this member-only set.
+
+SKU, terms, fee-period, and fact policies test membership in those sets instead of resolving
+ownership separately for every candidate row. Fact ownership uses both seller namespace and SKU.
+Each helper invocation uses the request's database snapshot; there is no persisted authorization
+cache. Account removal, reassignment, and terms publication therefore affect subsequent requests.
 
 Fact policies check current source pointers directly, alongside each fact's category and current
 seller/SKU ownership. Their header reads have simple account/current-pointer policies and never
@@ -183,9 +204,8 @@ operator, so full saved report columns and manifests are operator-only.
 The private schema remains outside the REST API's exposed schemas. Source and payout publication,
 pruning, acquisition manifests, and raw Storage objects are not exposed through an operator
 endpoint. Authorization follows the database snapshot of each request; changing access does not
-cancel a request already running with an earlier snapshot. See the
-[simplified metadata review](evidence/simple_metadata_access_2026-09-26/README.md) for the query
-comparison and verification.
+cancel a request already running with an earlier snapshot. The
+[performance guide](database_performance.md) describes the resulting read paths and their limits.
 
 Supabase checks [grants and RLS together](https://supabase.com/docs/guides/database/postgres/row-level-security);
 Auth identities and [application profile data](https://supabase.com/docs/guides/auth/managing-user-data)

@@ -5,7 +5,8 @@ import io
 from dataclasses import replace
 from typing import cast
 
-from services.db.supabase.benchmarks.ordering_cases import DATASETS, Case, Dataset, canonical_rows
+from services.db.supabase.benchmarks.datasets import DATASETS, Dataset, canonical_rows
+from services.db.supabase.benchmarks.search_cases import SearchCase
 from services.db.supabase.tests.e2e.fixtures import (
     archived_data_kiosk,
     archived_settlement,
@@ -24,6 +25,32 @@ from services.sync.src.settlement_preprocess.workflow import preprocess_settleme
 
 EXACT_AMOUNT = "9007199254740993.123456789012345678901"
 EXACT_QUANTITY = "9007199254740993"
+
+
+def reference_parameters(case: SearchCase) -> dict[str, str]:
+    """Use direct view reads as an independent oracle for the page RPC."""
+    dataset = case.dataset
+    column = dataset.date_column if case.order_by == "date" else dataset.amount_column
+    nulls = "nullsfirst" if case.descending_date else "nullslast"
+    tie_direction = "desc" if case.descending_date else "asc"
+    parameters = {
+        "select": ",".join(dataset.columns),
+        "order": ",".join(
+            [
+                f"{column}.{case.direction}.{nulls}",
+                *(name + "." + tie_direction for name in dataset.tie_columns),
+            ]
+        ),
+        "limit": "25",
+        "offset": str(case.offset),
+    }
+    if dataset.key == "live":
+        parameters["and"] = "(or(source.neq.DATA_KIOSK,source_amount.neq.0))"
+    elif dataset.key == "data_kiosk":
+        parameters["amount"] = "neq.0"
+    if case.marketplace is not None:
+        parameters["marketplace_name"] = "eq." + case.marketplace
+    return parameters
 
 
 class RawOrderingTests(LocalWorkflowCase):
@@ -62,12 +89,12 @@ class RawOrderingTests(LocalWorkflowCase):
     def assert_equivalent(
         self, token: str, dataset: Dataset, order_by: str, direction: str, sellers: set[str]
     ) -> None:
-        case = Case(dataset, "authenticated", order_by, direction, marketplace="Amazon.com")
+        case = SearchCase(dataset, "authenticated", order_by, direction, marketplace="Amazon.com")
         reference = self.stack.request(
             "GET",
             "/rest/v1/" + dataset.relation,
             token=token,
-            params=dict(case.parameters()),
+            params=reference_parameters(case),
             headers={"Accept": "text/csv", "Prefer": "count=exact"},
         )
         self.assertEqual(reference.status_code, 200)
@@ -128,7 +155,7 @@ class RawOrderingTests(LocalWorkflowCase):
                             operator=token == operator,
                         ):
                             self.assert_equivalent(token, dataset, order_by, direction, sellers)
-                args = Case(dataset, "invalid", "amount", "desc").arguments()
+                args = SearchCase(dataset, "invalid", "amount", "desc").arguments()
                 for patch, code in (
                     ({"p_marketplaces": ["not-a-marketplace"]}, "22023"),
                     ({"p_order_by": "company_amount"}, "22023"),
@@ -155,7 +182,7 @@ class RawOrderingTests(LocalWorkflowCase):
         )
         self.assertEqual(revoked.status_code, 204)
         for dataset in DATASETS:
-            args = Case(dataset, "revoked", "amount", "desc").arguments(include_count=True)
+            args = SearchCase(dataset, "revoked", "amount", "desc").arguments(include_count=True)
             for token in (member, outsider):
                 empty = self.stack.request(
                     "POST", "/rest/v1/rpc/" + dataset.endpoint, token=token, json=args

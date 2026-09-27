@@ -1,3 +1,4 @@
+import { skuAssignments } from "./api-fixtures.mjs";
 import { liveRow } from "./api-fixtures.mjs";
 import { applyDates } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
@@ -35,6 +36,7 @@ test("period shortcuts reset pagination, preserve other refinements, and return 
     summaryBucket("2026-02-28", "31", { rowCount: 31 }),
     summaryBucket("2026-03-15", "130", { rowCount: 32 }),
   ];
+  fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
   const { day, month, selected } = cards(page);
   await expect(amount(day, "Reported amount")).toHaveText("130 USD");

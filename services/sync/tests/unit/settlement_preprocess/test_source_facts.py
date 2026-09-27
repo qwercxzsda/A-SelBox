@@ -9,7 +9,6 @@ from unittest.mock import patch
 from ....src.allocation import AllocationCategory
 from ....src.amazon.settlement_tabular import SETTLEMENT_V2_COLUMNS
 from ....src.numeric import Numeric
-from ....src.preprocess_version import PREPROCESS_VERSION
 from ....src.settlement_preprocess.raw_report import prepare_settlement_report
 from ....src.settlement_preprocess.workflow import preprocess_settlement_report
 from ...support.archives import MemoryArchiveStorage
@@ -29,7 +28,7 @@ class SettlementSourceFactsTests(unittest.TestCase):
             {
                 "transaction-type": "other-transaction",
                 "amount-type": "FBA Inventory Reimbursement",
-                "amount-description": "New reason",
+                "amount-description": "WAREHOUSE_DAMAGE",
                 "marketplace-name": "",
             },
             {
@@ -49,7 +48,12 @@ class SettlementSourceFactsTests(unittest.TestCase):
                 "amount-description": "Subscription Fee",
                 "sku": "",
             },
-            {"transaction-type": "NewFamily", "sku": "  original-SKU  "},
+            {
+                "transaction-type": "FBAFees",
+                "amount-type": "Inbound Defect Fee",
+                "amount-description": "Base fee",
+                "sku": "  original-SKU  ",
+            },
         )
         prepared = prepare_settlement_report(document)
         self.assertEqual(
@@ -60,10 +64,9 @@ class SettlementSourceFactsTests(unittest.TestCase):
         self.assertEqual(prepared.transactions[1].amount, Numeric(-4))
         self.assertEqual(prepared.transactions[2].marketplace_name, None)
         self.assertEqual(prepared.transactions[-1].sku, "  original-SKU  ")
-        self.assertEqual(prepared.diagnostics[-1]["kind"], "UNMATCHED_SETTLEMENT_FAMILY")
-        self.assertEqual(prepared.diagnostics[-1]["preprocess_version"], PREPROCESS_VERSION)
+        self.assertEqual(prepared.diagnostics, ())
 
-    def test_reviewed_costs_select_data_kiosk_and_unreviewed_costs_stay_with_selbox(self) -> None:
+    def test_explicit_cost_decisions_preserve_data_kiosk_and_retained_selbox_amounts(self) -> None:
         rows = (
             ("FBAFees", "FBA Inventory Storage Fee", "Tax on fee", AllocationCategory.DATA_KIOSK),
             (
@@ -127,7 +130,7 @@ class SettlementSourceFactsTests(unittest.TestCase):
                     )
 
     def test_invalid_component_of_known_cost_cannot_default_to_selbox(self) -> None:
-        with self.assertRaisesRegex(ValueError, "unsupported settlement cost component"):
+        with self.assertRaisesRegex(ValueError, "Unsupported Settlement types"):
             prepare_settlement_report(
                 settlement_document(
                     {
@@ -232,7 +235,11 @@ class SettlementSourceFactsTests(unittest.TestCase):
             prepare_settlement_report(("\n".join(lines) + "\n").encode())
 
     def test_validated_source_fields_and_diagnostics_cannot_change_before_publication(self) -> None:
-        result = prepare_settlement_report(settlement_document({"transaction-type": "NewFamily"}))
+        result = prepare_settlement_report(
+            settlement_document(
+                {"posted-date": "2026-09-01", "posted-date-time": "2026-09-01T00:00:08+00:00"}
+            )
+        )
         with self.assertRaises(TypeError):
             cast(dict[str, str], result.transactions[0].source_fields)["sku"] = "changed"
         with self.assertRaises(TypeError):

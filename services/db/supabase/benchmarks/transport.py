@@ -109,7 +109,7 @@ def request(
             "source_transaction_page",
             "source_transaction_count",
             "transaction_totals",
-            "dataset_filter_options",
+            "sku_filter_options",
         }
     ):
         raise ValueError("Benchmark RPC target must be the temporary loopback service")

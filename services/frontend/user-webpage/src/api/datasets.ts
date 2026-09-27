@@ -1,6 +1,6 @@
 import { DATASET_CONFIG, isTableDataset } from "./config.ts";
 import { parseTotalCount, parseExactCount } from "./content-range.ts";
-import { datasetFilterValues, requireFilterField } from "./filters.ts";
+import { datasetFilterValues } from "./filters.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
 import { buildSearchFilter } from "./search.ts";
 import {
@@ -11,12 +11,10 @@ import {
 } from "./transaction-page.ts";
 import { ApiError, requireAccessToken, type ApiTransport } from "./transport.ts";
 import { readAllCsvRows, LOOKUP_PAGE_SIZE } from "./pagination.ts";
-import { readCursorRpcValues } from "./rpc-pagination.ts";
 import type {
   CanonicalRow,
   TableDatasetKey,
   DatasetSort,
-  DatasetFilterField,
   FetchDatasetPageOptions,
   FetchDatasetCountOptions,
   PageResult,
@@ -163,29 +161,6 @@ export function createDatasetApi(transport: ApiTransport) {
         signal,
       );
       return mapDatasetRows("fees", rows);
-    },
-
-    async fetchDatasetFilterOptions(
-      accessToken: string,
-      dataset: TableDatasetKey,
-      field: DatasetFilterField,
-      signal?: AbortSignal,
-    ): Promise<string[]> {
-      requireFilterField(dataset, field);
-      requireAccessToken(accessToken);
-      const operation = `${DATASET_CONFIG[dataset].label} filter options`;
-      return readCursorRpcValues(
-        (after) =>
-          postRpc(
-            accessToken,
-            "dataset_filter_options",
-            { p_dataset: dataset, p_field: field, p_limit: LOOKUP_PAGE_SIZE, p_after: after },
-            operation,
-            signal,
-          ),
-        operation,
-        signal,
-      );
     },
   };
 }

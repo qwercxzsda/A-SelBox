@@ -5,9 +5,9 @@ use the separate [Transactions contract](transaction_query_contracts.md), which 
 all eligible current sources, including Data Kiosk comparison and analysis rows.
 
 Use Settlement amounts for recognized `SETTLEMENT` families and historical Data
-Kiosk amounts for explicitly approved `DATA_KIOSK` costs. Other settlement
-families default to `SELBOX`, preserving raw SKU and a review signal for unfamiliar
-families. SelBox accepts the resulting surplus or shortfall, including the known
+Kiosk amounts for explicitly approved `DATA_KIOSK` costs. Other reviewed Settlement
+types explicitly use `SELBOX`, preserving raw SKU. Unknown types
+abort preprocessing. SelBox accepts the resulting surplus or shortfall, including the known
 Amazon disposal-data discrepancy.
 
 Settlement Reports and Data Kiosk are the only Amazon financial sources. There is
@@ -34,8 +34,8 @@ observed Data Kiosk cost families, tax/credit shapes, and coverage limits.
 A [family rule](settlement_component_categories.md) matches transaction type,
 amount type, and descriptions where needed, then validates the family's required
 fields and accounting conditions. Failed known checks abort; they cannot turn
-into an unmatched row. Unmatched families alone use `SELBOX` with a nonblocking
-review signal. SKU presence never determines source authority.
+into a retained row. `SELBOX` types require explicit registry entries too;
+unknown source combinations block publication. SKU presence never determines source authority.
 
 ## 2. The three settlement categories
 
@@ -46,7 +46,7 @@ references, original signs, amounts, and raw SKU; archives preserve every cell.
 | Category     | Settlement treatment                                                          | Company amount                         |
 | ------------ | ----------------------------------------------------------------------------- | -------------------------------------- |
 | `SETTLEMENT` | Known family requires nonblank SKU                                            | Settlement through exact SKU ownership |
-| `SELBOX`     | Known account families keep blank-SKU checks; unmatched rows preserve any SKU | No allocation from that row            |
+| `SELBOX`     | Known account families keep blank-SKU checks; explicit retained types preserve any SKU | No allocation from that row            |
 | `DATA_KIOSK` | Explicit cost family preserves any SKU and its control amount                 | Selected Data Kiosk components         |
 
 Each source has one fact table. Both store a required
@@ -79,12 +79,12 @@ Recognized account families retain distinct accounting meanings:
   zero-net contract. Nonzero, incomplete, or unidentified groups fail; zero alone
   does not prove complete acquisition.
 
-Generic adjustments, EPR charges, and other unmatched families remain `SELBOX`
-without an asserted subtype. Keep raw SKU, signs, and review signals. Blank SKU
+Reviewed generic adjustments, EPR charges, and other retained types explicitly use `SELBOX`
+without an invented subtype. Keep raw SKU and signs. Unregistered types abort. Blank SKU
 alone is not evidence of account meaning: advertising is an explicit `DATA_KIOSK`
 cost despite its settlement billing label.
 
-These rows do not directly allocate company entitlement. A settlement default does
+These rows do not directly allocate company entitlement. A retained settlement row does
 not suppress an independently approved Data Kiosk cost. A recognized account
 component with MSKU in Data Kiosk fails preprocessing; it cannot become `SELBOX`
 or be promoted to a company expense.
@@ -96,7 +96,7 @@ removal, inbound placement/transportation and associated program fees, coupon/de
 service fees, and advertising. The [family rules](settlement_component_categories.md)
 own exact matching fields and allowed base/tax descriptions. Similar wording does
 not approve inbound defects, Vine, advertiser refunds, EPR, or generic adjustments;
-unmatched families remain `SELBOX`.
+only explicitly registered retained types use `SELBOX`.
 
 Reviewed Data Kiosk `LabelingFee` is an additional cost observed in Japan; no
 unobserved settlement spelling is invented for it. Mapping scope and observed
@@ -106,8 +106,8 @@ Use selected Data Kiosk costs once, regardless of whether the settlement control
 has a SKU. Do not allocate or proportionally redistribute the control amount.
 Classification uses stable reviewed rules, not availability of an individual
 Data Kiosk counterpart. Required source coverage is checked separately. The
-`SELBOX` default can leave a newly named sale/credit with SelBox pending review;
-it is not a guarantee of complete company entitlement.
+registry rejects new types until reviewed; coverage is not a guarantee of complete
+company entitlement.
 
 ## 3. Abort when an assumption fails
 
@@ -125,8 +125,9 @@ the complete required settlement list and processor definition for a payout.
 The database validates that declared scope; it cannot discover an omitted failed
 acquisition or decide whether an older retained interpretation meets a new policy.
 
-Unknown Settlement families can classify as `SELBOX` while their meaning remains
-under review. This does not waive known-family checks. Acceptance of a financially
+Unknown Settlement source triples reject the complete report before publication.
+Only explicitly registered types can use `SELBOX`; retained classification does
+not waive their required-field or accounting checks. Acceptance of a financially
 different but valid Data Kiosk observation is separate from accepting an unmapped
 component, failed download, incomplete parse, or missing coverage.
 
@@ -191,7 +192,7 @@ cannot justify deduplicating expenses or dropping SKUs absent from Settlement ce
 
 Preprocessing retains source facts independently of ownership and fees. Combined
 authoritative amounts require complete declared coverage and the same exact
-processor definition, currently `v0`, across both selected sources. The
+processor definition, currently `v1`, across both selected sources. The
 [workflow contract](data_workflows.md) owns publication, acquisition aliases,
 marketplace names, source freshness, and retention.
 
@@ -261,7 +262,7 @@ cases. These examples isolate economic source decisions:
 | --------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Known `SETTLEMENT` family passes required fields          | Allocate Settlement once and exclude its Data Kiosk counterparts             |
 | Known family fails SKU, marketplace, or accounting checks | Abort; no fallback category or source                                        |
-| Unmatched Settlement family has SKU                       | Preserve SKU, default `SELBOX`, and surface review without direct allocation |
+| Unregistered Settlement type has SKU                      | Abort the complete report; retain archive and prior current version          |
 | Explicit Settlement cost family has SKU                   | Keep it as reconciliation evidence; use approved Data Kiosk cost             |
 | Same SKU has a Settlement sale and Data Kiosk storage     | Include each from its authoritative source                                   |
 | Data Kiosk Settlement counterpart lacks a same-day match  | Still exclude it; counterpart presence does not switch source                |

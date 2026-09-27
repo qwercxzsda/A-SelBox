@@ -76,6 +76,13 @@ export interface DatasetFilters {
   feeApplicability: string[];
 }
 
+export interface TransactionSearchValues {
+  skus: string[];
+  marketplaces: string[];
+  types: string[];
+  sources: string[];
+}
+
 export interface FetchDatasetPageOptions {
   accessToken: string;
   signal?: AbortSignal;
@@ -83,6 +90,7 @@ export interface FetchDatasetPageOptions {
   pageIndex: number;
   pageSize: number;
   search: string;
+  searchValues?: TransactionSearchValues | null;
   sort: DatasetSort;
   filters?: DatasetFilters;
   includeCount?: boolean;
@@ -90,7 +98,7 @@ export interface FetchDatasetPageOptions {
 
 export type FetchDatasetCountOptions = Pick<
   FetchDatasetPageOptions,
-  "accessToken" | "signal" | "dataset" | "search" | "filters"
+  "accessToken" | "signal" | "dataset" | "search" | "searchValues" | "filters"
 >;
 
 export interface CurrencyTotal {

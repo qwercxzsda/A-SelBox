@@ -125,6 +125,14 @@ export function skuAssignment(index) {
   };
 }
 
+export function skuAssignments(skus, companyId = "company-member-a") {
+  return [...new Set(skus)].map((sku, index) => ({
+    ...skuAssignment(index + 1),
+    sku,
+    company_id: companyId,
+  }));
+}
+
 export function feeRow(index, sellerSkuId = assignmentId(1)) {
   return {
     seller_sku_id: sellerSkuId,

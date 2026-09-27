@@ -1,0 +1,22 @@
+{
+  "seed_sha256": "9f44ec27b4d442cdffaf85b28423c8322d839c0ebc82c4d2d1d6c087fd589c1b",
+  "settlement_rows": 73733,
+  "settlement_source_triples": 88,
+  "data_kiosk_rows": 29511,
+  "data_kiosk_types": 23,
+  "classification_mismatches": 0,
+  "catalog_missing": [],
+  "reconstructed_settlement_reports_replayed": 59,
+  "replayed_financial_row_differences": 0,
+  "registry_types": 160,
+  "source_file_modified": false,
+  "data_kiosk_replay": {
+    "reconstructed_day_msku_facts": 17280,
+    "replayed_component_rows": 29511,
+    "changed_groups": 0,
+    "expected_sha256": "9a27f945be0ec5577decc745ce05376871c92e3fa597a94b0c031080c75d1501",
+    "actual_sha256": "9a27f945be0ec5577decc745ce05376871c92e3fa597a94b0c031080c75d1501",
+    "method": "Reconstructed typed sales/fee/ad/cost inputs from saved native dimensions. Compared exact component keys, category/type, SKU, amounts/currency/quantity/fee base, native dimensions, source document ID and line. Original archives are not fetched; the unused document_sha256 fact field uses a placeholder."
+  },
+  "verified_on": "2026-09-27"
+}

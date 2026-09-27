@@ -24,11 +24,10 @@ class Case:
     name: str
     endpoint: str
     arguments: Record
-    relation: str = "live_company_components"
-    field: str | None = None
+    is_sku_catalog: bool = False
 
 
-def _cases(latest: date, marketplace: str, currency: str) -> list[Case]:
+def _cases(latest: date, marketplace: str, currency: str, *, include_skus: bool) -> list[Case]:
     month_end = (
         latest
         if (latest + timedelta(days=1)).day == 1
@@ -37,6 +36,10 @@ def _cases(latest: date, marketplace: str, currency: str) -> list[Case]:
     month = {
         "p_date_from": month_end.replace(day=1).isoformat(),
         "p_date_to": month_end.isoformat(),
+    }
+    recent = {
+        "p_date_from": (latest - timedelta(days=59)).isoformat(),
+        "p_date_to": latest.isoformat(),
     }
     cases = [
         Case(
@@ -51,45 +54,29 @@ def _cases(latest: date, marketplace: str, currency: str) -> list[Case]:
             {**month, "p_group_by_type": True, "p_currency": currency},
         ),
         Case("month_marketplace", "transaction_totals", {**month, "p_marketplaces": [marketplace]}),
-    ]
-    for dataset, relation, fields in (
-        (
-            "live",
-            "live_company_components",
-            ("sku", "marketplace_name", "source", "component_type"),
+        Case("sixty_days", "transaction_totals", recent),
+        Case(
+            "sixty_day_types",
+            "transaction_totals",
+            {**recent, "p_group_by_type": True, "p_currency": currency},
         ),
-        ("settlement", "settlement_preprocess_entries", ("sku",)),
-        ("data_kiosk", "data_kiosk_preprocess_entries", ("component_type",)),
-    ):
-        cases.extend(
-            Case(
-                f"options_{dataset}_{field}",
-                "dataset_filter_options",
-                {"p_dataset": dataset, "p_field": field},
-                relation,
-                field,
-            )
-            for field in fields
-        )
+    ]
+    if include_skus:
+        cases.append(Case("options_all_skus", "sku_filter_options", {}, is_sku_catalog=True))
     return cases
 
 
 def _reference(connection: Connection, case: Case) -> list[Any]:
-    if case.field is not None:
-        visibility = {
-            "live": sql.SQL("(source <> 'DATA_KIOSK' or source_amount <> 0)"),
-            "settlement": sql.SQL("true"),
-            "data_kiosk": sql.SQL("amount <> 0"),
-        }[case.arguments["p_dataset"]]
+    if case.is_sku_catalog:
+        operator = connection.execute("select private.is_operator()").fetchone()
+        if operator != (True,):
+            raise PermissionError("SKU catalog references require an application administrator")
         rows = connection.execute(
-            sql.SQL(
-                'select distinct {field} collate "C" as value from public.{relation} '
-                "where {field} is not null and {visibility} order by value"
-            ).format(
-                field=sql.Identifier(case.field),
-                relation=sql.Identifier(case.relation),
-                visibility=visibility,
-            )
+            'select distinct sku collate "C" as value from ('
+            "select sku from private.settlement_transactions union all "
+            "select sku from private.data_kiosk_transactions union all "
+            "select sku from public.seller_skus) inventory "
+            "where sku is not null order by value"
         ).fetchall()
         return [row[0] for row in rows]
     grouped = case.arguments.get("p_group_by_type", False)
@@ -138,32 +125,57 @@ def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, 
             "select set_config('request.jwt.claims',%s,true)",
             (json.dumps({"sub": user, "role": "authenticated"}),),
         )
-        scope = connection.execute(
-            "select max(activity_date),min(marketplace_name),min(currency) "
+        latest_row = connection.execute(
+            "select max(activity_date) "
             "from public.live_company_components "
             "where source <> 'DATA_KIOSK' or source_amount <> 0"
         ).fetchone()
-        if scope is None or any(value is None for value in scope):
+        if latest_row is None or latest_row[0] is None:
             raise RuntimeError("Summary benchmark identity has no visible transaction scope")
-        cases = _cases(scope[0], scope[1], scope[2])
+        latest = latest_row[0]
+        scope = connection.execute(
+            "select marketplace_name,currency from public.live_company_components "
+            "where (source <> 'DATA_KIOSK' or source_amount <> 0) "
+            "and marketplace_name is not null and activity_date between %s and %s "
+            "group by marketplace_name,currency order by count(*) desc,marketplace_name,currency "
+            "limit 1",
+            (latest - timedelta(days=59), latest),
+        ).fetchone()
+        if scope is None:
+            raise RuntimeError("Summary benchmark needs a marketplace in the selected period")
+        account = connection.execute(
+            "select access_role from public.app_accounts where user_id=auth.uid()"
+        ).fetchone()
+        cases = _cases(
+            latest,
+            scope[0],
+            scope[1],
+            include_skus=account is not None and account[0] == "operator",
+        )
         return cases, {case.name: _canonical(_reference(connection, case), case) for case in cases}
 
 
 def _rpc(base: str, bearer: str, case: Case) -> tuple[list[Any], int, int]:
+    if case.is_sku_catalog:
+        value, size = request(base, case.endpoint, {}, bearer)
+        if not isinstance(value, dict):
+            raise RuntimeError("SKU catalog RPC returned an invalid complete envelope")
+        catalog = cast(Record, value)
+        if set(catalog) != {"values"}:
+            raise RuntimeError("SKU catalog RPC returned an invalid complete envelope")
+        values = catalog["values"]
+        if not isinstance(values, list):
+            raise RuntimeError("SKU catalog RPC returned an invalid value list")
+        return cast(list[Any], values), size, 1
     rows: list[Any] = []
     size = calls = 0
-    option = case.field is not None
-    arguments = {
-        **case.arguments,
-        "p_limit": 1000,
-        "p_after" if option else "p_offset": None if option else 0,
-    }
+    arguments = {**case.arguments, "p_limit": 1000, "p_offset": 0}
     while True:
         value, page_bytes = request(base, case.endpoint, arguments, bearer)
         if not isinstance(value, dict):
             raise RuntimeError("RPC returned an invalid envelope")
         envelope = cast(Record, value)
-        raw_page = envelope["values" if option else "rows"]
+        raw_page = envelope["rows"]
         if not isinstance(raw_page, list):
             raise RuntimeError("RPC returned an invalid bounded page")
         page = cast(list[Any], raw_page)
@@ -172,18 +184,16 @@ def _rpc(base: str, bearer: str, case: Case) -> tuple[list[Any], int, int]:
         rows.extend(page)
         size += page_bytes
         calls += 1
-        following = envelope["next_cursor" if option else "next_offset"]
+        following = envelope["next_offset"]
         if following is None:
             return rows, size, calls
-        if not page or (option and following != page[-1]):
-            raise RuntimeError("RPC pagination did not advance")
-        if not option and following != len(rows):
+        if not page or following != len(rows):
             raise RuntimeError("RPC offset is inconsistent")
-        arguments["p_after" if option else "p_offset"] = following
+        arguments["p_offset"] = following
 
 
 def _canonical(rows: list[Any], case: Case) -> list[Any]:
-    if case.field is not None:
+    if case.is_sku_catalog:
         if any(not isinstance(value, str) for value in rows) or len(rows) != len(set(rows)):
             raise RuntimeError("Option values must be unique strings")
         return rows
@@ -240,6 +250,11 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
                             "warmup": iteration == 0,
                             "elapsed_ms": round(elapsed, 3),
                             "groups": len(rows),
+                            "date_from": case.arguments.get("p_date_from"),
+                            "date_to": case.arguments.get("p_date_to"),
+                            "matching_rows": None
+                            if case.is_sku_catalog
+                            else sum(int(row["row_count"]) for row in rows),
                             "response_bytes": size,
                             "requests": calls,
                             "result_sha256": digest(canonical),

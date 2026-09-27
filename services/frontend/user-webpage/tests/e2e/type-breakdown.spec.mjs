@@ -1,3 +1,4 @@
+import { skuAssignments } from "./api-fixtures.mjs";
 import { liveRow } from "./api-fixtures.mjs";
 import { applyDates } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
@@ -57,6 +58,7 @@ test("breakdowns load lazily for the card dates and all types, independently of 
       source: "DATA_KIOSK",
     },
   ];
+  fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
   const { day } = summaryCards(page);
   await expect(view(page, "Latest day")).toBeVisible();

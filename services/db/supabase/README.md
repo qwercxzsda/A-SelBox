@@ -30,34 +30,58 @@ uses disposable databases and leaves development data and migration records inta
 
 ## Schema modules
 
-Files execute in this dependency order. Each module owns its current definitions rather than
-redefining objects created by an earlier read experiment.
+Files execute in dependency order. The foundation closes direct API access before publication
+and read modules are created. Publication integrity precedes writers; financial relations precede
+strict reads and payouts; retention follows its payout-manifest dependencies. Authorization is
+explicit, exact counts precede row-page APIs, and PostgREST reloads only after the final module.
+Each database object has one maintained definition.
 
-| Module                                                                                 | Responsibility                                                                                                                              |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [live_source_versions](migrations/20260912072531_live_source_versions.sql)             | Types, source and terms tables, constraints, ownership/version and selected read indexes, immutable identities, and private archive bucket. |
-| [atomic_publications](migrations/20260912072703_atomic_publications.sql)               | Complete acquisition/source/fee publication, current pointers, immutable inventories, and payout-aware pruning.                             |
-| [live_company_reads](migrations/20260912072704_live_company_reads.sql)                 | Current terms and financial rules, source/live views, explicit-version resolver, strict financial totals, and observation comparison.       |
-| [company_payout_reports](migrations/20260914062544_company_payout_reports.sql)         | Immutable report components and manifests, publication, completeness, and retained-evidence validation.                                     |
-| [application_access](migrations/20260914094640_application_access.sql)                 | Database-backed accounts, final RLS policies, current-version authorization, explicit grants, and guarded operator functions.               |
-| [workspace_revision_polling](migrations/20260922162533_workspace_revision_polling.sql) | Transactional source and company-scoped terms revision tokens and the authenticated polling RPC.                                            |
-| [transaction_read_rules](migrations/20260925065531_transaction_read_rules.sql)         | Shared typed read validation and current-policy eligibility rules.                                                                          |
-| [transaction_count](migrations/20260925065533_transaction_count.sql)                   | Exact authorized fact counts without financial decoration.                                                                                  |
-| [transaction_page](migrations/20260925065535_transaction_page.sql)                     | Date/amount-ordered source candidates and page selection before metadata and fees.                                                          |
-| [transaction_totals](migrations/20260925065538_transaction_totals.sql)                 | Date-bounded, currency/type totals with fact grouping before fee lookup.                                                                    |
-| [dataset_filter_options](migrations/20260925065540_dataset_filter_options.sql)         | Distinct authorized options with stable text cursors.                                                                                       |
-| [rest_api_configuration](migrations/20260925065542_rest_api_configuration.sql)         | Disable generated REST aggregates and reload PostgREST configuration/schema.                                                                |
-| [source_transaction_page](migrations/20260925095337_source_transaction_page.sql)       | Date/amount-ordered raw source pages with unchanged historical visibility.                                                                  |
-| [source_transaction_count](migrations/20260925102039_source_transaction_count.sql)     | Exact raw source counts with shared literal-search semantics.                                                                               |
+| Module                                                                           | Responsibility                                                                                     |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [schema_foundation](migrations/20260927080039_schema_foundation.sql)             | Physical source and terms model, immutable identities, read indexes, RLS defaults, archive bucket. |
+| [archive_publications](migrations/20260927080041_archive_publications.sql)       | Immutable archive manifests and acquisition publication.                                           |
+| [publication_integrity](migrations/20260927080043_publication_integrity.sql)     | Complete child inventories, selected pointers, transaction isolation, immutable source payloads.   |
+| [terms_publication](migrations/20260927080045_terms_publication.sql)             | Atomic current ownership and fee revision publication.                                             |
+| [source_publications](migrations/20260927080047_source_publications.sql)         | Atomic Settlement and Data Kiosk preprocessing publication.                                        |
+| [financial_relations](migrations/20260927080050_financial_relations.sql)         | Shared fee arithmetic, current terms/live relations, explicit-version resolver.                    |
+| [financial_reads](migrations/20260927080052_financial_reads.sql)                 | Strict complete and partial financial reads with declared source coverage.                         |
+| [company_payout_reports](migrations/20260927080054_company_payout_reports.sql)   | Frozen entitlement reports, complete manifests, validation, and publication.                       |
+| [source_retention](migrations/20260927080056_source_retention.sql)               | Payout-aware pruning, pin guards, and observation comparison.                                      |
+| [application_access](migrations/20260927080058_application_access.sql)           | Database accounts, RLS policies, narrow projections, operator actions, explicit API grants.        |
+| [workspace_revisions](migrations/20260927080101_workspace_revisions.sql)         | Transactional source/terms revision tracking and polling.                                          |
+| [transaction_read_rules](migrations/20260927080103_transaction_read_rules.sql)   | Shared transaction filter/pagination validation and current-policy eligibility.                    |
+| [transaction_counts](migrations/20260927080105_transaction_counts.sql)           | Exact live and raw authorized counts.                                                              |
+| [transaction_page](migrations/20260927080107_transaction_page.sql)               | Bounded live row selection before ownership and fee projection.                                    |
+| [source_transaction_page](migrations/20260927080109_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility.                                          |
+| [transaction_totals](migrations/20260927080111_transaction_totals.sql)           | Date-bounded currency/Type totals with grouping before fee lookup.                                 |
+| [sku_filter_options](migrations/20260927080113_sku_filter_options.sql)           | Administrator-only complete SKU catalog using native index seeks.                                  |
+| [rest_api_configuration](migrations/20260927080115_rest_api_configuration.sql)   | Disable generated REST aggregation and reload final API schema/configuration.                      |
 
 ## Application reads
 
 All browser financial reads use authenticated REST/RPC with invoker security and base-table RLS.
 `transaction_page` and `source_transaction_page` select filtered, authorized rows before metadata
 and fee projection. `transaction_count` and `source_transaction_count` count facts independently.
-`transaction_totals` combines compatible facts before fee lookup; `dataset_filter_options` returns
-distinct authorized values. General REST aggregates are disabled. See the
+`transaction_totals` combines compatible facts before fee lookup. Administrator identity bootstrap
+preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
+SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
+cursor page. Company members reuse their current assignments. Source, Marketplace, and Type menus
+use static catalogs. The frontend resolves table search to exact OR sets; Currency is not searchable.
+General REST aggregates are disabled. See the
 [query contracts](../../../docs/transaction_query_contracts.md) for parameters and numeric formats.
+
+Administrator catalog discovery uses the existing SKU/date indexes to seek between distinct source
+SKU values, avoiding repeated transaction entries. The RPC checks the stored application-operator
+role before discovery and rejects other callers with SQLSTATE `42501`. It includes the registry,
+returns exact strings in `C` order, and retains invoker security. Company-user filters use loaded
+assignments and make no discovery request.
+
+Ownership RLS uses the private caller-bound `current_owned_sku_terms()` set rather than repeated
+per-row terms resolution. It reads current database account and assignment state, accepts no
+caller-selected identity, and retains the existing current-version/category boundaries. Page and
+totals queries project terms only for their selected page or grouped facts. Existing indexes
+support these lookups. The [performance guide](../../../docs/database_performance.md#authorization-and-current-versions)
+explains the current authorization path and remaining inventory costs.
 
 Date ordering reverses the complete date/source/ID tuple. Reported amount ordering is limited to
 10,000 fully filtered matches, with no dedicated amount index. Marketplace names use constrained
@@ -74,8 +98,7 @@ amounts, and identify unresolved company amounts. These are separate product con
 Source revisions are global; fee, ownership, and company-name revisions are company-scoped for
 members and global for operators. Source-version publication, current-pointer changes, and
 historical Data Kiosk pruning update source tokens atomically at commit. This covers administrator
-history reads as well as current Transactions. The browser
-checks them on its polling interval, focus, and reconnection and invalidates only dependent reads.
+history reads as well as current Transactions. The browser checks them on its polling interval, focus, and reconnection and invalidates only dependent reads.
 The [frontend lifecycle](../../frontend/user-webpage/README.md#requests-and-session-lifecycle)
 defines cache behavior.
 
@@ -114,12 +137,13 @@ companies. Full metadata and saved payouts are operator-only. The
 ## Observation comparison and retention
 
 ```sql
-select private.compare_data_kiosk_observations(id, 'v0')
-from private.data_kiosk_days
-where seller_namespace = 'seller-na'
-    and marketplace_name = 'Amazon.com'
-    and activity_date = date '2026-08-01'
-    and dataset_key = 'economics';
+select private.compare_data_kiosk_observations(d.id, v.preprocess_version)
+from private.data_kiosk_days as d
+join private.data_kiosk_preprocess_versions as v on v.id = d.current_version_id
+where d.seller_namespace = 'seller-na'
+    and d.marketplace_name = 'Amazon.com'
+    and d.activity_date = date '2026-08-01'
+    and d.dataset_key = 'economics';
 select private.prune_data_kiosk_preprocess(3);
 ```
 

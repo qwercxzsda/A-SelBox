@@ -8,7 +8,10 @@ from psycopg import sql
 
 from services.db.supabase.tests import test_transaction_page as live_fixture
 from services.db.supabase.tests.rpc_support import assert_rpc_contract
-from services.db.supabase.tests.search_fixtures import SOURCE_SEARCH_COLUMNS, append_literal_search
+from services.db.supabase.tests.search_fixtures import (
+    SOURCE_SEARCH_FIELDS,
+    append_search_selections,
+)
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _PARAMETER_TYPES = {
@@ -23,7 +26,7 @@ _PARAMETER_TYPES = {
     "p_marketplaces": "text[]",
     "p_types": "text[]",
     "p_include_count": "boolean",
-    "p_search": "text",
+    **dict.fromkeys(SOURCE_SEARCH_FIELDS, "text[]"),
 }
 _ARRAY_FILTERS: dict[str, tuple[str, LiteralString]] = {
     "p_skus": ("sku", "text"),
@@ -75,9 +78,7 @@ class SourceTransactionPageTests(SourceModelFixture):
                     sql.SQL("{} = any(%s::{}[])").format(sql.Identifier(column), sql.SQL(type_name))
                 )
                 parameters.append(options[name])
-        append_literal_search(
-            predicates, parameters, SOURCE_SEARCH_COLUMNS[dataset], options.get("p_search")
-        )
+        append_search_selections(predicates, parameters, SOURCE_SEARCH_FIELDS, options)
         date_order = options.get("p_order_by", "date") == "date"
         direction = cast(LiteralString, options.get("p_direction", "desc"))
         ties = direction if date_order else "asc"

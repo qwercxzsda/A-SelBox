@@ -11,7 +11,7 @@ separate document/archive SHA-256 hashes. Preprocessing verifies those archives
 without contacting Amazon. Successful archives are retained indefinitely.
 
 Source facts contain original seller/SKU evidence, exact financial values, and
-one shared `PREPROCESS_VERSION`, currently `v0`. Each seller/SKU selects an
+one shared [`PREPROCESS_VERSION`](services/sync/src/preprocess_version.py). Each seller/SKU selects an
 immutable version containing its company assignment and all marketplace fee
 periods. Reassignment and fee corrections restate live calculations without
 reprocessing sources or changing saved reports. Partial live summaries identify

@@ -8,6 +8,7 @@ import { datasetCountQueryOptions, datasetQueryOptions } from "../src/dataset-qu
 import { normalizeDatasetFilters } from "../src/dataset-filters.ts";
 
 const IDENTITY = {
+  skuOptions: ["SKU_100"],
   session: { user: { id: "user-a" }, access_token: "private-access-token" },
   account: { access_role: "company_member", company_id: "company-a" },
 };

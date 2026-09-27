@@ -120,13 +120,13 @@ const PAYOUT_COLUMNS = [
 
 const ACCOUNT_COLUMNS = ["user_id", "access_role", "company_id", "created_at"] as const;
 
-// Transaction RPCs search the visible text fields directly.
+// Transaction searches resolve these visible fields to exact catalog values locally.
 // Other REST datasets search only native text fields.
 export const DATASET_CONFIG = {
   live: {
     label: "Transactions",
     selectColumns: LIVE_COLUMNS,
-    searchColumns: ["sku", "component_type", "source", "marketplace_name", "currency"],
+    searchColumns: ["sku", "component_type", "source", "marketplace_name"],
     sortColumns: ["activity_date", "source_amount"],
     defaultSort: { column: "activity_date", direction: "desc" },
     idColumns: ["source", "source_row_id"],
@@ -136,7 +136,7 @@ export const DATASET_CONFIG = {
   settlement: {
     label: "Settlements",
     selectColumns: SETTLEMENT_COLUMNS,
-    searchColumns: ["sku", "component_type", "marketplace_name", "currency"],
+    searchColumns: ["sku", "component_type", "marketplace_name"],
     sortColumns: ["posted_date", "amount"],
     defaultSort: { column: "posted_date", direction: "desc" },
     idColumns: ["id"],
@@ -146,7 +146,7 @@ export const DATASET_CONFIG = {
   data_kiosk: {
     label: "Data Kiosk",
     selectColumns: DATA_KIOSK_COLUMNS,
-    searchColumns: ["sku", "component_type", "marketplace_name", "currency"],
+    searchColumns: ["sku", "component_type", "marketplace_name"],
     sortColumns: ["activity_date", "amount"],
     defaultSort: { column: "activity_date", direction: "desc" },
     idColumns: ["id"],

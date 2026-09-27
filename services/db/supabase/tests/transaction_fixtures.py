@@ -5,7 +5,7 @@ from typing import LiteralString, cast
 from psycopg import sql
 
 from services.db.supabase.tests.financial_fixtures import FinancialFixture
-from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_COLUMNS, append_literal_search
+from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS, append_search_selections
 
 _NUMERIC_COLUMNS = (
     "source_amount",
@@ -57,7 +57,7 @@ TRANSACTION_PARAMETER_TYPES = {
     "p_include_count": "boolean",
     "p_fee_applicable": "boolean",
     "p_order_by": "text",
-    "p_search": "text",
+    **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
 }
 
 
@@ -102,7 +102,7 @@ class TransactionPageFixture(FinancialFixture):
             # Keep this independent financial oracle for the ordinary fixtures.
             predicates.append(sql.SQL("(fee_base is not null) = %s::boolean"))
             parameters.append(options["p_fee_applicable"])
-        append_literal_search(predicates, parameters, LIVE_SEARCH_COLUMNS, options.get("p_search"))
+        append_search_selections(predicates, parameters, LIVE_SEARCH_FIELDS, options)
         date_order = options.get("p_order_by", "date") == "date"
         direction = cast(LiteralString, options.get("p_direction", "desc"))
         ties = direction if date_order else "asc"
