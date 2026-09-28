@@ -10,6 +10,8 @@ from psycopg.conninfo import make_conninfo
 from services.db.supabase.tests.concurrency_support import wait_for_block
 from services.db.supabase.tests.local_database import DEFAULT_DATABASE_URL
 from services.db.supabase.tests.payout_fixtures import (
+    fill_payout_kiosk_month,
+    generate_payout_reports,
     payout_snapshot,
     prepare_payout,
     publish_payout,
@@ -76,85 +78,57 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
                 (1,),
             )
 
-    def test_new_seller_during_lock_wait_is_captured_by_the_next_request(self) -> None:
-        self.set_mature_cutoff_date(date(2026, 7, 1))
+    def test_new_source_namespace_during_lock_wait_is_captured_by_the_next_request(self) -> None:
         self.seller = "seller-z"
-        company_a, _ = self.owner("COMPANY-A")
-        company_b, _ = self.owner("COMPANY-B")
-        self.kiosk(1, [])
-
-        def assign_earlier_seller(company: str) -> None:
-            self.call(
-                "publish_sku_terms",
-                {
-                    "id": new_id(),
-                    "seller_sku_id": new_id(),
-                    "seller_namespace": "seller-a",
-                    "sku": company,
-                    "company_id": company,
-                    "expected_current_version_id": None,
-                    "change_reason": "Assign earlier seller during payout generation",
-                    "periods": [],
-                },
-            )
-
-        assign_earlier_seller(company_b)
-        self.seller = "seller-a"
-        self.kiosk(1, [])
+        inputs = prepare_payout(self)
         operator = self.operator()
         self.connection.commit()
         database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
 
-        def generate_waiting_company(company: str, name: str) -> tuple[str, bool]:
-            with psycopg.connect(database_url, application_name=name) as worker:
-                return generate_on_connection(worker, operator, company)
+        def generate_waiting_company() -> tuple[str, bool]:
+            with psycopg.connect(database_url, application_name="seller-scope-a") as worker:
+                return generate_on_connection(worker, operator, inputs.company)
 
         with (
             psycopg.connect(database_url) as holder,
             psycopg.connect(database_url, autocommit=True) as observer,
-            ThreadPoolExecutor(max_workers=2) as executor,
+            ThreadPoolExecutor(max_workers=1) as executor,
         ):
             holder.execute(
                 "select pg_advisory_xact_lock(hashtextextended(jsonb_build_array("
                 "'company_payout_report','seller-z',date '2026-06-01')::text,0))"
             )
-            first = executor.submit(generate_waiting_company, company_a, "seller-scope-a")
+            future = executor.submit(generate_waiting_company)
             try:
                 wait_for_block(observer, "seller-scope-a", wait_event="advisory")
-                assign_earlier_seller(company_a)
+                # The SKU is already assigned globally; new source provenance is
+                # discovered from its matching facts, without another assignment.
+                self.seller = "seller-a"
+                self.settlement([self.transaction("50")])
+                fill_payout_kiosk_month(self)
                 self.connection.commit()
-                second = executor.submit(generate_waiting_company, company_b, "seller-scope-b")
-                wait_for_block(observer, "seller-scope-b", wait_event="advisory")
             finally:
                 holder.commit()
-            first_report, first_created = first.result(timeout=12)
-            _, second_created = second.result(timeout=12)
-            self.assertTrue(first_created and second_created)
+            first_report, first_created = future.result(timeout=12)
+            self.assertTrue(first_created)
 
         self.assertEqual(
             self.connection.execute(
-                "select distinct s.seller_namespace from private.payout_report_terms_versions p "
-                "join public.seller_skus s on s.id=p.seller_sku_id where p.report_id=%s",
+                "select seller_namespace from public.company_payout_reports where id=%s",
                 (first_report,),
-            ).fetchall(),
-            [("seller-z",)],
+            ).fetchone(),
+            ("seller-z",),
         )
         before = payout_snapshot(self, first_report)
+        results = generate_payout_reports(self, operator, inputs.company)
+        self.assertEqual(len(results), 2)
+        self.assertIn((first_report, False), results)
+        self.assertEqual(sum(created for _, created in results), 1)
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.company_payout_reports"
-            ).fetchone(),
-            (2,),
-        )
-        updated, created = generate_on_connection(self.connection, operator, company_a)
-        self.assertTrue(created)
-        self.assertNotEqual(updated, first_report)
-        self.assertEqual(
-            self.connection.execute(
-                "select distinct s.seller_namespace from private.payout_report_terms_versions p "
-                "join public.seller_skus s on s.id=p.seller_sku_id where p.report_id=%s "
-                "order by s.seller_namespace",
-                (updated,),
+                "select seller_namespace from public.company_payout_reports "
+                "where company_id=%s order by seller_namespace",
+                (inputs.company,),
             ).fetchall(),
             [("seller-a",), ("seller-z",)],
         )

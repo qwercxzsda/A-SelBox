@@ -53,8 +53,8 @@ class TransactionCountTests(SourceModelFixture):
         company_a, company_b = self.financial_fixture()
         for user, expected in (
             (self.operator(), "19"),
-            (self.member(company_a), "7"),
-            (self.member(company_b), "4"),
+            (self.member(company_a), "9"),
+            (self.member(company_b), "2"),
             (self.auth_user(), "0"),
         ):
             with self.subTest(user=user):
@@ -156,8 +156,8 @@ class TransactionCountTests(SourceModelFixture):
         company_a, company_b = self.financial_fixture()
         for user, total in (
             (self.operator(), "19"),
-            (self.member(company_a), "7"),
-            (self.member(company_b), "4"),
+            (self.member(company_a), "9"),
+            (self.member(company_b), "2"),
             (self.auth_user(), "0"),
         ):
             for selection in (

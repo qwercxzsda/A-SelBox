@@ -30,7 +30,7 @@ SOURCE_TABLES = frozenset(
         "private.settlement_preprocess_versions",
         "private.settlement_transactions",
         "public.companies",
-        "public.seller_skus",
+        "public.skus",
         "public.sku_terms_versions",
         "public.app_accounts",
         "public.sku_fee_periods",

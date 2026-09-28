@@ -260,7 +260,6 @@ class TestArchiveToLive(DatabaseTestCase):
         company = create_company(self.database, "Advertising company")
         publish_sku_terms(
             self.database,
-            seller_namespace=self.seller,
             sku="SKU-1",
             company_id=company,
             expected_current_version_id=None,
@@ -296,7 +295,6 @@ class TestArchiveToLive(DatabaseTestCase):
         company = create_company(self.database, "Archive integration company")
         version = publish_sku_terms(
             self.database,
-            seller_namespace=self.seller,
             sku="SKU-1",
             company_id=company,
             expected_current_version_id=None,
@@ -313,7 +311,6 @@ class TestArchiveToLive(DatabaseTestCase):
         self.assertEqual(totals[0].company_amount, Numeric(-12))
         publish_sku_terms(
             self.database,
-            seller_namespace=self.seller,
             sku="SKU-1",
             company_id=company,
             expected_current_version_id=version,

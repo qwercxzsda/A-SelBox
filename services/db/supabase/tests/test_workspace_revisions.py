@@ -221,15 +221,14 @@ class WorkspaceRevisionTests(SourceModelFixture):
         first_a, first_b = self.revisions(member_a), self.revisions(member_b)
         current = require_row(
             self.connection.execute(
-                "select current_terms_version_id from public.seller_skus where id=%s", (sku_a,)
+                "select current_terms_version_id from public.skus where id=%s", (sku_a,)
             ).fetchone()
         )
         self.call(
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": sku_a,
-                "seller_namespace": self.seller,
+                "sku_id": sku_a,
                 "sku": "SKU",
                 "company_id": company_b,
                 "expected_current_version_id": str(current[0]),

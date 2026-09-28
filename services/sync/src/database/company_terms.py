@@ -1,4 +1,4 @@
-"""Publish complete immutable company and marketplace fee terms for a seller/SKU."""
+"""Publish complete immutable company and marketplace fee terms for an exact SKU."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -10,7 +10,6 @@ from ..amazon.marketplace_names import validate_marketplace_name
 from ..numeric import Numeric
 from .connection import DatabaseConnection
 from .publication import publish_json
-from .seller_namespaces import validate_seller_namespace
 from .values import normalize_uuid, required_date, required_text
 
 
@@ -55,7 +54,6 @@ def create_company(database: DatabaseConnection, name: str) -> str:
 def publish_sku_terms(
     database: DatabaseConnection,
     *,
-    seller_namespace: str,
     sku: str,
     company_id: str | None,
     expected_current_version_id: str | None,
@@ -78,8 +76,7 @@ def publish_sku_terms(
     version_id = str(uuid7())
     payload: dict[str, object] = {
         "id": version_id,
-        "seller_sku_id": str(uuid7()),
-        "seller_namespace": validate_seller_namespace(seller_namespace),
+        "sku_id": str(uuid7()),
         "sku": sku,
         "company_id": normalize_uuid(company_id, "company_id") if company_id is not None else None,
         "expected_current_version_id": (

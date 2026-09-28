@@ -1,12 +1,12 @@
 -- Explicit grants are the entire REST boundary, including Supabase default grants.
 revoke all on all tables in schema public, private from public, anon, authenticated, service_role;
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
-revoke all on function public.publish_sku_terms(text, text, uuid, uuid, text, jsonb)
+revoke all on function public.publish_sku_terms(text, uuid, uuid, text, jsonb)
 from public, anon, authenticated, service_role;
 revoke all on function public.generate_company_payout_reports(uuid, date),
 public.payout_report_policy() from public, anon, authenticated, service_role;
 grant usage on schema private to authenticated;
-grant select on public.app_accounts, public.companies, public.seller_skus,
+grant select on public.app_accounts, public.companies, public.skus,
 public.sku_terms_versions, public.sku_fee_periods, public.company_skus,
 public.current_sku_fee_periods to authenticated;
 grant insert (user_id, company_id), update (company_id) on public.app_accounts to authenticated;
@@ -42,8 +42,8 @@ private.read_settlement_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
 private.resolve_source_reconciliation(uuid[], uuid[]),
-private.publish_operator_sku_terms(text, text, uuid, uuid, text, jsonb),
-public.publish_sku_terms(text, text, uuid, uuid, text, jsonb) to authenticated;
+private.publish_operator_sku_terms(text, uuid, uuid, text, jsonb),
+public.publish_sku_terms(text, uuid, uuid, text, jsonb) to authenticated;
 
 -- Shared financial helpers remain outside the exposed schema.
 grant select on private.current_sku_terms to authenticated;

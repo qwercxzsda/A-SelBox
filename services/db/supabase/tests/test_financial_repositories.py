@@ -25,7 +25,6 @@ class FinancialRepositoryTests(SourceModelFixture):
         ):
             publish_sku_terms(
                 database,
-                seller_namespace=self.seller,
                 sku=sku,
                 company_id=company,
                 expected_current_version_id=None,
@@ -61,7 +60,6 @@ class FinancialRepositoryTests(SourceModelFixture):
         company = create_company(database, "Saved report")
         terms = publish_sku_terms(
             database,
-            seller_namespace=self.seller,
             sku="SKU",
             company_id=company,
             expected_current_version_id=None,
@@ -92,7 +90,6 @@ class FinancialRepositoryTests(SourceModelFixture):
         self.assertEqual(components[0].terms_version_id, terms)
         publish_sku_terms(
             database,
-            seller_namespace=self.seller,
             sku="SKU",
             company_id=None,
             expected_current_version_id=terms,

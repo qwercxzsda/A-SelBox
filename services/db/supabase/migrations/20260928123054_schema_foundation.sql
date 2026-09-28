@@ -49,28 +49,28 @@ create table public.app_accounts (
     )
 );
 create index app_accounts_company_idx on public.app_accounts (company_id);
-create table public.seller_skus (
+-- Ownership and fees follow exact SKU text across every source namespace.
+create table public.skus (
     id public.local_uuid primary key default private.uuid7(),
-    seller_namespace text not null check (length(btrim(seller_namespace)) > 0),
     sku text not null check (length(btrim(sku)) > 0),
     current_terms_version_id public.local_uuid,
     created_at timestamptz not null default now(),
-    unique (seller_namespace, sku)
+    unique (sku)
 );
 create table public.sku_terms_versions (
     id public.local_uuid primary key default private.uuid7(),
-    seller_sku_id public.local_uuid not null references public.seller_skus (id),
+    sku_id public.local_uuid not null references public.skus (id),
     company_id public.local_uuid references public.companies (id),
     version_number bigint not null check (version_number > 0),
     fee_period_count integer not null check (fee_period_count >= 0),
     change_reason text not null check (length(btrim(change_reason)) > 0),
     created_at timestamptz not null default now(),
-    unique (seller_sku_id, version_number), unique (seller_sku_id, id)
+    unique (sku_id, version_number), unique (sku_id, id)
 );
 create index sku_terms_versions_company_idx on public.sku_terms_versions (company_id);
-alter table public.seller_skus add constraint sku_current_terms_identity
+alter table public.skus add constraint sku_current_terms_identity
 foreign key (id, current_terms_version_id)
-references public.sku_terms_versions (seller_sku_id, id);
+references public.sku_terms_versions (sku_id, id);
 create table public.sku_fee_periods (
     id public.local_uuid primary key default private.uuid7(),
     terms_version_id public.local_uuid not null references public.sku_terms_versions (id),
@@ -282,78 +282,6 @@ create table private.data_kiosk_pruned_versions (
     created_at timestamptz not null default now()
 );
 
--- Support current ownership/version reads and exact counts. Trailing category
--- and marketplace keys cover Settlement eligibility while retaining B-tree deduplication.
-create index settlement_transactions_owner_version_idx
-on private.settlement_transactions (
-    seller_namespace, sku, version_id, category, marketplace_name
-)
-where category = 'SETTLEMENT';
-
--- Lead with date to restrict the index scan to the requested period. Covering
--- filters and ownership/current-version checks enables index-only counting.
--- Retain the compact owner index for unfiltered counts.
-create index settlement_transactions_date_count_idx
-on private.settlement_transactions (
-    posted_date, component_type, seller_namespace, sku, version_id,
-    category, marketplace_name
-)
-where category = 'SETTLEMENT';
-
--- Date-led coverage also serves bounded-period Data Kiosk counts. The live and
--- raw count RPCs exclude zero amounts; use that predicate instead of a numeric
--- key to retain B-tree deduplication. Include every category and version for
--- operator raw counts; queries and RLS still enforce their respective scopes.
-create index data_kiosk_transactions_nonzero_count_idx
-on private.data_kiosk_transactions (
-    activity_date, component_type, seller_namespace, sku, version_id,
-    category, marketplace_name
-)
-where amount <> 0;
-
--- Match each owned fact to its currently selected source version.
-create index settlements_current_version_idx
-on private.settlements (current_version_id)
-where current_version_id is not null;
-
-create index data_kiosk_days_current_version_idx
-on private.data_kiosk_days (current_version_id)
-where current_version_id is not null;
-
--- Default date pages use one B-tree per source in either direction. Full
--- coverage also serves the raw operator tabs, including historical/account rows;
--- unchanged RLS and live-query predicates still enforce their respective scopes.
-create index settlement_transactions_date_id_idx
-on private.settlement_transactions (posted_date asc nulls last, id asc);
-
-create index data_kiosk_transactions_date_id_idx
-on private.data_kiosk_transactions (activity_date asc nulls last, id asc);
-
--- UI SKU selections do not supply a seller namespace. Lead with the selected
--- SKU; retain compact date keys and B-tree deduplication instead of appending ID.
--- These narrow candidate scans; they need not satisfy the complete page order.
-create index settlement_transactions_sku_date_idx
-on private.settlement_transactions (sku, posted_date);
-
-create index data_kiosk_transactions_sku_date_idx
-on private.data_kiosk_transactions (sku, activity_date);
-
--- Exact Type selections narrow sparse component/date scopes in either source.
--- Use native text comparisons with the same collation as the existing filters.
-create index settlement_transactions_type_date_idx
-on private.settlement_transactions (component_type, posted_date);
-
-create index data_kiosk_transactions_type_date_idx
-on private.data_kiosk_transactions (component_type, activity_date);
-
--- Compact marketplace/date access supports exact text selections. The planner
--- still chooses its scan strategy according to visibility and filter selectivity.
-create index settlement_transactions_marketplace_date_idx
-on private.settlement_transactions (marketplace_name, posted_date);
-
-create index data_kiosk_transactions_marketplace_date_idx
-on private.data_kiosk_transactions (marketplace_name, activity_date);
-
 create function private.reject_mutation() returns trigger language plpgsql
 set search_path = '' as $$
 begin
@@ -380,7 +308,7 @@ do $$
 declare table_name text;
 begin
     foreach table_name in array array[
-        'public.seller_skus', 'public.sku_terms_versions', 'public.sku_fee_periods',
+        'public.skus', 'public.sku_terms_versions', 'public.sku_fee_periods',
         'private.data_kiosk_pruned_versions'
     ] loop
         execute format('create trigger no_truncate before truncate on %s for each statement execute function private.reject_mutation()', table_name);

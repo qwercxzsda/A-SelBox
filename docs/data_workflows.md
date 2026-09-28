@@ -25,13 +25,13 @@ deferred.
 | Original documents and successful acquisition manifests | Immutable, retained indefinitely; documents in private Supabase Storage and identities/hashes/locations in PostgreSQL |
 | Settlement results                                      | Complete immutable versions per financial settlement, with immutable transactions                                     |
 | Data Kiosk results                                      | Complete seller/marketplace/local-day versions, including empty days; controlled history retention                    |
-| Seller/SKU identities                                   | Stable seller/SKU keys with an atomically selected current terms version                                              |
+| SKU identities                                   | Stable SKU keys with an atomically selected current terms version                                              |
 | Company and fee configuration                           | Immutable terms versions: nullable company assignment plus complete fee periods for all marketplaces                  |
 | Current source references                               | Updated only through validated atomic publication                                                                     |
 | Company payout reports                                  | Immutable saved amounts, components, and exact source/terms manifests; approval and payment execution are deferred    |
 
 Acquisition and preprocessing tables contain successful completed results only.
-Source imports do not create seller/SKU configuration, assign companies, or create
+Source imports do not create SKU configuration, assign companies, or create
 fee coverage. Running/failed attempts produce Python logs. There are no
 intermediate parsed-row tables or persisted derived company, commission, rate, or
 payable copies in the source facts. Original Amazon fees remain source facts.
@@ -64,12 +64,12 @@ its children. An **acquisition** is successfully archived Amazon input. An
 | -------------------------------- | ------------------------------------------------- | ----------------------- |
 | `settlement_preprocess_versions` | One financial settlement                          | Transactions            |
 | `data_kiosk_preprocess_versions` | One seller/marketplace/local day                  | Transactions/components |
-| `sku_terms_versions`             | One seller/SKU's company and all marketplace fees | Fee periods             |
+| `sku_terms_versions`             | One SKU's company and all marketplace fees | Fee periods             |
 
 Source children use `version_id`, and source selections use `current_version_id`.
-`seller_skus.current_terms_version_id` selects one `sku_terms_versions` row;
+`skus.current_terms_version_id` selects one `sku_terms_versions` row;
 `sku_fee_periods.terms_version_id` attaches its complete fee inventory. Terms have
-a seller/SKU-local `version_number`. Data Kiosk groups one successful
+a SKU-local `version_number`. Data Kiosk groups one successful
 publication in `data_kiosk_preprocess_batches`; day versions reference `batch_id`,
 and the batch references its acquisition. Settlement versions reference their
 acquisition directly. Days can later select different batches, but children
@@ -361,7 +361,7 @@ archives support explicit reprocessing into a new result.
 ## D. Company terms and payout reports
 
 Source imports never register or assign SKUs. An administrator publishes a complete
-company assignment and all marketplace fee periods for one seller/SKU through
+company assignment and all marketplace fee periods for one SKU through
 `publish_sku_terms()`. The stable identity selects that immutable revision.
 Explicit unassignment and empty fee inventories are valid; 0% means known coverage.
 Reassignment restates all live history. See the [company-fee contract](company_fees.md)
@@ -411,7 +411,7 @@ queries rather than fetching all history for client filtering.
 
 ## Access and query behavior
 
-Application accounts and current seller/SKU assignment determine live company
+Application accounts and current SKU assignment determine live company
 visibility without repeating company IDs on source transactions. Public views
 use `security_invoker = true`, underlying grants, and RLS. Company members see
 only permitted current source facts and selected terms for their own company. Narrow current

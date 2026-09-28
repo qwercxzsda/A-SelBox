@@ -10,8 +10,8 @@ whole document bytes in private Supabase Storage as XZ 2e archives with CRC64 an
 separate document/archive SHA-256 hashes. Preprocessing verifies those archives
 without contacting Amazon. Successful archives are retained indefinitely.
 
-Source facts contain original seller/SKU evidence, exact financial values, and
-one shared [`PREPROCESS_VERSION`](services/sync/src/preprocess_version.py). Each seller/SKU selects an
+Source facts contain original SKU evidence, exact financial values, and
+one shared [`PREPROCESS_VERSION`](services/sync/src/preprocess_version.py). Each SKU selects an
 immutable version containing its company assignment and all marketplace fee
 periods. Reassignment and fee corrections restate live calculations without
 reprocessing sources or changing saved reports. Partial live summaries identify

@@ -44,7 +44,7 @@ export const DATA_KIOSK_COLUMNS = [
 ];
 
 export const FEE_COLUMNS = [
-  "seller_sku_id",
+  "sku_id",
   "company_id",
   "terms_version_id",
   "marketplace_name",
@@ -118,7 +118,6 @@ export function assignmentId(index) {
 export function skuAssignment(index) {
   return {
     id: assignmentId(index),
-    seller_namespace: "synthetic-seller",
     sku: `GROUP-${String(index).padStart(3, "0")}`,
     company_id: "company-member-a",
     terms_version_id: `terms-${index}`,
@@ -133,9 +132,9 @@ export function skuAssignments(skus, companyId = "company-member-a") {
   }));
 }
 
-export function feeRow(index, sellerSkuId = assignmentId(1)) {
+export function feeRow(index, skuId = assignmentId(1)) {
   return {
-    seller_sku_id: sellerSkuId,
+    sku_id: skuId,
     company_id: "company-member-a",
     terms_version_id: "terms-1",
     marketplace_name: index < 2 ? "Amazon.com" : "Amazon.co.uk",
@@ -161,7 +160,7 @@ export const LIVE_COLUMNS = [
   "quantity",
   "fee_base",
   "category",
-  "seller_sku_id",
+  "sku_id",
   "terms_version_id",
   "company_id",
   "fee_period_id",

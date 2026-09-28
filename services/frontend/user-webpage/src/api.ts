@@ -60,9 +60,9 @@ export const fetchDatasetCount = (options: FetchDatasetCountOptions): Promise<nu
   getDefaultClient().fetchDatasetCount(options);
 export const fetchSkuFees = (
   accessToken: string,
-  sellerSkuId: string,
+  skuId: string,
   signal?: AbortSignal,
-): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, sellerSkuId, signal);
+): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, skuId, signal);
 export const fetchSkuOptions = (accessToken: string, signal?: AbortSignal): Promise<string[]> =>
   getDefaultClient().fetchSkuOptions(accessToken, signal);
 

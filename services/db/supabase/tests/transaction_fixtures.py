@@ -31,7 +31,7 @@ _ROW_COLUMNS = {
     "quantity",
     "fee_base",
     "category",
-    "seller_sku_id",
+    "sku_id",
     "terms_version_id",
     "company_id",
     "fee_period_id",

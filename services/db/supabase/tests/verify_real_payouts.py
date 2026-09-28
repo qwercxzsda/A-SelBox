@@ -68,9 +68,9 @@ def independent_payout_totals(connection: Connection, report_id: str) -> tuple[A
                 else -t.fee_base*p.fee_rate_percent/100 end as fee
             from public.company_payout_reports r
             join inputs t on t.report_id=r.id
-            join public.seller_skus s on s.seller_namespace=t.seller_namespace and s.sku=t.sku
+            join public.skus s on s.sku=t.sku
             join private.payout_report_terms_versions pin on pin.report_id=r.id
-                and pin.seller_sku_id=s.id
+                and pin.sku_id=s.id
             join public.sku_terms_versions v on v.id=pin.terms_version_id
                 and v.company_id=r.company_id
             left join public.sku_fee_periods p on p.terms_version_id=v.id

@@ -28,9 +28,12 @@ interfaces; the web client provides read views for those datasets. See the
   horizontally when needed. Clicking a row or pressing Enter/Space opens its details.
 - Each tab retains its filters, search, ordering, page, and expanded fees during the session.
   Changing the user, role, or assigned company clears the workspace and its cache.
-- Current fees groups all assignments by exact SKU, with seller identifiers hidden. Expanding a SKU
-  loads all marketplace fee periods, including server-capped pages. The table appears only when
-  every assignment loads successfully. Administrators see company labels where needed.
+- Exact SKU text identifies one product across all source namespaces. SKU catalogs, filters, and
+  Transactions include its records from every namespace. Administrators can inspect the source
+  namespace in row details; company members never see it. Namespace is not a filter or SKU identity.
+- Current fees lists each exact SKU once. Expanding a SKU loads its marketplace fee periods,
+  including server-capped pages, through the shared `sku_id`. The table appears only after all pages
+  load successfully. Administrators see the assigned company beside the SKU.
 - Data Kiosk zero amounts are excluded before pagination and counting; Settlement zero rows remain.
   Financial values arrive as CSV or JSON strings and retain their decimal precision. Missing fees
   display as a dash. Non-applicable fees also display as a dash; applicable zero fees remain zero.
@@ -54,8 +57,8 @@ minus that period. Dates before the mature cutoff date are mature; the mature cu
 are recent. The report month must end before the mature cutoff date. Members can browse only their
 own saved reports and cannot generate them. Search matches report name or currency. Each report's
 drawer shows its marketplace breakdown before separate payout amounts and supporting details;
-administrators also see frozen seller reconciliation. Detail lists use 50-row pages with loading and
-retry controls. Generation errors preserve existing reports. See the
+administrators also see frozen reconciliation and source metadata. Detail lists use 50-row pages
+with loading and retry controls. Generation errors preserve existing reports. See the
 [payout contract](../../../docs/company_payout_reports.md) for source coverage, saved fields, and
 immutability.
 

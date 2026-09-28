@@ -25,6 +25,15 @@ class LocalWorkflowCase(unittest.TestCase):
         self.database = self.enterContext(PostgresDatabaseConnection(self.stack.database_url))
         self.storage = SupabaseArchiveStorage(self.stack.api_url, self.stack.service_key)
         self.seller = f"local-e2e-{uuid7()}"
+        # The synthetic August reports exercise mature Settlement authority.
+        # Fix the disposable database clock boundary so calendar time cannot
+        # silently switch these transport tests to the recent Data Kiosk policy.
+        with self.database.connection() as connection, connection.transaction():
+            connection.execute(
+                "create or replace function private.mature_cutoff_date() "
+                "returns date language sql stable parallel safe security invoker "
+                "set search_path = '' as $$ select date '2026-09-01' $$"
+            )
 
     def create_auth_user(self, *, user_metadata: dict[str, str] | None = None) -> tuple[str, str]:
         """Create an existing Auth account with no app access, then sign in normally."""

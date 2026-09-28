@@ -36,30 +36,30 @@ erDiagram
     auth_users ||--o| app_accounts : application_access
     companies o|--o{ app_accounts : assigned_company
     companies o|--o{ sku_terms_versions : assigned_company
-    seller_skus ||--|{ sku_terms_versions : revisions
+    skus ||--|{ sku_terms_versions : revisions
     sku_terms_versions ||--o{ sku_fee_periods : complete_inventory
 ```
 
 These application tables belong to `public`; `auth_users` represents Supabase's
 `auth.users`. A terms version may have no company, which is explicit unassignment.
-`seller_skus.current_terms_version_id` selects one of its own revisions. The
+`skus.current_terms_version_id` selects one of its own revisions. The
 publisher creates a required first selection atomically with a new identity.
 
 | Table                | What one row represents                                 | Main key or relationship                                                                      |
 | -------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `companies`          | A company                                               | UUIDv7 `id`; required name                                                                    |
 | `app_accounts`       | One Auth user's application role and company assignment | PK `user_id` → `auth.users`; `operator` has no company, `company_member` requires one company |
-| `seller_skus`        | Stable identity for one seller's exact SKU              | Unique `(seller_namespace, sku)`; selected `current_terms_version_id`                         |
-| `sku_terms_versions` | One complete company and all-marketplace fee revision   | Unique `(seller_sku_id, version_number)`; nullable company FK; `fee_period_count` and reason  |
+| `skus`        | Stable identity for one exact SKU              | Unique `(sku)`; selected `current_terms_version_id`                         |
+| `sku_terms_versions` | One complete company and all-marketplace fee revision   | Unique `(sku_id, version_number)`; nullable company FK; `fee_period_count` and reason  |
 | `sku_fee_periods`    | One marketplace/date interval and percentage            | FK `terms_version_id`; nonoverlapping periods within one version and marketplace              |
 
-Selected ownership is **seller + exact SKU → company or unassigned**, across
+Selected ownership is **exact SKU → company or unassigned**, across
 marketplaces and all dates in live reads.
 Application roles and user-company assignments are separate from SKU ownership;
 see the [access model](access_control.md).
-There is no separate seller or product master table. SKU strings are not foreign
-keys to a product catalog. Source facts join to ownership by
-`(seller_namespace, sku)`; they do not store `company_id`. This allows source
+Source facts preserve exact SKU text and resolve ownership at read time.
+The same SKU in different import
+namespaces resolves to the same ownership and fee revision. This allows source
 evidence to exist before an owner is assigned. Source imports do not register
 company configuration. Publishing new terms may assign, reassign, or unassign;
 identity and immutable revisions remain. There is no persisted Default company
@@ -96,7 +96,7 @@ All four source tables belong to `private`.
 | `settlement_acquisitions`        | One successfully archived report acquisition | UUIDv7 PK; Amazon report/document IDs, API provenance, digest, and one JSONB `document` manifest                                |
 | `settlements`                    | One canonical financial settlement           | Unique `(seller_namespace, amazon_scope, settlement_id)`; decoded-document digest; current version pointer                      |
 | `settlement_preprocess_versions` | One complete interpretation of a settlement  | FKs to canonical settlement and acquisition; processor label, row count, report dates, currency, control total, diagnostics     |
-| `settlement_transactions`        | One monetary source line in a version        | Unique `(version_id, source_line_number)`; category, seller/SKU, amount/currency, posting date/time, original labels and fields |
+| `settlement_transactions`        | One monetary source line in a version        | Unique `(version_id, source_line_number)`; category, SKU, amount/currency, posting date/time, original labels and fields |
 
 The two uses of `settlement_id` differ: `settlements.settlement_id` is the **Amazon
 TSV text identifier**; `settlement_preprocess_versions.settlement_id` is the
@@ -135,7 +135,7 @@ The six Data Kiosk source tables and the payout dependency table belong to `priv
 | `data_kiosk_preprocess_batches`  | One complete publication from an acquisition                 | FK `acquisition_id`; positive `day_count`; contains all queried days                                                                           |
 | `data_kiosk_days`                | One logical daily coverage slot                              | Unique `(seller_namespace, marketplace_name, activity_date, dataset_key)`; current version pointer                                             |
 | `data_kiosk_preprocess_versions` | One complete day result within a batch                       | FKs to day and batch; unique `(batch_id, day_id)`; processor label, row count, normalized-content digest                                       |
-| `data_kiosk_transactions`        | One normalized monetary component in a day version           | Unique `(version_id, component_key)`; seller/SKU, date/marketplace, category/type, amount/currency, quantity, fee base, dimensions, provenance |
+| `data_kiosk_transactions`        | One normalized monetary component in a day version           | Unique `(version_id, component_key)`; SKU, date/marketplace, category/type, amount/currency, quantity, fee base, dimensions, provenance |
 | `data_kiosk_pruned_versions`     | A permanent record that a version's fact payload was removed | `version_id` is PK and FK; timestamp                                                                                                           |
 
 The key distinction is **observation versus interpretation**. Downloading a new
@@ -188,7 +188,7 @@ leave an orphaned uploaded file for retry or reconciliation.
 For source and fee replacements, the publisher inserts a complete new version
 and child inventory, then advances the source or terms selection in the same transaction.
 Expected-current checks reject stale replacements. Composite foreign keys ensure
-the selected version belongs to its own settlement, day, or seller/SKU.
+the selected version belongs to its own settlement, day, or SKU.
 Published inventories cannot later be appended to or rewritten.
 
 Both preprocessors currently use the definition label `v1`. This label identifies
@@ -280,10 +280,10 @@ Source: [shared financial rules](../services/db/supabase/migrations/202609281231
 | Table                                       | What one row represents                                           | Main relationship                                                                               |
 | ------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `public.company_payout_reports`             | One saved company/month aggregate, scoped by seller/currency when known     | Company FK; exact totals and immutable child counts                                             |
-| `public.company_payout_report_components`   | One company amount from the Settlement or Data Kiosk category, or comparison detail | Report FK; source row/version, seller/SKU, terms version and optional fee period; exact amounts |
+| `public.company_payout_report_components`   | One company amount from the Settlement or Data Kiosk category, or comparison detail | Report FK; source row/version, SKU, terms version and optional fee period; exact amounts |
 | `private.payout_report_settlement_versions` | A required canonical settlement's exact version for a report      | PK `(report_id, settlement_id)`; same-settlement version FK                                     |
 | `private.payout_report_data_kiosk_versions` | A required day's exact version, including empty days | PK `(report_id, day_id)`; same-day version FK; prevents payload pruning                         |
-| `private.payout_report_terms_versions` | A relevant SKU's exact terms for inclusion or exclusion | PK `(report_id, seller_sku_id)`; same-SKU terms FK |
+| `private.payout_report_terms_versions` | A relevant SKU's exact terms for inclusion or exclusion | PK `(report_id, sku_id)`; same-SKU terms FK |
 | `private.payout_report_reconciliation` | One frozen seller/day/marketplace/currency control group | Report FK; exact category subtotals, difference, and reconciled total |
 
 Reports contain exact totals and immutable component/manifests inventories. Their
@@ -347,7 +347,7 @@ selection/version columns. Reference visibility does not grant access to transac
 amounts or full metadata. Raw archives remain outside application access.
 
 Current ownership policies use the private caller-bound `current_owned_sku_terms()` helper to
-obtain allowed seller/SKU keys and selected terms IDs together. It resolves the stored account and
+obtain allowed SKU keys and selected terms IDs together. It resolves the stored account and
 current pointers under definer security; invoker views and RPCs still enforce the resulting row
 policies. Page and totals queries further restrict their financial terms projection to the selected
 page or grouped facts. This changes execution work, not the tables or visibility contract.

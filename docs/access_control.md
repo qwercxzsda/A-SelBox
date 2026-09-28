@@ -50,7 +50,7 @@ service-role API key is a separate capability and is not a PostgreSQL login.
 | Add/remove application members or change their company  | Yes                     | Yes                                  | No                                              |
 | Manage operator accounts                                | Yes                     | No                                   | No                                              |
 | Read company assignments and fee periods                | All versions            | All versions                         | Current terms for own company's SKUs            |
-| Publish a complete seller/SKU terms version             | Python/SQL              | REST RPC                             | No                                              |
+| Publish a complete SKU terms version             | Python/SQL              | REST RPC                             | No                                              |
 | Read source preprocessing facts                         | All retained versions   | All retained versions and categories | Current versions of permitted own-company facts |
 | Read narrow report/day/version references               | All                     | All, including historical versions   | All current references across companies         |
 | Read full preprocessing headers and diagnostics         | Yes                     | Yes                                  | No                                              |
@@ -115,7 +115,6 @@ Operators publish complete terms through `POST /rest/v1/rpc/publish_sku_terms`:
 
 ```json
 {
-  "p_seller_namespace": "seller-na",
   "p_sku": "SKU-001",
   "p_company_id": "COMPANY_UUID",
   "p_expected_current_version_id": null,
@@ -134,12 +133,12 @@ Operators publish complete terms through `POST /rest/v1/rpc/publish_sku_terms`:
 Use the selected terms UUID instead of NULL for a replacement. The server
 generates UUIDv7 identifiers and uses the atomic full-inventory
 publisher; stale replacements fail. The submission replaces all marketplaces
-for that seller/SKU. A NULL company unassigns the SKU, and an empty fee inventory
+for that SKU. A NULL company unassigns the SKU, and an empty fee inventory
 withdraws fee coverage; payout publication rejects unresolved required inputs.
 
 | Read endpoint under `/rest/v1/`                                                                          | Operator                                        | Company member                     |
 | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------- |
-| `seller_skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                    | Own company's selected terms       |
+| `skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                    | Own company's selected terms       |
 | `company_skus`, `current_sku_fee_periods`                                                                | Current projections across companies            | Own company current projections    |
 | `rpc/sku_filter_options`                                                                                | Complete distinct SKU catalog                   | Denied (`42501`)                   |
 | `settlement_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                        | Permitted current own-company rows |
@@ -177,7 +176,7 @@ existing row and its resulting company-member state. Source-row RLS enforces
 current-version and current-company access even beneath the public views.
 
 `private.current_owned_sku_terms()` resolves the caller's current ownership as a set of
-seller/SKU identities and selected terms IDs. It reads the stored account, joins that company's
+SKU identities and selected terms IDs. It reads the stored account, joins that company's
 terms, and requires each SKU's current pointer to select the returned version. The helper accepts
 no user or company argument, has an empty search path, and is executable only by `authenticated`
 among application roles. Its definer security avoids recursively applying the same ownership
@@ -185,12 +184,14 @@ policies inside this lookup; it does not expose another company's assignments or
 Operators use their separate policy branch, not this member-only set.
 
 SKU, terms, fee-period, and fact policies test membership in those sets instead of resolving
-ownership separately for every candidate row. Fact ownership uses both seller namespace and SKU.
+ownership separately for every candidate row. Fact ownership uses exact SKU alone across all
+source namespaces. Namespace metadata never grants or restricts ownership; source category and
+version checks still apply.
 Each helper invocation uses the request's database snapshot; there is no persisted authorization
 cache. Account removal, reassignment, and terms publication therefore affect subsequent requests.
 
 Fact policies check current source pointers directly, alongside each fact's category and current
-seller/SKU ownership. Their header reads have simple account/current-pointer policies and never
+SKU ownership. Their header reads have simple account/current-pointer policies and never
 inspect transaction rows to prove metadata ownership. Settlement company eligibility includes category
 `SETTLEMENT` with owned SKUs; Data Kiosk fact access includes every category
 except `SELBOX`, including `ANALYSIS_ONLY`. Financial page/count/total functions additionally

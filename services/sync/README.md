@@ -136,7 +136,7 @@ its database orchestration lives in `data_kiosk_economics/workflow.py`.
 Use `src/database/company_terms.py` to create companies and call
 `publish_sku_terms()` with a company, complete fee periods for all marketplaces,
 the expected current terms version, and a change reason. UUIDv7 IDs are generated
-automatically. `public.seller_skus` holds each stable seller/SKU identity and its
+automatically. `public.skus` holds each stable SKU identity and its
 current terms reference; immutable `public.sku_terms_versions` records the company
 assignment, and `public.sku_fee_periods` holds that version's marketplace periods.
 

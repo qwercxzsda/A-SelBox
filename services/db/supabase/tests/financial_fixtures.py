@@ -16,8 +16,7 @@ class FinancialFixture(SourceModelFixture):
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": new_id(),
-                "seller_namespace": self.seller,
+                "sku_id": new_id(),
                 "sku": sku,
                 "company_id": company,
                 "expected_current_version_id": expected,
@@ -73,7 +72,6 @@ class FinancialFixture(SourceModelFixture):
             ],
         )
         self.seller = "seller-two"
-        self.assign("SKU", company_b, rate="11")
         self.settlement([self.transaction("100")])
         self.kiosk(1, [self.component("-7")])
         self.seller = "seller-one"

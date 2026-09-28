@@ -2,12 +2,12 @@
 
 These records support the current [classification](../settlement_component_categories.md),
 [source allocation](../source_allocation.md), and [workflow](../data_workflows.md) contracts.
-Source observations retain their dates and coverage limits. The performance snapshot records the
-current date-leading implementation; intermediate query and index experiments are not maintained.
+Source observations retain their dates and coverage limits. Performance evidence records the
+current SKU identity model; superseded query and index experiments are not maintained.
 
 | Record | Purpose |
 | --- | --- |
-| [Current read performance](date_bounded_indexes_2026-09-27/README.md) | Date-bounded and unbounded requests, active indexes, query plans, and workload limits. |
+| [Global SKU performance](global_sku_identity/README.md) | Shared-SKU authenticated reads across namespaces, index sizes, and query plans. |
 | [Type registry validation](type_registry_2026-09-26/README.md) | Real-seed coverage and complete Settlement replay for the active explicit registry. |
 | [Blank marketplaces](blank_marketplace_investigation_2026-09-06.md) | Source names, Reports API hints, and account-level activity. |
 | [SKU completeness](settlement_sku_completeness_2026-09-07.md) | Observed SKU-bearing families and their coverage. |

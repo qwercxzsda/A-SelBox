@@ -146,8 +146,21 @@ begin
         (select coalesce(array_agg(d.current_version_id order by d.id),'{}'::uuid[])
          from private.data_kiosk_days d where d.id = any(locked_day_ids)),
         (select coalesce(array_agg(s.current_terms_version_id order by s.id),'{}'::uuid[])
-         from public.seller_skus s where s.seller_namespace = any(seller_namespaces)
-             and s.current_terms_version_id is not null)
+         from public.skus s where s.current_terms_version_id is not null and (
+             s.sku in (
+                 select t.sku from private.settlement_transactions t
+                 join private.settlements h on h.current_version_id = t.version_id
+                 where h.id = any(settlement_ids)
+                     and t.posted_date between report_input.start_date and report_input.end_date
+                 union all
+                 select t.sku from private.data_kiosk_transactions t
+                 join private.data_kiosk_days d on d.current_version_id = t.version_id
+                 where d.id = any(locked_day_ids)
+             ) or exists (
+                 select 1 from public.sku_terms_versions v
+                 where v.sku_id = s.id and v.company_id = report_input.company_id
+             )
+         ))
     into settlement_versions,kiosk_versions,terms_versions;
     if cardinality(settlement_versions) <> cardinality(settlement_ids) then
         raise exception 'Missing required payout Settlement identity' using errcode = '23514';
@@ -212,16 +225,16 @@ begin
         select report_input.id,v.day_id,v.id from private.data_kiosk_preprocess_versions v
         join private.data_kiosk_days d on d.id = v.day_id where v.id = any(kiosk_versions)
         order by d.seller_namespace,d.marketplace_name,d.activity_date,d.dataset_key;
-    insert into private.payout_report_terms_versions(report_id,seller_sku_id,terms_version_id)
-        select report_input.id,v.seller_sku_id,v.id from public.sku_terms_versions v
+    insert into private.payout_report_terms_versions(report_id,sku_id,terms_version_id)
+        select report_input.id,v.sku_id,v.id from public.sku_terms_versions v
         where v.id = any(used_terms);
     insert into public.company_payout_report_components (
         report_id,row_number,source,authoritative,source_row_id,source_version_id,source_identity_id,
-        seller_sku_id,terms_version_id,fee_period_id,sku,marketplace_name,activity_date,component_type,
+        sku_id,terms_version_id,fee_period_id,sku,marketplace_name,activity_date,component_type,
         source_amount,quantity,fee_base,fee_rate_percent,fee_amount,company_amount,resolution_status
     ) select report_input.id,
         row_number() over(order by source,source_identity_id,source_row_id)::integer,
-        source,authoritative,source_row_id,source_version_id,source_identity_id,seller_sku_id,terms_version_id,
+        source,authoritative,source_row_id,source_version_id,source_identity_id,sku_id,terms_version_id,
         fee_period_id,sku,marketplace_name,activity_date,component_type,source_amount,quantity,
         fee_base,fee_rate_percent,fee_amount,company_amount,resolution_status
         from pg_temp.payout_resolved_components

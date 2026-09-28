@@ -109,8 +109,7 @@ class OperatorSourceAccessTests(SourceModelFixture):
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": identity,
-                "seller_namespace": self.seller,
+                "sku_id": identity,
                 "sku": "SKU",
                 "company_id": None,
                 "expected_current_version_id": second,
@@ -118,10 +117,10 @@ class OperatorSourceAccessTests(SourceModelFixture):
                 "periods": [],
             },
         )
-        self.assertEqual(self.as_user(member, "select * from public.seller_skus"), [])
+        self.assertEqual(self.as_user(member, "select * from public.skus"), [])
         self.assertEqual(self.as_user(member, "select * from public.sku_terms_versions"), [])
         self.assertEqual(self.as_user(member, "select * from public.sku_fee_periods"), [])
-        self.assertEqual(len(self.as_user(operator, "select * from public.seller_skus")), 1)
+        self.assertEqual(len(self.as_user(operator, "select * from public.skus")), 1)
         self.assertEqual(len(self.as_user(operator, "select * from public.sku_terms_versions")), 4)
         self.assertEqual(
             self.as_user(

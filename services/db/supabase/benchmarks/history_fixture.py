@@ -2,7 +2,7 @@
 
 This is synthetic read-load data, not replayable Amazon evidence: typed dates and
 source identities are shifted while raw JSON/archive references retain seed data.
-Existing companies, Auth accounts, seller/SKU identities, original source rows and
+Existing companies, Auth accounts, SKU identities, original source rows and
 payout inputs remain intact. No durable schema, indexes, functions or grants change.
 
 ``copies`` is the total number of temporal cohorts, including the original seed.
@@ -165,15 +165,15 @@ def _extend_fee_coverage(connection: Connection, days: int) -> int:
     """Preserve old immutable terms; extend the earliest rate in a new selected revision."""
     connection.execute(
         "create temporary table benchmark_history_terms on commit drop as "
-        "select s.id seller_sku_id,s.current_terms_version_id old_id,private.uuid7() new_id,"
+        "select s.id sku_id,s.current_terms_version_id old_id,private.uuid7() new_id,"
         "(select max(v.version_number)+1 from public.sku_terms_versions v "
-        "where v.seller_sku_id=s.id) version_number "
-        "from public.seller_skus s where s.current_terms_version_id is not null"
+        "where v.sku_id=s.id) version_number "
+        "from public.skus s where s.current_terms_version_id is not null"
     )
     connection.execute(
         "insert into public.sku_terms_versions "
-        "(id,seller_sku_id,company_id,version_number,fee_period_count,change_reason) "
-        "select m.new_id,t.seller_sku_id,t.company_id,m.version_number,t.fee_period_count,"
+        "(id,sku_id,company_id,version_number,fee_period_count,change_reason) "
+        "select m.new_id,t.sku_id,t.company_id,m.version_number,t.fee_period_count,"
         "'Synthetic historical fee coverage for read benchmark' "
         "from public.sku_terms_versions t join pg_temp.benchmark_history_terms m on m.old_id=t.id"
     )
@@ -190,8 +190,8 @@ def _extend_fee_coverage(connection: Connection, days: int) -> int:
         (days,),
     )
     result = connection.execute(
-        "update public.seller_skus s set current_terms_version_id=m.new_id "
-        "from pg_temp.benchmark_history_terms m where s.id=m.seller_sku_id"
+        "update public.skus s set current_terms_version_id=m.new_id "
+        "from pg_temp.benchmark_history_terms m where s.id=m.sku_id"
     )
     return result.rowcount
 
@@ -261,9 +261,9 @@ begin
         select 1 from pg_temp.benchmark_history_terms m
         join public.sku_terms_versions old on old.id=m.old_id
         join public.sku_terms_versions new on new.id=m.new_id
-        join public.seller_skus s on s.id=m.seller_sku_id
+        join public.skus s on s.id=m.sku_id
         where old.company_id is distinct from new.company_id
-            or old.seller_sku_id is distinct from new.seller_sku_id
+            or old.sku_id is distinct from new.sku_id
             or s.current_terms_version_id is distinct from new.id
     ) then raise exception 'History fixture changed current company ownership'; end if;
 end;
@@ -286,7 +286,7 @@ def _stats(connection: Connection) -> dict[str, object]:
         "pruned_versions": "private.data_kiosk_pruned_versions",
         "companies": "public.companies",
         "accounts": "public.app_accounts",
-        "seller_skus": "public.seller_skus",
+        "skus": "public.skus",
     }.items():
         row = connection.execute(sql.SQL("select count(*) from {}").format(_identifier(relation)))
         counts[label] = cast(tuple[int], row.fetchone())[0]
@@ -380,7 +380,7 @@ def build_history(connection: Connection, copies: int = 10) -> dict[str, object]
         after = _stats(connection)
         for key in before:
             if isinstance(before[key], int):
-                factor = 1 if key in {"companies", "accounts", "seller_skus"} else copies
+                factor = 1 if key in {"companies", "accounts", "skus"} else copies
                 if after[key] != cast(int, before[key]) * factor:
                     raise RuntimeError(
                         "History fixture cardinalities do not match the requested factor"
@@ -392,7 +392,7 @@ def build_history(connection: Connection, copies: int = 10) -> dict[str, object]
             *FACT_TABLES,
             "public.sku_terms_versions",
             "public.sku_fee_periods",
-            "public.seller_skus",
+            "public.skus",
         ):
             connection.execute(sql.SQL("analyze {}").format(_identifier(relation)))
         if connection.execute("show session_replication_role").fetchone() != ("origin",):

@@ -73,8 +73,13 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self,
     ) -> None:
         company, identity = self.owner()
-        _, settlement_version = self.settlement([])
-        _, kiosk_version = self.kiosk(1, [])
+        acquisition = self.acquisition()
+        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        _, settlement_version = self.settlement(
+            [], acquisition_id=acquisition, expected=old_settlement
+        )
+        _, old_kiosk = self.kiosk(1, [self.component("-10")])
+        _, kiosk_version = self.kiosk(2, [], expected=old_kiosk)
         operator = self.operator()
         report, created = generate_payout_reports(self, operator, company)[0]
         self.assertTrue(created)
@@ -89,7 +94,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             [(settlement_version,)],
         )
         self.assertEqual(generate_payout_reports(self, operator, company), [(report, False)])
-        _, replacement = self.kiosk(2, [], expected=kiosk_version)
+        _, replacement = self.kiosk(3, [], expected=kiosk_version)
         self.connection.commit()
         self.assertEqual(self.report_count(), 1)
         next_report, created = generate_payout_reports(self, operator, company)[0]
@@ -122,6 +127,17 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self.assertEqual(payout_snapshot(self, report), before)
         self.connection.execute("set constraints all immediate")
 
+    def test_registered_sku_cannot_associate_unrelated_empty_source_metadata(self) -> None:
+        company, _ = self.owner()
+        self.settlement([])
+        self.kiosk(1, [])
+        operator = self.operator()
+        report, created = generate_payout_reports(self, operator, company)[0]
+        self.assertTrue(created)
+        self.assert_empty_scope(report, (0, 0, 1))
+        self.assertEqual(generate_payout_reports(self, operator, company), [(report, False)])
+        self.connection.execute("set constraints all immediate")
+
     def test_archives_without_preprocessing_allow_an_explicit_empty_snapshot(self) -> None:
         company, _ = self.owner()
         self.acquisition()
@@ -135,7 +151,13 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
 
     def test_unassigned_amounts_for_related_seller_cannot_be_mislabeled_as_empty(self) -> None:
         company, _ = self.owner()
-        self.settlement([self.transaction("100", sku="UNASSIGNED")])
+        acquisition = self.acquisition()
+        _, previous = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        self.settlement(
+            [self.transaction("100", sku="UNASSIGNED")],
+            acquisition_id=acquisition,
+            expected=previous,
+        )
         fill_payout_kiosk_month(self)
         with self.assertRaisesRegex(psycopg.errors.CheckViolation, "ownership"):
             generate_payout_reports(self, self.operator(), company)

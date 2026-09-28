@@ -130,7 +130,6 @@ class TestSourceReprocessing(DatabaseTestCase):
         for sku in skus:
             publish_sku_terms(
                 self.database,
-                seller_namespace=self.seller,
                 sku=sku,
                 company_id=company,
                 expected_current_version_id=None,

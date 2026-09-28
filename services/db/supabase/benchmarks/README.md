@@ -1,10 +1,12 @@
 # Database read benchmarks
 
 These harnesses measure the currently installed database API on disposable local clones. Current
-query/index guidance is in [Database performance](../../../../docs/database_performance.md); the
-historical [date-bounded comparison](../../../../docs/evidence/date_bounded_indexes_2026-09-27/README.md)
-records source-index behavior before the mature cutoff date rule and derived reconciliation rows.
-Use the harness to measure the current installed ledger.
+query/index guidance is in [Database performance](../../../../docs/database_performance.md).
+The [global SKU evidence](../../../../docs/evidence/global_sku_identity/README.md) uses a fresh
+disposable baseline. Clone-based runners require a seed installed from the current baseline.
+The [query-speed comparison](../../../../docs/evidence/global_sku_identity/query_speed.md) installs
+a trusted Git baseline and current migrations into separate disposable databases, then compares
+equivalent authenticated reads over identical real source facts.
 
 Run from the repository root with the frontend seed database and REST containers available:
 

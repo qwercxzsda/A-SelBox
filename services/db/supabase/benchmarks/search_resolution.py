@@ -31,7 +31,7 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
         skus = connection.execute("select distinct sku from public.company_skus").fetchall()
     else:
         skus = connection.execute(
-            "select sku from public.seller_skus union "
+            "select sku from public.skus union "
             "select sku from private.settlement_transactions where sku is not null union "
             "select sku from private.data_kiosk_transactions where sku is not null"
         ).fetchall()

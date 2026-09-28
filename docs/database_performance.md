@@ -1,8 +1,7 @@
 # Database performance
 
 This guide describes the current read design. [Query contracts](transaction_query_contracts.md)
-define API behavior; [access control](access_control.md) defines visibility. Historical measurements
-are kept with their source snapshots under [evidence](evidence/README.md).
+define API behavior; [access control](access_control.md) defines visibility.
 
 ## Request paths
 
@@ -18,7 +17,7 @@ are kept with their source snapshots under [evidence](evidence/README.md).
 ### Authorization and current versions
 
 Source headers select complete current versions. Fact RLS checks that selection, source category,
-and current seller/SKU ownership. Metadata policies use registered membership and current pointers;
+and current SKU ownership. Metadata policies use registered membership and current pointers;
 they do not scan facts to establish metadata ownership. Full metadata is operator-only, while
 members share narrow current references.
 
@@ -26,6 +25,11 @@ members share narrow current references.
 IDs as a set. It uses stored account state and selected pointers; it is not a persisted permission
 cache. Page and total queries materialize terms only for selected rows or grouped facts. Missing
 ownership and fee periods retain the financial contract's explicit NULL behavior.
+
+Exact SKU is the single ownership key. An import through another namespace reuses the same
+assignment and fee revision. The registry has one `UNIQUE (sku)` index; ownership joins and
+count indexes carry no namespace term. Totals also omit namespace from their intermediate groups,
+so compatible facts from every namespace share one fee lookup. Raw rows retain their identities.
 
 ### Indexes
 
@@ -69,11 +73,12 @@ request-time authorization.
 
 ## Measurement evidence
 
-The [September 27 source-index snapshot](evidence/date_bounded_indexes_2026-09-27/README.md)
-records authenticated local request timings, exact-response checks, plans, and insertion costs on
-a synthetic million-row history fixture. It predates the current source-authority
-rules, so its counts and timings describe that historical schema. Use the maintained
-runners below to measure the current ledger.
+The [global SKU benchmark](evidence/global_sku_identity/README.md) verifies authenticated
+reads across namespaces and measures the current ownership indexes on synthetic data.
+The [controlled query-speed comparison](evidence/global_sku_identity/query_speed.md) compares the
+previous and current schemas using identical real source facts and equivalent synthetic terms.
+It records large administrator company-filter reductions and smaller member-query differences.
+The maintained runners below cover additional workload shapes.
 
 ## Scaling limits
 
@@ -87,7 +92,7 @@ runners below to measure the current ledger.
   supported and accepted cost; they are not equivalent to fetching the first page.
 - Identity refresh reads complete assignments and company labels. Administrator catalog work grows
   with distinct SKU count, and the browser retains the complete searchable list.
-- Current fees load only visible expanded groups, with one cached request per seller/SKU assignment.
+- Current fees load only visible expanded SKUs, with one cached request per exact SKU.
   Large SKU menus render their matching checkboxes. Further fee/menu optimization is deferred until
   a measured usability issue warrants it.
 

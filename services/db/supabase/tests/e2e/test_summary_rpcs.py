@@ -3,7 +3,11 @@
 from decimal import Decimal
 from typing import cast
 
-from services.db.supabase.tests.e2e.fixtures import SKU, archived_settlement, company_with_fees
+from services.db.supabase.tests.e2e.fixtures import (
+    archived_settlement,
+    company_with_fees,
+    fixture_sku,
+)
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.database.acquisitions import persist_settlement_acquisition
 from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
@@ -13,7 +17,10 @@ class SummaryRpcTests(LocalWorkflowCase):
     def test_authenticated_summaries_and_sku_options_work_without_rest_aggregates(self) -> None:
         first = company_with_fees(self.database, self.seller)
         second = company_with_fees(self.database, self.seller + "-second", sku="OTHER")
-        for seller, sku in ((self.seller, SKU), (self.seller + "-second", "OTHER")):
+        for seller, sku in (
+            (self.seller, fixture_sku(self.seller)),
+            (self.seller + "-second", "OTHER"),
+        ):
             acquisition = persist_settlement_acquisition(
                 self.database, archived_settlement(self.storage, seller, sku=sku)
             )
@@ -23,9 +30,9 @@ class SummaryRpcTests(LocalWorkflowCase):
         _, outsider_token = self.create_auth_user()
         dates: dict[str, object] = {"p_date_from": "2026-08-01", "p_date_to": "2026-08-02"}
 
-        for token, expected_count, expected_amount, expected_skus in (
-            (member_token, "2", "2", [SKU]),
-            (operator_token, "4", "4", sorted([SKU, "OTHER"])),
+        for token, expected_count, reported, expected_amount, type_count, expected_skus in (
+            (member_token, "2", "0", "2", 2, [fixture_sku(self.seller)]),
+            (operator_token, "6", "-20", "4", 3, sorted([fixture_sku(self.seller), "OTHER"])),
         ):
             for select in ("source_amount.sum()", "currency,source_amount.sum()", "count()"):
                 rejected = self.stack.request(
@@ -50,28 +57,28 @@ class SummaryRpcTests(LocalWorkflowCase):
             self.assertEqual(row["known_company_count"], expected_count)
             for field in ("reported_amount", "service_fee", "company_amount"):
                 self.assertIsInstance(row[field], str)
-            self.assertEqual(Decimal(row["reported_amount"]), Decimal(0))
+            self.assertEqual(Decimal(row["reported_amount"]), Decimal(reported))
             self.assertEqual(Decimal(row["company_amount"]), Decimal(expected_amount))
-            page = self.stack.request(
-                "POST",
-                "/rest/v1/rpc/transaction_totals",
-                token=token,
-                json={**dates, "p_group_by_type": True, "p_limit": 1},
-            )
-            self.assertEqual(page.status_code, 200)
-            self.assertEqual(page.json()["next_offset"], 1)
-            continuation = self.stack.request(
-                "POST",
-                "/rest/v1/rpc/transaction_totals",
-                token=token,
-                json={**dates, "p_group_by_type": True, "p_limit": 1, "p_offset": 1},
-            )
-            self.assertEqual(continuation.status_code, 200)
-            self.assertIsNone(continuation.json()["next_offset"])
-            self.assertNotEqual(
-                page.json()["rows"][0]["component_type"],
-                continuation.json()["rows"][0]["component_type"],
-            )
+            types: set[str] = set()
+            grouped_count = 0
+            for offset in range(type_count):
+                page = self.stack.request(
+                    "POST",
+                    "/rest/v1/rpc/transaction_totals",
+                    token=token,
+                    json={**dates, "p_group_by_type": True, "p_limit": 1, "p_offset": offset},
+                )
+                self.assertEqual(page.status_code, 200)
+                payload = page.json()
+                self.assertEqual(
+                    payload["next_offset"], offset + 1 if offset + 1 < type_count else None
+                )
+                self.assertEqual(len(payload["rows"]), 1)
+                grouped = payload["rows"][0]
+                self.assertNotIn(grouped["component_type"], types)
+                types.add(grouped["component_type"])
+                grouped_count += int(grouped["row_count"])
+            self.assertEqual(grouped_count, int(expected_count))
 
             options = self.stack.request(
                 "POST", "/rest/v1/rpc/sku_filter_options", token=token, json={}
@@ -84,7 +91,7 @@ class SummaryRpcTests(LocalWorkflowCase):
                 self.assertEqual(options.json()["code"], "42501")
                 self.assertEqual(
                     [row["sku"] for row in self.read_rows("company_skus", token, select="sku")],
-                    [SKU],
+                    [fixture_sku(self.seller)],
                 )
             plain_rows = self.stack.request(
                 "POST",
@@ -158,16 +165,16 @@ class SummaryRpcTests(LocalWorkflowCase):
         with self.database.connection() as connection, connection.transaction():
             connection.execute(
                 "select private.publish_sku_terms(jsonb_build_object("
-                "'id',private.uuid7(),'seller_sku_id',private.uuid7(),"
-                "'seller_namespace',%s::text,'sku',requested.sku,'company_id',%s::uuid,"
+                "'id',private.uuid7(),'sku_id',private.uuid7(),"
+                "'sku',requested.sku,'company_id',%s::uuid,"
                 "'expected_current_version_id',null,'change_reason','Complete catalog test',"
                 "'periods','[]'::jsonb)) from unnest(%s::text[]) as requested(sku)",
-                (self.seller, company, skus),
+                (company, skus),
             ).fetchall()
         _, member = self.create_member(company)
         _, outsider = self.create_auth_user()
         limited = self.stack.request(
-            "GET", "/rest/v1/seller_skus", token=operator, params={"select": "id", "limit": "2000"}
+            "GET", "/rest/v1/skus", token=operator, params={"select": "id", "limit": "2000"}
         )
         self.assertEqual(limited.status_code, 200)
         self.assertEqual(len(limited.json()), 1000)

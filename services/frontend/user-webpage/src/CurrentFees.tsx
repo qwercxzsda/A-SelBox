@@ -12,14 +12,9 @@ import {
 } from "@mantine/core";
 import { PaginationBar } from "./PaginationBar";
 import { SkuFees } from "./SkuFees";
-import {
-  feeSkuCompanyLabels,
-  filterFeeSkuGroups,
-  groupFeeSkus,
-  paginateFeeSkuGroups,
-} from "./fee-sku-groups";
+import { filterFeeSkus, paginateFeeSkus } from "./fee-skus";
 import type { Identity } from "./auth-session";
-import { DATASET_PRESENTATION, PAGE_SIZES } from "./view-model";
+import { companyLabel, DATASET_PRESENTATION, PAGE_SIZES } from "./view-model";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 
 export function CurrentFees({
@@ -37,14 +32,13 @@ export function CurrentFees({
     () => new Map(identity.companies.map((company) => [company.id, company.name])),
     [identity.companies],
   );
-  const skuGroups = useMemo(() => groupFeeSkus(identity.assignments), [identity.assignments]);
   const searchTerm = search.trim();
-  const groups = useMemo(
-    () => filterFeeSkuGroups(skuGroups, search, showCompany ? companies : undefined),
-    [skuGroups, search, showCompany, companies],
+  const assignments = useMemo(
+    () => filterFeeSkus(identity.assignments, search, showCompany ? companies : undefined),
+    [identity.assignments, search, showCompany, companies],
   );
-  const { visibleGroups, pageIndex, pageCount, totalCount, firstVisible, lastVisible } =
-    paginateFeeSkuGroups(groups, viewState.pageIndex, pageSize);
+  const { visibleSkus, pageIndex, pageCount, totalCount, firstVisible, lastVisible } =
+    paginateFeeSkus(assignments, viewState.pageIndex, pageSize);
   function changeSearch(value: string) {
     onViewStateChange((current) => ({ ...current, search: value, pageIndex: 0 }));
   }
@@ -119,7 +113,7 @@ export function CurrentFees({
         }}
         onPageChange={changePage}
       />
-      {visibleGroups.length === 0 ? (
+      {visibleSkus.length === 0 ? (
         <Paper withBorder p="xl">
           <Stack align="center" gap="sm">
             <Text c="dimmed" ta="center">
@@ -153,25 +147,25 @@ export function CurrentFees({
             }));
           }}
         >
-          {visibleGroups.map((group) => (
-            <Accordion.Item key={group.sku} value={encodeURIComponent(group.sku)}>
-              <Accordion.Control aria-label={`Show marketplace fees for ${group.sku}`}>
+          {visibleSkus.map((assignment) => (
+            <Accordion.Item key={assignment.id} value={encodeURIComponent(assignment.sku)}>
+              <Accordion.Control aria-label={`Show marketplace fees for ${assignment.sku}`}>
                 <Stack gap={2}>
                   <Text fw={600} style={{ overflowWrap: "anywhere" }}>
-                    {group.sku}
+                    {assignment.sku}
                   </Text>
                   {showCompany ? (
                     <Text size="sm" c="dimmed" style={{ overflowWrap: "anywhere" }}>
-                      {feeSkuCompanyLabels(group, companies).join(" · ")}
+                      {companyLabel(assignment.company_id, companies)}
                     </Text>
                   ) : null}
                 </Stack>
               </Accordion.Control>
               <Accordion.Panel>
-                {expanded.includes(group.sku) ? (
+                {expanded.includes(assignment.sku) ? (
                   <SkuFees
                     identity={identity}
-                    group={group}
+                    assignment={assignment}
                     companies={companies}
                     onRetry={onRetry}
                   />

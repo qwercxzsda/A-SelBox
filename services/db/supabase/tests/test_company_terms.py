@@ -18,8 +18,7 @@ class CompanyTermsTests(SourceModelFixture):
         expected: str | None = None,
     ) -> str:
         row = self.connection.execute(
-            "select seller_namespace,sku,current_terms_version_id "
-            "from public.seller_skus where id=%s",
+            "select sku,current_terms_version_id from public.skus where id=%s",
             (identity,),
         ).fetchone()
         if row is None:
@@ -28,11 +27,10 @@ class CompanyTermsTests(SourceModelFixture):
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": new_id(),
-                "seller_namespace": row[0],
-                "sku": row[1],
+                "sku_id": new_id(),
+                "sku": row[0],
                 "company_id": company,
-                "expected_current_version_id": expected or str(row[2]),
+                "expected_current_version_id": expected or str(row[1]),
                 "change_reason": "Complete replacement",
                 "periods": periods,
             },
@@ -74,7 +72,7 @@ class CompanyTermsTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.current_sku_fee_periods "
-                "where seller_sku_id=%s and marketplace_name='Amazon.ca'",
+                "where sku_id=%s and marketplace_name='Amazon.ca'",
                 (identity,),
             ).fetchone(),
             (0,),
@@ -105,7 +103,7 @@ class CompanyTermsTests(SourceModelFixture):
             [(Decimal(93),)],
         )
         unassigned = self.publish_terms(identity, None, [self.period(rate="9")])
-        self.assertEqual(self.as_user(user, "select id from public.seller_skus"), [])
+        self.assertEqual(self.as_user(user, "select id from public.skus"), [])
         self.assertEqual(self.as_user(user, "select id from public.sku_terms_versions"), [])
         self.assertEqual(self.as_user(user, "select id from private.settlement_transactions"), [])
         self.assertEqual(
@@ -176,7 +174,7 @@ class CompanyTermsTests(SourceModelFixture):
         self.assertEqual(progress[2:6], (Decimal("0.123456789012345678901"), None, None, 1))
         self.assertIsInstance(progress[6], list)
         self.assertEqual(progress[6][0]["fee_base"], "0.123456789012345678901")
-        self.assertEqual(progress[6][0]["seller_sku_id"], identity)
+        self.assertEqual(progress[6][0]["sku_id"], identity)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.totals([settlement])
         self.connection.execute("set constraints all immediate")
@@ -196,12 +194,12 @@ class CompanyTermsTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
                 "insert into public.sku_terms_versions"
-                "(id,seller_sku_id,company_id,version_number,fee_period_count,change_reason) "
+                "(id,sku_id,company_id,version_number,fee_period_count,change_reason) "
                 "values (%s,%s,%s,99,1,'Incomplete')",
                 (pending, identity, company),
             )
             self.connection.execute(
-                "update public.seller_skus set current_terms_version_id=%s where id=%s",
+                "update public.skus set current_terms_version_id=%s where id=%s",
                 (pending, identity),
             )
         self.connection.execute("set constraints all immediate")
@@ -211,10 +209,10 @@ class CompanyTermsTests(SourceModelFixture):
         version = self.publish_terms(identity, company, [self.period()])
         statements: list[tuple[LiteralString, tuple[str, ...]]] = [
             (
-                "update public.seller_skus set current_terms_version_id=null where id=%s",
+                "update public.skus set current_terms_version_id=null where id=%s",
                 (identity,),
             ),
-            ("delete from public.seller_skus where id=%s", (identity,)),
+            ("delete from public.skus where id=%s", (identity,)),
             ("delete from public.sku_terms_versions where id=%s", (version,)),
             ("truncate public.sku_fee_periods cascade", ()),
             (
@@ -235,19 +233,18 @@ class CompanyTermsTests(SourceModelFixture):
         _, identity = self.owner()
         _, other = self.owner("OTHER")
         selected = self.connection.execute(
-            "select current_terms_version_id from public.seller_skus where id=%s", (other,)
+            "select current_terms_version_id from public.skus where id=%s", (other,)
         ).fetchone()
         if selected is None:
             raise AssertionError("Expected selected terms.")
         with self.assertRaises(psycopg.errors.ForeignKeyViolation), self.connection.transaction():
             self.connection.execute(
-                "update public.seller_skus set current_terms_version_id=%s where id=%s",
+                "update public.skus set current_terms_version_id=%s where id=%s",
                 (selected[0], identity),
             )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "insert into public.seller_skus(seller_namespace,sku) values (%s,'NO-TERMS')",
-                (self.seller,),
+                "insert into public.skus(sku) values ('NO-TERMS')",
             )
             self.connection.execute("set constraints all immediate")
         self.connection.execute("set constraints all immediate")

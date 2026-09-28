@@ -31,7 +31,7 @@ const LIVE_COLUMNS = [
   "quantity",
   "fee_base",
   "category",
-  "seller_sku_id",
+  "sku_id",
   "terms_version_id",
   "company_id",
   "fee_period_id",
@@ -87,7 +87,7 @@ const DATA_KIOSK_COLUMNS = [
 ] as const;
 
 const FEE_COLUMNS = [
-  "seller_sku_id",
+  "sku_id",
   "company_id",
   "terms_version_id",
   "marketplace_name",

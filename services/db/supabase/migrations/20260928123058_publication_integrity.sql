@@ -114,15 +114,15 @@ declare chosen public.sku_terms_versions; previous_number bigint;
 begin
     if tg_op = 'DELETE' or (to_jsonb(new) - 'current_terms_version_id') is distinct from
         (to_jsonb(old) - 'current_terms_version_id') then
-        raise exception 'Seller/SKU identity is immutable' using errcode = '23514';
+        raise exception 'SKU identity is immutable' using errcode = '23514';
     end if;
     if new.current_terms_version_id is null then
         raise exception 'Publish an unassigned revision instead of clearing selection' using errcode = '23514';
     end if;
     if new.current_terms_version_id is not distinct from old.current_terms_version_id then return new; end if;
     select * into chosen from public.sku_terms_versions where id = new.current_terms_version_id;
-    if not found or chosen.seller_sku_id <> new.id then
-        raise exception 'Selected terms must belong to this seller/SKU' using errcode = '23503';
+    if not found or chosen.sku_id <> new.id then
+        raise exception 'Selected terms must belong to this SKU' using errcode = '23503';
     end if;
     if chosen.fee_period_count <> (
         select count(*) from public.sku_fee_periods where terms_version_id = chosen.id
@@ -134,19 +134,19 @@ begin
     return new;
 end;
 $$;
-create trigger immutable_identity before update or delete on public.seller_skus
+create trigger immutable_identity before update or delete on public.skus
 for each row execute function private.guard_current_sku_terms();
 
 create function private.require_selected_sku_terms() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-    if exists (select 1 from public.seller_skus where id = new.id and current_terms_version_id is null) then
-        raise exception 'A registered seller/SKU requires selected terms' using errcode = '23514';
+    if exists (select 1 from public.skus where id = new.id and current_terms_version_id is null) then
+        raise exception 'A registered SKU requires selected terms' using errcode = '23514';
     end if;
     return null;
 end;
 $$;
-create constraint trigger selected_terms_required after insert on public.seller_skus
+create constraint trigger selected_terms_required after insert on public.skus
 deferrable initially deferred for each row execute function private.require_selected_sku_terms();
 
 create function private.require_read_committed() returns void language plpgsql

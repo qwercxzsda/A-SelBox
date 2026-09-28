@@ -81,12 +81,12 @@ on private.payout_report_data_kiosk_versions (version_id);
 
 create table private.payout_report_terms_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
-    seller_sku_id public.local_uuid not null,
+    sku_id public.local_uuid not null,
     terms_version_id public.local_uuid not null,
-    primary key (report_id, seller_sku_id),
+    primary key (report_id, sku_id),
     unique (report_id, terms_version_id),
-    foreign key (seller_sku_id, terms_version_id)
-    references public.sku_terms_versions (seller_sku_id, id)
+    foreign key (sku_id, terms_version_id)
+    references public.sku_terms_versions (sku_id, id)
 );
 
 create table public.company_payout_report_components (
@@ -98,7 +98,7 @@ create table public.company_payout_report_components (
     source_row_id public.local_uuid not null,
     source_version_id public.local_uuid not null,
     source_identity_id public.local_uuid not null,
-    seller_sku_id public.local_uuid not null,
+    sku_id public.local_uuid not null,
     terms_version_id public.local_uuid not null,
     fee_period_id public.local_uuid,
     sku private.nonblank not null,
@@ -129,8 +129,8 @@ create table public.company_payout_report_components (
     unique (report_id, source, source_row_id),
     foreign key (report_id, terms_version_id)
     references private.payout_report_terms_versions (report_id, terms_version_id),
-    foreign key (seller_sku_id, terms_version_id)
-    references public.sku_terms_versions (seller_sku_id, id),
+    foreign key (sku_id, terms_version_id)
+    references public.sku_terms_versions (sku_id, id),
     foreign key (terms_version_id, fee_period_id)
     references public.sku_fee_periods (terms_version_id, id),
     check (company_amount = source_amount + fee_amount),

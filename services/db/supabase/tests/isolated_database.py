@@ -18,13 +18,19 @@ from services.db.supabase.tests.local_database import (
 
 
 @contextmanager
-def isolated_database(database_url: str = DEFAULT_DATABASE_URL) -> Generator[str]:
+def isolated_database(
+    database_url: str = DEFAULT_DATABASE_URL, *, migrations: Path | None = None
+) -> Generator[str]:
     """Create and always drop an empty DB on the guarded local test server.
 
     Minimal auth/storage interfaces allow the actual application migrations to
     run on PostgreSQL 17 without copying existing development source evidence.
+    Benchmarks may supply a trusted repository snapshot as the migration directory.
     """
     require_local_supabase_url(database_url)
+    migration_paths = sorted((migrations or Path(__file__).parents[1] / "migrations").glob("*.sql"))
+    if not migration_paths:
+        raise ValueError("The disposable database requires a complete migration baseline.")
     # libpq's PGHOSTADDR can otherwise override an explicit, validated URL host.
     host = urlsplit(database_url).hostname
     database_url = make_conninfo(
@@ -64,7 +70,7 @@ def isolated_database(database_url: str = DEFAULT_DATABASE_URL) -> Generator[str
                         );
                         """
                     )
-                    for path in sorted((Path(__file__).parents[1] / "migrations").glob("*.sql")):
+                    for path in migration_paths:
                         connection.execute(read_trusted_sql(path))
                     if aggregate_setting is None:
                         connection.execute(

@@ -10,7 +10,7 @@ create function private.resolve_company_components(
     source_identity_id uuid, seller_namespace text, marketplace_name text,
     activity_date date, sku text, component_type text, currency text, source_amount numeric,
     quantity numeric, fee_base numeric, category public.allocation_category, authoritative boolean,
-    seller_sku_id uuid, terms_version_id uuid, company_id uuid, fee_period_id uuid,
+    sku_id uuid, terms_version_id uuid, company_id uuid, fee_period_id uuid,
     fee_rate_percent numeric, resolution_status text, fee_amount numeric, company_amount numeric
 )
 language plpgsql stable set search_path = '' as $$
@@ -26,8 +26,8 @@ begin
         or exists (select 1 from private.data_kiosk_preprocess_versions v
             where v.id = any(p_data_kiosk_version_ids) group by v.day_id having count(*) > 1)
         or exists (select 1 from public.sku_terms_versions v
-            where v.id = any(p_terms_version_ids) group by v.seller_sku_id having count(*) > 1) then
-        raise exception 'One interpretation per source or seller/SKU identity required' using errcode = '23514';
+            where v.id = any(p_terms_version_ids) group by v.sku_id having count(*) > 1) then
+        raise exception 'One interpretation per source or SKU identity required' using errcode = '23514';
     end if;
     return query
     with components as (
@@ -88,13 +88,13 @@ select 'RECONCILIATION'::text, private.reconciliation_group_id(r.seller_namespac
 from private.resolve_source_reconciliation(p_settlement_version_ids,p_data_kiosk_version_ids) r
 where r.data_kiosk_settlement_control <> 0 or r.data_kiosk_category_amount <> 0
 ), selected_terms as (
-    select s.id as seller_sku_id,s.seller_namespace,s.sku,v.id as terms_version_id,v.company_id
-    from public.sku_terms_versions v join public.seller_skus s on s.id = v.seller_sku_id
+    select s.id as sku_id,s.sku,v.id as terms_version_id,v.company_id
+    from public.sku_terms_versions v join public.skus s on s.id = v.sku_id
     where v.id = any(p_terms_version_ids)
 ), resolved as (
     select
         c.*,
-        o.seller_sku_id,
+        o.sku_id,
         o.terms_version_id,
         o.company_id,
         p.id as fee_period_id,
@@ -107,7 +107,7 @@ where r.data_kiosk_settlement_control <> 0 or r.data_kiosk_category_amount <> 0
             else 'APPLIED'
         end as resolution_status
     from components as c
-    left join selected_terms as o on c.seller_namespace = o.seller_namespace and c.sku = o.sku
+    left join selected_terms as o on c.sku = o.sku
     and c.category <> 'SELBOX'
     left join public.sku_fee_periods as p
         on p.terms_version_id = o.terms_version_id and p.marketplace_name = c.marketplace_name
@@ -130,7 +130,7 @@ calculated as (
 select c.source,c.source_row_id::uuid,c.source_version_id::uuid,c.preprocess_version::text,
     c.source_identity_id::uuid,c.seller_namespace::text,c.marketplace_name,c.activity_date,c.sku::text,
     c.component_type::text,c.currency,c.source_amount::numeric,c.quantity::numeric,c.fee_base::numeric,
-    c.category,c.authoritative,c.seller_sku_id::uuid,c.terms_version_id::uuid,c.company_id::uuid,
+    c.category,c.authoritative,c.sku_id::uuid,c.terms_version_id::uuid,c.company_id::uuid,
     c.fee_period_id::uuid,c.fee_rate_percent,c.resolution_status,c.fee_amount,
     case when c.category = 'SELBOX' then 0::numeric
         else c.source_amount + c.fee_amount end as company_amount
@@ -227,8 +227,7 @@ with components as (
 
 selected_terms as materialized (
     select
-        seller_sku_id,
-        seller_namespace,
+        sku_id,
         sku,
         terms_version_id,
         company_id
@@ -237,13 +236,13 @@ selected_terms as materialized (
 
 select
     c.*,
-    o.seller_sku_id,
+    o.sku_id,
     o.terms_version_id,
     o.company_id
 from components as c
 left join selected_terms as o
     on
-        c.seller_namespace = o.seller_namespace and c.sku = o.sku
+        c.sku = o.sku
         and c.category <> 'SELBOX';
 
 -- Complete current rows support strict financial reads and diagnostics.
@@ -299,7 +298,7 @@ select
     c.fee_base::numeric,
     c.category,
     c.authoritative,
-    c.seller_sku_id::uuid,
+    c.sku_id::uuid,
     c.terms_version_id::uuid,
     c.company_id::uuid,
     c.fee_period_id::uuid,

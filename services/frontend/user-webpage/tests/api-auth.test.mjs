@@ -53,7 +53,6 @@ test("company and SKU lookups advance by actual returned rows under a smaller se
   const rows = [0, 1, 2].map((index) => ({
     id: `identity-${index}`,
     name: `Company ${index}`,
-    seller_namespace: "seller-test",
     sku: `SKU_${index}`,
     company_id: "company-a",
     terms_version_id: `version-${index}`,

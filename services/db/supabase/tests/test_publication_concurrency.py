@@ -50,7 +50,7 @@ class PublicationConcurrencyTests(unittest.TestCase):
                     str(
                         require_row(
                             winner.execute(
-                                "select current_terms_version_id from public.seller_skus"
+                                "select current_terms_version_id from public.skus"
                             ).fetchone()
                         )[0]
                     ),
@@ -67,8 +67,7 @@ class PublicationConcurrencyTests(unittest.TestCase):
     ) -> str:
         payload = {
             "id": str(uuid7()),
-            "seller_sku_id": owner,
-            "seller_namespace": "seller",
+            "sku_id": owner,
             "sku": "SKU",
             "company_id": company,
             "expected_current_version_id": expected,

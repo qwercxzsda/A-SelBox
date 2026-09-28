@@ -1,0 +1,352 @@
+{
+  "recorded_at_utc": "2026-09-28T14:00:19.643062+00:00",
+  "postgres_version": "17.6",
+  "fixture": {
+    "namespaces": 3,
+    "matching_rows_per_source_namespace": 100,
+    "irrelevant_rows_per_source_namespace": 5000,
+    "total_source_rows": 30600,
+    "warmups_per_case": 1,
+    "measured_repetitions": 5
+  },
+  "verification": {
+    "passed": true,
+    "matching_rows": 600,
+    "sku_identities": 1
+  },
+  "measurements": [
+    {
+      "case": "count_all_owned",
+      "samples_ms": [
+        6.245,
+        5.814,
+        5.658,
+        5.897,
+        5.834
+      ],
+      "median_ms": 5.834,
+      "minimum_ms": 5.658,
+      "maximum_ms": 6.245
+    },
+    {
+      "case": "count_selected_sku",
+      "samples_ms": [
+        1.765,
+        2.438,
+        2.295,
+        2.095,
+        2.306
+      ],
+      "median_ms": 2.295,
+      "minimum_ms": 1.765,
+      "maximum_ms": 2.438
+    },
+    {
+      "case": "page_selected_sku",
+      "samples_ms": [
+        5.443,
+        5.761,
+        5.534,
+        5.473,
+        5.837
+      ],
+      "median_ms": 5.534,
+      "minimum_ms": 5.443,
+      "maximum_ms": 5.837
+    },
+    {
+      "case": "totals_selected_sku",
+      "samples_ms": [
+        4.365,
+        4.44,
+        3.718,
+        3.376,
+        3.816
+      ],
+      "median_ms": 3.816,
+      "minimum_ms": 3.376,
+      "maximum_ms": 4.44
+    }
+  ],
+  "plans": [
+    {
+      "rpc": "transaction_count",
+      "installed_definition_sha256": "b81ac09038b3628ee5b84de796550b54740257e0e81f474b8dabe9199b1559c2",
+      "indexes": [
+        "data_kiosk_transactions_nonzero_count_idx",
+        "settlement_transactions_sku_date_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_sku_date_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 300,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_nonzero_count_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 300,
+          "Actual Loops": 1
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": []
+    },
+    {
+      "rpc": "transaction_page",
+      "installed_definition_sha256": "789fab650b1e94c39f42bb3386de9724ec235acdd06e67f8f955f699771f1da7",
+      "indexes": [
+        "data_kiosk_transactions_nonzero_count_idx",
+        "settlement_transactions_sku_date_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_sku_date_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 300,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_nonzero_count_idx",
+          "Scan Direction": "Backward",
+          "Actual Rows": 300,
+          "Actual Loops": 1
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "skus",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlement_preprocess_versions",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_preprocess_versions",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Incremental Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 0,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 25,
+          "Actual Loops": 1
+        }
+      ]
+    },
+    {
+      "rpc": "transaction_totals",
+      "installed_definition_sha256": "ea24b5c04b67bd618acf0dfc2459c93a63bfff2726dd177c29284b5b8f6d5422",
+      "indexes": [
+        "data_kiosk_transactions_nonzero_count_idx",
+        "settlement_transactions_sku_date_idx"
+      ],
+      "index_nodes": [
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "settlement_transactions",
+          "Index Name": "settlement_transactions_sku_date_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 300,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "data_kiosk_transactions",
+          "Index Name": "data_kiosk_transactions_nonzero_count_idx",
+          "Scan Direction": "Forward",
+          "Actual Rows": 300,
+          "Actual Loops": 1
+        }
+      ],
+      "relation_scans": [
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "settlements",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "data_kiosk_days",
+          "Actual Rows": 3,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "skus",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_terms_versions",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "sku_fee_periods",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        }
+      ],
+      "sorts": [
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 600,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 1,
+          "Actual Loops": 1
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Rows": 2,
+          "Actual Loops": 1
+        }
+      ]
+    }
+  ],
+  "used_fact_index_definitions": [
+    [
+      "data_kiosk_transactions_nonzero_count_idx",
+      "CREATE INDEX data_kiosk_transactions_nonzero_count_idx ON private.data_kiosk_transactions USING btree (activity_date, component_type, sku, version_id, category, marketplace_name) WHERE ((amount)::numeric <> (0)::numeric)"
+    ],
+    [
+      "settlement_transactions_sku_date_idx",
+      "CREATE INDEX settlement_transactions_sku_date_idx ON private.settlement_transactions USING btree (sku, posted_date)"
+    ]
+  ],
+  "fresh_index_build_comparison": [
+    {
+      "index": "settlement_owner",
+      "bytes": {
+        "sku_only": 1032192,
+        "with_namespace": 1597440
+      },
+      "reduction_percent": 35.38
+    },
+    {
+      "index": "settlement_date_count",
+      "bytes": {
+        "sku_only": 1318912,
+        "with_namespace": 1884160
+      },
+      "reduction_percent": 30.0
+    },
+    {
+      "index": "kiosk_date_count",
+      "bytes": {
+        "sku_only": 1318912,
+        "with_namespace": 1884160
+      },
+      "reduction_percent": 30.0
+    }
+  ],
+  "disposable_database_removed": true,
+  "elapsed_seconds": 1.726,
+  "limits": "Warm synthetic local direct-SQL RPC timings, including result decoding; no HTTP, browser, network latency, production data distribution, concurrency, historical source versions, or production scalability claim. Index size variants are fresh builds after timing, not an old-query latency comparison."
+}

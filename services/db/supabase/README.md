@@ -37,13 +37,13 @@ before the final grants allowlist; PostgREST reloads after the baseline is compl
 
 | Module | Responsibility |
 | --- | --- |
-| [schema_foundation](migrations/20260928123054_schema_foundation.sql) | Source and terms tables, immutable identities, read indexes, RLS defaults, and archive bucket. |
+| [schema_foundation](migrations/20260928123054_schema_foundation.sql) | Source tables, globally unique SKU identities and terms, immutable records, RLS defaults, and archive bucket. |
 | [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive manifests and acquisition publication. |
 | [publication_integrity](migrations/20260928123058_publication_integrity.sql) | Complete inventories, selected pointers, transaction isolation, and immutable source payloads. |
 | [terms_publication](migrations/20260928123100_terms_publication.sql) | Atomic SKU ownership and fee revision publication. |
 | [source_publications](migrations/20260928123102_source_publications.sql) | Atomic Settlement and Data Kiosk preprocessing publication. |
-| [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound operator/member checks and current ownership projection. |
-| [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff date, fee arithmetic, and current terms views. |
+| [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views. |
+| [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff date, fee eligibility, and exact fee arithmetic. |
 | [source_reconciliation](migrations/20260928123109_source_reconciliation.sql) | Daily source controls and SelBox differences for live and frozen inputs. |
 | [financial_components](migrations/20260928123111_financial_components.sql) | Live and explicit-version company components with ownership and fees. |
 | [financial_reads](migrations/20260928123113_financial_reads.sql) | Strict complete and partial financial reads with declared source coverage. |
@@ -54,7 +54,7 @@ before the final grants allowlist; PostgREST reloads after the baseline is compl
 | [application_access](migrations/20260928123123_application_access.sql) | RLS policies, REST projections, and guarded terms publication. |
 | [payout_generation](migrations/20260928123125_payout_generation.sql) | Administrator company/month generation and maturity policy RPCs. |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional source/terms revision tracking and polling. |
-| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Shared filter/pagination validation and current-policy eligibility. |
+| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
 | [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility. |
@@ -84,7 +84,9 @@ returns exact strings in `C` order, and retains invoker security. Company-user f
 assignments and make no discovery request.
 
 Ownership RLS uses the private caller-bound `current_owned_sku_terms()` set rather than repeated
-per-row terms resolution. It reads current database account and assignment state, accepts no
+per-row terms resolution. `skus` has one identity per exact SKU across all import namespaces.
+Source namespace remains provenance, visible in administrator details, and is absent from
+ownership joins, fee keys, and count indexes. RLS reads current database account and assignment state, accepts no
 caller-selected identity, and retains the existing current-version/category boundaries. Page and
 totals queries project terms only for their selected page or grouped facts. Existing indexes
 support these lookups. The [performance guide](../../../docs/database_performance.md#authorization-and-current-versions)

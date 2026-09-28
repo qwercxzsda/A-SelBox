@@ -39,9 +39,9 @@ export function PayoutReconciliation({
         setOpened(event.currentTarget.open);
       }}
     >
-      <summary>Seller reconciliation</summary>
+      <summary>Reconciliation</summary>
       <Text size="sm" my="sm">
-        Daily marketplace controls for this seller account. Amounts in the Settlement, SelBox, and
+        Daily marketplace controls for the source reports. Amounts in the Settlement, SelBox, and
         Data Kiosk categories plus the reconciliation difference equal the Settlement report total.
       </Text>
       <Text size="sm" c="dimmed" mb="sm">
@@ -58,7 +58,7 @@ export function PayoutReconciliation({
       >
         {rows.length ? (
           <Table.ScrollContainer minWidth={1250}>
-            <Table aria-label="Saved seller reconciliation">
+            <Table aria-label="Saved reconciliation">
               <Table.Thead>
                 <Table.Tr>
                   {["Date", "Marketplace", "Currency", ...AMOUNTS.map(([, label]) => label)].map(

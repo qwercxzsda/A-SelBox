@@ -260,6 +260,7 @@ test("administrators inspect frozen daily marketplace differences without adding
       id: report,
       company_id: company,
       seller_namespace: "seller-a",
+      reconciliation_count: "1",
       currency: "USD",
       start_date: "2026-06-01",
       end_date: "2026-06-30",
@@ -291,10 +292,13 @@ test("administrators inspect frozen daily marketplace differences without adding
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
   ).toBe(false);
-  await page.getByText("Seller reconciliation", { exact: true }).click();
-  const ledger = page.getByRole("table", { name: "Saved seller reconciliation" });
+  await page.getByText("Reconciliation", { exact: true }).click();
+  const ledger = page.getByRole("table", { name: "Saved reconciliation" });
   await expect(ledger.getByRole("cell", { name: "5", exact: true })).toBeVisible();
   await expect(ledger.getByRole("cell", { name: "77", exact: true })).toHaveCount(2);
   await expect(page.getByText(/Do not add them across reports/)).toBeVisible();
+  const drawer = page.getByRole("dialog", { name: "Selected row details" });
+  await expect(drawer.getByText("Source namespace", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("seller-a", { exact: true })).toBeVisible();
   await captureResponsiveReview(page, testInfo, "payout-reconciliation");
 });

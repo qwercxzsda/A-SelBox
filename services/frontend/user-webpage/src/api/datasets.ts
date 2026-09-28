@@ -147,17 +147,17 @@ export function createDatasetApi(transport: ApiTransport) {
 
     async fetchSkuFees(
       accessToken: string,
-      sellerSkuId: string,
+      skuId: string,
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
-      requireUuid(sellerSkuId, "seller SKU");
+      requireUuid(skuId, "SKU");
       const rows = await readAllCsvRows(
         transport,
         accessToken,
         DATASET_CONFIG.fees.endpoint,
         new URLSearchParams({
           select: DATASET_CONFIG.fees.selectColumns.join(","),
-          seller_sku_id: `eq.${sellerSkuId}`,
+          sku_id: `eq.${skuId}`,
           order: "marketplace_name.asc,valid_period.asc,fee_period_id.asc",
         }),
         "Fee rates",

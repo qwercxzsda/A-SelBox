@@ -58,8 +58,9 @@ ownership, applicable fees, or invalid available inputs still block publication.
 SKU-less Settlement controls in the Data Kiosk category do not. Validation applies
 before both reuse and creation.
 
-Current and historical company assignments and earlier reports identify relevant
-sellers. Available source versions, including processed empty days, and current terms
+Current and historical company SKU assignments identify every namespace containing
+matching source facts; earlier reports preserve already captured source scopes.
+An assignment has no namespace of its own. Available source versions, including processed empty days, and current terms
 are retained as snapshot inputs. Unknown ownership within this source scope remains
 an error. A company with no identifiable seller can have an empty input inventory.
 
@@ -174,9 +175,8 @@ and payment execution remain separate features.
 The disposable database suite covers category authority, exact boundary dates,
 monthly eligibility, reconciliation, tenant isolation, immutable snapshots,
 marketplace totals, unchanged-input reuse, concurrent publication, and retention.
-Frontend tests run in Docker. Real-seed verification never deletes account-level charges or changes
-their categories; see the
-[verification evidence](evidence/payout_authority_2026-09-27/README.md).
+Frontend tests run in Docker. The real-seed verification tool replays archived inputs into a
+disposable database without deleting account-level charges or changing their categories.
 
 ```sh
 conda run -n A-SelBox python -m services.db.supabase.tests.verify_real_payouts --help

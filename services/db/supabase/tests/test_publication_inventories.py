@@ -134,9 +134,9 @@ class PublicationInventoryTests(SourceModelFixture):
     def _fee_header(self, version: str, owner: str) -> None:
         self.connection.execute(
             "insert into public.sku_terms_versions "
-            "(id,seller_sku_id,company_id,version_number,fee_period_count,change_reason) "
+            "(id,sku_id,company_id,version_number,fee_period_count,change_reason) "
             "select %s,s.id,v.company_id,v.version_number+1,2,'Complete inventory check' "
-            "from public.seller_skus s join public.sku_terms_versions v "
+            "from public.skus s join public.sku_terms_versions v "
             "on v.id=s.current_terms_version_id where s.id=%s",
             (version, owner),
         )
