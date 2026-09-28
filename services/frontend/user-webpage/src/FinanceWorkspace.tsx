@@ -6,6 +6,7 @@ import { FinanceDataset } from "./FinanceDataset";
 import { visibleDatasets, DATASET_PRESENTATION } from "./view-model";
 import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
+import { useSkuConfiguration } from "./use-sku-configuration";
 import { TransactionSummaries } from "./TransactionSummaries";
 import type { DateRange } from "./estimated-periods";
 import {
@@ -27,6 +28,13 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     Partial<Record<TableDatasetKey, DatasetViewState>>
   >({});
   const [feeViewState, setFeeViewState] = useState(createFeeViewState);
+  const feeConfiguration = useSkuConfiguration(
+    props.identity,
+    props.onRetry,
+    feeViewState,
+    setFeeViewState,
+    dataset === "fees",
+  );
   const datasets = visibleDatasets(props.identity.account);
   const transactions = datasetViews.live ?? createDatasetViewState("live");
 
@@ -87,7 +95,7 @@ export function FinanceWorkspace(props: WorkspaceProps) {
       {dataset === "fees" ? (
         <CurrentFees
           identity={props.identity}
-          onRetry={props.onRetry}
+          controller={feeConfiguration}
           viewState={feeViewState}
           onViewStateChange={setFeeViewState}
         />

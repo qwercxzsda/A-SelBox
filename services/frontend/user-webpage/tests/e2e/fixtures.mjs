@@ -10,6 +10,7 @@ import { respondWithOptions } from "./mocks/options.mjs";
 import { respondWithWorkspaceLists } from "./mocks/workspace-lists.mjs";
 import { transactionPageParams } from "./transaction-page-fixtures.mjs";
 import { respondWithPayouts } from "./mocks/payouts.mjs";
+import { respondWithSkuConfiguration } from "./mocks/sku-configuration.mjs";
 
 export function deferred() {
   let resolve;
@@ -46,6 +47,12 @@ export async function mockSupabase(page) {
     if (request.method() === "OPTIONS") return context.reply({});
     fixture.events.push({ endpoint: url.pathname, user });
     if (
+      ["/rest/v1/rpc/sku_configuration", "/rest/v1/rpc/publish_sku_configuration"].includes(
+        url.pathname,
+      )
+    )
+      return respondWithSkuConfiguration(fixture, context);
+    if (
       [
         "/rest/v1/rpc/payout_report_policy",
         "/rest/v1/rpc/generate_company_payout_reports",
@@ -70,11 +77,7 @@ export async function mockSupabase(page) {
     if (ACCOUNT_PATHS.has(url.pathname)) return accounts.respond(context);
     if (["/rest/v1/app_accounts", "/rest/v1/company_payout_reports"].includes(url.pathname))
       return respondWithWorkspaceLists(fixture, context);
-    if (
-      ["/rest/v1/current_sku_fee_periods", "/rest/v1/rpc/source_transaction_page"].includes(
-        url.pathname,
-      )
-    )
+    if (url.pathname === "/rest/v1/rpc/source_transaction_page")
       return respondWithSourceRows(fixture, context);
     if (url.pathname !== "/rest/v1/rpc/transaction_page")
       throw new Error(`Unexpected test API request: ${url.pathname}`);

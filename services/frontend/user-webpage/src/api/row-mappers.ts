@@ -1,8 +1,8 @@
 import { DATASET_CONFIG } from "./config.ts";
-import type { CanonicalRow, DatasetKey } from "./types.ts";
+import type { CanonicalRow, TableDatasetKey } from "./types.ts";
 import { isJsonObject } from "./validation.ts";
 
-export function mapDatasetRows(dataset: DatasetKey, records: unknown[]): CanonicalRow[] {
+export function mapDatasetRows(dataset: TableDatasetKey, records: unknown[]): CanonicalRow[] {
   const config = DATASET_CONFIG[dataset];
   return records.map((record) => {
     if (!isJsonObject(record)) throw new Error("Data response returned an invalid row");

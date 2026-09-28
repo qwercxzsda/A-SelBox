@@ -10,10 +10,8 @@ import {
   transactionPageArguments,
 } from "./transaction-page.ts";
 import { ApiError, requireAccessToken, type ApiTransport } from "./transport.ts";
-import { readAllCsvRows, LOOKUP_PAGE_SIZE } from "./pagination.ts";
-import { requireUuid } from "./validation.ts";
+import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import type {
-  CanonicalRow,
   TableDatasetKey,
   DatasetSort,
   FetchDatasetPageOptions,
@@ -143,28 +141,6 @@ export function createDatasetApi(transport: ApiTransport) {
         options.includeCount ?? true,
       );
       return { ...result, rows: mapDatasetRows(options.dataset, result.rows) };
-    },
-
-    async fetchSkuFees(
-      accessToken: string,
-      skuId: string,
-      signal?: AbortSignal,
-    ): Promise<CanonicalRow[]> {
-      requireUuid(skuId, "SKU");
-      const rows = await readAllCsvRows(
-        transport,
-        accessToken,
-        DATASET_CONFIG.fees.endpoint,
-        new URLSearchParams({
-          select: DATASET_CONFIG.fees.selectColumns.join(","),
-          sku_id: `eq.${skuId}`,
-          order: "marketplace_name.asc,valid_period.asc,fee_period_id.asc",
-        }),
-        "Fee rates",
-        DATASET_CONFIG.fees.idColumns,
-        signal,
-      );
-      return mapDatasetRows("fees", rows);
     },
   };
 }

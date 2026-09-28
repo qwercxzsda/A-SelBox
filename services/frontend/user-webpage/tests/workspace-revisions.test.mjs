@@ -121,7 +121,11 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
   assert.deepEqual(queryRevisionSources(["dataset-count", "u", "operator", null, "settlement"]), [
     "settlement",
   ]);
-  assert.deepEqual(queryRevisionSources(["current-fees", "u", "operator"]), ["fees"]);
+  assert.deepEqual(queryRevisionSources(["sku-configuration", "u", "operator"]), [
+    "settlement",
+    "data_kiosk",
+    "fees",
+  ]);
   assert.deepEqual(queryRevisionSources(["transaction-type-totals"]), [
     "settlement",
     "data_kiosk",

@@ -32,15 +32,16 @@ data, migration records, or archives.
 
 Files execute in dependency order and define each object once. Identity helpers and
 financial rules precede their consumers. Payout tables, validation, publication, and
-company/month generation have separate modules. RLS and API objects are installed
-before the final grants allowlist; PostgREST reloads after the baseline is complete.
+company/month generation have separate modules. Core API grants and the REST configuration
+follow the read modules. The SKU configuration module installs its own guarded entry points,
+explicit grants, and schema reload after those dependencies.
 
 | Module | Responsibility |
 | --- | --- |
 | [schema_foundation](migrations/20260928123054_schema_foundation.sql) | Source tables, globally unique SKU identities and terms, immutable records, RLS defaults, and archive bucket. |
 | [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive manifests and acquisition publication. |
 | [publication_integrity](migrations/20260928123058_publication_integrity.sql) | Complete inventories, selected pointers, transaction isolation, and immutable source payloads. |
-| [terms_publication](migrations/20260928123100_terms_publication.sql) | Atomic SKU ownership and fee revision publication. |
+| [terms_publication](migrations/20260928123100_terms_publication.sql) | Trusted atomic SKU revision publication, including incomplete restored configuration. |
 | [source_publications](migrations/20260928123102_source_publications.sql) | Atomic Settlement and Data Kiosk preprocessing publication. |
 | [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views. |
 | [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff date, fee eligibility, and exact fee arithmetic. |
@@ -51,7 +52,7 @@ before the final grants allowlist; PostgREST reloads after the baseline is compl
 | [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals checks. |
 | [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture, aggregation, and latest-report reuse. |
 | [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
-| [application_access](migrations/20260928123123_application_access.sql) | RLS policies, REST projections, and guarded terms publication. |
+| [application_access](migrations/20260928123123_application_access.sql) | RLS policies and authorized REST projections. |
 | [payout_generation](migrations/20260928123125_payout_generation.sql) | Administrator company/month generation and maturity policy RPCs. |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional source/terms revision tracking and polling. |
 | [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
@@ -60,8 +61,9 @@ before the final grants allowlist; PostgREST reloads after the baseline is compl
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility. |
 | [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
 | [sku_filter_options](migrations/20260928123140_sku_filter_options.sql) | Administrator-only complete SKU catalog using index seeks. |
-| [application_grants](migrations/20260928123142_application_grants.sql) | Final explicit table, column, and function allowlist for API roles. |
-| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and reload the completed API schema. |
+| [application_grants](migrations/20260928123142_application_grants.sql) | Explicit table, column, and function allowlist for the core API. |
+| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and reload the core API schema. |
+| [sku_configuration](migrations/20260928145511_sku_configuration.sql) | Role-scoped assignment/fee reads, source-derived coverage diagnostics, and atomic complete administrator batches. |
 
 ## Application reads
 
@@ -123,18 +125,21 @@ upload for reconciliation.
 The trusted Python repositories publish complete JSON payloads through these private functions:
 
 ```text
-publish_settlement_acquisition(jsonb)
-publish_data_kiosk_acquisition(jsonb)
-publish_settlement_preprocess(jsonb)
-publish_data_kiosk_preprocess(jsonb)
-publish_sku_terms(jsonb)
-publish_company_payout_report(jsonb)
+private.publish_settlement_acquisition(jsonb)
+private.publish_data_kiosk_acquisition(jsonb)
+private.publish_settlement_preprocess(jsonb)
+private.publish_data_kiosk_preprocess(jsonb)
+private.publish_sku_terms(jsonb)
+private.publish_company_payout_report(jsonb)
 ```
 
 Source and terms replacements validate the expected current reference, complete inventories, and
 financial controls atomically. Published children cannot be extended or rewritten. Source imports
 do not assign companies or create fee terms. Operators publish terms only through the guarded
-`public.publish_sku_terms` RPC; source publication remains trusted Python/SQL work.
+`public.publish_sku_configuration` RPC. Its batch validation requires owners for all known SKUs
+and fees for current commission-capable source dates, while preserving older incomplete terms.
+`public.sku_configuration` exposes all known settings to operators and only owned settings to
+members. Source publication remains trusted Python/SQL work.
 Operators call `public.generate_company_payout_reports(p_company_id, p_month)` for all
 scopes of one eligible company/month. It returns `(report_id uuid, created boolean)`
 per scope. The trusted publisher returns one saved UUID. Both aggregate empty inputs
@@ -210,6 +215,32 @@ The workflow uses synthetic Amazon documents with real Storage uploads and downl
 publication, preprocessing, Auth-issued user tokens, and company reads through PostgREST. Amazon
 transport remains synthetic, so this suite does not establish live SP-API or production deployment
 readiness.
+
+### Full seed configuration verification
+
+To verify a trusted seed matching the current global-SKU schema, run:
+
+```sh
+conda run --no-capture-output -n A-SelBox python -m services.db.supabase.tests.verify_real_configuration \
+  --seed /path/to/seed.real.local.sql \
+  --output /private/tmp/aselbox-real-configuration.json
+```
+
+This opt-in check needs the Supabase CLI, Docker, a complete SKU configuration, and at least two
+fixture companies. It restores the full dump, including its Auth fixtures, into a newly created
+disposable Supabase stack. It creates verification logins through actual Auth and uses their tokens
+with PostgREST to check administrator and member configuration reads, global rejection and atomic
+rollback, assignment and exact fee changes, denied member writes, and stale-version rejection.
+Independent SQL checks verify source authority and daily reconciliation.
+
+Test publications change only the disposable database. The verifier checks that source facts and
+the supplied seed file remain unchanged, removes the temporary stack, and writes a sanitized JSON
+report to a new output file; it refuses to overwrite the seed or existing evidence.
+Existing development databases are untouched. It does not load the service `.env`, call
+SP-API, or replay archives. The local seed's company assignments and fees are synthetic fixture
+data; this check does not establish real business ownership or approved payout rates.
+The [recorded fixture verification](../../../docs/evidence/global_sku_identity/configuration_seed.json)
+covers 63 global SKUs, 192 fee periods, and all 103,244 retained source facts.
 
 See the [workflow contract](../../../docs/data_workflows.md),
 [live-fee contract](../../../docs/company_fees.md), and [sync commands](../../sync/README.md) for

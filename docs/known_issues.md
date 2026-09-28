@@ -293,10 +293,17 @@ in disposable PostgreSQL databases and exercise local Supabase Storage, Auth, an
 cover source publication, financial calculations, tenant permissions, frozen payouts, and concurrent
 publication and retention using synthetic Amazon documents.
 
-The separate real-source verification tool can replay archived seed documents and supplementary
-Data Kiosk inputs into a disposable database while preserving the original data. The current SKU
-schema has synthetic ownership/fee coverage and isolated real-source operator read checks. The
-[real-seed audit](evidence/global_sku_identity/real_seed_audit.json) found 19 exact SKUs with
-conflicting current company assignments, so their terms were excluded from the real-source checks.
-Those owners need resolution before rebuilding the seed. These checks do not establish universal
-Amazon payload support, country coverage, financial finality, or production capacity.
+The [full-seed configuration verifier](../services/db/supabase/README.md#full-seed-configuration-verification)
+restores a current-schema fixture into a disposable Supabase stack and tests its configuration
+through actual Auth and PostgREST, including atomic writes and member restrictions. Independent
+source-authority and reconciliation checks complement those API checks. Verification preserves the
+supplied seed file and source facts; archive replay remains a separate check.
+The [recorded fixture run](evidence/global_sku_identity/configuration_seed.json) passed with
+complete settings for 63 global SKUs and preserved all 103,244 source facts.
+
+The [original seed audit](evidence/global_sku_identity/real_seed_audit.json) recorded 19 exact
+SKUs with different namespace-scoped fixture owners. Those assignments and fees were synthetic.
+The updated fixture uses one deterministic owner per exact SKU and preserves its compatible fee
+periods. The original audit remains a historical record, not an unresolved ownership decision for
+the current fixture. These checks do not establish real business assignments, approved rates,
+universal Amazon payload support, country coverage, financial finality, or production capacity.

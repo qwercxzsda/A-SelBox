@@ -1,4 +1,4 @@
-import type { DatasetFilterField, DatasetKey, DatasetSort, TableDatasetKey } from "./types.ts";
+import type { DatasetFilterField, DatasetSort, TableDatasetKey } from "./types.ts";
 
 interface RowConfig {
   label: string;
@@ -86,16 +86,6 @@ const DATA_KIOSK_COLUMNS = [
   "created_at",
 ] as const;
 
-const FEE_COLUMNS = [
-  "sku_id",
-  "company_id",
-  "terms_version_id",
-  "marketplace_name",
-  "fee_period_id",
-  "valid_period",
-  "fee_rate_percent",
-] as const;
-
 const PAYOUT_COLUMNS = [
   "id",
   "company_id",
@@ -154,12 +144,6 @@ export const DATASET_CONFIG = {
     dateColumn: "activity_date",
     filterColumns: ["sku", "marketplace_name", "component_type"],
   },
-  fees: {
-    label: "Current fees",
-    endpoint: "current_sku_fee_periods",
-    selectColumns: FEE_COLUMNS,
-    idColumns: ["fee_period_id"],
-  },
   payouts: {
     label: "Payout reports",
     endpoint: "company_payout_reports",
@@ -182,8 +166,8 @@ export const DATASET_CONFIG = {
     dateColumn: null,
     filterColumns: [],
   },
-} as const satisfies Record<DatasetKey, RowConfig> & Record<TableDatasetKey, DatasetConfig>;
+} as const satisfies Record<TableDatasetKey, DatasetConfig>;
 
 export function isTableDataset(dataset: string): dataset is TableDatasetKey {
-  return dataset !== "fees" && Object.hasOwn(DATASET_CONFIG, dataset);
+  return Object.hasOwn(DATASET_CONFIG, dataset);
 }

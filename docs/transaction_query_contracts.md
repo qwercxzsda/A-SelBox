@@ -364,10 +364,12 @@ supports company references. Batch lookups reuse `UNIQUE(batch_id, day_id)`.
 ## Shared rules and API configuration
 
 [Financial read rules](../services/db/supabase/migrations/20260928123106_financial_rules.sql)
-provide `private.settlement_fee_applicable`, `private.calculate_service_fee`, and the invoker view
-`private.current_sku_terms`. The exact formula remains `-(fee_base * fee_rate_percent * 0.01)`;
-callers retain the existing missing/non-applicable branches. Current terms include explicit
-unassignment, while the explicit-version payout resolver retains its captured version scope.
+provide `private.settlement_fee_applicable` and `private.calculate_service_fee`. The
+[application identity module](../services/db/supabase/migrations/20260928123104_application_identity.sql)
+defines the invoker view `private.current_sku_terms`. The exact fee formula remains
+`-(fee_base * fee_rate_percent * 0.01)`; callers retain the missing/non-applicable branches.
+Current terms include explicit unassignment, while the explicit-version payout resolver retains
+its captured version scope.
 
 [Transaction read rules](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 provide `private.validate_transaction_filters`, `private.validate_page_bounds`, and
@@ -390,10 +392,12 @@ retain historical reference access. Existing column grants continue to exclude f
 and its operator-only functions remain guarded. The private member helper has a fixed search path and
 authenticated-only application execution.
 
-Public RPCs use invoker security. The final
+Public RPCs use invoker security. The
 [application grants](../services/db/supabase/migrations/20260928123142_application_grants.sql)
-module defines their API allowlist. Reference visibility does not grant transaction access. See the
-[access contract](access_control.md#how-rls-enforces-this).
+module defines the transaction API allowlist. The later
+[SKU configuration module](../services/db/supabase/migrations/20260928145511_sku_configuration.sql)
+grants its own caller-checked read and publication entry points. Reference visibility does not
+grant transaction access. See the [access contract](access_control.md#how-rls-enforces-this).
 
 [REST configuration](../services/db/supabase/migrations/20260928123144_rest_api_configuration.sql)
 sets `pgrst.db_aggregates_enabled=false`. General REST aggregate selections fail with `PGRST123`;

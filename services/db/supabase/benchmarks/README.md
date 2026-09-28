@@ -1,7 +1,7 @@
 # Database read benchmarks
 
-These harnesses measure the currently installed database API on disposable local clones. Current
-query/index guidance is in [Database performance](../../../../docs/database_performance.md).
+The clone-based harnesses measure the installed database API on disposable local databases.
+Current query/index guidance is in [Database performance](../../../../docs/database_performance.md).
 The [global SKU evidence](../../../../docs/evidence/global_sku_identity/README.md) uses a fresh
 disposable baseline. Clone-based runners require a seed installed from the current baseline.
 The [query-speed comparison](../../../../docs/evidence/global_sku_identity/query_speed.md) installs
@@ -83,4 +83,6 @@ using a plan as diagnostic evidence; this helper does not replace API validation
 The adapter supports current page, count, total, and administrator SKU-catalog RPCs. It records
 technical node/index names and cardinalities without saving filter values or financial rows.
 Plans are collected after timing; they are not HTTP latency measurements. No benchmark runner
-changes application indexes, query functions, or access rules.
+changes an existing application database. Plan collection itself does not alter indexes,
+functions, or access rules. The separate fresh-baseline experiments may fix the maturity cutoff
+or create comparison indexes inside their disposable databases; their evidence describes that setup.

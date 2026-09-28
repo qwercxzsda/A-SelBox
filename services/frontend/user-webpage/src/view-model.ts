@@ -1,7 +1,7 @@
 import type { AppAccount, CanonicalRow, DatasetKey, TableDatasetKey } from "./api/types.ts";
 import { DATASET_CONFIG } from "./api/config.ts";
 
-type CellKind = "code" | "company" | "date" | "money" | "percent" | "number" | "text" | "period";
+type CellKind = "code" | "company" | "date" | "money" | "percent" | "number" | "text";
 
 export interface ColumnDefinition {
   align?: "right";
@@ -57,8 +57,7 @@ export const DATASET_PRESENTATION = {
   },
   fees: {
     label: "Current fees",
-    description:
-      "Fee rates by SKU and marketplace. Each rate applies from its start date up to, but excluding, its end date.",
+    description: "Company assignments and marketplace fee rates for each exact SKU.",
   },
   payouts: {
     label: "Payout reports",
@@ -93,7 +92,7 @@ function column(key: string, label: string, kind: CellKind = "text"): ColumnDefi
   };
 }
 
-export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
+export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]> = {
   live: [
     column("activity_date", "Date", "date"),
     column("company_id", "Company", "company"),
@@ -127,11 +126,6 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("amount", "Reported amount", "money"),
     column("quantity", "Quantity", "number"),
     column("preprocess_version", "Processing version"),
-  ],
-  fees: [
-    column("marketplace_name", "Marketplace"),
-    column("fee_rate_percent", "Fee rate", "percent"),
-    column("valid_period", "Effective dates", "period"),
   ],
   payouts: [
     column("created_at", "Created", "date"),

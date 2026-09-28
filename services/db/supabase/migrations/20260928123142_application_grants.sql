@@ -1,8 +1,6 @@
 -- Explicit grants are the entire REST boundary, including Supabase default grants.
 revoke all on all tables in schema public, private from public, anon, authenticated, service_role;
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
-revoke all on function public.publish_sku_terms(text, uuid, uuid, text, jsonb)
-from public, anon, authenticated, service_role;
 revoke all on function public.generate_company_payout_reports(uuid, date),
 public.payout_report_policy() from public, anon, authenticated, service_role;
 grant usage on schema private to authenticated;
@@ -41,9 +39,7 @@ public.generate_company_payout_reports(uuid, date), public.payout_report_policy(
 private.read_settlement_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
-private.resolve_source_reconciliation(uuid[], uuid[]),
-private.publish_operator_sku_terms(text, uuid, uuid, text, jsonb),
-public.publish_sku_terms(text, uuid, uuid, text, jsonb) to authenticated;
+private.resolve_source_reconciliation(uuid[], uuid[]) to authenticated;
 
 -- Shared financial helpers remain outside the exposed schema.
 grant select on private.current_sku_terms to authenticated;

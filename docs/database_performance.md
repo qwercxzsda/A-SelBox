@@ -12,6 +12,7 @@ define API behavior; [access control](access_control.md) defines visibility.
 | Exact count | Count authorized source facts and reconciliation groups without fee calculation. The browser renders rows first and caches counts independently of page and order. |
 | Period total | Filter dates and scope, combine facts sharing fee inputs, resolve relevant terms and fees, then aggregate by currency and optional Type. |
 | Filter options | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog. |
+| Assignments and fees | Load the caller's complete SKU configuration, deduplicate required source dates, and return compressed coverage ranges and setup gaps in one response. |
 | Revision polling | Read the current account and at most three revision-token rows, then refresh only dependent queries when a revision changes. |
 
 ### Authorization and current versions
@@ -80,6 +81,14 @@ previous and current schemas using identical real source facts and equivalent sy
 It records large administrator company-filter reductions and smaller member-query differences.
 The maintained runners below cover additional workload shapes.
 
+The [configuration-read sample](evidence/global_sku_identity/README.md#configuration-read-sample) used the
+same 103,244 real source facts with consistent synthetic assignments and fees. One warm-up and
+seven authenticated reads produced median times of **131.031 ms** for all 63 administrator SKUs
+(50,744 JSON bytes), and **50.516 ms** for the member's 32 SKUs (26,933 bytes). Timing includes
+direct SQL execution and result decoding, excluding transaction setup and HTTP/browser latency.
+Both responses had complete coverage and the expected role scope. This sample measures the
+configuration endpoint's cost on that fixture.
+
 ## Scaling limits
 
 - Exact counts and sums still process their qualifying data. A narrower date range does not bound
@@ -92,9 +101,9 @@ The maintained runners below cover additional workload shapes.
   supported and accepted cost; they are not equivalent to fetching the first page.
 - Identity refresh reads complete assignments and company labels. Administrator catalog work grows
   with distinct SKU count, and the browser retains the complete searchable list.
-- Current fees load only visible expanded SKUs, with one cached request per exact SKU.
-  Large SKU menus render their matching checkboxes. Further fee/menu optimization is deferred until
-  a measured usability issue warrants it.
+- Current fees loads one role-scoped configuration with periods and source-derived coverage.
+  The administrator editor keeps complete state to validate staged changes across all known SKUs;
+  the list renders a local page at a time. Source or terms revisions invalidate that configuration.
 
 The current design has no financial rollup cache, materialized serving projection, or realtime
 subscription. Ownership remains a live decision: reassignment changes live historical visibility

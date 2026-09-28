@@ -34,7 +34,7 @@ test("Data Kiosk excludes zero amounts before the server computes page counts", 
   ).toBe("neq.0");
 });
 
-test("expanding a SKU loads every marketplace fee period across server pages", async ({
+test("the complete configuration supplies every marketplace fee period without per-SKU reads", async ({
   page,
 }, testInfo) => {
   const fixture = await mockSupabase(page);
@@ -43,7 +43,6 @@ test("expanding a SKU loads every marketplace fee period across server pages", a
     ...Array.from({ length: 26 }, (_, index) => feeRow(index)),
     feeRow(0, assignmentId(26)),
   ];
-  fixture.feePageCap = 2;
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   const group = page.getByRole("button", {
@@ -51,19 +50,14 @@ test("expanding a SKU loads every marketplace fee period across server pages", a
     exact: true,
   });
   await expect(group).toHaveAttribute("aria-expanded", "false");
-  expect(fixture.feeRequests).toHaveLength(0);
+  expect(fixture.configurationRequests.filter(({ completed }) => completed)).toHaveLength(1);
   await group.click();
   await expect(group).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("cell", { name: "5.123456%", exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Amazon.com", exact: true })).toHaveCount(2);
   await expect(page.getByRole("cell", { name: "Amazon.co.uk", exact: true })).toHaveCount(24);
   await captureResponsiveReview(page, testInfo, "fees");
-  expect(fixture.feeRequests.at(-1).params.get("offset")).toBe("24");
-  expect(
-    fixture.feeRequests.every(
-      (request) => request.params.get("sku_id") === `eq.${assignmentId(1)}`,
-    ),
-  ).toBe(true);
+  expect(fixture.configurationRequests.filter(({ completed }) => completed)).toHaveLength(1);
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
   await expect(

@@ -11,7 +11,7 @@ const financialRequests = (fixture) => ({
   latest: fixture.latestRequests.length,
   totals: fixture.aggregateRequests.length,
   details: fixture.breakdownRequests.length,
-  fees: fixture.feeRequests.length,
+  fees: fixture.configurationRequests.length,
 });
 
 async function setup(page, role = "company_member") {
@@ -187,7 +187,7 @@ for (const [source, tab, other] of [
   });
 }
 
-test("fee revisions refresh assignments and expanded SKU fees, but a source revision leaves fee rows cached", async ({
+test("source and fee revisions refresh current configuration and its coverage requirements", async ({
   page,
 }) => {
   const fixture = await setup(page);
@@ -196,13 +196,13 @@ test("fee revisions refresh assignments and expanded SKU fees, but a source revi
     .getByRole("button", { name: "Show marketplace fees for GROUP-001", exact: true })
     .click();
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
-  const fees = fixture.feeRequests.length;
+  const fees = fixture.configurationRequests.length;
   const identity = fixture.identityRequests.length;
   let initial = completedPolls(fixture).length;
   fixture.revisions.settlement = "1";
   await page.clock.fastForward(60_000);
   await finishPoll(page, fixture, initial);
-  expect(fixture.feeRequests).toHaveLength(fees);
+  expect(fixture.configurationRequests.length).toBeGreaterThan(fees);
   expect(fixture.identityRequests).toHaveLength(identity);
 
   initial = completedPolls(fixture).length;
@@ -215,7 +215,7 @@ test("fee revisions refresh assignments and expanded SKU fees, but a source revi
   await expect(
     page.getByRole("button", { name: "Show marketplace fees for GROUP-002", exact: true }),
   ).toBeVisible();
-  expect(fixture.feeRequests.length).toBeGreaterThan(fees);
+  expect(fixture.configurationRequests.length).toBeGreaterThan(fees);
   expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 });
 

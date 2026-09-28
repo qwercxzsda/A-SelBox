@@ -1,5 +1,10 @@
 import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
-import type { AppAccount, DatasetKey, RevisionSource, WorkspaceRevisions } from "./api/types.ts";
+import type {
+  AppAccount,
+  TableDatasetKey,
+  RevisionSource,
+  WorkspaceRevisions,
+} from "./api/types.ts";
 
 export const REVISION_SOURCES: readonly RevisionSource[] = ["settlement", "data_kiosk", "fees"];
 
@@ -11,7 +16,10 @@ export function sameAccount(left: AppAccount, right: AppAccount): boolean {
   );
 }
 
-function datasetDependencies(dataset: DatasetKey, operator: boolean): readonly RevisionSource[] {
+function datasetDependencies(
+  dataset: TableDatasetKey,
+  operator: boolean,
+): readonly RevisionSource[] {
   switch (dataset) {
     case "live":
       return REVISION_SOURCES;
@@ -19,8 +27,6 @@ function datasetDependencies(dataset: DatasetKey, operator: boolean): readonly R
       return operator ? ["settlement"] : ["settlement", "fees"];
     case "data_kiosk":
       return operator ? ["data_kiosk"] : ["data_kiosk", "fees"];
-    case "fees":
-      return ["fees"];
     default:
       return [];
   }
@@ -29,9 +35,9 @@ function datasetDependencies(dataset: DatasetKey, operator: boolean): readonly R
 export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   const [family] = key;
   if (family === "dataset" || family === "dataset-count") {
-    return datasetDependencies(key[4] as DatasetKey, key[2] === "operator");
+    return datasetDependencies(key[4] as TableDatasetKey, key[2] === "operator");
   }
-  if (family === "current-fees") return ["fees"];
+  if (family === "sku-configuration") return REVISION_SOURCES;
   if (
     typeof family === "string" &&
     ["transaction-latest-date", "transaction-period-totals", "transaction-type-totals"].includes(

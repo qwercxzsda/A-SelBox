@@ -125,7 +125,8 @@ export function createTransport(configuration: ApiClientConfig, fetchImplementat
     if (!response.ok) {
       if (
         response.status === 400 ||
-        (response.status === 409 && name === "generate_company_payout_reports")
+        (response.status === 409 &&
+          ["generate_company_payout_reports", "publish_sku_configuration"].includes(name))
       ) {
         const body = await readJson(response, operation, signal).catch((error: unknown) => {
           if (signal?.aborted || (error instanceof Error && error.name === "AbortError"))

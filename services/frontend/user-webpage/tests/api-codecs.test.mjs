@@ -7,22 +7,19 @@ import { mapDatasetRows } from "../src/api/row-mappers.ts";
 import { buildSearchFilter } from "../src/api/search.ts";
 import { datasetRecord } from "./api-fixtures.mjs";
 
-test("datasets use current source, terms, payout, and application-account APIs", () => {
+test("datasets use current source, payout, and application-account APIs", () => {
   assert.deepEqual(Object.keys(DATASET_CONFIG), [
     "live",
     "settlement",
     "data_kiosk",
-    "fees",
     "payouts",
     "accounts",
   ]);
   for (const dataset of ["live", "settlement", "data_kiosk"])
     assert.equal(Object.hasOwn(DATASET_CONFIG[dataset], "endpoint"), false);
-  assert.equal(DATASET_CONFIG.fees.endpoint, "current_sku_fee_periods");
   assert.equal(DATASET_CONFIG.payouts.endpoint, "company_payout_reports");
   assert.equal(DATASET_CONFIG.accounts.endpoint, "app_accounts");
   assert.deepEqual(DATASET_CONFIG.live.idColumns, ["source", "source_row_id"]);
-  assert.deepEqual(DATASET_CONFIG.fees.idColumns, ["fee_period_id"]);
   assert.deepEqual(DATASET_CONFIG.accounts.idColumns, ["user_id"]);
 });
 

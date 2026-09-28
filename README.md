@@ -58,8 +58,9 @@ and `--no-load-dotenv`. Do not inspect, print, or edit `.env` directly. Keep ori
 reports and other private financial artifacts out of version control.
 
 The [Company Finance frontend](services/frontend/user-webpage/README.md) reads the
-current company fees, live calculations, source results, and operator views. Its
-Node tooling runs in Docker and connects to an explicitly configured Supabase instance.
+current company fees, live calculations, source results, and operator views. Administrators
+can review and publish complete assignment/fee batches; members inspect their own settings.
+Its Node tooling runs in Docker and connects to an explicitly configured Supabase instance.
 
 ## Design
 

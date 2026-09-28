@@ -111,35 +111,69 @@ application account leaves the Auth login intact; subsequent requests using
 even a previously issued token lose application access. Company changes also
 take effect on subsequent requests without requiring a new token.
 
-Operators publish complete terms through `POST /rest/v1/rpc/publish_sku_terms`:
+Operators stage assignment and fee changes in **Current fees**, then publish them together
+through `POST /rest/v1/rpc/publish_sku_configuration`:
 
 ```json
 {
-  "p_sku": "SKU-001",
-  "p_company_id": "COMPANY_UUID",
-  "p_expected_current_version_id": null,
   "p_change_reason": "Initial complete terms",
-  "p_periods": [
+  "p_changes": [
     {
-      "marketplace_name": "Amazon.com",
-      "valid_from": "2026-01-01",
-      "valid_to": null,
-      "fee_rate_percent": "5"
+      "sku": "SKU-001",
+      "company_id": "COMPANY_UUID",
+      "expected_current_version_id": null,
+      "periods": [
+        {
+          "marketplace_name": "Amazon.com",
+          "valid_from": "2026-01-01",
+          "valid_to": null,
+          "fee_rate_percent": "5"
+        }
+      ]
     }
   ]
 }
 ```
 
-Use the selected terms UUID instead of NULL for a replacement. The server
-generates UUIDv7 identifiers and uses the atomic full-inventory
-publisher; stale replacements fail. The submission replaces all marketplaces
-for that SKU. A NULL company unassigns the SKU, and an empty fee inventory
-withdraws fee coverage; payout publication rejects unresolved required inputs.
+The changes array must be nonempty and the reason must be nonblank. Use each SKU's selected
+terms UUID instead of NULL for a replacement. Each changed SKU submits its complete fee
+inventory. Rates are decimal strings; a period's end is exclusive and may be null for an
+open-ended period. The server locks changed SKUs in a common order, checks expected
+versions, and validates the resulting configuration for **every currently known SKU**, including
+unchanged entries. Missing ownership or required fee coverage rejects the whole batch. A stale
+edit returns HTTP 409. A successful response contains `published`, an array of
+`{sku, terms_version_id}` entries, and `changed_count`.
+
+| Publication result | SQLSTATE | Response |
+| --- | --- | --- |
+| Caller is not an operator | `42501` | Access denied before validating the submitted configuration. |
+| Stale selected terms | `PT409` | `SKU configuration changed while editing`; no changes published. |
+| Missing owner or applicable fee | `23514` | `SKU configuration is incomplete`; `DETAIL` contains JSON `{issues: [...]}`. |
+| Malformed or invalid configuration | `23514` | `Invalid SKU configuration`; no changes published. |
+
+Each completeness issue has `sku`, `kind` (`missing_company` or `missing_fee`),
+`marketplace_name`, `valid_from`, and `valid_to`. Missing-company issues use null marketplace
+and dates. Missing-fee issues describe a consecutive uncovered `[valid_from, valid_to)` range.
+
+Known SKUs include registered identities and all retained imported SKU names. Fees must cover
+commission-capable dates in the selected versions of both sources, including zero bases. A SKU
+with only noncommission activity needs ownership but no invented rate. Existing incomplete
+configuration remains readable; imports committed after validation may introduce new gaps.
+Company members can read their own configuration and cannot publish changes.
+
+`POST /rest/v1/rpc/sku_configuration` takes no arguments and returns `{items: [...]}`.
+Each item contains `sku`, nullable `sku_id`, `company_id`, and `terms_version_id`, plus its
+current `periods`, source-derived `requirements`, and `issues`. Periods use the same fields as
+the write payload. Requirements contain marketplace and half-open date ranges; issues use the
+shape above. The response contains no namespace fields. Imported-only SKUs have no registry
+or terms UUID until assigned. Company members receive only their currently assigned SKUs,
+including any fee gaps caused by later source imports.
 
 | Read endpoint under `/rest/v1/`                                                                          | Operator                                        | Company member                     |
 | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------- |
 | `skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                    | Own company's selected terms       |
 | `company_skus`, `current_sku_fee_periods`                                                                | Current projections across companies            | Own company current projections    |
+| `rpc/sku_configuration` | All known SKUs, current terms, and coverage gaps | Own assigned SKUs and current coverage only |
 | `rpc/sku_filter_options`                                                                                | Complete distinct SKU catalog                   | Denied (`42501`)                   |
 | `settlement_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                        | Permitted current own-company rows |
 | `settlement_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                 | Denied                             |

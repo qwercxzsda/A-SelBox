@@ -133,9 +133,10 @@ its database orchestration lives in `data_kiosk_economics/workflow.py`.
 
 ## Company terms and live financial reads
 
-Use `src/database/company_terms.py` to create companies and call
-`publish_sku_terms()` with a company, complete fee periods for all marketplaces,
-the expected current terms version, and a change reason. UUIDv7 IDs are generated
+The trusted `src/database/company_terms.py` repository creates companies and publishes
+individual immutable revisions through `private.publish_sku_terms(jsonb)`.
+Its Python `publish_sku_terms()` helper accepts an exact SKU, company, complete submitted
+period inventory, expected current terms version, and change reason. UUIDv7 IDs are generated
 automatically. `public.skus` holds each stable SKU identity and its
 current terms reference; immutable `public.sku_terms_versions` records the company
 assignment, and `public.sku_fee_periods` holds that version's marketplace periods.
@@ -148,7 +149,11 @@ a 0% period is explicit valid coverage. Publication rejects stale edits.
 `public.company_skus` and `public.current_sku_fee_periods` expose the selected
 assigned terms. Source imports do not register or assign SKUs or create fees.
 
-Operators can publish the same complete terms through the public REST RPC.
+Application operators use `public.publish_sku_configuration` to publish a nonempty batch of
+staged revisions atomically. That guarded API additionally requires ownership for every known
+SKU and coverage of applicable dates in selected source versions. The trusted Python helper
+supports restoring incomplete configuration and source-independent setup; it is not the
+administrator application's write interface.
 `public.app_accounts` records operator/member access; company members see only
 their assigned company's current terms and source results. See the
 [application-access contract](../../docs/access_control.md) for account management

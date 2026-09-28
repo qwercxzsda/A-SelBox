@@ -6,19 +6,20 @@ Database row-level security enforces access. UI copy and browser review fixtures
 
 ## Workspace
 
-| Tab            | API                                                   | Access                                                    |
-| -------------- | ----------------------------------------------------- | --------------------------------------------------------- |
-| Transactions   | `transaction_page`, `transaction_count`               | Current company assignments and fees                      |
-| Current fees   | `company_skus`, `current_sku_fee_periods`             | Current company assignments and fee periods               |
-| Settlements    | `source_transaction_page`, `source_transaction_count` | Administrators                                            |
-| Data Kiosk     | `source_transaction_page`, `source_transaction_count` | Administrators                                            |
-| Payout reports | `company_payout_reports`, monthly generation RPC      | All companies for administrators; own company for members |
-| User access    | `app_accounts`                                        | Administrators                                            |
+| Tab            | API                                                   | Access                                                             |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
+| Transactions   | `transaction_page`, `transaction_count`               | Current company assignments and fees                               |
+| Current fees   | `sku_configuration`, `publish_sku_configuration`      | Administrators edit complete configuration; members read their own |
+| Settlements    | `source_transaction_page`, `source_transaction_count` | Administrators                                                     |
+| Data Kiosk     | `source_transaction_page`, `source_transaction_count` | Administrators                                                     |
+| Payout reports | `company_payout_reports`, monthly generation RPC      | All companies for administrators; own company for members          |
+| User access    | `app_accounts`                                        | Administrators                                                     |
 
 Company members see only their company. Administrators can select companies in Transactions and
-generate payout reports for mature months. Fee editing and account-management writes use database
-interfaces; the web client provides read views for those datasets. See the
-[access guide](../../../docs/access_control.md) for permissions.
+generate payout reports for mature months. Administrators also edit SKU assignments and fees in
+Current fees. Company members have read-only access to their own configuration. Account-management
+writes use database interfaces. See the [access guide](../../../docs/access_control.md) for
+permissions.
 
 - Column menus filter inclusive dates, SKUs, marketplaces, sources, and types. Company, SKU, and
   other selections are alternatives within each filter; different filters intersect. Menus offer
@@ -31,9 +32,20 @@ interfaces; the web client provides read views for those datasets. See the
 - Exact SKU text identifies one product across all source namespaces. SKU catalogs, filters, and
   Transactions include its records from every namespace. Administrators can inspect the source
   namespace in row details; company members never see it. Namespace is not a filter or SKU identity.
-- Current fees lists each exact SKU once. Expanding a SKU loads its marketplace fee periods,
-  including server-capped pages, through the shared `sku_id`. The table appears only after all pages
-  load successfully. Administrators see the assigned company beside the SKU.
+- Current fees loads one complete role-scoped configuration, including saved periods and required
+  coverage. Administrators see imported-only and unassigned SKUs and can filter for setup gaps. They
+  stage edits across multiple SKUs, review the changes, and publish one atomic batch. Every known
+  SKU must have a company and coverage for its required fee dates before a save succeeds. Members
+  see only their own assignments and fee periods, with no editing controls. Review shows a few setup
+  gaps with a link to the complete paginated list; validation always covers the entire catalog.
+- Configuration drafts remain in the current workspace across tab changes. Validation errors
+  preserve them; stale or unconfirmed writes require loading current saved settings before retry.
+  Confirmed saves refresh assignments, fees, and affected financial reads. Refresh failures are
+  reported separately from save failures. The save controller remains mounted across tab changes and
+  follows session renewal; configuration reads begin when Current fees is opened. No publication is
+  automatically retried.
+- Source imports can make older settings incomplete. Configuration coverage refreshes on source and
+  fee revisions; old incomplete settings remain visible so an administrator can repair them.
 - Data Kiosk zero amounts are excluded before pagination and counting; Settlement zero rows remain.
   Financial values arrive as CSV or JSON strings and retain their decimal precision. Missing fees
   display as a dash. Non-applicable fees also display as a dash; applicable zero fees remain zero.
