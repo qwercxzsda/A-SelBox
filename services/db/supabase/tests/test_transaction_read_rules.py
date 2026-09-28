@@ -12,9 +12,14 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture
 _INLINE_HELPERS = (
     "private.settlement_fee_applicable(text,text,text)",
     "private.calculate_service_fee(numeric,numeric)",
+    "private.reconcile_source_amounts(numeric,numeric,numeric,numeric)",
 )
 _HELPERS = (
     *_INLINE_HELPERS,
+    "private.mature_cutoff_date()",
+    "private.reconciliation_group_id(text,date,text,text)",
+    "private.financial_account_visible()",
+    "private.resolve_source_reconciliation(uuid[],uuid[])",
     "private.validate_transaction_filters(date,date,uuid[],text[],text[],text[],text[],boolean)",
     "private.validate_page_bounds(integer,bigint)",
     "private.member_policy_covers_current_version(regclass)",
@@ -108,12 +113,11 @@ class TransactionReadRulesTests(SourceModelFixture):
                 else:
                     self.assertIn('search_path=""', row[3])
 
-    def test_search_rules_do_not_bypass_the_rls_security_barrier(self) -> None:
-        signatures = [signature for signature in _HELPERS if "search" in signature]
+    def test_read_helpers_do_not_bypass_the_rls_security_barrier(self) -> None:
         rows = self.connection.execute(
             "select p.proname from pg_proc p "
             "where p.oid=any(%s::regprocedure[]) and p.proleakproof",
-            (signatures,),
+            (list(_HELPERS),),
         ).fetchall()
         self.assertEqual(rows, [])
 

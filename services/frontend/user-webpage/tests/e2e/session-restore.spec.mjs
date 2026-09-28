@@ -65,7 +65,7 @@ for (const originalRole of ["company_member", "operator"]) {
       await expect(restoring(page)).toBeVisible();
       gates[1].resolve();
       await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-      await expect(page.getByRole("tab")).toHaveCount(nextRole === "operator" ? 6 : 2);
+      await expect(page.getByRole("tab")).toHaveCount(nextRole === "operator" ? 6 : 3);
       await expect(page.locator("header")).toContainText("member-a@example.test");
       await expect(page.locator("header")).not.toContainText("cached-wrong@example.test");
       expect(fixture.revisionRequests.at(-1).user).toBe("member-a");

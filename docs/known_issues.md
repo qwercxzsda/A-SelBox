@@ -30,7 +30,7 @@ trigger. Neither status establishes the cause of a discrepancy or guarantees sou
 | [Reviewed Settlement amounts retained by SelBox](#reviewed-settlement-amounts-retained-by-selbox) | Accepted              |
 | [Archive bucket visibility race](#archive-bucket-visibility-race)                                   | Accepted              |
 | [Marketplace routing configuration race](#marketplace-routing-configuration-race)                   | Accepted              |
-| [Data Kiosk disposal discrepancy](#data-kiosk-disposal-discrepancy)                                 | Accepted              |
+| [Data Kiosk disposal discrepancy](#data-kiosk-disposal-discrepancy)                                 | Accepted |
 | [Out-of-period Settlement postings](#out-of-period-settlement-postings)                             | Accepted              |
 | [Trailing-omission parsing assumption](#trailing-omission-parsing-assumption)                       | Accepted              |
 | [Data Kiosk completeness and finality](#data-kiosk-completeness-and-finality)                       | Documented limitation |
@@ -86,14 +86,14 @@ the separate refund-policy decision.
 
 **Reason and revisit phase: payout approval and payment workflow.**
 
-Immutable payout reports, exact saved components, and retention-protected source/terms manifests are
-implemented. Approval and payment execution are not. Timing and cutoffs, adjustment policy, negative
-balances, and currency rounding remain decisions for that workflow.
+[Monthly payout snapshots](company_payout_reports.md), administrator generation, and
+members' own-company access are implemented. Approval, payment execution, adjustments,
+negative-balance handling, and currency rounding remain decisions for the payment workflow.
+Saved reports preserve a calculation; they do not establish an approved or paid amount.
 
-Live calculations may change when source versions or SKU terms change. Saved reports keep their
-original values but do not establish approved or paid amounts. Use explicit business coverage for
-financial reads and report publication. See the [payout report contract](company_payout_reports.md)
-and [payout scope](source_allocation.md#6-live-calculation-and-frozen-payout-reports).
+A [zero aggregate](company_payout_reports.md#empty-aggregates) can reflect incomplete
+upstream acquisition or preprocessing. It does not certify inactivity. Reports are
+created only on request, so later source arrival does not change a saved result.
 
 ## Accepted
 
@@ -111,10 +111,24 @@ reviewed types remain explicitly retained, rather than being mapped to company c
 [EPR and adjustment investigation](evidence/data_kiosk_epr_and_adjustment_coverage_2026-09-13.md)
 records the checked responses and why they do not establish individual cost coverage.
 
-An approved Data Kiosk cost is selected independently of an individual settlement match. The
-registry controls both sources: unknown monetary components abort preprocessing, and
-missing required source coverage still blocks authoritative totals. See the
+Approved Data Kiosk costs supply company amounts at every age, independently of an individual
+Settlement match. The registry controls both sources: unknown monetary components abort
+preprocessing, and missing required source coverage blocks authoritative totals. See the
 [explicit rules](settlement_component_categories.md).
+
+### Data Kiosk disposal discrepancy
+
+**Decision: use Data Kiosk costs and retain their difference from Settlement controls with SelBox.**
+
+Amazon's raw Data Kiosk disposal costs can differ from Settlement deductions, even
+after fresh queries. The internal cause remains unconfirmed. The
+[disposal investigation](evidence/data_kiosk_disposal_discrepancy_2026-09-07.md) retains
+the measured amounts and controls as historical evidence.
+
+The [source policy](source_allocation.md) preserves costs in the Data Kiosk category and SelBox
+variance. For mature dates it records Settlement report controls minus Data Kiosk amounts in
+that category per day/marketplace/seller/currency, so the complete account ledger reconciles
+to Settlement. Recent dates use only Data Kiosk. FBA and Finances are not inputs.
 
 ### Archive bucket visibility race
 
@@ -142,23 +156,6 @@ the client to another marketplace after the explicit routing check.
 Normal commands do not make this change. Revisit if mutable process-global routing must be
 supported. A lock around only this helper cannot synchronize arbitrary writers; support would need a
 defined configuration policy or verified SDK routing boundary.
-
-### Data Kiosk disposal discrepancy
-
-**Decision: use the selected Data Kiosk costs and assign the resulting variance to SelBox.**
-
-Amazon's raw Data Kiosk disposal costs can differ from Settlement deductions. The discrepancy can
-persist across fresh queries, and its internal cause remains unconfirmed. Valid acquisition and
-exact parsing do not establish agreement between the two sources. The
-[disposal investigation](evidence/data_kiosk_disposal_discrepancy_2026-09-07.md) retains the
-measured amounts, fresh-query controls, and uncertainty about the cause.
-
-Automatic alias merging, inferred deduplication, and settlement-SKU membership filtering are not
-approved corrections. The accepted variance may be a surplus or a shortfall in other periods. An
-unknown cause does not reopen the recorded source-policy decision by itself.
-
-The [source policy](source_allocation.md#7-amount-authority-and-reconciliation) defines the variance
-calculation. FBA and Finances are not application inputs.
 
 ### Out-of-period Settlement postings
 
@@ -280,8 +277,9 @@ reprocessed. See the
 
 Publication failures roll back completely and remain in Python logs; the service does not
 automatically retry them. Report publication and fee administration have trusted Python repository
-interfaces; operators also manage member access and publish complete terms through REST. No
-administration UI or payment workflow is implemented. Payout dependencies are immutable and have no
+interfaces; operators also manage member access, publish complete terms, and generate
+eligible monthly payout reports through REST and the administration UI. Payment approval
+and execution are not implemented. Payout dependencies are immutable and have no
 independent pin-update interface.
 
 These are current tooling boundaries, not recorded decisions to implement retries or another
@@ -290,13 +288,13 @@ administration interface. See the
 
 ### Deployment and verification scope
 
-The [local verification suites](../services/db/supabase/README.md#verification) exercise disposable
-PostgreSQL databases and actual local Supabase Storage, Auth, and PostgREST. They cover source
-publication, financial calculations, operator/member permissions, frozen payouts, and concurrent
-publication and retention. Their Amazon documents are synthetic; these tests make no live Amazon
-requests and do not modify existing application databases.
+The [local verification suites](../services/db/supabase/README.md#verification) install the baseline
+in disposable PostgreSQL databases and exercise local Supabase Storage, Auth, and PostgREST. They
+cover source publication, financial calculations, tenant permissions, frozen payouts, and concurrent
+publication and retention using synthetic Amazon documents.
 
-The verification suites establish behavior for their fixtures, not universal Amazon payload support,
-country coverage, financial finality, or production capacity. All canonical migrations form a
-fresh-install baseline. Existing development databases need reviewed, data-preserving updates;
-replaying initial table definitions is not an upgrade path.
+The separate [real-source verification](evidence/payout_authority_2026-09-27/README.md) replays
+archived seed documents and genuine supplementary Data Kiosk inputs into a disposable database.
+It preserves the original seed and development data. These checks establish behavior for their
+recorded inputs, not universal Amazon payload support, country coverage, financial finality, or
+production capacity.

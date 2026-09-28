@@ -1,7 +1,8 @@
 const LABELS: Record<string, string> = {
   SETTLEMENT: "Settlements",
   DATA_KIOSK: "Data Kiosk",
-  SELBOX: "Account-level",
+  SELBOX: "SelBox",
+  RECONCILIATION: "Reconciliation",
   ANALYSIS_ONLY: "Analysis only",
   APPLIED: "Fee applied",
   NOT_APPLICABLE: "Fee not applicable",
@@ -45,8 +46,13 @@ const TYPE_WORDS = new Map([
   ["fulfilment", "fulfillment"],
 ]);
 
+export function allocationCategoryLabel(value: string): string {
+  return value === "SETTLEMENT" ? "Settlement" : humanizeCode(value);
+}
+
 /** Display source type codes consistently without changing their filter/group identity. */
 export function transactionTypeLabel(value: string): string {
+  if (value === "SETTLEMENT_KIOSK_DIFFERENCE") return "Settlement / Data Kiosk difference";
   return value
     .split("/")
     .map((segment) => {

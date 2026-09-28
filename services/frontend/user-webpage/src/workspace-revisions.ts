@@ -65,15 +65,16 @@ function needsRevisionRefresh(query: Query, changed: readonly RevisionSource[]):
   return queryRevisionSources(query.queryKey).some((source) => changed.includes(source));
 }
 
-/** These small administrative lists do not derive from financial source revisions. */
-export function isAdministrativeDataset(dataset: unknown): boolean {
+/** These lists refresh by polling, independently of financial source revisions. */
+export function isPolledDataset(dataset: unknown): boolean {
   return dataset === "accounts" || dataset === "payouts";
 }
 
-export function isAdministrativeQuery(query: Query): boolean {
+export function isPolledQuery(query: Query): boolean {
   const [family] = query.queryKey;
+  if (family === "payout-policy") return true;
   const dataset = query.queryKey[4];
-  return (family === "dataset" || family === "dataset-count") && isAdministrativeDataset(dataset);
+  return (family === "dataset" || family === "dataset-count") && isPolledDataset(dataset);
 }
 
 /** Financial counts restart after their rows settle; no count delays a page refresh. */
@@ -84,7 +85,7 @@ export async function refreshWorkspaceQueries(
   signal: AbortSignal,
 ) {
   const predicate = (query: Query) =>
-    force || needsRevisionRefresh(query, changed) || isAdministrativeQuery(query);
+    force || needsRevisionRefresh(query, changed) || isPolledQuery(query);
   signal.throwIfAborted();
   await client.cancelQueries({ predicate });
   signal.throwIfAborted();

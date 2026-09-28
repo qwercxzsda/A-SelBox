@@ -70,23 +70,23 @@ class LiveViewEquivalenceTests(FinancialFixture):
             self.operator(),
         )
         scopes: tuple[tuple[LiteralString, tuple[object, ...], tuple[int, int, int]], ...] = (
-            ("true", (), (20, 10, 4)),
+            ("true", (), (23, 10, 4)),
             ("company_id = %s::uuid", (company_a,), (10, 10, 0)),
             ("company_id = %s::uuid", (company_b,), (4, 0, 4)),
-            ("activity_date = %s::date", ("2026-06-15",), (18, 8, 4)),
-            ("sku = %s", ("SKU",), (11, 9, 2)),
+            ("activity_date = %s::date", ("2026-06-15",), (21, 8, 4)),
+            ("sku = %s", ("SKU",), (12, 9, 2)),
             ("source = %s", ("DATA_KIOSK",), (10, 5, 2)),
             (
                 "marketplace_name = %s and component_type = %s",
                 ("Amazon.com", "FbaStorageFee"),
                 (9, 4, 2),
             ),
-            ("source <> 'DATA_KIOSK' or source_amount <> 0", (), (19, 9, 4)),
+            ("source <> 'DATA_KIOSK' or source_amount <> 0", (), (22, 9, 4)),
             (
                 "activity_date = %s::date and sku = %s "
                 "and (source <> 'DATA_KIOSK' or source_amount <> 0)",
                 ("2026-06-15", "SKU"),
-                (8, 6, 2),
+                (9, 6, 2),
             ),
         )
         for predicate, parameters, counts in scopes:
@@ -98,7 +98,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             ):
                 with self.subTest(role="trusted" if user is None else user, predicate=predicate):
                     self.assert_matches_resolver(user, expected_rows, predicate, parameters)
-        for user, count in ((None, 20), (operator, 20), (member_a, 10), (member_b, 4)):
+        for user, count in ((None, 23), (operator, 23), (member_a, 10), (member_b, 4)):
             with self.subTest(page_role="trusted" if user is None else user):
                 self.assert_matches_resolver(user, count, limit=3)
         self.assert_matches_resolver(self.auth_user(), 0)
@@ -113,7 +113,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 "select source_amount,fee_amount,company_amount "
                 "from public.live_company_components "
                 "where source='SETTLEMENT' and seller_namespace='seller-one' "
-                "and sku='SKU' and source_amount > 100"
+                "and sku='SKU' and source_amount > 100 and source_amount < 101"
             ).fetchone(),
             (exact, expected_fee, expected_company),
         )
@@ -144,13 +144,14 @@ class LiveViewEquivalenceTests(FinancialFixture):
         )
         _, new_kiosk = self.kiosk(2, [self.component("-20")], expected=old_kiosk)
         revised_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, count in ((None, 2), (operator, 2), (members[0], 0), (members[1], 2)):
+        for user, count in ((None, 3), (operator, 3), (members[0], 0), (members[1], 2)):
             self.assert_matches_resolver(user, count)
         self.assertEqual(
             {
                 str(row[0])
                 for row in self.connection.execute(
-                    "select source_version_id from public.live_company_components"
+                    "select source_version_id from public.live_company_components "
+                    "where source<>'RECONCILIATION'"
                 ).fetchall()
             },
             {new_settlement, new_kiosk},
@@ -172,7 +173,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             Decimal(85),
         )
         self.assign("SKU", None, rate="7", expected=revised_terms)
-        for user, count in ((None, 2), (operator, 2), (members[0], 0), (members[1], 0)):
+        for user, count in ((None, 3), (operator, 3), (members[0], 0), (members[1], 0)):
             self.assert_matches_resolver(user, count)
         self.connection.execute("set constraints all immediate")
 

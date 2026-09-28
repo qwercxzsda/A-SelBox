@@ -12,6 +12,7 @@ import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { FinanceColumnHeader } from "./FinanceColumnHeader";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { AmountOrderingLimitError } from "./api/amount-ordering";
+import { PayoutControls } from "./PayoutControls";
 
 export function FinanceDataset({
   identity,
@@ -43,6 +44,9 @@ export function FinanceDataset({
       <Text mb="md" role="note" c="dimmed" size="sm">
         {presentation.description}
       </Text>
+      {dataset === "payouts" ? (
+        <PayoutControls identity={identity} filters={filters} onChange={changeFilters} />
+      ) : null}
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -203,6 +207,7 @@ export function FinanceDataset({
         ) : null}
       </FinancialTable>
       <RowDetail
+        accessToken={identity.session.access_token}
         isAdministrator={identity.account.access_role === "operator"}
         companies={companies}
         dataset={dataset}

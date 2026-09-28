@@ -1,5 +1,6 @@
 """Cheap change tokens track committed publications without exposing private rows."""
 
+from datetime import date
 from typing import cast
 
 import psycopg
@@ -41,8 +42,22 @@ class WorkspaceRevisionTests(SourceModelFixture):
                     set(cast(dict[str, str], response["revisions"])), {"settlement", "fees"}
                 )
                 self.assertEqual(self.poll(user, [])["revisions"], {})
-        self.assertEqual(self.revisions(member)["settlement"], "0")
-        self.assertEqual(self.revisions(member)["data_kiosk"], "0")
+        mature_cutoff_date = require_row(
+            self.connection.execute("select private.mature_cutoff_date()").fetchone()
+        )[0]
+        self.assertEqual(self.revisions(member)["settlement"], f"0:{mature_cutoff_date}")
+        self.assertEqual(self.revisions(member)["data_kiosk"], f"0:{mature_cutoff_date}")
+
+    def test_mature_cutoff_date_change_invalidates_source_tokens_without_an_import(self) -> None:
+        company, _ = self.owner()
+        member = self.member(company)
+        before = self.revisions(member)
+        with self.connection.transaction(force_rollback=True):
+            self.set_mature_cutoff_date(date(2000, 1, 1))
+            after = self.revisions(member)
+            self.assertNotEqual(before["settlement"], after["settlement"])
+            self.assertNotEqual(before["data_kiosk"], after["data_kiosk"])
+            self.assertEqual(before["fees"], after["fees"])
 
     def test_requires_current_application_access_and_never_grants_private_table_access(
         self,

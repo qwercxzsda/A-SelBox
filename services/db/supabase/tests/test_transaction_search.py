@@ -110,7 +110,11 @@ class TransactionSearchTests(SourceModelFixture):
         sku = " Literal.*[]\\%,_\"'Ωä한국\ninside "
         company, _ = self.owner(sku)
         self.settlement([self.transaction("100.123456789012345678901", sku=sku)])
-        self.kiosk(1, [self.component("-100.123456789012345678901", sku=sku)])
+        self.kiosk(
+            1,
+            [self.component("-100.123456789012345678901", sku=sku)],
+            activity_date=self.recent_activity_date(),
+        )
         for user in (self.operator(), self.member(company)):
             self.assertEqual(
                 self.assert_matches_view(user, p_search_skus=[sku])["total_count"], "2"
@@ -131,7 +135,7 @@ class TransactionSearchTests(SourceModelFixture):
         acquisition = self.acquisition()
         _, old = self.settlement([self.transaction("100")], acquisition_id=acquisition)
         self.settlement([self.transaction("200")], acquisition_id=acquisition, expected=old)
-        self.kiosk(1, [self.component("-20")])
+        self.kiosk(1, [self.component("-20")], activity_date=self.recent_activity_date())
         new_terms = self.assign("SKU", company_b, expected=terms)
         self.assertEqual(self.count(member_a, p_search_skus=["SKU"]), "0")
         self.assertEqual(self.count(member_b, p_search_skus=["SKU"]), "2")

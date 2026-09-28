@@ -86,6 +86,7 @@ const GROUPS = {
       "MISCELLANEOUS_COST",
     ],
   ],
+  reconciliation: ["Settlement / Data Kiosk difference", ["SETTLEMENT_KIOSK_DIFFERENCE"]],
   other: ["Other", []],
 } as const;
 

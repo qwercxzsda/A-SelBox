@@ -2,8 +2,9 @@
 
 These harnesses measure the currently installed database API on disposable local clones. Current
 query/index guidance is in [Database performance](../../../../docs/database_performance.md); the
-latest [date-bounded comparison](../../../../docs/evidence/date_bounded_indexes_2026-09-27/README.md)
-records current bounded and unbounded behavior.
+historical [date-bounded comparison](../../../../docs/evidence/date_bounded_indexes_2026-09-27/README.md)
+records source-index behavior before the mature cutoff date rule and derived reconciliation rows.
+Use the harness to measure the current installed ledger.
 
 Run from the repository root with the frontend seed database and REST containers available:
 
@@ -37,8 +38,9 @@ cleanup status and writes results atomically.
   Frontend tests separately cover humanized labels and Unicode matching.
 
 Each actor's visible data supplies its scope. Summary filter values are selected from positive
-transactions inside the recent window; records include actual date bounds and matching row counts. One warm-up precedes measured repetitions; request
-order rotates across runs. Results contain timings, counts, sizes, digests, catalog fingerprints,
+transactions inside the benchmark date range; records include the actual bounds and
+matching row counts. One warm-up precedes measured repetitions; request order rotates
+across runs. Results contain timings, counts, sizes, digests, catalog fingerprints,
 and cleanup status. Financial rows, filter literals, account identities, credentials, and tokens
 remain in memory.
 

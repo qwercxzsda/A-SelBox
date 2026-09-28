@@ -108,12 +108,21 @@ class DateOrderingTests(SourceModelFixture):
                     )
                 # Every fixture amount is 10. Changing the amount direction
                 # must therefore preserve the original ascending source/ID ties.
-                amounts_asc = self.page(user, dataset, p_order_by="amount", p_direction="asc")
-                amounts_desc = self.page(user, dataset, p_order_by="amount", p_direction="desc")
+                source_filter = (
+                    {"p_sources": ["SETTLEMENT", "DATA_KIOSK"]} if dataset == "live" else {}
+                )
+                amounts_asc = self.page(
+                    user, dataset, p_order_by="amount", p_direction="asc", **source_filter
+                )
+                amounts_desc = self.page(
+                    user, dataset, p_order_by="amount", p_direction="desc", **source_filter
+                )
                 self.assertEqual(amounts_asc, amounts_desc)
                 self.assertEqual(
                     amounts_desc,
-                    self.expected(user, dataset, p_order_by="amount", p_direction="desc"),
+                    self.expected(
+                        user, dataset, p_order_by="amount", p_direction="desc", **source_filter
+                    ),
                 )
 
     def test_each_source_has_one_ascending_date_id_index(self) -> None:

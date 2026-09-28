@@ -19,7 +19,7 @@ class LiveSourceModelTests(SourceModelFixture):
         settlement, _ = self.settlement(
             [
                 self.transaction("100"),
-                self.transaction("-100", 4, kind="Refund", activity_date="2026-08-15"),
+                self.transaction("-100", 4, kind="Refund", activity_date="2026-07-01"),
                 self.transaction("12", 5, description="Shipping"),
             ]
         )
@@ -124,6 +124,13 @@ class LiveSourceModelTests(SourceModelFixture):
         company, _ = self.owner()
         day, one = self.kiosk(1, [self.component()])
         report = publish_report(self, company)
+        initial_acquisition_count = int(
+            require_row(
+                self.connection.execute(
+                    "select count(*) from private.data_kiosk_acquisitions"
+                ).fetchone()
+            )[0]
+        )
         _, two = self.kiosk(2, [], expected=one)
         self.assertEqual(
             self.connection.execute(
@@ -161,12 +168,13 @@ class LiveSourceModelTests(SourceModelFixture):
             self.connection.execute(
                 "select count(*) from private.data_kiosk_acquisitions"
             ).fetchone(),
-            (4,),
+            (initial_acquisition_count + 3,),
         )
         old_acquisition = require_row(
             self.connection.execute(
-                "select id from private.data_kiosk_acquisitions "
-                "order by root_query_created_at limit 1"
+                "select b.acquisition_id from private.data_kiosk_preprocess_versions v "
+                "join private.data_kiosk_preprocess_batches b on b.id=v.batch_id where v.id=%s",
+                (one,),
             ).fetchone()
         )[0]
         self.kiosk(1, [self.component("-99")], acquisition_id=str(old_acquisition), expected=four)
@@ -192,20 +200,34 @@ class LiveSourceModelTests(SourceModelFixture):
 
     def test_strict_combination_rejects_missing_and_mixed_versions(self) -> None:
         self.owner()
-        self.kiosk(1, [self.component(), self.component("100", category="SETTLEMENT")])
+        recent = self.recent_activity_date()
+        self.kiosk(
+            1,
+            [self.component(), self.component("100", category="SETTLEMENT")],
+            activity_date=recent,
+        )
         sql = (
-            "select * from "
-            "private.company_financial_totals(%s,'2026-06-15','2026-06-15',%s,'{}',"
+            "select * from private.company_financial_totals(%s,%s,%s,%s,'{}',"
             "array['Amazon.com']::text[])"
         )
         self.assertEqual(
-            require_row(self.connection.execute(sql, (self.seller, "v0")).fetchone())[-1],
-            Decimal("-10"),
+            require_row(
+                self.connection.execute(sql, (self.seller, recent, recent, "v0")).fetchone()
+            )[-1],
+            Decimal("90"),
         )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(sql, (self.seller, "different"))
+            self.connection.execute(sql, (self.seller, recent, recent, "different"))
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.totals([], ["Amazon.com"])
+            self.connection.execute(
+                sql,
+                (
+                    self.seller,
+                    recent,
+                    date.fromisoformat(recent) + timedelta(days=1),
+                    "v0",
+                ),
+            )
 
     def test_tenant_visibility_and_no_configuration_writes(self) -> None:
         company, owner = self.owner()
@@ -248,7 +270,8 @@ class LiveSourceModelTests(SourceModelFixture):
                 self.connection.execute(statement)
         self.assertEqual(
             self.connection.execute(
-                "select * from public.settlement_preprocess_entries where category='DATA_KIOSK'"
+                "select amount from public.settlement_preprocess_entries "
+                "where category='DATA_KIOSK'"
             ).fetchall(),
             [],
         )
@@ -322,9 +345,13 @@ class LiveSourceModelTests(SourceModelFixture):
         user = self.member(company)
         self.connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user,))
         self.connection.execute("set local role authenticated")
+        mature_cutoff_date = self.recent_activity_date()
         for start, end in (("2026-06-01", "2026-06-30"), ("2026-01-01", "2026-12-31")):
             expected_count = sum(
-                row["sku"] == "SKU" and start <= str(row["posted_date"]) <= end for row in rows
+                row["sku"] == "SKU"
+                and start <= str(row["posted_date"]) <= end
+                and str(row["posted_date"]) < mature_cutoff_date
+                for row in rows
             )
             with self.subTest(start=start, end=end):
                 self.assertEqual(

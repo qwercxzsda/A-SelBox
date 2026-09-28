@@ -9,6 +9,7 @@ with one current definition per object.
 - [Query contracts](../../../docs/transaction_query_contracts.md): exact page/count/summary/filter APIs.
 - [Performance](../../../docs/database_performance.md): current access paths, measurements, and scaling limits.
 - [Company fees](../../../docs/company_fees.md): current ownership, signed fees, and missing configuration.
+- [Payout reports](../../../docs/company_payout_reports.md): monthly generation, snapshots, and reuse.
 
 ## Local setup
 
@@ -23,45 +24,51 @@ separate seeded instance through its explicit configuration; that instance curre
 55421 and 55422. Read the [frontend setup guide](../../frontend/user-webpage/README.md#configuration)
 for its configuration.
 
-Starting Supabase preserves existing data. The canonical migrations install a fresh database;
-they are not an incremental upgrade chain to replay against existing tables. Apply reviewed,
-data-preserving function/view/index changes separately to an existing local instance. Verification
-uses disposable databases and leaves development data and migration records intact.
+Starting Supabase preserves existing local data. This undeployed project's canonical migrations
+install a fresh database. Verification creates disposable databases without changing development
+data, migration records, or archives.
 
 ## Schema modules
 
-Files execute in dependency order. The foundation closes direct API access before publication
-and read modules are created. Publication integrity precedes writers; financial relations precede
-strict reads and payouts; retention follows its payout-manifest dependencies. Authorization is
-explicit, exact counts precede row-page APIs, and PostgREST reloads only after the final module.
-Each database object has one maintained definition.
+Files execute in dependency order and define each object once. Identity helpers and
+financial rules precede their consumers. Payout tables, validation, publication, and
+company/month generation have separate modules. RLS and API objects are installed
+before the final grants allowlist; PostgREST reloads after the baseline is complete.
 
-| Module                                                                           | Responsibility                                                                                     |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [schema_foundation](migrations/20260927080039_schema_foundation.sql)             | Physical source and terms model, immutable identities, read indexes, RLS defaults, archive bucket. |
-| [archive_publications](migrations/20260927080041_archive_publications.sql)       | Immutable archive manifests and acquisition publication.                                           |
-| [publication_integrity](migrations/20260927080043_publication_integrity.sql)     | Complete child inventories, selected pointers, transaction isolation, immutable source payloads.   |
-| [terms_publication](migrations/20260927080045_terms_publication.sql)             | Atomic current ownership and fee revision publication.                                             |
-| [source_publications](migrations/20260927080047_source_publications.sql)         | Atomic Settlement and Data Kiosk preprocessing publication.                                        |
-| [financial_relations](migrations/20260927080050_financial_relations.sql)         | Shared fee arithmetic, current terms/live relations, explicit-version resolver.                    |
-| [financial_reads](migrations/20260927080052_financial_reads.sql)                 | Strict complete and partial financial reads with declared source coverage.                         |
-| [company_payout_reports](migrations/20260927080054_company_payout_reports.sql)   | Frozen entitlement reports, complete manifests, validation, and publication.                       |
-| [source_retention](migrations/20260927080056_source_retention.sql)               | Payout-aware pruning, pin guards, and observation comparison.                                      |
-| [application_access](migrations/20260927080058_application_access.sql)           | Database accounts, RLS policies, narrow projections, operator actions, explicit API grants.        |
-| [workspace_revisions](migrations/20260927080101_workspace_revisions.sql)         | Transactional source/terms revision tracking and polling.                                          |
-| [transaction_read_rules](migrations/20260927080103_transaction_read_rules.sql)   | Shared transaction filter/pagination validation and current-policy eligibility.                    |
-| [transaction_counts](migrations/20260927080105_transaction_counts.sql)           | Exact live and raw authorized counts.                                                              |
-| [transaction_page](migrations/20260927080107_transaction_page.sql)               | Bounded live row selection before ownership and fee projection.                                    |
-| [source_transaction_page](migrations/20260927080109_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility.                                          |
-| [transaction_totals](migrations/20260927080111_transaction_totals.sql)           | Date-bounded currency/Type totals with grouping before fee lookup.                                 |
-| [sku_filter_options](migrations/20260927080113_sku_filter_options.sql)           | Administrator-only complete SKU catalog using native index seeks.                                  |
-| [rest_api_configuration](migrations/20260927080115_rest_api_configuration.sql)   | Disable generated REST aggregation and reload final API schema/configuration.                      |
+| Module | Responsibility |
+| --- | --- |
+| [schema_foundation](migrations/20260928123054_schema_foundation.sql) | Source and terms tables, immutable identities, read indexes, RLS defaults, and archive bucket. |
+| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive manifests and acquisition publication. |
+| [publication_integrity](migrations/20260928123058_publication_integrity.sql) | Complete inventories, selected pointers, transaction isolation, and immutable source payloads. |
+| [terms_publication](migrations/20260928123100_terms_publication.sql) | Atomic SKU ownership and fee revision publication. |
+| [source_publications](migrations/20260928123102_source_publications.sql) | Atomic Settlement and Data Kiosk preprocessing publication. |
+| [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound operator/member checks and current ownership projection. |
+| [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff date, fee arithmetic, and current terms views. |
+| [source_reconciliation](migrations/20260928123109_source_reconciliation.sql) | Daily source controls and SelBox differences for live and frozen inputs. |
+| [financial_components](migrations/20260928123111_financial_components.sql) | Live and explicit-version company components with ownership and fees. |
+| [financial_reads](migrations/20260928123113_financial_reads.sql) | Strict complete and partial financial reads with declared source coverage. |
+| [payout_schema](migrations/20260928123115_payout_schema.sql) | Immutable report headers, components, manifests, and reconciliation tables. |
+| [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals checks. |
+| [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture, aggregation, and latest-report reuse. |
+| [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
+| [application_access](migrations/20260928123123_application_access.sql) | RLS policies, REST projections, and guarded terms publication. |
+| [payout_generation](migrations/20260928123125_payout_generation.sql) | Administrator company/month generation and maturity policy RPCs. |
+| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional source/terms revision tracking and polling. |
+| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Shared filter/pagination validation and current-policy eligibility. |
+| [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
+| [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
+| [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility. |
+| [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
+| [sku_filter_options](migrations/20260928123140_sku_filter_options.sql) | Administrator-only complete SKU catalog using index seeks. |
+| [application_grants](migrations/20260928123142_application_grants.sql) | Final explicit table, column, and function allowlist for API roles. |
+| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and reload the completed API schema. |
 
 ## Application reads
 
 All browser financial reads use authenticated REST/RPC with invoker security and base-table RLS.
 `transaction_page` and `source_transaction_page` select filtered, authorized rows before metadata
-and fee projection. `transaction_count` and `source_transaction_count` count facts independently.
+and fee projection. `transaction_count` counts the live ledger, including authorized derived differences;
+`source_transaction_count` counts raw facts independently.
 `transaction_totals` combines compatible facts before fee lookup. Administrator identity bootstrap
 preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
 SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
@@ -88,17 +95,18 @@ Date ordering reverses the complete date/source/ID tuple. Reported amount orderi
 text. Date, SKU, Type, marketplace, and ownership/version indexes support the measured access paths;
 the [performance guide](../../../docs/database_performance.md) explains their tradeoffs.
 
-The relational `live_company_components` view supports complete current reads. The explicit-version
-resolver and strict financial functions are active backend functionality: they validate declared
-source coverage and use authoritative allocation rules for exact financial reads and payouts.
-Dashboard estimates instead combine all eligible Transactions sources, excluding zero Data Kiosk
-amounts, and identify unresolved company amounts. These are separate product contracts.
+The relational `live_company_components` view supports current reads, while the
+explicit-version resolver supports captured inputs. Dashboard and strict reads apply
+the same [source policy](../../../docs/source_allocation.md). Strict reads additionally
+validate declared source coverage and ownership/fees. Raw source tabs preserve
+comparison and analysis facts.
 
 `workspace_revisions` reads the authenticated account and requested opaque source/fee tokens.
 Source revisions are global; fee, ownership, and company-name revisions are company-scoped for
 members and global for operators. Source-version publication, current-pointer changes, and
 historical Data Kiosk pruning update source tokens atomically at commit. This covers administrator
-history reads as well as current Transactions. The browser checks them on its polling interval, focus, and reconnection and invalidates only dependent reads.
+history reads as well as current Transactions. Returned source tokens include the UTC mature cutoff date.
+The browser checks them on its polling interval, focus, and reconnection, then invalidates dependent reads.
 The [frontend lifecycle](../../frontend/user-webpage/README.md#requests-and-session-lifecycle)
 defines cache behavior.
 
@@ -124,15 +132,19 @@ publish_company_payout_report(jsonb)
 Source and terms replacements validate the expected current reference, complete inventories, and
 financial controls atomically. Published children cannot be extended or rewritten. Source imports
 do not assign companies or create fee terms. Operators publish terms only through the guarded
-`public.publish_sku_terms` RPC; source/payout publication remains trusted Python/SQL work.
-See the [workflow contract](../../../docs/data_workflows.md) and
-[sync commands](../../sync/README.md).
+`public.publish_sku_terms` RPC; source publication remains trusted Python/SQL work.
+Operators call `public.generate_company_payout_reports(p_company_id, p_month)` for all
+scopes of one eligible company/month. It returns `(report_id uuid, created boolean)`
+per scope. The trusted publisher returns one saved UUID. Both aggregate empty inputs
+as zero and reuse the latest report when its scope and exact versions match. Snapshots
+are created only on request. See the [payout contract](../../../docs/company_payout_reports.md),
+[workflow](../../../docs/data_workflows.md), and [sync API](../../sync/README.md).
 
-DB administrators create companies and bootstrap operators. Application accounts live in the
-database; user-editable Auth metadata cannot grant access. Company members see permitted current
-facts and selected terms for their company, plus narrow current source references shared across
-companies. Full metadata and saved payouts are operator-only. The
-[permission matrix](../../../docs/access_control.md#permission-matrix) is the access contract.
+DB administrators create companies and bootstrap operators. Application accounts live
+in the database; user-editable Auth metadata cannot grant access. Company members read
+permitted current facts and terms plus their own saved payout headers, components,
+and marketplace totals. Payout manifests and seller reconciliation are administrator-only.
+The [permission matrix](../../../docs/access_control.md#permission-matrix) defines all access.
 
 ## Observation comparison and retention
 

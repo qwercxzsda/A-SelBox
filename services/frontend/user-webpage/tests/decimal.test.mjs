@@ -34,6 +34,11 @@ test("distinguishes missing, invalid, zero, and nonzero values", () => {
   assert.equal(formatExactDecimal(null), "—");
   assert.equal(formatExactDecimal("NaN"), "—");
   assert.equal(formatExactMoney("1", "US"), "—");
+  assert.equal(formatExactMoney("0.000", null), "0");
+  assert.equal(formatExactMoney("-0", null), "0");
+  assert.equal(formatExactMoney("1", null), "—");
+  assert.equal(formatExactMoney(null, null), "—");
+  assert.equal(formatExactMoney("0", "US"), "—");
   assert.equal(formatExactDecimal("0.000"), "0");
   assert.equal(formatExactDecimal("-0.0001"), "-0.0001");
 });

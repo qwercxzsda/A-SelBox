@@ -116,7 +116,11 @@ begin
             where source is null or source not in ('settlement', 'data_kiosk', 'fees')) then
         raise exception 'Invalid revision sources' using errcode = '22023';
     end if;
-    select coalesce(jsonb_object_agg(s.source, coalesce(r.revision::text, '0')), '{}'::jsonb)
+    -- The mature cutoff date moves even when no source is imported. Include it
+    -- in opaque source tokens so existing clients invalidate cached money/counts.
+    select coalesce(jsonb_object_agg(s.source, coalesce(r.revision::text, '0')
+        || case when s.source in ('settlement', 'data_kiosk')
+            then ':' || private.mature_cutoff_date()::text else '' end), '{}'::jsonb)
     into revisions
     from (select distinct source from unnest(p_sources) as requested(source)) as s
     left join private.workspace_revision_tokens as r on r.source = s.source
@@ -141,8 +145,6 @@ revoke all on function private.bump_workspace_revision(text, uuid[]),
 private.track_source_revision(), private.track_fee_revision(),
 private.read_workspace_revisions(text[]), public.workspace_revisions(text[])
 from public, anon, authenticated, service_role;
-grant execute on function private.read_workspace_revisions(text[]),
-public.workspace_revisions(text[]) to authenticated;
 
 comment on function public.workspace_revisions(text[]) is
 'Opaque change tokens for published sources and authorized fees/ownership/labels.';

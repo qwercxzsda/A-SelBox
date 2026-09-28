@@ -12,10 +12,11 @@ export interface FilterOption {
 }
 
 /** Source names identify the imported dataset, independently of allocation category. */
-export const TRANSACTION_SOURCES = ["SETTLEMENT", "DATA_KIOSK"] as const;
+const TRANSACTION_SOURCES = ["SETTLEMENT", "DATA_KIOSK"] as const;
+const RECONCILIATION_TYPE = "SETTLEMENT_KIOSK_DIFFERENCE";
 
 export function transactionTypeValues(dataset: TableDatasetKey, role: AccessRole): string[] {
-  return transactionTypes
+  const types = transactionTypes
     .filter(({ source, category }) => {
       if (role !== "operator" && category === "SELBOX") return false;
       if (dataset === "settlement") return source === "SETTLEMENT";
@@ -23,6 +24,8 @@ export function transactionTypeValues(dataset: TableDatasetKey, role: AccessRole
       return dataset === "live";
     })
     .map(({ type }) => type);
+  // This is a calculated ledger row, not a preprocessing classification.
+  return dataset === "live" && role === "operator" ? [...types, RECONCILIATION_TYPE] : types;
 }
 
 /** Local options do not depend on matching facts, search, dates, or other selections. */
@@ -34,7 +37,9 @@ export function localFilterValues(
 ): readonly string[] {
   switch (field) {
     case "source":
-      return TRANSACTION_SOURCES;
+      return dataset === "live" && role === "operator"
+        ? [...TRANSACTION_SOURCES, "RECONCILIATION"]
+        : TRANSACTION_SOURCES;
     case "marketplace_name":
       return marketplaces;
     case "component_type":

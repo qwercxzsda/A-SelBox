@@ -24,8 +24,8 @@ Both sources use the same `PREPROCESS_VERSION`, currently `v1`. A strict combine
 requires this exact name on every required selected source version. Marketplace
 names join as exact `text`, validated against the same supported-name list in Python and database
 `CHECK` constraints. Original API IDs
-remain in source provenance. Queries accept explicit dates without a rolling
-30-day limit or age-dependent source switch.
+remain in source provenance. Queries accept explicit dates and apply the mature cutoff date
+rule described in the source policy.
 
 ## Ownership and fee configuration
 
@@ -42,7 +42,7 @@ are generated automatically. Administrators provide business terms and an
 expected current version. `version_number` labels publications within one SKU;
 the current pointer selects the revision. `company_skus` is an assigned-only
 current projection view, and `current_sku_fee_periods` projects its selected
-periods. Neither is a writable ownership or schedule table.
+periods. Both views are read-only.
 
 ### Stable identity and versioned ownership
 
@@ -59,10 +59,16 @@ publications may reassign or unassign the SKU, including unassigning every
 configured SKU. They preserve identity and immutable history. There is no global
 fee-configuration version or ownership effective-date model.
 
-The selected company applies across all dates in live reads. An assigned SKU
-with no fee periods still has ownership for noncommission expenses. Unassigned
-source keys resolve as `MISSING_OWNERSHIP`, retaining a selected terms reference
-when available. Periods retained in an unassigned revision are inactive.
+The selected company is treated as the correct historical owner. Reassignment
+corrects a mistaken assignment across all dates in live reads and future payout
+generation; it does not represent a transfer effective from a particular date.
+Saved reports retain their original company and amounts.
+
+An assigned SKU with no fee periods still has ownership for noncommission expenses.
+Unassigned source keys resolve as `MISSING_OWNERSHIP`, retaining a selected terms
+reference when available. Required unassigned SKUs block complete financial totals
+and payout generation; they are not silently omitted. Periods retained in an
+unassigned revision are inactive.
 
 ### Publish complete terms across marketplaces
 
@@ -109,9 +115,9 @@ failed publications.
 
 ## Live read contract
 
-A strict read selects complete source versions for explicitly declared
-Settlement identities and Data Kiosk marketplace/day coverage, requires matching
-preprocessor versions, and applies the source policy before calculating money.
+A strict read selects the declared Settlement identities for mature dates and
+Data Kiosk marketplace/day coverage for every date. It requires complete compatible
+source versions and applies the source policy before calculating money.
 It resolves seller/SKU ownership independently of fee eligibility, then joins the
 selected terms version and its marketplace period covering the source activity date.
 
@@ -121,10 +127,12 @@ another sign reversal. Shipping, gift wrap, taxes, promotions, and Amazon fees
 are outside this base. The posting date of each row selects its rate; report end,
 deposit, download, and preprocessing dates do not.
 
-Data Kiosk sales analysis uses validated `netProductSales`, preserving
-`orderedProductSales` and signed `refundedProductSales` separately. It requires
-`net = ordered - refunded`, including negative refunds. These analysis values
-do not create a second authoritative sales commission alongside Settlement.
+Recent Data Kiosk sales use validated `netProductSales`, preserving
+`orderedProductSales` and signed `refundedProductSales` separately for analysis. The source requires
+`net = ordered - refunded`, including negative refunds. Only the selected net component
+supplies the recent commission base; mature dates use Settlement reports. Data Kiosk
+comparisons in the Settlement category have null fee/company contributions and cannot add a
+second commission. Costs in the Data Kiosk category remain authoritative and have no sales commission.
 
 ```text
 fee_amount = -(fee_base * fee_rate_percent * 0.01)
@@ -185,35 +193,21 @@ needs a missing fee, both known sums remain NULL; an explicit 0% rate yields a
 known zero fee. The SQL JSON detail uses decimal strings and the Python reader
 returns exact `Decimal` values.
 
-These partial sums support live administration. Payout publication uses the
-strict complete calculation and rejects missing fees.
+These partial sums support live administration. Payout publication rejects missing
+applicable fees; its [coverage rules](company_payout_reports.md#empty-aggregates)
+distinguish scopes with authoritative rows from empty aggregates.
 
-### Dashboard estimates
+### Dashboard estimates and source authority
 
-The browser calls `public.transaction_totals(...)` for approximate totals over the
-Transactions dataset. These include all eligible current transaction sources, including
-Data Kiosk comparison and analysis rows, while excluding zero-amount Data Kiosk rows.
-They preserve currencies and unknown amounts but do not certify complete imports or apply
-the strict payout source exclusions. See the [summary API contract](transaction_query_contracts.md#period-totals-and-type-breakdowns)
-for scope, grouping, and missing-fee counts.
+Dashboard and strict reads apply the same [source policy](source_allocation.md). Dashboard totals
+sum imported authoritative rows; strict reads additionally require complete declared coverage and
+resolved ownership/fees. Zero Data Kiosk amounts remain excluded from dashboard pages and counts,
+while verified empty days satisfy coverage. Comparison and analysis rows do not add money.
 
-### Source authority and views
-
-Each source has one fact table. The required `allocation_category` enum contains `SETTLEMENT`, `SELBOX`,
-`DATA_KIOSK`, and `ANALYSIS_ONLY`; Settlement permits the first three only.
-
-Settlement `SETTLEMENT` rows supply company amounts and eligible commissions.
-Settlement `SELBOX` rows remain with SelBox. Settlement `DATA_KIOSK` rows are
-reconciliation controls even when they contain an owned SKU. Approved Data Kiosk
-`DATA_KIOSK` components supply company costs; its `SETTLEMENT` counterparts remain
-available for comparison. `ANALYSIS_ONLY` facts stay outside authoritative totals
-under the strict financial contract.
-
-Data Kiosk's DAY/MSKU query requires SKU and produces no account entries. A
-known account component with MSKU fails preprocessing. Unknown financial labels
-and missing required amounts or collections also fail the whole acquisition's
-preprocessing. A recognized analysis-only component has an explicit amount and
-is not a fallback for unknown money.
+Company amounts use exact SKU ownership and the signed fee formula above. SelBox category and
+reconciliation rows have no company ownership, require no fee configuration, and contribute zero
+to company amounts. Company and SKU selections exclude those account rows. See the
+[summary API](transaction_query_contracts.md#period-totals-and-type-breakdowns) for request scope.
 
 ## Access and performance
 
@@ -221,8 +215,8 @@ Company views use `security_invoker = true`, underlying read grants, and RLS
 based on `app_accounts`. Company members cannot change ownership, fee terms, or
 source publications. They see selected terms for their assigned company's SKUs
 and permitted current source results. Operators read all terms versions and
-retained source history, publish complete terms, and read all saved payout
-reports. Company members have no payout access. See the
+retained source history, publish complete terms, and generate/read saved payout
+reports for any company and eligible calendar month. Company members can read their own saved payout reports and components. See the
 [application-access contract](access_control.md). The
 [PostgreSQL view contract](https://www.postgresql.org/docs/17/sql-createview.html)
 defines how invoker permissions and base-table policies apply.
@@ -236,9 +230,8 @@ the local database tests verify access and exact results, not production capacit
 
 ## Implementation and acceptance
 
-The [migration modules](../services/db/supabase/README.md#schema-modules) install this schema into a fresh database; they do
-not provide an upgrade or backfill path for an existing deployment. The
-[database suite](../services/db/supabase/README.md#verification) tests versioned
+The [migration modules](../services/db/supabase/README.md#schema-modules) install the schema into a
+fresh database. The [database suite](../services/db/supabase/README.md#verification) tests versioned
 ownership, complete terms replacement, stale publication, frozen children,
 missing-versus-zero coverage, signed fee arithmetic, and tenant isolation on
 disposable databases. The source and financial unit tests verify the Python

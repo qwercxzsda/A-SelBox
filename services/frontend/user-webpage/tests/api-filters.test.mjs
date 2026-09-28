@@ -314,7 +314,7 @@ test("invalid company UUIDs and company filters on other datasets fail before HT
     );
   }
   for (const dataset of Object.keys(DATASET_CONFIG).filter(
-    (key) => isTableDataset(key) && key !== "live",
+    (key) => isTableDataset(key) && key !== "live" && key !== "payouts",
   )) {
     await assert.rejects(
       client.fetchDatasetPage(
@@ -360,7 +360,7 @@ test("invalid calendar periods and unsupported column filters fail before sendin
   for (const [dataset, filters] of [
     ["settlement", datasetFilters({ sources: ["SETTLEMENT"] })],
     ["accounts", datasetFilters({ marketplaces: ["Amazon.com"] })],
-    ["payouts", datasetFilters({ dateFrom: "2026-09-01" })],
+    ["accounts", datasetFilters({ dateFrom: "2026-09-01" })],
     ["live", datasetFilters({ skus: ["invalid\0value"] })],
   ]) {
     await assert.rejects(client.fetchDatasetPage(pageRequest(dataset, { filters })));

@@ -16,7 +16,6 @@ _PARAMETER_TYPES = {
     "p_date_from": "date",
     "p_date_to": "date",
     **{name: "uuid[]" if name == "p_company_ids" else "text[]" for name in _ARRAY_FILTERS},
-    "p_marketplaces": "text[]",
     "p_fee_applicable": "boolean",
     **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
 }
@@ -54,7 +53,7 @@ class TransactionCountTests(SourceModelFixture):
         company_a, company_b = self.financial_fixture()
         for user, expected in (
             (self.operator(), "19"),
-            (self.member(company_a), "9"),
+            (self.member(company_a), "7"),
             (self.member(company_b), "4"),
             (self.auth_user(), "0"),
         ):
@@ -132,7 +131,7 @@ class TransactionCountTests(SourceModelFixture):
         acquisition = self.acquisition()
         _, settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
-        for user, expected in ((operator, "2"), (member_a, "2"), (member_b, "0")):
+        for user, expected in ((operator, "3"), (member_a, "2"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
         self.settlement(
             [self.transaction("200", 3), self.transaction("300", 4)],
@@ -157,7 +156,7 @@ class TransactionCountTests(SourceModelFixture):
         company_a, company_b = self.financial_fixture()
         for user, total in (
             (self.operator(), "19"),
-            (self.member(company_a), "9"),
+            (self.member(company_a), "7"),
             (self.member(company_b), "4"),
             (self.auth_user(), "0"),
         ):

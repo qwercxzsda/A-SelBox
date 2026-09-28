@@ -1,62 +1,6 @@
--- Wildcards select known typed source relations and the preceding named CTE.
+-- Company components share source authority and signed-fee arithmetic.
+-- Wildcards expand typed sources and named CTEs.
 -- noqa: disable=AM04
--- Shared relational ownership and current fee selection. No rolling date windows.
--- Scalar business rules stay inlinable: no SET clauses or data access.
--- Existing callers resolve these fully qualified helpers under their own scope.
-create function private.settlement_fee_applicable(
-    p_transaction_type text, p_amount_type text, p_amount_description text
-) returns boolean
-language sql immutable parallel safe security invoker as $$
-    select p_transaction_type in ('Order', 'Refund')
-        and p_amount_type = 'ItemPrice' and p_amount_description = 'Principal';
-$$;
-
-create function private.calculate_service_fee(p_fee_base numeric, p_fee_rate_percent numeric)
-returns numeric
-language sql immutable parallel safe security invoker as $$
-    select -(p_fee_base * p_fee_rate_percent * 0.01);
-$$;
-
--- Include explicitly unassigned current terms; their NULL company is part of
--- existing missing-ownership diagnostics. The invoker retains both tables' RLS.
-create view private.current_sku_terms with (security_invoker = true) as
-select
-    s.id as seller_sku_id,
-    s.seller_namespace,
-    s.sku,
-    v.id as terms_version_id,
-    v.company_id
-from public.seller_skus as s
-inner join public.sku_terms_versions as v
-    on s.id = v.seller_sku_id and s.current_terms_version_id = v.id;
-
-revoke all on private.current_sku_terms from public, anon, authenticated, service_role;
-revoke all on function private.settlement_fee_applicable(text, text, text),
-private.calculate_service_fee(numeric, numeric) from public, anon, authenticated, service_role;
-
-create view public.company_skus with (security_invoker = true) as
-select
-    seller_sku_id as id,
-    seller_namespace,
-    sku,
-    company_id,
-    terms_version_id
-from private.current_sku_terms
-where company_id is not null;
-
-create view public.current_sku_fee_periods with (security_invoker = true) as
-select
-    s.id as seller_sku_id,
-    s.company_id,
-    s.terms_version_id,
-    p.marketplace_name,
-    p.id as fee_period_id,
-    p.valid_period,
-    p.fee_rate_percent
-from public.company_skus as s
-inner join public.sku_fee_periods as p on s.terms_version_id = p.terms_version_id;
-
-
 -- This payout/reference resolver uses explicit versions, never current pointers.
 -- It shares fee applicability and arithmetic rules with the current live reads.
 create function private.resolve_company_components(
@@ -102,7 +46,7 @@ begin
     t.amount as source_amount,
     t.quantity::numeric as quantity,
     case
-        when private.settlement_fee_applicable(
+        when t.category = 'SETTLEMENT' and private.settlement_fee_applicable(
             t.transaction_type, t.amount_type, t.amount_description
         ) then t.amount
     end as fee_base,
@@ -110,7 +54,9 @@ begin
     true as authoritative
 from private.settlement_transactions as t
 inner join private.settlement_preprocess_versions as v on t.version_id = v.id
-where t.category = 'SETTLEMENT' and v.id = any(p_settlement_version_ids)
+where t.category in ('SETTLEMENT', 'SELBOX')
+    and t.posted_date < (select private.mature_cutoff_date())
+    and v.id = any(p_settlement_version_ids)
 union all
 select
     'DATA_KIOSK' as source, -- noqa: RF04
@@ -128,10 +74,19 @@ select
     t.quantity,
     t.fee_base,
     t.category,
-    t.category = 'DATA_KIOSK' as authoritative
+    (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+        and t.category in ('SETTLEMENT', 'SELBOX'))) as authoritative
 from private.data_kiosk_transactions as t
 inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
 where v.id = any(p_data_kiosk_version_ids)
+union all
+select 'RECONCILIATION'::text, private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency),
+    private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), 'reconciliation-v1'::text,
+    private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), r.seller_namespace,
+    r.marketplace_name, r.activity_date, null::text, 'SETTLEMENT_KIOSK_DIFFERENCE'::text,
+    r.currency, r.difference, null::numeric, null::numeric, 'SELBOX'::public.allocation_category, true
+from private.resolve_source_reconciliation(p_settlement_version_ids,p_data_kiosk_version_ids) r
+where r.data_kiosk_settlement_control <> 0 or r.data_kiosk_category_amount <> 0
 ), selected_terms as (
     select s.id as seller_sku_id,s.seller_namespace,s.sku,v.id as terms_version_id,v.company_id
     from public.sku_terms_versions v join public.seller_skus s on s.id = v.seller_sku_id
@@ -145,6 +100,7 @@ where v.id = any(p_data_kiosk_version_ids)
         p.id as fee_period_id,
         p.fee_rate_percent,
         case
+            when c.category = 'SELBOX' then 'NOT_APPLICABLE'
             when o.company_id is null then 'MISSING_OWNERSHIP'
             when c.fee_base is null then 'NOT_APPLICABLE'
             when p.id is null then 'MISSING_FEE'
@@ -152,6 +108,7 @@ where v.id = any(p_data_kiosk_version_ids)
         end as resolution_status
     from components as c
     left join selected_terms as o on c.seller_namespace = o.seller_namespace and c.sku = o.sku
+    and c.category <> 'SELBOX'
     left join public.sku_fee_periods as p
         on p.terms_version_id = o.terms_version_id and p.marketplace_name = c.marketplace_name
             and p.valid_period @> c.activity_date and c.fee_base is not null and o.company_id is not null
@@ -161,6 +118,7 @@ calculated as (
     select
         r.*,
         case
+            when not r.authoritative then null::numeric
             when r.resolution_status = 'NOT_APPLICABLE' then 0::numeric
             when
                 r.resolution_status = 'APPLIED'
@@ -174,7 +132,8 @@ select c.source,c.source_row_id::uuid,c.source_version_id::uuid,c.preprocess_ver
     c.component_type::text,c.currency,c.source_amount::numeric,c.quantity::numeric,c.fee_base::numeric,
     c.category,c.authoritative,c.seller_sku_id::uuid,c.terms_version_id::uuid,c.company_id::uuid,
     c.fee_period_id::uuid,c.fee_rate_percent,c.resolution_status,c.fee_amount,
-    c.source_amount + c.fee_amount as company_amount
+    case when c.category = 'SELBOX' then 0::numeric
+        else c.source_amount + c.fee_amount end as company_amount
 from calculated as c;
 end;
 $$;
@@ -200,7 +159,7 @@ with components as (
         t.amount as source_amount,
         t.quantity::numeric as quantity,
         case
-            when private.settlement_fee_applicable(
+            when t.category = 'SETTLEMENT' and private.settlement_fee_applicable(
                 t.transaction_type, t.amount_type, t.amount_description
             ) then t.amount
         end as fee_base,
@@ -210,7 +169,9 @@ with components as (
     inner join private.settlement_preprocess_versions as v on t.version_id = v.id
     inner join private.settlements as s
         on v.id = s.current_version_id
-    where t.category = 'SETTLEMENT'
+    where
+        t.category in ('SETTLEMENT', 'SELBOX')
+        and t.posted_date < (select private.mature_cutoff_date())
     union all
     select
         'DATA_KIOSK'::text as source, -- noqa: RF04
@@ -228,11 +189,40 @@ with components as (
         t.quantity,
         t.fee_base,
         t.category,
-        t.category = 'DATA_KIOSK' as authoritative
+        (t.category = 'DATA_KIOSK' or (
+            t.activity_date >= (select private.mature_cutoff_date())
+            and t.category in ('SETTLEMENT', 'SELBOX')
+        )) as authoritative
     from private.data_kiosk_transactions as t
     inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
     inner join private.data_kiosk_days as d
         on v.id = d.current_version_id
+    union all
+    select
+        'RECONCILIATION'::text,
+        private.reconciliation_group_id(
+            r.seller_namespace, r.activity_date, r.marketplace_name, r.currency
+        ) as source_row_id,
+        private.reconciliation_group_id(
+            r.seller_namespace, r.activity_date, r.marketplace_name, r.currency
+        ) as source_version_id,
+        'reconciliation-v1'::text,
+        private.reconciliation_group_id(
+            r.seller_namespace, r.activity_date, r.marketplace_name, r.currency
+        ) as source_identity_id,
+        r.seller_namespace,
+        r.marketplace_name,
+        r.activity_date,
+        null::text,
+        'SETTLEMENT_KIOSK_DIFFERENCE'::text,
+        r.currency,
+        r.difference,
+        null::numeric,
+        null::numeric,
+        'SELBOX'::public.allocation_category,
+        true as authoritative
+    from private.live_source_reconciliation as r
+    where r.data_kiosk_settlement_control <> 0 or r.data_kiosk_category_amount <> 0
 ),
 
 selected_terms as materialized (
@@ -252,7 +242,9 @@ select
     o.company_id
 from components as c
 left join selected_terms as o
-    on c.seller_namespace = o.seller_namespace and c.sku = o.sku;
+    on
+        c.seller_namespace = o.seller_namespace and c.sku = o.sku
+        and c.category <> 'SELBOX';
 
 -- Complete current rows support strict financial reads and diagnostics.
 -- Bounded transaction RPCs share the same arithmetic.
@@ -263,6 +255,7 @@ with resolved as (
         p.id as fee_period_id,
         p.fee_rate_percent,
         case
+            when c.category = 'SELBOX' then 'NOT_APPLICABLE'
             when c.company_id is null then 'MISSING_OWNERSHIP'
             when c.fee_base is null then 'NOT_APPLICABLE'
             when p.id is null then 'MISSING_FEE'
@@ -281,6 +274,7 @@ calculated as (
     select
         r.*,
         case
+            when not r.authoritative then null::numeric
             when r.resolution_status = 'NOT_APPLICABLE' then 0::numeric
             when r.resolution_status = 'APPLIED'
                 then private.calculate_service_fee(r.fee_base, r.fee_rate_percent)
@@ -312,5 +306,8 @@ select
     c.fee_rate_percent,
     c.resolution_status,
     c.fee_amount,
-    c.source_amount + c.fee_amount as company_amount
+    case
+        when c.category = 'SELBOX' then 0::numeric
+        else c.source_amount + c.fee_amount
+    end as company_amount
 from calculated as c;

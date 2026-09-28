@@ -23,7 +23,7 @@ begin
         ]::text[]) then
         raise exception 'Explicit valid financial input scope required' using errcode = '23514';
     end if;
-    if exists (
+    if p_start < private.mature_cutoff_date() and exists (
         select 1 from unnest(p_settlement_ids) requested(id)
         left join private.settlements s on s.id = requested.id and s.seller_namespace = p_seller_namespace
         left join private.settlement_preprocess_versions v on v.id = s.current_version_id
@@ -39,6 +39,20 @@ begin
            or exists (select 1 from private.data_kiosk_pruned_versions pruned where pruned.version_id = v.id)
     ) then raise exception 'Missing or incompatible required Data Kiosk day coverage' using errcode = '23514'; end if;
 end;
+$$;
+
+-- Keep one definition of the declared company scope for complete and partial reads.
+-- A plain SQL invoker function remains inlinable, preserving predicate pushdown.
+create function private.company_components_in_scope(
+    p_seller_namespace text, p_start date, p_end date,
+    p_settlement_ids uuid[], p_marketplaces text[]
+) returns setof public.live_company_components
+language sql stable security invoker as $$
+    select c.* from public.live_company_components c
+    where c.category <> 'SELBOX' and c.authoritative
+        and c.seller_namespace = p_seller_namespace and c.activity_date between p_start and p_end
+        and ((c.source = 'SETTLEMENT' and c.source_identity_id = any(p_settlement_ids))
+            or (c.source = 'DATA_KIOSK' and c.marketplace_name = any(p_marketplaces)));
 $$;
 
 create function private.company_financial_totals(
@@ -57,18 +71,13 @@ begin
     perform private.assert_company_source_scope(p_seller_namespace,p_start,p_end,p_preprocess_version,
         p_settlement_ids,p_marketplaces,p_dataset_key);
     if exists (
-        select 1 from public.live_company_components c
-        where c.seller_namespace = p_seller_namespace and c.activity_date between p_start and p_end
-          and ((c.source = 'SETTLEMENT' and c.source_identity_id = any(p_settlement_ids))
-            or (c.source = 'DATA_KIOSK' and c.marketplace_name = any(p_marketplaces)
-                and c.category = 'DATA_KIOSK'))
-          and c.resolution_status not in ('APPLIED','NOT_APPLICABLE')
+        select 1 from private.company_components_in_scope(
+            p_seller_namespace,p_start,p_end,p_settlement_ids,p_marketplaces) c
+        where c.resolution_status not in ('APPLIED','NOT_APPLICABLE')
     ) then raise exception 'Unresolved ownership or fee coverage' using errcode = '23514'; end if;
     return query select c.company_id::uuid,c.currency,sum(c.source_amount),sum(c.fee_amount),sum(c.company_amount)
-        from public.live_company_components c
-        where c.seller_namespace = p_seller_namespace and c.activity_date between p_start and p_end
-          and ((c.source = 'SETTLEMENT' and c.source_identity_id = any(p_settlement_ids))
-            or (c.source = 'DATA_KIOSK' and c.marketplace_name = any(p_marketplaces) and c.authoritative))
+        from private.company_components_in_scope(
+            p_seller_namespace,p_start,p_end,p_settlement_ids,p_marketplaces) c
         group by c.company_id,c.currency;
 end;
 $$;
@@ -88,11 +97,9 @@ begin
     perform private.assert_company_source_scope(p_seller_namespace,p_start,p_end,p_preprocess_version,
         p_settlement_ids,p_marketplaces,p_dataset_key);
     if exists (
-        select 1 from public.live_company_components c
-        where c.seller_namespace = p_seller_namespace and c.activity_date between p_start and p_end
-          and ((c.source = 'SETTLEMENT' and c.source_identity_id = any(p_settlement_ids))
-            or (c.source = 'DATA_KIOSK' and c.marketplace_name = any(p_marketplaces) and c.authoritative))
-          and c.resolution_status = 'MISSING_OWNERSHIP'
+        select 1 from private.company_components_in_scope(
+            p_seller_namespace,p_start,p_end,p_settlement_ids,p_marketplaces) c
+        where c.resolution_status = 'MISSING_OWNERSHIP'
     ) then raise exception 'Unresolved ownership' using errcode = '23514'; end if;
     return query
     select c.company_id,c.currency,sum(c.source_amount),sum(c.fee_amount),sum(c.company_amount),
@@ -104,10 +111,8 @@ begin
                 'fee_amount',c.fee_amount::text,'company_amount',c.company_amount::text)
             order by c.source,c.source_row_id
         ) filter (where c.resolution_status = 'MISSING_FEE'),'[]'::jsonb)
-    from public.live_company_components c
-    where c.seller_namespace = p_seller_namespace and c.activity_date between p_start and p_end
-      and ((c.source = 'SETTLEMENT' and c.source_identity_id = any(p_settlement_ids))
-        or (c.source = 'DATA_KIOSK' and c.marketplace_name = any(p_marketplaces) and c.authoritative))
+    from private.company_components_in_scope(
+            p_seller_namespace,p_start,p_end,p_settlement_ids,p_marketplaces) c
     group by c.company_id,c.currency;
 end;
 $$;

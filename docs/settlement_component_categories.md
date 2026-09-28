@@ -18,17 +18,15 @@ ownership and fees independently of preprocessing.
 
 Store `SETTLEMENT`, `SELBOX`, or `DATA_KIOSK` in the required `category` field,
 using Python's `AllocationCategory` and PostgreSQL's `public.allocation_category`
-enum. There is no numeric category or separate `allocation_treatment` or
-`source_selection` field. The Settlement contract does not allow `ANALYSIS_ONLY`;
-that fourth enum category applies only to Data Kiosk and does not change the
-three-way Settlement partition. `UNRESOLVED` is not a stored category in either
-source.
+enum. Settlement accepts only these three categories. Data Kiosk also supports
+`ANALYSIS_ONLY` for explicitly recognized diagnostic components. Unknown classifications
+are rejected before publication.
 
 | Category     | Settlement SKU contract                                                    | Company amount source                                                          |
 | ------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `SETTLEMENT` | Known family; nonblank SKU, including zero amounts.                        | Settlement through exact SKU ownership.                                        |
+| `SETTLEMENT` | Known family; nonblank SKU, including zero amounts.                        | Settlement amounts for mature dates through exact SKU ownership.                          |
 | `SELBOX`     | Known account families require blank SKU. Explicit retained types preserve any SKU. | No company allocation from this settlement row.                                |
-| `DATA_KIOSK` | Explicit cost-family match; preserve any supplied SKU.                     | Selected Data Kiosk components; settlement amount is a reconciliation control. |
+| `DATA_KIOSK` | Explicit cost-family match; preserve any supplied SKU.                     | Data Kiosk amount in this category; Settlement reports provide controls for mature dates. |
 
 1. Resolve the exact source triple through the shared registry, including its
    stored Type, category, family, and accounting subtype.
@@ -164,10 +162,9 @@ Data Kiosk `LabelingFee` is separately approved from Japanese source evidence.
 No settlement labeling spelling is invented: the settlement classifier requires
 an observed, reviewed signature before adding another rule.
 
-A `DATA_KIOSK` settlement row may contain SKU; preserve it without directly
-allocating that settlement amount. Data Kiosk selects its independently mapped
-costs once, without proportional allocation or an FBA/Finances fallback. No
-individual settlement/Data Kiosk match is required for classification.
+A Settlement report row in the Data Kiosk category may contain SKU. Preserve it without
+reclassification or company allocation. The [source policy](source_allocation.md) selects Data
+Kiosk amounts for companies and retains the daily difference with SelBox; no per-row match is required.
 
 ## Validation and source selection
 
@@ -187,18 +184,18 @@ produce diagnostics and remain in the report's exact reconciliation. API
 descriptive metadata does not override row identity or validation, as defined in
 the [metadata contract](data_workflows.md#metadata-and-transaction-rows).
 
-Preserve zero amounts. Other structural failures, conflicting rules, or failed known
-family assumptions abort the report and block dependent payouts. Publish no
-successful partial report. Unknown types also abort the whole report.
+Preserve zero amounts. Structural failures, conflicting rules, unknown types, and
+failed family checks reject preprocessing of the complete report. No partial source
+version is published; payout requests use the available accepted versions under the
+[coverage policy](company_payout_reports.md#empty-aggregates).
 Required explicit marketplaces remain source checks. Missing business ownership
 or fee coverage does not invalidate source preprocessing; live calculations
 retain those facts as unresolved and reject incomplete financial totals.
 
-For payouts, exclude Data Kiosk **monetary components** belonging to `SETTLEMENT`.
-A Data Kiosk value with SKU must never be `SELBOX`; a known account component
-with MSKU aborts preprocessing. A SKU can have `SETTLEMENT` sales from settlement and
-`DATA_KIOSK` storage from Data Kiosk. Do not discard a whole SKU or Data Kiosk row
-because that SKU appears in settlement, including in a `DATA_KIOSK` entry.
+Financial source selection follows the [source policy](source_allocation.md), using the
+preprocessed category and the activity date's relation to the mature cutoff date rather than
+shared SKU presence. A Data Kiosk value with SKU must never be `SELBOX`;
+a known account component with MSKU aborts preprocessing.
 Data Kiosk `ANALYSIS_ONLY` facts retain that explicit category and remain available in
 diagnostics. Unknown fee or advertising types and missing required monetary
 amounts or collections abort Python preprocessing of the whole acquisition
@@ -209,8 +206,8 @@ provisionally or be excluded as analysis-only.
 
 An explicit `DATA_KIOSK` rule does not prove that every settlement event has an
 individual Data Kiosk counterpart. Its
-settlement amount remains in reconciliation whether or not there is a Data Kiosk
-counterpart. Do not require a per-row Data Kiosk match to admit it. Data Kiosk
+Settlement amount remains a reconciliation control regardless of SKU presence.
+Do not require a per-row Data Kiosk match to admit it. Data Kiosk
 component selection is a separate step: unknown or overlapping Data Kiosk
 monetary mappings fail preprocessing, and incomplete required source coverage
 still blocks authoritative totals.
@@ -233,8 +230,8 @@ do not prove that all source components have been acquired.
 A processing manifest must establish the required source coverage and include
 the complete group. If a group crosses a report boundary or its completeness
 cannot be established within the declared coverage, do not silently use the
-available subset. Block the affected reports/payout until complete evidence or a
-reviewed grouping policy is available. Require exact zero using decimal source
+available subset. Reject preprocessing until complete evidence or a reviewed
+grouping policy is available. Require exact zero using decimal source
 amounts in one currency. Nonzero, unidentified, incomplete, or unexpected groups
 abort; they are neither reassigned to SKU nor absorbed as SelBox variance.
 
@@ -253,10 +250,10 @@ The distinction is financial meaning, not the word `Tax`:
   family's contract. These records still need the separately defined payout and
   tax-accounting treatment; their category is not a claim that tax is profit.
 - The observed `Tax on fee` rows for storage, aged storage, and disposal belong
-  to `DATA_KIOSK` alongside their base fees. Their settlement amounts remain in
-  reconciliation. Do not pay the base from Data Kiosk and add the same tax from
-  settlement again. Use one reviewed convention for Data Kiosk base, promotion,
-  tax, and total fields; if total already includes tax, do not add tax twice.
+  to the Data Kiosk category alongside their base fees. Data Kiosk supplies company costs in this category
+  using its reviewed base, promotion, tax, and total mapping. For mature dates,
+  Settlement controls supply the corresponding difference. If a Data Kiosk total
+  already includes tax, do not add tax twice.
 - `SELBOX` retrocharge tax is retained in the complete zero-net group. Do not
   drop its positive tax or negative withholding separately.
 

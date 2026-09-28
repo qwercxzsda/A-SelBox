@@ -196,7 +196,3 @@ revoke all on function public.source_transaction_page(
     text, integer, bigint, text, text, date, date, text[],
     text[], text[], boolean, text[], text[], text[]
 ) from public, anon, authenticated, service_role;
-grant execute on function public.source_transaction_page(
-    text, integer, bigint, text, text, date, date, text[],
-    text[], text[], boolean, text[], text[], text[]
-) to authenticated;

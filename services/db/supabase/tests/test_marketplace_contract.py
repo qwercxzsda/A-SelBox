@@ -7,6 +7,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests import test_company_terms as terms_fixture
+from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAMES, validate_marketplace_name
 
@@ -73,13 +74,14 @@ class MarketplaceContractTests(SourceModelFixture):
             + [self.transaction("2", 100, kind="Adjustment") | {"marketplace_name": None}]
         )
         self.kiosk(1, [self.component()])
+        fill_payout_kiosk_month(self)
         payload: dict[str, object] = {
             "id": new_id(),
             "company_id": company,
             "seller_namespace": self.seller,
             "currency": "USD",
-            "start_date": "2026-06-15",
-            "end_date": "2026-06-15",
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-30",
             "preprocess_version": "v0",
             "settlement_ids": [settlement],
             "marketplace_names": ["Amazon.com"],

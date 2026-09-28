@@ -6,7 +6,7 @@ import { getErrorMessage } from "./view-model";
 import {
   activeRevisionSources,
   changedRevisionSources,
-  isAdministrativeQuery,
+  isPolledQuery,
   refreshWorkspaceQueries,
   sameAccount,
   REVISION_SOURCES,
@@ -57,13 +57,12 @@ export function useWorkspaceRefresh(
             return;
           }
           const changed = changedRevisionSources(baseline.current, snapshot.revisions);
-          const administrative =
-            client.getQueryCache().findAll({ type: "active", predicate: isAdministrativeQuery })
-              .length > 0;
+          const hasPolledQuery =
+            client.getQueryCache().findAll({ type: "active", predicate: isPolledQuery }).length > 0;
           do {
             const forced = forceRequested.current;
             forceRequested.current = false;
-            if (changed.length > 0 || forced || administrative) {
+            if (changed.length > 0 || forced || hasPolledQuery) {
               setIsUpdating(true);
               const refreshCatalogs =
                 forced ||

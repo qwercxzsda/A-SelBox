@@ -15,11 +15,24 @@ filter can narrow the caller's visible data but cannot expand it.
 The SKU discovery RPC additionally requires a current stored application-operator account. Company
 members use their assigned SKUs and cannot call that administrator endpoint.
 
-Current transaction reads combine Settlement rows classified `SETTLEMENT` and nonzero Data Kiosk
-rows from selected current versions. Settlement zero rows remain visible. Dashboard estimates sum
-these eligible rows; strict financial and payout functions retain their separate completeness and
-source-scope contracts. Reassignment and fee revisions affect live reads without changing source
-facts or saved payouts.
+Current transaction reads use PostgreSQL's current UTC date minus the mature cutoff
+period of two calendar months as the mature cutoff date. Dates before it are mature;
+the mature cutoff date and later are recent.
+Recent dates use Data Kiosk amounts in all three monetary categories. Mature dates use
+Settlement report amounts in the Settlement and SelBox categories, Data Kiosk amounts in the
+Data Kiosk category, and administrator-only `RECONCILIATION` rows. Each derived row is the
+Settlement report control minus the Data Kiosk amount in the Data Kiosk category, grouped by
+day/marketplace/seller/currency with a nonzero subtotal in at least one source.
+Matching nonzero controls retain a zero difference row; groups with both subtotals zero have no
+derived transaction row. These choices use the unchanged preprocessing categories. For mature dates,
+the complete account total equals the Settlement report total. Members see only their assigned amounts
+in the Settlement and Data Kiosk categories. Rows in the SelBox category and difference rows have
+zero company contribution and remain administrator-only. Company/SKU
+filters omit these account controls rather than apportioning them. Comparison and
+analysis rows do not count toward pages, counts, or totals. Strict reads additionally
+validate complete required coverage and ownership/fees. Monthly reports require
+month end strictly before the mature cutoff date. Source changes and reassignment affect live
+reads but cannot change saved reports.
 
 Date bounds are inclusive, finite calendar dates. If both are supplied, the start cannot exceed the
 end. Selection arrays are one-dimensional and cannot contain null members. Omitted, null, or empty
@@ -35,7 +48,7 @@ are always separate; database calculations do not convert currencies.
 
 ## Transaction pages
 
-[`public.transaction_page`](../services/db/supabase/migrations/20260927080107_transaction_page.sql)
+[`public.transaction_page`](../services/db/supabase/migrations/20260928123134_transaction_page.sql)
 accepts:
 
 | Parameter                  | Default | Meaning                                                           |
@@ -43,20 +56,21 @@ accepts:
 | `p_limit`                  | `25`    | Integer page size, 1–1,000.                                       |
 | `p_offset`                 | `0`     | Nonnegative safe integer, at most 9,007,199,254,740,991.          |
 | `p_search_skus`, `p_search_types`, `p_search_marketplaces`, `p_search_sources` | `null` | Exact frontend-resolved search sets, combined with OR. All null disables search; empty active sets match nothing. |
-| `p_order_by`               | `date`  | Sort key: `date` or `amount` (stored reported amount).            |
+| `p_order_by`               | `date`  | Sort key: `date` or `amount` (reported amount).            |
 | `p_direction`              | `desc`  | Ordering direction: `asc` or `desc`.                              |
 | `p_date_from`, `p_date_to` | `null`  | Optional inclusive date bounds.                                   |
 | `p_company_ids`            | `null`  | Current company UUID selection.                                   |
 | `p_skus`                   | `null`  | Exact SKU text selection.                                         |
 | `p_marketplaces`           | `null`  | Exact supported marketplace text selection.                       |
 | `p_sources`                | `null`  | Source text selection.                                            |
-| `p_types`                  | `null`  | Raw component-type selection.                                     |
+| `p_types`                  | `null`  | Component-type selection, including the derived administrator difference.                                     |
 | `p_include_count`          | `true`  | Whether to include an exact matching-row count.                   |
 | `p_fee_applicable`         | `null`  | `true`: applicable source Type; `false`: other Types; null: both. |
 
 Response: `{ "rows": [...], "total_count": "123" }`. With counting disabled, `total_count` is null.
 An empty page still receives the full matching count when requested. Rows retain source identity,
 metadata, current terms and fee references, quantities, amounts, and resolution diagnostics.
+Derived differences use deterministic group UUIDs and do not identify a raw source transaction.
 
 Filters, text search, and RLS apply before candidate selection. For date ordering the database takes
 at most `offset + limit` eligible candidates per source, merges them, selects the page, and only
@@ -73,7 +87,7 @@ unassigned or unregistered operator-visible facts. Member RLS independently chec
 the caller's current ownership set before candidate selection; page limits cannot bypass it.
 
 Date and Reported amount ordering, with or without text search, use this RPC. Reported amount is the
-stored numeric source amount, ordered with its sign; values are not converted between currencies.
+numeric source amount or derived difference, ordered with its sign; values are not converted between currencies.
 Exact search-set predicates apply before
 each source candidate limit; fee calculation still follows global page selection.
 
@@ -99,9 +113,10 @@ The frontend recognizes only that allowlisted error, explains how to narrow the 
 Date ordering. A known exact count above the limit disables amount choices; the server remains
 responsible for enforcing the cap when the count is unknown or stale.
 
-The fee-applicability filter uses raw source Type codes before paging/counting: Settlement
+The fee-applicability filter uses source Type codes before paging/counting: Settlement report rows
+in the Settlement category with type
 `PRODUCT_SALES` and `PRODUCT_REFUNDS`, and Data Kiosk `NET_PRODUCT_SALES`. The negative filter
-selects the other Types within each source. Explicit Type selections intersect this filter; they
+also includes retained account and reconciliation rows. Explicit Type selections intersect this filter; they
 do not replace it. These direct comparisons expose the existing `(component_type, date)` indexes.
 
 Applicability is independent of configuration: a zero base, zero rate, missing ownership, or missing
@@ -112,7 +127,7 @@ inconsistent fields; it does not rewrite a base or fabricate a configured rate.
 
 ## Raw source pages
 
-[`public.source_transaction_page`](../services/db/supabase/migrations/20260927080109_source_transaction_page.sql)
+[`public.source_transaction_page`](../services/db/supabase/migrations/20260928123136_source_transaction_page.sql)
 serves the Settlements and Data Kiosk tabs. Its required `p_dataset` is `settlement` or
 `data_kiosk`. Optional parameters are `p_limit` (25), `p_offset` (0), `p_order_by` (`date`),
 `p_direction` (`desc`), `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`, `p_types`,
@@ -128,7 +143,7 @@ before pagination and counting; Settlement zero amounts remain.
 
 This endpoint preserves the raw source views' visibility, including historical versions and every
 source category available to the caller. It does not impose Transactions' current-version or
-Settlement-category restriction. Existing fact and metadata RLS still apply; choosing a dataset
+category and source-authority restrictions. Existing fact and metadata RLS still apply; choosing a dataset
 cannot expand access. The UI exposes these tabs to administrators.
 
 The same 10,000-match amount-ordering limit applies to each raw source tab, after its filters,
@@ -141,17 +156,18 @@ search arguments.
 
 ## Exact transaction counts
 
-[`public.transaction_count`](../services/db/supabase/migrations/20260927080105_transaction_counts.sql)
+[`public.transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
 accepts the same date, company, SKU, marketplace, source, Type, and fee-applicability filters as the
 page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
 for no matching rows. There are no paging or ordering parameters.
 
-The function counts eligible source facts without calculating financial amounts or resolving fees.
+The function counts eligible source facts and derived reconciliation groups without resolving
+company fees. Reconciliation still requires grouped source subtotals.
 Search uses the same exact OR-set predicates as the page request. The
 frontend can show rows before this separate request finishes, and reuses counts across page/order
 changes until the relevant revision invalidates them.
 
-[`public.source_transaction_count`](../services/db/supabase/migrations/20260927080105_transaction_counts.sql)
+[`public.source_transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
 accepts required `p_dataset` and optional `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`,
 `p_types`, `p_search_skus`, `p_search_types`, and `p_search_marketplaces` (all null by default). It returns the same exact count string and shares
 raw source visibility/search rules with `source_transaction_page`. No page, ordering, or financial
@@ -179,7 +195,7 @@ empty arrays contribute no matches. Thus an active search with all empty arrays 
 and count zero, not an unrestricted read. Page and count requests use identical resolved arrays.
 The API client rejects unresolved active searches and malformed arrays before sending a request.
 The database validates array shape and members, then performs exact comparisons before paging or
-the amount-sort cap. It no longer evaluates substring expressions over transaction rows.
+the amount-sort cap.
 
 Company SKUs come from loaded current assignments. Administrators preload the complete
 SKU catalog before the workspace is shown, including historical, unassigned, unregistered, and
@@ -190,7 +206,7 @@ and payout searches retain their existing REST query behavior.
 
 ## Period totals and Type breakdowns
 
-[`public.transaction_totals`](../services/db/supabase/migrations/20260927080111_transaction_totals.sql)
+[`public.transaction_totals`](../services/db/supabase/migrations/20260928123138_transaction_totals.sql)
 accepts:
 
 | Parameter                                   | Default | Meaning                                                    |
@@ -207,13 +223,15 @@ row contains `currency`, `component_type`, `reported_amount`, `service_fee`, `co
 `row_count`, and `known_company_count`. `component_type` is null for currency-only grouping. All
 five numeric fields are strings or, for unknown monetary sums, null.
 
-`row_count` includes every eligible source row. `known_company_count` counts rows with a known
+`row_count` includes every eligible source or derived reconciliation row. Retained SelBox rows
+have a known zero company amount, so they do not signal missing ownership or fees. `known_company_count` counts rows with a known
 company amount, allowing the UI to identify incomplete fee coverage. Monetary sums retain SQL sum
 semantics: known amounts contribute; an entirely unknown sum is null. No matching facts produce an
 empty `rows` array, not a fabricated zero-currency group.
 
 Facts are filtered first and combined by seller/SKU, marketplace, date, currency, optional Type, and
-fee applicability before resolving ownership and fee periods. Exact sums remain equivalent to
+fee applicability and whether the amount is retained by SelBox before resolving ownership and
+fee periods. Exact sums remain equivalent to
 individual row calculations. Groups sort by currency and raw Type using database `C` collation; one
 extra group determines continuation without another exact source-row count.
 
@@ -230,11 +248,13 @@ discovery and the Latest month rule belong to the frontend; this RPC calculates 
 
 Source, Marketplace, and Type menus use static application catalogs. All SKU menus use an already
 loaded catalog: company members reuse their current `company_skus` assignments; administrators
-preload [`public.sku_filter_options`](../services/db/supabase/migrations/20260927080113_sku_filter_options.sql)
+preload [`public.sku_filter_options`](../services/db/supabase/migrations/20260928123140_sku_filter_options.sql)
 during identity bootstrap. Opening a menu makes no database request. Options may return zero rows
 under the selected dataset and other filters.
 
-Administrators receive every known Type for the dataset's source scope. Company members receive
+Administrators receive every known Type for the dataset's source scope. Administrator Transactions
+also offers source `RECONCILIATION` and type `SETTLEMENT_KIOSK_DIFFERENCE`, computed separately
+from the unchanged preprocessing registry. Company members receive
 every known Type except category `SELBOX`. These are local registry choices, not occurrence-based
 database discovery. After selection, page/count RPCs still query matching transaction rows for the
 table and exact pagination; knowing valid Type names does not establish their transaction counts.
@@ -268,12 +288,10 @@ columns' native deterministic collation; the final combined catalog is deduplica
 with `C` collation. The recursive work stays inside one SQL statement and snapshot. Every lookup
 retains caller RLS, and registered-only SKUs still come from the ordinary registry read.
 
-There is no member discovery branch. Company-user menus continue to use loaded assignments.
-
 ## Index access paths
 
 The source tables use the following optional read indexes in the
-[canonical baseline](../services/db/supabase/migrations/20260927080039_schema_foundation.sql).
+[canonical baseline](../services/db/supabase/migrations/20260928123054_schema_foundation.sql).
 Here `date` means Settlement `posted_date` or Data Kiosk `activity_date`.
 
 | Key shape                       | Settlement    | Data Kiosk    | Intended access                                              |
@@ -303,10 +321,10 @@ No equality wrapper, catalog flag change, or RLS relaxation is involved.
 
 Settlement retains its compact ownership/version index and has a partial count index on
 `(posted_date, component_type, seller_namespace, sku, version_id, category, marketplace_name)`
-where `category = 'SETTLEMENT'`. Date leads bounded-window counts even when no Type, SKU, or
-marketplace is selected; trailing keys cover the other filters and eligibility checks. The
-existing full Type/date index still serves selective Type/date reads and raw operator categories
-outside that partial predicate.
+where `category = 'SETTLEMENT'`. Its partial predicate does not cover the expanded
+administrator scope for mature dates, which also admits `SELBOX` Settlement rows.
+The planner can use the existing full Type/date and other indexes for the broader scope.
+Trailing keys support filters and eligibility checks where that partial index applies.
 
 Data Kiosk uses
 `(activity_date, component_type, seller_namespace, sku, version_id, category, marketplace_name)`
@@ -345,13 +363,13 @@ supports company references. Batch lookups reuse `UNIQUE(batch_id, day_id)`.
 
 ## Shared rules and API configuration
 
-[Financial read rules](../services/db/supabase/migrations/20260927080050_financial_relations.sql)
+[Financial read rules](../services/db/supabase/migrations/20260928123106_financial_rules.sql)
 provide `private.settlement_fee_applicable`, `private.calculate_service_fee`, and the invoker view
 `private.current_sku_terms`. The exact formula remains `-(fee_base * fee_rate_percent * 0.01)`;
 callers retain the existing missing/non-applicable branches. Current terms include explicit
 unassignment, while the explicit-version payout resolver retains its captured version scope.
 
-[Transaction read rules](../services/db/supabase/migrations/20260927080103_transaction_read_rules.sql)
+[Transaction read rules](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 provide `private.validate_transaction_filters`, `private.validate_page_bounds`, and
 `private.member_policy_covers_current_version`. Validation runs once before query execution;
 source-specific fact selection and candidate limits remain in each optimized query. The frontend
@@ -362,7 +380,7 @@ The current-pointer shortcut applies only to authenticated non-operators with ac
 already requires current versions. Operators, owners, and bypass contexts retain explicit pointer
 checks. These helpers preserve the existing access rules and financial results.
 
-[Application access](../services/db/supabase/migrations/20260927080058_application_access.sql)
+[Application access](../services/db/supabase/migrations/20260928123123_application_access.sql)
 separates transaction authorization from reference visibility. Fact policies match current source
 pointers directly and still enforce each row's category and current seller/SKU ownership. Metadata
 policies do not inspect facts: `private.is_company_member()` establishes registered member access,
@@ -372,9 +390,11 @@ retain historical reference access. Existing column grants continue to exclude f
 and its operator-only functions remain guarded. The private member helper has a fixed search path and
 authenticated-only application execution.
 
-Public RPCs use invoker security. Reference visibility does not grant transaction access. See the
+Public RPCs use invoker security. The final
+[application grants](../services/db/supabase/migrations/20260928123142_application_grants.sql)
+module defines their API allowlist. Reference visibility does not grant transaction access. See the
 [access contract](access_control.md#how-rls-enforces-this).
 
-[REST configuration](../services/db/supabase/migrations/20260927080115_rest_api_configuration.sql)
+[REST configuration](../services/db/supabase/migrations/20260928123144_rest_api_configuration.sql)
 sets `pgrst.db_aggregates_enabled=false`. General REST aggregate selections fail with `PGRST123`;
 ordinary row reads, pagination counts, and these dedicated RPCs remain available.

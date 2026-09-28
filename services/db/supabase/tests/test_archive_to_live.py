@@ -107,6 +107,7 @@ def settlement_document(*, valid: bool = True) -> bytes:
 class TestArchiveToLive(DatabaseTestCase):
     def setUp(self) -> None:
         super().setUp()
+        self.set_mature_cutoff_date(date(2026, 7, 1))
         self.database = TransactionDatabase(self.connection)
         self.storage = MemoryArchiveStorage()
         self.seller = f"archive-integration-{uuid7()}"
@@ -157,7 +158,7 @@ class TestArchiveToLive(DatabaseTestCase):
             self.connection.execute(
                 "select count(*) from public.live_company_components where source='SETTLEMENT'"
             ).fetchone(),
-            (2,),
+            (0,),
         )
         self.assertEqual(
             self.connection.execute(
@@ -263,7 +264,7 @@ class TestArchiveToLive(DatabaseTestCase):
             sku="SKU-1",
             company_id=company,
             expected_current_version_id=None,
-            periods=[],
+            periods=[FeePeriod("Amazon.com", date(2026, 1, 1), None, Numeric(0))],
             change_reason="Assign cost ownership",
         )
         totals = load_company_financial_totals(
@@ -280,7 +281,7 @@ class TestArchiveToLive(DatabaseTestCase):
         self.assertEqual(totals[0].fee_amount, Numeric(0))
         self.assertEqual(totals[0].company_amount, Numeric("-15.5"))
 
-    def test_offline_sources_live_refunds_and_schedule_corrections(self) -> None:
+    def test_recent_sources_ignore_settlement_refunds_and_use_kiosk_fee_base(self) -> None:
         settlement_input, economics_input = self.save_settlement(), self.save_data_kiosk()
         preprocess_settlement_report(self.database, self.storage, settlement_input)
         preprocess_data_kiosk_acquisition(self.database, self.storage, economics_input)
@@ -308,8 +309,8 @@ class TestArchiveToLive(DatabaseTestCase):
         totals = self.read_totals(settlement_id)
         self.assertEqual(len(totals), 1)
         self.assertEqual(totals[0].source_amount, Numeric(-12))
-        self.assertEqual(totals[0].fee_amount, Numeric(2))
-        self.assertEqual(totals[0].company_amount, Numeric(-10))
+        self.assertEqual(totals[0].fee_amount, Numeric(0))
+        self.assertEqual(totals[0].company_amount, Numeric(-12))
         publish_sku_terms(
             self.database,
             seller_namespace=self.seller,
@@ -324,7 +325,7 @@ class TestArchiveToLive(DatabaseTestCase):
         )
         self.assertEqual(
             self.read_totals(settlement_id)[0].company_amount,
-            Numeric(-11),
+            Numeric(-12),
         )
         self.assertEqual(
             self.connection.execute(

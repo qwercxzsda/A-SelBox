@@ -31,7 +31,6 @@ class PayoutRetentionTests(SourceModelFixture):
         company, _ = self.owner()
         _, first = self.kiosk(1, [self.component("-10"), self.component("-3")])
         first_report = publish_report(self, company)
-        second_report = publish_report(self, company)
         _, empty = self.kiosk(2, [], expected=first)
         empty_report = publish_report(self, company)
         current = empty
@@ -47,10 +46,11 @@ class PayoutRetentionTests(SourceModelFixture):
             self.connection.execute(
                 "select version_id::text,count(*) "
                 "from private.payout_report_data_kiosk_versions "
-                "where report_id=any(%s::uuid[]) group by version_id order by version_id",
-                ([first_report, second_report, empty_report],),
+                "where report_id=any(%s::uuid[]) and version_id=any(%s::uuid[]) "
+                "group by version_id order by version_id",
+                ([first_report, empty_report], [first, empty]),
             ).fetchall(),
-            [(first, 2), (empty, 1)],
+            [(first, 1), (empty, 1)],
         )
         self.assertEqual(
             self.connection.execute(
@@ -97,8 +97,8 @@ class PayoutRetentionTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select version_id::text from private.payout_report_data_kiosk_versions "
-                "where report_id=%s",
-                (report,),
+                "where report_id=%s and version_id=%s",
+                (report, first),
             ).fetchone(),
             (first,),
         )

@@ -104,7 +104,8 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
   const field = fields.find((value) => value === column.key);
   if (field) return <SelectionColumnHeader {...props} field={field} />;
 
-  const dateFilter = config.dateColumn === column.key;
+  // Payouts use the month control so browsing and generation share one period.
+  const dateFilter = dataset !== "payouts" && config.dateColumn === column.key;
   if (!dateFilter && !column.sortable) return column.label;
   const date = column.kind === "date";
   const numeric = column.kind === "money" || column.kind === "percent" || column.kind === "number";

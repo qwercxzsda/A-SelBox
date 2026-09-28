@@ -127,13 +127,14 @@ begin
                     t.amount as source_amount,
                     t.quantity::numeric as quantity,
                     case
-                        when private.settlement_fee_applicable(
+                        when t.category = 'SETTLEMENT' and private.settlement_fee_applicable(
                             t.transaction_type, t.amount_type, t.amount_description
                         ) then t.amount
                     end as fee_base,
                     t.category
                 from private.settlement_transactions as t
-                where t.category = 'SETTLEMENT'
+                where t.category in ('SETTLEMENT', 'SELBOX')
+                    and t.posted_date < (select private.mature_cutoff_date())
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.settlement_transactions'::regclass
@@ -149,11 +150,12 @@ begin
                         coalesce(cardinality($3::uuid[]), 0) = 0
                         or exists (
                             select 1 from public.company_skus as o
-                            where o.seller_namespace = t.seller_namespace
+                            where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
                                 and o.sku = t.sku and o.company_id = any($3)
                         )
                     )
-                    and (coalesce(cardinality($4::text[]), 0) = 0 or t.sku = any($4))
+                    and (coalesce(cardinality($4::text[]), 0) = 0
+                        or (t.category <> 'SELBOX' and t.sku = any($4)))
                     and %9$s
                     and (coalesce(cardinality($6::text[]), 0) = 0
                         or 'SETTLEMENT'::text = any($6))
@@ -161,7 +163,7 @@ begin
                         or t.component_type = any($7))
                     and (
                         $12::boolean is null
-                        or (t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = $12
+                        or (t.category = 'SETTLEMENT' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = $12
                     )
                     and (
                         ($13::text[] is null and $14::text[] is null
@@ -192,6 +194,8 @@ begin
                     t.category
                 from private.data_kiosk_transactions as t
                 where t.amount <> 0
+                    and (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+                        and t.category in ('SETTLEMENT', 'SELBOX')))
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.data_kiosk_transactions'::regclass
@@ -207,11 +211,12 @@ begin
                         coalesce(cardinality($3::uuid[]), 0) = 0
                         or exists (
                             select 1 from public.company_skus as o
-                            where o.seller_namespace = t.seller_namespace
+                            where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
                                 and o.sku = t.sku and o.company_id = any($3)
                         )
                     )
-                    and (coalesce(cardinality($4::text[]), 0) = 0 or t.sku = any($4))
+                    and (coalesce(cardinality($4::text[]), 0) = 0
+                        or (t.category <> 'SELBOX' and t.sku = any($4)))
                     and %9$s
                     and (coalesce(cardinality($6::text[]), 0) = 0
                         or 'DATA_KIOSK'::text = any($6))
@@ -224,6 +229,35 @@ begin
                         or t.sku = any($13) or t.component_type = any($14)
                         or t.marketplace_name = any($15) or 'DATA_KIOSK'::text = any($16)
                     )
+                %3$s
+                limit $8::bigint
+                %10$s
+            )
+            union all
+            (
+                %8$s
+                select 'RECONCILIATION'::text as source,
+                    private.reconciliation_group_id(t.seller_namespace, t.activity_date, t.marketplace_name, t.currency) as source_row_id,
+                    private.reconciliation_group_id(t.seller_namespace, t.activity_date, t.marketplace_name, t.currency) as source_version_id,
+                    t.seller_namespace, t.marketplace_name, t.activity_date,
+                    null::text as sku, 'SETTLEMENT_KIOSK_DIFFERENCE'::text as component_type,
+                    t.currency, t.difference as source_amount, null::numeric as quantity,
+                    null::numeric as fee_base, 'SELBOX'::public.allocation_category as category
+                from private.live_source_reconciliation t
+                where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
+                    and ($1::date is null or t.activity_date >= $1)
+                    and ($2::date is null or t.activity_date <= $2)
+                    and coalesce(cardinality($3::uuid[]),0) = 0
+                    and coalesce(cardinality($4::text[]),0) = 0
+                    and %9$s
+                    and (coalesce(cardinality($6::text[]),0) = 0 or 'RECONCILIATION' = any($6))
+                    and (coalesce(cardinality($7::text[]),0) = 0
+                        or 'SETTLEMENT_KIOSK_DIFFERENCE' = any($7))
+                    and ($12::boolean is null or not $12)
+                    and (($13::text[] is null and $14::text[] is null
+                            and $15::text[] is null and $16::text[] is null)
+                        or 'SETTLEMENT_KIOSK_DIFFERENCE' = any($14)
+                        or t.marketplace_name = any($15) or 'RECONCILIATION' = any($16))
                 %3$s
                 limit $8::bigint
                 %10$s
@@ -244,12 +278,15 @@ begin
             where exists (
                 select 1 from raw_page as selected
                 where selected.seller_namespace = terms.seller_namespace and selected.sku = terms.sku
+                    and selected.category <> 'SELBOX'
             )
         ),
         page as materialized (
             select r.*,
-                coalesce(s.preprocess_version, k.preprocess_version) as preprocess_version,
-                coalesce(s.settlement_id, k.day_id) as source_identity_id,
+                case when r.source = 'RECONCILIATION' then 'reconciliation-v1'
+                    else coalesce(s.preprocess_version, k.preprocess_version) end as preprocess_version,
+                case when r.source = 'RECONCILIATION' then r.source_row_id
+                    else coalesce(s.settlement_id, k.day_id) end as source_identity_id,
                 o.seller_sku_id, o.terms_version_id, o.company_id
             from raw_page as r
             left join private.settlement_preprocess_versions as s
@@ -257,12 +294,13 @@ begin
             left join private.data_kiosk_preprocess_versions as k
                 on r.source = 'DATA_KIOSK' and k.id = r.source_version_id
             left join selected_terms as o
-                on r.seller_namespace = o.seller_namespace and r.sku = o.sku
-            where s.id is not null or k.id is not null
+                on r.seller_namespace = o.seller_namespace and r.sku = o.sku and r.category <> 'SELBOX'
+            where s.id is not null or k.id is not null or r.source = 'RECONCILIATION'
         ),
         resolved as (
             select c.*, p.id as fee_period_id, p.fee_rate_percent,
                 case
+                    when c.category = 'SELBOX' then 'NOT_APPLICABLE'
                     when c.company_id is null then 'MISSING_OWNERSHIP'
                     when c.fee_base is null then 'NOT_APPLICABLE'
                     when p.id is null then 'MISSING_FEE'
@@ -293,7 +331,8 @@ begin
                 c.category, c.seller_sku_id::uuid, c.terms_version_id::uuid,
                 c.company_id::uuid, c.fee_period_id::uuid, c.fee_rate_percent,
                 c.resolution_status, c.fee_amount,
-                c.source_amount + c.fee_amount as company_amount
+                case when c.category = 'SELBOX' then 0::numeric
+                    else c.source_amount + c.fee_amount end as company_amount
             from calculated as c
         )
         -- CASE does not execute the sorting/fee or optional exact-count branch
@@ -344,7 +383,3 @@ revoke all on function public.transaction_page(
 anon,
 authenticated,
 service_role;
-grant execute on function public.transaction_page(
-    integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[]
-) to authenticated;

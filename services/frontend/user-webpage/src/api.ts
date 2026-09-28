@@ -77,3 +77,28 @@ export const fetchTransactionPeriodTotals = (
 export const fetchTransactionTypeTotals = (
   options: FetchTransactionTypeTotalsOptions,
 ): Promise<TransactionTypeTotal[]> => getDefaultClient().fetchTransactionTypeTotals(options);
+
+export const fetchPayoutPolicy = (accessToken: string, signal?: AbortSignal) =>
+  getDefaultClient().fetchPayoutPolicy(accessToken, signal);
+export const generatePayoutReports = (accessToken: string, companyId: string, month: string) =>
+  getDefaultClient().generatePayoutReports(accessToken, companyId, month);
+export const fetchPayoutMarketplaceTotals = (
+  accessToken: string,
+  reportId: string,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchPayoutMarketplaceTotals(accessToken, reportId, signal);
+export const fetchPayoutComponents = (
+  accessToken: string,
+  reportId: string,
+  authoritative: boolean,
+  pageIndex: number,
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchPayoutComponents(accessToken, reportId, authoritative, pageIndex, signal);
+
+export const fetchPayoutReconciliation = (
+  accessToken: string,
+  reportId: string,
+  pageIndex: number,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal);

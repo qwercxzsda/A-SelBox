@@ -54,8 +54,10 @@ service-role API key is a separate capability and is not a PostgreSQL login.
 | Read source preprocessing facts                         | All retained versions   | All retained versions and categories | Current versions of permitted own-company facts |
 | Read narrow report/day/version references               | All                     | All, including historical versions   | All current references across companies         |
 | Read full preprocessing headers and diagnostics         | Yes                     | Yes                                  | No                                              |
-| Read payout reports, components, and input references   | All                     | All                                  | No                                              |
-| Publish acquisitions, source results, or payout reports | Python/SQL              | No                                   | No                                              |
+| Read payout reports, components, and marketplace totals | All | All | Own saved company only |
+| Read payout input references | All | All | No |
+| Publish acquisitions and source results | Python/SQL | No | No |
+| Generate eligible monthly payout reports | Python/SQL | Any company | No |
 | Run Data Kiosk pruning                                  | Python/SQL              | No                                   | No                                              |
 | Read raw document archives                              | Trusted archive service | No                                   | No                                              |
 
@@ -63,7 +65,7 @@ Company members see Settlement `SETTLEMENT` facts and owned Data Kiosk facts
 except `SELBOX`. Category rules keep account/control amounts
 outside company access. Both the source version and SKU assignment must be
 current. Historical activity dates inside a current result remain visible;
-"current" refers to the selected version, not a recent-date window.
+"current" refers to the selected version, not the recent date range.
 
 Current report/day/version references are shared with all registered company members, including
 members whose company has no SKUs. Those references expose only the granted IDs, parent links and
@@ -143,16 +145,24 @@ withdraws fee coverage; payout publication rejects unresolved required inputs.
 | `settlement_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                        | Permitted current own-company rows |
 | `settlement_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                 | Denied                             |
 | `live_company_components`                                                                                | Current data permitted by the view's definition | Current own-company data           |
-| `company_payout_reports`, `company_payout_report_components`                                             | All saved reports and components                | No rows                            |
+| `company_payout_reports`, `company_payout_report_components` | All saved reports and components | Own saved company reports and components |
+| `payout_report_marketplace_totals` | Marketplace totals for all saved reports | Marketplace totals for own saved company reports |
 | `payout_report_settlement_versions`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                      | No rows                            |
+| `payout_report_reconciliation` | Saved daily seller controls | No rows |
 
 ## How RLS enforces this
 
 Role and company checks read `app_accounts` using the authenticated caller's
 `auth.uid()`. User-editable JWT metadata cannot grant permissions. Private
-`SECURITY DEFINER` helpers perform only the caller-bound checks and explicitly
-guarded privileged reads or terms publication. Their search paths are fixed.
-REST views and the public RPC wrapper use invoker security.
+`SECURITY DEFINER` helpers perform caller-bound checks, explicitly guarded mutations, and
+frozen-report integrity validation. Their search paths are fixed. The private payout validator
+runs with its owner at commit so authenticated publication can verify protected manifests;
+callers have no direct execute grant on that trigger function. REST views and public RPC
+wrappers use invoker security.
+
+`payout_report_marketplace_totals` is a read-only invoker view over frozen
+authoritative company components. It follows their saved-report RLS and does not
+expose the administrator-only seller reconciliation or SelBox difference.
 
 The complete SKU discovery RPC checks `private.is_operator()` before reading source history.
 Its shared `authenticated` SQL execution grant supports operator sessions; stored application
@@ -181,8 +191,10 @@ cache. Account removal, reassignment, and terms publication therefore affect sub
 
 Fact policies check current source pointers directly, alongside each fact's category and current
 seller/SKU ownership. Their header reads have simple account/current-pointer policies and never
-inspect transaction rows to prove metadata ownership. Settlement eligibility remains category
-`SETTLEMENT`; Data Kiosk eligibility remains every category except `SELBOX`, including `ANALYSIS_ONLY`.
+inspect transaction rows to prove metadata ownership. Settlement company eligibility includes category
+`SETTLEMENT` with owned SKUs; Data Kiosk fact access includes every category
+except `SELBOX`, including `ANALYSIS_ONLY`. Financial page/count/total functions additionally
+apply the date authority rule and exclude analysis from monetary calculations.
 
 `private.is_company_member()` checks the caller's stored account using `auth.uid()`. It is a narrow
 definer helper with a fixed empty search path and execution granted only to `authenticated` among
@@ -196,15 +208,14 @@ access without changing a registered member's reference visibility; removing the
 revokes both. Reference identifiers and their currentness are intentionally shared, while amounts,
 counts, diagnostics and raw evidence retain their separate restrictions.
 
-Member grants on source headers remain limited to the identifiers needed by
-current views. Operator-only metadata functions provide full headers without
-granting those account-wide controls to company members. Payout RLS requires an
-operator, so full saved report columns and manifests are operator-only.
+Member grants on source headers remain limited to identifiers needed by current views.
+Operator-only metadata functions expose full headers. Payout RLS uses the saved report company
+for member access; source/terms manifests and seller reconciliation remain operator-only.
 
-The private schema remains outside the REST API's exposed schemas. Source and payout publication,
-pruning, acquisition manifests, and raw Storage objects are not exposed through an operator
-endpoint. Authorization follows the database snapshot of each request; changing access does not
-cancel a request already running with an earlier snapshot. The
+The private schema is outside the REST API. Source publication, pruning, acquisition manifests,
+and raw Storage objects have no operator endpoint. The guarded monthly payout RPC derives source
+scope and amounts for operators. Authorization follows each request's database snapshot;
+changing access does not cancel a request already running with an earlier snapshot. The
 [performance guide](database_performance.md) describes the resulting read paths and their limits.
 
 Supabase checks [grants and RLS together](https://supabase.com/docs/guides/database/postgres/row-level-security);

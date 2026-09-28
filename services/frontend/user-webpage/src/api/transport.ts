@@ -2,8 +2,7 @@ import { parseTotalCount } from "./content-range.ts";
 import { parseCsv } from "./csv.ts";
 import { validateApiConfig, type ApiClientConfig } from "./client-config.ts";
 import type { PageResult } from "./types.ts";
-import { AMOUNT_ORDER_LIMIT_MESSAGE, AmountOrderingLimitError } from "./amount-ordering.ts";
-import { isJsonObject } from "./validation.ts";
+import { publicRpcError } from "./rpc-errors.ts";
 
 /** A null status identifies a transport failure; server response bodies stay private. */
 export class ApiError extends Error {
@@ -125,23 +124,16 @@ export function createTransport(configuration: ApiClientConfig, fetchImplementat
     );
     if (!response.ok) {
       if (
-        response.status === 400 &&
-        ["transaction_page", "source_transaction_page"].includes(name) &&
-        isJsonObject(args) &&
-        args.p_order_by === "amount"
+        response.status === 400 ||
+        (response.status === 409 && name === "generate_company_payout_reports")
       ) {
         const body = await readJson(response, operation, signal).catch((error: unknown) => {
           if (signal?.aborted || (error instanceof Error && error.name === "AbortError"))
             throw error;
           return null;
         });
-        // Only this exact public contract is safe to translate. Other DB details stay private.
-        if (
-          isJsonObject(body) &&
-          body.code === "22023" &&
-          body.message === AMOUNT_ORDER_LIMIT_MESSAGE
-        )
-          throw new AmountOrderingLimitError();
+        const publicError = publicRpcError(name, args, body);
+        if (publicError) throw publicError;
       }
       throw new ApiError(operation, response.status);
     }
