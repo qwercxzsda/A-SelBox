@@ -38,9 +38,10 @@ class SchemaContractTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.live_company_components"
+                "select sku,company_id,source_amount,company_amount,fee_amount "
+                "from public.live_company_components"
             ).fetchone(),
-            (0,),
+            (source_sku, None, -11, 0, 0),
         )
         user = self.member(company)
         self.connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user,))

@@ -53,7 +53,8 @@ begin
         from (
             select count(*) as row_count
             from private.settlement_transactions as t
-            where t.category = 'SETTLEMENT'
+            where t.category in ('SETTLEMENT', 'SELBOX')
+                and t.posted_date < (select private.mature_cutoff_date())
                 and (
                     settlement_policy_is_sufficient
                     or exists (
@@ -67,11 +68,12 @@ begin
                     coalesce(cardinality(p_company_ids), 0) = 0
                     or exists (
                         select 1 from public.company_skus as o
-                        where o.seller_namespace = t.seller_namespace
+                        where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
                             and o.sku = t.sku and o.company_id = any(p_company_ids)
                     )
                 )
-                and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
+                and (coalesce(cardinality(p_skus), 0) = 0
+                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
                 and (
                     coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces)
@@ -83,7 +85,7 @@ begin
                 and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
                 and (
                     p_fee_applicable is null
-                    or (t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = p_fee_applicable
+                    or (t.category = 'SETTLEMENT' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = p_fee_applicable
                 )
                 and (
                     (p_search_skus is null and p_search_types is null
@@ -95,6 +97,8 @@ begin
             select count(*) as row_count
             from private.data_kiosk_transactions as t
             where t.amount <> 0
+                and (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+                    and t.category in ('SETTLEMENT', 'SELBOX')))
                 and (
                     kiosk_policy_is_sufficient
                     or exists (
@@ -108,11 +112,12 @@ begin
                     coalesce(cardinality(p_company_ids), 0) = 0
                     or exists (
                         select 1 from public.company_skus as o
-                        where o.seller_namespace = t.seller_namespace
+                        where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
                             and o.sku = t.sku and o.company_id = any(p_company_ids)
                     )
                 )
-                and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
+                and (coalesce(cardinality(p_skus), 0) = 0
+                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
                 and (
                     coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces)
@@ -129,6 +134,25 @@ begin
                     or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
                     or t.marketplace_name = any(p_search_marketplaces) or 'DATA_KIOSK'::text = any(p_search_sources)
                 )
+            union all
+            select count(*) as row_count
+            from private.live_source_reconciliation t
+            where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
+                and (p_date_from is null or t.activity_date >= p_date_from)
+                and (p_date_to is null or t.activity_date <= p_date_to)
+                and coalesce(cardinality(p_company_ids),0) = 0
+                and coalesce(cardinality(p_skus),0) = 0
+                and (coalesce(cardinality(p_marketplaces),0) = 0
+                    or t.marketplace_name = any(p_marketplaces))
+                and (coalesce(cardinality(p_sources),0) = 0 or 'RECONCILIATION' = any(p_sources))
+                and (coalesce(cardinality(p_types),0) = 0
+                    or 'SETTLEMENT_KIOSK_DIFFERENCE' = any(p_types))
+                and (p_fee_applicable is null or not p_fee_applicable)
+                and ((p_search_skus is null and p_search_types is null
+                        and p_search_marketplaces is null and p_search_sources is null)
+                    or 'SETTLEMENT_KIOSK_DIFFERENCE' = any(p_search_types)
+                    or t.marketplace_name = any(p_search_marketplaces)
+                    or 'RECONCILIATION' = any(p_search_sources))
         ) as source_counts
     );
 end;
@@ -137,10 +161,6 @@ revoke all on function public.transaction_count(
     date, date, uuid[], text[], text[], text[], text[], boolean, text[], text[], text[], text[]
 )
 from public, anon, authenticated, service_role;
-grant execute on function public.transaction_count(
-    date, date, uuid[], text[], text[], text[], text[], boolean, text[], text[], text[], text[]
-)
-to authenticated;
 
 -- Count the same raw facts as source_transaction_page without metadata joins.
 -- Existing fact/version policies ensure every visible fact has a visible parent;
@@ -211,6 +231,3 @@ $$;
 revoke all on function public.source_transaction_count(
     text, date, date, text[], text[], text[], text[], text[], text[]
 ) from public, anon, authenticated, service_role;
-grant execute on function public.source_transaction_count(
-    text, date, date, text[], text[], text[], text[], text[], text[]
-) to authenticated;

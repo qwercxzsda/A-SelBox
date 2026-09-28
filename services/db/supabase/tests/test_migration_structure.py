@@ -8,7 +8,7 @@ from pathlib import Path
 _MIGRATIONS = Path(__file__).parents[1] / "migrations"
 _DEFINITION = re.compile(
     r"^create\s+(?:or\s+replace\s+)?(?:unique\s+)?"
-    r"(?P<kind>function|view|index)\s+(?P<name>[a-z_][a-z_0-9.]*)\b",
+    r"(?P<kind>function|view|index|table|type|domain)\s+(?P<name>[a-z_][a-z_0-9.]*)\b",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 

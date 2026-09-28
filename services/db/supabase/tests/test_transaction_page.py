@@ -4,12 +4,8 @@ from decimal import Decimal, localcontext
 from itertools import combinations, product
 from typing import cast
 
-import psycopg
-
-from services.db.supabase.tests.rpc_support import assert_rpc_contract
 from services.db.supabase.tests.transaction_fixtures import (
     TRANSACTION_ARRAY_FILTERS,
-    TRANSACTION_PARAMETER_TYPES,
     TransactionPageFixture,
 )
 
@@ -19,7 +15,7 @@ class TransactionPageTests(TransactionPageFixture):
         company_a, company_b = self.financial_fixture()
         for user, count in (
             (self.operator(), "19"),
-            (self.member(company_a), "9"),
+            (self.member(company_a), "7"),
             (self.member(company_b), "4"),
             (self.auth_user(), "0"),
         ):
@@ -118,7 +114,7 @@ class TransactionPageTests(TransactionPageFixture):
         # Fact IDs are unique within a source, not across both source tables.
         kiosk_rows[0]["id"] = settlement_rows[0]["id"]
         self.settlement(settlement_rows)
-        self.kiosk(1, kiosk_rows)
+        self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
         user = self.member(company)
         for ordering, direction in product(("date", "amount"), ("asc", "desc")):
             with self.subTest(ordering=ordering, direction=direction):
@@ -282,6 +278,7 @@ class TransactionPageTests(TransactionPageFixture):
                 self.component("9", sku="ZERO-RATE")
                 | {"component_type": "NET_PRODUCT_SALES", "fee_base": "9"},
             ],
+            activity_date=self.recent_activity_date(),
         )
         operator = self.operator()
         for user, applicable_count, other_count in (
@@ -320,7 +317,7 @@ class TransactionPageTests(TransactionPageFixture):
             self.component("60") | {"fee_base": "60"},
         ]
         self.settlement(settlement_rows)
-        self.kiosk(1, kiosk_rows)
+        self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
         # These deliberate inconsistencies are accepted by the storage schema.
         # Filtering uses TYPE; returned financial values still use source fields.
         applicable_ids = {row["id"] for row in [*settlement_rows[1:], kiosk_rows[1]]}
@@ -404,121 +401,19 @@ class TransactionPageTests(TransactionPageFixture):
         self.settlement([self.transaction("200")], acquisition_id=acquisition, expected=settlement)
         self.kiosk(2, [self.component("-20")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, count in ((operator, "2"), (member_a, "0"), (member_b, "2")):
+        for user, count in ((operator, "3"), (member_a, "0"), (member_b, "2")):
             for include_count in (False, True):
                 page = self.assert_matches_view(user, p_limit=1, p_include_count=include_count)
                 self.assertEqual(page["total_count"], count if include_count else None)
         unassigned = self.assign("SKU", None, rate="7", expected=new_terms)
-        for user, count in ((operator, "2"), (member_a, "0"), (member_b, "0")):
+        for user, count in ((operator, "3"), (member_a, "0"), (member_b, "0")):
             for include_count in (False, True):
                 page = self.assert_matches_view(user, p_limit=1, p_include_count=include_count)
                 self.assertEqual(page["total_count"], count if include_count else None)
                 for row in cast(list[dict[str, object]], page["rows"]):
+                    if row["category"] == "SELBOX":
+                        continue
                     self.assertEqual(row["terms_version_id"], unassigned)
                     self.assertEqual(row["seller_sku_id"], sku)
                     self.assertEqual(row["resolution_status"], "MISSING_OWNERSHIP")
                     self.assertIsNone(row["company_amount"])
-
-    def test_anonymous_callers_cannot_execute(self) -> None:
-        with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
-            self.connection.execute("set local role anon")
-            self.connection.execute("select public.transaction_page()")
-        assert_rpc_contract(self, "transaction_page", TRANSACTION_PARAMETER_TYPES)
-
-    def test_text_marketplaces_preserve_rows_and_counts_for_all_roles(self) -> None:
-        company_a, company_b = self.financial_fixture()
-        for user, total in (
-            (self.operator(), "19"),
-            (self.member(company_a), "9"),
-            (self.member(company_b), "4"),
-            (self.auth_user(), "0"),
-        ):
-            for selection in (
-                None,
-                [],
-                ["Amazon.com"],
-                ["Amazon.com", "Amazon.com"],
-                ["Amazon.com", "Amazon.co.uk"],
-                ["Amazon.co.uk"],
-            ):
-                expected_count = "0" if selection == ["Amazon.co.uk"] else total
-                for include_count in (False, True):
-                    with self.subTest(selection=selection, count=include_count):
-                        page = self.assert_matches_view(
-                            user,
-                            p_marketplaces=selection,
-                            p_include_count=include_count,
-                            p_limit=1000,
-                        )
-                        self.assertEqual(len(cast(list[object], page["rows"])), int(expected_count))
-                        self.assertEqual(
-                            page["total_count"], expected_count if include_count else None
-                        )
-
-    def test_unknown_marketplaces_are_rejected_instead_of_ignored(self) -> None:
-        company_a, company_b = self.financial_fixture()
-        for user in (
-            self.operator(),
-            self.member(company_a),
-            self.member(company_b),
-            self.auth_user(),
-        ):
-            for selection in (
-                ["Unknown marketplace"],
-                ["Amazon.com", "Unknown marketplace"],
-                ["amazon.com"],
-                ["Amazon.com", "AMAZON.COM"],
-                [" Amazon.com"],
-                ["Amazon.com "],
-                [""],
-            ):
-                with (
-                    self.subTest(selection=selection),
-                    self.assertRaises(psycopg.errors.InvalidParameterValue),
-                ):
-                    self.page(user, p_marketplaces=selection)
-
-    def test_invalid_scalar_arguments_are_rejected(self) -> None:
-        operator = self.operator()
-        invalid: tuple[dict[str, object], ...] = (
-            {"p_limit": None},
-            {"p_limit": 0},
-            {"p_limit": -1},
-            {"p_limit": 1001},
-            {"p_offset": None},
-            {"p_offset": -1},
-            {"p_offset": 9007199254740992},
-            {"p_order_by": None},
-            {"p_order_by": "company_amount"},
-            {"p_order_by": "amount; drop table public.companies"},
-            {"p_direction": None},
-            {"p_direction": "sideways"},
-            {"p_include_count": None},
-            {"p_date_from": "2026-06-17", "p_date_to": "2026-06-16"},
-            {"p_date_from": "-infinity"},
-            {"p_date_to": "infinity"},
-        )
-        for options in invalid:
-            with (
-                self.subTest(options=options),
-                self.assertRaises(psycopg.errors.InvalidParameterValue),
-            ):
-                self.page(operator, **options)
-
-    def test_invalid_filter_array_shapes_are_rejected(self) -> None:
-        company, _ = self.owner()
-        operator = self.operator()
-        for name in TRANSACTION_ARRAY_FILTERS:
-            value = (
-                company
-                if name == "p_company_ids"
-                else "Amazon.com"
-                if name == "p_marketplaces"
-                else "SKU"
-            )
-            for values in ([None], [value, None], [[value]]):
-                with (
-                    self.subTest(name=name, values=values),
-                    self.assertRaises(psycopg.errors.InvalidParameterValue),
-                ):
-                    self.page(operator, **{name: values})

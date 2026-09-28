@@ -59,4 +59,3 @@ end;
 $$;
 revoke all on function public.sku_filter_options()
 from public, anon, authenticated, service_role;
-grant execute on function public.sku_filter_options() to authenticated;

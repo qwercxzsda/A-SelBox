@@ -20,7 +20,10 @@ for (const role of ["company_member", "operator"]) {
     await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
 
     const source = await openColumn(page, "Source");
-    await expect(source.getByRole("checkbox")).toHaveCount(2);
+    await expect(source.getByRole("checkbox")).toHaveCount(role === "operator" ? 3 : 2);
+    await expect(source.getByRole("checkbox", { name: "Reconciliation", exact: true })).toHaveCount(
+      role === "operator" ? 1 : 0,
+    );
     await expect(source.getByLabel("Search source", { exact: true })).toHaveCount(0);
     await source.getByRole("checkbox", { name: "Data Kiosk", exact: true }).check();
     await closeMenu(source);

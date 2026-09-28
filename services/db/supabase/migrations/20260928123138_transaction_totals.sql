@@ -43,12 +43,13 @@ begin
             select t.seller_namespace, t.sku, t.marketplace_name,
                 t.posted_date as activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end as component_type,
-                t.amount::numeric as reported_amount,
-                case when private.settlement_fee_applicable(
+                t.amount::numeric as reported_amount, t.category = 'SELBOX' as retained,
+                case when t.category = 'SETTLEMENT' and private.settlement_fee_applicable(
                     t.transaction_type, t.amount_type, t.amount_description
                 ) then t.amount::numeric end as fee_base
             from private.settlement_transactions as t
-            where t.category = 'SETTLEMENT'
+            where t.category in ('SETTLEMENT', 'SELBOX')
+                and t.posted_date < (select private.mature_cutoff_date())
                 and (settlement_policy_is_sufficient or exists (
                     select 1 from private.settlements as h where h.current_version_id = t.version_id
                 ))
@@ -56,19 +57,22 @@ begin
                 and (p_date_to is null or t.posted_date <= p_date_to)
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where o.seller_namespace = t.seller_namespace and o.sku = t.sku
+                    where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace and o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
-                and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
+                and (coalesce(cardinality(p_skus), 0) = 0
+                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
             union all
             select t.seller_namespace, t.sku, t.marketplace_name, t.activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end,
-                t.amount::numeric, t.fee_base::numeric
+                t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
             from private.data_kiosk_transactions as t
             where t.amount <> 0
+                and (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+                    and t.category in ('SETTLEMENT', 'SELBOX')))
                 and (kiosk_policy_is_sufficient or exists (
                     select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
                 ))
@@ -76,22 +80,36 @@ begin
                 and (p_date_to is null or t.activity_date <= p_date_to)
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where o.seller_namespace = t.seller_namespace and o.sku = t.sku
+                    where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace and o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
-                and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
+                and (coalesce(cardinality(p_skus), 0) = 0
+                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
+                    or t.marketplace_name = any(p_marketplaces))
+                and (p_currency is null or t.currency = p_currency)
+            union all
+            select t.seller_namespace, null::text, t.marketplace_name, t.activity_date, t.currency,
+                case when p_group_by_type then 'SETTLEMENT_KIOSK_DIFFERENCE'::text end,
+                t.difference, true, null::numeric
+            from private.live_source_reconciliation t
+            where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
+                and (p_date_from is null or t.activity_date >= p_date_from)
+                and (p_date_to is null or t.activity_date <= p_date_to)
+                and coalesce(cardinality(p_company_ids),0) = 0
+                and coalesce(cardinality(p_skus),0) = 0
+                and (coalesce(cardinality(p_marketplaces),0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
         ),
         fact_groups as materialized (
             select f.seller_namespace, f.sku, f.marketplace_name, f.activity_date,
-                f.currency, f.component_type, f.fee_base is not null as fee_applicable,
+                f.currency, f.component_type, f.retained, f.fee_base is not null as fee_applicable,
                 sum(f.reported_amount) as reported_amount, sum(f.fee_base) as fee_base,
                 count(*)::numeric as row_count
             from facts as f
             group by f.seller_namespace, f.sku, f.marketplace_name, f.activity_date,
-                f.currency, f.component_type, f.fee_base is not null
+                f.currency, f.component_type, f.retained, f.fee_base is not null
         ),
         selected_terms as materialized (
             select seller_namespace, sku, terms_version_id, company_id
@@ -99,18 +117,20 @@ begin
             where exists (
                 select 1 from fact_groups as selected
                 where selected.seller_namespace = terms.seller_namespace and selected.sku = terms.sku
+                    and not selected.retained
             )
         ),
         calculated as (
-            select g.currency, g.component_type, g.reported_amount, g.row_count,
-                case when o.company_id is null then null
+            select g.currency, g.component_type, g.reported_amount, g.row_count, g.retained,
+                case when g.retained then 0::numeric
+                    when o.company_id is null then null
                     when not g.fee_applicable then 0::numeric
                     when p.id is not null
                         then private.calculate_service_fee(g.fee_base, p.fee_rate_percent)
                 end as service_fee
             from fact_groups as g
             left join selected_terms as o
-                on g.seller_namespace = o.seller_namespace and g.sku = o.sku
+                on g.seller_namespace = o.seller_namespace and g.sku = o.sku and not g.retained
             left join public.sku_fee_periods as p
                 on o.terms_version_id = p.terms_version_id
                     and g.marketplace_name = p.marketplace_name
@@ -121,7 +141,8 @@ begin
             select c.currency, c.component_type,
                 sum(c.reported_amount) as reported_amount,
                 sum(c.service_fee) as service_fee,
-                sum(c.reported_amount + c.service_fee) as company_amount,
+                sum(case when c.retained then 0::numeric
+                    else c.reported_amount + c.service_fee end) as company_amount,
                 sum(c.row_count) as row_count,
                 sum(case when c.service_fee is not null then c.row_count else 0 end)
                     as known_company_count
@@ -155,6 +176,3 @@ $$;
 revoke all on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean, integer, bigint
 ) from public, anon, authenticated, service_role;
-grant execute on function public.transaction_totals(
-    date, date, uuid[], text[], text[], text, boolean, integer, bigint
-) to authenticated;

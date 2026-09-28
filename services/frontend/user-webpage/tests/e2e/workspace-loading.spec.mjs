@@ -28,7 +28,7 @@ test("a failed workspace download offers reload and restores the verified sessio
   await reload.click();
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.locator("header")).toContainText("member-a@example.test");
-  await expect(page.getByRole("tab")).toHaveCount(2);
+  await expect(page.getByRole("tab")).toHaveCount(3);
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(attempts).toBe(2);
   expect(fixture.authRequests).toBe(1);

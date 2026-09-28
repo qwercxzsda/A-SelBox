@@ -80,7 +80,3 @@ revoke all on function private.validate_transaction_filters(
     date, date, uuid[], text[], text[], text[], text[], boolean
 ), private.validate_page_bounds(integer, bigint)
 from public, anon, authenticated, service_role;
-grant execute on function private.validate_transaction_filters(
-    date, date, uuid[], text[], text[], text[], text[], boolean
-), private.validate_page_bounds(integer, bigint),
-private.member_policy_covers_current_version(regclass) to authenticated;

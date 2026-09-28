@@ -31,13 +31,14 @@ export const DATASET_ORDER: readonly DatasetKey[] = [
 ];
 
 export function visibleDatasets(account: AppAccount): readonly DatasetKey[] {
-  return account.access_role === "operator" ? DATASET_ORDER : ["live", "fees"];
+  return account.access_role === "operator" ? DATASET_ORDER : ["live", "fees", "payouts"];
 }
 
 export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
-    description: "Amounts reported by Amazon, service fees, and estimated company amounts.",
+    description:
+      "Mature cutoff period: two calendar months (assumed). Mature dates (before the mature cutoff date) use Settlement authority with Data Kiosk detail. Recent dates (the mature cutoff date and later) use Data Kiosk only.",
     searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
@@ -62,8 +63,8 @@ export const DATASET_PRESENTATION = {
   payouts: {
     label: "Payout reports",
     description:
-      "Saved payout calculations use the transactions and fee rates recorded when each report was created.",
-    searchPlaceholder: "Currency or calculation version",
+      "Monthly payouts preserve company amounts in the Settlement and Data Kiosk categories, plus service fees. The SelBox category and reconciliation difference stay with SelBox.",
+    searchPlaceholder: "Report name or currency",
     emptyMessage: "No payout reports match this view.",
   },
   accounts: {
@@ -99,6 +100,7 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
     column("source", "Source", "code"),
+    column("category", "Category", "code"),
     column("component_type", "Type", "code"),
     column("quantity", "Quantity", "number"),
     column("source_amount", "Reported amount", "money"),

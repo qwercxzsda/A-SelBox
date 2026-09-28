@@ -1,40 +1,5 @@
--- Application authorization is database state, never user-editable JWT metadata.
--- All REST users share the authenticated SQL role. Definer helpers stay private,
--- bind access to auth.uid(), and expose only their explicitly allowed projection.
+-- Application RLS, narrow read projections, and operator terms publication.
 -- noqa: disable=AM04
-create function private.is_operator() returns boolean
-language sql stable security definer set search_path = '' as $$
-    select exists (
-        select 1 from public.app_accounts a
-        where a.user_id = (select auth.uid()) and a.access_role = 'operator'
-    );
-$$;
-
--- Registered members may read current source references across companies.
--- Transaction ownership remains a separate fact-policy requirement.
-create function private.is_company_member() returns boolean
-language sql stable security definer set search_path = '' as $$
-    select exists (
-        select 1 from public.app_accounts a
-        where a.user_id = (select auth.uid()) and a.access_role = 'company_member'
-    );
-$$;
-
--- Project only the caller's currently owned SKUs. No caller-selected user or
--- company scope is accepted, and operator/history access stays in the policies.
--- Reading the underlying tables here avoids their mutually dependent RLS paths.
-create function private.current_owned_sku_terms() returns table (
-    seller_sku_id uuid, seller_namespace text, sku text, terms_version_id uuid
-)
-language sql stable security definer set search_path = '' as $$
-    select s.id::uuid, s.seller_namespace, s.sku, v.id::uuid
-    from public.app_accounts as a
-    join public.sku_terms_versions as v on v.company_id = a.company_id
-    join public.seller_skus as s
-        on s.id = v.seller_sku_id and s.current_terms_version_id = v.id
-    where a.user_id = (select auth.uid()) and a.access_role = 'company_member';
-$$;
-
 create policy app_accounts_read on public.app_accounts for select to authenticated
 using ((select private.is_operator()) or user_id = (select auth.uid()));
 create policy app_accounts_insert on public.app_accounts for insert to authenticated
@@ -196,18 +161,39 @@ select
 from private.data_kiosk_transactions as t
 inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id;
 
--- Payouts and their complete input manifests are operator-only. Company members
--- read current source allocations; a saved report does not grant historical access.
+-- Members read their own frozen payouts even if current SKU ownership changes.
+-- Complete source manifests and other-company exclusion evidence stay operator-only.
 create policy payout_reports_read on public.company_payout_reports for select to authenticated
-using ((select private.is_operator()));
+using ((select private.is_operator()) or company_id in (
+    select a.company_id from public.app_accounts as a
+    where a.user_id = (select auth.uid()) and a.access_role = 'company_member'
+));
 create policy payout_components_read on public.company_payout_report_components
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using (
+    report_id in (select r.id from public.company_payout_reports as r)
+);
+-- Sum the full immutable company report, independently of detail pagination.
+-- Invoker security keeps the same own-company access as the underlying components.
+create view public.payout_report_marketplace_totals with (security_invoker = true) as
+select
+    report_id,
+    marketplace_name,
+    sum(source_amount) as source_amount,
+    sum(fee_amount) as fee_amount,
+    sum(company_amount) as company_amount
+from public.company_payout_report_components
+where authoritative
+group by report_id, marketplace_name;
 create policy payout_settlement_versions_read on private.payout_report_settlement_versions
 for select to authenticated using ((select private.is_operator()));
 create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
 for select to authenticated using ((select private.is_operator()));
 create policy payout_terms_versions_read on private.payout_report_terms_versions
 for select to authenticated using ((select private.is_operator()));
+create policy payout_reconciliation_read on private.payout_report_reconciliation
+for select to authenticated using ((select private.is_operator()));
+create view public.payout_report_reconciliation with (security_invoker = true) as
+select * from private.payout_report_reconciliation;
 create view public.payout_report_settlement_versions with (security_invoker = true) as
 select * from private.payout_report_settlement_versions;
 create view public.payout_report_data_kiosk_versions with (security_invoker = true) as
@@ -216,7 +202,7 @@ create view public.payout_report_terms_versions with (security_invoker = true) a
 select * from private.payout_report_terms_versions;
 
 -- Operators publish one complete revision with CAS; they cannot write immutable
--- tables or choose internal IDs. Source and payout publishers stay direct-SQL only.
+-- tables or choose internal IDs. Source publishers stay direct-SQL only.
 create function private.publish_operator_sku_terms(
     p_seller_namespace text, p_sku text, p_company_id uuid,
     p_expected_current_version_id uuid, p_change_reason text, p_periods jsonb
@@ -249,44 +235,3 @@ create function public.publish_sku_terms(
     select private.publish_operator_sku_terms(p_seller_namespace,p_sku,p_company_id,
         p_expected_current_version_id,p_change_reason,p_periods);
 $$;
-
--- Explicit grants are the entire REST boundary, including Supabase default grants.
-revoke all on all tables in schema public, private from public, anon, authenticated, service_role;
-revoke all on all functions in schema private from public, anon, authenticated, service_role;
-revoke all on function public.publish_sku_terms(text, text, uuid, uuid, text, jsonb)
-from public, anon, authenticated, service_role;
-grant usage on schema private to authenticated;
-grant select on public.app_accounts, public.companies, public.seller_skus,
-public.sku_terms_versions, public.sku_fee_periods, public.company_skus,
-public.current_sku_fee_periods to authenticated;
-grant insert (user_id, company_id), update (company_id) on public.app_accounts to authenticated;
-grant delete on public.app_accounts to authenticated;
-grant select on private.settlement_transactions, private.data_kiosk_transactions to authenticated;
--- Members can read current references across companies, never report totals.
-grant select (id, current_version_id) on private.settlements,
-private.data_kiosk_days to authenticated;
-grant select (
-    id, settlement_id, preprocess_version
-) on private.settlement_preprocess_versions to authenticated;
-grant select (
-    id, day_id, preprocess_version
-) on private.data_kiosk_preprocess_versions to authenticated;
-grant select on public.settlement_preprocess_results, public.data_kiosk_preprocess_results,
-public.settlement_preprocess_entries, public.data_kiosk_preprocess_entries,
-public.live_company_components, private.live_company_component_inputs to authenticated;
-grant select on public.company_payout_reports, public.company_payout_report_components,
-private.payout_report_settlement_versions, private.payout_report_data_kiosk_versions,
-private.payout_report_terms_versions, public.payout_report_settlement_versions,
-public.payout_report_data_kiosk_versions, public.payout_report_terms_versions to authenticated;
-grant execute on function private.is_operator(), private.is_company_member(),
-private.current_owned_sku_terms(),
-private.read_settlement_preprocess_results(),
-private.read_data_kiosk_preprocess_results(),
-private.resolve_company_components(uuid[], uuid[], uuid[]),
-private.publish_operator_sku_terms(text, text, uuid, uuid, text, jsonb),
-public.publish_sku_terms(text, text, uuid, uuid, text, jsonb) to authenticated;
-
--- Apply after the application-access private revocations. Helpers remain private.
-grant select on private.current_sku_terms to authenticated;
-grant execute on function private.settlement_fee_applicable(text, text, text),
-private.calculate_service_fee(numeric, numeric) to authenticated;

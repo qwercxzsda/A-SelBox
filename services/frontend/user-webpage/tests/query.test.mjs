@@ -241,7 +241,7 @@ test("count caches require the exact account, dataset, search, and normalized fi
   }
 });
 
-test("administrative counts expire after 30 seconds because source revisions do not cover them", async (context) => {
+test("account and payout counts expire after 30 seconds because source revisions do not cover them", async (context) => {
   let now = Date.now();
   context.mock.method(Date, "now", () => now);
   const client = createQueryClient();

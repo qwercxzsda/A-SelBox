@@ -18,7 +18,7 @@ from services.sync.src.archives.storage import archive_document
 from services.sync.src.data_kiosk_economics.errors import UnresolvedDataKioskComponentError
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import persist_data_kiosk_acquisition
-from services.sync.src.database.company_terms import create_company, publish_sku_terms
+from services.sync.src.database.company_terms import FeePeriod, create_company, publish_sku_terms
 from services.sync.src.database.financial_reads import (
     CompanyFinancialTotal,
     load_company_financial_totals,
@@ -57,6 +57,7 @@ def cost_document(
 class TestSourceReprocessing(DatabaseTestCase):
     def setUp(self) -> None:
         super().setUp()
+        self.set_mature_cutoff_date(date(2026, 7, 1))
         self.database = TransactionDatabase(self.connection)
         self.storage = MemoryArchiveStorage()
         self.seller = f"day-integration-{uuid7()}"
@@ -133,7 +134,7 @@ class TestSourceReprocessing(DatabaseTestCase):
                 sku=sku,
                 company_id=company,
                 expected_current_version_id=None,
-                periods=[],
+                periods=[FeePeriod("Amazon.com", date(2026, 1, 1), None, Numeric(0))],
                 change_reason="Assign cost ownership",
             )
 

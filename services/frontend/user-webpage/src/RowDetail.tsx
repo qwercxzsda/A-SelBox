@@ -1,8 +1,12 @@
 import "./RowDetail.css";
+import { Fragment } from "react";
 import { Drawer, Text, Title } from "@mantine/core";
 import type { CanonicalRow, TableDatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
 import { humanizeCode } from "./categories";
+import { PayoutComponents } from "./PayoutComponents";
+import { PayoutReconciliation } from "./PayoutReconciliation";
+import { PayoutMarketplaceTotals } from "./PayoutMarketplaceTotals";
 import {
   DATASET_PRESENTATION,
   TABLE_COLUMNS,
@@ -17,20 +21,20 @@ export function RowDetail({
   row,
   onClose,
   isAdministrator,
+  accessToken,
 }: {
   companies: Map<string, string>;
   dataset: TableDatasetKey;
   row: CanonicalRow | null;
   onClose: () => void;
   isAdministrator: boolean;
+  accessToken: string;
 }) {
   const columns = displayColumns(dataset, isAdministrator).filter(
     (column) => !(column.key === "sku" && row?.sku),
   );
   const shown = new Set(TABLE_COLUMNS[dataset].map((column) => column.key));
-  const remaining = Object.keys(row ?? {}).filter(
-    (key) => !shown.has(key) && (isAdministrator || key !== "company_id"),
-  );
+  const remaining = Object.keys(row ?? {}).filter((key) => !shown.has(key));
   return (
     <Drawer
       id="selected-row-details"
@@ -60,6 +64,23 @@ export function RowDetail({
               </div>
             ))}
           </div>
+          {dataset === "payouts" && row.id ? (
+            <Fragment key={row.id}>
+              <PayoutMarketplaceTotals
+                reportId={row.id}
+                currency={row.currency ?? ""}
+                accessToken={accessToken}
+              />
+              <PayoutComponents
+                reportId={row.id}
+                currency={row.currency ?? ""}
+                accessToken={accessToken}
+              />
+              {isAdministrator && row.seller_namespace ? (
+                <PayoutReconciliation accessToken={accessToken} reportId={row.id} />
+              ) : null}
+            </Fragment>
+          ) : null}
           {isAdministrator && remaining.length > 0 ? (
             <details className="audit-details" key={rowId(row)}>
               <summary>Additional details</summary>

@@ -1,5 +1,5 @@
 const SELECTABLE_COLUMNS = new Set(["sku", "marketplace_name", "source", "component_type"]);
-const DATE_COLUMNS = ["activity_date", "posted_date", "created_at"];
+const DATE_COLUMNS = ["activity_date", "posted_date", "created_at", "start_date"];
 const NUMERIC_COLUMNS = new Set(["amount", "source_amount", "company_amount"]);
 
 function decimalParts(value) {
@@ -30,12 +30,7 @@ function matchesSearch(row, filter) {
     );
   return [...filter.matchAll(/(\w+)\.imatch\.("(?:\\.|[^"\\])*")/g)].some((match) => {
     const pattern = new RegExp(JSON.parse(match[2]), "i");
-    const field = match[1];
-    const sourceLabel = { SETTLEMENT: "Settlements", DATA_KIOSK: "Data Kiosk" }[row.source];
-    return (
-      pattern.test(row[field] ?? "") ||
-      (field === "source" && sourceLabel !== undefined && pattern.test(sourceLabel))
-    );
+    return pattern.test(row[match[1]] ?? "");
   });
 }
 

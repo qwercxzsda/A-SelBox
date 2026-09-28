@@ -52,19 +52,19 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         self,
         previous: tuple[SourceVersion, ...] | None = None,
         *,
-        excluded: bool = False,
+        cost_only: bool = False,
         empty: bool = False,
     ) -> tuple[SourceVersion, ...]:
         settlement_rows = (
             []
             if empty
             else [
-                self.transaction("10", category="DATA_KIOSK" if excluded else "SETTLEMENT"),
+                self.transaction("10", category="DATA_KIOSK" if cost_only else "SETTLEMENT"),
                 self.transaction("20", 4, category="SELBOX") | {"family": None},
             ]
         )
         kiosk_rows = [] if empty else [self.component("-20", category="SELBOX") | {"sku": None}]
-        if not (excluded or empty):
+        if not (cost_only or empty):
             kiosk_rows.extend(
                 [
                     self.component("-1"),
@@ -137,16 +137,16 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         self.seller = "other-seller"
         other_company, _ = self.owner()
         other = self.publish_pair()
-        self.seller = "excluded-seller"
+        self.seller = "cost-only-seller"
         self.assign("SKU", company)
-        excluded = self.publish_pair(excluded=True)
+        cost_only = self.publish_pair(cost_only=True)
         self.seller = "empty-seller"
         self.assign("SKU", company)
         empty = self.publish_pair(empty=True)
-        all_current = (*current, *other, *excluded, *empty)
+        all_current = (*current, *other, *cost_only, *empty)
 
         for user, owned in (
-            (self.member(company), current),
+            (self.member(company), (*current, *cost_only)),
             (self.member(other_company), other),
             (self.member_without_skus(), ()),
         ):

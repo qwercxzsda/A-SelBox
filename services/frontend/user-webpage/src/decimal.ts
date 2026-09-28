@@ -142,6 +142,8 @@ export function formatExactDecimal(value: string | null): string {
 
 export function formatExactMoney(value: string | null, currency: string | null): string {
   const parts = parseDecimal(value);
+  if (parts !== null && currency === null && parts.integer === "0" && parts.fraction === "")
+    return "0";
   const currencyCode = normalizeCurrency(currency);
   return parts === null || currencyCode === null
     ? EM_DASH

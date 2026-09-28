@@ -6,7 +6,11 @@ import { filterOptions, localFilterValues, transactionTypeValues } from "../src/
 
 test("source and marketplace menus are complete even without facts or assignments", () => {
   for (const role of ["company_member", "operator"]) {
-    assert.deepEqual(localFilterValues("source", "live", role, []), ["SETTLEMENT", "DATA_KIOSK"]);
+    assert.deepEqual(localFilterValues("source", "live", role, []), [
+      "SETTLEMENT",
+      "DATA_KIOSK",
+      ...(role === "operator" ? ["RECONCILIATION"] : []),
+    ]);
     const values = localFilterValues("marketplace_name", "live", role, []);
     assert.deepEqual(values, marketplaces);
     assert.equal(new Set(values).size, 24);
@@ -34,7 +38,7 @@ test("Transactions types include all known categories except SELBOX for members"
   }
   assert.deepEqual(
     new Set(transactionTypeValues("live", "operator")),
-    new Set(registry.map(({ type }) => type)),
+    new Set([...registry.map(({ type }) => type), "SETTLEMENT_KIOSK_DIFFERENCE"]),
   );
   assert.deepEqual(
     new Set(transactionTypeValues("live", "company_member")),

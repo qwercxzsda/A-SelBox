@@ -78,7 +78,7 @@ class TransactionPageFixture(FinancialFixture):
 
     def expected(self, user: str, **options: object) -> dict[str, object]:
         predicates: list[sql.Composable] = [
-            sql.SQL("(source <> 'DATA_KIOSK' or source_amount <> 0)")
+            sql.SQL("authoritative and (source <> 'DATA_KIOSK' or source_amount <> 0)")
         ]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
@@ -97,6 +97,8 @@ class TransactionPageFixture(FinancialFixture):
                     )
                 )
                 parameters.append(options[name])
+        if options.get("p_skus"):
+            predicates.append(sql.SQL("category <> 'SELBOX'"))
         if options.get("p_fee_applicable") is not None:
             # Canonical preprocessing keeps TYPE and fee-base presence equivalent.
             # Keep this independent financial oracle for the ordinary fixtures.

@@ -2,9 +2,8 @@
 
 **Finding date: 2026-09-07. Source-policy decision date: 2026-09-08.**
 
-The [source policy](../source_allocation.md) uses Settlement
-and historical Data Kiosk for company amounts, with SelBox bearing their
-reconciliation differences. This note preserves the evidence for the accepted
+The current [source policy](../source_allocation.md) uses Data Kiosk costs for companies
+and assigns their mature-date difference from Settlement controls to SelBox. This note preserves the evidence for the accepted
 USD 54.48 disposal discrepancy. Historical FBA and inventory controls were used
 only to investigate that difference; they are not acquisition dependencies.
 
@@ -117,7 +116,8 @@ SKU merge or matching-pair subtraction. For this comparison, charging companies
 USD 314.53 against USD 260.05 of settlement deductions leaves USD 54.48 with
 SelBox; other periods may produce a shortfall. Classification failures and
 incomplete source coverage are separate from accepting this source discrepancy.
-See the [source policy](../source_allocation.md#5-known-amazon-data-kiosk-discrepancy-and-selboxs-decision).
+See the [source policy](../source_allocation.md#company-amounts-and-selbox-reconciliation)
+for the current daily reconciliation and company-entitlement calculation.
 
 ## Evidence and primary references
 

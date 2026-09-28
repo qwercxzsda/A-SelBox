@@ -1,136 +1,183 @@
-# Frozen company payout reports
+# Monthly company payout reports
 
-Payout report publication saves exact company amounts and the source and fee
-versions used to calculate them. Later imports, fee corrections, reassignment,
-and unassignment change live reads but cannot change an existing report.
-Publication records an entitlement calculation; approval and payment execution
-are not implemented.
+Payout reports freeze one company and one full calendar month, separately by
+seller and currency where those scopes are known. A company/month with no known
+scope still produces an aggregate of zero, without inventing a seller or currency.
+The month end must be strictly before `mature_cutoff_date`, calculated from the
+database UTC date and `mature_cutoff_months = 2`. The
+[source policy](source_allocation.md) defines the boundary and applies identically
+to mature live reads.
 
-## Publish and read
+Administrators choose a company and month in the Payout reports tab, then generate
+all eligible reports in one action. Each known seller/currency report includes a
+marketplace breakdown. Administrators can browse every company's
+saved reports and filter by company/month. Company members read only their own
+headers, components, and marketplace totals and cannot generate. Database permissions
+enforce these rules independently of the browser. Account reconciliation and input
+manifests remain administrator-only.
 
-Use the trusted Python repository with an open `DatabaseConnection`. The caller
-declares the complete required source scope and supplies no calculated amounts:
+## Generate and read
 
-```python
-from datetime import date
+`public.payout_report_policy()` returns `mature_cutoff_date`, `latest_month`, and
+`mature_cutoff_months`. Administrators call:
 
-from services.sync.src.database.payout_reports import (
-    load_company_payout_report,
-    load_company_payout_report_components,
-    publish_company_payout_report,
-)
-from services.sync.src.preprocess_version import PREPROCESS_VERSION
-
-report_id = publish_company_payout_report(
-    database,
-    company_id=company_id,
-    seller_namespace="seller-na",
-    currency="USD",
-    start_date=date(2026, 6, 1),
-    end_date=date(2026, 6, 30),
-    preprocess_version=PREPROCESS_VERSION,
-    settlement_ids=required_settlement_ids,
-    marketplace_names=["Amazon.com"],
-    dataset_key="economics",
-    report_name="June company entitlement",
-    change_reason="Publish the reviewed June source scope",
-)
-report = load_company_payout_report(database, report_id)
-components = load_company_payout_report_components(database, report_id)
+```sql
+select * from public.generate_company_payout_reports(
+    p_company_id := '<company UUID>', p_month := date '2026-06-01'
+);
 ```
 
-`company_id` and `required_settlement_ids` are existing local UUIDs; the latter
-identifies canonical settlements, not Amazon's text settlement identifiers.
-Dates are inclusive. `settlement_ids=[]` explicitly declares no required
-Settlement inputs. An empty marketplace list declares no required Data Kiosk
-coverage; otherwise every listed marketplace needs every day in the interval.
-The caller is responsible for declaring the required business scope.
+The database derives source scope and computes amounts. It accepts no calculated
+client amounts or caller-selected historical versions. It returns one
+`(report_id uuid, created boolean)` row per scope: `created = true` means
+a new immutable report was saved; `false` means the latest saved report was
+reused. Each seller/currency report is checked independently: the batch reuses
+reports whose latest scope and input versions still match, and creates only
+missing or outdated reports. The UI distinguishes created and reused reports.
+All scopes from one invocation succeed atomically. The action includes every
+seller/currency scope in current data or previous reports for that company/month.
+A company with only Data Kiosk costs has a valid scope. Previous scopes remain when
+their amounts disappear; with no known scope, the company/month itself is the scope.
+The browser does not require separate currency requests.
 
-The Python publisher generates a report UUID and calls
-`private.publish_company_payout_report(jsonb)` in one transaction. There is no
-automatic publication retry or caller-selected historical-version parameter.
-The loaders return saved values, preserving SQL numerics as `Decimal`; they do
-not recalculate from today's selections.
+The trusted `publish_company_payout_report(...)` API publishes one known scope and
+returns its saved UUID. Both paths apply the same rules and calculation version `v1`,
+independently of the source `preprocess_version`.
 
-The saved `calculation_version` is currently `v0`. It identifies the company-fee
-formula separately from `preprocess_version`, which identifies source interpretation.
+## Empty aggregates
 
-## Stored records and input manifests
+Every report uses `COALESCE(SUM(...), 0)`. No matching monetary rows therefore
+produce zero through the ordinary aggregation. This does not certify inactivity or
+complete upstream acquisition/preprocessing. A zero total can also result from
+amounts that cancel each other; those reports retain their component rows.
 
-```mermaid
-flowchart LR
-    S[Selected Settlement versions] --> P[Atomic report publication]
-    D[Selected Data Kiosk day versions] --> P
-    T[Selected SKU terms and fee periods] --> P
-    P --> H[Public immutable report and components]
-    P --> M[Private manifests of exact input version IDs]
-    M --> R[Protect Data Kiosk payloads from pruning]
+A scope containing authoritative company rows requires every day in each declared
+Data Kiosk marketplace, including when its total is zero. A scope without those rows
+uses available processed inputs without requiring complete day coverage. Missing
+ownership, applicable fees, or invalid available inputs still block publication.
+SKU-less Settlement controls in the Data Kiosk category do not. Validation applies
+before both reuse and creation.
+
+Current and historical company assignments and earlier reports identify relevant
+sellers. Available source versions, including processed empty days, and current terms
+are retained as snapshot inputs. Unknown ownership within this source scope remains
+an error. A company with no identifiable seller can have an empty input inventory.
+
+If there is no known seller/currency scope, `seller_namespace`, `currency`, and
+`preprocess_version` are all null. Its totals are zero and it has no component or
+account-reconciliation rows; available source/terms manifests can still be present.
+A known seller/currency scope retains those identifiers even when its aggregate is zero.
+
+Snapshots are created only by an explicit generation/publication request. Source
+arrival, preprocessing, corrections, and reassignment never generate reports automatically.
+A later request can save zero totals for a previous currency scope whose amounts
+disappeared. Existing snapshots remain immutable.
+
+## Reuse unchanged reports
+
+Both publication paths compare only the latest report by save time for the same
+company, seller, currency, and calendar month. Reuse requires matching preprocessing
+and calculation versions, marketplace scope, and exact sets of selected Settlement,
+Data Kiosk, and SKU terms versions. The dataset is `economics`.
+
+Repeating a request with unchanged inputs adds no duplicate. A request's UUID,
+creation time, report name, or change reason does not force a new report; a reused
+report keeps its original values for those fields.
+
+If the latest report differs or does not exist, the request creates a new snapshot.
+Changed input versions create a report even when totals are unchanged or an older
+report matches. Concurrent matching requests serialize and return the same report.
+
+## Company components
+
+Preprocessing already assigns every monetary transaction to the Settlement
+(`SETTLEMENT`), SelBox (`SELBOX`), or Data Kiosk (`DATA_KIOSK`) category. Publication
+does not reclassify them. Saved company amounts combine:
+
+- Settlement report amounts in the Settlement category, assigned through exact SKU ownership.
+- Data Kiosk amounts in the Data Kiosk category, assigned through exact SKU ownership.
+- Applicable signed service fees.
+
+Only components marked `authoritative = true` contribute to report header totals.
+Comparison and analysis components can retain source detail with null company/fee
+contributions. The drawer's Payout amounts section shows both monetary sources;
+Supporting details shows excluded comparisons. Values remain exact decimal strings
+in the browser and `Decimal` in Python.
+
+## Marketplace breakdown
+
+Each report's marketplace breakdown uses the read-only, security-invoker view
+`public.payout_report_marketplace_totals`. It groups the report's frozen components
+with `authoritative = true` by `report_id` and `marketplace_name`, returning exact
+`source_amount`, `fee_amount`, and `company_amount` sums. It includes every matching
+component, independently of which component page the browser has loaded.
+
+A null marketplace remains one distinct group and is displayed as **Not specified**.
+Summing each amount column across the marketplace groups reproduces the corresponding
+report header total. Each currency report keeps its currency separate. A report with
+no authoritative components has no marketplace rows. The view follows the saved report's access rules.
+
+The header's `marketplace_names` records marketplaces required for input coverage,
+including those with verified empty Data Kiosk days and no company payout amount.
+The breakdown comes from the saved authoritative company components. SelBox amounts
+and the reconciliation difference remain in the separate administrator-only account
+reconciliation. The view derives its totals from saved components.
+
+## Saved account reconciliation
+
+For each seller, currency, day, and marketplace, save these exact amounts:
+
+| Field | Meaning |
+| --- | --- |
+| `settlement_category_amount` | Settlement report amounts in the Settlement category |
+| `selbox_category_amount` | Settlement report amounts in the SelBox category |
+| `data_kiosk_settlement_control` | Settlement report amounts in the Data Kiosk category |
+| `data_kiosk_category_amount` | Data Kiosk amounts in the Data Kiosk category |
+
+The named fields keep the source and category distinct. Their relationship is:
+
+```text
+difference = data_kiosk_settlement_control - data_kiosk_category_amount
+accounted_total = settlement_category_amount + selbox_category_amount
+                + data_kiosk_category_amount + difference
+                = settlement_total
 ```
 
-| Relation                                    | One row represents                                                                                                                                                  |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `public.company_payout_reports`             | One company, currency, declared source scope, calculation version, inventory counts, and exact totals.                                                              |
-| `public.company_payout_report_components`   | One authoritative source row belonging to that saved company/currency, including its source references, selected terms/period, base, rate, fee, and company amount. |
-| `private.payout_report_settlement_versions` | One report's exact version for a required canonical settlement; key `(report_id, settlement_id)`.                                                                   |
-| `private.payout_report_data_kiosk_versions` | One report's exact version for a required day; key `(report_id, day_id)`.                                                                                           |
-| `private.payout_report_terms_versions`      | One report's exact terms version for a seller/SKU used by authoritative facts in the declared date/source scope; key `(report_id, seller_sku_id)`.                  |
+One-sided groups are retained; a null marketplace is its own explicit group.
+Amounts in the SelBox category and the difference remain with SelBox. The
+administrator-only `public.payout_report_reconciliation` view exposes the frozen controls, and the
+report drawer labels them as seller-wide context. The same account controls may
+appear beside several company reports: never sum those repeated snapshots across
+reports. Members cannot read them or the source manifests.
 
-Composite foreign keys tie each manifest version to its actual identity. The
-terms manifest includes authoritative scoped SKUs assigned to other companies
-or currencies: their selected ownership explains why their rows were excluded
-from this report. Public components contain only the requested company/currency.
+## Integrity and access
 
-Data Kiosk manifests include complete empty days, even if the report has zero
-components. A current empty version is verified coverage; a missing or pruned
-version is not. Multiple reports may retain the same version. Retention protects
-the whole referenced day version, including rows excluded from a particular
-company's components. There is no generic pin/unpin table or API.
+Reports, company components, reconciliation rows, and complete source/terms
+manifests are immutable. Integrity checks verify provenance, exact sums, complete
+inventories, and the reconciliation identity against frozen versions. Nullable scopes
+are restricted to empty company/month aggregates. Publication locks company/month,
+captures its related seller set, then locks seller/month and source days in order.
+Concurrent newly related sellers are included
+on the next request. Capture and pruning use `READ COMMITTED` and pin all referenced
+days, including empty ones. Privileged publication recreates its temporary work table
+to prevent caller-owned temporary tables or triggers from running with its role.
 
-## Publication guarantees
+Reassignment corrects mistaken ownership retroactively in live calculations and
+future generation; it does not establish a dated transfer. Saved reports keep their
+original company and amounts. Required unassigned SKUs block generation.
+Member access follows the report's saved company and the member's current application
+account. Approval, adjustments, currency rounding,
+and payment execution remain separate features.
 
-Publication locks required Data Kiosk day identities in natural order, then
-required Settlement identities, before capturing current source selections and
-selected SKU terms. It requires `READ COMMITTED` so source publication and
-retention checks see work that committed before an awaited lock was acquired.
-Missing, pruned, or incompatible required coverage fails the transaction.
+## Verification
 
-The shared `private.resolve_company_components(...)` function calculates from
-explicit version UUIDs. The report publisher rejects unresolved authoritative
-ownership or fee inputs across the declared scope before filtering to one
-company and currency. An unassigned SKU or missing applicable fee period cannot
-silently become a zero or disappear from the report. Explicit 0% coverage is
-valid; noncommission costs require ownership and no fee period.
+The disposable database suite covers category authority, exact boundary dates,
+monthly eligibility, reconciliation, tenant isolation, immutable snapshots,
+marketplace totals, unchanged-input reuse, concurrent publication, and retention.
+Frontend tests run in Docker. Real-seed verification never deletes account-level charges or changes
+their categories; see the
+[verification evidence](evidence/payout_authority_2026-09-27/README.md).
 
-The database checks complete manifest and component counts, exact saved rows,
-provenance, and totals against the frozen inputs at commit. Report headers,
-components, and manifests cannot be updated, deleted, truncated, or extended
-after publication. Data Kiosk pruning keeps at least the latest three independent
-observations, every current version, and every payout-referenced version. A
-pruned historical payload cannot be attached to a report; reprocessing creates
-a new version rather than restoring the old version ID.
-
-## Access and remaining policy
-
-Operators can read every report, component, and exact input reference through
-REST. Company members have no payout access, including reports for their own
-company. The saved `company_id` records the calculation's recipient; later SKU
-or account reassignment does not change the report. Publication remains a
-direct-database operation through the trusted Python repository or SQL.
-
-Operator REST reads may use `select=*`, including complete-scope inventory
-counts. Public invoker-security views expose the three private manifest tables
-under the same base names. The report and manifest row policies require the
-database-backed operator role. See the [application-access contract](access_control.md).
-
-The calculation uses exact signed amounts without currency rounding or a zero
-floor. The [refund commission over-credit issue](known_issues.md#deferred-refund-commission-over-credit-risk)
-is deliberately deferred: a refund still uses its own posting-date rate, which
-can refund more commission than the original sale charged. Saving a report
-preserves that formula; it does not resolve the policy. Approval,
-payment execution, cutoff policy, adjustments, negative-balance handling, and
-currency rounding remain separate work.
-
-Sources: [payout migration](../services/db/supabase/migrations/20260927080054_company_payout_reports.sql),
-[Python repository](../services/sync/src/database/payout_reports.py),
-[retention guards](../services/db/supabase/migrations/20260927080056_source_retention.sql),
-and [live fee contract](company_fees.md).
+```sh
+conda run -n A-SelBox python -m services.db.supabase.tests.verify_real_payouts --help
+```

@@ -5,12 +5,11 @@ A-SelBox separates **archived Amazon evidence**, **complete versions of source f
 Company assignment and fee periods are selected together in a SKU terms version.
 Changing terms updates live results without rewriting source facts or saved reports.
 
-The PostgreSQL 17/Supabase schema contains **21 application tables: 7 in `public`,
-14 in `private`**. Supabase also supplies Auth and Storage tables. The
+The PostgreSQL 17/Supabase schema contains **22 application tables: 7 in `public`,
+15 in `private`**. Supabase also supplies Auth and Storage tables. The
 [migration modules](../services/db/supabase/README.md#schema-modules) define source/terms records,
 atomic publication and retention, financial reads, frozen payouts, application access,
-and revision polling. They do not
-provide an upgrade or backfill path for an existing deployment.
+and revision polling in a fresh database.
 
 ```mermaid
 flowchart LR
@@ -25,9 +24,10 @@ flowchart LR
 
 Strict live totals use the privileged function
 `private.company_financial_totals(...)`. The `public.live_company_components`
-view also contains diagnostic rows. Dashboard estimates include those rows under the
-[Transactions contract](transaction_query_contracts.md); they do not certify strict financial
-completeness.
+view also contains diagnostic rows. Dashboard estimates select only authoritative rows
+under the same mature cutoff date rule as the strict source policy. They do not
+certify complete imports; see the
+[Transactions contract](transaction_query_contracts.md).
 
 ## Ownership and fee terms
 
@@ -77,7 +77,7 @@ coverage.
 version**, including historical date ranges. The source row's activity date
 selects the applicable period; it does not use today's date.
 
-Source: [ownership and fee DDL](../services/db/supabase/migrations/20260927080039_schema_foundation.sql),
+Source: [ownership and fee DDL](../services/db/supabase/migrations/20260928123054_schema_foundation.sql),
 [ownership and fee contract](company_fees.md).
 
 ## Settlement source tables
@@ -112,8 +112,8 @@ contribute principal, tax, shipping, promotions, and fee lines. Publication chec
 the complete row inventory, one currency, and the exact signed sum against the
 version's report control total.
 
-Source: [Settlement DDL](../services/db/supabase/migrations/20260927080039_schema_foundation.sql),
-[publication functions](../services/db/supabase/migrations/20260927080047_source_publications.sql).
+Source: [Settlement DDL](../services/db/supabase/migrations/20260928123054_schema_foundation.sql),
+[publication functions](../services/db/supabase/migrations/20260928123102_source_publications.sql).
 
 ## Data Kiosk source tables
 
@@ -145,7 +145,7 @@ a new batch and day versions, but not another independent observation.
 Data Kiosk selects freshness using `(root_query_created_at, acquisition_id)`.
 Reprocessing an older query cannot displace a newer observation. Reprocessing the
 same observation can advance its selected result using the local version UUID.
-Audit timestamps such as `created_at` do not select financial results.
+Data Kiosk audit timestamps such as `created_at` do not select its current source version.
 
 The current publisher accepts the `economics` dataset and requires one marketplace
 per acquisition and every queried day in the batch. `amazon_scope` is acquisition
@@ -156,7 +156,7 @@ Three states must remain distinct:
 | State                     | Stored evidence                                                     | Meaning                                                      |
 | ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Complete empty day        | Current version, `row_count = 0`, no fact rows                      | Verified empty coverage; replaces previous amounts           |
-| Missing day               | No compatible current version                                       | Coverage is unknown; strict totals fail                      |
+| Missing day               | No compatible current version                                       | Required coverage is unknown for both recent and mature calculations in the Data Kiosk category |
 | Pruned historical version | Header and original count/hash remain; pruning marker; no fact rows | Payload was deliberately removed; this is not empty evidence |
 
 Explicit pruning keeps at least the latest three independent observations per
@@ -168,9 +168,9 @@ observations; equal observations do not establish financial finality.
 immutable references include empty required days and protect entire versions;
 there is no standalone pin/unpin API.
 
-Source: [Data Kiosk DDL](../services/db/supabase/migrations/20260927080039_schema_foundation.sql),
-[publication](../services/db/supabase/migrations/20260927080047_source_publications.sql),
-[retention](../services/db/supabase/migrations/20260927080056_source_retention.sql),
+Source: [Data Kiosk DDL](../services/db/supabase/migrations/20260928123054_schema_foundation.sql),
+[publication](../services/db/supabase/migrations/20260928123102_source_publications.sql),
+[retention](../services/db/supabase/migrations/20260928123121_source_retention.sql),
 [workflow contract](data_workflows.md).
 
 ## Archives and complete publication
@@ -204,16 +204,24 @@ Every source fact has one `public.allocation_category`. The category describes
 allocation policy; the source table alone does not determine whether a row
 contributes to company totals.
 
-| Category        | Settlement facts                                        | Data Kiosk facts                                      |
-| --------------- | ------------------------------------------------------- | ----------------------------------------------------- |
-| `SETTLEMENT`    | Authoritative company amounts; SKU required             | Comparison counterparts; excluded from company totals |
-| `SELBOX`        | Explicitly registered account/control and retained amounts | Account amounts; excluded from company totals         |
-| `DATA_KIOSK`    | Reconciliation amounts; excluded from company totals    | Authoritative company costs; SKU required             |
-| `ANALYSIS_ONLY` | Not permitted                                           | Diagnostic amounts; excluded from company totals      |
+| Preprocessed category | Mature authority | Recent authority |
+| --- | --- | --- |
+| Settlement (`SETTLEMENT`) | Settlement, assigned by exact SKU | Data Kiosk, assigned by exact SKU |
+| SelBox (`SELBOX`) | Settlement, retained by SelBox | Data Kiosk, retained by SelBox |
+| Data Kiosk (`DATA_KIOSK`) | Data Kiosk company amounts; Settlement is a control | Data Kiosk company amounts |
+| `ANALYSIS_ONLY` | No monetary contribution | No monetary contribution |
 
-Strict financial reads include Settlement `SETTLEMENT` and Data Kiosk `DATA_KIOSK`
-facts. `ANALYSIS_ONLY` stays outside that calculation. Raw source entry views expose
-the facts permitted by RLS; dashboard queries use their own documented category scope.
+The mature cutoff period is two calendar months. The mature cutoff date is PostgreSQL's
+current UTC date minus that period. Dates before the mature cutoff date are mature;
+the mature cutoff date and later are recent. For mature dates,
+a derived difference per seller/day/marketplace/currency equals Settlement report amounts in
+the Data Kiosk category minus Data Kiosk amounts in that category. The full ledger therefore
+equals the total Settlement report amount. SelBox retains amounts in the SelBox category and
+the difference; neither is allocated to customer companies.
+A missing marketplace remains a separate null group. Source classifications never
+change because a control has or lacks SKU. SKU-less Settlement report controls in the Data Kiosk category
+are valid and do not block reports. Strict reads still require complete declared
+Data Kiosk coverage and resolved company ownership/applicable fees.
 
 `private.resolve_company_components(...)` calculates from explicit source and
 terms version arrays, marks authority, and exposes source/terms/period references,
@@ -232,9 +240,11 @@ company_amount = source_amount + fee_amount
 
 Settlement commission uses signed `Order`/`Refund` + `ItemPrice` + `Principal`
 amounts. Each row's posting date chooses its rate. Other owned components without
-a commission base get fee zero. Data Kiosk comparison rows can expose diagnostic
-fee calculations, but those rows do not add a second commission to authoritative
-totals.
+a commission base get fee zero when authoritative. Recent Data Kiosk net sales use
+the stored fee base. Non-authoritative comparisons and analysis are excluded from monetary
+totals. Comparison detail in the Settlement category and analysis detail have null fee/company
+contributions. Retained rows in the SelBox category and difference rows have no company ownership and a zero company amount; authoritative retained
+rows also have a zero fee. They do not require company fee configuration.
 
 For example, with 5% coverage on both dates, a principal sale of +100 produces a
 fee of −5 and company amount +95; a principal refund of −20 produces a fee of +1
@@ -245,7 +255,7 @@ not applied here.
 | Resolution status   | Meaning                                                          | Calculated fee |
 | ------------------- | ---------------------------------------------------------------- | -------------- |
 | `APPLIED`           | Ownership and applicable fee period found, including explicit 0% | Computed       |
-| `NOT_APPLICABLE`    | Owner exists, but no commission base                             | Zero           |
+| `NOT_APPLICABLE` | Owned component has no commission base, or amount is retained by SelBox | Zero when authoritative |
 | `MISSING_OWNERSHIP` | No configured identity or selected company is NULL               | NULL           |
 | `MISSING_FEE`       | No applicable period in the current fee version                  | NULL           |
 
@@ -254,37 +264,59 @@ calculations. A stored fee-bearing row therefore already has those inputs.
 
 `company_amount` remains NULL when a required fee or ownership resolution is
 missing. The privileged `private.company_financial_totals(...)` validates the
-caller-declared settlement IDs and every declared marketplace/day, rejects
+caller-declared Settlement IDs required for mature dates and every declared Data Kiosk marketplace/day, rejects
 incompatible or unresolved required input, and aggregates authoritative rows by
 company and currency. Dates are inclusive. The caller supplies the required
 source scope; the function does not discover an externally complete settlement
 list itself.
 
-Source: [financial relations](../services/db/supabase/migrations/20260927080050_financial_relations.sql),
-[complete and partial financial reads](../services/db/supabase/migrations/20260927080052_financial_reads.sql).
+Source: [shared financial rules](../services/db/supabase/migrations/20260928123106_financial_rules.sql),
+[source reconciliation](../services/db/supabase/migrations/20260928123109_source_reconciliation.sql),
+[financial components](../services/db/supabase/migrations/20260928123111_financial_components.sql),
+[complete and partial financial reads](../services/db/supabase/migrations/20260928123113_financial_reads.sql).
 
 ## Frozen payout tables
 
 | Table                                       | What one row represents                                           | Main relationship                                                                               |
 | ------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `public.company_payout_reports`             | One saved company/currency calculation and explicit source scope  | Company FK; exact totals and immutable child counts                                             |
-| `public.company_payout_report_components`   | One saved authoritative company/currency source component         | Report FK; source row/version, seller/SKU, terms version and optional fee period; exact amounts |
+| `public.company_payout_reports`             | One saved company/month aggregate, scoped by seller/currency when known     | Company FK; exact totals and immutable child counts                                             |
+| `public.company_payout_report_components`   | One company amount from the Settlement or Data Kiosk category, or comparison detail | Report FK; source row/version, seller/SKU, terms version and optional fee period; exact amounts |
 | `private.payout_report_settlement_versions` | A required canonical settlement's exact version for a report      | PK `(report_id, settlement_id)`; same-settlement version FK                                     |
-| `private.payout_report_data_kiosk_versions` | A required day's exact version for a report, including empty days | PK `(report_id, day_id)`; same-day version FK; prevents payload pruning                         |
-| `private.payout_report_terms_versions`      | A scoped authoritative SKU's exact terms for a report             | PK `(report_id, seller_sku_id)`; same-SKU terms FK                                              |
+| `private.payout_report_data_kiosk_versions` | A required day's exact version, including empty days | PK `(report_id, day_id)`; same-day version FK; prevents payload pruning                         |
+| `private.payout_report_terms_versions` | A relevant SKU's exact terms for inclusion or exclusion | PK `(report_id, seller_sku_id)`; same-SKU terms FK |
+| `private.payout_report_reconciliation` | One frozen seller/day/marketplace/currency control group | Report FK; exact category subtotals, difference, and reconciled total |
 
-Publication captures current compatible sources and selected terms under source
-locks, then calculates and saves the report atomically. Every authoritative
-scoped SKU must resolve before filtering to the requested company/currency.
-The terms manifest includes other companies' and currencies' inputs to preserve
-why those rows were excluded. Public components contain only the requested
-company/currency. Commit-time validation checks frozen inventories, provenance,
-saved rows, and exact totals; later inserts, updates, deletes, and truncation
-cannot change a published report.
+Reports contain exact totals and immutable component/manifests inventories. Their
+`seller_namespace`, `currency`, and `preprocess_version` are either all present or all
+null. The all-null shape represents a company/month with no known seller/currency
+scope: totals and component/reconciliation counts must be zero, and `marketplace_names`
+must be empty. Available source/terms manifests can still be retained. Known scopes
+keep their identifiers when their amounts become zero.
 
-Report capture and pruning require `READ COMMITTED` and acquire Data Kiosk day
-locks in the same natural order. Reports retain whole referenced versions even
-when their component inventory is empty. See the [payout API and guarantees](company_payout_reports.md).
+The component `authoritative` flag determines the header sums. Comparison and analysis
+detail can remain stored with null company/fee contributions. Terms manifests include
+relevant excluded rows so validation can reconstruct the complete calculation.
+`private.payout_report_reconciliation` stores seller-wide controls separately from
+company components; its public invoker view is administrator-only.
+
+`public.payout_report_marketplace_totals` groups all saved authoritative components by
+report and marketplace. Its exact source, fee, and company sums reproduce the report
+header, regardless of component pagination. Null marketplaces form one distinct group.
+The header's `marketplace_names` describes required input coverage rather than the
+marketplaces contributing payout amounts.
+
+Commit-time validation reconstructs provenance, inventories, components, reconciliation,
+and totals from frozen versions. Published rows cannot be extended, changed, or removed.
+Publication fixes the related seller set for each request, locks the company/month,
+then locks sellers/months and source days in stable order. A newly assigned seller is
+picked up on the next request. Publication and pruning use `READ COMMITTED`; report
+references protect whole source versions, including empty days.
+
+The [payout schema](../services/db/supabase/migrations/20260928123115_payout_schema.sql),
+[validation](../services/db/supabase/migrations/20260928123117_payout_validation.sql), and
+[publication](../services/db/supabase/migrations/20260928123119_payout_publication.sql) modules
+own these definitions. The [payout contract](company_payout_reports.md) defines the generation API, monthly
+eligibility, request-only creation, empty aggregates, latest-version reuse, and access.
 
 ## Revision tokens
 
@@ -293,8 +325,8 @@ Settlement and Data Kiosk tokens are global; fee/ownership/name tokens also have
 The authenticated `workspace_revisions` RPC returns the caller's stored account and only the
 requested tokens. It does not expose source metadata or scan transaction history. Publications
 rotate affected tokens atomically; multiple changes in one transaction share one rotation. Source
-tokens also track retained-version publication and historical Data Kiosk pruning, so administrator
-history reads refresh even when current selections stay the same.
+tokens also track retained-version publication and historical Data Kiosk pruning. Their returned
+values include the UTC mature cutoff date, so reads refresh when source authority changes without an import.
 The [frontend guide](../services/frontend/user-webpage/README.md#requests-and-session-lifecycle)
 describes selective refresh and account changes.
 
@@ -320,10 +352,12 @@ current pointers under definer security; invoker views and RPCs still enforce th
 policies. Page and totals queries further restrict their financial terms projection to the selected
 page or grouped facts. This changes execution work, not the tables or visibility contract.
 
-Payout reports, components, all inventory counts, and exact input references are
-operator-only. Company members have no saved-payout access. Source and payout
-publication, pruning, and strict completeness functions remain direct-database
-operations; the public terms RPC is the explicit operator write interface.
+Operators generate and read payout reports for any company and eligible month. Company
+members read only their assigned company's saved headers and components, even after a
+SKU changes owner; they cannot generate reports. Exact source/terms input manifests
+remain operator-only. Source publication, pruning, and strict completeness functions
+remain direct-database operations. Guarded public RPCs provide operator terms and
+monthly payout publication.
 Storage service-role access is separate from PostgreSQL administration.
 
 The [application-access contract](access_control.md) lists each REST endpoint,
@@ -336,5 +370,5 @@ over-credit treatment remain deferred. A selected source or terms change may
 restate live history; immutable saved reports preserve the original calculation
 without establishing that a payment was approved or made.
 
-Source: [access policies](../services/db/supabase/migrations/20260927080058_application_access.sql),
+Source: [access policies](../services/db/supabase/migrations/20260928123123_application_access.sql),
 [known limitations](known_issues.md).

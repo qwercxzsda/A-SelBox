@@ -1,8 +1,14 @@
 import "./Cell.css";
 import type { CanonicalRow } from "./api";
-import { humanizeCode, transactionTypeLabel } from "./categories";
+import { allocationCategoryLabel, humanizeCode, transactionTypeLabel } from "./categories";
 import { formatExactDecimal, formatExactMoney } from "./decimal";
 import { companyLabel, type ColumnDefinition } from "./view-model";
+
+function codeLabel(key: string, value: string): string {
+  if (key === "component_type") return transactionTypeLabel(value);
+  if (key === "category") return allocationCategoryLabel(value);
+  return humanizeCode(value);
+}
 
 export function TableCellValue({
   column,
@@ -25,8 +31,10 @@ export function TableCellValue({
   }
   const value = row[column.key] ?? null;
   if (value === null) {
-    if (column.kind === "company")
+    if (column.kind === "company") {
+      if (row.category === "SELBOX") return "SelBox";
       return row.access_role === "operator" ? "All companies" : "Unassigned";
+    }
     return <span className="muted-value">—</span>;
   }
   switch (column.kind) {
@@ -36,7 +44,7 @@ export function TableCellValue({
           className={value.startsWith("MISSING_") ? "missing-value" : undefined}
           title={column.key === "component_type" ? value : undefined}
         >
-          {column.key === "component_type" ? transactionTypeLabel(value) : humanizeCode(value)}
+          {codeLabel(column.key, value)}
         </span>
       );
     case "company":

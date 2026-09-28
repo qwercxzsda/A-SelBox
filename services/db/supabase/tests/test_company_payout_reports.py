@@ -5,11 +5,14 @@ from decimal import Decimal
 import psycopg
 from psycopg import sql
 
+from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month, payout_snapshot
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
 class CompanyPayoutReportTests(SourceModelFixture):
     def report(self, company: str, settlements: list[str], **scope: object) -> str:
+        if scope.get("marketplace_names"):
+            fill_payout_kiosk_month(self)
         return self.call(
             "publish_company_payout_report",
             {
@@ -17,8 +20,8 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 "company_id": company,
                 "seller_namespace": self.seller,
                 "currency": "USD",
-                "start_date": "2026-06-15",
-                "end_date": "2026-06-15",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30",
                 "preprocess_version": "v0",
                 "settlement_ids": settlements,
                 "marketplace_names": [],
@@ -50,15 +53,6 @@ class CompanyPayoutReportTests(SourceModelFixture):
             },
         )
 
-    def saved(self, report: str) -> list[tuple[object, ...]]:
-        return self.connection.execute(
-            "select to_jsonb(r),array(select to_jsonb(c) "
-            "from public.company_payout_report_components c "
-            "where c.report_id=r.id order by c.row_number) "
-            "from public.company_payout_reports r where r.id=%s",
-            (report,),
-        ).fetchall()
-
     def test_report_freezes_all_three_inputs_and_noncommission_provenance(self) -> None:
         company, identity = self.owner()
         terms = self.fee(identity, [("2026-01-01", None, "5")])
@@ -68,7 +62,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         )
         _, kiosk_version = self.kiosk(1, [self.component()])
         report = self.report(company, [settlement], marketplace_names=["Amazon.com"])
-        before = self.saved(report)
+        before = payout_snapshot(self, report)
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount "
@@ -98,21 +92,23 @@ class CompanyPayoutReportTests(SourceModelFixture):
             (Decimal(166),),
         )
         self.reassign(identity, None)
-        self.assertEqual(self.saved(report), before)
+        self.assertEqual(payout_snapshot(self, report), before)
         for relation, column, version in (
             ("payout_report_settlement_versions", "version_id", settlement_version),
             ("payout_report_data_kiosk_versions", "version_id", kiosk_version),
             ("payout_report_terms_versions", "terms_version_id", terms),
         ):
-            self.assertEqual(
-                self.connection.execute(
-                    sql.SQL("select {}::text from private.{} where report_id=%s").format(
-                        sql.Identifier(column), sql.Identifier(relation)
-                    ),
-                    (report,),
-                ).fetchall(),
-                [(version,)],
-            )
+            rows = self.connection.execute(
+                sql.SQL("select {}::text from private.{} where report_id=%s").format(
+                    sql.Identifier(column), sql.Identifier(relation)
+                ),
+                (report,),
+            ).fetchall()
+            if relation == "payout_report_data_kiosk_versions":
+                self.assertEqual(len(rows), 30)
+                self.assertIn((version,), rows)
+            else:
+                self.assertEqual(rows, [(version,)])
         self.connection.execute("set constraints all immediate")
 
     def test_manifest_retains_other_company_terms_used_to_exclude_rows(self) -> None:
@@ -134,9 +130,9 @@ class CompanyPayoutReportTests(SourceModelFixture):
             ),
             {(own_terms,), (other_terms,)},
         )
-        before = self.saved(report)
+        before = payout_snapshot(self, report)
         self.reassign(other_identity, company)
-        self.assertEqual(self.saved(report), before)
+        self.assertEqual(payout_snapshot(self, report), before)
         self.assertEqual(
             self.connection.execute(
                 "select sku from public.company_payout_report_components where report_id=%s",
@@ -146,7 +142,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_operator_access_survives_transfer_and_members_cannot_read_reports(self) -> None:
+    def test_company_report_access_survives_sku_transfer(self) -> None:
         company, identity = self.owner()
         other_company, _ = self.owner("OTHER")
         old_user, new_user = self.member(company), self.member(other_company)
@@ -166,11 +162,20 @@ class CompanyPayoutReportTests(SourceModelFixture):
             ),
             [(Decimal(95),)],
         )
-        for user in (old_user, new_user):
-            self.assertEqual(self.as_user(user, "select * from public.company_payout_reports"), [])
-            self.assertEqual(
-                self.as_user(user, "select * from public.company_payout_report_components"), []
-            )
+        self.assertEqual(
+            self.as_user(old_user, "select id::text from public.company_payout_reports"),
+            [(report,)],
+        )
+        self.assertEqual(
+            self.as_user(
+                old_user, "select company_amount from public.company_payout_report_components"
+            ),
+            [(Decimal(95),)],
+        )
+        self.assertEqual(self.as_user(new_user, "select * from public.company_payout_reports"), [])
+        self.assertEqual(
+            self.as_user(new_user, "select * from public.company_payout_report_components"), []
+        )
         self.assertEqual(
             self.as_user(old_user, "select id from private.settlement_transactions"), []
         )
@@ -229,7 +234,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 self.transaction("-100", 4, kind="Refund"),
             ]
         )
-        report = self.report(company, [settlement], start_date="2026-06-14")
+        report = self.report(company, [settlement])
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount from public.company_payout_reports "

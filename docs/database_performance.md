@@ -1,9 +1,8 @@
 # Database performance
 
 This guide describes the current read design. [Query contracts](transaction_query_contracts.md)
-define API behavior; [access control](access_control.md) defines visibility. The
-[measurement snapshot](evidence/date_bounded_indexes_2026-09-27/README.md) records the active
-implementation on a synthetic million-row history fixture.
+define API behavior; [access control](access_control.md) defines visibility. Historical measurements
+are kept with their source snapshots under [evidence](evidence/README.md).
 
 ## Request paths
 
@@ -11,7 +10,7 @@ implementation on a synthetic million-row history fixture.
 | --- | --- |
 | Date-ordered page | Filter authorized facts, select bounded candidates in date/ID order, merge sources, then resolve metadata and fees for the page. |
 | Reported-amount page | Stop after 10,001 fully filtered matches; reject scopes above 10,000, otherwise sort and calculate the selected page. |
-| Exact count | Count authorized matching facts without fee calculation. The browser renders rows first and caches counts independently of page and order. |
+| Exact count | Count authorized source facts and reconciliation groups without fee calculation. The browser renders rows first and caches counts independently of page and order. |
 | Period total | Filter dates and scope, combine facts sharing fee inputs, resolve relevant terms and fees, then aggregate by currency and optional Type. |
 | Filter options | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog. |
 | Revision polling | Read the current account and at most three revision-token rows, then refresh only dependent queries when a revision changes. |
@@ -44,6 +43,13 @@ A single selected marketplace uses scalar text equality. Small multi-marketplace
 bounded candidates per marketplace before merging. Larger candidate budgets use the ordinary
 array-filter path. This strategy changes execution, not the result limit or visible rows.
 
+### Reconciliation work
+
+For mature dates, administrator reads aggregate Settlement controls and Data Kiosk costs by seller, day,
+marketplace, and currency. These derived groups join the live ledger; member reads exclude them.
+Date and marketplace predicates can restrict grouping, while broad administrator counts and totals
+still pay for the matching source aggregation. Company and SKU selections omit account groups.
+
 ### Search and SKU discovery
 
 The frontend matches literal, case-insensitive search text against complete local catalogs and sends
@@ -61,41 +67,13 @@ Account changes, changed revisions, explicit retry, and a new page load require 
 reload. Company names and assignments are independently refreshed. None of these caches replaces
 request-time authorization.
 
-## Measured current workload
+## Measurement evidence
 
-The September 27 snapshot uses PostgreSQL 17, 1,032,440 source facts, 129 seller/SKU registrations,
-580 Settlement headers, and 16,200 Data Kiosk day headers. Ten shifted seasonal cohorts retain the
-real seed's value distributions. Measurements are authenticated local HTTP medians after one warmup
-and three measured repetitions. Pages exclude their separately fetched exact count.
-
-The 60-day window is July 16–September 13, 2026, inclusive. It contains 35,631 member and 67,411
-administrator Transactions rows. Date parameters remain optional; the frontend does not yet apply
-an automatic default range.
-
-| Request | Company member | Administrator |
-| --- | ---: | ---: |
-| 60-day newest page | 11.2 ms | 8.6 ms |
-| 60-day count | 16.6 ms | 12.9 ms |
-| 60-day direct Type count | 13.3 ms | 11.7 ms |
-| 60-day all-currency total | 52.3 ms | 126.9 ms |
-| No-DATE newest page | 9.7 ms | 8.7 ms |
-| No-DATE count | 134.0 ms | 101.6 ms |
-| No-DATE direct Type count | 106.5 ms | 82.7 ms |
-| No-DATE broad `fee` search count | 136.9 ms | 341.8 ms |
-
-The unbounded count covers 463,980 member or 875,300 administrator rows. An explicitly requested
-full available-date-range administrator total processes 875,300 rows across nine currencies in
-about 2.3 seconds. This is separate from the ordinary page/count request and is not automatically
-requested by an empty Selected Dates card.
-
-The ordinary bounded count uses index-only scans with zero heap fetches on the vacuumed fixture.
-Its source scans report 227 Settlement and 141 Data Kiosk shared buffer read blocks. These counters
-exclude shared-buffer hits and do not establish physical disk I/O. Current-version and ownership
-inventories still have their own work outside the fact date range.
-
-The [snapshot](evidence/date_bounded_indexes_2026-09-27/README.md) includes complete request scopes,
-response hashes, plans, and isolated insertion measurements. Warm local results and repeated seed
-distributions do not establish cold-cache latency, production concurrency, or a universal bound.
+The [September 27 source-index snapshot](evidence/date_bounded_indexes_2026-09-27/README.md)
+records authenticated local request timings, exact-response checks, plans, and insertion costs on
+a synthetic million-row history fixture. It predates the current source-authority
+rules, so its counts and timings describe that historical schema. Use the maintained
+runners below to measure the current ledger.
 
 ## Scaling limits
 

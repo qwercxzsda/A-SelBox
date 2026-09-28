@@ -6,6 +6,7 @@ database; no persistent development data is changed.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from typing import LiteralString
 
 import psycopg
@@ -13,7 +14,7 @@ from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests.concurrency_support import wait_for_block
 from services.db.supabase.tests.isolated_database import isolated_database
-from services.db.supabase.tests.payout_fixtures import publish_report
+from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month, publish_report
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 _BARRIER = 812340
@@ -27,6 +28,7 @@ def _prepare(database_url: str) -> dict[str, object]:
         fixture = SourceModelFixture()
         fixture.connection = connection
         fixture.seller = "retention-deadlock-seller"
+        fixture.set_mature_cutoff_date(date(2026, 7, 1))
         for activity_date in ("2026-06-16", "2026-06-15"):
             for observation in range(1, 5):
                 acquisition_id = fixture.kiosk_acquisition(observation, start=activity_date)
@@ -153,6 +155,7 @@ def report_while_pruning() -> tuple[str, str]:
             fixture.connection = connection
             fixture.seller = "retention-deadlock-seller"
             company, _ = fixture.owner()
+            fill_payout_kiosk_month(fixture)
             connection.execute("""
                 create function private.pause_test_retention() returns trigger
                 language plpgsql as $$ begin
@@ -188,7 +191,7 @@ def report_while_pruning() -> tuple[str, str]:
                 connection.execute("set deadlock_timeout='100ms'")
                 connection.execute("set statement_timeout='10s'")
                 fixture.connection = connection
-                publish_report(fixture, company, end_date="2026-06-16")
+                publish_report(fixture, company)
             return "committed"
 
         with psycopg.connect(database_url, autocommit=True) as controller:
@@ -205,8 +208,8 @@ def report_while_pruning() -> tuple[str, str]:
             if controller.execute(
                 "select count(*) from private.payout_report_data_kiosk_versions p "
                 "join private.data_kiosk_days d on d.current_version_id=p.version_id"
-            ).fetchone() != (2,):
-                raise AssertionError("The report must capture both complete current day versions.")
+            ).fetchone() != (30,):
+                raise AssertionError("The report must capture the complete month of current days.")
             if controller.execute(
                 "select count(*) from private.data_kiosk_pruned_versions"
             ).fetchone() != (2,):

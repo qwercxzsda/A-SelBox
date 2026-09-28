@@ -104,8 +104,8 @@ first three. Exact Settlement types must be registered and pass their family che
 known retained charges explicitly use `SELBOX`. Unknown types abort the entire report.
 Data Kiosk rejects unknown monetary
 components and missing required amounts before publishing any day. Its explicit
-analysis-only components remain outside strict financial totals and remain available
-in dashboard estimates. The [shared registry](../../docs/transaction_type_registry.md) also generates the frontend Type catalog.
+analysis-only components remain available in source diagnostics and are excluded from
+financial pages and totals. The [shared registry](../../docs/transaction_type_registry.md) also generates the frontend Type catalog.
 
 Preprocessing preserves exact signed amounts and nonblank SKU text verbatim,
 including surrounding whitespace. Settlement requires exact report reconciliation
@@ -167,45 +167,35 @@ with every missing-fee component; fully unknown sums remain NULL. See the
 [partial-summary contract](../../docs/company_fees.md#partial-live-summaries).
 
 Live fees use signed Settlement product principal and refunds at each row's own
-posting-date rate. Data Kiosk sales analysis is separate from authoritative
-Settlement sales; selected `DATA_KIOSK` costs have no commission rate. Company and
+posting-date rate for mature dates; recent dates use Data Kiosk net product sales.
+Data Kiosk amounts in the Data Kiosk category remain authoritative at every age and have no
+sales commission. For mature dates, Settlement report amounts in the SelBox category
+and the difference between the sources in the Data Kiosk category remain with SelBox. Company and
 fee corrections immediately affect live reads. The refund formula still has the
 [refund commission risk](../../docs/known_issues.md#deferred-refund-commission-over-credit-risk).
 
 ## Saved company payout reports
 
-Use `src/database/payout_reports.py` to call `publish_company_payout_report()`
-with one company, seller and currency; inclusive dates; an exact preprocessor
-version; explicit settlement IDs and required marketplaces; a report name; and
-a change reason. The default dataset is `economics`. This is an administrator
-publication API, not a download or preprocessing command.
+The trusted Python API in `src/database/payout_reports.py` publishes one known
+company/seller/currency scope. Call `publish_company_payout_report()` with inclusive
+dates spanning one complete calendar month, a preprocessor version, explicit Settlement
+IDs and required marketplaces, a report name, and a change reason. The dataset defaults
+to `economics`. The database selects current versions, validates inputs, and calculates
+all amounts; callers never supply calculated totals.
 
-The database captures current complete Settlement and Data Kiosk versions and
-selected SKU terms, then validates the entire declared source scope before
-filtering to the requested company and currency. Missing day coverage, unassigned
-authoritative SKUs, or missing applicable rates reject the report. Callers supply
-scope and descriptive metadata; the database calculates all amounts.
+The publisher returns the saved report UUID. It reuses the latest report when its scope
+and exact input versions match. An explicit request is required to create any snapshot;
+downloads, preprocessing, and terms publication never create one automatically.
 
-One transaction saves `public.company_payout_reports`, its immutable
-`public.company_payout_report_components`, and private manifests of the exact
-Settlement, Data Kiosk, and terms versions. Each saved component includes its
-source reference, applicable terms and fee period, rate, and exact source, fee,
-and company amounts. `load_company_payout_report()` and
-`load_company_payout_report_components()` read saved values without recalculating
-against current selections. Later source or terms publications leave them intact.
+`load_company_payout_report()` and `load_company_payout_report_components()` read frozen
+values without recalculating current inputs. The header reader also supports the
+all-null seller/currency/preprocessor shape produced by company/month generation when
+no currency scope is known. Those totals are zero.
 
-The Data Kiosk manifest includes every required day, including successful empty
-days. These immutable report references protect complete versions during cleanup;
-there is no separate generic pin/unpin API. Publication and retention use
-READ COMMITTED transactions and coordinate through day locks. Operators read all
-saved reports and input references through REST, including full header counts.
-Company members have no payout access. The trusted Python header loader retains
-full access; report publication remains a direct-database operation.
-
-See the [payout report contract](../../docs/company_payout_reports.md) for schema,
-capture, and retention details. Saving a report does not approve or execute a
-payment. Approval, payment execution, currency rounding, and the refund commission
-over-credit policy remain deferred.
+Administrators use the UI or `public.generate_company_payout_reports` to generate all
+scopes for one company/month. See the [payout contract](../../docs/company_payout_reports.md)
+for maturity, coverage, empty aggregates, reuse, access, and retention. Saving a report
+does not approve or execute payment.
 
 ## Verification
 

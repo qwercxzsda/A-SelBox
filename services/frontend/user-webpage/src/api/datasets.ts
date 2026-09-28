@@ -11,6 +11,7 @@ import {
 } from "./transaction-page.ts";
 import { ApiError, requireAccessToken, type ApiTransport } from "./transport.ts";
 import { readAllCsvRows, LOOKUP_PAGE_SIZE } from "./pagination.ts";
+import { requireUuid } from "./validation.ts";
 import type {
   CanonicalRow,
   TableDatasetKey,
@@ -50,7 +51,12 @@ function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchPara
   const params = new URLSearchParams();
   const searchFilter = buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
   if (searchFilter !== null) params.set("or", searchFilter);
-  datasetFilterValues(dataset, filters);
+  const values = datasetFilterValues(dataset, filters);
+  if (dataset === "payouts") {
+    if (values.companyIds.length) params.set("company_id", `in.(${values.companyIds.join(",")})`);
+    if (values.dateFrom) params.append("start_date", `gte.${values.dateFrom}`);
+    if (values.dateTo) params.append("start_date", `lte.${values.dateTo}`);
+  }
   return params;
 }
 
@@ -144,9 +150,7 @@ export function createDatasetApi(transport: ApiTransport) {
       sellerSkuId: string,
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
-      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(sellerSkuId)) {
-        throw new Error("A valid seller SKU ID is required");
-      }
+      requireUuid(sellerSkuId, "seller SKU");
       const rows = await readAllCsvRows(
         transport,
         accessToken,

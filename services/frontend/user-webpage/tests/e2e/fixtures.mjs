@@ -7,8 +7,9 @@ import { respondWithSourceRows } from "./mocks/source-rows.mjs";
 import { respondWithLatestDate, respondWithSummary } from "./mocks/summaries.mjs";
 import { respondWithTransactions } from "./mocks/transactions.mjs";
 import { respondWithOptions } from "./mocks/options.mjs";
-import { respondWithAdminRows } from "./mocks/admin-rows.mjs";
+import { respondWithWorkspaceLists } from "./mocks/workspace-lists.mjs";
 import { transactionPageParams } from "./transaction-page-fixtures.mjs";
+import { respondWithPayouts } from "./mocks/payouts.mjs";
 
 export function deferred() {
   let resolve;
@@ -44,6 +45,16 @@ export async function mockSupabase(page) {
     const context = { request, url, user, accessToken, route, track, ...createReplies(route) };
     if (request.method() === "OPTIONS") return context.reply({});
     fixture.events.push({ endpoint: url.pathname, user });
+    if (
+      [
+        "/rest/v1/rpc/payout_report_policy",
+        "/rest/v1/rpc/generate_company_payout_reports",
+        "/rest/v1/company_payout_report_components",
+        "/rest/v1/payout_report_marketplace_totals",
+        "/rest/v1/payout_report_reconciliation",
+      ].includes(url.pathname)
+    )
+      return respondWithPayouts(fixture, context);
     if ([...url.searchParams.values()].some((value) => /\b(sum|count|avg|min|max)\(/.test(value)))
       throw new Error("REST aggregates are disabled; use a dedicated RPC");
     if (url.pathname === "/rest/v1/rpc/transaction_totals")
@@ -58,7 +69,7 @@ export async function mockSupabase(page) {
       return respondWithCount(fixture, context);
     if (ACCOUNT_PATHS.has(url.pathname)) return accounts.respond(context);
     if (["/rest/v1/app_accounts", "/rest/v1/company_payout_reports"].includes(url.pathname))
-      return respondWithAdminRows(fixture, context);
+      return respondWithWorkspaceLists(fixture, context);
     if (
       ["/rest/v1/current_sku_fee_periods", "/rest/v1/rpc/source_transaction_page"].includes(
         url.pathname,

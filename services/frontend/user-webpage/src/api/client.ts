@@ -3,6 +3,7 @@ import { createAuthApi } from "./auth.ts";
 import { createWorkspaceApi } from "./workspace.ts";
 import { createDatasetApi } from "./datasets.ts";
 import { createSummaryApi } from "./summaries.ts";
+import { createPayoutApi } from "./payouts.ts";
 import type { ApiClientConfig } from "./client-config.ts";
 export { ApiError } from "./transport.ts";
 
@@ -17,6 +18,7 @@ export function createApiClient(
     ...createAuthApi(transport),
     ...createWorkspaceApi(transport),
     ...datasets,
+    ...createPayoutApi(transport),
     ...createSummaryApi(transport, (options) => datasets.fetchDatasetPage(options)),
   };
 }

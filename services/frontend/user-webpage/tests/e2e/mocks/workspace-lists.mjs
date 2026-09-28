@@ -1,9 +1,10 @@
 import { DATASET_CONFIG } from "../../../src/api/config.ts";
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
 
-export function respondWithAdminRows(fixture, { request, url, user, reply, csvReply, track }) {
-  if (fixture.roles[user] !== "operator") return reply({ message: "Administrator required" }, 403);
+export function respondWithWorkspaceLists(fixture, { request, url, user, reply, csvReply, track }) {
   const dataset = url.pathname === "/rest/v1/app_accounts" ? "accounts" : "payouts";
+  if (fixture.roles[user] !== "operator" && dataset === "accounts")
+    return reply({ message: "Administrator required" }, 403);
   const entry = {
     user,
     dataset,
@@ -17,7 +18,10 @@ export function respondWithAdminRows(fixture, { request, url, user, reply, csvRe
   (counting ? fixture.countRequests : fixture.requests).push(entry);
   const source =
     dataset === "payouts"
-      ? fixture.payoutRows
+      ? fixture.payoutRows.filter(
+          (row) =>
+            fixture.roles[user] === "operator" || row.company_id === fixture.companyIds[user],
+        )
       : Object.keys(fixture.roles).map((id) => ({
           user_id: id,
           access_role: fixture.roles[id],

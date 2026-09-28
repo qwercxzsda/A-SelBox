@@ -12,10 +12,10 @@ import {
   visibleDatasets,
 } from "../src/view-model.ts";
 
-test("members see transactions and fees while administrators retain all views", () => {
+test("members see transactions, fees, and payouts while administrators retain all views", () => {
   const member = { user_id: "member-id", access_role: "company_member", company_id: "company-a" };
   const operator = { user_id: "operator-id", access_role: "operator", company_id: null };
-  assert.deepEqual(visibleDatasets(member), ["live", "fees"]);
+  assert.deepEqual(visibleDatasets(member), ["live", "fees", "payouts"]);
   assert.deepEqual(visibleDatasets(operator), DATASET_ORDER);
 });
 

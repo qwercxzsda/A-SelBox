@@ -40,16 +40,18 @@ from the existing canonical marketplace registry, including `Non-Amazon US`.
 
 Type menus use source and category to reflect their dataset. Company Transactions includes
 all known types except category `SELBOX`, including `ANALYSIS_ONLY`.
-Administrator Transactions includes all registered types; its source tabs include all registered
-types for their source. Supported values may
-produce zero rows; option discovery does not inspect transactions to establish occurrence.
+Administrator Transactions includes all registered types and the derived
+`SETTLEMENT_KIOSK_DIFFERENCE` type. Its raw source tabs include only registered types for that
+source. The difference is calculated in SQL; it does not change the Python registry or generated
+source catalog. Supported values may produce zero rows; option discovery does not inspect transactions to establish occurrence.
 
-Source always offers Settlements and Data Kiosk. Marketplace offers all supported names. Company
-members reuse the exact SKU strings in their already-loaded current assignments. Administrators
+Source offers Settlements and Data Kiosk, plus Reconciliation in administrator Transactions.
+The derived source is absent from member menus and raw source tabs. Marketplace offers all
+supported names. Company members reuse the exact SKU strings in their already-loaded current assignments. Administrators
 preload the complete SKU catalog in one administrator-only RPC before showing the workspace because imported facts
 can contain unassigned or unregistered SKUs absent from assignments. Source and fee revisions
 refresh that list before dependent search queries. Table search resolves matching catalog values
-to exact OR sets; Currency is excluded. These menu changes do not alter backend row authorization.
+to exact OR sets; Currency is excluded. Menu values do not grant access; the backend authorizes every row.
 
 ## Adding a type
 

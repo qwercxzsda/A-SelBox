@@ -5,9 +5,10 @@ and archive exact documents first; preprocess successful acquisitions offline in
 Python; resolve current company ownership and calculate live company fees in SQL;
 freeze exact inputs and amounts when publishing company payout reports.
 
-Strict financial reads and payouts apply the source-allocation policy. The dashboard's
-approximate totals instead sum all eligible Transactions rows, including comparison and
-analysis rows. Their scope is defined by the [transaction query contract](transaction_query_contracts.md).
+Strict financial reads, payouts, and dashboard estimates apply the same
+[source-allocation policy](source_allocation.md). Dashboard estimates select authoritative
+imported rows but do not certify complete source coverage. Their request scope is defined by
+the [transaction query contract](transaction_query_contracts.md).
 
 The [sync guide](../services/sync/README.md) owns commands and retry settings, the
 [database guide](../services/db/supabase/README.md) owns setup and schema operations,
@@ -41,16 +42,16 @@ required by their contract.
 The required `category` uses Python `AllocationCategory` and PostgreSQL
 `public.allocation_category`:
 
-| Category        | Settlement                                          | Data Kiosk                                       |
-| --------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `SETTLEMENT`    | Company source amounts                              | Comparison counterparts                          |
-| `SELBOX`        | Registered account and retained charges | Forbidden on the current MSKU rows               |
-| `DATA_KIOSK`    | Cost reconciliation controls                        | Approved company costs                           |
-| `ANALYSIS_ONLY` | Not allowed                                         | Diagnostic facts outside strict financial totals |
+| Category | Settlement | Data Kiosk |
+| --- | --- | --- |
+| `SETTLEMENT` | Company amounts for mature dates through exact SKU ownership | Company amounts for recent dates; comparisons for mature dates |
+| `SELBOX` | Amounts retained by SelBox for mature dates | Amounts retained by SelBox for recent dates; account components cannot carry an MSKU |
+| `DATA_KIOSK` | Controls for mature dates regardless of SKU; discarded for recent dates | Company costs at every age through exact SKU ownership |
+| `ANALYSIS_ONLY` | Not allowed | Diagnostic facts outside monetary totals |
 
 Unknown source types in either preprocessor fail before publication. There is no stored
 unresolved category. The [family rules](settlement_component_categories.md) and
-[payout component policy](source_allocation.md#4-select-data-kiosk-components-without-counting-costs-twice)
+[source authority policy](source_allocation.md)
 define classification; category selection alone does not establish complete source coverage.
 
 ### Naming conventions
@@ -321,19 +322,17 @@ newest individual component rows from different complete versions.
 
 ### Data Kiosk component selection
 
-Classify each component, not its entire SKU row. `SETTLEMENT` counterparts remain
-for comparison; approved `DATA_KIOSK` costs supply company amounts. Current DAY/MSKU
+Classify each component, not its entire SKU row. Data Kiosk components in the Data Kiosk category
+supply company costs at all ages. Its components in the Settlement category
+supply recent amounts and become comparisons once dates become mature. Current DAY/MSKU
 rows require MSKU, so their account view is empty: a known account component with
 MSKU fails rather than becoming `SELBOX`. Explicitly understood `ANALYSIS_ONLY`
 facts remain diagnostic and do not block totals; unknown components cannot use
 that category as a fallback.
 
-Exclude Data Kiosk sales and other `SETTLEMENT` counterparts, including related
-taxes/reversals, from authoritative company totals. Keep approved costs even when
-the SKU also has settlement activity or its registered settlement counterpart belongs to
-`SELBOX`. Classification does not prove required coverage. The
-[payout policy](source_allocation.md) defines source authority;
-frontend windows and same-day counterpart presence do not switch it.
+Apply the [source policy](source_allocation.md) by activity date, independently of frontend
+filters or same-day counterpart presence. Preprocessing determines categories; SQL selects the
+authoritative source and calculates daily reconciliation.
 
 ### Retention and comparison
 
@@ -348,10 +347,9 @@ totals can hide changes. Divergence is diagnostic; agreement does not establish
 finality or prove separate Amazon refreshes.
 
 Cleanup is explicit and reference-aware. Never prune current versions or versions
-in `private.payout_report_data_kiosk_versions`. A saved report references every
-required complete day, including empty days, and protects its entire version
-payload. These immutable report dependencies are the only historical retention
-pins, with no independent pin/unpin API.
+in `private.payout_report_data_kiosk_versions`. A report pins every required complete day,
+including verified empty days, and protects its entire payload. Missing imports cannot substitute
+for empty days. Report dependencies are the only historical retention pins.
 
 Preserve version identity and original counts when deleting eligible children so
 pruning cannot appear as successful empty coverage. Report capture and pruning
@@ -369,18 +367,18 @@ Explicit unassignment and empty fee inventories are valid; 0% means known covera
 Reassignment restates all live history. See the [company-fee contract](company_fees.md)
 for exact rates, fee eligibility, current-only access, and partial summaries.
 
-`publish_company_payout_report()` declares one company, seller, currency, inclusive
-date range, processor definition, required settlements and marketplace/day coverage.
-It captures current source and terms versions, validates all authoritative scoped
-rows, and then saves that company's exact amounts and components atomically.
-Missing ownership, fee coverage, or source versions reject publication.
+Administrators request all reports for one company/month through
+`public.generate_company_payout_reports(p_company_id, p_month)`. Generation captures
+current processed inputs and SKU terms, validates them, and aggregates company amounts
+into immutable seller/currency reports. Empty inputs sum to zero through the same
+calculation. Changes to sources or terms never generate snapshots automatically.
+A request reuses the latest report when its scope and exact input versions match.
 
-Private typed manifests retain every required source version, including empty
-Data Kiosk days, and terms used to explain both included and excluded rows.
-Later source replacement, fee changes, reassignment, and retention cannot rewrite
-a saved report. Read its stored values through `load_company_payout_report()` and
-`load_company_payout_report_components()`. The [payout report contract](company_payout_reports.md)
-owns the schema, permissions, locking, and integrity checks.
+Saved components, source/terms manifests, marketplace totals, and administrator-only
+account reconciliation remain tied to those captured versions. Read saved values with
+`load_company_payout_report()` and `load_company_payout_report_components()`.
+The [payout contract](company_payout_reports.md) owns eligibility, scope discovery,
+empty aggregates, reuse, access, locking, and integrity checks.
 
 The [refund commission over-credit policy](known_issues.md#deferred-refund-commission-over-credit-risk)
 remains deferred. Reports use the same posting-date fee formula as live reads;
@@ -421,8 +419,10 @@ report/day/version references are shared across registered company members; full
 administrator-only.
 Operators manage member access, publish complete terms, and read all retained
 source/terms history and all payout reports, components, and input references.
-Company members have no payout access. Original archives, source/payout
-publication, and pruning remain direct-database/archive-service operations.
+Company members read only their own company's saved reports and components and cannot
+generate reports. Operators generate any company's eligible monthly reports through
+the guarded RPC. Original archives, source publication, and pruning remain
+direct-database/archive-service operations.
 See the [application-access contract](access_control.md).
 
 Index and measure representative authenticated account, ownership,
@@ -434,8 +434,7 @@ owns the concrete grants and views.
 
 The migrations install acquisitions, complete source versions, current selections,
 company terms, saved payout reports, publication functions, and access policies
-into a fresh database. They do not provide an upgrade or backfill path for an
-existing deployment. The [database guide](../services/db/supabase/README.md)
+into a fresh database. The [database guide](../services/db/supabase/README.md)
 documents installation and verification commands.
 
 Implementation checks belong alongside the behavior they exercise: archive integrity
@@ -453,5 +452,5 @@ are not proof of live Amazon or database verification.
 | Preprocessing failure                                | Retain archives/diagnostics; publish no partial successful result; preserve current selection                             |
 | Stale or failed publication                          | Preserve prior complete selection and retry with explicit source/local ordering                                           |
 | Missing business ownership/rate or required coverage | Expose the gap and reject authoritative totals; valid source preprocessing remains possible                               |
-| Payout report publication                            | Reject incomplete scope or unresolved terms; publish saved amounts and complete typed manifests atomically                |
+| Payout report publication | Validate required inputs; atomically reuse the latest matching report or save exact aggregates and input manifests |
 | Retention cleanup                                    | Preserve archives/manifests, current and payout-referenced versions, and the distinction between pruned and empty results |

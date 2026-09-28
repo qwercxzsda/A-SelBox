@@ -9,7 +9,7 @@ import {
   type DatasetPageOptions,
   type DatasetQueryIdentity,
 } from "./dataset-query-cache.ts";
-import { isAdministrativeDataset } from "./workspace-revisions.ts";
+import { isPolledDataset } from "./workspace-revisions.ts";
 
 export function datasetQueryOptions(
   identity: DatasetQueryIdentity,
@@ -64,8 +64,8 @@ export function datasetCountQueryOptions(
   const scope = createDatasetScope(identity, options);
   return queryOptions({
     queryKey: scope.countKey,
-    // Financial membership changes are covered by revision polling; admin lists are not.
-    staleTime: isAdministrativeDataset(options.dataset) ? 30_000 : Infinity,
+    // Financial counts follow source revisions; account and payout lists refresh by polling.
+    staleTime: isPolledDataset(options.dataset) ? 30_000 : Infinity,
     queryFn: async ({ signal, client }) => {
       const total = await fetchCount({
         ...options,

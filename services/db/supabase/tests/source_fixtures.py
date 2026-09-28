@@ -37,6 +37,10 @@ class SourceModelFixture(DatabaseTestCase):
         super().setUp()
         self.seller = "seller-one"
 
+    def recent_activity_date(self) -> str:
+        """Use the mature cutoff date for recent fixture facts."""
+        return self.mature_cutoff_date().isoformat()
+
     def call(self, function: str, payload: dict[str, object]) -> str:
         from psycopg import sql
 
@@ -286,20 +290,22 @@ class SourceModelFixture(DatabaseTestCase):
         acquisition_id: str | None = None,
         version: str = "v0",
         digest: str = "a",
+        activity_date: str = "2026-06-15",
     ) -> tuple[str, str]:
         version_id = new_id()
         self.call(
             "publish_data_kiosk_preprocess",
             {
                 "id": new_id(),
-                "acquisition_id": acquisition_id or self.kiosk_acquisition(observation),
+                "acquisition_id": acquisition_id
+                or self.kiosk_acquisition(observation, start=activity_date),
                 "preprocess_version": version,
                 "dataset_key": "economics",
                 "days": [
                     {
                         "id": version_id,
                         "marketplace_name": "Amazon.com",
-                        "activity_date": "2026-06-15",
+                        "activity_date": activity_date,
                         "expected_current_version_id": expected,
                         "content_sha256": digest * 64,
                         "transactions": rows,
@@ -310,9 +316,9 @@ class SourceModelFixture(DatabaseTestCase):
         row = require_row(
             self.connection.execute(
                 "select id from private.data_kiosk_days where seller_namespace=%s "
-                "and marketplace_name='Amazon.com' and activity_date='2026-06-15' "
+                "and marketplace_name='Amazon.com' and activity_date=%s "
                 "and dataset_key='economics'",
-                (self.seller,),
+                (self.seller, activity_date),
             ).fetchone()
         )
         return str(row[0]), version_id

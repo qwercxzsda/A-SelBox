@@ -1,5 +1,6 @@
 import { DATASET_CONFIG, isTableDataset, type DatasetConfig } from "./config.ts";
 import type { DatasetFilterField, DatasetFilters, TableDatasetKey } from "./types.ts";
+import { isUuid } from "./validation.ts";
 
 export function requireFilterField(dataset: TableDatasetKey, field: DatasetFilterField): void {
   if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
@@ -34,12 +35,7 @@ export function textSelectionValues(field: DatasetFilterField, selection?: strin
 
 export function companySelectionValues(companyIds?: string[]): string[] {
   if (companyIds === undefined) return [];
-  if (
-    !Array.isArray(companyIds) ||
-    [...companyIds].some(
-      (id) => typeof id !== "string" || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id),
-    )
-  ) {
+  if (!Array.isArray(companyIds) || [...companyIds].some((id) => !isUuid(id))) {
     throw new Error("Choose valid company IDs");
   }
   return [...new Set(companyIds)].sort();
@@ -68,7 +64,7 @@ export function datasetFilterValues(dataset: TableDatasetKey, filters?: DatasetF
   };
   if (feeApplicable !== null && dataset !== "live")
     throw new Error("Fee applicability filtering is unavailable for this view");
-  if (companyIds.length > 0 && dataset !== "live")
+  if (companyIds.length > 0 && dataset !== "live" && dataset !== "payouts")
     throw new Error("Company filtering is unavailable for this view");
   requireDateRange(dateFrom, dateTo);
   if ((dateFrom || dateTo) && DATASET_CONFIG[dataset].dateColumn === null)

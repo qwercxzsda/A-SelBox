@@ -2,12 +2,13 @@
 
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 
 import psycopg
 
 from services.db.supabase.tests.concurrency_support import wait_for_block
 from services.db.supabase.tests.isolated_database import isolated_database
-from services.db.supabase.tests.payout_fixtures import publish_report
+from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month, publish_report
 from services.db.supabase.tests.retention_publication_schedule import (
     publish_while_pruning,
     report_while_pruning,
@@ -26,6 +27,7 @@ def _history(connection: psycopg.Connection) -> list[str]:
     fixture = SourceModelFixture()
     fixture.connection = connection
     fixture.seller = "retention-seller"
+    fixture.set_mature_cutoff_date(date(2026, 7, 1))
     versions: list[str] = []
     for observation in range(1, 6):
         _, version = fixture.kiosk(
@@ -50,8 +52,10 @@ class RetentionConcurrencyTests(unittest.TestCase):
                 fixture = SourceModelFixture()
                 fixture.connection = setup
                 fixture.seller = "report-source-seller"
+                fixture.set_mature_cutoff_date(date(2026, 7, 1))
                 company, _ = fixture.owner()
                 _, first = fixture.kiosk(1, [fixture.component()])
+                fill_payout_kiosk_month(fixture)
             with (
                 psycopg.connect(database_url) as capturing,
                 psycopg.connect(database_url, autocommit=True) as observer,
@@ -88,8 +92,8 @@ class RetentionConcurrencyTests(unittest.TestCase):
                         "select p.version_id::text,count(t.id) "
                         "from private.payout_report_data_kiosk_versions p "
                         "left join private.data_kiosk_transactions t on t.version_id=p.version_id "
-                        "where p.report_id=%s group by p.version_id",
-                        (report,),
+                        "where p.report_id=%s and p.version_id=%s group by p.version_id",
+                        (report, first),
                     ).fetchone(),
                     (first, 1),
                 )
@@ -102,6 +106,7 @@ class RetentionConcurrencyTests(unittest.TestCase):
                 fixture.seller = "retention-seller"
                 company, _ = fixture.owner()
                 versions = _history(setup)
+                fill_payout_kiosk_month(fixture)
             with (
                 psycopg.connect(database_url) as pruning,
                 psycopg.connect(database_url, autocommit=True) as observer,
@@ -128,8 +133,8 @@ class RetentionConcurrencyTests(unittest.TestCase):
                 self.assertEqual(
                     observer.execute(
                         "select version_id::text from private.payout_report_data_kiosk_versions "
-                        "where report_id=%s",
-                        (report,),
+                        "where report_id=%s and version_id=%s",
+                        (report, versions[-1]),
                     ).fetchall(),
                     [(versions[-1],)],
                 )

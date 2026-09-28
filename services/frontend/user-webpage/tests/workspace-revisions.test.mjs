@@ -8,8 +8,8 @@ import {
   changedRevisionSources,
   queryRevisionSources,
   refreshWorkspaceQueries,
-  isAdministrativeDataset,
-  isAdministrativeQuery,
+  isPolledDataset,
+  isPolledQuery,
   sameAccount,
 } from "../src/workspace-revisions.ts";
 
@@ -148,19 +148,17 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
   }
 });
 
-test("administrative refresh policy applies only to account and payout pages and their counts", () => {
+test("polling refreshes account and payout lists plus eligibility, independently of source revisions", () => {
+  assert.equal(isPolledQuery({ queryKey: ["payout-policy", "u"] }), true);
   for (const dataset of ["accounts", "payouts", "live", "settlement", "data_kiosk", "fees"]) {
     const expected = dataset === "accounts" || dataset === "payouts";
-    assert.equal(isAdministrativeDataset(dataset), expected);
+    assert.equal(isPolledDataset(dataset), expected);
     for (const key of [
       ["dataset", "u", "operator", null, dataset],
       ["dataset-count", "u", "operator", null, dataset],
     ])
-      assert.equal(isAdministrativeQuery({ queryKey: key }), expected);
-    assert.equal(
-      isAdministrativeQuery({ queryKey: ["unrelated", "u", "operator", null, dataset] }),
-      false,
-    );
+      assert.equal(isPolledQuery({ queryKey: key }), expected);
+    assert.equal(isPolledQuery({ queryKey: ["unrelated", "u", "operator", null, dataset] }), false);
   }
 });
 

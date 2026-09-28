@@ -38,7 +38,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
         kiosk_rows.append(self.component("10001", sku="OTHER") | {"component_type": "FOCUS"})
         kiosk_rows.append(self.component("0"))
         self.settlement(settlement_rows)
-        self.kiosk(1, kiosk_rows)
+        self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
 
         for dataset, direction, include_count in product(
             ("settlement", "data_kiosk"), ("asc", "desc"), (False, True)
@@ -86,7 +86,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
                 {"p_types": ["FOCUS"]},
                 {"p_search_skus": ["OTHER"]},
                 {"p_search_skus": []},
-                {"p_date_from": "2026-07-01"},
+                {"p_date_to": "2025-01-01"},
                 {"p_marketplaces": ["Amazon.co.uk"]},
             )
             for selection in filters:
