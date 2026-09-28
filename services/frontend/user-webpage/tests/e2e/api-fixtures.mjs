@@ -43,16 +43,6 @@ export const DATA_KIOSK_COLUMNS = [
   "created_at",
 ];
 
-export const FEE_COLUMNS = [
-  "sku_id",
-  "company_id",
-  "terms_version_id",
-  "marketplace_name",
-  "fee_period_id",
-  "valid_period",
-  "fee_rate_percent",
-];
-
 export function csv(columns, rows) {
   const quote = (value) =>
     value === null || value === undefined ? "" : `"${String(value).replaceAll('"', '""')}"`;

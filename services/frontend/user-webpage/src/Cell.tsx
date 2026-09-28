@@ -51,10 +51,6 @@ export function TableCellValue({
       return companyLabel(value, companies);
     case "date":
       return value || "—";
-    case "period": {
-      const match = /^\[([^,]+),([^)]*)\)$/.exec(value);
-      return match ? `${match[1]} → ${match[2] || "No end date"}` : value;
-    }
     case "money":
       return formatExactMoney(value, row.currency ?? null);
     case "percent":

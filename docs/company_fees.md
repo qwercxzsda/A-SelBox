@@ -36,13 +36,47 @@ rule described in the source policy.
 | `sku_fee_periods`    | Marketplace-specific effective periods and rates belonging to one terms version.                                  |
 
 These tables live in `public`; trusted writers publish through
-`private.publish_sku_terms(jsonb)`. Operators use the caller-checked
-`public.publish_sku_terms(...)` REST RPC. UUIDv7 identifiers and audit times
+`private.publish_sku_terms(jsonb)`. Operators use the caller-checked atomic batch
+`public.publish_sku_configuration(...)` REST RPC. UUIDv7 identifiers and audit times
 are generated automatically. Administrators provide business terms and an
 expected current version. `version_number` labels publications within one SKU;
 the current pointer selects the revision. `company_skus` is an assigned-only
 current projection view, and `current_sku_fee_periods` projects its selected
 periods. Both views are read-only.
+
+The **Current fees** screen lets administrators stage multiple assignment and fee changes,
+review them, and save one complete batch. `public.sku_configuration()` includes imported-only
+and unassigned SKUs for administrators, so incomplete settings can be repaired. Company members
+receive only their own assigned SKUs and can inspect their fees and coverage without editing.
+
+### Administrator completeness
+
+Every administrator save must leave every known exact SKU assigned to a company. Known names
+come from the SKU registry and both retained source histories, including names found only in
+historical versions. A batch contains at least one changed SKU and a nonblank change reason.
+Only changed SKUs are submitted, but unchanged incomplete settings also block a save. Each
+changed SKU supplies a complete fee inventory and its expected current version; stale edits
+and invalid batches publish nothing.
+
+Required fee dates come from the selected current source versions:
+
+| Source | Rows requiring coverage | Effective date |
+| --- | --- | --- |
+| Settlement | Category `SETTLEMENT`, transaction type `Order` or `Refund`, amount type `ItemPrice`, description `Principal` | `posted_date` |
+| Data Kiosk | Category other than `SELBOX` with a nonnull `fee_base` | `activity_date` |
+
+Both sources contribute requirements independently of today's maturity boundary, including
+zero bases. Historical source versions contribute known SKU names but no required fee dates.
+Coverage applies to each recorded marketplace/date; dates without qualifying activity need
+no fee period. A 0% rate is complete coverage. Noncommission activity requires ownership but
+does not require a fee. Separate adjacent periods may cover a requirement; overlaps are
+rejected. Read diagnostics compress consecutive required or uncovered dates into half-open
+ranges and identify missing companies separately.
+
+This is validation of the configuration known when the batch is checked. Older incomplete
+terms remain readable, and subsequent imports can introduce new SKUs or fee requirements.
+These gaps appear on the screen and must be repaired before the next administrator save.
+Source imports never invent an owner or rate. Saved payout snapshots remain unchanged.
 
 ### Stable identity and versioned ownership
 
@@ -55,9 +89,9 @@ selected fee revision. Namespaces remain source provenance; they never partition
 The selected version must belong to that same SKU. The first publication
 creates the identity and required first revision atomically; there is no dummy
 initial owner and no automatic registration during source imports. Later
-publications may reassign or unassign the SKU, including unassigning every
-configured SKU. They preserve identity and immutable history. There is no global
-fee-configuration version or ownership effective-date model.
+trusted publications may reassign or unassign the SKU while preserving identity and immutable
+history. Administrator publications require complete ownership and coverage as described above.
+There is no global fee-configuration version or ownership effective-date model.
 
 The selected company is treated as the correct historical owner. Reassignment
 corrects a mistaken assignment across all dates in live reads and future payout
@@ -97,8 +131,9 @@ including trailing zeros. Invalid precision is rejected without rounding.
 [PostgreSQL range exclusion constraints](https://www.postgresql.org/docs/17/rangetypes.html#RANGETYPES-CONSTRAINT)
 enforce nonoverlap.
 
-An empty replacement withdraws all coverage. An explicit 0% period still
-provides coverage and differs from a missing rate.
+An empty trusted replacement withdraws all coverage. An administrator can submit an empty fee
+inventory only when that SKU has no required fee dates. An explicit 0% period provides coverage
+and differs from a missing rate.
 
 ### Atomic publication
 
@@ -107,6 +142,12 @@ expected absence on first publication. It inserts the new version and complete
 period inventory, validates the terms, and advances the current reference in one
 transaction. It allocates the next revision number while holding the lock.
 A stale edit or other failure preserves the previous selection.
+
+Administrator batches acquire changed-SKU locks in exact text order and validate the resulting
+whole configuration after all changes. Any missing ownership or required rate rolls back every
+new revision and pointer update in the batch. The browser preserves drafts after rejections and
+requires refreshed saved settings after a stale or unconfirmed write; it never retries publication
+automatically. A failed display refresh after a confirmed save does not undo that save.
 
 Published versions and child inventories are immutable: updates, deletions, and
 additional child inserts are rejected. A deliberate reversion publishes another

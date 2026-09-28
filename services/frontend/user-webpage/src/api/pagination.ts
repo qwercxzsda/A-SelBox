@@ -1,7 +1,6 @@
 import { parseTotalCount } from "./content-range.ts";
 import { ApiError, readJson, type ApiTransport } from "./transport.ts";
 import { parseObjectRows, requiredJsonString } from "./validation.ts";
-import type { CanonicalRow } from "./types.ts";
 
 export const LOOKUP_PAGE_SIZE = 1000;
 interface LookupPage<Row> {
@@ -72,26 +71,6 @@ export function readAllJsonRows(
       return { rows: parseObjectRows(await readJson(response, operation), operation), totalCount };
     },
     (row) => requiredJsonString(row, "id"),
-    operation,
-  );
-}
-
-export function readAllCsvRows(
-  transport: ApiTransport,
-  accessToken: string,
-  endpoint: string,
-  params: URLSearchParams,
-  operation: string,
-  idColumns: readonly string[],
-  signal?: AbortSignal,
-): Promise<CanonicalRow[]> {
-  return readEveryPage(
-    async (offset, includeCount) => {
-      params.set("limit", String(LOOKUP_PAGE_SIZE));
-      params.set("offset", String(offset));
-      return transport.readCsvPage(accessToken, endpoint, params, operation, signal, includeCount);
-    },
-    (row) => JSON.stringify(idColumns.map((column) => requiredJsonString(row, column))),
     operation,
   );
 }

@@ -61,16 +61,21 @@ Source facts preserve exact SKU text and resolve ownership at read time.
 The same SKU in different import
 namespaces resolves to the same ownership and fee revision. This allows source
 evidence to exist before an owner is assigned. Source imports do not register
-company configuration. Publishing new terms may assign, reassign, or unassign;
-identity and immutable revisions remain. There is no persisted Default company
-or global fee-configuration version.
+company configuration. Administrators can assign or reassign a SKU through the
+application. Trusted restoration may also leave a SKU unassigned; identity and
+immutable revisions remain. There is no persisted Default company or global
+fee-configuration version.
 
 Fee periods use `[start, end)`: the start is included and the end is excluded.
 The end may be unbounded. Rates are exact percentages from 0 through 100, with at
 most six fractional digits. A complete version means the complete submitted
-inventory, not guaranteed gap-free date coverage. A gap or an empty replacement
-withdraws coverage; old versions do not fill the gap. An explicit 0% rate is valid
-coverage.
+inventory, not guaranteed gap-free date coverage. Trusted restoration can retain
+gaps or empty replacements; old versions do not fill those gaps. The administrator
+publication API additionally requires every known SKU in the registry or retained source
+history to have a company. Required fee dates come only from selected current source versions,
+using both sources independently of the maturity cutoff. Later imports may reveal new gaps
+without changing saved terms. An explicit 0% rate is valid coverage. The
+[configuration contract](company_fees.md#administrator-completeness) defines eligible rows.
 
 `company_skus` is a view of selected assigned identities, not an ownership table.
 `current_sku_fee_periods` contains periods from each assigned SKU's **selected terms
@@ -340,7 +345,11 @@ administrator has no application-account requirement.
 Company members read all narrow current source references, their current company, selected ownership/fee terms,
 current owned Settlement `SETTLEMENT` facts, and current owned Data Kiosk facts
 except `SELBOX`. Operators read all retained source and terms versions, manage
-member access, and publish complete SKU terms through the guarded REST RPC.
+member access, and publish assignment and fee changes atomically through
+`publish_sku_configuration`. Each batch validates the resulting configuration for
+every known SKU, including unchanged SKUs. `sku_configuration` supplies the
+role-scoped current settings and required fee coverage used by the editor and
+member read-only view.
 Public views use `security_invoker = true`. Operator-only metadata helpers expose
 complete historical headers while member grants retain only necessary opaque
 selection/version columns. Reference visibility does not grant access to transaction
@@ -355,9 +364,9 @@ page or grouped facts. This changes execution work, not the tables or visibility
 Operators generate and read payout reports for any company and eligible month. Company
 members read only their assigned company's saved headers and components, even after a
 SKU changes owner; they cannot generate reports. Exact source/terms input manifests
-remain operator-only. Source publication, pruning, and strict completeness functions
-remain direct-database operations. Guarded public RPCs provide operator terms and
-monthly payout publication.
+remain operator-only. Source publication, pruning, and trusted terms restoration
+remain direct-database operations. Guarded public RPCs provide administrator
+configuration and monthly payout publication, including their completeness checks.
 Storage service-role access is separate from PostgreSQL administration.
 
 The [application-access contract](access_control.md) lists each REST endpoint,

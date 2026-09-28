@@ -87,9 +87,8 @@ for (const [role, dataset, tab] of SCOPES) {
       const fees = page.getByRole("table", { name: "Marketplace fees for S1", exact: true });
       await expect(fees.getByRole("row")).toHaveCount(3);
       await expect
-        .poll(() => fixture.feeRequests.filter(({ completed }) => completed).length)
+        .poll(() => fixture.configurationRequests.filter(({ completed }) => completed).length)
         .toBe(1);
-      expect(fixture.feeRequests[0].params.get("sku_id")).toBe(`eq.${assignmentId(1)}`);
     }
   });
 }

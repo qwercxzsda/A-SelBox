@@ -1,4 +1,4 @@
--- Application RLS, narrow read projections, and operator terms publication.
+-- Application RLS and narrow authorized read projections.
 -- noqa: disable=AM04
 create policy app_accounts_read on public.app_accounts for select to authenticated
 using ((select private.is_operator()) or user_id = (select auth.uid()));
@@ -194,38 +194,3 @@ create view public.payout_report_data_kiosk_versions with (security_invoker = tr
 select * from private.payout_report_data_kiosk_versions;
 create view public.payout_report_terms_versions with (security_invoker = true) as
 select * from private.payout_report_terms_versions;
-
--- Operators publish one complete revision with CAS; they cannot write immutable
--- tables or choose internal IDs. Source publishers stay direct-SQL only.
-create function private.publish_operator_sku_terms(
-    p_sku text, p_company_id uuid,
-    p_expected_current_version_id uuid, p_change_reason text, p_periods jsonb
-) returns uuid language plpgsql security definer set search_path = '' as $$
-declare periods_with_ids jsonb;
-begin
-    if not private.is_operator() then
-        raise exception 'Application operator access required' using errcode = '42501';
-    end if;
-    if p_periods is null or jsonb_typeof(p_periods) <> 'array' then
-        raise exception 'A complete periods array is required' using errcode = '23514';
-    end if;
-    if exists (select 1 from jsonb_array_elements(p_periods) p where jsonb_typeof(p) <> 'object') then
-        raise exception 'Each period must be an object' using errcode = '23514';
-    end if;
-    select coalesce(jsonb_agg(p || jsonb_build_object('id',private.uuid7())),'[]'::jsonb)
-        into periods_with_ids from jsonb_array_elements(p_periods) p;
-    return private.publish_sku_terms(jsonb_build_object(
-        'id',private.uuid7(),'sku_id',private.uuid7(),
-        'sku',p_sku,'company_id',p_company_id,
-        'expected_current_version_id',p_expected_current_version_id,
-        'change_reason',p_change_reason,'periods',periods_with_ids
-    ));
-end;
-$$;
-create function public.publish_sku_terms(
-    p_sku text, p_company_id uuid,
-    p_expected_current_version_id uuid, p_change_reason text, p_periods jsonb
-) returns uuid language sql volatile security invoker set search_path = '' as $$
-    select private.publish_operator_sku_terms(p_sku,p_company_id,
-        p_expected_current_version_id,p_change_reason,p_periods);
-$$;

@@ -141,44 +141,6 @@ test("resolved search values stay literal JSON arrays on all three transaction t
   }
 });
 
-test("SKU fee expansion reads every marketplace period despite a smaller server page cap", async () => {
-  const skuId = "0198b50b-701a-7000-8000-000000000001";
-  const records = ["Amazon.com", "Amazon.ca", "Amazon.co.jp"].map((marketplace, index) =>
-    datasetRecord("fees", {
-      sku_id: skuId,
-      marketplace_name: marketplace,
-      fee_period_id: `period-${String(index)}`,
-      fee_rate_percent: "4.123456",
-    }),
-  );
-  const offsets = [];
-  const signal = new AbortController().signal;
-  const client = createApiClient(SETTINGS, async (url, init) => {
-    const params = new URL(url).searchParams;
-    const offset = Number(params.get("offset"));
-    offsets.push(offset);
-    assert.equal(params.get("sku_id"), `eq.${skuId}`);
-    assert.equal(params.get("order"), "marketplace_name.asc,valid_period.asc,fee_period_id.asc");
-    assert.equal(init.signal, signal);
-    const page = records.slice(offset, offset + 2);
-    const csv = page
-      .map((record, index) => (index === 0 ? csvRecord(record) : csvRecord(record).split("\n")[1]))
-      .join("\n");
-    return new Response(csv, {
-      status: 206,
-      headers: { "Content-Range": `${String(offset)}-${String(offset + page.length - 1)}/3` },
-    });
-  });
-  const result = await client.fetchSkuFees("test-access", skuId, signal);
-  assert.deepEqual(offsets, [0, 2]);
-  assert.deepEqual(
-    result.map((row) => row.marketplace_name),
-    records.map((row) => row.marketplace_name),
-  );
-  assert.ok(result.every((row) => row.fee_rate_percent === "4.123456"));
-  await assert.rejects(client.fetchSkuFees("test-access", "invalid-id"), /valid SKU ID/);
-});
-
 test("body-read failures preserve cancellations and classify interrupted downloads without exposing details", async () => {
   for (const dataset of ["live", "payouts"]) {
     for (const kind of ["network", "abort", "cancelled"]) {
@@ -223,26 +185,4 @@ test("body-read failures preserve cancellations and classify interrupted downloa
     assert.match(error.message, /invalid JSON/);
     return true;
   });
-});
-
-test("multi-page fee reads refuse repeated identities and incomplete responses", async () => {
-  const id = "0198b50b-701a-7000-8000-000000000001";
-  for (const repeated of [true, false]) {
-    let calls = 0;
-    const client = createApiClient(SETTINGS, async (_url, init) => {
-      calls += 1;
-      assert.equal(new Headers(init.headers).has("Prefer"), calls === 1);
-      return new Response(
-        repeated || calls === 1 ? csvRecord(datasetRecord("fees", { fee_period_id: "fee-1" })) : "",
-        {
-          headers: { "Content-Range": calls === 1 ? "0-0/2" : "*/*" },
-        },
-      );
-    });
-    await assert.rejects(
-      client.fetchSkuFees("token", id),
-      repeated ? /did not advance/ : /incomplete page/,
-    );
-    assert.equal(calls, 2);
-  }
 });

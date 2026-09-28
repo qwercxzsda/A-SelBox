@@ -8,6 +8,7 @@ current SKU identity model; superseded query and index experiments are not maint
 | Record | Purpose |
 | --- | --- |
 | [Global SKU performance](global_sku_identity/README.md) | Shared-SKU authenticated reads across namespaces, index sizes, and query plans. |
+| [Global SKU configuration seed](global_sku_identity/configuration_seed.json) | Full current-schema fixture restore, actual Auth/REST access and atomic configuration writes, and independent source checks. |
 | [Type registry validation](type_registry_2026-09-26/README.md) | Real-seed coverage and complete Settlement replay for the active explicit registry. |
 | [Blank marketplaces](blank_marketplace_investigation_2026-09-06.md) | Source names, Reports API hints, and account-level activity. |
 | [SKU completeness](settlement_sku_completeness_2026-09-07.md) | Observed SKU-bearing families and their coverage. |

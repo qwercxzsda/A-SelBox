@@ -1,0 +1,54 @@
+{
+  "source_rows": 103244,
+  "source_namespaces": 5,
+  "synthetic_consistent_terms": true,
+  "warmups": 1,
+  "repetitions": 7,
+  "timing_scope": "Warm direct SQL read plus result decoding, transaction/role setup excluded; no HTTP/browser latency measured",
+  "measurements": [
+    {
+      "actor": "operator",
+      "sku_items": 63,
+      "periods": 192,
+      "requirement_ranges": 206,
+      "issue_count": 0,
+      "response_json_utf8_bytes": 50744,
+      "samples_ms": [
+        147.767,
+        131.031,
+        134.519,
+        131.746,
+        128.518,
+        127.902,
+        129.122
+      ],
+      "median_ms": 131.031,
+      "minimum_ms": 127.902,
+      "maximum_ms": 147.767,
+      "scope_verified": true
+    },
+    {
+      "actor": "member",
+      "sku_items": 32,
+      "periods": 101,
+      "requirement_ranges": 114,
+      "issue_count": 0,
+      "response_json_utf8_bytes": 26933,
+      "samples_ms": [
+        55.014,
+        50.516,
+        51.094,
+        52.258,
+        49.269,
+        49.174,
+        49.797
+      ],
+      "median_ms": 50.516,
+      "minimum_ms": 49.174,
+      "maximum_ms": 55.014,
+      "scope_verified": true
+    }
+  ],
+  "seed_unchanged": true,
+  "disposable_databases_removed": true
+}

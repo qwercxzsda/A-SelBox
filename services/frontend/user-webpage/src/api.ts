@@ -1,7 +1,7 @@
 import { createApiClient } from "./api/client.ts";
 import { readBuildConfig } from "./api/runtime-config.ts";
+import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type {
-  CanonicalRow,
   Company,
   CurrencyTotal,
   FetchDatasetPageOptions,
@@ -19,6 +19,17 @@ import type {
 } from "./api/types.ts";
 
 export { ApiError } from "./api/transport.ts";
+export { SkuConfigurationError } from "./api/sku-configuration-errors.ts";
+export type {
+  SkuConfiguration,
+  SkuConfigurationItem,
+  SkuConfigurationPeriod,
+  SkuConfigurationRequirement,
+  SkuConfigurationIssue,
+  SkuConfigurationChange,
+  PublishSkuConfigurationOptions,
+  PublishSkuConfigurationResult,
+} from "./api/sku-configuration-types.ts";
 export { DATASET_CONFIG } from "./api/config.ts";
 export type {
   AppAccount,
@@ -58,13 +69,12 @@ export const fetchDatasetPage = (options: FetchDatasetPageOptions): Promise<Page
   getDefaultClient().fetchDatasetPage(options);
 export const fetchDatasetCount = (options: FetchDatasetCountOptions): Promise<number> =>
   getDefaultClient().fetchDatasetCount(options);
-export const fetchSkuFees = (
-  accessToken: string,
-  skuId: string,
-  signal?: AbortSignal,
-): Promise<CanonicalRow[]> => getDefaultClient().fetchSkuFees(accessToken, skuId, signal);
 export const fetchSkuOptions = (accessToken: string, signal?: AbortSignal): Promise<string[]> =>
   getDefaultClient().fetchSkuOptions(accessToken, signal);
+export const fetchSkuConfiguration = (accessToken: string, signal?: AbortSignal) =>
+  getDefaultClient().fetchSkuConfiguration(accessToken, signal);
+export const publishSkuConfiguration = (options: PublishSkuConfigurationOptions) =>
+  getDefaultClient().publishSkuConfiguration(options);
 
 export const fetchLatestTransactionDate = (
   options: FetchLatestTransactionDateOptions,

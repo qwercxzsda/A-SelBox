@@ -1,33 +1,9 @@
-import { DATA_KIOSK_COLUMNS, FEE_COLUMNS, SETTLEMENT_COLUMNS } from "../api-fixtures.mjs";
+import { DATA_KIOSK_COLUMNS, SETTLEMENT_COLUMNS } from "../api-fixtures.mjs";
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
 import { sourceTransactionPageParams } from "../transaction-page-fixtures.mjs";
 import { amountOrderLimitExceeded, AMOUNT_ORDER_LIMIT_RESPONSE } from "./amount-ordering.mjs";
 
-export async function respondWithSourceRows(
-  fixture,
-  { request, url, user, reply, csvReply, track },
-) {
-  if (url.pathname === "/rest/v1/current_sku_fee_periods") {
-    const entry = {
-      user,
-      params: url.searchParams,
-      completed: false,
-      failure: request.failure()?.errorText ?? null,
-      status: null,
-    };
-    track(request, entry);
-    fixture.feeRequests.push(entry);
-    await fixture.beforeFees(entry);
-    const status = fixture.feeStatusForRequest(entry);
-    entry.status = status;
-    if (status !== 200) return reply({ message: "Fee fixture unavailable" }, status);
-    const assignment = url.searchParams.get("sku_id")?.replace("eq.", "");
-    const rows = fixture.feeRows.filter((row) => row.sku_id === assignment);
-    const offset = Number(url.searchParams.get("offset"));
-    const limit = Math.min(Number(url.searchParams.get("limit")), fixture.feePageCap);
-    return csvReply(FEE_COLUMNS, rows.slice(offset, offset + limit), rows.length, offset);
-  }
-
+export async function respondWithSourceRows(fixture, { request, url, user, reply, track }) {
   if (url.pathname === "/rest/v1/rpc/source_transaction_page") {
     const args = request.postDataJSON();
     url.search = sourceTransactionPageParams(args).toString();

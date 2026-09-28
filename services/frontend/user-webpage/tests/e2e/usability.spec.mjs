@@ -335,10 +335,6 @@ for (const role of ["company_member", "operator"]) {
       name: "Show marketplace fees for GROUP-001",
       exact: true,
     });
-    if (role === "operator") await expect(group).toContainText(companyName);
-    else {
-      await expect(group).not.toContainText(companyName);
-      await expect(page.getByText(companyName, { exact: true })).toHaveCount(1);
-    }
+    await expect(group).toContainText(companyName);
   });
 }

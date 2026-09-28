@@ -360,10 +360,13 @@ archives support explicit reprocessing into a new result.
 
 ## D. Company terms and payout reports
 
-Source imports never register or assign SKUs. An administrator publishes a complete
-company assignment and all marketplace fee periods for one SKU through
-`publish_sku_terms()`. The stable identity selects that immutable revision.
-Explicit unassignment and empty fee inventories are valid; 0% means known coverage.
+Source imports never register or assign SKUs. An administrator publishes changed assignments
+and complete marketplace fee inventories through `public.publish_sku_configuration()`.
+Each stable SKU identity selects its immutable revision. The whole batch is rejected unless
+every known SKU has an owner and every required fee date is covered, including unchanged SKUs.
+Existing incomplete settings remain readable; new imports may add gaps after publication.
+Trusted `private.publish_sku_terms()` supports restoring incomplete historical configuration.
+An explicit 0% rate means known coverage; noncommission activity needs no rate.
 Reassignment restates all live history. See the [company-fee contract](company_fees.md)
 for exact rates, fee eligibility, current-only access, and partial summaries.
 

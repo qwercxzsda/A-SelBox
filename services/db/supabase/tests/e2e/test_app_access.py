@@ -71,21 +71,25 @@ class AppAccessTests(LocalWorkflowCase):
         current = self.read_rows("skus", operator, sku="eq." + sku)[0]
         published = self.stack.request(
             "POST",
-            "/rest/v1/rpc/publish_sku_terms",
+            "/rest/v1/rpc/publish_sku_configuration",
             token=operator,
             json={
-                "p_sku": sku,
-                "p_company_id": other,
-                "p_expected_current_version_id": current["current_terms_version_id"],
-                "p_change_reason": "Transfer the global SKU across both source namespaces",
-                "p_periods": [
+                "p_changes": [
                     {
-                        "marketplace_name": "Amazon.com",
-                        "valid_from": START.isoformat(),
-                        "valid_to": None,
-                        "fee_rate_percent": "10",
+                        "sku": sku,
+                        "company_id": other,
+                        "expected_current_version_id": current["current_terms_version_id"],
+                        "periods": [
+                            {
+                                "marketplace_name": "Amazon.com",
+                                "valid_from": START.isoformat(),
+                                "valid_to": None,
+                                "fee_rate_percent": "10",
+                            }
+                        ],
                     }
                 ],
+                "p_change_reason": "Transfer the global SKU across both source namespaces",
             },
         )
         self.assertEqual(published.status_code, 200)
@@ -272,19 +276,20 @@ class AppAccessTests(LocalWorkflowCase):
             self.read_rows("app_accounts", operator_token, user_id="eq." + outsider_id), []
         )
 
-    def test_operator_publishes_terms_with_cas_and_members_only_read_current_ownership(
+    def test_operator_publishes_complete_configuration_and_members_only_read_current_ownership(
         self,
     ) -> None:
-        company = create_company(self.database, "Terms RPC company")
+        company = create_company(self.database, "Configuration RPC company")
+        other = create_company(self.database, "New configuration owner")
         _, operator_token = self.create_operator()
         _, member_token = self.create_member(company)
+        _, recipient_token = self.create_member(other)
         _, outsider_token = self.create_auth_user()
-        payload: dict[str, object] = {
-            "p_sku": fixture_sku(self.seller),
-            "p_company_id": company,
-            "p_expected_current_version_id": None,
-            "p_change_reason": "First operator publication",
-            "p_periods": [
+        change: dict[str, object] = {
+            "sku": fixture_sku(self.seller),
+            "company_id": company,
+            "expected_current_version_id": None,
+            "periods": [
                 {
                     "marketplace_name": "Amazon.com",
                     "valid_from": START.isoformat(),
@@ -293,17 +298,18 @@ class AppAccessTests(LocalWorkflowCase):
                 }
             ],
         }
+        payload = {"p_changes": [change], "p_change_reason": "First complete publication"}
         for token in (member_token, outsider_token):
             denied = self.stack.request(
-                "POST", "/rest/v1/rpc/publish_sku_terms", token=token, json=payload
+                "POST", "/rest/v1/rpc/publish_sku_configuration", token=token, json=payload
             )
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
         published = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_terms", token=operator_token, json=payload
+            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
         )
         self.assertEqual(published.status_code, 200)
-        first = cast(str, published.json())
+        first = cast(str, published.json()["published"][0]["terms_version_id"])
         selected = self.read_rows(
             "company_skus", member_token, sku="eq." + fixture_sku(self.seller)
         )
@@ -311,43 +317,49 @@ class AppAccessTests(LocalWorkflowCase):
         periods = self.read_rows("sku_fee_periods", member_token, terms_version_id="eq." + first)
         self.assertEqual(len(periods), 1)
         self.assertEqual(periods[0]["fee_rate_percent"], 0)
-
-        payload.update(
-            p_expected_current_version_id=first,
-            p_company_id=None,
-            p_periods=[],
-            p_change_reason="Explicit unassignment",
+        change.update(expected_current_version_id=first, company_id=None, periods=[])
+        incomplete = self.stack.request(
+            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
         )
-        unassigned = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_terms", token=operator_token, json=payload
+        self.assertEqual(incomplete.status_code, 400)
+        self.assertEqual(incomplete.json()["code"], "23514")
+        self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
+        self.assertEqual(
+            self.read_rows("company_skus", member_token, sku="eq." + fixture_sku(self.seller)),
+            selected,
         )
-        self.assertEqual(unassigned.status_code, 200)
-        second = cast(str, unassigned.json())
+        change.update(company_id=other)
+        transferred = self.stack.request(
+            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
+        )
+        self.assertEqual(transferred.status_code, 200)
+        second = cast(str, transferred.json()["published"][0]["terms_version_id"])
         self.assertNotEqual(first, second)
         self.assertEqual(self.read_rows("company_skus", member_token), [])
-        self.assertEqual(self.read_rows("sku_terms_versions", member_token, id="eq." + first), [])
-        self.assertEqual(
-            self.read_rows("sku_fee_periods", member_token, terms_version_id="eq." + first), []
-        )
+        self.assertEqual(len(self.read_rows("company_skus", recipient_token)), 1)
+        for token in (member_token, recipient_token):
+            self.assertEqual(self.read_rows("sku_terms_versions", token, id="eq." + first), [])
+            self.assertEqual(
+                self.read_rows("sku_fee_periods", token, terms_version_id="eq." + first), []
+            )
         history = self.read_rows(
             "sku_terms_versions",
             operator_token,
             id=f"in.({first},{second})",
             order="version_number",
         )
-        self.assertEqual([row["company_id"] for row in history], [company, None])
+        self.assertEqual([row["company_id"] for row in history], [company, other])
         self.assertEqual([row["version_number"] for row in history], [1, 2])
         self.assertEqual(
             self.read_rows("sku_fee_periods", operator_token, terms_version_id="eq." + first),
             periods,
         )
         stale = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_terms", token=operator_token, json=payload
+            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
         )
-        self.assertEqual(stale.status_code, 500)
-        self.assertEqual(stale.json()["code"], "40001")
-        current = self.read_rows("skus", operator_token, sku="eq." + fixture_sku(self.seller))
-        self.assertEqual(current[0]["current_terms_version_id"], second)
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(stale.json()["code"], "PT409")
+        self.assertEqual(stale.json()["message"], "SKU configuration changed while editing")
         for relation in ("skus", "sku_terms_versions", "sku_fee_periods"):
             denied = self.stack.request(
                 "POST", "/rest/v1/" + relation, token=operator_token, json={}

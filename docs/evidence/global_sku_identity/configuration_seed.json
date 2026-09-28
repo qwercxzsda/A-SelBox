@@ -1,0 +1,53 @@
+{
+  "seed_sha256": "66b4c235d1b63c5d9613b2e09abfc5dbba1a461c933b8ea78696557814cb5ec1",
+  "full_dump_restored": true,
+  "source_rows": {
+    "settlement_transactions": 73733,
+    "data_kiosk_transactions": 29511
+  },
+  "sku_count": 63,
+  "fee_period_count": 192,
+  "member_sku_counts": [
+    22,
+    41
+  ],
+  "setup_issues": 0,
+  "independent_authority": {
+    "mature_cutoff_date": "2026-07-28",
+    "latest_month": "2026-06-01",
+    "exact_currency_totals_match": true,
+    "authoritative_row_count": 39828,
+    "daily_difference_rows": 562,
+    "recent_settlement_rows_excluded": 43231
+  },
+  "independent_reconciliation": {
+    "daily_groups": 638,
+    "null_marketplace_groups": 82,
+    "settlement_only_cost_groups": 48,
+    "kiosk_only_cost_groups": 484,
+    "independent_category_sums_match": true,
+    "daily_equation_exact": true
+  },
+  "publication_checks": {
+    "atomic_global_rejection": true,
+    "member_writes_denied": true,
+    "assignment_and_exact_fee_update": true,
+    "member_scope_follows_assignment": true,
+    "stale_and_missing_fee_saves_rejected": true
+  },
+  "source_facts_unchanged": true,
+  "seed_file_unchanged_by_verification": true,
+  "disposable_stack_removed": true,
+  "scope": "Real source facts with synthetic seed assignments/fees; actual Auth and REST. Test publication affects the disposable database only. No SP-API calls or archive replay.",
+  "seed_update": {
+    "original_namespaced_identities": 129,
+    "current_global_skus": 63,
+    "synthetic_owner_conflicts_resolved": 19,
+    "existing_fixture_fee_periods_preserved": 192,
+    "source_data_and_auth_fixtures_preserved": true,
+    "unchanged_copy_blocks_verified": 19,
+    "verification_method": "Compared row counts and SHA-256 of every non-configuration COPY block before and after the seed update."
+  },
+  "recorded_at_utc": "2026-09-28T16:17:40.907818+00:00",
+  "selective_source_loader_verified": true
+}

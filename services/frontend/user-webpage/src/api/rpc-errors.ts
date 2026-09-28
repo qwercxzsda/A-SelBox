@@ -1,5 +1,6 @@
 import { AMOUNT_ORDER_LIMIT_MESSAGE, AmountOrderingLimitError } from "./amount-ordering.ts";
 import { isJsonObject } from "./validation.ts";
+import { skuConfigurationRpcError } from "./sku-configuration-errors.ts";
 
 const PAYOUT_ERRORS: Readonly<Record<string, string>> = {
   "Unresolved ownership or fee coverage prevents a complete payout report":
@@ -15,6 +16,7 @@ const PAYOUT_ERRORS: Readonly<Record<string, string>> = {
 /** Only allowlisted public errors may expose database messages to the interface. */
 export function publicRpcError(name: string, args: object, body: unknown): Error | null {
   if (!isJsonObject(body)) return null;
+  if (name === "publish_sku_configuration") return skuConfigurationRpcError(body);
   if (
     name === "generate_company_payout_reports" &&
     ["22023", "23514"].includes(String(body.code)) &&

@@ -51,9 +51,10 @@ observed for each namespace/SKU pair; new terms combine those marketplaces under
 There are **192 fee periods in each database**, avoiding unused old marketplace periods that
 would inflate the comparison. The old schema needs 129 identities/terms; the new schema needs 63.
 
-This configuration provides equivalent results without selecting winners for the real seed's
-19 conflicting company assignments. It is a performance experiment using real source facts,
-not a migration of the real business configuration.
+This benchmark used its own equivalent synthetic setup rather than the original seed's 19
+conflicting fixture assignments. The fixture was normalized separately after the user confirmed
+those assignments and fees were made-up data. The timings and recorded seed fingerprint describe
+the benchmark run, not that later fixture update or real business ownership.
 
 Each comparison checks ordered source-row identities, company ownership, dates, currency,
 exact Decimal amounts, rates, fees, status, counts, and totals. Internal SKU/terms/fee-period

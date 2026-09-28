@@ -4,6 +4,7 @@ import { createWorkspaceApi } from "./workspace.ts";
 import { createDatasetApi } from "./datasets.ts";
 import { createSummaryApi } from "./summaries.ts";
 import { createPayoutApi } from "./payouts.ts";
+import { createSkuConfigurationApi } from "./sku-configuration.ts";
 import type { ApiClientConfig } from "./client-config.ts";
 export { ApiError } from "./transport.ts";
 
@@ -19,6 +20,7 @@ export function createApiClient(
     ...createWorkspaceApi(transport),
     ...datasets,
     ...createPayoutApi(transport),
+    ...createSkuConfigurationApi(transport),
     ...createSummaryApi(transport, (options) => datasets.fetchDatasetPage(options)),
   };
 }
