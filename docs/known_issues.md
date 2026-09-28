@@ -293,8 +293,10 @@ in disposable PostgreSQL databases and exercise local Supabase Storage, Auth, an
 cover source publication, financial calculations, tenant permissions, frozen payouts, and concurrent
 publication and retention using synthetic Amazon documents.
 
-The separate [real-source verification](evidence/payout_authority_2026-09-27/README.md) replays
-archived seed documents and genuine supplementary Data Kiosk inputs into a disposable database.
-It preserves the original seed and development data. These checks establish behavior for their
-recorded inputs, not universal Amazon payload support, country coverage, financial finality, or
-production capacity.
+The separate real-source verification tool can replay archived seed documents and supplementary
+Data Kiosk inputs into a disposable database while preserving the original data. The current SKU
+schema has synthetic ownership/fee coverage and isolated real-source operator read checks. The
+[real-seed audit](evidence/global_sku_identity/real_seed_audit.json) found 19 exact SKUs with
+conflicting current company assignments, so their terms were excluded from the real-source checks.
+Those owners need resolution before rebuilding the seed. These checks do not establish universal
+Amazon payload support, country coverage, financial finality, or production capacity.

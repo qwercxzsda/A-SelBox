@@ -52,6 +52,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         self,
         previous: tuple[SourceVersion, ...] | None = None,
         *,
+        sku: str = "SKU",
         cost_only: bool = False,
         empty: bool = False,
     ) -> tuple[SourceVersion, ...]:
@@ -59,7 +60,9 @@ class SourceVersionVisibilityTests(SourceModelFixture):
             []
             if empty
             else [
-                self.transaction("10", category="DATA_KIOSK" if cost_only else "SETTLEMENT"),
+                self.transaction(
+                    "10", sku=sku, category="DATA_KIOSK" if cost_only else "SETTLEMENT"
+                ),
                 self.transaction("20", 4, category="SELBOX") | {"family": None},
             ]
         )
@@ -67,9 +70,9 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         if not (cost_only or empty):
             kiosk_rows.extend(
                 [
-                    self.component("-1"),
-                    self.component("2", category="SETTLEMENT"),
-                    self.component("3", category="ANALYSIS_ONLY"),
+                    self.component("-1", sku=sku),
+                    self.component("2", sku=sku, category="SETTLEMENT"),
+                    self.component("3", sku=sku, category="ANALYSIS_ONLY"),
                 ]
             )
         settlement = self.settlement(
@@ -135,13 +138,11 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         old = self.publish_pair()
         current = self.publish_pair(old)
         self.seller = "other-seller"
-        other_company, _ = self.owner()
-        other = self.publish_pair()
+        other_company, _ = self.owner("OTHER")
+        other = self.publish_pair(sku="OTHER")
         self.seller = "cost-only-seller"
-        self.assign("SKU", company)
         cost_only = self.publish_pair(cost_only=True)
         self.seller = "empty-seller"
-        self.assign("SKU", company)
         empty = self.publish_pair(empty=True)
         all_current = (*current, *other, *cost_only, *empty)
 

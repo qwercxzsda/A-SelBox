@@ -68,8 +68,7 @@ begin
                     coalesce(cardinality(p_company_ids), 0) = 0
                     or exists (
                         select 1 from public.company_skus as o
-                        where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
-                            and o.sku = t.sku and o.company_id = any(p_company_ids)
+                        where t.category <> 'SELBOX' and o.sku = t.sku and o.company_id = any(p_company_ids)
                     )
                 )
                 and (coalesce(cardinality(p_skus), 0) = 0
@@ -112,8 +111,7 @@ begin
                     coalesce(cardinality(p_company_ids), 0) = 0
                     or exists (
                         select 1 from public.company_skus as o
-                        where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
-                            and o.sku = t.sku and o.company_id = any(p_company_ids)
+                        where t.category <> 'SELBOX' and o.sku = t.sku and o.company_id = any(p_company_ids)
                     )
                 )
                 and (coalesce(cardinality(p_skus), 0) = 0

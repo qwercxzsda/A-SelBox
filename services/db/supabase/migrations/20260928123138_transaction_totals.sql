@@ -40,7 +40,7 @@ begin
     );
     return (
         with facts as (
-            select t.seller_namespace, t.sku, t.marketplace_name,
+            select t.sku, t.marketplace_name,
                 t.posted_date as activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end as component_type,
                 t.amount::numeric as reported_amount, t.category = 'SELBOX' as retained,
@@ -57,7 +57,7 @@ begin
                 and (p_date_to is null or t.posted_date <= p_date_to)
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace and o.sku = t.sku
+                    where t.category <> 'SELBOX' and o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
                 and (coalesce(cardinality(p_skus), 0) = 0
@@ -66,7 +66,7 @@ begin
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
             union all
-            select t.seller_namespace, t.sku, t.marketplace_name, t.activity_date, t.currency,
+            select t.sku, t.marketplace_name, t.activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end,
                 t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
             from private.data_kiosk_transactions as t
@@ -80,7 +80,7 @@ begin
                 and (p_date_to is null or t.activity_date <= p_date_to)
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace and o.sku = t.sku
+                    where t.category <> 'SELBOX' and o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
                 and (coalesce(cardinality(p_skus), 0) = 0
@@ -89,7 +89,7 @@ begin
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
             union all
-            select t.seller_namespace, null::text, t.marketplace_name, t.activity_date, t.currency,
+            select null::text, t.marketplace_name, t.activity_date, t.currency,
                 case when p_group_by_type then 'SETTLEMENT_KIOSK_DIFFERENCE'::text end,
                 t.difference, true, null::numeric
             from private.live_source_reconciliation t
@@ -103,20 +103,20 @@ begin
                 and (p_currency is null or t.currency = p_currency)
         ),
         fact_groups as materialized (
-            select f.seller_namespace, f.sku, f.marketplace_name, f.activity_date,
+            select f.sku, f.marketplace_name, f.activity_date,
                 f.currency, f.component_type, f.retained, f.fee_base is not null as fee_applicable,
                 sum(f.reported_amount) as reported_amount, sum(f.fee_base) as fee_base,
                 count(*)::numeric as row_count
             from facts as f
-            group by f.seller_namespace, f.sku, f.marketplace_name, f.activity_date,
+            group by f.sku, f.marketplace_name, f.activity_date,
                 f.currency, f.component_type, f.retained, f.fee_base is not null
         ),
         selected_terms as materialized (
-            select seller_namespace, sku, terms_version_id, company_id
+            select sku, terms_version_id, company_id
             from private.current_sku_terms as terms
             where exists (
                 select 1 from fact_groups as selected
-                where selected.seller_namespace = terms.seller_namespace and selected.sku = terms.sku
+                where selected.sku = terms.sku
                     and not selected.retained
             )
         ),
@@ -130,7 +130,7 @@ begin
                 end as service_fee
             from fact_groups as g
             left join selected_terms as o
-                on g.seller_namespace = o.seller_namespace and g.sku = o.sku and not g.retained
+                on g.sku = o.sku and not g.retained
             left join public.sku_fee_periods as p
                 on o.terms_version_id = p.terms_version_id
                     and g.marketplace_name = p.marketplace_name

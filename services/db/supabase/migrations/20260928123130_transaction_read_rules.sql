@@ -1,3 +1,76 @@
+-- Read access paths: source provenance is not an ownership key.
+-- Support global SKU ownership/version reads and exact counts. Trailing category
+-- and marketplace keys cover Settlement eligibility while retaining B-tree deduplication.
+create index settlement_transactions_owner_version_idx
+on private.settlement_transactions (
+    sku, version_id, category, marketplace_name
+)
+where category = 'SETTLEMENT';
+
+-- Lead with date to restrict the index scan to the requested period. Covering
+-- filters and ownership/current-version checks enables index-only counting.
+-- Retain the compact owner index for unfiltered counts.
+create index settlement_transactions_date_count_idx
+on private.settlement_transactions (
+    posted_date, component_type, sku, version_id,
+    category, marketplace_name
+)
+where category = 'SETTLEMENT';
+
+-- Date-led coverage also serves bounded-period Data Kiosk counts. The live and
+-- raw count RPCs exclude zero amounts; use that predicate instead of a numeric
+-- key to retain B-tree deduplication. Include every category and version for
+-- operator raw counts; queries and RLS still enforce their respective scopes.
+create index data_kiosk_transactions_nonzero_count_idx
+on private.data_kiosk_transactions (
+    activity_date, component_type, sku, version_id,
+    category, marketplace_name
+)
+where amount <> 0;
+
+-- Match each owned fact to its currently selected source version.
+create index settlements_current_version_idx
+on private.settlements (current_version_id)
+where current_version_id is not null;
+
+create index data_kiosk_days_current_version_idx
+on private.data_kiosk_days (current_version_id)
+where current_version_id is not null;
+
+-- Default date pages use one B-tree per source in either direction. Full
+-- coverage also serves the raw operator tabs, including historical/account rows;
+-- unchanged RLS and live-query predicates still enforce their respective scopes.
+create index settlement_transactions_date_id_idx
+on private.settlement_transactions (posted_date asc nulls last, id asc);
+
+create index data_kiosk_transactions_date_id_idx
+on private.data_kiosk_transactions (activity_date asc nulls last, id asc);
+
+-- SKU identity is global. Lead with the selected SKU; retain compact date keys
+-- and B-tree deduplication instead of appending ID.
+-- These narrow candidate scans; they need not satisfy the complete page order.
+create index settlement_transactions_sku_date_idx
+on private.settlement_transactions (sku, posted_date);
+
+create index data_kiosk_transactions_sku_date_idx
+on private.data_kiosk_transactions (sku, activity_date);
+
+-- Exact Type selections narrow sparse component/date scopes in either source.
+-- Use native text comparisons with the same collation as the existing filters.
+create index settlement_transactions_type_date_idx
+on private.settlement_transactions (component_type, posted_date);
+
+create index data_kiosk_transactions_type_date_idx
+on private.data_kiosk_transactions (component_type, activity_date);
+
+-- Compact marketplace/date access supports exact text selections. The planner
+-- still chooses its scan strategy according to visibility and filter selectivity.
+create index settlement_transactions_marketplace_date_idx
+on private.settlement_transactions (marketplace_name, posted_date);
+
+create index data_kiosk_transactions_marketplace_date_idx
+on private.data_kiosk_transactions (marketplace_name, activity_date);
+
 -- Shared rules for the bounded transaction read API.
 
 -- Validation runs once before each RPC's query, never once per source fact.

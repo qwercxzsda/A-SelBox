@@ -31,7 +31,7 @@ rule described in the source policy.
 
 | Table                | Purpose                                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `seller_skus`        | Stable exact seller/SKU identity and selected `current_terms_version_id`.                                         |
+| `skus`        | Stable exact SKU identity and selected `current_terms_version_id`.                                         |
 | `sku_terms_versions` | Immutable company assignment or explicit unassignment, revision number, reason, and complete fee inventory count. |
 | `sku_fee_periods`    | Marketplace-specific effective periods and rates belonging to one terms version.                                  |
 
@@ -46,13 +46,13 @@ periods. Both views are read-only.
 
 ### Stable identity and versioned ownership
 
-`UNIQUE (seller_namespace, sku)` establishes one stable identity across marketplaces.
+`UNIQUE (sku)` establishes one stable identity across namespaces and marketplaces.
 The selected revision assigns one company or explicit `company_id = NULL`.
-Original nonblank SKU text
-is preserved verbatim, so padded and unpadded SKUs remain distinct. The same SKU
-from a different seller has independent ownership.
+Original nonblank SKU text is preserved verbatim, so padded and unpadded SKUs remain distinct.
+The same exact SKU imported through different seller namespaces has one owner and one
+selected fee revision. Namespaces remain source provenance; they never partition ownership.
 
-The selected version must belong to that same seller/SKU. The first publication
+The selected version must belong to that same SKU. The first publication
 creates the identity and required first revision atomically; there is no dummy
 initial owner and no automatic registration during source imports. Later
 publications may reassign or unassign the SKU, including unassigning every
@@ -102,7 +102,7 @@ provides coverage and differs from a missing rate.
 
 ### Atomic publication
 
-Publication locks the seller/SKU identity and checks its expected current version, including
+Publication locks the SKU identity and checks its expected current version, including
 expected absence on first publication. It inserts the new version and complete
 period inventory, validates the terms, and advances the current reference in one
 transaction. It allocates the next revision number while holding the lock.
@@ -118,7 +118,7 @@ failed publications.
 A strict read selects the declared Settlement identities for mature dates and
 Data Kiosk marketplace/day coverage for every date. It requires complete compatible
 source versions and applies the source policy before calculating money.
-It resolves seller/SKU ownership independently of fee eligibility, then joins the
+It resolves SKU ownership independently of fee eligibility, then joins the
 selected terms version and its marketplace period covering the source activity date.
 
 Settlement commissions use only signed `Order / ItemPrice / Principal` and
@@ -147,7 +147,7 @@ ownership but no rate. Fee-eligible zero amounts still require fee coverage.
 Every ordinary Order/Refund row independently requires its explicit source
 marketplace, including noncommission rows.
 
-Dashboard page queries project current terms only for seller/SKU keys on the selected page;
+Dashboard page queries project current terms only for SKU keys on the selected page;
 totals use keys in the already-filtered fact groups. Both retain left joins so missing ownership
 and fee coverage remain visible as unresolved amounts. Member authorization separately uses a
 caller-bound set of all currently owned keys; narrowing financial projection never narrows or
@@ -221,7 +221,7 @@ reports for any company and eligible calendar month. Company members can read th
 [PostgreSQL view contract](https://www.postgresql.org/docs/17/sql-createview.html)
 defines how invoker permissions and base-table policies apply.
 
-Indexes cover application accounts, seller/SKU identity, selected terms, company lookup,
+Indexes cover application accounts, SKU identity, selected terms, company lookup,
 and source marketplace/date access. Dashboard RPCs page eligible source facts before
 fee calculation and group compatible facts for totals. Views provide complete relational
 reads; the [performance guide](database_performance.md) explains the access paths.

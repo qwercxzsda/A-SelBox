@@ -24,7 +24,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
             user,
             "select sku from public.settlement_preprocess_entries "
             "union select sku from public.data_kiosk_preprocess_entries "
-            "union select sku from public.seller_skus",
+            "union select sku from public.skus",
         )
         skus = {cast(str, row[0]) for row in rows if row[0] is not None}
         return {"values": sorted(skus, key=lambda value: value.encode())}
@@ -132,7 +132,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
         for user in (self.auth_user(), ""):
             self.assert_denied(user)
 
-    def test_catalog_preserves_hidden_interleaving_namespaces_and_exact_unicode(self) -> None:
+    def test_catalog_merges_shared_skus_and_preserves_hidden_skus_and_exact_unicode(self) -> None:
         visible = ["A-visible", "M-visible", "Z-visible"]
         hidden = ["0-hidden", "B-hidden", "Y-hidden", "zz-hidden"]
         imported_only = [" A", "A ", "A", "a", "é", "e\u0301", "Tab\tSKU", "가", "😀"]
@@ -140,11 +140,11 @@ class SkuFilterOptionsTests(SourceModelFixture):
         for sku in [*visible[1:], "REGISTERED-ONLY"]:
             self.assign(sku, company_a)
         self.seller = "seller-two"
-        company_b, _ = self.owner(visible[0])
-        for sku in hidden:
+        company_b, _ = self.owner(hidden[0])
+        for sku in hidden[1:]:
             self.assign(sku, company_b)
-        # The hidden namespace has the earlier date for the shared SKU. It must
-        # neither hide the owned SKU nor expose its hidden-only neighbours.
+        # The other source has an earlier shared-SKU row owned by company A.
+        # Its unrelated SKUs remain accessible only to company B.
         self.settlement(
             [
                 self.transaction("1", line, sku=sku, activity_date="2026-06-14")
@@ -169,7 +169,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
         )
         for user, expected in (
             (member_a, {*visible, "REGISTERED-ONLY"}),
-            (member_b, {visible[0], *hidden}),
+            (member_b, {*hidden}),
             (operator, {*visible, *hidden, *imported_only, "REGISTERED-ONLY"}),
         ):
             self.assertEqual(

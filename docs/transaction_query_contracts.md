@@ -81,7 +81,7 @@ forward/backward scans of one ascending date/ID index per source; source dates a
 ordering keeps ascending source/ID ties and `NULLS LAST` in both directions. A combined page/count
 response uses one statement and snapshot.
 
-The materialized terms projection includes only seller/SKU keys present on that selected page.
+The materialized terms projection includes only SKU keys present on that selected page.
 It reads the existing invoker-security current-terms view and retains left joins, including
 unassigned or unregistered operator-visible facts. Member RLS independently checks membership in
 the caller's current ownership set before candidate selection; page limits cannot bypass it.
@@ -229,13 +229,13 @@ company amount, allowing the UI to identify incomplete fee coverage. Monetary su
 semantics: known amounts contribute; an entirely unknown sum is null. No matching facts produce an
 empty `rows` array, not a fabricated zero-currency group.
 
-Facts are filtered first and combined by seller/SKU, marketplace, date, currency, optional Type, and
+Facts are filtered first and combined by SKU, marketplace, date, currency, optional Type, and
 fee applicability and whether the amount is retained by SelBox before resolving ownership and
 fee periods. Exact sums remain equivalent to
 individual row calculations. Groups sort by currency and raw Type using database `C` collation; one
 extra group determines continuation without another exact source-row count.
 
-The materialized current-terms projection includes only seller/SKU keys in those filtered fact
+The materialized current-terms projection includes only SKU keys in those filtered fact
 groups. It preserves invoker RLS and left joins, including missing-ownership and missing-rate
 diagnostics; it does not materialize unrelated assignments for financial projection.
 
@@ -276,7 +276,7 @@ and all three source/fee revision tokens. Changed scope or revisions and an expl
 retry reload it. A page reload or new sign-in starts a fresh catalog load; catalogs are not persisted
 alongside session credentials. The response and browser memory still grow with distinct SKU count.
 
-The catalog unions both fact tables and `seller_skus` under caller RLS. For administrators this
+The catalog unions both fact tables and `skus` under caller RLS. For administrators this
 includes all source history and categories, zero-amount rows, unregistered imports, and registered
 SKUs without transactions or company assignments. It is a superset for all three transaction tabs;
 it intentionally has no dataset, current-version, or occurrence filter. SKU strings remain
@@ -291,7 +291,7 @@ retains caller RLS, and registered-only SKUs still come from the ordinary regist
 ## Index access paths
 
 The source tables use the following optional read indexes in the
-[canonical baseline](../services/db/supabase/migrations/20260928123054_schema_foundation.sql).
+[read access module](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql).
 Here `date` means Settlement `posted_date` or Data Kiosk `activity_date`.
 
 | Key shape                       | Settlement    | Data Kiosk    | Intended access                                              |
@@ -320,14 +320,14 @@ No equality wrapper, catalog flag change, or RLS relaxation is involved.
 [RLS and leakproof predicates](https://www.postgresql.org/docs/17/sql-createfunction.html)
 
 Settlement retains its compact ownership/version index and has a partial count index on
-`(posted_date, component_type, seller_namespace, sku, version_id, category, marketplace_name)`
+`(posted_date, component_type, sku, version_id, category, marketplace_name)`
 where `category = 'SETTLEMENT'`. Its partial predicate does not cover the expanded
 administrator scope for mature dates, which also admits `SELBOX` Settlement rows.
 The planner can use the existing full Type/date and other indexes for the broader scope.
 Trailing keys support filters and eligibility checks where that partial index applies.
 
 Data Kiosk uses
-`(activity_date, component_type, seller_namespace, sku, version_id, category, marketplace_name)`
+`(activity_date, component_type, sku, version_id, category, marketplace_name)`
 where `amount <> 0`. The predicate matches UI reads while covering every category, including
 administrator account rows. Amount is not stored in the key. Zero-inclusive source/reference
 queries retain their semantics and use the remaining full indexes or table scans.
@@ -342,7 +342,7 @@ Both count indexes use ordinary key columns, retaining eligibility for B-tree de
 there are no `INCLUDE` columns. They do not cover financial sums or full row projections.
 Index-only reads also depend on the visibility map maintained by vacuum. Broader coverage does
 not guarantee an index-only plan. See the
-[bounded and unbounded measurements](evidence/date_bounded_indexes_2026-09-27/README.md).
+[global SKU measurements](evidence/global_sku_identity/README.md).
 [PostgreSQL index-only scans](https://www.postgresql.org/docs/17/indexes-index-only-scans.html)
 
 Ownership/count indexes, current-pointer indexes, primary/unique constraints, and the fee-period
@@ -382,7 +382,7 @@ checks. These helpers preserve the existing access rules and financial results.
 
 [Application access](../services/db/supabase/migrations/20260928123123_application_access.sql)
 separates transaction authorization from reference visibility. Fact policies match current source
-pointers directly and still enforce each row's category and current seller/SKU ownership. Metadata
+pointers directly and still enforce each row's category and current SKU ownership. Metadata
 policies do not inspect facts: `private.is_company_member()` establishes registered member access,
 headers require a nonnull current pointer, and version references must match a current pointer.
 Members may read current references across companies, including empty or unowned versions; operators

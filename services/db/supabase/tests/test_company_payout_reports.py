@@ -34,7 +34,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
 
     def reassign(self, identity: str, company: str | None) -> str:
         row = self.connection.execute(
-            "select sku,current_terms_version_id from public.seller_skus where id=%s",
+            "select sku,current_terms_version_id from public.skus where id=%s",
             (identity,),
         ).fetchone()
         if row is None:
@@ -43,8 +43,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": identity,
-                "seller_namespace": self.seller,
+                "sku_id": identity,
                 "sku": row[0],
                 "company_id": company,
                 "expected_current_version_id": str(row[1]),

@@ -44,7 +44,7 @@ begin
             union all
             select k.sku from kiosk_skus as k
             union all
-            select s.sku from public.seller_skus as s
+            select s.sku from public.skus as s
         ),
         distinct_skus as (
             select distinct s.sku collate "C" as sku

@@ -4,6 +4,7 @@ import hashlib
 import json
 import lzma
 import unittest
+from datetime import date
 from decimal import Decimal
 from typing import cast
 from unittest.mock import Mock, patch
@@ -12,12 +13,11 @@ from uuid import uuid7
 import psycopg
 
 from services.db.supabase.tests.e2e.fixtures import (
-    END,
-    SKU,
     START,
     archived_data_kiosk,
     archived_settlement,
     company_with_fees,
+    fixture_sku,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.amazon.reports.models import DownloadedReportDocument
@@ -47,7 +47,8 @@ SETTLEMENT_LOG = "services.sync.src.settlement_preprocess.workflow"
 class LocalWorkflowTests(LocalWorkflowCase):
     """Share one disposable stack; each case uses distinct source and company identities."""
 
-    def test_only_operator_can_read_frozen_payout_after_current_sku_reassignment(self) -> None:
+    def test_original_company_retains_frozen_payout_after_current_sku_reassignment(self) -> None:
+        month_end = date(2026, 8, 31)
         company = company_with_fees(self.database, self.seller)
         _, original_token = self.create_member(company)
         _, operator_token = self.create_operator()
@@ -55,7 +56,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             self.database, archived_settlement(self.storage, self.seller)
         )
         kiosk = persist_data_kiosk_acquisition(
-            self.database, archived_data_kiosk(self.storage, self.seller)
+            self.database, archived_data_kiosk(self.storage, self.seller, end_date=month_end)
         )
         preprocess_settlement_report(self.database, self.storage, settlement)
         preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
@@ -64,9 +65,8 @@ class LocalWorkflowTests(LocalWorkflowCase):
                 "select id from private.settlements where seller_namespace=%s", (self.seller,)
             ).fetchone()
             selected = connection.execute(
-                "select current_terms_version_id from public.seller_skus "
-                "where seller_namespace=%s and sku=%s",
-                (self.seller, SKU),
+                "select current_terms_version_id from public.skus where sku=%s",
+                (fixture_sku(self.seller),),
             ).fetchone()
         if canonical is None or selected is None:
             self.fail("Expected published source and terms identities.")
@@ -76,7 +76,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             seller_namespace=self.seller,
             currency="USD",
             start_date=START,
-            end_date=END,
+            end_date=month_end,
             preprocess_version=PREPROCESS_VERSION,
             settlement_ids=[str(canonical[0])],
             marketplace_names=["Amazon.com"],
@@ -97,12 +97,13 @@ class LocalWorkflowTests(LocalWorkflowCase):
         self.assertEqual(len(header), 1)
         self.assertEqual(header[0]["company_amount"], -10)
         self.assertEqual(header[0]["marketplace_names"], ["Amazon.com"])
-        self.assertEqual(len(components), 4)
+        self.assertEqual(len(components), 6)
+        self.assertEqual(sum(row["authoritative"] is True for row in components), 4)
         self.assertEqual({row["terms_version_id"] for row in components}, {str(selected[0])})
         self.assertEqual(header[0]["settlement_version_count"], 1)
-        self.assertEqual(header[0]["data_kiosk_version_count"], 2)
+        self.assertEqual(header[0]["data_kiosk_version_count"], 31)
         self.assertEqual(header[0]["terms_version_count"], 1)
-        for source, count in (("settlement", 1), ("data_kiosk", 2), ("terms", 1)):
+        for source, count in (("settlement", 1), ("data_kiosk", 31), ("terms", 1)):
             relation = "payout_report_" + source + "_versions"
             self.assertEqual(
                 len(self.read_rows(relation, operator_token, report_id="eq." + report_id)), count
@@ -110,42 +111,44 @@ class LocalWorkflowTests(LocalWorkflowCase):
             self.assertEqual(
                 self.read_rows(relation, original_token, report_id="eq." + report_id), []
             )
-        for relation, column in (
-            ("company_payout_reports", "id"),
-            ("company_payout_report_components", "report_id"),
-        ):
-            self.assertEqual(
-                self.read_rows(relation, original_token, **{column: "eq." + report_id}), []
-            )
-
-        next_company = create_company(self.database, "New current owner")
-        _, next_token = self.create_member(next_company)
-        publish_sku_terms(
-            self.database,
-            seller_namespace=self.seller,
-            sku=SKU,
-            company_id=next_company,
-            expected_current_version_id=str(selected[0]),
-            periods=[],
-            change_reason="Correct owner",
-        )
         self.assertEqual(
-            self.read_rows(
-                "company_payout_reports",
-                operator_token,
-                id="eq." + report_id,
-            ),
+            self.read_rows("company_payout_reports", original_token, id="eq." + report_id),
             header,
         )
         self.assertEqual(
             self.read_rows(
                 "company_payout_report_components",
-                operator_token,
+                original_token,
                 report_id="eq." + report_id,
                 order="row_number",
             ),
             components,
         )
+
+        next_company = create_company(self.database, "New current owner")
+        _, next_token = self.create_member(next_company)
+        publish_sku_terms(
+            self.database,
+            sku=fixture_sku(self.seller),
+            company_id=next_company,
+            expected_current_version_id=str(selected[0]),
+            periods=[],
+            change_reason="Correct owner",
+        )
+        for token in (operator_token, original_token):
+            self.assertEqual(
+                self.read_rows("company_payout_reports", token, id="eq." + report_id),
+                header,
+            )
+            self.assertEqual(
+                self.read_rows(
+                    "company_payout_report_components",
+                    token,
+                    report_id="eq." + report_id,
+                    order="row_number",
+                ),
+                components,
+            )
         self.assertEqual(self.read_rows("live_company_components", original_token), [])
         self.assertEqual(len(self.read_rows("settlement_preprocess_entries", next_token)), 2)
         self.assertEqual(
@@ -199,7 +202,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                 self.assertEqual(len(rows), 4)
                 self.assertEqual({row["seller_namespace"] for row in rows}, {seller})
                 self.assertEqual({row["company_id"] for row in rows}, {company})
-                self.assertEqual({row["sku"] for row in rows}, {SKU})
+                self.assertEqual({row["sku"] for row in rows}, {fixture_sku(seller)})
                 self.assertEqual(
                     [
                         (

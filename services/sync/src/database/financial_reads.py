@@ -43,7 +43,7 @@ class MissingFeeComponent:
     currency: str
     source_amount: Decimal
     fee_base: Decimal
-    seller_sku_id: str
+    sku_id: str
     terms_version_id: str
     resolution_status: str
 
@@ -203,7 +203,7 @@ def _missing_fee_component(value: object) -> MissingFeeComponent:
         currency=financial_currency(fields.get("currency")),
         source_amount=_json_amount(fields.get("source_amount"), "source_amount"),
         fee_base=_json_amount(fields.get("fee_base"), "fee_base"),
-        seller_sku_id=normalize_uuid(fields.get("seller_sku_id"), "seller_sku_id"),
+        sku_id=normalize_uuid(fields.get("sku_id"), "sku_id"),
         terms_version_id=normalize_uuid(fields.get("terms_version_id"), "terms_version_id"),
         resolution_status=status,
     )

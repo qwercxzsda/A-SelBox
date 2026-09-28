@@ -15,7 +15,7 @@ with reference as materialized (
             where current_version_id is not null),
         array(select current_version_id::uuid from private.data_kiosk_days
             where current_version_id is not null),
-        array(select current_terms_version_id::uuid from public.seller_skus
+        array(select current_terms_version_id::uuid from public.skus
             where current_terms_version_id is not null)
     )
 ), actual as materialized (
@@ -70,23 +70,23 @@ class LiveViewEquivalenceTests(FinancialFixture):
             self.operator(),
         )
         scopes: tuple[tuple[LiteralString, tuple[object, ...], tuple[int, int, int]], ...] = (
-            ("true", (), (23, 10, 4)),
-            ("company_id = %s::uuid", (company_a,), (10, 10, 0)),
-            ("company_id = %s::uuid", (company_b,), (4, 0, 4)),
-            ("activity_date = %s::date", ("2026-06-15",), (21, 8, 4)),
-            ("sku = %s", ("SKU",), (12, 9, 2)),
-            ("source = %s", ("DATA_KIOSK",), (10, 5, 2)),
+            ("true", (), (23, 12, 2)),
+            ("company_id = %s::uuid", (company_a,), (12, 12, 0)),
+            ("company_id = %s::uuid", (company_b,), (2, 0, 2)),
+            ("activity_date = %s::date", ("2026-06-15",), (21, 10, 2)),
+            ("sku = %s", ("SKU",), (12, 11, 0)),
+            ("source = %s", ("DATA_KIOSK",), (10, 6, 1)),
             (
                 "marketplace_name = %s and component_type = %s",
                 ("Amazon.com", "FbaStorageFee"),
-                (9, 4, 2),
+                (9, 5, 1),
             ),
-            ("source <> 'DATA_KIOSK' or source_amount <> 0", (), (22, 9, 4)),
+            ("source <> 'DATA_KIOSK' or source_amount <> 0", (), (22, 11, 2)),
             (
                 "activity_date = %s::date and sku = %s "
                 "and (source <> 'DATA_KIOSK' or source_amount <> 0)",
                 ("2026-06-15", "SKU"),
-                (9, 6, 2),
+                (9, 8, 0),
             ),
         )
         for predicate, parameters, counts in scopes:
@@ -98,7 +98,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             ):
                 with self.subTest(role="trusted" if user is None else user, predicate=predicate):
                     self.assert_matches_resolver(user, expected_rows, predicate, parameters)
-        for user, count in ((None, 23), (operator, 23), (member_a, 10), (member_b, 4)):
+        for user, count in ((None, 23), (operator, 23), (member_a, 12), (member_b, 2)):
             with self.subTest(page_role="trusted" if user is None else user):
                 self.assert_matches_resolver(user, count, limit=3)
         self.assert_matches_resolver(self.auth_user(), 0)
@@ -119,7 +119,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select bool_and(seller_sku_id is not null and terms_version_id is not null "
+                "select bool_and(sku_id is not null and terms_version_id is not null "
                 "and company_id is null and fee_period_id is null and fee_rate_percent is null "
                 "and resolution_status='MISSING_OWNERSHIP' and fee_amount is null "
                 "and company_amount is null) from public.live_company_components "

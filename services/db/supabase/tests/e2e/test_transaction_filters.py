@@ -1,6 +1,7 @@
 """Date ordering and source filters cross the real Auth/PostgREST RPC boundary."""
 
 import unittest
+from collections.abc import Set
 from typing import cast
 
 from services.db.supabase.tests.e2e.fixtures import archived_settlement, company_with_fees
@@ -17,7 +18,7 @@ class TransactionFilterTests(LocalWorkflowCase):
         token: str,
         filters: dict[str, object],
         *,
-        companies: set[str],
+        companies: Set[str | None],
         expected_count: int,
     ) -> None:
         page = self.stack.request(
@@ -33,16 +34,17 @@ class TransactionFilterTests(LocalWorkflowCase):
         rows = cast(list[dict[str, object]], payload["rows"])
         self.assertEqual(len(rows), expected_count)
         self.assertEqual({row["company_id"] for row in rows}, companies)
-        self.assertTrue(all(row["marketplace_name"] == "Amazon.com" for row in rows))
+        self.assertTrue(all(row["marketplace_name"] in {"Amazon.com", None} for row in rows))
         for row in rows:
-            for field in (
-                "source_amount",
-                "quantity",
-                "fee_amount",
-                "company_amount",
-                "fee_rate_percent",
-            ):
+            for field in ("source_amount", "fee_amount", "company_amount"):
                 self.assertIsInstance(row[field], str)
+            for field in ("quantity", "fee_rate_percent"):
+                self.assertTrue(row[field] is None or isinstance(row[field], str))
+            if row["company_id"] is None:
+                self.assertEqual(row["category"], "SELBOX")
+                self.assertIsNone(row["sku"])
+                self.assertEqual(row["fee_amount"], "0")
+                self.assertEqual(row["company_amount"], "0")
         count = self.stack.request(
             "POST", "/rest/v1/rpc/transaction_count", token=token, json=filters
         )
@@ -77,11 +79,22 @@ class TransactionFilterTests(LocalWorkflowCase):
             )
             for filters in matching:
                 with self.subTest(role=role, filters=filters):
+                    includes_account_rows = (
+                        role == "operator"
+                        and not filters.get("p_marketplaces")
+                        and filters.get("p_fee_applicable") is not True
+                    )
                     self.assert_page_and_count(
-                        token, filters, companies=companies, expected_count=count
+                        token,
+                        filters,
+                        companies=companies | {None} if includes_account_rows else companies,
+                        expected_count=count + 2 if includes_account_rows else count,
                     )
             self.assert_page_and_count(
-                token, {"p_fee_applicable": False}, companies=set(), expected_count=0
+                token,
+                {"p_fee_applicable": False},
+                companies={None} if role == "operator" else set(),
+                expected_count=2 if role == "operator" else 0,
             )
             for direction in ("asc", "desc"):
                 dated = self.stack.request(

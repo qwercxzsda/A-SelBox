@@ -128,32 +128,29 @@ class TransactionReadRulesTests(SourceModelFixture):
             "'private.settlement_transactions'::regclass),"
             "private.member_policy_covers_current_version("
             "'private.data_kiosk_transactions'::regclass),"
-            "private.member_policy_covers_current_version('public.seller_skus'::regclass)"
+            "private.member_policy_covers_current_version('public.skus'::regclass)"
         )
         self.assertEqual(self.connection.execute(query).fetchone(), (False, False, False))
         self.assertEqual(self.as_user(self.operator(), query), [(False, False, False)])
         self.assertEqual(self.as_user(self.member(company), query), [(True, True, False)])
 
-    def test_current_terms_keep_seller_identity_and_do_not_broaden_member_scope(self) -> None:
+    def test_current_terms_use_exact_sku_identity_and_do_not_broaden_member_scope(self) -> None:
         first, first_sku = self.owner()
-        second, second_sku = self.owner(seller="seller-two")
+        second, second_sku = self.owner("SKU ")
         self.fee(first_sku, [("2026-01-01", None, "5")])
         self.fee(second_sku, [("2026-01-01", None, "9")])
         self.assign("UNASSIGNED", None)
-        query = (
-            "select seller_namespace,sku,company_id::text "
-            "from private.current_sku_terms order by seller_namespace,sku"
-        )
+        query = "select sku,company_id::text from private.current_sku_terms order by sku"
         self.assertEqual(
             self.as_user(self.operator(), query),
             [
-                ("seller-one", "SKU", first),
-                ("seller-one", "UNASSIGNED", None),
-                ("seller-two", "SKU", second),
+                ("SKU", first),
+                ("SKU ", second),
+                ("UNASSIGNED", None),
             ],
         )
-        self.assertEqual(self.as_user(self.member(first), query), [("seller-one", "SKU", first)])
-        self.assertEqual(self.as_user(self.member(second), query), [("seller-two", "SKU", second)])
+        self.assertEqual(self.as_user(self.member(first), query), [("SKU", first)])
+        self.assertEqual(self.as_user(self.member(second), query), [("SKU ", second)])
         self.assertEqual(self.as_user(self.auth_user(), query), [])
         row = self.connection.execute(
             "select c.reloptions,has_table_privilege('authenticated',c.oid,'SELECT'),"

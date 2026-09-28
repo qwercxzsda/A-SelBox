@@ -1,4 +1,4 @@
-"""Company members read current source facts under current seller/SKU ownership."""
+"""Company members read current source facts under current SKU ownership."""
 
 from decimal import Decimal
 
@@ -8,10 +8,11 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 class DataKioskAccessTests(SourceModelFixture):
-    def test_company_reads_do_not_cross_sellers_or_include_account_components(self) -> None:
+    def test_company_reads_combine_namespaces_and_exclude_other_skus_and_account_components(
+        self,
+    ) -> None:
         company, _ = self.owner()
         self.owner("OTHER")
-        self.owner(seller="seller-two")
         _, previous = self.kiosk(1, [self.component("-1")])
         self.kiosk(
             2,
@@ -36,6 +37,7 @@ class DataKioskAccessTests(SourceModelFixture):
                 "order by amount"
             ).fetchall(),
             [
+                ("seller-two", "SKU", Decimal("-50")),
                 ("seller-one", "SKU", Decimal("-6")),
                 ("seller-one", "SKU", Decimal("-3")),
                 ("seller-one", "SKU", Decimal("100")),
@@ -53,7 +55,7 @@ class DataKioskAccessTests(SourceModelFixture):
                 "select amount from public.data_kiosk_preprocess_entries "
                 "where category='DATA_KIOSK'"
             ).fetchall(),
-            [(Decimal("-3"),)],
+            [(Decimal("-3"),), (Decimal("-50"),)],
         )
         self.assertEqual(
             self.connection.execute(
@@ -61,6 +63,7 @@ class DataKioskAccessTests(SourceModelFixture):
                 "order by source_amount"
             ).fetchall(),
             [
+                (Decimal("-50"), True),
                 (Decimal("-6"), False),
                 (Decimal("-3"), True),
                 (Decimal("100"), False),

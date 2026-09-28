@@ -99,7 +99,7 @@ $$;
 -- Both previous and next owners receive the new token. Company names use the
 -- same dependency because fee/transaction labels also depend on that lookup.
 create constraint trigger workspace_terms_revision
-after insert or update or delete on public.seller_skus
+after insert or update or delete on public.skus
 deferrable initially deferred for each row execute function private.track_fee_revision();
 create constraint trigger workspace_company_revision
 after insert or update or delete on public.companies

@@ -8,7 +8,7 @@ from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
-_PUBLISH = "select public.publish_sku_terms(%s,%s,%s,%s,%s,%s)::text"
+_PUBLISH = "select public.publish_sku_terms(%s,%s,%s,%s,%s)::text"
 
 
 class OperatorTermsPublicationTests(SourceModelFixture):
@@ -22,7 +22,7 @@ class OperatorTermsPublicationTests(SourceModelFixture):
         rows = self.as_user(
             user,
             _PUBLISH,
-            (self.seller, " API SKU ", company, expected, "Complete terms", Jsonb(periods)),
+            (" API SKU ", company, expected, "Complete terms", Jsonb(periods)),
         )
         return str(rows[0][0])
 
@@ -43,12 +43,10 @@ class OperatorTermsPublicationTests(SourceModelFixture):
                 self.publish(denied, company, None, [])
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
-            self.connection.execute(
-                _PUBLISH, (self.seller, " API SKU ", company, None, "Denied", Jsonb([]))
-            )
+            self.connection.execute(_PUBLISH, (" API SKU ", company, None, "Denied", Jsonb([])))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.seller_skus where sku=' API SKU '"
+                "select count(*) from public.skus where sku=' API SKU '"
             ).fetchone(),
             (0,),
         )
@@ -63,7 +61,7 @@ class OperatorTermsPublicationTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 operator,
-                "select s.sku,v.version_number,v.fee_period_count from public.seller_skus s "
+                "select s.sku,v.version_number,v.fee_period_count from public.skus s "
                 "join public.sku_terms_versions v on v.id=s.current_terms_version_id "
                 "where s.sku=' API SKU '",
             ),
@@ -75,7 +73,7 @@ class OperatorTermsPublicationTests(SourceModelFixture):
                 operator,
                 "select p.marketplace_name,p.fee_rate_percent "
                 "from public.current_sku_fee_periods p "
-                "join public.seller_skus s on s.id=p.seller_sku_id where s.sku=' API SKU '",
+                "join public.skus s on s.id=p.sku_id where s.sku=' API SKU '",
             ),
             [("Amazon.com", Decimal(7))],
         )
@@ -92,7 +90,7 @@ class OperatorTermsPublicationTests(SourceModelFixture):
             self.as_user(
                 operator,
                 "select s.current_terms_version_id::text,v.company_id,v.fee_period_count "
-                "from public.seller_skus s join public.sku_terms_versions v "
+                "from public.skus s join public.sku_terms_versions v "
                 "on v.id=s.current_terms_version_id where s.sku=' API SKU '",
             ),
             [(third, None, 0)],
@@ -118,8 +116,8 @@ class OperatorTermsPublicationTests(SourceModelFixture):
                 self.publish(operator, company, selected, inventory)
         self.assertEqual(
             self.connection.execute(
-                "select s.current_terms_version_id::text,count(v.id) from public.seller_skus s "
-                "join public.sku_terms_versions v on v.seller_sku_id=s.id "
+                "select s.current_terms_version_id::text,count(v.id) from public.skus s "
+                "join public.sku_terms_versions v on v.sku_id=s.id "
                 "where s.sku=' API SKU ' group by s.current_terms_version_id"
             ).fetchone(),
             (selected, 2),

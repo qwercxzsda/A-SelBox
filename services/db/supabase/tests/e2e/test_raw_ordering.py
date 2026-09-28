@@ -11,6 +11,7 @@ from services.db.supabase.tests.e2e.fixtures import (
     archived_data_kiosk,
     archived_settlement,
     company_with_fees,
+    fixture_sku,
     settlement_document,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
@@ -58,7 +59,10 @@ class RawOrderingTests(LocalWorkflowCase):
         acquisition = archived_settlement(self.storage, seller)
         rows = list(
             csv.DictReader(
-                io.StringIO(settlement_document(str(acquisition.id)).decode()), delimiter="\t"
+                io.StringIO(
+                    settlement_document(str(acquisition.id), sku=fixture_sku(seller)).decode()
+                ),
+                delimiter="\t",
             )
         )
         for row in rows:

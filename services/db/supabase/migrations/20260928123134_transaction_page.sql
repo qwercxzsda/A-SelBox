@@ -150,8 +150,7 @@ begin
                         coalesce(cardinality($3::uuid[]), 0) = 0
                         or exists (
                             select 1 from public.company_skus as o
-                            where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
-                                and o.sku = t.sku and o.company_id = any($3)
+                            where t.category <> 'SELBOX' and o.sku = t.sku and o.company_id = any($3)
                         )
                     )
                     and (coalesce(cardinality($4::text[]), 0) = 0
@@ -211,8 +210,7 @@ begin
                         coalesce(cardinality($3::uuid[]), 0) = 0
                         or exists (
                             select 1 from public.company_skus as o
-                            where t.category <> 'SELBOX' and o.seller_namespace = t.seller_namespace
-                                and o.sku = t.sku and o.company_id = any($3)
+                            where t.category <> 'SELBOX' and o.sku = t.sku and o.company_id = any($3)
                         )
                     )
                     and (coalesce(cardinality($4::text[]), 0) = 0
@@ -273,11 +271,11 @@ begin
             limit $9::integer offset $10::bigint
         ),
         selected_terms as materialized (
-            select seller_sku_id, seller_namespace, sku, terms_version_id, company_id
+            select sku_id, sku, terms_version_id, company_id
             from private.current_sku_terms as terms
             where exists (
                 select 1 from raw_page as selected
-                where selected.seller_namespace = terms.seller_namespace and selected.sku = terms.sku
+                where selected.sku = terms.sku
                     and selected.category <> 'SELBOX'
             )
         ),
@@ -287,14 +285,14 @@ begin
                     else coalesce(s.preprocess_version, k.preprocess_version) end as preprocess_version,
                 case when r.source = 'RECONCILIATION' then r.source_row_id
                     else coalesce(s.settlement_id, k.day_id) end as source_identity_id,
-                o.seller_sku_id, o.terms_version_id, o.company_id
+                o.sku_id, o.terms_version_id, o.company_id
             from raw_page as r
             left join private.settlement_preprocess_versions as s
                 on r.source = 'SETTLEMENT' and s.id = r.source_version_id
             left join private.data_kiosk_preprocess_versions as k
                 on r.source = 'DATA_KIOSK' and k.id = r.source_version_id
             left join selected_terms as o
-                on r.seller_namespace = o.seller_namespace and r.sku = o.sku and r.category <> 'SELBOX'
+                on r.sku = o.sku and r.category <> 'SELBOX'
             where s.id is not null or k.id is not null or r.source = 'RECONCILIATION'
         ),
         resolved as (
@@ -328,7 +326,7 @@ begin
                 c.seller_namespace::text, c.marketplace_name, c.activity_date,
                 c.sku::text, c.component_type::text, c.currency,
                 c.source_amount::numeric, c.quantity::numeric, c.fee_base::numeric,
-                c.category, c.seller_sku_id::uuid, c.terms_version_id::uuid,
+                c.category, c.sku_id::uuid, c.terms_version_id::uuid,
                 c.company_id::uuid, c.fee_period_id::uuid, c.fee_rate_percent,
                 c.resolution_status, c.fee_amount,
                 case when c.category = 'SELBOX' then 0::numeric

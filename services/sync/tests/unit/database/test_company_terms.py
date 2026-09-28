@@ -39,7 +39,6 @@ class TestFeePublication(unittest.TestCase):
         with patch("services.sync.src.database.company_terms.uuid7", return_value=version_id):
             result = publish_sku_terms(
                 database,
-                seller_namespace="seller",
                 sku=" SKU ",
                 company_id=str(uuid7()),
                 expected_current_version_id=expected_id,
@@ -56,6 +55,8 @@ class TestFeePublication(unittest.TestCase):
         self.assertEqual(len(database.execute_calls), 1)
         payload = cast(dict[str, object], cast(Jsonb, database.execute_calls[0][1]["payload"]).obj)
         self.assertEqual(payload["expected_current_version_id"], expected_id)
+        self.assertEqual(payload["sku"], " SKU ")
+        self.assertNotIn("seller_namespace", payload)
         periods = cast(list[dict[str, object]], payload["periods"])
         self.assertEqual([item["fee_rate_percent"] for item in periods], ["5.000000", "7.123456"])
         self.assertEqual(periods[0]["valid_to"], "2026-07-01")
@@ -66,7 +67,6 @@ class TestFeePublication(unittest.TestCase):
         with patch("services.sync.src.database.company_terms.uuid7", return_value=version_id):
             publish_sku_terms(
                 database,
-                seller_namespace="seller",
                 sku="SKU",
                 company_id=None,
                 expected_current_version_id=None,
@@ -81,7 +81,6 @@ class TestFeePublication(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "overlap"):
             publish_sku_terms(
                 database,
-                seller_namespace="seller",
                 sku=" SKU ",
                 company_id=str(uuid7()),
                 expected_current_version_id=None,
@@ -99,7 +98,6 @@ class TestFeePublication(unittest.TestCase):
         with patch("services.sync.src.database.company_terms.uuid7", return_value=version_id):
             publish_sku_terms(
                 database,
-                seller_namespace="seller",
                 sku=" SKU ",
                 company_id=None,
                 expected_current_version_id=None,
@@ -112,7 +110,7 @@ class TestFeePublication(unittest.TestCase):
         payload = cast(dict[str, object], cast(Jsonb, database.execute_calls[0][1]["payload"]).obj)
         self.assertEqual(payload["sku"], " SKU ")
         self.assertIsNone(payload["company_id"])
-        self.assertEqual(UUID(str(payload["seller_sku_id"])).version, 7)
+        self.assertEqual(UUID(str(payload["sku_id"])).version, 7)
 
 
 if __name__ == "__main__":

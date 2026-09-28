@@ -43,8 +43,8 @@ class LiveSourceModelTests(SourceModelFixture):
             (1,),
         )
         for statement, values in (
-            ("update public.seller_skus set sku='other' where id=%s", (owner,)),
-            ("delete from public.seller_skus where id=%s", (owner,)),
+            ("update public.skus set sku='other' where id=%s", (owner,)),
+            ("delete from public.skus where id=%s", (owner,)),
         ):
             with self.assertRaises(psycopg.Error), self.connection.transaction():
                 self.connection.execute(cast(LiteralString, statement), values)
@@ -54,7 +54,7 @@ class LiveSourceModelTests(SourceModelFixture):
             str(
                 require_row(
                     self.connection.execute(
-                        "select current_terms_version_id from public.seller_skus"
+                        "select current_terms_version_id from public.skus"
                     ).fetchone()
                 )[0]
             ),
@@ -255,7 +255,7 @@ class LiveSourceModelTests(SourceModelFixture):
         for statement in (
             "select * from private.settlement_acquisitions",
             "select total_amount from private.settlement_preprocess_versions",
-            "update public.seller_skus set current_terms_version_id=current_terms_version_id",
+            "update public.skus set current_terms_version_id=current_terms_version_id",
             "select private.publish_sku_terms('{}'::jsonb)",
             (
                 "select * from "
@@ -290,9 +290,9 @@ class LiveSourceModelTests(SourceModelFixture):
             self.connection.execute(
                 (
                     "insert into "
-                    "public.sku_terms_versions(seller_sku_id,company_id,version_number,"
+                    "public.sku_terms_versions(sku_id,company_id,version_number,"
                     "fee_period_count,change_reason) select s.id,v.company_id,v.version_number+1,"
-                    "1,'Incomplete publication' from public.seller_skus s "
+                    "1,'Incomplete publication' from public.skus s "
                     "join public.sku_terms_versions v on v.id=s.current_terms_version_id "
                     "where s.id=%s"
                 ),
@@ -303,7 +303,7 @@ class LiveSourceModelTests(SourceModelFixture):
             str(
                 require_row(
                     self.connection.execute(
-                        "select current_terms_version_id from public.seller_skus"
+                        "select current_terms_version_id from public.skus"
                     ).fetchone()
                 )[0]
             ),

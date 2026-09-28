@@ -202,7 +202,7 @@ class PayoutIdempotencyTests(SourceModelFixture):
         second_scope = prepare_payout(self, first_scope.company)
         previous = generate_payout_reports(self, operator, first_scope.company)[1][0]
         before = payout_snapshot(self, previous)
-        self.fee(second_scope.sku_identity, [("2026-01-01", None, "5")])
+        self.kiosk(2, [self.component("-20")], expected=second_scope.kiosk_version)
         reports = generate_payout_reports(self, operator, first_scope.company)
         self.assertEqual(reports[0], (first, False))
         self.assertTrue(reports[1][1])

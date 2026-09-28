@@ -119,7 +119,7 @@ class TestFinancialReads(unittest.TestCase):
             "currency": "USD",
             "source_amount": "200",
             "fee_base": "200.123456789123456789",
-            "seller_sku_id": str(uuid7()),
+            "sku_id": str(uuid7()),
             "terms_version_id": str(uuid7()),
             "resolution_status": "MISSING_FEE",
         }

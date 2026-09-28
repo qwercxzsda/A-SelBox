@@ -89,7 +89,7 @@ class SourceModelFixture(DatabaseTestCase):
             self.connection.execute("reset role")
             return result
 
-    def owner(self, sku: str = "SKU", *, seller: str | None = None) -> tuple[str, str]:
+    def owner(self, sku: str = "SKU") -> tuple[str, str]:
         company, identity = new_id(), new_id()
         self.connection.execute(
             "insert into public.companies(id,name) values (%s,'Company')", (company,)
@@ -98,8 +98,7 @@ class SourceModelFixture(DatabaseTestCase):
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": identity,
-                "seller_namespace": seller or self.seller,
+                "sku_id": identity,
                 "sku": sku,
                 "company_id": company,
                 "expected_current_version_id": None,
@@ -117,8 +116,8 @@ class SourceModelFixture(DatabaseTestCase):
     ) -> str:
         row = require_row(
             self.connection.execute(
-                "select s.seller_namespace,s.sku,v.company_id,s.current_terms_version_id "
-                "from public.seller_skus s join public.sku_terms_versions v "
+                "select s.sku,v.company_id,s.current_terms_version_id "
+                "from public.skus s join public.sku_terms_versions v "
                 "on v.id=s.current_terms_version_id where s.id=%s",
                 (owner,),
             ).fetchone()
@@ -127,11 +126,10 @@ class SourceModelFixture(DatabaseTestCase):
             "publish_sku_terms",
             {
                 "id": new_id(),
-                "seller_sku_id": owner,
-                "seller_namespace": row[0],
-                "sku": row[1],
-                "company_id": str(row[2]) if row[2] is not None else None,
-                "expected_current_version_id": expected or str(row[3]),
+                "sku_id": owner,
+                "sku": row[0],
+                "company_id": str(row[1]) if row[1] is not None else None,
+                "expected_current_version_id": expected or str(row[2]),
                 "change_reason": "Test complete terms",
                 "periods": [
                     {

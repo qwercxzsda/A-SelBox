@@ -41,7 +41,7 @@ begin
                 and t.seller_namespace = any(seller_namespaces)
         ) sources
         left join private.current_sku_terms o
-            on o.seller_namespace = sources.seller_namespace and o.sku = sources.sku
+            on o.sku = sources.sku
         where o.company_id is null
     ) then
         raise exception 'Unresolved ownership or fee coverage prevents a complete payout report' using errcode = '23514';
@@ -62,7 +62,7 @@ begin
         ), scopes as (
             select t.seller_namespace::text,t.currency
             from company_sources t
-            join private.current_sku_terms o on o.seller_namespace = t.seller_namespace and o.sku = t.sku
+            join private.current_sku_terms o on o.sku = t.sku
             where o.company_id = p_company_id
             union
             -- A removed scope needs a new zero aggregate, not a stale nonzero latest report.

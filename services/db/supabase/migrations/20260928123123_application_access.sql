@@ -16,9 +16,9 @@ using (
         where a.user_id = (select auth.uid())
     )
 );
-create policy seller_skus_read on public.seller_skus for select to authenticated using (
+create policy skus_read on public.skus for select to authenticated using (
     (select private.is_operator()) or id in (
-        select o.seller_sku_id from private.current_owned_sku_terms() as o
+        select o.sku_id from private.current_owned_sku_terms() as o
     )
 );
 create policy terms_read on public.sku_terms_versions for select to authenticated using (
@@ -36,11 +36,8 @@ create policy settlement_facts_read on private.settlement_transactions
 for select to authenticated using (
     (select private.is_operator()) or (
         category = 'SETTLEMENT'
-        and (seller_namespace, sku) in (
-            select
-                o.seller_namespace,
-                o.sku
-            from private.current_owned_sku_terms() as o
+        and sku in (
+            select o.sku from private.current_owned_sku_terms() as o
         )
         and version_id in (
             select h.current_version_id from private.settlements as h
@@ -51,11 +48,8 @@ create policy data_kiosk_facts_read on private.data_kiosk_transactions
 for select to authenticated using (
     (select private.is_operator()) or (
         category <> 'SELBOX'
-        and (seller_namespace, sku) in (
-            select
-                o.seller_namespace,
-                o.sku
-            from private.current_owned_sku_terms() as o
+        and sku in (
+            select o.sku from private.current_owned_sku_terms() as o
         )
         and version_id in (
             select h.current_version_id from private.data_kiosk_days as h
@@ -204,7 +198,7 @@ select * from private.payout_report_terms_versions;
 -- Operators publish one complete revision with CAS; they cannot write immutable
 -- tables or choose internal IDs. Source publishers stay direct-SQL only.
 create function private.publish_operator_sku_terms(
-    p_seller_namespace text, p_sku text, p_company_id uuid,
+    p_sku text, p_company_id uuid,
     p_expected_current_version_id uuid, p_change_reason text, p_periods jsonb
 ) returns uuid language plpgsql security definer set search_path = '' as $$
 declare periods_with_ids jsonb;
@@ -221,17 +215,17 @@ begin
     select coalesce(jsonb_agg(p || jsonb_build_object('id',private.uuid7())),'[]'::jsonb)
         into periods_with_ids from jsonb_array_elements(p_periods) p;
     return private.publish_sku_terms(jsonb_build_object(
-        'id',private.uuid7(),'seller_sku_id',private.uuid7(),
-        'seller_namespace',p_seller_namespace,'sku',p_sku,'company_id',p_company_id,
+        'id',private.uuid7(),'sku_id',private.uuid7(),
+        'sku',p_sku,'company_id',p_company_id,
         'expected_current_version_id',p_expected_current_version_id,
         'change_reason',p_change_reason,'periods',periods_with_ids
     ));
 end;
 $$;
 create function public.publish_sku_terms(
-    p_seller_namespace text, p_sku text, p_company_id uuid,
+    p_sku text, p_company_id uuid,
     p_expected_current_version_id uuid, p_change_reason text, p_periods jsonb
 ) returns uuid language sql volatile security invoker set search_path = '' as $$
-    select private.publish_operator_sku_terms(p_seller_namespace,p_sku,p_company_id,
+    select private.publish_operator_sku_terms(p_sku,p_company_id,
         p_expected_current_version_id,p_change_reason,p_periods);
 $$;

@@ -42,7 +42,7 @@ begin
         raise exception 'Exactly four named categories are required';
     end if;
     if has_schema_privilege('anon','private','USAGE')
-        or has_table_privilege('authenticated','public.seller_skus','INSERT,UPDATE,DELETE')
+        or has_table_privilege('authenticated','public.skus','INSERT,UPDATE,DELETE')
         or has_table_privilege('authenticated','public.sku_terms_versions','INSERT,UPDATE,DELETE')
         or has_function_privilege('authenticated','private.publish_sku_terms(jsonb)','EXECUTE')
         or has_function_privilege('authenticated','private.publish_company_payout_report(jsonb)','EXECUTE')

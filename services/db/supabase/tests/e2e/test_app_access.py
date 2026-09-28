@@ -3,14 +3,15 @@
 import base64
 import json
 import unittest
+from decimal import Decimal
 from typing import cast
 
 from services.db.supabase.tests.e2e.fixtures import (
-    SKU,
     START,
     archived_data_kiosk,
     archived_settlement,
     company_with_fees,
+    fixture_sku,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
@@ -24,6 +25,77 @@ from services.sync.src.settlement_preprocess.workflow import preprocess_settleme
 
 class AppAccessTests(LocalWorkflowCase):
     """Service credentials create Auth fixtures; app operations use ordinary JWTs."""
+
+    def test_one_sku_assignment_combines_namespaces_through_rest_and_transfers_together(
+        self,
+    ) -> None:
+        sku = fixture_sku(self.seller)
+        company = company_with_fees(self.database, self.seller, sku=sku)
+        other = create_company(self.database, "Other global SKU owner")
+        _, member = self.create_member(company)
+        _, other_member = self.create_member(other)
+        _, operator = self.create_operator()
+        for seller in (self.seller, self.seller + "-second"):
+            settlement = persist_settlement_acquisition(
+                self.database, archived_settlement(self.storage, seller, sku=sku)
+            )
+            kiosk = persist_data_kiosk_acquisition(
+                self.database, archived_data_kiosk(self.storage, seller, sku=sku)
+            )
+            preprocess_settlement_report(self.database, self.storage, settlement)
+            preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
+        assignments = self.read_rows("company_skus", member)
+        self.assertEqual(len(assignments), 1)
+        self.assertEqual(assignments[0]["sku"], sku)
+        self.assertNotIn("seller_namespace", assignments[0])
+        for token, count in ((member, "8"), (other_member, "0")):
+            for endpoint in ("transaction_page", "transaction_count", "transaction_totals"):
+                body: dict[str, object] = {"p_skus": [sku]}
+                if endpoint == "transaction_totals":
+                    body["p_date_from"] = START.isoformat()
+                result = self.stack.request(
+                    "POST", "/rest/v1/rpc/" + endpoint, token=token, json=body
+                )
+                self.assertEqual(result.status_code, 200)
+                payload = result.json()
+                if endpoint == "transaction_count":
+                    self.assertEqual(payload, count)
+                elif endpoint == "transaction_page":
+                    self.assertEqual(payload["total_count"], count)
+                    self.assertEqual(len(payload["rows"]), int(count))
+                elif count == "0":
+                    self.assertEqual(payload["rows"], [])
+                else:
+                    self.assertEqual(payload["rows"][0]["row_count"], count)
+                    self.assertEqual(Decimal(payload["rows"][0]["company_amount"]), -20)
+        current = self.read_rows("skus", operator, sku="eq." + sku)[0]
+        published = self.stack.request(
+            "POST",
+            "/rest/v1/rpc/publish_sku_terms",
+            token=operator,
+            json={
+                "p_sku": sku,
+                "p_company_id": other,
+                "p_expected_current_version_id": current["current_terms_version_id"],
+                "p_change_reason": "Transfer the global SKU across both source namespaces",
+                "p_periods": [
+                    {
+                        "marketplace_name": "Amazon.com",
+                        "valid_from": START.isoformat(),
+                        "valid_to": None,
+                        "fee_rate_percent": "10",
+                    }
+                ],
+            },
+        )
+        self.assertEqual(published.status_code, 200)
+        for token, count in ((member, "0"), (other_member, "8")):
+            result = self.stack.request(
+                "POST", "/rest/v1/rpc/transaction_page", token=token, json={"p_skus": [sku]}
+            )
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(result.json()["total_count"], count)
+            self.assertEqual(len(result.json()["rows"]), int(count))
 
     def test_operator_manages_existing_accounts_and_existing_tokens_follow_access(self) -> None:
         first = company_with_fees(self.database, self.seller)
@@ -208,8 +280,7 @@ class AppAccessTests(LocalWorkflowCase):
         _, member_token = self.create_member(company)
         _, outsider_token = self.create_auth_user()
         payload: dict[str, object] = {
-            "p_seller_namespace": self.seller,
-            "p_sku": SKU,
+            "p_sku": fixture_sku(self.seller),
             "p_company_id": company,
             "p_expected_current_version_id": None,
             "p_change_reason": "First operator publication",
@@ -234,7 +305,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(published.status_code, 200)
         first = cast(str, published.json())
         selected = self.read_rows(
-            "company_skus", member_token, seller_namespace="eq." + self.seller
+            "company_skus", member_token, sku="eq." + fixture_sku(self.seller)
         )
         self.assertEqual(len(selected), 1)
         periods = self.read_rows("sku_fee_periods", member_token, terms_version_id="eq." + first)
@@ -275,11 +346,9 @@ class AppAccessTests(LocalWorkflowCase):
         )
         self.assertEqual(stale.status_code, 500)
         self.assertEqual(stale.json()["code"], "40001")
-        current = self.read_rows(
-            "seller_skus", operator_token, seller_namespace="eq." + self.seller
-        )
+        current = self.read_rows("skus", operator_token, sku="eq." + fixture_sku(self.seller))
         self.assertEqual(current[0]["current_terms_version_id"], second)
-        for relation in ("seller_skus", "sku_terms_versions", "sku_fee_periods"):
+        for relation in ("skus", "sku_terms_versions", "sku_fee_periods"):
             denied = self.stack.request(
                 "POST", "/rest/v1/" + relation, token=operator_token, json={}
             )

@@ -38,7 +38,7 @@ test("a zero report displays without a currency, is reused, and is not regenerat
     drawer.getByText("No saved details for this section.", { exact: true }),
   ).toBeVisible();
   await expect(drawer.getByRole("columnheader")).toHaveCount(0);
-  await expect(drawer.getByText("Seller reconciliation", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByText("Reconciliation", { exact: true })).toHaveCount(0);
   await expect(drawer.getByText(/\b0 [A-Z]{3}\b/)).toHaveCount(0);
   await captureResponsiveReview(page, testInfo, "zero-payout-report");
   await page.getByRole("button", { name: "Close row details" }).click();

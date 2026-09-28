@@ -30,10 +30,15 @@ export function RowDetail({
   isAdministrator: boolean;
   accessToken: string;
 }) {
-  const columns = displayColumns(dataset, isAdministrator).filter(
-    (column) => !(column.key === "sku" && row?.sku),
-  );
-  const shown = new Set(TABLE_COLUMNS[dataset].map((column) => column.key));
+  const columns: ColumnDefinition[] = [
+    ...displayColumns(dataset, isAdministrator).filter(
+      (column) => !(column.key === "sku" && row?.sku),
+    ),
+    ...(isAdministrator && row?.seller_namespace
+      ? [{ key: "seller_namespace", kind: "text" as const, label: "Source namespace" }]
+      : []),
+  ];
+  const shown = new Set([...TABLE_COLUMNS[dataset], ...columns].map((column) => column.key));
   const remaining = Object.keys(row ?? {}).filter((key) => !shown.has(key));
   return (
     <Drawer
@@ -76,7 +81,7 @@ export function RowDetail({
                 currency={row.currency ?? ""}
                 accessToken={accessToken}
               />
-              {isAdministrator && row.seller_namespace ? (
+              {isAdministrator && Number(row.reconciliation_count) > 0 ? (
                 <PayoutReconciliation accessToken={accessToken} reportId={row.id} />
               ) : null}
             </Fragment>

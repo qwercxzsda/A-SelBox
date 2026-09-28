@@ -1,6 +1,6 @@
 """Synthetic source documents retained through real archive and database clients."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid7
 
 from services.sync.src.amazon.data_kiosk.models import DataKioskDocumentKind
@@ -31,6 +31,11 @@ END = date(2026, 8, 2)
 CREATED = datetime(2026, 8, 3, 12, tzinfo=UTC)
 MARKETPLACE_ID = "ATVPDKIKX0DER"
 SKU = "SKU-1"
+
+
+def fixture_sku(identity: str) -> str:
+    """Give independent persistent-stack fixtures globally unique SKU identities."""
+    return f"{SKU}-{identity}"
 
 
 def settlement_document(identity: str, *, sku: str = SKU) -> bytes:
@@ -79,9 +84,10 @@ def settlement_document(identity: str, *, sku: str = SKU) -> bytes:
 
 
 def archived_settlement(
-    storage: ArchiveStorage, seller: str, *, sku: str = SKU
+    storage: ArchiveStorage, seller: str, *, sku: str | None = None
 ) -> SettlementAcquisition:
     """Upload a real immutable archive and retain complete Reports provenance."""
+    sku = sku if sku is not None else fixture_sku(seller)
     identifier = uuid7()
     report_id = f"report-{identifier}"
     document_id = f"document-{identifier}"
@@ -111,18 +117,20 @@ def archived_settlement(
 
 
 def archived_data_kiosk(
-    storage: ArchiveStorage, seller: str, *, sku: str = SKU
+    storage: ArchiveStorage, seller: str, *, sku: str | None = None, end_date: date = END
 ) -> DataKioskAcquisition:
     """Two complete pages cover separate days and contribute 12 USD of disposal fees."""
+    sku = sku if sku is not None else fixture_sku(seller)
+    created = max(CREATED, datetime.combine(end_date, CREATED.timetz()) + timedelta(days=1))
     identifier = uuid7()
-    query = build_daily_msku_economics_query(START, END, MARKETPLACE_ID)
+    query = build_daily_msku_economics_query(START, end_date, MARKETPLACE_ID)
     pages: list[ArchivedDataKioskPage] = []
     for number, (day, amount) in enumerate(((START, "7"), (END, "5")), start=1):
         query_id = f"query-{identifier}-{number}"
         document_id = f"data-{identifier}-{number}"
         metadata: dict[str, object] = {
             "queryId": query_id,
-            "createdTime": CREATED.isoformat(),
+            "createdTime": created.isoformat(),
             "processingStatus": "DONE",
             "query": query,
             "dataDocumentId": document_id,
@@ -140,7 +148,7 @@ def archived_data_kiosk(
             ArchivedDataKioskPage(
                 page_number=number,
                 query_id=query_id,
-                query_created_at=CREATED,
+                query_created_at=created,
                 document_kind=DataKioskDocumentKind.DATA,
                 is_terminal=number == 2,
                 document_id=document_id,
@@ -154,24 +162,24 @@ def archived_data_kiosk(
         seller_namespace=seller,
         amazon_scope="NA",
         root_query_id=root.query_id,
-        root_query_created_at=CREATED,
+        root_query_created_at=created,
         query_definition=query,
         schema_version=ECONOMICS_SCHEMA_NAME,
         marketplace_id=MARKETPLACE_ID,
         query_start_date=START,
-        query_end_date=END,
+        query_end_date=end_date,
         downloaded_at=datetime.now(UTC),
         pages=tuple(pages),
         api_metadata=root.api_metadata,
     )
 
 
-def company_with_fees(database: DatabaseConnection, seller: str, *, sku: str = SKU) -> str:
+def company_with_fees(database: DatabaseConnection, seller: str, *, sku: str | None = None) -> str:
     """Assign SKU ownership and the 5% sale / 7% refund fee periods."""
+    sku = sku if sku is not None else fixture_sku(seller)
     company = create_company(database, f"Local E2E {seller}")
     publish_sku_terms(
         database,
-        seller_namespace=seller,
         sku=sku,
         company_id=company,
         expected_current_version_id=None,

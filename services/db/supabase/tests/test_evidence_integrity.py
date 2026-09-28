@@ -60,13 +60,13 @@ class EvidenceIntegrityTests(SourceModelFixture):
         # report's SKU/terms/manifest. A valid UUID alone cannot establish a link.
         changes = (
             {"report_id": new_id()},
-            {"seller_sku_id": new_id()},
+            {"sku_id": new_id()},
             {"terms_version_id": new_id()},
             {"fee_period_id": new_id()},
-            {"seller_sku_id": other_identity},
+            {"sku_id": other_identity},
             {"fee_period_id": other_period},
             {
-                "seller_sku_id": other_identity,
+                "sku_id": other_identity,
                 "terms_version_id": other_terms,
                 "fee_period_id": other_period,
             },

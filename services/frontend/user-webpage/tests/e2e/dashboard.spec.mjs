@@ -61,7 +61,7 @@ test("expanding a SKU loads every marketplace fee period across server pages", a
   expect(fixture.feeRequests.at(-1).params.get("offset")).toBe("24");
   expect(
     fixture.feeRequests.every(
-      (request) => request.params.get("seller_sku_id") === `eq.${assignmentId(1)}`,
+      (request) => request.params.get("sku_id") === `eq.${assignmentId(1)}`,
     ),
   ).toBe(true);
   await page.getByRole("button", { name: "Next", exact: true }).click();

@@ -61,7 +61,7 @@ class CompanyPayoutComponent:
     source_row_id: str
     source_version_id: str
     source_identity_id: str
-    seller_sku_id: str
+    sku_id: str
     terms_version_id: str
     fee_period_id: str | None
     sku: str
@@ -174,7 +174,7 @@ def load_company_payout_report_components(
         cursor.execute(
             """
             select id, report_id, row_number, source, authoritative, source_row_id,
-                source_version_id, source_identity_id, seller_sku_id, terms_version_id,
+                source_version_id, source_identity_id, sku_id, terms_version_id,
                 fee_period_id, sku, marketplace_name, activity_date, component_type,
                 source_amount, quantity, fee_base, fee_rate_percent, fee_amount, company_amount,
                 resolution_status
@@ -291,7 +291,7 @@ def _component(row: Sequence[object]) -> CompanyPayoutComponent:
         source_row_id=normalize_uuid(row[5], "source_row_id"),
         source_version_id=normalize_uuid(row[6], "source_version_id"),
         source_identity_id=normalize_uuid(row[7], "source_identity_id"),
-        seller_sku_id=normalize_uuid(row[8], "seller_sku_id"),
+        sku_id=normalize_uuid(row[8], "sku_id"),
         terms_version_id=normalize_uuid(row[9], "terms_version_id"),
         fee_period_id=None if row[10] is None else normalize_uuid(row[10], "fee_period_id"),
         sku=sku,

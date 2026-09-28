@@ -96,22 +96,16 @@ def prepare_payout(fixture: SourceModelFixture, company: str | None = None) -> P
     fixture.set_mature_cutoff_date(date(2026, 7, 1))
     if company is None:
         company, identity = fixture.owner()
+        fixture.fee(identity, [("2026-01-01", None, "5")])
     else:
-        identity = new_id()
-        fixture.call(
-            "publish_sku_terms",
-            {
-                "id": new_id(),
-                "seller_sku_id": identity,
-                "seller_namespace": fixture.seller,
-                "sku": "SKU",
-                "company_id": company,
-                "expected_current_version_id": None,
-                "change_reason": "Assign another seller to the same company",
-                "periods": [],
-            },
-        )
-    fixture.fee(identity, [("2026-01-01", None, "5")])
+        row = fixture.connection.execute(
+            "select s.id::text from public.skus s join public.sku_terms_versions v "
+            "on v.id=s.current_terms_version_id where s.sku='SKU' and v.company_id=%s",
+            (company,),
+        ).fetchone()
+        if row is None:
+            raise AssertionError("Expected the company's shared global SKU.")
+        identity = str(row[0])
     acquisition = fixture.acquisition()
     settlement, version = fixture.settlement(
         [fixture.transaction("100")], acquisition_id=acquisition
@@ -146,7 +140,7 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
                 from private.payout_report_settlement_versions p where p.report_id=r.id),
             'kiosk',(select jsonb_agg(to_jsonb(p) order by p.day_id)
                 from private.payout_report_data_kiosk_versions p where p.report_id=r.id),
-            'terms',(select jsonb_agg(to_jsonb(p) order by p.seller_sku_id)
+            'terms',(select jsonb_agg(to_jsonb(p) order by p.sku_id)
                 from private.payout_report_terms_versions p where p.report_id=r.id),
             'reconciliation',(select jsonb_agg(to_jsonb(c) order by c.row_number)
                 from private.payout_report_reconciliation c where c.report_id=r.id)

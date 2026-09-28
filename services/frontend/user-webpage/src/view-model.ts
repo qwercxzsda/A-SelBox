@@ -129,10 +129,9 @@ export const TABLE_COLUMNS: Record<DatasetKey, readonly ColumnDefinition[]> = {
     column("preprocess_version", "Processing version"),
   ],
   fees: [
-    column("company_id", "Company", "company"),
     column("marketplace_name", "Marketplace"),
-    column("valid_period", "Effective dates", "period"),
     column("fee_rate_percent", "Fee rate", "percent"),
+    column("valid_period", "Effective dates", "period"),
   ],
   payouts: [
     column("created_at", "Created", "date"),

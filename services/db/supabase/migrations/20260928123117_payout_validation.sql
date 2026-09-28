@@ -17,14 +17,25 @@ begin
 end;
 $$;
 
--- Historical assignments identify a seller even after an ownership correction.
+-- Namespaces identify source inventories, never SKU ownership. Discover every
+-- import namespace containing a company's current or historically assigned SKU;
+-- saved reports retain scopes after source retention or ownership corrections.
 create function private.payout_company_sellers(p_company_id uuid) returns text[]
 language sql stable set search_path = '' as $$
+    with company_skus as materialized (
+        select s.sku from public.skus s
+        where exists (
+            select 1 from public.sku_terms_versions v
+            where v.sku_id = s.id and v.company_id = p_company_id
+        )
+    )
     select coalesce(array_agg(seller_namespace order by seller_namespace),'{}'::text[])
     from (
-        select s.seller_namespace::text from public.seller_skus s
-        join public.sku_terms_versions v on v.seller_sku_id = s.id
-        where v.company_id = p_company_id
+        select t.seller_namespace::text from company_skus s
+        join private.settlement_transactions t on t.sku = s.sku
+        union
+        select t.seller_namespace::text from company_skus s
+        join private.data_kiosk_transactions t on t.sku = s.sku
         union
         select r.seller_namespace::text from public.company_payout_reports r
         where r.company_id = p_company_id and r.seller_namespace is not null
@@ -136,7 +147,7 @@ begin
         into settlement_versions from private.payout_report_settlement_versions where report_id = new.id;
     select coalesce(array_agg(version_id order by day_id),'{}'::uuid[])
         into kiosk_versions from private.payout_report_data_kiosk_versions where report_id = new.id;
-    select coalesce(array_agg(terms_version_id order by seller_sku_id),'{}'::uuid[])
+    select coalesce(array_agg(terms_version_id order by sku_id),'{}'::uuid[])
         into terms_versions from private.payout_report_terms_versions where report_id = new.id;
     if cardinality(settlement_versions) <> new.settlement_version_count
         or cardinality(kiosk_versions) <> new.data_kiosk_version_count

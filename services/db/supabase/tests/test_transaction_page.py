@@ -15,8 +15,8 @@ class TransactionPageTests(TransactionPageFixture):
         company_a, company_b = self.financial_fixture()
         for user, count in (
             (self.operator(), "19"),
-            (self.member(company_a), "7"),
-            (self.member(company_b), "4"),
+            (self.member(company_a), "9"),
+            (self.member(company_b), "2"),
             (self.auth_user(), "0"),
         ):
             with self.subTest(user=user):
@@ -414,6 +414,6 @@ class TransactionPageTests(TransactionPageFixture):
                     if row["category"] == "SELBOX":
                         continue
                     self.assertEqual(row["terms_version_id"], unassigned)
-                    self.assertEqual(row["seller_sku_id"], sku)
+                    self.assertEqual(row["sku_id"], sku)
                     self.assertEqual(row["resolution_status"], "MISSING_OWNERSHIP")
                     self.assertIsNone(row["company_amount"])
