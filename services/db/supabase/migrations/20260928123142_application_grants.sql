@@ -85,3 +85,10 @@ grant execute on function private.read_sku_configuration(), public.sku_configura
 private.publish_operator_sku_configuration(jsonb, text),
 public.publish_sku_configuration(jsonb, text)
 to authenticated;
+
+-- Inventory publishers stay privileged. Header tables are operator-only under
+-- RLS; the guarded helper exposes just current scope timestamps to members.
+grant select on private.inventory_acquisitions, private.inventory_daily_captures,
+private.inventory_items, public.latest_inventory_captures,
+public.latest_inventory_items to authenticated;
+grant execute on function private.latest_inventory_capture_references() to authenticated;

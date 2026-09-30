@@ -9,7 +9,7 @@ from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 _POLL = "select public.workspace_revisions(%s::text[])"
-_SOURCES = ["settlement", "data_kiosk", "fees"]
+_SOURCES = ["settlement", "data_kiosk", "fees", "inventory"]
 _FACT_STATS = (
     "select relname,seq_scan,seq_tup_read,idx_scan,idx_tup_fetch from pg_stat_xact_user_tables "
     "where relname in ('settlement_transactions','data_kiosk_transactions') order by relname"
@@ -58,6 +58,7 @@ class WorkspaceRevisionTests(SourceModelFixture):
             self.assertNotEqual(before["settlement"], after["settlement"])
             self.assertNotEqual(before["data_kiosk"], after["data_kiosk"])
             self.assertEqual(before["fees"], after["fees"])
+            self.assertEqual(before["inventory"], after["inventory"])
 
     def test_requires_current_application_access_and_never_grants_private_table_access(
         self,
@@ -99,7 +100,7 @@ class WorkspaceRevisionTests(SourceModelFixture):
 
     def test_invalid_source_arguments_are_rejected(self) -> None:
         operator = self.operator()
-        for sources in (None, ["private"], [None], ["fees"] * 4, [["fees", "settlement"]]):
+        for sources in (None, ["private"], [None], ["fees"] * 5, [["fees", "settlement"]]):
             with (
                 self.subTest(sources=sources),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),

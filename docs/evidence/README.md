@@ -7,6 +7,7 @@ current SKU identity model; superseded query and index experiments are not maint
 
 | Record | Purpose |
 | --- | --- |
+| [Daily inventory](inventory/README.md) | Real US/Japan pipeline, lightweight refresh, and responsive UI verification. |
 | [Global SKU performance](global_sku_identity/README.md) | Shared-SKU authenticated reads across namespaces, index sizes, and query plans. |
 | [Global SKU configuration seed](global_sku_identity/configuration_seed.json) | Full current-schema fixture restore, actual Auth/REST access and atomic configuration writes, and independent source checks. |
 | [Type registry validation](type_registry_2026-09-26/README.md) | Real-seed coverage and complete Settlement replay for the active explicit registry. |

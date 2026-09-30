@@ -5,6 +5,7 @@ import { createDatasetApi } from "./datasets.ts";
 import { createSummaryApi } from "./summaries.ts";
 import { createPayoutApi } from "./payouts.ts";
 import { createSkuConfigurationApi } from "./sku-configuration.ts";
+import { createInventoryApi } from "./inventory.ts";
 import type { ApiClientConfig } from "./client-config.ts";
 export { ApiError } from "./transport.ts";
 
@@ -21,6 +22,7 @@ export function createApiClient(
     ...datasets,
     ...createPayoutApi(transport),
     ...createSkuConfigurationApi(transport),
+    ...createInventoryApi(transport),
     ...createSummaryApi(transport, (options) => datasets.fetchDatasetPage(options)),
   };
 }

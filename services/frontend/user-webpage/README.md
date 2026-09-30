@@ -6,14 +6,15 @@ Database row-level security enforces access. UI copy and browser review fixtures
 
 ## Workspace
 
-| Tab            | API                                                   | Access                                                             |
-| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
-| Transactions   | `transaction_page`, `transaction_count`               | Current company assignments and fees                               |
-| Current fees   | `sku_configuration`, `publish_sku_configuration`      | Administrators edit complete configuration; members read their own |
-| Settlements    | `source_transaction_page`, `source_transaction_count` | Administrators                                                     |
-| Data Kiosk     | `source_transaction_page`, `source_transaction_count` | Administrators                                                     |
-| Payout reports | `company_payout_reports`, monthly generation RPC      | All companies for administrators; own company for members          |
-| User access    | `app_accounts`                                        | Administrators                                                     |
+| Tab            | API                                                   | Access                                                                         |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Transactions   | `transaction_page`, `transaction_count`               | Current company assignments and fees                                           |
+| Current fees   | `sku_configuration`, `publish_sku_configuration`      | Administrators edit complete configuration; members read their own             |
+| Inventory      | `latest_inventory_items`                              | All source inventory for administrators; current company ownership for members |
+| Settlements    | `source_transaction_page`, `source_transaction_count` | Administrators                                                                 |
+| Data Kiosk     | `source_transaction_page`, `source_transaction_count` | Administrators                                                                 |
+| Payout reports | `company_payout_reports`, monthly generation RPC      | All companies for administrators; own company for members                      |
+| User access    | `app_accounts`                                        | Administrators                                                                 |
 
 Company members see only their company. Administrators can select companies in Transactions and
 generate payout reports for mature months. Administrators also edit SKU assignments and fees in
@@ -58,6 +59,41 @@ permissions.
   Type: Settlement product sales/refunds and Data Kiosk net product sales are applicable, including
   zero bases/rates and missing fee configuration. Selecting both or neither shows all applicability
   states. Type labels wrap within a maximum width of 20rem.
+
+## Inventory
+
+Inventory shows the latest retained daily capture for each seller and marketplace. Each SKU row
+groups trailing 90-day sales, inventory quantities, Amazon's reported health and minimum inventory,
+and replenishment recommendations. Expand Inventory breakdown for inbound and reserved subcounts. No
+shipment actions or product images are included. Historical sales are not a demand forecast.
+
+The read-only tab uses authenticated CSV reads so quantities and decimal amounts retain their exact
+stored values. A dash means unavailable and a reported zero remains zero. Capture date, snapshot
+date, report creation time, and preprocessing time stay visible; daily captures support approximate
+planning rather than live stock guarantees. Inventory categories are not added together. Financial
+summary cards are unmounted while Inventory is open, so financial revision changes do not refetch
+hidden totals. Source dates remain absolute; checking for updates does not make an old capture
+appear current. Known Amazon health labels receive a visual status indicator and unknown labels
+remain unchanged. On narrow screens, the table scrolls horizontally within the page and supports
+keyboard arrow keys when focused. Helper text meets a 4.5:1 contrast threshold against the page
+background, and long account emails wrap without shrinking the Sign out button. Known navigation
+codes display as readable recommendation text (`SendToFBA` → “Send to FBA”, `GoToRestock` →
+“Restock”); unknown source labels stay unchanged. Missing Japan health/minimum-stock fields remain
+dashes.
+
+Exact SKU search preserves whitespace and punctuation. Canonical marketplace filtering and stable
+SKU/marketplace/capture ordering apply on the server before pagination and exact counting. Filters
+and pages persist across tab changes independently of the financial tables. Inventory uses its own
+query cache family and the same lightweight revision checks as Transactions. While the tab is
+active, the visible, online workspace checks `workspace_revisions` every 60 seconds. Inventory
+depends on the global `inventory` token and the `fees` ownership token, which is company-scoped for
+members and global for administrators. Unchanged tokens cause no inventory row or count reads;
+changed relevant tokens reload the active query. Returning to the window or tab checks again once
+the last check is at least 30 seconds old; reconnecting checks immediately. Failed reads retry on
+the next automatic check even when tokens are unchanged. There are no inventory refresh or retry
+buttons. These checks load saved database captures only when needed; they do not request new Amazon
+reports. Database access rules determine every visible row. No inventory data enters financial
+summaries, fee coverage, or payouts.
 
 ## Payout reports
 
@@ -163,26 +199,28 @@ retain direct REST reads and filtered HEAD counts. Details and Previous/Next rem
 counting. Page-number entry becomes available when the bound is known. Failed counts have their own
 retry.
 
-Administrators reload their SKU catalog on any source or fee revision before dependent search reads;
-members reload assigned SKUs on fee revisions. Refreshed catalogs update search keys before queries
-refetch, including when a previously unmatched search gains a newly imported SKU.
+Administrators reload their SKU catalog on any financial source or fee revision before dependent
+search reads; members reload assigned SKUs on fee revisions. Refreshed catalogs update search keys
+before queries refetch, including when a previously unmatched search gains a newly imported SKU.
 
 Identity refreshes reuse an in-memory administrator SKU catalog only after fetching the current
-account and all three revision tokens and confirming they match its existing scope and revisions. An
-explicit workspace retry forces catalog reload. Reuse does not cross sign-out, account/role/company
-changes, or page reloads. Missing revision tokens never authorize reuse. Company names and
-assignments still reload on identity refresh; members derive SKU options from those fresh
-assignments.
+account and the `settlement`, `data_kiosk`, and `fees` revision tokens and confirming they match its
+existing scope and revisions. An explicit workspace retry forces catalog reload. Reuse does not
+cross sign-out, account/role/company changes, or page reloads. Missing revision tokens never
+authorize reuse. Company names and assignments still reload on identity refresh; members derive SKU
+options from those fresh assignments.
 
 Financial counts are cached until a relevant data revision changes. Pages, account counts, and
 payout counts have 30-second freshness. Every visible, online workspace polls `workspace_revisions`
-every 60 seconds; focus and reconnection also check for changes. Unchanged revisions trigger no
-financial reads. Changes invalidate only dependent rows, options, counts, summaries, and fee
-lookups. Source revisions cover current pointers, historical publications, and Data Kiosk pruning.
-They are global; fee/ownership revisions are company-scoped for members. Active summaries require
-all three revisions even when another tab is selected. Source revision tokens also include the
-mature cutoff date, so the daily authority change invalidates cached money and counts. Account and
-payout lists and payout eligibility refresh separately.
+every 60 seconds; focus and reconnection also check for changes. Unchanged revisions retain
+successful cached financial and inventory reads. Changes invalidate only dependent rows, options,
+counts, summaries, and fee lookups. Financial source revisions cover current pointers, historical
+publications, and Data Kiosk pruning; inventory revisions cover changed daily capture publications.
+These tokens are global; fee/ownership revisions are company-scoped for members. Active financial
+summaries require the `settlement`, `data_kiosk`, and `fees` revisions. Inventory unmounts those
+summaries. Financial source tokens also include the mature cutoff date, so the daily authority
+change invalidates cached money and counts. Inventory tokens have no date suffix and checks read
+only the small revision table. Account and payout lists and payout eligibility refresh separately.
 
 A session survives reloads in the same tab through `sessionStorage`, scoped to the Supabase URL.
 Only tokens, expiry, and minimal identity are stored. Reload verifies the token with Auth and uses
@@ -193,15 +231,15 @@ Authentication is not synchronized between tabs.
 
 Successful token renewal within the same account scope preserves the mounted workspace:
 
-| Data                                                          | Renewal behavior                                                                                        |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Access token, refresh token, expiry, minimal Auth user fields | Replace with the Auth response and save before dependent reads.                                         |
-| Application account, role/company, revision tokens            | Fetch from the database again.                                                                          |
-| Company names and current SKU assignments                     | Fetch again.                                                                                            |
-| Administrator SKU catalog                                     | Reuse only when the fresh account and all three revisions match; otherwise load the complete list once. |
-| Member SKU options                                            | Rebuild from refreshed assignments.                                                                     |
-| Selected tab, filters, sorting, pagination, expanded details  | Keep while the workspace remains mounted.                                                               |
-| Cached pages, counts, summaries and fee details               | Keep; normal query freshness and revision invalidation still apply.                                     |
+| Data                                                          | Renewal behavior                                                                                                                     |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Access token, refresh token, expiry, minimal Auth user fields | Replace with the Auth response and save before dependent reads.                                                                      |
+| Application account, role/company, revision tokens            | Fetch from the database again.                                                                                                       |
+| Company names and current SKU assignments                     | Fetch again.                                                                                                                         |
+| Administrator SKU catalog                                     | Reuse only when the fresh account and `settlement`, `data_kiosk`, and `fees` revisions match; otherwise load the complete list once. |
+| Member SKU options                                            | Rebuild from refreshed assignments.                                                                                                  |
+| Selected tab, filters, sorting, pagination, expanded details  | Keep while the workspace remains mounted.                                                                                            |
+| Cached pages, counts, summaries and fee details               | Keep; normal query freshness and revision invalidation still apply.                                                                  |
 
 Tokens are not query-cache keys. A changed user, application role, or company mounts a new workspace
 and discards the previous workspace's query cache. Sign-out and failed access verification also

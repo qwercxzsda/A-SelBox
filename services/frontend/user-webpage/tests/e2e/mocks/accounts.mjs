@@ -58,12 +58,14 @@ export function createAccountHandlers(fixture) {
         return reply({ id: user, email: `${user}@example.test` });
       }
       if (url.pathname === "/rest/v1/rpc/workspace_revisions") {
-        const sources = (url.searchParams.get("p_sources") ?? "{settlement,data_kiosk,fees}")
+        const sources = (
+          url.searchParams.get("p_sources") ?? "{settlement,data_kiosk,fees,inventory}"
+        )
           .replace(/[{}]/g, "")
           .split(",")
           .filter(Boolean);
         const role = fixture.roles[user];
-        const revisionValues = fixture.revisionsByUser[user] ?? fixture.revisions;
+        const revisionValues = { ...fixture.revisions, ...fixture.revisionsByUser[user] };
         const response = {
           account: role
             ? {

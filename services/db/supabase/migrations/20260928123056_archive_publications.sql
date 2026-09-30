@@ -163,3 +163,47 @@ begin
     return acquisition_payload.id;
 end;
 $$;
+
+-- Trusted, invoker-only publishers. API roles receive no execution grants.
+create function private.publish_inventory_acquisition(p_payload jsonb) returns uuid
+language plpgsql set search_path = '' as $$
+declare candidate private.inventory_acquisitions; existing private.inventory_acquisitions;
+begin
+    if jsonb_typeof(p_payload) is distinct from 'object' then
+        raise exception 'Inventory acquisition must be an object' using errcode = '23514';
+    end if;
+    candidate := jsonb_populate_record(null::private.inventory_acquisitions, p_payload);
+    perform private.assert_archive_document(candidate.document);
+    if candidate.document_sha256 is distinct from candidate.document->>'document_sha256' then
+        raise exception 'Inventory acquisition document digest mismatch' using errcode = '23514';
+    end if;
+    perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
+        'inventory-acquisition', candidate.seller_namespace, candidate.amazon_scope, candidate.report_id
+    )::text, 0));
+    select * into existing from private.inventory_acquisitions
+    where seller_namespace = candidate.seller_namespace and amazon_scope = candidate.amazon_scope
+        and report_id = candidate.report_id;
+    if found then
+        if (existing.marketplace_id, existing.marketplace_name, existing.capture_date,
+            existing.report_type, existing.report_document_id, existing.report_created_at,
+            existing.document_sha256) is distinct from
+            (candidate.marketplace_id, candidate.marketplace_name, candidate.capture_date,
+            candidate.report_type, candidate.report_document_id, candidate.report_created_at,
+            candidate.document_sha256) then
+            raise exception 'Known inventory report changed identity or decoded bytes' using errcode = '23514';
+        end if;
+        return existing.id;
+    end if;
+    insert into private.inventory_acquisitions (
+        id, seller_namespace, amazon_scope, marketplace_id, marketplace_name, capture_date,
+        report_type, report_id, report_document_id, report_created_at, downloaded_at,
+        document_sha256, document, api_metadata
+    ) values (
+        candidate.id, candidate.seller_namespace, candidate.amazon_scope, candidate.marketplace_id,
+        candidate.marketplace_name, candidate.capture_date, candidate.report_type, candidate.report_id,
+        candidate.report_document_id, candidate.report_created_at, candidate.downloaded_at,
+        candidate.document_sha256, candidate.document, candidate.api_metadata
+    );
+    return candidate.id;
+end;
+$$;

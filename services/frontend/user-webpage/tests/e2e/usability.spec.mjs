@@ -276,7 +276,7 @@ for (const role of ["company_member", "operator"]) {
     fixture.feeRows = [feeRow(0)];
     await signIn(page);
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-    await expect(page.getByRole("tab")).toHaveCount(role === "operator" ? 6 : 3);
+    await expect(page.getByRole("tab")).toHaveCount(role === "operator" ? 7 : 4);
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
     for (const sourceTab of ["Settlements", "Data Kiosk"]) {

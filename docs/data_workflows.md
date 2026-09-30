@@ -1,5 +1,10 @@
 # Data workflows
 
+The separate [daily inventory workflow](inventory_daily_captures.md) reuses acquisition,
+private archives, and offline preprocessing for replenishment estimates. It retains one preprocessed
+capture per day, with no financial or payout dependency. The financial workflows below retain their
+separate publication and retention rules.
+
 Settlement Reports and Data Kiosk are the two Amazon financial sources. Download
 and archive exact documents first; preprocess successful acquisitions offline in
 Python; resolve current company ownership and calculate live company fees in SQL;

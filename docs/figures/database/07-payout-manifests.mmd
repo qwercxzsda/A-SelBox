@@ -1,0 +1,55 @@
+erDiagram
+    direction LR
+    public_sku_terms_versions ||..o{ public_sku_fee_periods : "terms_version_id"
+    public_company_payout_reports ||--o{ private_payout_report_settlement_versions : "report_id"
+    private_settlement_preprocess_versions ||..o{ private_payout_report_settlement_versions : "settlement_id + version_id"
+    public_company_payout_reports ||--o{ private_payout_report_data_kiosk_versions : "report_id"
+    private_data_kiosk_preprocess_versions ||..o{ private_payout_report_data_kiosk_versions : "day_id + version_id"
+    public_company_payout_reports ||--o{ private_payout_report_terms_versions : "report_id"
+    public_sku_terms_versions ||..o{ private_payout_report_terms_versions : "sku_id + terms_version_id"
+    public_company_payout_reports ||..o{ public_company_payout_report_components : "report_id"
+    private_payout_report_terms_versions ||..o{ public_company_payout_report_components : "report_id + terms_version_id"
+    public_sku_terms_versions ||..o{ public_company_payout_report_components : "sku_id + terms_version_id"
+    public_sku_fee_periods o|..o{ public_company_payout_report_components : "terms_version_id + fee_period_id"
+
+    private_payout_report_settlement_versions["private.payout_report_settlement_versions"] {
+        local_uuid report_id PK, FK "NN"
+        local_uuid settlement_id PK, FK "NN"
+        local_uuid version_id FK "NN"
+    }
+
+    private_payout_report_data_kiosk_versions["private.payout_report_data_kiosk_versions"] {
+        local_uuid report_id PK, FK "NN"
+        local_uuid day_id PK, FK "NN"
+        local_uuid version_id FK "NN"
+    }
+
+    private_payout_report_terms_versions["private.payout_report_terms_versions"] {
+        local_uuid report_id PK, FK "NN"
+        local_uuid sku_id PK, FK "NN"
+        local_uuid terms_version_id FK "NN"
+    }
+
+    public_company_payout_reports["public.company_payout_reports (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    private_settlement_preprocess_versions["private.settlement_preprocess_versions (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    public_sku_terms_versions["public.sku_terms_versions (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    public_sku_fee_periods["public.sku_fee_periods (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    public_company_payout_report_components["public.company_payout_report_components (reference)"] {
+        local_uuid id PK "NN"
+    }

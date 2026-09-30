@@ -6,12 +6,14 @@ import { FinanceDataset } from "./FinanceDataset";
 import { visibleDatasets, DATASET_PRESENTATION } from "./view-model";
 import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
+import { Inventory } from "./Inventory";
 import { useSkuConfiguration } from "./use-sku-configuration";
 import { TransactionSummaries } from "./TransactionSummaries";
 import type { DateRange } from "./estimated-periods";
 import {
   createDatasetViewState,
   createFeeViewState,
+  createInventoryViewState,
   type DatasetViewState,
 } from "./workspace-view-state";
 
@@ -23,7 +25,8 @@ interface WorkspaceProps {
 }
 
 export function FinanceWorkspace(props: WorkspaceProps) {
-  const [dataset, setDataset] = useState<DatasetKey>("live");
+  const [dataset, setDataset] = useState<DatasetKey | "inventory">("live");
+  const [inventoryViewState, setInventoryViewState] = useState(createInventoryViewState);
   const [datasetViews, setDatasetViews] = useState<
     Partial<Record<TableDatasetKey, DatasetViewState>>
   >({});
@@ -58,41 +61,58 @@ export function FinanceWorkspace(props: WorkspaceProps) {
         <Alert role="alert" color="red" mb="sm">
           <Group justify="space-between">
             <span>{props.updateError}</span>
-            <Button variant="subtle" onClick={() => void props.onRetry()}>
-              Retry update
-            </Button>
+            {dataset === "inventory" ? (
+              <span>Updates retry automatically.</span>
+            ) : (
+              <Button variant="subtle" onClick={() => void props.onRetry()}>
+                Retry update
+              </Button>
+            )}
           </Group>
         </Alert>
       ) : null}
       <UpdateStatus active={props.isUpdating} mb="xs">
         Updating…
       </UpdateStatus>
-      <TransactionSummaries
-        identity={props.identity}
-        onRetry={props.onRetry}
-        companyIds={transactions.filters.companyIds}
-        skus={transactions.filters.skus}
-        marketplaces={transactions.filters.marketplaces}
-        dateRange={{ from: transactions.filters.dateFrom, to: transactions.filters.dateTo }}
-        onPeriodSelect={selectPeriod}
-      />
+      {dataset !== "inventory" ? (
+        <TransactionSummaries
+          identity={props.identity}
+          onRetry={props.onRetry}
+          companyIds={transactions.filters.companyIds}
+          skus={transactions.filters.skus}
+          marketplaces={transactions.filters.marketplaces}
+          dateRange={{ from: transactions.filters.dateFrom, to: transactions.filters.dateTo }}
+          onPeriodSelect={selectPeriod}
+        />
+      ) : null}
       <Tabs
         value={dataset}
         onChange={(value) => {
+          if (value === "inventory") {
+            setDataset("inventory");
+            return;
+          }
           const next = datasets.find((key) => key === value);
           if (next) setDataset(next);
         }}
         className="dataset-tabs"
       >
-        <Tabs.List aria-label="Financial data">
+        <Tabs.List aria-label="Workspace data">
           {datasets.map((key) => (
             <Tabs.Tab key={key} value={key}>
               {DATASET_PRESENTATION[key].label}
             </Tabs.Tab>
           ))}
+          <Tabs.Tab value="inventory">Inventory</Tabs.Tab>
         </Tabs.List>
       </Tabs>
-      {dataset === "fees" ? (
+      {dataset === "inventory" ? (
+        <Inventory
+          identity={props.identity}
+          viewState={inventoryViewState}
+          onViewStateChange={setInventoryViewState}
+        />
+      ) : dataset === "fees" ? (
         <CurrentFees
           identity={props.identity}
           controller={feeConfiguration}

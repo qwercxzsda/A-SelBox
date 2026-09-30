@@ -132,6 +132,10 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["unrelated"]), []);
+  assert.deepEqual(queryRevisionSources(["inventory", "u", "company_member", "a"]), [
+    "inventory",
+    "fees",
+  ]);
 });
 
 test("poll scope includes active observers and lookup fees, but excludes inactive cached tables", () => {
@@ -154,6 +158,7 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
 
 test("polling refreshes account and payout lists plus eligibility, independently of source revisions", () => {
   assert.equal(isPolledQuery({ queryKey: ["payout-policy", "u"] }), true);
+  assert.equal(isPolledQuery({ queryKey: ["inventory", "u"] }), false);
   for (const dataset of ["accounts", "payouts", "live", "settlement", "data_kiosk", "fees"]) {
     const expected = dataset === "accounts" || dataset === "payouts";
     assert.equal(isPolledDataset(dataset), expected);
@@ -197,6 +202,56 @@ test("revision refresh invalidates matching counts and inactive pages but only f
     for (const unsubscribe of unsubscribers) unsubscribe();
     client.clear();
   }
+});
+
+test("inventory tokens only invalidate inventory pages, while unchanged tokens preserve successful reads", async () => {
+  const client = createQueryClient();
+  const reads = [];
+  const keys = [
+    ["inventory", "u", "operator", null],
+    ["dataset", "u", "operator", null, "live"],
+    ["dataset-count", "u", "operator", null, "live"],
+    ["transaction-type-totals", "u"],
+    ["sku-configuration", "u", "operator"],
+  ];
+  const unsubscribers = keys.map((key) =>
+    new QueryObserver(client, {
+      queryKey: key,
+      initialData: "cached",
+      staleTime: Infinity,
+      queryFn: async () => {
+        reads.push(key);
+        return "fresh";
+      },
+    }).subscribe(() => {}),
+  );
+  try {
+    await refreshWorkspaceQueries(client, [], false, new AbortController().signal);
+    assert.deepEqual(reads, []);
+    await refreshWorkspaceQueries(client, ["inventory"], false, new AbortController().signal);
+    assert.deepEqual(reads, [keys[0]]);
+    for (const key of keys.slice(1)) assert.equal(client.getQueryState(key).isInvalidated, false);
+  } finally {
+    for (const unsubscribe of unsubscribers) unsubscribe();
+    client.clear();
+  }
+});
+
+test("inventory revisions are accepted and remain opaque without affecting financial sources", async () => {
+  const client = createApiClient(SETTINGS, async () =>
+    json({ account, revisions: { inventory: "capture-token", fees: "ownership-token" } }),
+  );
+  assert.deepEqual(
+    await client.fetchWorkspaceRevisions({ ...options, sources: ["inventory", "fees"] }),
+    { account, revisions: { inventory: "capture-token", fees: "ownership-token" } },
+  );
+  assert.deepEqual(
+    changedRevisionSources(
+      { inventory: "before", fees: "same" },
+      { inventory: "after", fees: "same" },
+    ),
+    ["inventory"],
+  );
 });
 
 test("an aborted workspace refresh leaves cached data untouched", async () => {

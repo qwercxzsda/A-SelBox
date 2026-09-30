@@ -1,0 +1,132 @@
+{
+  "recorded_at_utc": "2026-09-29T12:16:27.337528+00:00",
+  "source": "Real Amazon SP-API Inventory Planning report",
+  "amazon_scope": "NA",
+  "marketplace_id": "ATVPDKIKX0DER",
+  "report_type": "GET_FBA_INVENTORY_PLANNING_DATA",
+  "report_selection": "existing completed report",
+  "source_rows": 27,
+  "parser_diagnostics": 0,
+  "daily_captures": 1,
+  "archive_verified_and_replayed_offline": true,
+  "replay_idempotent": true,
+  "all_parsed_fields_match_database": true,
+  "all_rest_fields_match_database": true,
+  "member_row_counts": [14, 13],
+  "anonymous_access_denied": true,
+  "financial_data_unchanged": true,
+  "browser": {
+    "browser_verified": true,
+    "accounts": 3,
+    "real_auth_and_rest": true,
+    "exact_sku_and_marketplace_filters": true,
+    "quantities_match_database": true,
+    "report_fields_checked_per_sample": 22,
+    "automatic_refresh": true,
+    "unchanged_inventory_checks_are_lightweight": true,
+    "responsive_layout_reviews": [
+      {
+        "role": "operator",
+        "viewports": [
+          {
+            "width": 1440,
+            "page_overflow": false,
+            "keyboard_scroll": false,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 834,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 390,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 320,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          }
+        ]
+      },
+      {
+        "role": "member",
+        "viewports": [
+          {
+            "width": 1440,
+            "page_overflow": false,
+            "keyboard_scroll": false,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 834,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 390,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 320,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          }
+        ]
+      },
+      {
+        "role": "member",
+        "viewports": [
+          {
+            "width": 1440,
+            "page_overflow": false,
+            "keyboard_scroll": false,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 834,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 390,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          },
+          {
+            "width": 320,
+            "page_overflow": false,
+            "keyboard_scroll": true,
+            "sign_out_label_unclipped": true,
+            "helper_text_contrast": 5.24
+          }
+        ]
+      }
+    ],
+    "browser_errors": 0
+  },
+  "disposable_stack_removed": true,
+  "scope": "Live source; synthetic ownership and Auth users only in isolated local DB. No deployment."
+}

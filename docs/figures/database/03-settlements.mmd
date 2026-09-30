@@ -1,0 +1,75 @@
+erDiagram
+    direction LR
+    private_settlements ||..o{ private_settlement_preprocess_versions : "settlement_id"
+    private_settlement_acquisitions ||..o{ private_settlement_preprocess_versions : "acquisition_id"
+    private_settlement_preprocess_versions ||..o{ private_settlement_transactions : "version_id"
+    private_settlement_preprocess_versions o|..o| private_settlements : "id + current_version_id"
+
+    private_settlement_acquisitions["private.settlement_acquisitions"] {
+        local_uuid id PK "NN"
+        nonblank seller_namespace "NN"
+        nonblank amazon_scope "NN"
+        nonblank report_id "NN"
+        nonblank report_document_id "NN"
+        text report_type "NN"
+        timestamptz report_created_at "NN"
+        text[] marketplace_ids "NN"
+        jsonb api_metadata "NN"
+        timestamptz downloaded_at "NN"
+        sha256 document_sha256 "NN"
+        jsonb document "NN"
+        timestamptz created_at "NN"
+    }
+
+    private_settlements["private.settlements"] {
+        local_uuid id PK, FK "NN"
+        nonblank seller_namespace "NN"
+        nonblank amazon_scope "NN"
+        nonblank settlement_id "NN"
+        sha256 document_sha256 "NN"
+        local_uuid current_version_id FK "NULL"
+        timestamptz created_at "NN"
+    }
+
+    private_settlement_preprocess_versions["private.settlement_preprocess_versions"] {
+        local_uuid id PK "NN"
+        local_uuid settlement_id FK "NN"
+        local_uuid acquisition_id FK "NN"
+        nonblank preprocess_version "NN"
+        integer row_count "NN"
+        timestamptz settlement_start_at "NN"
+        timestamptz settlement_end_at "NN"
+        timestamptz deposit_at "NULL"
+        date settlement_start_date "NN"
+        date settlement_end_date "NN"
+        exact_numeric total_amount "NN"
+        text currency "NN"
+        date observed_start_date "NULL"
+        date observed_end_date "NULL"
+        integer source_line_number "NN"
+        jsonb diagnostics "NN"
+        timestamptz created_at "NN"
+    }
+
+    private_settlement_transactions["private.settlement_transactions"] {
+        local_uuid id PK "NN"
+        local_uuid version_id FK "NN"
+        nonblank seller_namespace "NN"
+        integer source_line_number "NN"
+        allocation_category category "NN"
+        text family "NULL"
+        nonblank component_type "NN"
+        text accounting_subtype "NULL"
+        text sku "NULL"
+        text marketplace_name "NULL"
+        exact_numeric amount "NN"
+        text currency "NN"
+        bigint quantity "NULL"
+        date posted_date "NN"
+        timestamptz posted_at "NN"
+        nonblank transaction_type "NN"
+        nonblank amount_type "NN"
+        nonblank amount_description "NN"
+        jsonb source_fields "NN"
+        timestamptz created_at "NN"
+    }
