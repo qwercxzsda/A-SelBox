@@ -10,7 +10,7 @@ import {
   transactionPageArguments,
 } from "./transaction-page.ts";
 import { ApiError, requireAccessToken, type ApiTransport } from "./transport.ts";
-import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
+import { validatePagination } from "./pagination.ts";
 import type {
   TableDatasetKey,
   DatasetSort,
@@ -28,18 +28,10 @@ function validatePageRequest(
   sort: DatasetSort,
 ): void {
   if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
-  if (!Number.isSafeInteger(pageIndex) || pageIndex < 0) {
-    throw new Error("Page index must be a non-negative safe integer");
-  }
-  if (!Number.isSafeInteger(pageSize) || pageSize <= 0 || pageSize > LOOKUP_PAGE_SIZE) {
-    throw new Error("Page size must be a positive integer of at most 1000");
-  }
+  validatePagination(pageIndex, pageSize);
   if (!SORT_DIRECTIONS.has(sort.direction)) throw new Error("Sort direction is invalid");
   if (!DATASET_CONFIG[dataset].sortColumns.some((column) => column === sort.column)) {
     throw new Error(`Sort column is not allowed for ${dataset}`);
-  }
-  if (!Number.isSafeInteger(pageIndex * pageSize)) {
-    throw new Error("Page offset exceeds JavaScript's safe range");
   }
 }
 

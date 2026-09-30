@@ -49,7 +49,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.assertEqual({issue["kind"] for issue in issues}, {"missing_company"})
         self.connection.execute("set constraints all immediate")
 
-    def test_legacy_partial_configuration_remains_readable_until_repaired_in_one_atomic_save(
+    def test_incomplete_configuration_remains_readable_until_repaired_in_one_atomic_save(
         self,
     ) -> None:
         company, _ = self.owner("A")
@@ -150,7 +150,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         )
         self.assertEqual(self.configuration(operator)[0]["issues"], [])
 
-    def test_new_imports_can_create_incompleteness_but_next_save_must_repair_the_whole_configuration(
+    def test_new_imports_can_create_gaps_but_next_save_must_repair_the_whole_configuration(
         self,
     ) -> None:
         company, _ = self.owner("A")

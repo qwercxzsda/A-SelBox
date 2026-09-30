@@ -82,7 +82,7 @@ without changing saved terms. An explicit 0% rate is valid coverage. The
 version**, including historical date ranges. The source row's activity date
 selects the applicable period; it does not use today's date.
 
-Source: [ownership and fee DDL](../services/db/supabase/migrations/20260928123054_schema_foundation.sql),
+Source: [ownership and fee DDL](../services/db/supabase/migrations/20260928123051_identity_schema.sql),
 [ownership and fee contract](company_fees.md).
 
 ## Settlement source tables
@@ -117,7 +117,7 @@ contribute principal, tax, shipping, promotions, and fee lines. Publication chec
 the complete row inventory, one currency, and the exact signed sum against the
 version's report control total.
 
-Source: [Settlement DDL](../services/db/supabase/migrations/20260928123054_schema_foundation.sql),
+Source: [Settlement DDL](../services/db/supabase/migrations/20260928123052_financial_source_schema.sql),
 [publication functions](../services/db/supabase/migrations/20260928123102_source_publications.sql).
 
 ## Data Kiosk source tables
@@ -173,7 +173,7 @@ observations; equal observations do not establish financial finality.
 immutable references include empty required days and protect entire versions;
 there is no standalone pin/unpin API.
 
-Source: [Data Kiosk DDL](../services/db/supabase/migrations/20260928123054_schema_foundation.sql),
+Source: [Data Kiosk DDL](../services/db/supabase/migrations/20260928123052_financial_source_schema.sql),
 [publication](../services/db/supabase/migrations/20260928123102_source_publications.sql),
 [retention](../services/db/supabase/migrations/20260928123121_source_retention.sql),
 [workflow contract](data_workflows.md).
@@ -275,8 +275,7 @@ company and currency. Dates are inclusive. The caller supplies the required
 source scope; the function does not discover an externally complete settlement
 list itself.
 
-Source: [shared financial rules](../services/db/supabase/migrations/20260928123106_financial_rules.sql),
-[source reconciliation](../services/db/supabase/migrations/20260928123109_source_reconciliation.sql),
+Source: [shared financial rules and reconciliation](../services/db/supabase/migrations/20260928123106_financial_rules.sql),
 [financial components](../services/db/supabase/migrations/20260928123111_financial_components.sql),
 [complete and partial financial reads](../services/db/supabase/migrations/20260928123113_financial_reads.sql).
 

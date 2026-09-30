@@ -4,7 +4,6 @@ import json
 from typing import Literal, TypedDict, cast
 
 import psycopg
-
 from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests.financial_fixtures import FinancialFixture

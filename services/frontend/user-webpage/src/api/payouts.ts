@@ -1,5 +1,6 @@
 import marketplaces from "../generated/marketplaces.json" with { type: "json" };
 import { requireCalendarDate } from "./filters.ts";
+import { validatePagination } from "./pagination.ts";
 import { isJsonObject, isUuid, requireUuid } from "./validation.ts";
 import type { ApiTransport } from "./transport.ts";
 
@@ -57,15 +58,13 @@ function reportPageParams(
   columns: readonly string[],
 ): URLSearchParams {
   requireUuid(reportId, "report");
-  const offset = pageIndex * PAYOUT_DETAIL_PAGE_SIZE;
-  if (!Number.isSafeInteger(pageIndex) || pageIndex < 0 || !Number.isSafeInteger(offset))
-    throw new Error("Invalid report page");
+  validatePagination(pageIndex, PAYOUT_DETAIL_PAGE_SIZE);
   return new URLSearchParams({
     select: columns.join(","),
     report_id: `eq.${reportId}`,
     order: "row_number.asc",
     limit: String(PAYOUT_DETAIL_PAGE_SIZE),
-    offset: String(offset),
+    offset: String(pageIndex * PAYOUT_DETAIL_PAGE_SIZE),
   });
 }
 

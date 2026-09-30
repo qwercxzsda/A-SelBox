@@ -35,8 +35,14 @@
   font-size: 13px;
 }
 
+.session-panel > button {
+  flex-shrink: 0;
+}
+
 .session-identity {
   display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
   gap: 2px;
   text-align: right;
 }

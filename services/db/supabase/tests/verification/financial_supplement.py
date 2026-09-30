@@ -17,7 +17,11 @@ from dotenv import load_dotenv
 
 from services.db.supabase.tests.integration_support import TransactionDatabase
 from services.db.supabase.tests.isolated_database import isolated_database
-from services.db.supabase.tests.real_seed_support import Connection, load_real_source_seed, require
+from services.db.supabase.tests.verification.financial_seed import (
+    Connection,
+    load_financial_seed,
+    require,
+)
 from services.sync.src.amazon.client import create_data_kiosk_client
 from services.sync.src.amazon.credentials import close_quietly, load_lwa_credentials
 from services.sync.src.amazon.data_kiosk.document_decoding import decompress_data_kiosk_document
@@ -185,7 +189,7 @@ def main() -> int:
     args.cache.mkdir(mode=0o700, parents=True, exist_ok=True)
     args.cache.chmod(0o700)
     with isolated_database() as target, psycopg.connect(target) as connection:
-        load_real_source_seed(connection, args.seed)
+        load_financial_seed(connection, args.seed)
         requests = connection.execute(
             "select distinct seller_namespace,amazon_scope,marketplace_ids[1] "
             "from private.data_kiosk_acquisitions order by 2,3"

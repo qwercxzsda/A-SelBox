@@ -3,6 +3,19 @@ import { ApiError, readJson, type ApiTransport } from "./transport.ts";
 import { parseObjectRows, requiredJsonString } from "./validation.ts";
 
 export const LOOKUP_PAGE_SIZE = 1000;
+
+export function validatePagination(pageIndex: number, pageSize: number): void {
+  if (!Number.isSafeInteger(pageIndex) || pageIndex < 0) {
+    throw new Error("Page index must be a non-negative safe integer");
+  }
+  if (!Number.isSafeInteger(pageSize) || pageSize <= 0 || pageSize > LOOKUP_PAGE_SIZE) {
+    throw new Error("Page size must be a positive integer of at most 1000");
+  }
+  if (!Number.isSafeInteger(pageIndex * pageSize)) {
+    throw new Error("Page offset exceeds JavaScript's safe range");
+  }
+}
+
 interface LookupPage<Row> {
   rows: Row[];
   totalCount: number | null;

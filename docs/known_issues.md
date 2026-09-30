@@ -301,9 +301,6 @@ supplied seed file and source facts; archive replay remains a separate check.
 The [recorded fixture run](evidence/global_sku_identity/configuration_seed.json) passed with
 complete settings for 63 global SKUs and preserved all 103,244 source facts.
 
-The [original seed audit](evidence/global_sku_identity/real_seed_audit.json) recorded 19 exact
-SKUs with different namespace-scoped fixture owners. Those assignments and fees were synthetic.
-The updated fixture uses one deterministic owner per exact SKU and preserves its compatible fee
-periods. The original audit remains a historical record, not an unresolved ownership decision for
-the current fixture. These checks do not establish real business assignments, approved rates,
+The fixture uses synthetic assignments and fees, with one owner per exact SKU and compatible fee
+periods. These checks do not establish real business assignments, approved rates,
 universal Amazon payload support, country coverage, financial finality, or production capacity.

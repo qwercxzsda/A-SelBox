@@ -13,7 +13,7 @@ from .connection import DatabaseConnection
 from .publication import publish_json
 
 
-def settlement_current_versions(
+def current_settlement_versions(
     database: DatabaseConnection,
     acquisition: SettlementAcquisition,
 ) -> dict[str, str | None]:
@@ -27,7 +27,7 @@ def settlement_current_versions(
         return {str(row[0]): None if row[1] is None else str(row[1]) for row in cursor.fetchall()}
 
 
-def data_kiosk_current_versions(
+def current_data_kiosk_versions(
     database: DatabaseConnection,
     acquisition: DataKioskAcquisition,
     marketplace_name: str,

@@ -4,10 +4,7 @@ The [recorded measurement](measurement.json) verifies that one exact SKU resolve
 company assignment across three source namespaces. The member receives every matching
 Settlement and Data Kiosk row, while unrelated SKU facts remain hidden.
 
-The separate [query-speed comparison](query_speed.md) measures the previous and current schemas
-on identical real source data with equivalent synthetic ownership and fees. It records all 13
-query cases, including the small member-page differences and larger administrator company-filter gains.
-The [current seed verification](configuration_seed.json) covers complete configuration reads and
+The [recorded seed verification](configuration_seed.json) covers complete configuration reads and
 atomic administrator changes through actual Auth and REST.
 
 Run the [synthetic benchmark](../../../services/db/supabase/benchmarks/global_sku_benchmark.py)
@@ -75,15 +72,16 @@ indexes exist only in the disposable database and never affect timed application
 
 The complete recorded run finished in 1.726 seconds and confirmed database cleanup. This
 small, warm local workload does not measure HTTP, browser rendering, production latency,
-concurrent users, historical versions, or scaling to production data volumes. The index-size
-comparison does not measure latency against the previous namespace-based query design.
+concurrent users, historical versions, or scaling to production data volumes. Index-size differences do not establish
+query-latency gains.
 
 ## Configuration read sample
 
 The [configuration-read measurement](configuration_read.json) records a separate one-off sample
 of `public.sku_configuration()` on 103,244 real source facts with consistent synthetic terms.
-It reused the comparison fixture's source-only loader and account/term setup in fresh disposable
-databases; only the current configuration endpoint was timed. Original accounts, company
+It loaded
+source records and synthetic accounts/terms into fresh disposable
+databases; only the configuration endpoint was timed. Original accounts, company
 assignments, fee rates, and payouts were excluded. Synthetic 5% terms covered observed marketplaces
 and dates, so all returned items had complete coverage.
 
@@ -105,52 +103,15 @@ cover the SQL call and result decoding, excluding role/transaction setup, HTTP, 
 
 JSON sizes use compact UTF-8 serialization and exclude HTTP overhead. This is a warm local
 sample of the complete configuration read, with no comparison endpoint or production latency
-claim. Its synthetic setup is separate from the original fixture audit and subsequent fixture
-normalization described below.
-
-## Original seed audit
-
-The [sanitized real-seed audit](real_seed_audit.json) records a read-only inspection of the
-original 105,187,334-byte seed. That dump used the previous namespace-scoped SKU registry:
-129 registered identities represent 63 exact SKU strings. Its 103,244 source rows cover five
-namespaces, and 26 exact SKUs appear in more than one namespace. The selected current source
-versions contain 102,534 rows.
-
-Of the 26 duplicate-SKU groups, 19 have different current company owners. The other seven
-have the same owner and complementary marketplace fee coverage. All 26 fee arrays differ,
-but no unequal rates overlap within the same marketplace and effective dates. Selected
-terms references and declared fee inventories are internally consistent.
-
-Those conflicting assignments prevented an equivalent restore of that fixture's terms into the
-global-SKU schema. During the audit, no owner was selected, no terms were changed, and no seed
-adaptation was saved. A private local report recorded the exact SKUs, namespaces, company names,
-and fee schedules; those values are excluded from this repository evidence. The audited source
-file's SHA-256 fingerprint remained unchanged.
-
-Source-only verification imported source metadata and facts into a fresh disposable baseline.
-It excluded real Auth data, application accounts, companies, ownership terms, fee schedules,
-and payout snapshots. The data-only restore bypassed publication triggers inside the
-disposable import transaction, then restored all guards before creating a synthetic operator
-and performing reads. No SQL commands from the dump were executed.
-
-Authenticated operator SKU discovery, exact source counts, and all paginated source rows
-matched independently parsed COPY facts: 86 source/SKU groups, including 35 groups spanning
-namespaces; 145 page requests; and 88,235 eligible nonnull-SKU row identities with exact amount
-sums by currency. Raw Data Kiosk reads exclude zero amounts, while SKU discovery includes
-their SKU values. The check took 6.291 seconds and confirmed removal of its disposable
-database. That check validated real-source combination by exact SKU; it excluded the original
-fixture's conflicting ownership terms.
+claim. Its synthetic setup is separate from the full-seed API verification below.
 
 ## Current synthetic seed and API verification
 
-The user subsequently confirmed that the seed's assignments and fees were made-up fixture data
-and authorized updating them to the global-SKU model. The normalized fixture contains 63 global
-SKUs and 192 compatible fee periods. Its 19 conflicting synthetic owner groups receive one
-deterministically selected fixture owner per SKU. Source evidence and Auth fixtures are retained,
-including all 103,244 source facts. This fixture preparation is separate from the historical
-read-only audit above and does not represent a decision about real company ownership.
+The fixture contains 63 global SKUs, 192 compatible fee periods, Auth fixtures, and 103,244 source
+facts. Company assignments and fees are synthetic: each exact SKU has one fixture owner.
+Verification does not establish real company ownership or approved fee rates.
 
-The maintained [full-seed verifier](../../../services/db/supabase/tests/verify_real_configuration.py)
+The maintained [full-seed verifier](../../../services/db/supabase/tests/verification/configuration.py)
 restores a current-schema dump into a disposable local Supabase stack. It tests real Auth and
 REST configuration access and publication, independent source authority, and reconciliation.
 It verifies that test writes leave source facts and the supplied seed file unchanged, then removes
@@ -160,8 +121,7 @@ The [recorded full-seed result](configuration_seed.json) passed with 63 SKUs, 19
 zero setup issues, and member scopes of 22 and 41 SKUs. It verified complete batch publication,
 atomic rejection, member write denial, assignment and exact fee updates, stale-version rejection,
 and missing-fee rejection. Independent authority and reconciliation checks matched the stored
-source facts. The maintained local seed was then replaced with that verified global-SKU fixture;
-the original dump's backup remains outside version control.
+source facts. The maintained local seed uses this verified global-SKU fixture.
 
-The original audit and performance JSON files retain the fingerprints and fixture assumptions of
-their respective runs.
+The retained measurement JSON files preserve the dates, fingerprints, and fixture assumptions of
+their respective runs. They do not certify later schema changes or production capacity.

@@ -14,7 +14,7 @@ from services.sync.src.archives.serialization import (
     settlement_payload,
 )
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 from services.sync.tests.support.archives import MemoryArchiveStorage
 from services.sync.tests.support.economics import complete_economics_document
 from services.sync.tests.support.source_preprocessing import (
@@ -53,15 +53,15 @@ class ArchiveSerializationTests(unittest.TestCase):
             (
                 "settlement_preprocess",
                 settlement,
-                preprocess_settlement_report,
-                "settlement_current_versions",
+                preprocess_settlement_acquisition,
+                "current_settlement_versions",
                 "publish_settlement",
             ),
             (
                 "data_kiosk_economics",
                 kiosk,
                 preprocess_data_kiosk_acquisition,
-                "data_kiosk_current_versions",
+                "current_data_kiosk_versions",
                 "publish_data_kiosk",
             ),
         ):

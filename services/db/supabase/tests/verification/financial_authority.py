@@ -4,8 +4,8 @@ import calendar
 from datetime import date
 from decimal import Decimal
 
-from services.db.supabase.tests.real_seed_reconciliation import raw_reconciliation
-from services.db.supabase.tests.real_seed_support import Connection, as_user, require
+from services.db.supabase.tests.verification.financial_reconciliation import raw_reconciliation
+from services.db.supabase.tests.verification.financial_seed import Connection, as_user, require
 
 
 def verify_authority(connection: Connection, operator: str) -> tuple[date, dict[str, object]]:

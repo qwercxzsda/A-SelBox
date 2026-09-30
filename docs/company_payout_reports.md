@@ -179,5 +179,5 @@ Frontend tests run in Docker. The real-seed verification tool replays archived i
 disposable database without deleting account-level charges or changing their categories.
 
 ```sh
-conda run -n A-SelBox python -m services.db.supabase.tests.verify_real_payouts --help
+conda run -n A-SelBox python -m services.db.supabase.tests.verification.payouts --help
 ```

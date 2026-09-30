@@ -10,7 +10,7 @@ from services.db.supabase.tests.e2e.fixtures import (
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.database.acquisitions import persist_settlement_acquisition
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 
 class SummaryRpcTests(LocalWorkflowCase):
@@ -24,7 +24,7 @@ class SummaryRpcTests(LocalWorkflowCase):
             acquisition = persist_settlement_acquisition(
                 self.database, archived_settlement(self.storage, seller, sku=sku)
             )
-            preprocess_settlement_report(self.database, self.storage, acquisition)
+            preprocess_settlement_acquisition(self.database, self.storage, acquisition)
         member_id, member_token = self.create_member(first)
         _, operator_token = self.create_operator()
         _, outsider_token = self.create_auth_user()

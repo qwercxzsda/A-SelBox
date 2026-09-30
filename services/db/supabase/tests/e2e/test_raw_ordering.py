@@ -22,7 +22,7 @@ from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
     persist_settlement_acquisition,
 )
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 EXACT_AMOUNT = "9007199254740993.123456789012345678901"
 EXACT_QUANTITY = "9007199254740993"
@@ -87,7 +87,7 @@ class RawOrderingTests(LocalWorkflowCase):
         )
         # Operators retain both versions in raw tabs; members remain current-only.
         for _ in range(2):
-            preprocess_settlement_report(self.database, self.storage, settlement)
+            preprocess_settlement_acquisition(self.database, self.storage, settlement)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
 
     def assert_equivalent(

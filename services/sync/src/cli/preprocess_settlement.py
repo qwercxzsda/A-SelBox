@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import cast
 
 from ..database.connection import PostgresDatabaseConnection
-from ..settlement_preprocess.workflow import preprocess_settlement_report
+from ..settlement_preprocess.workflow import preprocess_settlement_acquisition
 from .archive_common import add_archive_arguments, archive_storage_from_args
 from .common import initialize_cli
 
@@ -52,7 +52,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         coverage = read_retrocharge_coverage(args.retrocharge_coverage)
         storage = archive_storage_from_args(args)
         with PostgresDatabaseConnection(args.database_url) as database:
-            version_id = preprocess_settlement_report(
+            version_id = preprocess_settlement_acquisition(
                 database, storage, args.acquisition_id, retrocharge_coverage=coverage
             )
         logger.info("Settlement preprocessing complete [version_id=%s].", version_id)

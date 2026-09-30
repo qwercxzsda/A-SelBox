@@ -34,7 +34,7 @@ from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
     persist_settlement_acquisition,
 )
-from services.sync.src.settlements.download import archive_settlement_report
+from services.sync.src.settlements.acquisition import download_settlement_acquisition
 from services.sync.src.source_serialization import source_mapping
 from services.sync.tests.support.archives import MemoryArchiveStorage, settlement_reference
 
@@ -121,13 +121,13 @@ class TestAcquisitionManifests(DatabaseTestCase):
     def test_changed_settlement_document_retains_original_manifest_and_both_archives(self) -> None:
         reference = settlement_reference()
         with patch(
-            "services.sync.src.settlements.download.download_report_document",
+            "services.sync.src.settlements.acquisition.download_report_document",
             side_effect=[
                 DownloadedReportDocument(b"original document", None),
                 DownloadedReportDocument(b"changed document", None),
             ],
         ):
-            acquisition_id = archive_settlement_report(
+            acquisition_id = download_settlement_acquisition(
                 Mock(),
                 self.database,
                 self.storage,
@@ -140,7 +140,7 @@ class TestAcquisitionManifests(DatabaseTestCase):
                 self.assertLogs("services.sync.src.archives.acquisition_logging", "ERROR"),
                 self.assertRaisesRegex(psycopg.errors.CheckViolation, "changed decoded bytes"),
             ):
-                archive_settlement_report(
+                download_settlement_acquisition(
                     Mock(),
                     self.database,
                     self.storage,

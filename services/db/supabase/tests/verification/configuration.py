@@ -16,15 +16,19 @@ from services.db.supabase.benchmarks.common import docker
 from services.db.supabase.tests.e2e.local_stack import LocalSupabaseStack
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.real_seed_authority import verify_authority
-from services.db.supabase.tests.real_seed_reconciliation import verify_live_reconciliation
-from services.db.supabase.tests.real_seed_support import (
+from services.db.supabase.tests.verification.financial_authority import verify_authority
+from services.db.supabase.tests.verification.financial_reconciliation import (
+    verify_live_reconciliation,
+)
+from services.db.supabase.tests.verification.financial_seed import (
     Connection,
     require,
     source_fingerprints,
     source_versions,
 )
 from services.sync.src.database.connection import PostgresDatabaseConnection
+
+from .output import validate_output_path, write_evidence
 
 
 def _configuration(stack: LocalSupabaseStack, token: str) -> list[dict[str, Any]]:
@@ -227,12 +231,9 @@ def main() -> None:
     parser.add_argument("--seed", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    if args.output.exists() or args.output.is_symlink():
-        parser.error("Choose a new output file; existing files, including the seed, are protected")
+    validate_output_path(parser, args.output)
     result = verify(args.seed)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("x", encoding="utf-8") as output:
-        output.write(json.dumps(result, indent=2) + "\n")
+    write_evidence(args.output, result)
     print(json.dumps({"verified": True, "output": str(args.output)}))
 
 

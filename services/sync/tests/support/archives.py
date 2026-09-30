@@ -13,7 +13,7 @@ from services.sync.src.database.connection import DatabaseConnection
 
 CREATED = datetime(2026, 9, 1, tzinfo=UTC)
 ACQUISITION_MODULE = "services.sync.src.data_kiosk_economics.acquisition"
-SETTLEMENT_MODULE = "services.sync.src.settlements.download"
+SETTLEMENT_MODULE = "services.sync.src.settlements.acquisition"
 
 
 class MemoryArchiveStorage:

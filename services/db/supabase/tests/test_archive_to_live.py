@@ -42,7 +42,7 @@ from services.sync.src.database.financial_reads import (
 )
 from services.sync.src.numeric import Numeric
 from services.sync.src.preprocess_version import PREPROCESS_VERSION
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 from services.sync.src.source_serialization import source_json
 from services.sync.tests.support.archives import MemoryArchiveStorage
 from services.sync.tests.support.economics import (
@@ -149,7 +149,7 @@ class TestArchiveToLive(DatabaseTestCase):
             loaded = load_settlement_acquisition(self.database, saved)
             self.assertEqual(loaded.reference.marketplace_ids, ())
             self.assertEqual(source_json(loaded.api_metadata), metadata)
-            preprocess_settlement_report(self.database, self.storage, saved)
+            preprocess_settlement_acquisition(self.database, self.storage, saved)
         self.assertEqual(
             self.connection.execute("select count(*) from private.settlements").fetchone(),
             (1,),
@@ -282,7 +282,7 @@ class TestArchiveToLive(DatabaseTestCase):
 
     def test_recent_sources_ignore_settlement_refunds_and_use_kiosk_fee_base(self) -> None:
         settlement_input, economics_input = self.save_settlement(), self.save_data_kiosk()
-        preprocess_settlement_report(self.database, self.storage, settlement_input)
+        preprocess_settlement_acquisition(self.database, self.storage, settlement_input)
         preprocess_data_kiosk_acquisition(self.database, self.storage, economics_input)
         row = self.connection.execute(
             "select id from private.settlements where seller_namespace = %s", (self.seller,)
@@ -339,7 +339,7 @@ class TestArchiveToLive(DatabaseTestCase):
             self.assertLogs("services.sync.src.settlement_preprocess.workflow", level="ERROR"),
             self.assertRaises(ValueError),
         ):
-            preprocess_settlement_report(self.database, self.storage, acquisition_id)
+            preprocess_settlement_acquisition(self.database, self.storage, acquisition_id)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from private.settlement_acquisitions where id = %s",

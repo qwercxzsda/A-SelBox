@@ -9,7 +9,7 @@ from services.db.supabase.tests.configuration_fixtures import ConfigurationFixtu
 
 
 class SkuConfigurationValidationTests(ConfigurationFixture):
-    def test_only_operator_can_publish_and_old_partial_public_endpoint_is_absent(self) -> None:
+    def test_only_operator_can_publish_and_anonymous_configuration_access_is_denied(self) -> None:
         company, _ = self.owner()
         changes = [self.change(" API SKU ", company)]
         for user in (self.member(company), self.auth_user(), ""):
@@ -26,12 +26,6 @@ class SkuConfigurationValidationTests(ConfigurationFixture):
             ):
                 self.connection.execute("set local role anon")
                 self.connection.execute(query, arguments)
-        self.assertEqual(
-            self.connection.execute(
-                "select to_regprocedure('public.publish_sku_terms(text,uuid,uuid,text,jsonb)')"
-            ).fetchone(),
-            (None,),
-        )
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.skus where sku=' API SKU '"

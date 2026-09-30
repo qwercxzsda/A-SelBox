@@ -4,11 +4,11 @@ import json
 
 from services.db.supabase.benchmarks.common import docker
 from services.db.supabase.tests.integration_support import TransactionDatabase
-from services.db.supabase.tests.real_seed_support import Connection, require
+from services.db.supabase.tests.verification.financial_seed import Connection, require
 from services.sync.src.archives.storage import SupabaseArchiveStorage
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.preprocess_version import PREPROCESS_VERSION
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 
 def current_semantic_fingerprints(connection: Connection) -> tuple[str, str]:
@@ -52,7 +52,9 @@ def reprocess_local_archives(connection: Connection) -> dict[str, object]:
             if item.get("kind") == "REVIEWED_RETROCHARGE_COVERAGE"
             for group in item["complete_source_line_groups"]
         )
-        preprocess_settlement_report(database, storage, acquisition_id, retrocharge_coverage=groups)
+        preprocess_settlement_acquisition(
+            database, storage, acquisition_id, retrocharge_coverage=groups
+        )
     acquisitions = connection.execute(
         "select distinct b.acquisition_id::text from private.data_kiosk_days d "
         "join private.data_kiosk_preprocess_versions v on v.id=d.current_version_id "

@@ -6,7 +6,7 @@ from ..amazon.marketplace_names import marketplace_name_from_id
 from ..archives.storage import ArchiveStorage
 from ..database.acquisitions import load_data_kiosk_acquisition
 from ..database.connection import DatabaseConnection
-from ..database.source_versions import data_kiosk_current_versions, publish_data_kiosk
+from ..database.source_versions import current_data_kiosk_versions, publish_data_kiosk
 from .preprocess import prepare_data_kiosk_acquisition
 
 _LOG = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ def preprocess_data_kiosk_acquisition(
     """Publish the batch and every complete day together; never fetch missing inputs."""
     try:
         acquisition = load_data_kiosk_acquisition(database, acquisition_id)
-        expected = data_kiosk_current_versions(
+        expected = current_data_kiosk_versions(
             database,
             acquisition,
             marketplace_name_from_id(acquisition.marketplace_id),

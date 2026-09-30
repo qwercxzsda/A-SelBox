@@ -1,4 +1,4 @@
-"""Stable seller identity shared by acquisition, ownership, and financial reads."""
+"""Stable seller identity shared by acquisition and financial reads."""
 
 from .values import required_text
 
