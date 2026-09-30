@@ -30,40 +30,44 @@ data, migration records, or archives.
 
 ## Schema modules
 
-Files execute in dependency order and define each object once. Identity helpers and
-financial rules precede their consumers. Payout tables, validation, publication, and
-company/month generation have separate modules. Core API grants and the REST configuration
-follow the read modules. The SKU configuration module installs its own guarded entry points,
-explicit grants, and schema reload after those dependencies.
+The fresh-install baseline separates types and tables, publication and integrity rules,
+application reads, access policies, and revision tracking. Final grants and the REST reload run
+last. Each database object has one editable definition. SKU discovery and configuration reads
+share one module; validation and publication share another.
+
+Keep existing migration filenames and timestamp prefixes stable. Edit the authoritative module
+while this baseline remains undeployed; do not retimestamp the migration set during cleanup.
+Change an existing prefix only when a real dependency requires a different installation order.
+New split modules must fit around those stable anchors. The table below follows execution order.
 
 | Module | Responsibility |
 | --- | --- |
-| [schema_foundation](migrations/20260928123054_schema_foundation.sql) | Source tables, globally unique SKU identities and terms, immutable records, RLS defaults, and archive bucket. |
-| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive manifests and acquisition publication. |
-| [publication_integrity](migrations/20260928123058_publication_integrity.sql) | Complete inventories, selected pointers, transaction isolation, and immutable source payloads. |
-| [terms_publication](migrations/20260928123100_terms_publication.sql) | Trusted atomic SKU revision publication, including incomplete restored configuration. |
+| [schema_primitives](migrations/20260928123050_schema_primitives.sql) | Private schema, UUIDs, constrained types, and the common immutability guard. |
+| [identity_schema](migrations/20260928123051_identity_schema.sql) | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms. |
+| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql) | Settlement and Data Kiosk acquisitions, version pointers, complete child inventories, and facts. |
+| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive validation and acquisition publication for Settlement and Data Kiosk. |
 | [source_publications](migrations/20260928123102_source_publications.sql) | Atomic Settlement and Data Kiosk preprocessing publication. |
 | [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views. |
-| [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff date, fee eligibility, and exact fee arithmetic. |
-| [source_reconciliation](migrations/20260928123109_source_reconciliation.sql) | Daily source controls and SelBox differences for live and frozen inputs. |
-| [financial_components](migrations/20260928123111_financial_components.sql) | Live and explicit-version company components with ownership and fees. |
+| [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs. |
+| [financial_components](migrations/20260928123111_financial_components.sql) | Current and explicit-version company components with ownership and fees. |
 | [financial_reads](migrations/20260928123113_financial_reads.sql) | Strict complete and partial financial reads with declared source coverage. |
-| [payout_schema](migrations/20260928123115_payout_schema.sql) | Immutable report headers, components, manifests, and reconciliation tables. |
-| [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals checks. |
+| [payout_schema](migrations/20260928123115_payout_schema.sql) | Frozen payout headers, components, source manifests, and reconciliation records. |
+| [publication_integrity](migrations/20260928123116_publication_integrity.sql) | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
+| [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals validation. |
 | [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture, aggregation, and latest-report reuse. |
 | [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
-| [application_access](migrations/20260928123123_application_access.sql) | RLS policies and authorized REST projections. |
+| [application_access](migrations/20260928123123_application_access.sql) | Account, financial, and payout RLS policies and authorized REST projections. |
 | [payout_generation](migrations/20260928123125_payout_generation.sql) | Administrator company/month generation and maturity policy RPCs. |
-| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional source/terms revision tracking and polling. |
+| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, ownership, and company-label revision tokens and lightweight polling. |
 | [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
 | [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility. |
 | [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
-| [sku_filter_options](migrations/20260928123140_sku_filter_options.sql) | Administrator-only complete SKU catalog using index seeks. |
-| [application_grants](migrations/20260928123142_application_grants.sql) | Explicit table, column, and function allowlist for the core API. |
-| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and reload the core API schema. |
-| [sku_configuration](migrations/20260928145511_sku_configuration.sql) | Role-scoped assignment/fee reads, source-derived coverage diagnostics, and atomic complete administrator batches. |
+| [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql) | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics. |
+| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic operator batches, and stale-write checks. |
+| [application_grants](migrations/20260928123142_application_grants.sql) | Final explicit table, column, and function allowlist for the entire application. |
+| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and issue the single final schema reload. |
 
 ## Application reads
 
@@ -218,10 +222,15 @@ readiness.
 
 ### Full seed configuration verification
 
+Opt-in source verification commands live under `services.db.supabase.tests.verification`:
+`configuration` and `payouts`. Each exposes `--help` without contacting services.
+They share output-file validation and exclusive creation, so a seed, symlink, or existing evidence
+file cannot be overwritten. Financial seed imports and source replay share the same helpers.
+
 To verify a trusted seed matching the current global-SKU schema, run:
 
 ```sh
-conda run --no-capture-output -n A-SelBox python -m services.db.supabase.tests.verify_real_configuration \
+conda run --no-capture-output -n A-SelBox python -m services.db.supabase.tests.verification.configuration \
   --seed /path/to/seed.real.local.sql \
   --output /private/tmp/aselbox-real-configuration.json
 ```

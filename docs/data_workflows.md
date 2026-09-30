@@ -365,7 +365,9 @@ and complete marketplace fee inventories through `public.publish_sku_configurati
 Each stable SKU identity selects its immutable revision. The whole batch is rejected unless
 every known SKU has an owner and every required fee date is covered, including unchanged SKUs.
 Existing incomplete settings remain readable; new imports may add gaps after publication.
-Trusted `private.publish_sku_terms()` supports restoring incomplete historical configuration.
+`private.publish_sku_terms()` publishes
+one immutable revision for the trusted internal callers, including the complete administrator batch
+publisher. Global assignment/coverage validation belongs to that batch entry point.
 An explicit 0% rate means known coverage; noncommission activity needs no rate.
 Reassignment restates all live history. See the [company-fee contract](company_fees.md)
 for exact rates, fee eligibility, current-only access, and partial summaries.

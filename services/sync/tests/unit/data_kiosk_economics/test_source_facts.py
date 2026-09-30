@@ -74,7 +74,7 @@ class DataKioskSourceFactsTests(unittest.TestCase):
                         return_value=acquisition,
                     ),
                     patch(
-                        "services.sync.src.data_kiosk_economics.workflow.data_kiosk_current_versions",
+                        "services.sync.src.data_kiosk_economics.workflow.current_data_kiosk_versions",
                         return_value={"2026-08-01": "previous-version"},
                     ),
                     patch(
@@ -220,7 +220,7 @@ class DataKioskSourceFactsTests(unittest.TestCase):
                 return_value=acquisition,
             ),
             patch(
-                "services.sync.src.data_kiosk_economics.workflow.data_kiosk_current_versions",
+                "services.sync.src.data_kiosk_economics.workflow.current_data_kiosk_versions",
                 return_value={},
             ),
             patch(

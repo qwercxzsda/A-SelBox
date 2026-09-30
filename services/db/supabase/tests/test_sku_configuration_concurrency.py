@@ -77,7 +77,8 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
             self.assertEqual(
                 observer.execute(
                     "select s.sku,p.fee_rate_percent from public.skus s "
-                    "join public.sku_fee_periods p on p.terms_version_id=s.current_terms_version_id order by s.sku"
+                    "join public.sku_fee_periods p "
+                    "on p.terms_version_id=s.current_terms_version_id order by s.sku"
                 ).fetchall(),
                 [("A", Decimal(7)), ("B", Decimal(8))],
             )

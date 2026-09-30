@@ -2,7 +2,9 @@
 revoke all on all tables in schema public, private from public, anon, authenticated, service_role;
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
 revoke all on function public.generate_company_payout_reports(uuid, date),
-public.payout_report_policy() from public, anon, authenticated, service_role;
+public.payout_report_policy(), public.sku_configuration(),
+public.publish_sku_configuration(jsonb, text)
+from public, anon, authenticated, service_role;
 grant usage on schema private to authenticated;
 grant select on public.app_accounts, public.companies, public.skus,
 public.sku_terms_versions, public.sku_fee_periods, public.company_skus,
@@ -77,3 +79,9 @@ grant execute on function public.transaction_totals(
 ) to authenticated;
 
 grant execute on function public.sku_filter_options() to authenticated;
+
+-- Complete SKU configuration is exposed only through caller-checked entry points.
+grant execute on function private.read_sku_configuration(), public.sku_configuration(),
+private.publish_operator_sku_configuration(jsonb, text),
+public.publish_sku_configuration(jsonb, text)
+to authenticated;

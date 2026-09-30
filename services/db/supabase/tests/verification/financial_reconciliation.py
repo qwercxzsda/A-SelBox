@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from services.db.supabase.tests.real_seed_support import Connection, as_user, require
+from services.db.supabase.tests.verification.financial_seed import Connection, as_user, require
 
 
 def raw_reconciliation(

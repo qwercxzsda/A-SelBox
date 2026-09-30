@@ -2,11 +2,7 @@
 
 The clone-based harnesses measure the installed database API on disposable local databases.
 Current query/index guidance is in [Database performance](../../../../docs/database_performance.md).
-The [global SKU evidence](../../../../docs/evidence/global_sku_identity/README.md) uses a fresh
-disposable baseline. Clone-based runners require a seed installed from the current baseline.
-The [query-speed comparison](../../../../docs/evidence/global_sku_identity/query_speed.md) installs
-a trusted Git baseline and current migrations into separate disposable databases, then compares
-equivalent authenticated reads over identical real source facts.
+Clone-based runners require a seed installed from the current baseline.
 
 Run from the repository root with the frontend seed database and REST containers available:
 
@@ -84,5 +80,4 @@ The adapter supports current page, count, total, and administrator SKU-catalog R
 technical node/index names and cardinalities without saving filter values or financial rows.
 Plans are collected after timing; they are not HTTP latency measurements. No benchmark runner
 changes an existing application database. Plan collection itself does not alter indexes,
-functions, or access rules. The separate fresh-baseline experiments may fix the maturity cutoff
-or create comparison indexes inside their disposable databases; their evidence describes that setup.
+functions, or access rules.

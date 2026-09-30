@@ -44,9 +44,8 @@ conda run -n A-SelBox ruff check .
 For strict type checks, select the conda interpreter explicitly as shown in the
 [sync verification guide](services/sync/README.md#verification).
 
-The Supabase migrations define a fresh-install baseline; they do not provide an
-upgrade or backfill path for an existing schema.
-See the [database guide](services/db/supabase/README.md) for local setup and
+The Supabase migrations define the canonical fresh-install baseline, with one current definition per
+database object. See the [database guide](services/db/supabase/README.md) for local setup and
 transaction, concurrency, and access checks, and the
 [sync guide](services/sync/README.md) for download/preprocessing commands.
 

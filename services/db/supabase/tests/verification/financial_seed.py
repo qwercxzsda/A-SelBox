@@ -1,7 +1,7 @@
-"""Import source evidence from a local seed into an isolated verification database.
+"""Import financial evidence from a local seed into an isolated verification database.
 
-Only COPY data for the source model is imported. SQL from the dump is never
-executed, and Auth credentials and profile metadata are deliberately omitted.
+Only financial source and ownership COPY data is imported. Dump SQL is never
+executed; Auth credentials and profile metadata are deliberately omitted.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from psycopg import sql
 
 Connection = psycopg.Connection[tuple[Any, ...]]
 
-SOURCE_TABLES = frozenset(
+FINANCIAL_SEED_TABLES = frozenset(
     {
         "private.data_kiosk_acquisitions",
         "private.data_kiosk_days",
@@ -61,8 +61,7 @@ def _validate_seed_schema(connection: Connection, seed: Path) -> None:
     expected: dict[str, set[str]] = {}
     for schema, table, column in connection.execute(
         "select table_schema,table_name,column_name from information_schema.columns "
-        "where table_schema || '.' || table_name = any(%s::text[])",
-        (sorted(SOURCE_TABLES),),
+        "where table_schema in ('public','private')",
     ).fetchall():
         expected.setdefault(schema + "." + table, set()).add(column)
     with seed.open(encoding="utf-8") as source:
@@ -71,12 +70,9 @@ def _validate_seed_schema(connection: Connection, seed: Path) -> None:
                 continue
             schema, table, columns = _copy_header(line)
             relation = schema + "." + table
-            if relation == "public.seller_skus" or "seller_sku_id" in columns:
-                raise ValueError(
-                    "The seed uses retired namespace-based SKU ownership. Prepare a current-schema "
-                    "seed with explicit ownership conflict handling before verification."
-                )
-            if relation in SOURCE_TABLES and (
+            if schema in {"public", "private"} and relation not in expected:
+                raise ValueError("The seed contains a table absent from the current schema")
+            if relation in FINANCIAL_SEED_TABLES and (
                 len(columns) != len(set(columns)) or set(columns) != expected.get(relation)
             ):
                 raise ValueError(
@@ -116,8 +112,8 @@ def _copy_source_rows(
     return count
 
 
-def load_real_source_seed(connection: Connection, seed: Path) -> dict[str, object]:
-    """Load current-source inputs into a disposable database without any credentials."""
+def load_financial_seed(connection: Connection, seed: Path) -> dict[str, object]:
+    """Load financial inputs and ownership into a disposable DB without credentials."""
     database = str(connection.execute("select current_database()").fetchall()[0][0])
     if not database.startswith("aselbox_test_"):
         raise ValueError("Real-seed verification requires a disposable test database")
@@ -137,7 +133,7 @@ def load_real_source_seed(connection: Connection, seed: Path) -> dict[str, objec
                     relation = schema + "." + table
                     if relation == "auth.users":
                         _copy_auth_identities(connection, source, columns)
-                    elif relation in SOURCE_TABLES:
+                    elif relation in FINANCIAL_SEED_TABLES:
                         count = _copy_source_rows(connection, source, schema, table, columns)
                         counts[relation] = counts.get(relation, 0) + count
                     else:

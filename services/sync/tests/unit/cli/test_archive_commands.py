@@ -12,7 +12,7 @@ from services.sync.src.cli import (
     common,
     download_data_kiosk,
     preprocess_data_kiosk,
-    preprocess_settlement_report,
+    preprocess_settlement,
 )
 
 
@@ -46,7 +46,7 @@ class ArchiveCommandTests(unittest.TestCase):
                 self.assertNotIn("ASELBOX_TEST_SOURCE", os.environ)
 
     def test_offline_commands_require_saved_identity_and_reject_scope_overrides(self) -> None:
-        for command in (preprocess_data_kiosk, preprocess_settlement_report):
+        for command in (preprocess_data_kiosk, preprocess_settlement):
             for arguments in (
                 [],
                 ["--acquisition-id", "saved", "--scope", "EU"],
@@ -82,9 +82,9 @@ class ArchiveCommandTests(unittest.TestCase):
         credentials.assert_not_called()
         database.assert_not_called()
 
-    def test_both_offline_commands_call_only_archive_preprocessors(self) -> None:
+    def test_all_offline_commands_call_only_archive_preprocessors(self) -> None:
         cases = (
-            (preprocess_settlement_report, "preprocess_settlement_report"),
+            (preprocess_settlement, "preprocess_settlement_acquisition"),
             (preprocess_data_kiosk, "preprocess_data_kiosk_acquisition"),
         )
         for command, function_name in cases:
@@ -127,8 +127,8 @@ class ArchiveCommandTests(unittest.TestCase):
             path = Path(directory) / "coverage.json"
             path.write_text("[[2,4],[7,8]]", encoding="utf-8")
             self.assertEqual(
-                preprocess_settlement_report.read_retrocharge_coverage(path), ((2, 4), (7, 8))
+                preprocess_settlement.read_retrocharge_coverage(path), ((2, 4), (7, 8))
             )
             path.write_text("[[true,4]]", encoding="utf-8")
             with self.assertRaises(ValueError):
-                preprocess_settlement_report.read_retrocharge_coverage(path)
+                preprocess_settlement.read_retrocharge_coverage(path)

@@ -20,7 +20,7 @@ from services.sync.src.database.acquisitions import (
     persist_settlement_acquisition,
 )
 from services.sync.src.database.company_terms import create_company
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 
 class AppAccessTests(LocalWorkflowCase):
@@ -42,7 +42,7 @@ class AppAccessTests(LocalWorkflowCase):
             kiosk = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)
             )
-            preprocess_settlement_report(self.database, self.storage, settlement)
+            preprocess_settlement_acquisition(self.database, self.storage, settlement)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         assignments = self.read_rows("company_skus", member)
         self.assertEqual(len(assignments), 1)
@@ -108,7 +108,7 @@ class AppAccessTests(LocalWorkflowCase):
             acquisition = persist_settlement_acquisition(
                 self.database, archived_settlement(self.storage, seller)
             )
-            preprocess_settlement_report(self.database, self.storage, acquisition)
+            preprocess_settlement_acquisition(self.database, self.storage, acquisition)
         operator_id, operator_token = self.create_operator()
         user_id, member_token = self.create_auth_user()
         self.assertEqual(self.read_rows("app_accounts", member_token), [])
@@ -380,7 +380,7 @@ class AppAccessTests(LocalWorkflowCase):
             self.database, archived_data_kiosk(self.storage, self.seller)
         )
         for _ in range(2):
-            preprocess_settlement_report(self.database, self.storage, settlement)
+            preprocess_settlement_acquisition(self.database, self.storage, settlement)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         for relation, count, current_count in (
             ("settlement_preprocess_results", 2, 1),

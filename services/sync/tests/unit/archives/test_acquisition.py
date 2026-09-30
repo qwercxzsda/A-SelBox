@@ -23,7 +23,7 @@ from services.sync.src.archives.serialization import (
 )
 from services.sync.src.archives.storage import load_document_archive
 from services.sync.src.data_kiosk_economics.acquisition import download_data_kiosk_acquisition
-from services.sync.src.settlements.download import archive_settlement_report
+from services.sync.src.settlements.acquisition import download_settlement_acquisition
 from services.sync.tests.support.archives import (
     ACQUISITION_MODULE,
     CREATED,
@@ -141,7 +141,7 @@ class AcquisitionTests(unittest.TestCase):
                 SETTLEMENT_MODULE + ".persist_settlement_acquisition", return_value="saved"
             ) as publish,
         ):
-            result = archive_settlement_report(
+            result = download_settlement_acquisition(
                 Mock(), Mock(), storage, reference, amazon_scope="NA", seller_namespace=" seller "
             )
         acquisition = cast(SettlementAcquisition, publish.call_args.args[1])
@@ -160,7 +160,7 @@ class AcquisitionTests(unittest.TestCase):
             patch(SETTLEMENT_MODULE + ".download_report_document") as download,
             self.assertRaisesRegex(ValueError, "original Reports API metadata"),
         ):
-            archive_settlement_report(
+            download_settlement_acquisition(
                 Mock(),
                 Mock(),
                 MemoryArchiveStorage(),
@@ -198,7 +198,7 @@ class AcquisitionTests(unittest.TestCase):
                         SETTLEMENT_MODULE + ".persist_settlement_acquisition", return_value="saved"
                     ) as publish,
                 ):
-                    archive_settlement_report(
+                    download_settlement_acquisition(
                         Mock(),
                         Mock(),
                         storage,

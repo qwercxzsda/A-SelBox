@@ -6,7 +6,6 @@ from typing import cast
 import httpx
 
 from services.db.supabase.tests.configuration_fixtures import ConfigurationItem
-
 from services.db.supabase.tests.e2e.fixtures import (
     START,
     archived_data_kiosk,
@@ -20,7 +19,7 @@ from services.sync.src.database.acquisitions import (
     persist_settlement_acquisition,
 )
 from services.sync.src.database.company_terms import create_company
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 
 class SkuConfigurationRestTests(LocalWorkflowCase):
@@ -44,7 +43,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         acquisition = persist_settlement_acquisition(
             self.database, archived_settlement(self.storage, seller, sku=sku)
         )
-        preprocess_settlement_report(self.database, self.storage, acquisition)
+        preprocess_settlement_acquisition(self.database, self.storage, acquisition)
         if kiosk:
             acquisition = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)

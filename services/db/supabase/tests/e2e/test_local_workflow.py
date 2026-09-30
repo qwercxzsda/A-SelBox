@@ -37,8 +37,8 @@ from services.sync.src.database.acquisitions import (
 from services.sync.src.database.company_terms import create_company, publish_sku_terms
 from services.sync.src.database.payout_reports import publish_company_payout_report
 from services.sync.src.preprocess_version import PREPROCESS_VERSION
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
-from services.sync.src.settlements.download import archive_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
+from services.sync.src.settlements.acquisition import download_settlement_acquisition
 
 ACQUISITION_LOG = "services.sync.src.archives.acquisition_logging"
 SETTLEMENT_LOG = "services.sync.src.settlement_preprocess.workflow"
@@ -58,7 +58,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, self.seller, end_date=month_end)
         )
-        preprocess_settlement_report(self.database, self.storage, settlement)
+        preprocess_settlement_acquisition(self.database, self.storage, settlement)
         preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         with self.database.connection() as connection:
             canonical = connection.execute(
@@ -183,7 +183,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             kiosk_id = persist_data_kiosk_acquisition(self.database, kiosk)
             self.assertEqual(load_settlement_acquisition(self.database, settlement_id), settlement)
             self.assertEqual(load_data_kiosk_acquisition(self.database, kiosk_id), kiosk)
-            preprocess_settlement_report(self.database, self.storage, settlement_id)
+            preprocess_settlement_acquisition(self.database, self.storage, settlement_id)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk_id)
             members.append((seller, company, token))
 
@@ -247,7 +247,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         _, token = self.create_member(company)
         acquisition = archived_settlement(self.storage, self.seller)
         identifier = persist_settlement_acquisition(self.database, acquisition)
-        preprocess_settlement_report(self.database, self.storage, identifier)
+        preprocess_settlement_acquisition(self.database, self.storage, identifier)
         self.assertEqual(len(self.read_rows("settlement_preprocess_entries", token)), 2)
 
         anonymous = self.stack.request("GET", "/rest/v1/live_company_components")
@@ -359,13 +359,13 @@ class LocalWorkflowTests(LocalWorkflowCase):
         changed_content = f"changed document {uuid7()}".encode()
         with (
             patch(
-                "services.sync.src.settlements.download.download_report_document",
+                "services.sync.src.settlements.acquisition.download_report_document",
                 return_value=DownloadedReportDocument(changed_content, None),
             ),
             self.assertLogs(ACQUISITION_LOG, level="INFO") as captured,
             self.assertRaises(psycopg.errors.CheckViolation),
         ):
-            archive_settlement_report(
+            download_settlement_acquisition(
                 Mock(),
                 self.database,
                 self.storage,
@@ -442,7 +442,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             self.assertLogs(SETTLEMENT_LOG, level="ERROR") as failure_log,
             self.assertRaisesRegex(RuntimeError, "missing or inaccessible"),
         ):
-            preprocess_settlement_report(self.database, self.storage, identifier)
+            preprocess_settlement_acquisition(self.database, self.storage, identifier)
         self.assertEqual(len(failure_log.records), 1)
         self.assertEqual(
             failure_log.records[0].getMessage(),
@@ -461,7 +461,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             )
         self.storage.put(manifest.bucket, manifest.object_path, saved_archive)
         with self.assertLogs(SETTLEMENT_LOG, level="INFO") as recovery_log:
-            version_id = preprocess_settlement_report(self.database, self.storage, identifier)
+            version_id = preprocess_settlement_acquisition(self.database, self.storage, identifier)
         self.assertEqual(len(recovery_log.records), 1)
         self.assertIn(
             f"Published settlement source version {version_id}",

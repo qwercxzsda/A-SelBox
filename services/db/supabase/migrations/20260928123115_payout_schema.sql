@@ -180,37 +180,3 @@ create table private.payout_report_reconciliation (
     ),
     check (accounted_total = settlement_total)
 );
-
-do $$
-declare relation text;
-begin
-    foreach relation in array array[
-        'public.company_payout_reports', 'public.company_payout_report_components',
-        'private.payout_report_settlement_versions', 'private.payout_report_data_kiosk_versions',
-        'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
-    ] loop
-        execute format('alter table %s enable row level security', relation);
-        execute format('revoke all on %s from public, anon, authenticated, service_role', relation);
-        execute format('create trigger immutable before update or delete on %s for each row execute function private.reject_mutation()', relation);
-        execute format('create trigger immutable_truncate before truncate on %s for each statement execute function private.reject_mutation()', relation);
-    end loop;
-end;
-$$;
-
--- Counts describe immutable inventories, not user-entered business terms.
-do $$
-declare child text; count_field text;
-begin
-    for child, count_field in values
-        ('public.company_payout_report_components', 'component_count'),
-        ('private.payout_report_reconciliation', 'reconciliation_count'),
-        ('private.payout_report_settlement_versions', 'settlement_version_count'),
-        ('private.payout_report_data_kiosk_versions', 'data_kiosk_version_count'),
-        ('private.payout_report_terms_versions', 'terms_version_count')
-    loop
-        execute format(
-            'create trigger complete_report_insert after insert on %s referencing new table as inserted_children for each statement execute function private.guard_child_inventory(%L,%L,%L)',
-            child, 'public.company_payout_reports', count_field, 'report_id');
-    end loop;
-end;
-$$;

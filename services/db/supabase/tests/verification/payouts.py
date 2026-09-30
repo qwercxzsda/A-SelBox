@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import calendar
 import hashlib
-import json
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -13,22 +12,24 @@ from typing import Any
 import psycopg
 
 from services.db.supabase.tests.isolated_database import isolated_database
-from services.db.supabase.tests.real_seed_authority import verify_authority
-from services.db.supabase.tests.real_seed_reconciliation import (
+from services.db.supabase.tests.verification.financial_authority import verify_authority
+from services.db.supabase.tests.verification.financial_reconciliation import (
     month_coverage,
     verify_frozen_reconciliation,
     verify_live_reconciliation,
 )
-from services.db.supabase.tests.real_seed_reprocess import reprocess_local_archives
-from services.db.supabase.tests.real_seed_supplement import publish_supplement
-from services.db.supabase.tests.real_seed_support import (
+from services.db.supabase.tests.verification.financial_replay import reprocess_local_archives
+from services.db.supabase.tests.verification.financial_seed import (
     Connection,
     as_user,
-    load_real_source_seed,
+    load_financial_seed,
     require,
     source_fingerprints,
     source_versions,
 )
+from services.db.supabase.tests.verification.financial_supplement import publish_supplement
+
+from .output import validate_output_path, write_evidence
 
 
 def expect_denied(connection: Connection, user: str, company: str, month: date, code: str) -> None:
@@ -225,7 +226,7 @@ def verify_payouts(
 def verify_seed(seed: Path, supplement_cache: Path) -> dict[str, object]:
     """Verify the complete, actual June workflow without changing retained source inputs."""
     with isolated_database() as target, psycopg.connect(target) as connection:
-        evidence = load_real_source_seed(connection, seed)
+        evidence = load_financial_seed(connection, seed)
         versions = source_versions(connection)
         fingerprints = source_fingerprints(connection, versions)
         operator = connection.execute(
@@ -281,11 +282,9 @@ def main() -> int:
     parser.add_argument("--supplement-cache", required=True, type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    validate_output_path(parser, args.output)
     evidence = verify_seed(args.seed, args.supplement_cache)
-    output = json.dumps(evidence, indent=2, sort_keys=True) + "\n"
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(output, encoding="utf-8")
+    output = write_evidence(args.output, evidence)
     print(output, end="")
     return 0
 

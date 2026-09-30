@@ -14,7 +14,7 @@ from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
     persist_settlement_acquisition,
 )
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 LITERAL_SKU = 'Search.*_[A]%\\Quoted"Sku한글'
 _DATASETS = ("live", "settlement", "data_kiosk")
@@ -41,7 +41,7 @@ class TextSearchTests(LocalWorkflowCase):
             kiosk = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)
             )
-            preprocess_settlement_report(self.database, self.storage, settlement)
+            preprocess_settlement_acquisition(self.database, self.storage, settlement)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         member_id, member = self.create_member(company)
         _, operator = self.create_operator()

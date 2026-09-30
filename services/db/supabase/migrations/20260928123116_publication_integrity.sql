@@ -1,3 +1,52 @@
+-- These are evidence or permanent identities: even trusted SQL cannot rewrite them.
+do $$
+declare table_name text;
+begin
+    foreach table_name in array array[
+        'public.sku_terms_versions', 'public.sku_fee_periods',
+        'private.settlement_acquisitions', 'private.data_kiosk_acquisitions',
+        'private.settlement_preprocess_versions', 'private.settlement_transactions',
+        'private.data_kiosk_preprocess_batches', 'private.data_kiosk_preprocess_versions',
+        'private.data_kiosk_pruned_versions',
+        'public.company_payout_reports', 'public.company_payout_report_components',
+        'private.payout_report_settlement_versions', 'private.payout_report_data_kiosk_versions',
+        'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
+    ] loop
+        execute format('create trigger immutable before update or delete on %s for each row execute function private.reject_mutation()', table_name);
+    end loop;
+end;
+$$;
+
+do $$
+declare table_name text;
+begin
+    foreach table_name in array array[
+        'public.skus', 'public.sku_terms_versions', 'public.sku_fee_periods',
+        'private.data_kiosk_pruned_versions'
+    ] loop
+        execute format('create trigger no_truncate before truncate on %s for each statement execute function private.reject_mutation()', table_name);
+    end loop;
+end;
+$$;
+
+-- No signed-in or service API writer receives direct access to publication tables.
+do $$
+declare relation record;
+begin
+    for relation in select n.nspname, c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname in ('public', 'private') and c.relkind = 'r'
+    loop
+        execute format('alter table %I.%I enable row level security', relation.nspname, relation.relname);
+        execute format('revoke all on table %I.%I from public, anon, authenticated, service_role', relation.nspname, relation.relname);
+    end loop;
+end;
+$$;
+revoke all on all functions in schema private from public, anon, authenticated, service_role;
+-- Objects are uploaded with immutable keys; client roles have no bucket policies.
+insert into storage.buckets (id, name, public) values (
+    'source-archives', 'source-archives', false
+) on conflict (id) do update set public = false;
+
 -- Count each affected parent once per INSERT statement, not once per child row.
 -- Publishers insert each complete child set in one statement. Deferred parent
 -- checks still reject incomplete transactions; immutable rows never reopen slots.
@@ -170,8 +219,36 @@ end;
 $$;
 create trigger immutable before update or delete on private.data_kiosk_transactions
 for each row execute function private.guard_data_kiosk_payload_mutation();
-create trigger immutable_truncate before truncate on private.settlement_transactions
-for each statement execute function private.reject_mutation();
-create trigger immutable_truncate before truncate on private.data_kiosk_transactions
-for each statement execute function private.reject_mutation();
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
+
+do $$
+declare relation text;
+begin
+    foreach relation in array array[
+        'private.settlement_transactions', 'private.data_kiosk_transactions',
+        'public.company_payout_reports', 'public.company_payout_report_components',
+        'private.payout_report_settlement_versions', 'private.payout_report_data_kiosk_versions',
+        'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
+    ] loop
+        execute format('create trigger immutable_truncate before truncate on %s for each statement execute function private.reject_mutation()', relation);
+    end loop;
+end;
+$$;
+
+-- Counts describe immutable inventories, not user-entered business terms.
+do $$
+declare child text; count_field text;
+begin
+    for child, count_field in values
+        ('public.company_payout_report_components', 'component_count'),
+        ('private.payout_report_reconciliation', 'reconciliation_count'),
+        ('private.payout_report_settlement_versions', 'settlement_version_count'),
+        ('private.payout_report_data_kiosk_versions', 'data_kiosk_version_count'),
+        ('private.payout_report_terms_versions', 'terms_version_count')
+    loop
+        execute format(
+            'create trigger complete_report_insert after insert on %s referencing new table as inserted_children for each statement execute function private.guard_child_inventory(%L,%L,%L)',
+            child, 'public.company_payout_reports', count_field, 'report_id');
+    end loop;
+end;
+$$;

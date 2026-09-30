@@ -19,7 +19,7 @@ from services.sync.src.amazon.data_kiosk.models import (
 )
 from services.sync.src.amazon.reports.models import DownloadedReportDocument
 from services.sync.src.archives.storage import ArchiveStorage
-from services.sync.src.settlements.download import archive_settlement_report
+from services.sync.src.settlements.acquisition import download_settlement_acquisition
 from services.sync.tests.support.archives import (
     ACQUISITION_MODULE,
     SETTLEMENT_MODULE,
@@ -315,7 +315,7 @@ class AcquisitionLoggingTests(unittest.TestCase):
 
     @staticmethod
     def _download_settlement(storage: ArchiveStorage) -> str:
-        return archive_settlement_report(
+        return download_settlement_acquisition(
             Mock(),
             Mock(),
             storage,

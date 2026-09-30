@@ -55,7 +55,7 @@ def download_settlement_reports(
         key=lambda item: (item.report_created_at, item.report_id, item.report_document_id),
     ):
         try:
-            archive_settlement_report(
+            download_settlement_acquisition(
                 client, database, storage, reference, amazon_scope=scope, seller_namespace=seller
             )
         except Exception:
@@ -65,7 +65,7 @@ def download_settlement_reports(
     return SettlementDownloadResult(discovery.listed_count, archived_count, failed_count)
 
 
-def archive_settlement_report(
+def download_settlement_acquisition(
     client: SettlementReportsClient,
     database: DatabaseConnection,
     storage: ArchiveStorage,

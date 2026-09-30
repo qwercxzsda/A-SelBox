@@ -10,7 +10,7 @@ from ....src.allocation import AllocationCategory
 from ....src.amazon.settlement_tabular import SETTLEMENT_V2_COLUMNS
 from ....src.numeric import Numeric
 from ....src.settlement_preprocess.raw_report import prepare_settlement_report
-from ....src.settlement_preprocess.workflow import preprocess_settlement_report
+from ....src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 from ...support.archives import MemoryArchiveStorage
 from ...support.fakes import FakeDatabaseConnection
 from ...support.source_preprocessing import (
@@ -304,7 +304,7 @@ class SettlementSourceFactsTests(unittest.TestCase):
                 return_value=acquisition,
             ),
             patch(
-                "services.sync.src.settlement_preprocess.workflow.settlement_current_versions",
+                "services.sync.src.settlement_preprocess.workflow.current_settlement_versions",
                 return_value={},
             ),
             patch(
@@ -314,7 +314,8 @@ class SettlementSourceFactsTests(unittest.TestCase):
             patch("socket.create_connection", side_effect=AssertionError("Network unavailable")),
         ):
             self.assertEqual(
-                preprocess_settlement_report(database, storage, str(acquisition.id)), "version-1"
+                preprocess_settlement_acquisition(database, storage, str(acquisition.id)),
+                "version-1",
             )
             self.assertEqual(len(publish.call_args.args[2].transactions), 1)
             publish.reset_mock()
@@ -327,6 +328,6 @@ class SettlementSourceFactsTests(unittest.TestCase):
                 self.assertLogs("services.sync.src.settlement_preprocess.workflow", level="ERROR"),
                 self.assertRaises(ValueError),
             ):
-                preprocess_settlement_report(database, storage, str(acquisition.id))
+                preprocess_settlement_acquisition(database, storage, str(acquisition.id))
             publish.assert_not_called()
         self.assertEqual(len(storage.objects), 1)

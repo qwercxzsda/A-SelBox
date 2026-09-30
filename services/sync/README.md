@@ -5,6 +5,12 @@ private archives, then preprocesses saved acquisitions into complete source
 versions. PostgreSQL resolves current company ownership and fees for live
 reads and freezes exact inputs and amounts when publishing a company payout report.
 
+Both financial sources use `download_*_acquisition` and `preprocess_*_acquisition` for the online
+and offline phases. Acquisition persistence/loading lives in `src/database/acquisitions.py`; source
+modules own parsing and result publication. Each source has an `acquisition.py` and a preprocessing
+`workflow.py`. Settlement's `download_settlement_reports` is the batch discovery operation that
+downloads multiple acquisitions. `current_*` helpers identify selected financial versions.
+
 ## Configuration
 
 Run Python through the `A-SelBox` conda environment from the repository root.
@@ -23,9 +29,9 @@ or diagnostic output.
   `SUPABASE_SERVICE_ROLE_KEY`. Keys are read from the environment, never arguments.
 - `--database-url` defaults to local PostgreSQL on port 54322. Database writers
   require trusted administrator access to the private publication functions.
-- Download commands use `--seller-namespace` to identify the seller across both sources
-  and ownership configuration. Its default is `__DEFAULT__`; use explicit stable
-  namespaces for multiple sellers.
+- Download commands use `--seller-namespace` to identify source provenance across financial
+  acquisitions. Its default is `__DEFAULT__`; use explicit stable namespaces for multiple sellers.
+  Current ownership is configured by exact SKU alone, independently of source namespace.
 
 Offline commands obtain the seller from the saved acquisition; they do not
 accept a seller override.
@@ -85,7 +91,7 @@ Pass a saved successful acquisition ID. These commands need PostgreSQL and
 private Storage access, and make no Amazon requests:
 
 ```sh
-conda run -n A-SelBox python -m services.sync.run_preprocess_settlement_report \
+conda run -n A-SelBox python -m services.sync.run_preprocess_settlement \
   --acquisition-id ACQUISITION_UUID
 
 conda run -n A-SelBox python -m services.sync.run_preprocess_data_kiosk \
@@ -152,7 +158,7 @@ assigned terms. Source imports do not register or assign SKUs or create fees.
 Application operators use `public.publish_sku_configuration` to publish a nonempty batch of
 staged revisions atomically. That guarded API additionally requires ownership for every known
 SKU and coverage of applicable dates in selected source versions. The trusted Python helper
-supports restoring incomplete configuration and source-independent setup; it is not the
+supports internal revision publication and source-independent setup; it is not the
 administrator application's write interface.
 `public.app_accounts` records operator/member access; company members see only
 their assigned company's current terms and source results. See the

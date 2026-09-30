@@ -7,7 +7,7 @@ from typing import cast
 from services.db.supabase.tests.e2e.fixtures import archived_settlement, company_with_fees
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.database.acquisitions import persist_settlement_acquisition
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_report
+from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 
 
 class TransactionFilterTests(LocalWorkflowCase):
@@ -58,7 +58,7 @@ class TransactionFilterTests(LocalWorkflowCase):
             acquisition = persist_settlement_acquisition(
                 self.database, archived_settlement(self.storage, seller)
             )
-            preprocess_settlement_report(self.database, self.storage, acquisition)
+            preprocess_settlement_acquisition(self.database, self.storage, acquisition)
         _, member_token = self.create_member(first)
         _, operator_token = self.create_operator()
 

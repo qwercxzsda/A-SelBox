@@ -248,7 +248,7 @@ discovery and the Latest month rule belong to the frontend; this RPC calculates 
 
 Source, Marketplace, and Type menus use static application catalogs. All SKU menus use an already
 loaded catalog: company members reuse their current `company_skus` assignments; administrators
-preload [`public.sku_filter_options`](../services/db/supabase/migrations/20260928123140_sku_filter_options.sql)
+preload [`public.sku_filter_options`](../services/db/supabase/migrations/20260928123140_sku_configuration_reads.sql)
 during identity bootstrap. Opening a menu makes no database request. Options may return zero rows
 under the selected dataset and other filters.
 
@@ -394,9 +394,11 @@ authenticated-only application execution.
 
 Public RPCs use invoker security. The
 [application grants](../services/db/supabase/migrations/20260928123142_application_grants.sql)
-module defines the transaction API allowlist. The later
-[SKU configuration module](../services/db/supabase/migrations/20260928145511_sku_configuration.sql)
-grants its own caller-checked read and publication entry points. Reference visibility does not
+module defines the complete application allowlist after the
+[SKU configuration reads](../services/db/supabase/migrations/20260928123140_sku_configuration_reads.sql)
+and
+[publication](../services/db/supabase/migrations/20260928123141_sku_configuration_publication.sql)
+modules define their caller-checked entry points. Reference visibility does not
 grant transaction access. See the [access contract](access_control.md#how-rls-enforces-this).
 
 [REST configuration](../services/db/supabase/migrations/20260928123144_rest_api_configuration.sql)

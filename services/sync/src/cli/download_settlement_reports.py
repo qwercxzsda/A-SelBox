@@ -11,7 +11,7 @@ from ..amazon.reports.sdk_types import SettlementReportsClient
 from ..amazon.scopes import DEFAULT_AMAZON_SCOPE
 from ..amazon.sellers_participations import fetch_marketplace_participations
 from ..database.connection import PostgresDatabaseConnection
-from ..settlements.download import download_settlement_reports
+from ..settlements.acquisition import download_settlement_reports
 from .archive_common import add_archive_arguments, archive_storage_from_args
 from .common import add_seller_argument, initialize_cli
 

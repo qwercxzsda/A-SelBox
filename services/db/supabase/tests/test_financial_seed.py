@@ -9,11 +9,11 @@ from unittest.mock import Mock
 
 from psycopg import sql
 
-from services.db.supabase.tests.real_seed_support import Connection, load_real_source_seed
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.verification.financial_seed import Connection, load_financial_seed
 
 
-class RealSeedSupportTests(SourceModelFixture):
+class FinancialSeedTests(SourceModelFixture):
     def seed_file(self, content: str) -> Path:
         directory = self.enterContext(TemporaryDirectory(prefix="aselbox-seed-test-"))
         path = Path(directory) / "synthetic.sql"
@@ -54,23 +54,18 @@ class RealSeedSupportTests(SourceModelFixture):
         seed = self.seed_file(self.company_copy() + trailing_block)
         observed = Mock(wraps=self.connection)
         with self.assertRaisesRegex(ValueError, message):
-            load_real_source_seed(cast(Connection, observed), seed)
+            load_financial_seed(cast(Connection, observed), seed)
         observed.cursor.assert_not_called()
         observed.transaction.assert_not_called()
         self.assertEqual(
             self.connection.execute("select count(*) from public.companies").fetchone(), (0,)
         )
 
-    def test_namespace_ownership_headers_are_rejected_before_copying_any_rows(self) -> None:
-        for header in (
-            "COPY public.seller_skus "
-            "(id,seller_namespace,sku,current_terms_version_id,created_at) FROM stdin;\n",
-            "COPY public.sku_terms_versions (id,seller_sku_id,company_id) FROM stdin;\n",
-        ):
-            with self.subTest(header=header):
-                self.assert_preflight_rejection(
-                    header + "\\.\n", "retired namespace-based SKU ownership"
-                )
+    def test_unknown_application_tables_are_rejected_before_copying_any_rows(self) -> None:
+        self.assert_preflight_rejection(
+            "COPY public.unknown_relation (id) FROM stdin;\n\\.\n",
+            "table absent from the current schema",
+        )
 
     def test_mismatched_current_headers_and_duplicate_columns_fail_before_copy(self) -> None:
         for header in (
@@ -95,7 +90,7 @@ class RealSeedSupportTests(SourceModelFixture):
     ) -> None:
         source_copy, acquisition = self.acquisition_copy()
         user, company = new_id(), new_id()
-        name = "COPY public.seller_skus (id) FROM stdin;"
+        name = "COPY public.unknown_relation (id) FROM stdin;"
         seed = self.seed_file(
             "".join(
                 (
@@ -108,7 +103,7 @@ class RealSeedSupportTests(SourceModelFixture):
                 )
             )
         )
-        result = load_real_source_seed(self.connection, seed)
+        result = load_financial_seed(self.connection, seed)
         self.assertEqual(
             result["source_rows"], {"public.companies": 1, "private.settlement_acquisitions": 1}
         )
@@ -147,7 +142,7 @@ class RealSeedSupportTests(SourceModelFixture):
             with self.subTest(label=label):
                 seed = self.seed_file(self.company_copy() + failed_block)
                 try:
-                    load_real_source_seed(self.connection, seed)
+                    load_financial_seed(self.connection, seed)
                 except ValueError as error:
                     self.assertRegex(
                         str(error), r"Seed COPY import failed \(SQLSTATE [A-Z0-9]{5}\)"
@@ -183,7 +178,7 @@ class RealSeedSupportTests(SourceModelFixture):
             + f"{new_id()}\t{credential}\n\\.\n"
         )
         with self.assertRaisesRegex(ValueError, "malformed Auth COPY row") as error:
-            load_real_source_seed(self.connection, seed)
+            load_financial_seed(self.connection, seed)
         self.assertNotIn(credential, str(error.exception))
         self.assertEqual(
             self.connection.execute("select count(*) from public.companies").fetchone(), (0,)
@@ -196,7 +191,7 @@ class RealSeedSupportTests(SourceModelFixture):
         connection = Mock()
         connection.execute.return_value.fetchall.return_value = [("postgres",)]
         with self.assertRaisesRegex(ValueError, "disposable test database"):
-            load_real_source_seed(cast(Connection, connection), Path("not-opened.sql"))
+            load_financial_seed(cast(Connection, connection), Path("not-opened.sql"))
         connection.execute.assert_called_once_with("select current_database()")
         connection.cursor.assert_not_called()
         connection.transaction.assert_not_called()

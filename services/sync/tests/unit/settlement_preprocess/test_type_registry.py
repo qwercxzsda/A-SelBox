@@ -11,7 +11,7 @@ from ....src.amazon.data_kiosk.economics_models import EconomicsCost
 from ....src.settlement_preprocess.classification import classify_settlement_row
 from ....src.settlement_preprocess.raw_report import prepare_settlement_report
 from ....src.settlement_preprocess.retrocharges import RETROCHARGE_COMPONENTS
-from ....src.settlement_preprocess.workflow import preprocess_settlement_report
+from ....src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 from ....src.transaction_types.data_kiosk import DATA_KIOSK_TYPES
 from ....src.transaction_types.generate import OUTPUT_DIRECTORY, generated_catalogs
 from ....src.transaction_types.settlement import SETTLEMENT_TYPES
@@ -82,14 +82,14 @@ class TransactionTypeRegistryTests(unittest.TestCase):
                 return_value=acquisition,
             ),
             patch(
-                "services.sync.src.settlement_preprocess.workflow.settlement_current_versions",
+                "services.sync.src.settlement_preprocess.workflow.current_settlement_versions",
                 return_value={},
             ),
             patch("services.sync.src.settlement_preprocess.workflow.publish_settlement") as publish,
             self.assertLogs("services.sync.src.settlement_preprocess.workflow", level="ERROR"),
             self.assertRaisesRegex(ValueError, "Unsupported Settlement types"),
         ):
-            preprocess_settlement_report(database, storage, str(acquisition.id))
+            preprocess_settlement_acquisition(database, storage, str(acquisition.id))
         publish.assert_not_called()
         self.assertEqual(len(storage.objects), 1)
 

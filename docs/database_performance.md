@@ -76,13 +76,10 @@ request-time authorization.
 
 The [global SKU benchmark](evidence/global_sku_identity/README.md) verifies authenticated
 reads across namespaces and measures the current ownership indexes on synthetic data.
-The [controlled query-speed comparison](evidence/global_sku_identity/query_speed.md) compares the
-previous and current schemas using identical real source facts and equivalent synthetic terms.
-It records large administrator company-filter reductions and smaller member-query differences.
 The maintained runners below cover additional workload shapes.
 
 The [configuration-read sample](evidence/global_sku_identity/README.md#configuration-read-sample) used the
-same 103,244 real source facts with consistent synthetic assignments and fees. One warm-up and
+103,244 real source facts with consistent synthetic assignments and fees. One warm-up and
 seven authenticated reads produced median times of **131.031 ms** for all 63 administrator SKUs
 (50,744 JSON bytes), and **50.516 ms** for the member's 32 SKUs (26,933 bytes). Timing includes
 direct SQL execution and result decoding, excluding transaction setup and HTTP/browser latency.
