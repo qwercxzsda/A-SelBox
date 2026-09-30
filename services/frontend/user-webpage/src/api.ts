@@ -1,6 +1,7 @@
 import { createApiClient } from "./api/client.ts";
 import { readBuildConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
+import type { FetchInventoryPageOptions } from "./api/inventory.ts";
 import type {
   Company,
   CurrencyTotal,
@@ -71,6 +72,8 @@ export const fetchDatasetCount = (options: FetchDatasetCountOptions): Promise<nu
   getDefaultClient().fetchDatasetCount(options);
 export const fetchSkuOptions = (accessToken: string, signal?: AbortSignal): Promise<string[]> =>
   getDefaultClient().fetchSkuOptions(accessToken, signal);
+export const fetchInventoryPage = (options: FetchInventoryPageOptions) =>
+  getDefaultClient().fetchInventoryPage(options);
 export const fetchSkuConfiguration = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchSkuConfiguration(accessToken, signal);
 export const publishSkuConfiguration = (options: PublishSkuConfigurationOptions) =>

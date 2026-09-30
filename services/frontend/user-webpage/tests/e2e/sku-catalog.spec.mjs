@@ -93,6 +93,7 @@ for (const [role, revision] of [
       expect(fixture.revisionRequests.at(-1).sources.sort()).toEqual([
         "data_kiosk",
         "fees",
+        "inventory",
         "settlement",
       ]);
     else expect(fixture.optionRequests).toHaveLength(0);

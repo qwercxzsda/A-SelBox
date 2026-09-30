@@ -8,6 +8,7 @@ begin
         'private.settlement_preprocess_versions', 'private.settlement_transactions',
         'private.data_kiosk_preprocess_batches', 'private.data_kiosk_preprocess_versions',
         'private.data_kiosk_pruned_versions',
+        'private.inventory_acquisitions',
         'public.company_payout_reports', 'public.company_payout_report_components',
         'private.payout_report_settlement_versions', 'private.payout_report_data_kiosk_versions',
         'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
@@ -226,6 +227,7 @@ declare relation text;
 begin
     foreach relation in array array[
         'private.settlement_transactions', 'private.data_kiosk_transactions',
+        'private.inventory_acquisitions',
         'public.company_payout_reports', 'public.company_payout_report_components',
         'private.payout_report_settlement_versions', 'private.payout_report_data_kiosk_versions',
         'private.payout_report_terms_versions', 'private.payout_report_reconciliation'

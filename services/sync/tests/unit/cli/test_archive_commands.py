@@ -12,6 +12,7 @@ from services.sync.src.cli import (
     common,
     download_data_kiosk,
     preprocess_data_kiosk,
+    preprocess_inventory,
     preprocess_settlement,
 )
 
@@ -46,7 +47,7 @@ class ArchiveCommandTests(unittest.TestCase):
                 self.assertNotIn("ASELBOX_TEST_SOURCE", os.environ)
 
     def test_offline_commands_require_saved_identity_and_reject_scope_overrides(self) -> None:
-        for command in (preprocess_data_kiosk, preprocess_settlement):
+        for command in (preprocess_data_kiosk, preprocess_inventory, preprocess_settlement):
             for arguments in (
                 [],
                 ["--acquisition-id", "saved", "--scope", "EU"],
@@ -86,6 +87,7 @@ class ArchiveCommandTests(unittest.TestCase):
         cases = (
             (preprocess_settlement, "preprocess_settlement_acquisition"),
             (preprocess_data_kiosk, "preprocess_data_kiosk_acquisition"),
+            (preprocess_inventory, "preprocess_inventory_acquisition"),
         )
         for command, function_name in cases:
             with (

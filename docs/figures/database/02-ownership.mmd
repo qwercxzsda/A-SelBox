@@ -1,0 +1,51 @@
+erDiagram
+    direction LR
+    auth_users ||--o| public_app_accounts : "user_id"
+    public_companies o|..o{ public_app_accounts : "company_id"
+    public_skus ||..|{ public_sku_terms_versions : "sku_id"
+    public_companies o|..o{ public_sku_terms_versions : "company_id"
+    public_sku_terms_versions ||..o{ public_sku_fee_periods : "terms_version_id"
+    public_sku_terms_versions ||..o| public_skus : "id + current_terms_version_id"
+
+    public_companies["public.companies"] {
+        local_uuid id PK "NN"
+        text name "NN"
+        timestamptz created_at "NN"
+    }
+
+    public_app_accounts["public.app_accounts"] {
+        uuid user_id PK, FK "NN"
+        app_access_role access_role "NN"
+        local_uuid company_id FK "NULL"
+        timestamptz created_at "NN"
+    }
+
+    public_skus["public.skus"] {
+        local_uuid id PK, FK "NN"
+        text sku "NN"
+        local_uuid current_terms_version_id FK "Required at commit"
+        timestamptz created_at "NN"
+    }
+
+    public_sku_terms_versions["public.sku_terms_versions"] {
+        local_uuid id PK "NN"
+        local_uuid sku_id FK "NN"
+        local_uuid company_id FK "NULL"
+        bigint version_number "NN"
+        integer fee_period_count "NN"
+        text change_reason "NN"
+        timestamptz created_at "NN"
+    }
+
+    public_sku_fee_periods["public.sku_fee_periods"] {
+        local_uuid id PK "NN"
+        local_uuid terms_version_id FK "NN"
+        text marketplace_name "NN"
+        daterange valid_period "NN"
+        numeric fee_rate_percent "NN"
+        timestamptz created_at "NN"
+    }
+
+    auth_users["auth.users (managed reference)"] {
+        uuid id PK "Referenced key only"
+    }

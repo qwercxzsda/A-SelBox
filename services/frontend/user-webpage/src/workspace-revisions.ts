@@ -1,12 +1,15 @@
 import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
-import type {
-  AppAccount,
-  TableDatasetKey,
-  RevisionSource,
-  WorkspaceRevisions,
-} from "./api/types.ts";
+import type { AppAccount, RevisionSource, WorkspaceRevisions } from "./api/types.ts";
 
-export const REVISION_SOURCES: readonly RevisionSource[] = ["settlement", "data_kiosk", "fees"];
+export const FINANCIAL_REVISION_SOURCES: readonly RevisionSource[] = [
+  "settlement",
+  "data_kiosk",
+  "fees",
+];
+export const REVISION_SOURCES: readonly RevisionSource[] = [
+  ...FINANCIAL_REVISION_SOURCES,
+  "inventory",
+];
 
 export function sameAccount(left: AppAccount, right: AppAccount): boolean {
   return (
@@ -16,13 +19,10 @@ export function sameAccount(left: AppAccount, right: AppAccount): boolean {
   );
 }
 
-function datasetDependencies(
-  dataset: TableDatasetKey,
-  operator: boolean,
-): readonly RevisionSource[] {
+function datasetDependencies(dataset: unknown, operator: boolean): readonly RevisionSource[] {
   switch (dataset) {
     case "live":
-      return REVISION_SOURCES;
+      return FINANCIAL_REVISION_SOURCES;
     case "settlement":
       return operator ? ["settlement"] : ["settlement", "fees"];
     case "data_kiosk":
@@ -35,16 +35,17 @@ function datasetDependencies(
 export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   const [family] = key;
   if (family === "dataset" || family === "dataset-count") {
-    return datasetDependencies(key[4] as TableDatasetKey, key[2] === "operator");
+    return datasetDependencies(key[4], key[2] === "operator");
   }
-  if (family === "sku-configuration") return REVISION_SOURCES;
+  if (family === "sku-configuration") return FINANCIAL_REVISION_SOURCES;
+  if (family === "inventory") return ["inventory", "fees"];
   if (
     typeof family === "string" &&
     ["transaction-latest-date", "transaction-period-totals", "transaction-type-totals"].includes(
       family,
     )
   ) {
-    return REVISION_SOURCES;
+    return FINANCIAL_REVISION_SOURCES;
   }
   return [];
 }
@@ -83,6 +84,16 @@ export function isPolledQuery(query: Query): boolean {
   return (family === "dataset" || family === "dataset-count") && isPolledDataset(dataset);
 }
 
+/** Failed inventory reads retry without forcing successful pages to read again. */
+export function needsAutomaticRefresh(query: Query): boolean {
+  return (
+    isPolledQuery(query) ||
+    (query.queryKey[0] === "inventory" &&
+      query.state.status === "error" &&
+      query.state.fetchStatus === "idle")
+  );
+}
+
 /** Financial counts restart after their rows settle; no count delays a page refresh. */
 export async function refreshWorkspaceQueries(
   client: QueryClient,
@@ -91,7 +102,7 @@ export async function refreshWorkspaceQueries(
   signal: AbortSignal,
 ) {
   const predicate = (query: Query) =>
-    force || needsRevisionRefresh(query, changed) || isPolledQuery(query);
+    force || needsRevisionRefresh(query, changed) || needsAutomaticRefresh(query);
   signal.throwIfAborted();
   await client.cancelQueries({ predicate });
   signal.throwIfAborted();

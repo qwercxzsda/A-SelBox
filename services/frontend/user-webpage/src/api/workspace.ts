@@ -59,7 +59,11 @@ export function createWorkspaceApi(transport: ApiTransport) {
     }: FetchWorkspaceRevisionsOptions): Promise<WorkspaceRevisionSnapshot> {
       if (!userId.trim()) throw new Error("An Auth user ID is required");
       const requested = [...new Set(sources)];
-      if (requested.some((source) => !["settlement", "data_kiosk", "fees"].includes(source))) {
+      if (
+        requested.some(
+          (source) => !["settlement", "data_kiosk", "fees", "inventory"].includes(source),
+        )
+      ) {
         throw new Error("Invalid workspace revision source");
       }
       const params = new URLSearchParams({ p_sources: `{${requested.join(",")}}` });

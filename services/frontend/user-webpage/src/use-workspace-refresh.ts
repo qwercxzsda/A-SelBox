@@ -6,10 +6,11 @@ import { getErrorMessage } from "./view-model";
 import {
   activeRevisionSources,
   changedRevisionSources,
-  isPolledQuery,
+  needsAutomaticRefresh,
   refreshWorkspaceQueries,
   sameAccount,
   REVISION_SOURCES,
+  FINANCIAL_REVISION_SOURCES,
 } from "./workspace-revisions";
 
 interface PendingCheck {
@@ -17,7 +18,7 @@ interface PendingCheck {
   task: Promise<void>;
 }
 
-/** Poll tiny revision tokens; financial reads run only when their dependencies change. */
+/** Poll tiny revision tokens; successful data reads run only when dependencies change. */
 export function useWorkspaceRefresh(
   identity: Identity,
   checkIdentity: (options?: IdentityRefreshOptions) => Promise<boolean>,
@@ -57,17 +58,19 @@ export function useWorkspaceRefresh(
             return;
           }
           const changed = changedRevisionSources(baseline.current, snapshot.revisions);
-          const hasPolledQuery =
-            client.getQueryCache().findAll({ type: "active", predicate: isPolledQuery }).length > 0;
+          const hasAutomaticRefresh =
+            client.getQueryCache().findAll({ type: "active", predicate: needsAutomaticRefresh })
+              .length > 0;
           do {
             const forced = forceRequested.current;
             forceRequested.current = false;
-            if (changed.length > 0 || forced || hasPolledQuery) {
+            if (changed.length > 0 || forced || hasAutomaticRefresh) {
               setIsUpdating(true);
               const refreshCatalogs =
                 forced ||
                 changed.includes("fees") ||
-                (identity.account.access_role === "operator" && changed.length > 0);
+                (identity.account.access_role === "operator" &&
+                  changed.some((source) => FINANCIAL_REVISION_SOURCES.includes(source)));
               if (refreshCatalogs && !(await checkIdentity({ forceCatalog: forced }))) return;
               if (!current()) return;
               await refreshWorkspaceQueries(client, changed, forced, controller.signal);

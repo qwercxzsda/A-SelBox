@@ -1,0 +1,61 @@
+flowchart TB
+    T["TABLES: skus + selected sku_terms_versions"]
+    F["TABLE: sku_fee_periods"]
+    S["TABLES: Settlement facts + versions"]
+    D["TABLES: Data Kiosk facts + versions"]
+    P["TABLES: selected source headers"]
+    M["TABLES: source metadata + acquisitions + pruning markers"]
+    C["VIEW private.current_sku_terms"]
+    CS["VIEW public.company_skus"]
+    CF["VIEW public.current_sku_fee_periods"]
+    RI["VIEW private.source_reconciliation_inputs"]
+    LR["VIEW private.live_source_reconciliation"]
+    CI["VIEW private.live_company_component_inputs"]
+    LC["VIEW public.live_company_components"]
+    SE["VIEW public.settlement_preprocess_entries"]
+    DE["VIEW public.data_kiosk_preprocess_entries"]
+    SR["VIEW public.settlement_preprocess_results"]
+    DR["VIEW public.data_kiosk_preprocess_results"]
+    H["Operator-guarded metadata readers"]
+    PAY["PRIVATE TABLES: payout reconciliation + three version manifests"]
+    PR["VIEW public.payout_report_reconciliation"]
+    PS["VIEW public.payout_report_settlement_versions"]
+    PD["VIEW public.payout_report_data_kiosk_versions"]
+    PT["VIEW public.payout_report_terms_versions"]
+    PC["TABLE: company_payout_report_components"]
+    PM["VIEW public.payout_report_marketplace_totals"]
+    T --> C --> CS --> CF
+    F --> CF
+    S --> RI
+    D --> RI
+    RI --> LR
+    P --> LR
+    LR --> CI
+    S --> CI
+    D --> CI
+    P --> CI
+    C --> CI
+    CI --> LC
+    F --> LC
+    S --> SE
+    D --> DE
+    M --> H
+    H --> SR
+    H --> DR
+    PAY --> PR
+    PAY --> PS
+    PAY --> PD
+    PAY --> PT
+    PC --> PM
+
+    IA["TABLE: inventory_acquisitions"]
+    IC["TABLE: inventory_daily_captures"]
+    II["TABLE: inventory_items"]
+    IH["Caller-checked latest scope metadata helper"]
+    ICV["VIEW public.latest_inventory_captures"]
+    IV["VIEW public.latest_inventory_items"]
+    IA --> IH
+    IC --> IH
+    IH --> ICV --> IV
+    II --> IV
+    CS --> IV

@@ -156,3 +156,80 @@ begin
 end;
 $$;
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
+
+create function private.publish_inventory_capture(p_payload jsonb) returns uuid
+language plpgsql set search_path = '' as $$
+declare candidate private.inventory_daily_captures; existing private.inventory_daily_captures;
+    source_input private.inventory_acquisitions; previous_input private.inventory_acquisitions;
+begin
+    if jsonb_typeof(p_payload) is distinct from 'object'
+        or not p_payload ?& array['id','seller_namespace','marketplace_name','capture_date',
+            'acquisition_id','preprocess_version','row_count','diagnostics',
+            'expected_current_capture_id','items']
+        or jsonb_typeof(p_payload->'items') is distinct from 'array'
+        or jsonb_typeof(p_payload->'diagnostics') is distinct from 'array'
+        or jsonb_typeof(p_payload->'expected_current_capture_id') not in ('string', 'null') then
+        raise exception 'Complete inventory capture payload and expected reference required' using errcode = '23514';
+    end if;
+    candidate := jsonb_populate_record(null::private.inventory_daily_captures, p_payload);
+    if candidate.row_count is distinct from jsonb_array_length(p_payload->'items') then
+        raise exception 'Inventory row count differs from complete item inventory' using errcode = '23514';
+    end if;
+    select * into source_input from private.inventory_acquisitions where id = candidate.acquisition_id;
+    if not found or (candidate.seller_namespace, candidate.marketplace_name, candidate.capture_date)
+        is distinct from (source_input.seller_namespace, source_input.marketplace_name, source_input.capture_date) then
+        raise exception 'Inventory capture must match its acquisition scope and original date' using errcode = '23514';
+    end if;
+    perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
+        'inventory-capture', candidate.seller_namespace, candidate.marketplace_name,
+        candidate.capture_date - date '2000-01-01'
+    )::text, 0));
+    select * into existing from private.inventory_daily_captures
+    where seller_namespace = candidate.seller_namespace and marketplace_name = candidate.marketplace_name
+        and capture_date = candidate.capture_date for update;
+    -- An uncertain successful commit can be retried without creating a new capture.
+    if existing.acquisition_id = candidate.acquisition_id
+        and existing.preprocess_version = candidate.preprocess_version then
+        return existing.id;
+    end if;
+    if existing.id is distinct from (p_payload->>'expected_current_capture_id')::uuid then
+        raise exception 'Stale inventory capture publication' using errcode = '40001';
+    end if;
+    if existing.id is not null then
+        if candidate.id = existing.id then
+            raise exception 'Inventory replacement requires a fresh capture ID' using errcode = '23514';
+        end if;
+        select * into strict previous_input from private.inventory_acquisitions
+        where id = existing.acquisition_id;
+        if (source_input.report_created_at, source_input.id)
+            < (previous_input.report_created_at, previous_input.id) then
+            raise exception 'An older inventory observation cannot replace newer data' using errcode = '23514';
+        end if;
+        delete from private.inventory_daily_captures where id = existing.id;
+    end if;
+    insert into private.inventory_daily_captures (
+        id, seller_namespace, marketplace_name, capture_date, acquisition_id,
+        preprocess_version, row_count, diagnostics
+    ) values (
+        candidate.id, candidate.seller_namespace, candidate.marketplace_name, candidate.capture_date,
+        candidate.acquisition_id, candidate.preprocess_version, candidate.row_count, candidate.diagnostics
+    );
+    insert into private.inventory_items (
+        capture_id, sku, source_line_number, snapshot_date, available_quantity, fba_supply_quantity,
+        inbound_quantity, inbound_working_quantity, inbound_shipped_quantity, inbound_received_quantity,
+        reserved_quantity, reserved_transfer_quantity, reserved_processing_quantity,
+        reserved_customer_order_quantity, unfulfillable_quantity, sales_amount_90d, units_shipped_90d,
+        currency, health_status, minimum_inventory_units, days_of_supply, total_days_of_supply,
+        recommended_ship_in_units, recommended_ship_in_date, recommended_action
+    ) select candidate.id, item.sku, item.source_line_number, item.snapshot_date,
+        item.available_quantity, item.fba_supply_quantity, item.inbound_quantity,
+        item.inbound_working_quantity, item.inbound_shipped_quantity, item.inbound_received_quantity,
+        item.reserved_quantity, item.reserved_transfer_quantity, item.reserved_processing_quantity,
+        item.reserved_customer_order_quantity, item.unfulfillable_quantity, item.sales_amount_90d,
+        item.units_shipped_90d, item.currency, item.health_status, item.minimum_inventory_units,
+        item.days_of_supply, item.total_days_of_supply, item.recommended_ship_in_units,
+        item.recommended_ship_in_date, item.recommended_action
+    from jsonb_populate_recordset(null::private.inventory_items, p_payload->'items') as item;
+    return candidate.id;
+end;
+$$;

@@ -1,0 +1,60 @@
+erDiagram
+    direction LR
+    inventory_acquisitions ||..o| inventory_daily_captures : source_for_retained_capture
+    inventory_daily_captures ||--o{ inventory_items : complete_sku_rows
+
+    inventory_acquisitions {
+        local_uuid id PK "NN"
+        nonblank seller_namespace "NN"
+        nonblank amazon_scope "NN"
+        nonblank marketplace_id "NN"
+        text marketplace_name "NN; canonical checked text"
+        date capture_date "NN; source-local creation day"
+        text report_type "NN; inventory planning report"
+        nonblank report_id "NN"
+        nonblank report_document_id "NN"
+        timestamptz report_created_at "NN"
+        timestamptz downloaded_at "NN"
+        sha256 document_sha256 "NN"
+        jsonb document "NN; archive manifest"
+        jsonb api_metadata "NN"
+        timestamptz created_at "NN"
+    }
+    inventory_daily_captures {
+        local_uuid id PK "NN; new ID for replacement"
+        nonblank seller_namespace FK "NN; scoped acquisition FK"
+        text marketplace_name FK "NN; scoped acquisition FK"
+        date capture_date FK "NN; scoped acquisition FK"
+        local_uuid acquisition_id FK "NN"
+        nonblank preprocess_version "NN"
+        integer row_count "NN; nonnegative"
+        jsonb diagnostics "NN; default empty array"
+        timestamptz created_at "NN; preprocessing time"
+    }
+    inventory_items {
+        local_uuid capture_id PK, FK "NN; cascade on capture delete"
+        text sku PK "NN; exact nonblank text"
+        integer source_line_number "NN; positive"
+        date snapshot_date "NULL; Amazon source date"
+        bigint available_quantity "NULL"
+        bigint fba_supply_quantity "NULL"
+        bigint inbound_quantity "NULL"
+        bigint inbound_working_quantity "NULL"
+        bigint inbound_shipped_quantity "NULL"
+        bigint inbound_received_quantity "NULL"
+        bigint reserved_quantity "NULL"
+        bigint reserved_transfer_quantity "NULL"
+        bigint reserved_processing_quantity "NULL"
+        bigint reserved_customer_order_quantity "NULL"
+        bigint unfulfillable_quantity "NULL"
+        numeric sales_amount_90d "NULL; historical estimate"
+        bigint units_shipped_90d "NULL"
+        text currency "NULL"
+        text health_status "NULL; Amazon text"
+        bigint minimum_inventory_units "NULL"
+        numeric days_of_supply "NULL"
+        numeric total_days_of_supply "NULL"
+        bigint recommended_ship_in_units "NULL"
+        date recommended_ship_in_date "NULL"
+        text recommended_action "NULL"
+    }

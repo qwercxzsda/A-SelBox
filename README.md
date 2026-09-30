@@ -5,12 +5,16 @@ those saved inputs into complete source versions, and calculates company amounts
 and fees through live PostgreSQL views. Immutable payout reports save exact
 amounts and retain the source and fee versions used.
 
+Daily Inventory Planning reports use the same archive/offline preprocessing pattern and retain one
+normalized capture per seller, marketplace, and day. The read-only Inventory tab shows historical
+sales, stock estimates, health, and recommendations; inventory never enters financial calculations.
+
 Downloading and preprocessing are independent operations. Downloads preserve
 whole document bytes in private Supabase Storage as XZ 2e archives with CRC64 and
 separate document/archive SHA-256 hashes. Preprocessing verifies those archives
 without contacting Amazon. Successful archives are retained indefinitely.
 
-Source facts contain original SKU evidence, exact financial values, and
+Financial source facts contain original SKU evidence, exact values, and
 one shared [`PREPROCESS_VERSION`](services/sync/src/preprocess_version.py). Each SKU selects an
 immutable version containing its company assignment and all marketplace fee
 periods. Reassignment and fee corrections restate live calculations without
@@ -71,7 +75,9 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
   administration, and row-level security.
 - [Source allocation](docs/source_allocation.md).
 - [Payout reports](docs/company_payout_reports.md): publication and saved evidence.
-- [Database schema diagrams](docs/database_schema.md).
+- [Database schema and figures](docs/database_schema.md): current tables, keys, and read views.
+- [Daily inventory pipeline](docs/inventory_daily_captures.md): archived daily replenishment
+  estimates, offline preprocessing, and one retained capture per day.
 - [Transaction query contracts](docs/transaction_query_contracts.md): page, count,
   filter, and summary APIs.
 - [Database performance](docs/database_performance.md): current read design,

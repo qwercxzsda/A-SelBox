@@ -194,3 +194,88 @@ create view public.payout_report_data_kiosk_versions with (security_invoker = tr
 select * from private.payout_report_data_kiosk_versions;
 create view public.payout_report_terms_versions with (security_invoker = true) as
 select * from private.payout_report_terms_versions;
+
+-- Select whole source scopes before ownership filtering. A newer empty capture
+-- must hide old SKU rows even when its own item set has nothing visible.
+create function private.latest_inventory_capture_references() returns table (
+    capture_id uuid, seller_namespace text, marketplace_name text, capture_date date,
+    report_created_at timestamptz, preprocessed_at timestamptz
+)
+language sql stable security definer set search_path = '' as $$
+    select latest.id::uuid,
+        case when (select private.is_operator()) then latest.seller_namespace::text end,
+        latest.marketplace_name, latest.capture_date, a.report_created_at, latest.created_at
+    from (
+        select distinct on (c.seller_namespace, c.marketplace_name)
+            c.id, c.seller_namespace, c.marketplace_name, c.capture_date, c.acquisition_id, c.created_at
+        from private.inventory_daily_captures as c
+        where (select private.is_operator()) or (select private.is_company_member())
+        order by c.seller_namespace, c.marketplace_name, c.capture_date desc
+    ) as latest
+    join private.inventory_acquisitions as a on a.id = latest.acquisition_id;
+$$;
+
+create policy inventory_acquisitions_read on private.inventory_acquisitions
+for select to authenticated using ((select private.is_operator()));
+create policy inventory_captures_read on private.inventory_daily_captures
+for select to authenticated using ((select private.is_operator()));
+create policy inventory_items_read on private.inventory_items
+for select to authenticated using (
+    (select private.is_operator()) or (
+        sku in (select o.sku from private.current_owned_sku_terms() as o)
+        and capture_id in (
+            select c.capture_id from private.latest_inventory_capture_references() as c
+        )
+    )
+);
+
+create view public.latest_inventory_captures with (security_invoker = true) as
+select
+    capture_id,
+    seller_namespace,
+    marketplace_name,
+    capture_date,
+    report_created_at,
+    preprocessed_at
+from private.latest_inventory_capture_references();
+
+create view public.latest_inventory_items with (security_invoker = true) as
+select
+    c.capture_id,
+    c.seller_namespace,
+    c.capture_date,
+    c.marketplace_name,
+    i.sku,
+    o.company_id,
+    c.report_created_at,
+    c.preprocessed_at,
+    i.snapshot_date,
+    i.available_quantity,
+    i.fba_supply_quantity,
+    i.inbound_quantity,
+    i.inbound_working_quantity,
+    i.inbound_shipped_quantity,
+    i.inbound_received_quantity,
+    i.reserved_quantity,
+    i.reserved_transfer_quantity,
+    i.reserved_processing_quantity,
+    i.reserved_customer_order_quantity,
+    i.unfulfillable_quantity,
+    i.sales_amount_90d,
+    i.units_shipped_90d,
+    i.currency,
+    i.health_status,
+    i.minimum_inventory_units,
+    i.days_of_supply,
+    i.total_days_of_supply,
+    i.recommended_ship_in_units,
+    i.recommended_ship_in_date,
+    i.recommended_action
+from public.latest_inventory_captures as c
+inner join private.inventory_items as i on c.capture_id = i.capture_id
+left join public.company_skus as o on i.sku = o.sku;
+
+revoke all on function private.latest_inventory_capture_references()
+from public, anon, authenticated, service_role;
+revoke all on public.latest_inventory_captures, public.latest_inventory_items
+from public, anon, authenticated, service_role;

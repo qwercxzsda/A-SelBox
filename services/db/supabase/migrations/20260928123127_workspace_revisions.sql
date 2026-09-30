@@ -3,7 +3,9 @@
 -- is an internal global scope and is never accepted from an API caller.
 -- Company IDs use public.local_uuid (UUIDv7), which rejects this nil UUID.
 create table private.workspace_revision_tokens (
-    source text not null check (source in ('settlement', 'data_kiosk', 'fees')), -- noqa: RF04
+    source text not null check (source in ( -- noqa: RF04
+        'settlement', 'data_kiosk', 'fees', 'inventory'
+    )),
     scope_company_id uuid not null,
     revision uuid not null default gen_random_uuid(),
     changed_in xid8 not null default pg_current_xact_id(),
@@ -68,6 +70,13 @@ after insert on private.data_kiosk_pruned_versions
 deferrable initially deferred for each row
 execute function private.track_source_revision('data_kiosk');
 
+-- Rotate one tiny token at commit after the full capture and its rows are ready.
+-- Archive-only downloads and idempotent preprocessing never touch these headers.
+create constraint trigger workspace_inventory_revision
+after insert or update or delete on private.inventory_daily_captures
+deferrable initially deferred for each row
+execute function private.track_source_revision('inventory');
+
 create function private.track_fee_revision() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare affected_companies uuid[];
@@ -111,9 +120,9 @@ declare account public.app_accounts; revisions jsonb;
 begin
     select * into account from public.app_accounts as a where a.user_id = auth.uid();
     if not found then raise exception 'Application access required' using errcode = '42501'; end if;
-    if p_sources is null or cardinality(p_sources) > 3 or array_ndims(p_sources) > 1
+    if p_sources is null or cardinality(p_sources) > 4 or array_ndims(p_sources) > 1
         or exists (select 1 from unnest(p_sources) as s(source)
-            where source is null or source not in ('settlement', 'data_kiosk', 'fees')) then
+            where source is null or source not in ('settlement', 'data_kiosk', 'fees', 'inventory')) then
         raise exception 'Invalid revision sources' using errcode = '22023';
     end if;
     -- The mature cutoff date moves even when no source is imported. Include it
@@ -136,7 +145,7 @@ end;
 $$;
 
 create function public.workspace_revisions(
-    p_sources text[] default array['settlement', 'data_kiosk', 'fees']::text[]
+    p_sources text[] default array['settlement', 'data_kiosk', 'fees', 'inventory']::text[]
 ) returns jsonb language sql stable security invoker set search_path = '' as $$
     select private.read_workspace_revisions(p_sources);
 $$;

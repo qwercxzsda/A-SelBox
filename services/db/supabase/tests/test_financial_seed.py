@@ -67,6 +67,27 @@ class FinancialSeedTests(SourceModelFixture):
             "table absent from the current schema",
         )
 
+    def test_inventory_stays_outside_financial_source_imports(self) -> None:
+        columns = [
+            str(row[0])
+            for row in self.connection.execute(
+                "select column_name from information_schema.columns "
+                "where table_schema='private' and table_name='inventory_items' "
+                "order by ordinal_position"
+            ).fetchall()
+        ]
+        seed = self.seed_file(
+            self.company_copy()
+            + f"COPY private.inventory_items ({', '.join(columns)}) FROM stdin;\n"
+            + "inventory cells are not consumed by financial fixtures\n\\.\n"
+        )
+        result = load_financial_seed(self.connection, seed)
+        self.assertEqual(result["source_rows"], {"public.companies": 1})
+        self.assertEqual(
+            self.connection.execute("select count(*) from private.inventory_items").fetchone(),
+            (0,),
+        )
+
     def test_mismatched_current_headers_and_duplicate_columns_fail_before_copy(self) -> None:
         for header in (
             "COPY public.companies (id,name) FROM stdin;\n",

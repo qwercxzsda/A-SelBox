@@ -1,0 +1,39 @@
+erDiagram
+    direction LR
+    private_data_kiosk_preprocess_versions ||..o{ private_data_kiosk_transactions : "version_id"
+    private_data_kiosk_preprocess_versions ||--o| private_data_kiosk_pruned_versions : "version_id"
+    private_data_kiosk_preprocess_versions ||..o{ private_payout_report_data_kiosk_versions : "day_id + version_id"
+
+    private_data_kiosk_transactions["private.data_kiosk_transactions"] {
+        local_uuid id PK "NN"
+        local_uuid version_id FK "NN"
+        nonblank seller_namespace "NN"
+        text marketplace_name "NN"
+        date activity_date "NN"
+        nonblank component_key "NN"
+        text sku "NULL"
+        allocation_category category "NN"
+        nonblank component_type "NN"
+        exact_numeric amount "NN"
+        text currency "NN"
+        exact_numeric quantity "NULL"
+        exact_numeric fee_base "NULL"
+        jsonb native_dimensions "NN"
+        text source_document_id "NULL"
+        integer source_line_number "NN"
+        timestamptz created_at "NN"
+    }
+
+    private_data_kiosk_pruned_versions["private.data_kiosk_pruned_versions"] {
+        local_uuid version_id PK, FK "NN"
+        timestamptz created_at "NN"
+    }
+
+    private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    private_payout_report_data_kiosk_versions["private.payout_report_data_kiosk_versions (reference)"] {
+        local_uuid report_id PK, FK "NN"
+        local_uuid day_id PK, FK "NN"
+    }

@@ -57,7 +57,7 @@ export function createFixtureState() {
     sessionUserStatus: 200,
     sessionUserNetworkFailure: false,
     identityRequests: [],
-    revisions: { settlement: "0", data_kiosk: "0", fees: "0" },
+    revisions: { settlement: "0", data_kiosk: "0", fees: "0", inventory: "0" },
     revisionsByUser: {},
     revisionRequests: [],
     beforeRevisions: async () => {},

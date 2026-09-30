@@ -32,8 +32,10 @@ data, migration records, or archives.
 
 The fresh-install baseline separates types and tables, publication and integrity rules,
 application reads, access policies, and revision tracking. Final grants and the REST reload run
-last. Each database object has one editable definition. SKU discovery and configuration reads
-share one module; validation and publication share another.
+last. Inventory uses the same archive, publication, access, and revision modules as the financial
+sources, while keeping its own daily-capture tables. Each database object has one editable
+definition. SKU discovery and configuration reads share one module; validation and publication
+share another.
 
 Keep existing migration filenames and timestamp prefixes stable. Edit the authoritative module
 while this baseline remains undeployed; do not retimestamp the migration set during cleanup.
@@ -45,8 +47,9 @@ New split modules must fit around those stable anchors. The table below follows 
 | [schema_primitives](migrations/20260928123050_schema_primitives.sql) | Private schema, UUIDs, constrained types, and the common immutability guard. |
 | [identity_schema](migrations/20260928123051_identity_schema.sql) | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms. |
 | [financial_source_schema](migrations/20260928123052_financial_source_schema.sql) | Settlement and Data Kiosk acquisitions, version pointers, complete child inventories, and facts. |
-| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive validation and acquisition publication for Settlement and Data Kiosk. |
-| [source_publications](migrations/20260928123102_source_publications.sql) | Atomic Settlement and Data Kiosk preprocessing publication. |
+| [inventory_schema](migrations/20260928123055_inventory_schema.sql) | Daily inventory acquisitions, captures, items, constraints, and indexes. |
+| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive validation and acquisition publication for Settlement, Data Kiosk, and Inventory. |
+| [source_publications](migrations/20260928123102_source_publications.sql) | Atomic financial preprocessing and same-day inventory capture replacement. |
 | [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views. |
 | [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs. |
 | [financial_components](migrations/20260928123111_financial_components.sql) | Current and explicit-version company components with ownership and fees. |
@@ -56,9 +59,9 @@ New split modules must fit around those stable anchors. The table below follows 
 | [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals validation. |
 | [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture, aggregation, and latest-report reuse. |
 | [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
-| [application_access](migrations/20260928123123_application_access.sql) | Account, financial, and payout RLS policies and authorized REST projections. |
+| [application_access](migrations/20260928123123_application_access.sql) | Account, financial, payout, and inventory RLS policies and authorized REST projections. |
 | [payout_generation](migrations/20260928123125_payout_generation.sql) | Administrator company/month generation and maturity policy RPCs. |
-| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, ownership, and company-label revision tokens and lightweight polling. |
+| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, inventory, ownership, and company-label revision tokens and lightweight polling. |
 | [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
 | [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
@@ -109,14 +112,19 @@ the same [source policy](../../../docs/source_allocation.md). Strict reads addit
 validate declared source coverage and ownership/fees. Raw source tabs preserve
 comparison and analysis facts.
 
-`workspace_revisions` reads the authenticated account and requested opaque source/fee tokens.
-Source revisions are global; fee, ownership, and company-name revisions are company-scoped for
-members and global for operators. Source-version publication, current-pointer changes, and
-historical Data Kiosk pruning update source tokens atomically at commit. This covers administrator
-history reads as well as current Transactions. Returned source tokens include the UTC mature cutoff date.
-The browser checks them on its polling interval, focus, and reconnection, then invalidates dependent reads.
-The [frontend lifecycle](../../frontend/user-webpage/README.md#requests-and-session-lifecycle)
-defines cache behavior.
+`workspace_revisions` reads the authenticated account and requested opaque tokens from the small
+`workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial
+source and inventory revisions are global; fee, ownership, and company-name revisions are
+company-scoped for members and global for operators. Source-version publication, current-pointer
+changes, and historical Data Kiosk pruning update financial source tokens atomically at commit.
+This covers administrator history reads as well as current Transactions. Changed daily inventory
+captures rotate the separate `inventory` token in the publication transaction; raw acquisitions,
+idempotent replays, and rolled-back publications do not. Only financial source tokens include the
+UTC mature cutoff date. The browser checks relevant tokens on its polling interval, focus, and
+reconnection, then invalidates dependent reads when a token changes. Unchanged inventory and
+ownership tokens retain successful cached inventory reads; failed reads can retry. The
+[frontend lifecycle](../../frontend/user-webpage/README.md#requests-and-session-lifecycle) defines
+cache behavior.
 
 ## Archives and publication
 
@@ -223,9 +231,10 @@ readiness.
 ### Full seed configuration verification
 
 Opt-in source verification commands live under `services.db.supabase.tests.verification`:
-`configuration` and `payouts`. Each exposes `--help` without contacting services.
+`configuration`, `payouts`, and `inventory`. Each exposes `--help` without contacting services.
 They share output-file validation and exclusive creation, so a seed, symlink, or existing evidence
-file cannot be overwritten. Financial seed imports and source replay share the same helpers.
+file cannot be overwritten. Financial seed/replay helpers and inventory pipeline helpers stay
+separate because they exercise different source contracts.
 
 To verify a trusted seed matching the current global-SKU schema, run:
 

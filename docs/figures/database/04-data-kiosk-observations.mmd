@@ -1,0 +1,50 @@
+erDiagram
+    direction LR
+    private_data_kiosk_acquisitions ||..o{ private_data_kiosk_preprocess_batches : "acquisition_id"
+    private_data_kiosk_days ||..o{ private_data_kiosk_preprocess_versions : "day_id"
+    private_data_kiosk_preprocess_batches ||..|{ private_data_kiosk_preprocess_versions : "batch_id"
+    private_data_kiosk_preprocess_versions o|..o| private_data_kiosk_days : "id + current_version_id"
+
+    private_data_kiosk_acquisitions["private.data_kiosk_acquisitions"] {
+        local_uuid id PK "NN"
+        nonblank seller_namespace "NN"
+        nonblank amazon_scope "NN"
+        nonblank root_query_id "NN"
+        timestamptz root_query_created_at "NN"
+        nonblank schema_version "NN"
+        nonblank query_definition "NN"
+        text[] marketplace_ids "NN"
+        date query_start_date "NN"
+        date query_end_date "NN"
+        jsonb api_metadata "NN"
+        timestamptz downloaded_at "NN"
+        jsonb documents "NN"
+        timestamptz created_at "NN"
+    }
+
+    private_data_kiosk_preprocess_batches["private.data_kiosk_preprocess_batches"] {
+        local_uuid id PK "NN"
+        local_uuid acquisition_id FK "NN"
+        integer day_count "NN"
+        timestamptz created_at "NN"
+    }
+
+    private_data_kiosk_days["private.data_kiosk_days"] {
+        local_uuid id PK, FK "NN"
+        nonblank seller_namespace "NN"
+        text marketplace_name "NN"
+        date activity_date "NN"
+        nonblank dataset_key "NN"
+        local_uuid current_version_id FK "NULL"
+        timestamptz created_at "NN"
+    }
+
+    private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions"] {
+        local_uuid id PK "NN"
+        local_uuid day_id FK "NN"
+        local_uuid batch_id FK "NN"
+        nonblank preprocess_version "NN"
+        integer row_count "NN"
+        sha256 content_sha256 "NN"
+        timestamptz created_at "NN"
+    }

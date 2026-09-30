@@ -5,11 +5,16 @@ private archives, then preprocesses saved acquisitions into complete source
 versions. PostgreSQL resolves current company ownership and fees for live
 reads and freezes exact inputs and amounts when publishing a company payout report.
 
-Both financial sources use `download_*_acquisition` and `preprocess_*_acquisition` for the online
-and offline phases. Acquisition persistence/loading lives in `src/database/acquisitions.py`; source
+Inventory Planning reports use the same archive/offline boundary for approximate replenishment
+information. They publish one retained capture per seller/marketplace/day, independently of
+financial source versions and payouts.
+
+All three sources use `download_*_acquisition` and `preprocess_*_acquisition` for the online and
+offline phases. Acquisition persistence/loading lives in `src/database/acquisitions.py`; source
 modules own parsing and result publication. Each source has an `acquisition.py` and a preprocessing
 `workflow.py`. Settlement's `download_settlement_reports` is the batch discovery operation that
-downloads multiple acquisitions. `current_*` helpers identify selected financial versions.
+downloads multiple acquisitions. `current_*` helpers identify selected financial versions or the
+one inventory capture; those result types retain their different publication and retention rules.
 
 ## Configuration
 
@@ -29,9 +34,10 @@ or diagnostic output.
   `SUPABASE_SERVICE_ROLE_KEY`. Keys are read from the environment, never arguments.
 - `--database-url` defaults to local PostgreSQL on port 54322. Database writers
   require trusted administrator access to the private publication functions.
-- Download commands use `--seller-namespace` to identify source provenance across financial
-  acquisitions. Its default is `__DEFAULT__`; use explicit stable namespaces for multiple sellers.
-  Current ownership is configured by exact SKU alone, independently of source namespace.
+- Download commands use `--seller-namespace` to identify source provenance across financial and
+  inventory acquisitions. Its default is `__DEFAULT__`; use explicit stable
+  namespaces for multiple sellers. Current ownership is configured by exact SKU alone,
+  independently of source namespace.
 
 Offline commands obtain the seller from the saved acquisition; they do not
 accept a seller override.
@@ -53,6 +59,9 @@ conda run -n A-SelBox python -m services.sync.run_download_data_kiosk \
   --scope NA --seller-namespace seller-na \
   --marketplace-id ATVPDKIKX0DER \
   --start-date 2026-08-01 --end-date 2026-08-31
+
+conda run -n A-SelBox python -m services.sync.run_download_inventory \
+  --scope NA --seller-namespace seller-na --marketplace-id ATVPDKIKX0DER
 ```
 
 Dates are inclusive marketplace-local calendar days. Data Kiosk validates the
@@ -60,6 +69,17 @@ complete explicit window before querying; `--max-pages`, `--max-poll-attempts`,
 and `--poll-interval-seconds` bound acquisition work. Use `--help` for command options.
 Each successful acquisition logs its ID. Failures log diagnostics and produce
 no partial successful manifest. Independently completed downloads stay available.
+
+Inventory requests a full `GET_FBA_INVENTORY_PLANNING_DATA` report for one marketplace. It defaults
+to 60 status polls ten seconds apart; `--max-poll-attempts` and `--poll-interval-seconds` adjust the
+bounds. The interval may be zero through 60 seconds. Cancelled, failed, and timed-out jobs publish
+no acquisition. Run the command once daily for the desired scope; no recurring scheduler is
+installed. Amazon's source snapshot dates may lag the request.
+
+Use `--report-id REPORT_ID` to resume a known Inventory Planning report without submitting another
+`createReport`. The command still verifies its report type and marketplace and performs the actual
+status/document requests. Reusing a report preserves its original capture day and does not imply
+fresh source data.
 
 Archives use XZ preset 2e, CRC64, and independent SHA-256 hashes and lengths for
 the exact document bytes and stored object. Upload and read-back verification
@@ -96,15 +116,28 @@ conda run -n A-SelBox python -m services.sync.run_preprocess_settlement \
 
 conda run -n A-SelBox python -m services.sync.run_preprocess_data_kiosk \
   --acquisition-id ACQUISITION_UUID
+
+conda run -n A-SelBox python -m services.sync.run_preprocess_inventory \
+  --acquisition-id ACQUISITION_UUID
 ```
 
 Preprocessing checks archive integrity before parsing. Missing or corrupt input
-fails locally. Failure preserves the acquisition and publishes no partial source
-version. Reruns use the shared `src/preprocess_version.py` definition; historical
-source versions remain immutable. Bump that constant when source interpretation changes;
+fails locally. Failure preserves the acquisition and publishes no partial result.
+Financial reruns use the shared `src/preprocess_version.py` definition; historical
+source versions remain immutable. Bump that constant when financial source interpretation changes;
 ownership and fee edits do not change it.
 
-The current definition is `v1`. Both sources use the same named category enum:
+Inventory uses its own `INVENTORY_PREPROCESS_VERSION` (`inventory-v1`). It keeps exact SKU text,
+turns missing/unusable optional metrics into NULL with diagnostics, accepts Amazon's observed
+`fc-transfer` header, and skips conflicting duplicate SKUs. A nonempty report with no usable SKUs
+fails. Successful preprocessing replaces the entire original report day's capture atomically;
+replaying an already published acquisition/parser pair reuses its capture ID. Earlier days and all
+raw archives remain retained. Capture dates follow original report creation in the marketplace's
+timezone, never preprocessing time. See the
+[inventory contract](../../docs/inventory_daily_captures.md) and
+[recorded verification](../../docs/evidence/inventory/README.md).
+
+The financial definition is `v1`. Both financial sources use the same named category enum:
 `SETTLEMENT`, `SELBOX`, `DATA_KIOSK`, or `ANALYSIS_ONLY`. Settlement accepts the
 first three. Exact Settlement types must be registered and pass their family checks;
 known retained charges explicitly use `SELBOX`. Unknown types abort the entire report.

@@ -49,7 +49,7 @@ def settlement_from_payload(payload: Mapping[str, object]) -> SettlementAcquisit
         seller_namespace=_string(payload["seller_namespace"]),
         amazon_scope=_string(payload["amazon_scope"]),
         downloaded_at=_timestamp(payload["downloaded_at"]),
-        document=_document_from_payload(_mapping(payload["document"])),
+        document=document_from_payload(_mapping(payload["document"])),
         api_metadata=metadata,
         reference=SettlementReportReference(
             report_id=_string(payload["report_id"]),
@@ -84,7 +84,8 @@ def data_kiosk_from_payload(payload: Mapping[str, object]) -> DataKioskAcquisiti
     )
 
 
-def _document_from_payload(payload: Mapping[str, object]) -> ArchivedDocument:
+def document_from_payload(payload: Mapping[str, object]) -> ArchivedDocument:
+    """Decode the archive manifest shared by all source acquisitions."""
     return ArchivedDocument(
         bucket=_string(payload["bucket"]),
         object_path=_string(payload["object_path"]),
@@ -110,7 +111,7 @@ def _page_from_payload(payload: Mapping[str, object]) -> ArchivedDataKioskPage:
         document_kind=DataKioskDocumentKind(_string(payload["document_kind"])),
         is_terminal=terminal,
         document_id=_optional_string(payload["document_id"]),
-        document=_document_from_payload(_mapping(payload["document"]))
+        document=document_from_payload(_mapping(payload["document"]))
         if payload["document"] is not None
         else None,
         api_metadata=_mapping(payload["api_metadata"]),

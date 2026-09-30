@@ -50,6 +50,17 @@ test("every defined revision must match before reuse, including fee-only changes
   );
 });
 
+test("inventory publications do not invalidate an unchanged financial SKU catalog", () => {
+  assert.equal(
+    reusableAdminSkuOptions(
+      { ...previous, revisions: { ...revisions, inventory: "old" } },
+      session,
+      { account, revisions: { ...revisions, inventory: "new" } },
+    ),
+    previous.skuOptions,
+  );
+});
+
 test("user, role, or company changes reject the prior catalog even with identical tokens", () => {
   assert.equal(
     reusableAdminSkuOptions(previous, { ...session, user: { id: "admin-b" } }, snapshot),

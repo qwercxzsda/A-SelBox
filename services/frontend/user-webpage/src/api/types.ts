@@ -28,7 +28,7 @@ export interface AppAccount {
   company_id: string | null;
 }
 
-export type RevisionSource = "settlement" | "data_kiosk" | "fees";
+export type RevisionSource = "settlement" | "data_kiosk" | "fees" | "inventory";
 export type WorkspaceRevisions = Partial<Record<RevisionSource, string>>;
 
 export interface WorkspaceRevisionSnapshot {

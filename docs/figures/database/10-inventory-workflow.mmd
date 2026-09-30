@@ -1,0 +1,21 @@
+flowchart TB
+    API["Daily full Inventory Planning report"]
+    ARCHIVE["Immutable raw archive + inventory_acquisitions"]
+    PARSE["Offline preprocess by acquisition ID<br/>Whole report; optional metric warnings"]
+    REPLACE["Atomic day replacement<br/>One inventory_daily_captures header + inventory_items"]
+    OLD["Delete replaced preprocessed header/items<br/>Keep original acquisitions and archives"]
+    LATEST["Latest capture per source scope<br/>Then join its complete SKU rows"]
+    SKU["EXISTING public.skus<br/>UNIQUE exact sku"]
+    TERMS["EXISTING selected sku_terms_versions<br/>Company ownership"]
+    VIEW["public.latest_inventory_items<br/>Approximate replenishment information"]
+    TOKEN["workspace_revision_tokens<br/>Atomic inventory token change"]
+    CHECK["Automatic lightweight revision check<br/>Inventory + ownership tokens"]
+    BROWSER["Inventory tab<br/>Reload rows only on change or recovery"]
+    API --> ARCHIVE --> PARSE --> REPLACE --> LATEST --> VIEW
+    REPLACE --> OLD
+    REPLACE -.-> TOKEN --> CHECK
+    TERMS -.->|"Ownership token"| CHECK
+    CHECK -->|"Changed token or failed read"| BROWSER
+    VIEW --> BROWSER
+    SKU --> TERMS
+    TERMS -.->|"Exact SKU join; no source FK"| VIEW
