@@ -64,7 +64,7 @@ export function datasetCountQueryOptions(
   const scope = createDatasetScope(identity, options);
   return queryOptions({
     queryKey: scope.countKey,
-    // Financial counts follow source revisions; account and payout lists refresh by polling.
+    // Financial and payout counts follow revisions; accounts refresh by polling.
     staleTime: isPolledDataset(options.dataset) ? 30_000 : Infinity,
     queryFn: async ({ signal, client }) => {
       const total = await fetchCount({

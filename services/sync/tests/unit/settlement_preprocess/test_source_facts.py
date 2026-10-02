@@ -292,6 +292,52 @@ class SettlementSourceFactsTests(unittest.TestCase):
             with self.subTest(malformed=malformed), self.assertRaises(ValueError):
                 prepare_settlement_report(malformed, retrocharge_coverage=((3, 4),))
 
+    def test_reviewed_retrocharge_preserves_unpaired_zero_shipping_tax(self) -> None:
+        defaults = {
+            "transaction-type": "Order_Retrocharge",
+            "order-id": "order-1",
+            "sku": "",
+            "marketplace-name": "Amazon.com",
+        }
+        tax = {**defaults, "amount-description": "Tax", "amount": "0.50"}
+        shipping = {**defaults, "amount-description": "ShippingTax", "amount": "0.00"}
+        withholding = {
+            **defaults,
+            "amount-type": "ItemWithheldTax",
+            "amount-description": "MarketplaceFacilitatorTax-Principal",
+            "amount": "-0.50",
+        }
+        document = settlement_document(tax, shipping, withholding)
+        with self.assertRaisesRegex(ValueError, "coverage"):
+            prepare_settlement_report(document)
+        result = prepare_settlement_report(document, retrocharge_coverage=((3, 4, 5),))
+        self.assertEqual(len(result.transactions), 3)
+        self.assertEqual(result.transactions[1].amount, Numeric(0))
+        self.assertTrue(
+            all(row.category == AllocationCategory.SELBOX for row in result.transactions)
+        )
+        for malformed, coverage in (
+            (settlement_document(tax, {**shipping, "amount": "1"}, withholding), ((3, 4, 5),)),
+            (settlement_document(tax, shipping, {**withholding, "amount": "-0.49"}), ((3, 4, 5),)),
+            (settlement_document(tax, shipping, shipping, withholding), ((3, 4, 5, 6),)),
+            (settlement_document(shipping, {**withholding, "amount": "0"}), ((3, 4),)),
+            (
+                settlement_document(
+                    tax,
+                    {**withholding, "amount": "-0.40"},
+                    {**shipping, "amount": "0.20"},
+                    {
+                        **withholding,
+                        "amount-description": "MarketplaceFacilitatorTax-Shipping",
+                        "amount": "-0.30",
+                    },
+                ),
+                ((3, 4, 5, 6),),
+            ),
+        ):
+            with self.subTest(malformed=malformed), self.assertRaises(ValueError):
+                prepare_settlement_report(malformed, retrocharge_coverage=coverage)
+
     def test_workflow_publishes_source_facts_with_amazon_disabled_and_retains_failed_input(
         self,
     ) -> None:

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useDebouncedValue } from "@mantine/hooks";
 import {
   useTable,
@@ -36,7 +36,9 @@ export function useFinanceTable(
 ) {
   const { pagination, sorting, search } = viewState;
   const filters = useMemo(() => normalizeDatasetFilters(viewState.filters), [viewState.filters]);
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const rowSelection: RowSelectionState = viewState.selectedRowId
+    ? { [viewState.selectedRowId]: true }
+    : {};
   const [debouncedSearch] = useDebouncedValue(search.trim(), 250);
   const sort = sorting[0];
   const query = useDatasetQuery(identity, {
@@ -54,8 +56,7 @@ export function useFinanceTable(
     [identity.companies],
   );
   function updateView(update: (current: DatasetViewState) => DatasetViewState) {
-    setRowSelection({});
-    onViewStateChange(update);
+    onViewStateChange((current) => ({ ...update(current), selectedRowId: null }));
   }
   const isAdministrator = identity.account.access_role === "operator";
   const columns = useMemo<ColumnDef<typeof features, CanonicalRow>[]>(
@@ -98,7 +99,15 @@ export function useFinanceTable(
         sorting: typeof update === "function" ? update(current.sorting) : update,
       }));
     },
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: (update) => {
+      onViewStateChange((current) => {
+        const previous: RowSelectionState = current.selectedRowId
+          ? { [current.selectedRowId]: true }
+          : {};
+        const next = typeof update === "function" ? update(previous) : update;
+        return { ...current, selectedRowId: Object.keys(next)[0] ?? null };
+      });
+    },
   });
   // Synchronize server-side shrinkage (including HTTP 416) after the query updates.
   useEffect(() => {

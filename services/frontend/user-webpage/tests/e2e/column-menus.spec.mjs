@@ -5,6 +5,7 @@ import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
 async function selectOption(page, label, option) {
   const menu = await openColumn(page, label);
+  if (label === "Type") await menu.getByLabel("Search type", { exact: true }).fill(option);
   await menu.getByRole("checkbox", { name: option, exact: true }).check();
   await expect(menu).toBeVisible();
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
@@ -64,8 +65,8 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-03");
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();
   const table = page.getByRole("table", { name: "Financial records", exact: true });
-  await expect(table.getByRole("row")).toHaveCount(3);
-  await expect(table.getByRole("cell", { name: "2026-09-02", exact: true })).toHaveCount(1);
+  await expect(table.getByRole("row")).toHaveCount(4);
+  await expect(table.getByRole("cell", { name: "2026-09-02", exact: true })).toHaveCount(2);
   await expect(table.getByRole("cell", { name: "2026-09-03", exact: true })).toHaveCount(1);
   const params = fixture.requests.at(-1).params;
   expect(params.getAll("activity_date")).toEqual(["gte.2026-09-02", "lte.2026-09-03"]);
@@ -73,14 +74,14 @@ test("column filters combine with search and inclusive dates, reset the page, an
   expect(params.get("marketplace_name")).toBe('in.("Amazon.com")');
   expect(params.get("source")).toBe('in.("DATA_KIOSK")');
   expect(params.get("component_type")).toBe('in.("FBA_STORAGE_FEE")');
-  expect(params.get("and")).toBe("(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+  expect(params.get("and")).toBeNull();
   expect(params.get("or")).toContain("Amazon");
   expect(params.get("order")).toBe(originalOrder);
   expect(params.get("offset")).toBe("0");
 
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-  await expect(table.getByRole("row")).toHaveCount(3);
+  await expect(table.getByRole("row")).toHaveCount(4);
   const sourceMenu = await openColumn(page, "Source");
   await expect(sourceMenu.getByRole("checkbox", { name: "Data Kiosk", exact: true })).toBeChecked();
   await expect(sourceMenu.getByRole("checkbox")).toHaveCount(2);

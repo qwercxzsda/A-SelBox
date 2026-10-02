@@ -1,4 +1,4 @@
-"""Exact immutable report reads and explicit publication scope."""
+"""Exact immutable company/month reads and database-derived source selection."""
 
 import unittest
 from datetime import UTC, date, datetime
@@ -21,19 +21,15 @@ from ...support.fakes import FakeDatabaseConnection
 class TestPayoutReports(unittest.TestCase):
     def test_publication_sends_scope_and_accepts_the_saved_report_id(self) -> None:
         requested_id, saved_id = uuid7(), uuid7()
-        company_id, settlement_id = str(uuid7()), str(uuid7())
+        company_id = str(uuid7())
         database = FakeDatabaseConnection([(saved_id,)])
         with patch("services.sync.src.database.payout_reports.uuid7", return_value=requested_id):
             result = publish_company_payout_report(
                 database,
                 company_id=company_id,
-                seller_namespace="seller",
                 currency="USD",
                 start_date=date(2026, 1, 1),
                 end_date=date(2026, 1, 31),
-                preprocess_version="v0",
-                settlement_ids=[settlement_id, settlement_id],
-                marketplace_names=["Amazon.com", "Amazon.com"],
                 report_name="January report",
                 change_reason="Initial saved report",
             )
@@ -42,25 +38,44 @@ class TestPayoutReports(unittest.TestCase):
         statement, parameters = database.execute_calls[0]
         self.assertIn("private.publish_company_payout_report", statement)
         payload = cast(dict[str, object], cast(Jsonb, parameters["payload"]).obj)
-        self.assertEqual(payload["id"], str(requested_id))
-        self.assertEqual(payload["settlement_ids"], [settlement_id])
-        self.assertEqual(payload["marketplace_names"], ["Amazon.com"])
-        self.assertEqual(payload["start_date"], "2026-01-01")
-        self.assertEqual(payload["end_date"], "2026-01-31")
-        self.assertNotIn("company_amount", payload)
-        self.assertNotIn("fee_amount", payload)
-        self.assertNotIn("source_versions", payload)
+        self.assertEqual(
+            payload,
+            {
+                "id": str(requested_id),
+                "company_id": company_id,
+                "currency": "USD",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-31",
+                "dataset_key": "economics",
+                "report_name": "January report",
+                "change_reason": "Initial saved report",
+            },
+        )
+
+    def test_empty_company_publication_does_not_fabricate_currency(self) -> None:
+        saved_id = uuid7()
+        database = FakeDatabaseConnection([(saved_id,)])
+        result = publish_company_payout_report(
+            database,
+            company_id=str(uuid7()),
+            currency=None,
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 31),
+            report_name="January report",
+            change_reason="Empty company",
+        )
+        self.assertEqual(result, str(saved_id))
+        payload = cast(dict[str, object], cast(Jsonb, database.execute_calls[0][1]["payload"]).obj)
+        self.assertIsNone(payload["currency"])
 
     def test_saved_header_retains_exact_totals_and_declared_marketplaces(self) -> None:
         report_id, company_id = str(uuid7()), str(uuid7())
         header = (
             report_id,
             company_id,
-            "seller",
             "JPY",
             date(2026, 1, 1),
             date(2026, 1, 31),
-            "v0",
             "economics",
             ["Amazon.co.jp"],
             "January",
@@ -85,21 +100,19 @@ class TestPayoutReports(unittest.TestCase):
         self.assertEqual(report.marketplace_names, ("Amazon.co.jp",))
         self.assertNotIn("current_", database.execute_calls[0][0])
         self.assertEqual(report.calculation_version, "v1")
-        unsupported = (*header[:11], "v0", *header[12:])
+        unsupported = (*header[:9], "v0", *header[10:])
         with self.assertRaisesRegex(RuntimeError, "Unsupported payout calculation version"):
             load_company_payout_report(FakeDatabaseConnection([unsupported]), report_id)
 
-    def test_empty_company_header_has_no_fabricated_scope_and_rejects_partial_scope(self) -> None:
+    def test_currencyless_header_must_be_an_empty_aggregate(self) -> None:
         report_id, company_id = str(uuid7()), str(uuid7())
         marketplace_names: list[str] = []
         header = (
             report_id,
             company_id,
             None,
-            None,
             date(2026, 6, 1),
             date(2026, 6, 30),
-            None,
             "economics",
             marketplace_names,
             "June empty report",
@@ -118,20 +131,25 @@ class TestPayoutReports(unittest.TestCase):
         report = load_company_payout_report(FakeDatabaseConnection([header]), report_id)
         if report is None:
             self.fail("Expected saved empty report.")
-        self.assertIsNone(report.seller_namespace)
         self.assertIsNone(report.currency)
-        self.assertIsNone(report.preprocess_version)
         self.assertEqual(
             (report.source_amount, report.fee_amount, report.company_amount),
             (Decimal(0), Decimal(0), Decimal(0)),
         )
-        for seller, currency, version in (("seller", None, None), ("seller", None, "v0")):
-            partial = (*header[:2], seller, currency, *header[4:6], version, *header[7:])
+        for index, value in (
+            (6, ["Amazon.com"]),
+            (10, 1),
+            (11, 1),
+            (15, Decimal(1)),
+            (16, Decimal(-1)),
+            (17, Decimal(1)),
+        ):
+            invalid = (*header[:index], value, *header[index + 1 :])
             with (
-                self.subTest(scope=(seller, currency, version)),
-                self.assertRaises((ValueError, RuntimeError)),
+                self.subTest(index=index),
+                self.assertRaisesRegex(RuntimeError, "without a currency"),
             ):
-                load_company_payout_report(FakeDatabaseConnection([partial]), report_id)
+                load_company_payout_report(FakeDatabaseConnection([invalid]), report_id)
 
     def test_components_preserve_terms_for_costs_and_supporting_sales(self) -> None:
         ids = [str(uuid7()) for _ in range(7)]
@@ -212,22 +230,21 @@ class TestPayoutReports(unittest.TestCase):
         self.assertIsNone(load_company_payout_report(FakeDatabaseConnection([None]), str(uuid7())))
 
     def test_invalid_scope_fails_before_publication(self) -> None:
-        for currency, start, end in (
-            ("usd", date(2026, 1, 1), date(2026, 1, 31)),
-            ("USD", date(2026, 1, 31), date(2026, 1, 1)),
+        for currency, start, end, dataset in (
+            ("usd", date(2026, 1, 1), date(2026, 1, 31), "economics"),
+            ("USD", date(2026, 1, 31), date(2026, 1, 1), "economics"),
+            ("USD", date(2026, 1, 1), date(2026, 1, 30), "economics"),
+            ("USD", date(2026, 1, 1), date(2026, 1, 31), "inventory"),
         ):
             database = FakeDatabaseConnection()
             with self.subTest(currency=currency, start=start), self.assertRaises(ValueError):
                 publish_company_payout_report(
                     database,
                     company_id=str(uuid7()),
-                    seller_namespace="seller",
                     currency=currency,
                     start_date=start,
                     end_date=end,
-                    preprocess_version="v0",
-                    settlement_ids=[],
-                    marketplace_names=[],
+                    dataset_key=dataset,
                     report_name="Report",
                     change_reason="Initial",
                 )

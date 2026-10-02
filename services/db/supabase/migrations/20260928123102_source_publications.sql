@@ -4,7 +4,9 @@ language plpgsql set search_path = '' as $$
 declare acquisition private.settlement_acquisitions; settlement private.settlements;
     metadata private.settlement_preprocess_versions;
     published_version_id public.local_uuid := (p_payload->>'id')::uuid;
+    scope_expanded boolean;
 begin
+    perform private.lock_payout_report_inputs();
     select * into strict acquisition from private.settlement_acquisitions where id = (p_payload->>'acquisition_id')::uuid;
     if jsonb_typeof(p_payload->'transactions') is distinct from 'array' then
         raise exception 'Complete settlement transaction array required' using errcode = '23514';
@@ -30,6 +32,9 @@ begin
     if settlement.current_version_id is distinct from (p_payload->>'expected_current_version_id')::uuid then
         raise exception 'Stale settlement publication' using errcode = '40001';
     end if;
+    scope_expanded := private.payout_source_has_new_skus(acquisition.seller_namespace,array(
+        select distinct entry->>'sku' from jsonb_array_elements(p_payload->'transactions') entry
+    ));
     metadata := jsonb_populate_record(null::private.settlement_preprocess_versions,p_payload->'metadata');
     insert into private.settlement_preprocess_versions(id,settlement_id,acquisition_id,preprocess_version,row_count,
         settlement_start_at,settlement_end_at,deposit_at,settlement_start_date,settlement_end_date,total_amount,currency,
@@ -54,6 +59,11 @@ begin
         raise exception 'Settlement total control mismatch' using errcode = '23514';
     end if;
     update private.settlements set current_version_id = published_version_id where id = settlement.id;
+    perform private.request_payout_report_refresh(private.payout_settlement_months(
+        array[settlement.current_version_id,published_version_id]));
+    if scope_expanded then
+        perform private.request_all_payout_report_refreshes();
+    end if;
     return published_version_id;
 end;
 $$;
@@ -65,7 +75,9 @@ declare acquisition private.data_kiosk_acquisitions; current_day private.data_ki
     published_batch_id public.local_uuid := (p_payload->>'id')::uuid; published_version_id public.local_uuid;
     current_acquisition private.data_kiosk_acquisitions; dataset text := coalesce(p_payload->>'dataset_key','economics');
     day_count integer; expected_days integer;
+    scope_expanded boolean; changed_months date[] := '{}';
 begin
+    perform private.lock_payout_report_inputs();
     select * into strict acquisition from private.data_kiosk_acquisitions where id = (p_payload->>'acquisition_id')::uuid;
     if jsonb_typeof(p_payload->'days') is distinct from 'array' then
         raise exception 'Complete covered days array required' using errcode = '23514';
@@ -79,6 +91,18 @@ begin
     ) <> day_count then
         raise exception 'Complete economics marketplace/day coverage required' using errcode = '23514';
     end if;
+    scope_expanded := private.payout_source_has_new_skus(acquisition.seller_namespace,array(
+        select distinct entry->>'sku'
+        from jsonb_array_elements(p_payload->'days') day
+        cross join lateral jsonb_array_elements(case
+            when jsonb_typeof(day->'transactions') = 'array' then day->'transactions'
+            else '[]'::jsonb end) entry
+    )) or exists (
+        select 1 from jsonb_array_elements(p_payload->'days') day
+        where not exists (select 1 from private.data_kiosk_days d
+            where d.seller_namespace = acquisition.seller_namespace
+                and d.marketplace_name = day->>'marketplace_name' and d.dataset_key = dataset)
+    );
     -- Publication and retention both acquire day row locks in natural identity
     -- order: seller, marketplace text, activity date, dataset. UUID creation order
     -- can differ from date order when older days are discovered later.
@@ -145,13 +169,19 @@ begin
         if current_day.current_version_id is null or (acquisition.root_query_created_at,acquisition.id) >
             (current_acquisition.root_query_created_at,current_acquisition.id) then
             update private.data_kiosk_days set current_version_id = published_version_id where id = current_day.id;
+            changed_months := array_append(changed_months,date_trunc('month',current_day.activity_date)::date);
         elsif acquisition.id = current_acquisition.id then
             if published_version_id <= current_day.current_version_id then
                 raise exception 'Local Data Kiosk version must advance' using errcode = '23514';
             end if;
             update private.data_kiosk_days set current_version_id = published_version_id where id = current_day.id;
+            changed_months := array_append(changed_months,date_trunc('month',current_day.activity_date)::date);
         end if;
     end loop;
+    perform private.request_payout_report_refresh(changed_months);
+    if scope_expanded then
+        perform private.request_all_payout_report_refreshes();
+    end if;
     return published_batch_id;
 end;
 $$;

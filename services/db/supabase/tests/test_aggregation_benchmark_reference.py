@@ -19,7 +19,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
         company, _ = self.financial_fixture()
         member, operator = self.member(company), self.operator()
         for (role, user, expected_count), grouped in product(
-            (("member", member, 9), ("operator", operator, 19)), (False, True)
+            (("member", member, 10), ("operator", operator, 20)), (False, True)
         ):
             with self.subTest(role=role, grouped=grouped), self.connection.transaction():
                 self.connection.execute(
@@ -29,7 +29,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
                 excluded = require_row(
                     self.connection.execute(
                         "select count(*) from public.live_company_components "
-                        "where not authoritative and source_amount <> 0"
+                        "where not authoritative"
                     ).fetchone()
                 )[0]
                 self.assertGreater(excluded, 0)

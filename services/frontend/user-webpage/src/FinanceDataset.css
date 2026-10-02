@@ -1,17 +1,42 @@
 .table-toolbar {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+
+.table-toolbar .pagination-bar {
+  margin: 0;
 }
 
 .search-field {
   width: min(430px, 55vw);
 }
 
+.applied-table-filters {
+  min-width: 0;
+}
+
+.applied-table-filter {
+  max-width: min(24rem, 100%);
+}
+
+.applied-table-filter .mantine-Button-label {
+  min-width: 0;
+}
+
+.applied-table-filter-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .loading-state,
 .empty-state {
   display: grid;
   min-height: 150px;
-  place-items: center;
-  color: #65727e;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  color: var(--ui-text-muted);
   padding: 28px;
   text-align: center;
 }
@@ -27,6 +52,9 @@
     width: 100%;
   }
   .search-field {
+    width: 100%;
+  }
+  .table-toolbar .pagination-bar {
     width: 100%;
   }
 }

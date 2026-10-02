@@ -14,8 +14,8 @@ class TransactionPageTests(TransactionPageFixture):
     def test_all_roles_preserve_exact_rows_null_states_and_visibility(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, count in (
-            (self.operator(), "19"),
-            (self.member(company_a), "9"),
+            (self.operator(), "20"),
+            (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
         ):
@@ -40,7 +40,7 @@ class TransactionPageTests(TransactionPageFixture):
         self.assertTrue(
             any(row["source"] == "SETTLEMENT" and row["source_amount"] == "0" for row in rows)
         )
-        self.assertFalse(
+        self.assertTrue(
             any(row["source"] == "DATA_KIOSK" and row["source_amount"] == "0" for row in rows)
         )
 
@@ -195,10 +195,17 @@ class TransactionPageTests(TransactionPageFixture):
                         p_limit=1,
                         p_include_count=include_count,
                     )
-                    self.assertEqual(page["total_count"], count if include_count else None)
+                    expected = int(count) + (1 if observation == 3 and count != "0" else 0)
+                    self.assertEqual(page["total_count"], str(expected) if include_count else None)
                     rows = cast(list[dict[str, object]], page["rows"])
-                    self.assertEqual(len(rows), int(count))
-                    self.assertTrue(all(row["source"] == "SETTLEMENT" for row in rows))
+                    self.assertEqual(len(rows), min(expected, 1))
+                    self.assertTrue(all(row["source_version_id"] != historical for row in rows))
+                    self.assertTrue(
+                        all(
+                            row["source"] != "DATA_KIOSK" or row["source_amount"] == "0"
+                            for row in rows
+                        )
+                    )
 
     def test_zero_fee_base_is_distinct_from_a_non_applicable_fee(self) -> None:
         company, sku = self.owner()

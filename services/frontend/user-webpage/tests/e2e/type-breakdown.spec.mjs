@@ -111,7 +111,7 @@ test("breakdowns load lazily for the card dates and all types, independently of 
     expect(params.get("currency")).toBe("eq.USD");
     expect(endpoint).toBe("/rest/v1/rpc/transaction_totals");
     expect(args.p_group_by_type).toBe(true);
-    expect(params.get("and")).toBe("(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+    expect(params.get("and")).toBeNull();
     for (const excluded of ["or", "source", "sku", "marketplace_name", "component_type"]) {
       expect(params.get(excluded)).toBeNull();
     }
@@ -171,6 +171,8 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
 
   await applyDates(page, "2026-02-05", "");
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
+  await expect(summaryCards(page).summaries).toHaveCount(0);
+  await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await view(page, "Selected dates").click();
   await expandGroups(page);
   await expect(
@@ -180,7 +182,7 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
     "gte.2026-02-05",
   ]);
   await closeBreakdown(page);
-  await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );

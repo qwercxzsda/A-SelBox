@@ -17,7 +17,7 @@ test("datasets use current source, payout, and application-account APIs", () => 
   ]);
   for (const dataset of ["live", "settlement", "data_kiosk"])
     assert.equal(Object.hasOwn(DATASET_CONFIG[dataset], "endpoint"), false);
-  assert.equal(DATASET_CONFIG.payouts.endpoint, "company_payout_reports");
+  assert.equal(DATASET_CONFIG.payouts.endpoint, "latest_company_payout_reports");
   assert.equal(DATASET_CONFIG.accounts.endpoint, "app_accounts");
   assert.deepEqual(DATASET_CONFIG.live.idColumns, ["source", "source_row_id"]);
   assert.deepEqual(DATASET_CONFIG.accounts.idColumns, ["user_id"]);

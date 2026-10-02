@@ -30,7 +30,8 @@ create function public.transaction_page(
     p_search_skus text[] default null,
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
-    p_search_sources text[] default null
+    p_search_sources text[] default null,
+    p_currency text default null
 ) returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
@@ -50,6 +51,9 @@ declare
     candidate_limit bigint;
     result jsonb;
 begin
+    if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
+        raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
+    end if;
     perform private.validate_page_bounds(p_limit, p_offset);
     if p_direction is null or p_direction not in ('asc', 'desc') then
         raise exception 'Sort direction must be asc or desc' using errcode = '22023';
@@ -146,6 +150,7 @@ begin
                     )
                     and ($1::date is null or t.posted_date >= $1)
                     and ($2::date is null or t.posted_date <= $2)
+                    and ($18::text is null or t.currency = $18)
                     and (
                         coalesce(cardinality($3::uuid[]), 0) = 0
                         or exists (
@@ -192,8 +197,7 @@ begin
                     t.fee_base,
                     t.category
                 from private.data_kiosk_transactions as t
-                where t.amount <> 0
-                    and (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+                where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
                         and t.category in ('SETTLEMENT', 'SELBOX')))
                     and (
                         (select private.member_policy_covers_current_version(
@@ -206,6 +210,7 @@ begin
                     )
                     and ($1::date is null or t.activity_date >= $1)
                     and ($2::date is null or t.activity_date <= $2)
+                    and ($18::text is null or t.currency = $18)
                     and (
                         coalesce(cardinality($3::uuid[]), 0) = 0
                         or exists (
@@ -245,6 +250,7 @@ begin
                 where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
                     and ($1::date is null or t.activity_date >= $1)
                     and ($2::date is null or t.activity_date <= $2)
+                    and ($18::text is null or t.currency = $18)
                     and coalesce(cardinality($3::uuid[]),0) = 0
                     and coalesce(cardinality($4::text[]),0) = 0
                     and %9$s
@@ -356,7 +362,7 @@ begin
                 else public.transaction_count(
                 $1::date, $2::date, $3::uuid[], $4::text[],
                 $5::text[], $6::text[], $7::text[], $12::boolean,
-                $13::text[], $14::text[], $15::text[], $16::text[]
+                $13::text[], $14::text[], $15::text[], $16::text[], $18::text
                 ) end
             end
         ) end
@@ -366,7 +372,7 @@ begin
     using p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
         p_sources, p_types, candidate_limit, p_limit, p_offset, p_include_count,
         p_fee_applicable, p_search_skus, p_search_types, p_search_marketplaces, p_search_sources,
-        p_order_by = 'amount';
+        p_order_by = 'amount', p_currency;
     if result is null then
         raise exception 'Amount ordering is limited to 10,000 matching transactions. Narrow your filters or order by date.'
             using errcode = '22023';
@@ -376,7 +382,7 @@ end;
 $$;
 revoke all on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[]
+    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text
 ) from public,
 anon,
 authenticated,

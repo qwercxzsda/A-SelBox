@@ -74,6 +74,9 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   await expect(
     rowWithSku(page, "NON-APPLICABLE-001").locator('[data-column="fee_rate_percent"]'),
   ).toHaveText("-");
+  await expect(
+    rowWithSku(page, "NON-APPLICABLE-001").locator('[data-column="fee_amount"]'),
+  ).toHaveText("0 USD");
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
 
   await sortBy(page, "Reported amount", "Highest first");
@@ -126,7 +129,7 @@ for (const width of [1280, 390]) {
       await expect(header).not.toHaveAttribute("aria-sort");
     }
     const type = rowWithSku(page, "QUANTITY-001").locator('[data-column="component_type"] > span');
-    await expect(type).toHaveAttribute("title", longType);
+    expect(await type.getAttribute("title")).toContain(longType);
     const metrics = await type.evaluate((element) => ({
       width: element.getBoundingClientRect().width,
       height: element.getBoundingClientRect().height,
@@ -134,7 +137,7 @@ for (const width of [1280, 390]) {
       overflow: element.scrollWidth - element.clientWidth,
     }));
     expect(metrics.width).toBeLessThanOrEqual(320);
-    expect(metrics.height).toBeGreaterThan(metrics.lineHeight);
+    expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight + 1);
     expect(metrics.overflow).toBeLessThanOrEqual(1);
     expect(
       await page.evaluate(

@@ -98,14 +98,15 @@ empty day. Required ownership and applicable fee rates must also resolve.
 A [payout report](company_payout_reports.md) covers one company and a complete calendar
 month whose last day is mature. On 2026-09-27 UTC, `mature_cutoff_date` is July 27:
 July 26 and earlier are mature, and July 27 and later are recent. June is eligible;
-July is not. Administrators generate all seller/currency scopes for that company/month
-in one request. Members read only their own company's saved reports.
+July is not. The periodic worker automatically generates one report per currency
+across all source namespaces for eligible company/months. Members read only their
+own company's saved reports.
 
 Payouts use the same authority and fee rules. An empty aggregate sums to zero using
 available processed inputs; a scope containing authoritative company rows requires
 complete declared day coverage. Reports freeze their components and source/terms
-versions. Only an explicit request creates a snapshot, and matching latest inputs
-reuse the latest report. The [payout contract](company_payout_reports.md) defines empty
+versions. Publications request updated reports, and the worker discovers newly mature months; matching
+latest inputs reuse the latest report. The [payout contract](company_payout_reports.md) defines empty
 scopes, reuse, marketplace breakdowns, and retention.
 
 Source revision tokens include `mature_cutoff_date`, so the dashboard refreshes when

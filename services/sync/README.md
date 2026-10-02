@@ -137,7 +137,7 @@ timezone, never preprocessing time. See the
 [inventory contract](../../docs/inventory_daily_captures.md) and
 [recorded verification](../../docs/evidence/inventory/README.md).
 
-The financial definition is `v1`. Both financial sources use the same named category enum:
+The financial definition is `v2`. Both financial sources use the same named category enum:
 `SETTLEMENT`, `SELBOX`, `DATA_KIOSK`, or `ANALYSIS_ONLY`. Settlement accepts the
 first three. Exact Settlement types must be registered and pass their family checks;
 known retained charges explicitly use `SELBOX`. Unknown types abort the entire report.
@@ -220,24 +220,27 @@ fee corrections immediately affect live reads. The refund formula still has the
 
 ## Saved company payout reports
 
-The trusted Python API in `src/database/payout_reports.py` publishes one known
-company/seller/currency scope. Call `publish_company_payout_report()` with inclusive
-dates spanning one complete calendar month, a preprocessor version, explicit Settlement
-IDs and required marketplaces, a report name, and a change reason. The dataset defaults
-to `economics`. The database selects current versions, validates inputs, and calculates
-all amounts; callers never supply calculated totals.
+The database's scheduled worker generates mature monthly reports automatically and
+requests updated reports after source, ownership, or fee changes. Each five-minute run
+processes up to 10 pending, mature company/months through an index. A metadata frontier
+adds newly mature months; completed months are skipped until another change requests work.
+Unchanged inputs reuse the latest report. Incomplete inputs retry with backoff, and
+changed inputs reset the delay. Publication and pending revisions commit atomically.
 
-The publisher returns the saved report UUID. It reuses the latest report when its scope
-and exact input versions match. An explicit request is required to create any snapshot;
-downloads, preprocessing, and terms publication never create one automatically.
+`src/database/payout_reports.py` retains the low-level
+`publish_company_payout_report()` helper for trusted internal integration and verification.
+It publishes one company/currency aggregate for a complete calendar month. The
+database discovers every source namespace, selects current versions, validates
+inputs, computes amounts, and returns a saved report UUID. Callers supply neither
+source selections nor calculated totals. This helper is not the application workflow.
 
 `load_company_payout_report()` and `load_company_payout_report_components()` read frozen
 values without recalculating current inputs. The header reader also supports the
-all-null seller/currency/preprocessor shape produced by company/month generation when
-no currency scope is known. Those totals are zero.
+null currency produced by company/month generation when no currency scope is known.
+Those totals are zero. Namespace and preprocessing provenance belong to the pinned
+source manifests rather than the company report header.
 
-Administrators use the UI or `public.generate_company_payout_reports` to generate all
-scopes for one company/month. See the [payout contract](../../docs/company_payout_reports.md)
+Application users only read reports. See the [payout contract](../../docs/company_payout_reports.md)
 for maturity, coverage, empty aggregates, reuse, access, and retention. Saving a report
 does not approve or execute payment.
 

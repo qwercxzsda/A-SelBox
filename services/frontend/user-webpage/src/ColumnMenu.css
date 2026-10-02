@@ -12,7 +12,7 @@
 
 .column-menu-trigger:hover,
 .column-menu-trigger[data-filtered] {
-  color: var(--mantine-primary-color-filled);
+  color: var(--ui-accent);
 }
 
 .column-menu-indicators {
@@ -34,14 +34,16 @@
 .column-menu-count {
   min-width: 16px;
   border-radius: 8px;
-  background: var(--mantine-primary-color-light);
+  background: var(--ui-accent-soft);
   padding-inline: 3px;
   font-size: 10px;
   text-align: center;
 }
 
 .column-menu-dropdown {
-  color: var(--mantine-color-text);
+  color: var(--ui-text);
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
   white-space: normal;

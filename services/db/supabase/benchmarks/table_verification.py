@@ -32,9 +32,7 @@ def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
     clauses: list[sql.Composable] = [sql.SQL("true")]
     params: list[object] = []
     if case.dataset.key == "live":
-        clauses.append(sql.SQL("(v.source <> 'DATA_KIOSK' or v.source_amount <> 0)"))
-    elif case.dataset.key == "data_kiosk":
-        clauses.append(sql.SQL("v.amount <> 0"))
+        clauses.append(sql.SQL("v.authoritative"))
     for value, comparison in ((case.date_from, sql.SQL(">=")), (case.date_to, sql.SQL("<="))):
         if value is not None:
             clauses.append(

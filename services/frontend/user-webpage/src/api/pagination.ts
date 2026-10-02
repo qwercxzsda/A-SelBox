@@ -3,6 +3,7 @@ import { ApiError, readJson, type ApiTransport } from "./transport.ts";
 import { parseObjectRows, requiredJsonString } from "./validation.ts";
 
 export const LOOKUP_PAGE_SIZE = 1000;
+export const DETAIL_PAGE_SIZE = 50;
 
 export function validatePagination(pageIndex: number, pageSize: number): void {
   if (!Number.isSafeInteger(pageIndex) || pageIndex < 0) {

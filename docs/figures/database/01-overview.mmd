@@ -24,6 +24,7 @@ flowchart LR
     end
     subgraph PAY["Existing: Payouts"]
         public_company_payout_reports["public.company_payout_reports"]
+        private_payout_report_refresh_state["private.payout_report_refresh_state<br/>Pending revisions and retry state"]
         public_company_payout_report_components["public.company_payout_report_components"]
         private_payout_report_reconciliation["private.payout_report_reconciliation"]
         private_payout_report_settlement_versions["private.payout_report_settlement_versions"]
@@ -47,6 +48,7 @@ flowchart LR
     private_data_kiosk_transactions --> private_data_kiosk_preprocess_versions
     private_data_kiosk_pruned_versions --> private_data_kiosk_preprocess_versions
     public_company_payout_reports --> public_companies
+    private_payout_report_refresh_state --> public_companies
     private_payout_report_settlement_versions --> public_company_payout_reports
     private_payout_report_settlement_versions --> private_settlement_preprocess_versions
     private_payout_report_data_kiosk_versions --> public_company_payout_reports

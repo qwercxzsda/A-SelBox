@@ -1,11 +1,12 @@
 import "./Cell.css";
 import type { CanonicalRow } from "./api";
-import { allocationCategoryLabel, humanizeCode, transactionTypeLabel } from "./categories";
+import { allocationCategoryLabel, humanizeCode } from "./categories";
+import { TransactionTypeValue } from "./TransactionTypeValue";
 import { formatExactDecimal, formatExactMoney } from "./decimal";
+import { formatRecordDate, formatRecordMonth } from "./date-display";
 import { companyLabel, type ColumnDefinition } from "./view-model";
 
 function codeLabel(key: string, value: string): string {
-  if (key === "component_type") return transactionTypeLabel(value);
   if (key === "category") return allocationCategoryLabel(value);
   return humanizeCode(value);
 }
@@ -19,10 +20,7 @@ export function TableCellValue({
   companies: Map<string, string>;
   row: CanonicalRow;
 }) {
-  if (
-    row.resolution_status === "NOT_APPLICABLE" &&
-    (column.key === "fee_rate_percent" || column.key === "fee_amount")
-  ) {
+  if (row.resolution_status === "NOT_APPLICABLE" && column.key === "fee_rate_percent") {
     return (
       <span className="muted-value" title="Fee not applicable">
         -
@@ -39,18 +37,24 @@ export function TableCellValue({
   }
   switch (column.kind) {
     case "code":
+      if (column.key === "component_type") return <TransactionTypeValue value={value} />;
       return (
-        <span
-          className={value.startsWith("MISSING_") ? "missing-value" : undefined}
-          title={column.key === "component_type" ? value : undefined}
-        >
+        <span className={value.startsWith("MISSING_") ? "missing-value" : undefined}>
           {codeLabel(column.key, value)}
         </span>
       );
     case "company":
       return companyLabel(value, companies);
     case "date":
-      return value || "—";
+      return value ? (
+        <time dateTime={value} title={value}>
+          {formatRecordDate(value)}
+        </time>
+      ) : (
+        "—"
+      );
+    case "month":
+      return <time dateTime={value.slice(0, 7)}>{formatRecordMonth(value)}</time>;
     case "money":
       return formatExactMoney(value, row.currency ?? null);
     case "percent":

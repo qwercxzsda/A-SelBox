@@ -81,12 +81,11 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 ("Amazon.com", "FbaStorageFee"),
                 (9, 5, 1),
             ),
-            ("source <> 'DATA_KIOSK' or source_amount <> 0", (), (22, 11, 2)),
+            ("authoritative", (), (20, 10, 2)),
             (
-                "activity_date = %s::date and sku = %s "
-                "and (source <> 'DATA_KIOSK' or source_amount <> 0)",
+                "activity_date = %s::date and sku = %s and authoritative",
                 ("2026-06-15", "SKU"),
-                (9, 8, 0),
+                (8, 7, 0),
             ),
         )
         for predicate, parameters, counts in scopes:

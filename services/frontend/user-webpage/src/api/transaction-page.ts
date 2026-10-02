@@ -21,6 +21,11 @@ export function isTransactionDataset(dataset: TableDatasetKey): dataset is Trans
 export function transactionFilterArguments(
   options: FetchDatasetCountOptions & { dataset: TransactionDataset },
 ) {
+  if (
+    options.currency !== undefined &&
+    (options.dataset !== "live" || !/^[A-Z]{3}$/.test(options.currency))
+  )
+    throw new Error("A valid transaction currency is required");
   const filters = datasetFilterValues(options.dataset, options.filters);
   const search = validateTransactionSearch(options.search, options.searchValues);
   const common = {
@@ -40,6 +45,7 @@ export function transactionFilterArguments(
         p_sources: filters.selections.source,
         p_search_sources: search?.sources ?? null,
         p_fee_applicable: filters.feeApplicable,
+        ...(options.currency ? { p_currency: options.currency } : {}),
       }
     : { ...common, p_dataset: options.dataset };
 }

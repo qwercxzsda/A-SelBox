@@ -1,5 +1,5 @@
 const SELECTABLE_COLUMNS = new Set(["sku", "marketplace_name", "source", "component_type"]);
-const DATE_COLUMNS = ["activity_date", "posted_date", "created_at", "start_date"];
+const DATE_COLUMNS = ["activity_date", "posted_date", "created_at", "start_date", "end_date"];
 const NUMERIC_COLUMNS = new Set(["amount", "source_amount", "company_amount"]);
 
 function decimalParts(value) {
@@ -18,10 +18,6 @@ function compareAmounts(left, right) {
   return difference < 0n ? -1 : difference > 0n ? 1 : 0;
 }
 
-export function isZeroAmount(value) {
-  return value !== null && value !== undefined && compareAmounts(value, "0") === 0;
-}
-
 function matchesSearch(row, filter) {
   if (!filter) return true;
   if (filter.startsWith("{"))
@@ -37,6 +33,11 @@ function matchesSearch(row, filter) {
 /** Emulate the documented REST filters and RPC fee selection used by browser fixtures. */
 export function filterRecordRows(rows, params) {
   return rows.filter((row) => {
+    const currency = params.get("currency");
+    if (currency?.startsWith("eq.") && row.currency !== currency.slice(3)) return false;
+    if (currency === "is.null" && row.currency !== null && row.currency !== undefined) return false;
+    const id = params.get("id");
+    if (id?.startsWith("eq.") && row.id !== id.slice(3)) return false;
     const feeSelection = params.get("fee_applicable");
     if (feeSelection !== null) {
       const applicable =
@@ -49,22 +50,17 @@ export function filterRecordRows(rows, params) {
     if (company?.startsWith("eq.") && row.company_id !== company.slice(3)) return false;
     if (company?.startsWith("in.(") && !company.slice(4, -1).split(",").includes(row.company_id))
       return false;
-    if (params.get("amount") === "neq.0" && (row.amount === null || isZeroAmount(row.amount)))
-      return false;
-    if (
-      params.get("and")?.includes("or(source.neq.DATA_KIOSK,source_amount.neq.0)") &&
-      row.source === "DATA_KIOSK" &&
-      (row.source_amount === null || isZeroAmount(row.source_amount))
-    )
-      return false;
+    if (params.get("amount") === "not.is.null" && row.amount === null) return false;
     for (const key of SELECTABLE_COLUMNS) {
       for (const filter of params.getAll(key)) {
+        if (filter.startsWith("eq.") && row[key] !== filter.slice(3)) return false;
         if (filter.startsWith("in.(") && !JSON.parse(`[${filter.slice(4, -1)}]`).includes(row[key]))
           return false;
       }
     }
     for (const key of DATE_COLUMNS) {
       for (const filter of params.getAll(key)) {
+        if (filter.startsWith("eq.") && row[key] !== filter.slice(3)) return false;
         if (
           filter.startsWith("gte.") &&
           (row[key] === null || row[key] === undefined || row[key] < filter.slice(4))

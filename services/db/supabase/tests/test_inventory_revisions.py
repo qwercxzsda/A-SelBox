@@ -21,7 +21,7 @@ class InventoryRevisionTests(InventoryFixture):
         member, operator = self.member(company), self.operator()
         self.connection.commit()
         initial = self.revisions(member)
-        self.assertEqual(set(initial), {"settlement", "data_kiosk", "fees", "inventory"})
+        self.assertEqual(set(initial), {"settlement", "data_kiosk", "fees", "inventory", "payouts"})
         self.assertEqual(initial["inventory"], "0")
         acquisition = self.acquire()
         self.connection.commit()

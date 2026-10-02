@@ -167,20 +167,18 @@ class GlobalSkuIdentityTests(FinancialFixture):
             self.settlement([self.transaction(amount, sku="S1")])
             self.kiosk(1, [self.component(cost, sku="S1")])
             fill_payout_kiosk_month(self)
-        operator = self.operator()
-        reports = generate_payout_reports(self, operator, company)
-        self.assertEqual(len(reports), 2)
+        reports = generate_payout_reports(self, company)
+        self.assertEqual(len(reports), 1)
         self.assertTrue(all(created for _, created in reports))
         self.assertEqual(
             self.connection.execute(
-                "select seller_namespace,source_amount,fee_amount,company_amount,"
+                "select source_amount,fee_amount,company_amount,"
                 "terms_version_count "
-                "from public.company_payout_reports where company_id=%s order by seller_namespace",
+                "from public.company_payout_reports where company_id=%s order by id",
                 (company,),
             ).fetchall(),
             [
-                ("N1", Decimal(90), Decimal(-5), Decimal(85), 1),
-                ("N2", Decimal(180), Decimal(-10), Decimal(170), 1),
+                (Decimal(270), Decimal(-15), Decimal(255), 1),
             ],
         )
         self.assertEqual(
@@ -190,26 +188,26 @@ class GlobalSkuIdentityTests(FinancialFixture):
             [(identity,)],
         )
         self.assertEqual(
-            generate_payout_reports(self, operator, company),
+            generate_payout_reports(self, company),
             [(report, False) for report, _ in reports],
         )
         self.fee(identity, [("2026-01-01", None, "7")])
-        revised = generate_payout_reports(self, operator, company)
-        self.assertEqual(len(revised), 2)
+        revised = generate_payout_reports(self, company)
+        self.assertEqual(len(revised), 1)
         self.assertTrue(all(created for _, created in revised))
         self.assertEqual(
             self.connection.execute(
                 "select company_amount from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by seller_namespace",
+                "where id=any(%s::uuid[]) order by id",
                 ([report for report, _ in revised],),
             ).fetchall(),
-            [(Decimal(83),), (Decimal(166),)],
+            [(Decimal(249),)],
         )
         self.assertEqual(
             self.connection.execute(
                 "select company_amount from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by seller_namespace",
+                "where id=any(%s::uuid[]) order by id",
                 ([report for report, _ in reports],),
             ).fetchall(),
-            [(Decimal(85),), (Decimal(170),)],
+            [(Decimal(255),)],
         )

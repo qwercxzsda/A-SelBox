@@ -4,6 +4,7 @@ import type { Identity, IdentityRefreshOptions } from "./auth-session";
 import { FinanceWorkspace } from "./FinanceWorkspace";
 import { createQueryClient } from "./query-client";
 import { useWorkspaceRefresh } from "./use-workspace-refresh";
+import { WorkspacePreferences } from "./WorkspacePreferences";
 
 interface AuthenticatedProps {
   identity: Identity;
@@ -32,7 +33,9 @@ export default function AuthenticatedWorkspace(props: AuthenticatedProps) {
   );
   return (
     <QueryClientProvider client={client}>
-      <WorkspaceContent {...props} />
+      <WorkspacePreferences identity={props.identity}>
+        <WorkspaceContent {...props} />
+      </WorkspacePreferences>
     </QueryClientProvider>
   );
 }

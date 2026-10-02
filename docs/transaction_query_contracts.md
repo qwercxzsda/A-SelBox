@@ -6,7 +6,7 @@ authorization, pagination, and exact financial calculation. Current definitions 
 
 ## Shared behavior
 
-All six RPCs are stable, security-invoker functions with an empty search path and custom query
+The transaction RPCs are stable, security-invoker functions with an empty search path and custom query
 plans. Execution is granted to `authenticated`, with grants revoked from `PUBLIC`, `anon`, and
 `service_role`. Existing table RLS determines actual access: authentication alone does not grant
 company data. Company ownership and account access come from database state. An explicit company
@@ -45,6 +45,9 @@ with SQLSTATE `22023`. Stored marketplace names have `CHECK` constraints preserv
 Row amounts, quantities, rates, aggregate sums, and counts are exact decimal strings in RPC JSON.
 Unknown financial amounts remain null. Explicit zero amounts and rates remain zero. Currency groups
 are always separate; database calculations do not convert currencies.
+Zero amounts remain eligible under the same source, category, ownership, and date
+rules as other amounts. They count as records and retain applicable fee requirements;
+zero alone never makes a row supporting detail.
 
 ## Transaction pages
 
@@ -66,6 +69,7 @@ accepts:
 | `p_types`                  | `null`  | Component-type selection, including the derived administrator difference.                                     |
 | `p_include_count`          | `true`  | Whether to include an exact matching-row count.                   |
 | `p_fee_applicable`         | `null`  | `true`: applicable source Type; `false`: other Types; null: both. |
+| `p_currency`               | `null`  | Optional three-letter uppercase currency code, applied before pagination and counting. |
 
 Response: `{ "rows": [...], "total_count": "123" }`. With counting disabled, `total_count` is null.
 An empty page still receives the full matching count when requested. Rows retain source identity,
@@ -138,8 +142,8 @@ Response: `{ "rows": [...], "total_count": "123" }`, with a null count when disa
 the corresponding source-view fields selected by the frontend, including exact numeric strings.
 Settlement orders by `posted_date` or `amount`; Data Kiosk uses `activity_date` or `amount`. Date
 ordering reverses both date and row ID together, with the same null placement as Transactions.
-Amount ordering keeps ascending row-ID ties and nulls last. Data Kiosk zero amounts are excluded
-before pagination and counting; Settlement zero amounts remain.
+Amount ordering keeps ascending row-ID ties and nulls last. Settlement and Data
+Kiosk zero amounts remain included in pagination and counting.
 
 This endpoint preserves the raw source views' visibility, including historical versions and every
 source category available to the caller. It does not impose Transactions' current-version or
@@ -157,7 +161,7 @@ search arguments.
 ## Exact transaction counts
 
 [`public.transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
-accepts the same date, company, SKU, marketplace, source, Type, and fee-applicability filters as the
+accepts the same date, company, SKU, marketplace, source, Type, fee-applicability, and currency filters as the
 page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
 for no matching rows. There are no paging or ordering parameters.
 
@@ -244,6 +248,30 @@ Selected dates card; Latest day and Latest month use their independently chosen 
 Type, fee-applicability, and search selections do not change these summary contracts. Period
 discovery and the Latest month rule belong to the frontend; this RPC calculates the supplied range.
 
+For one company, full mature month, and currency with complete valid inputs, the
+estimate matches the latest automatically generated payout after that report has
+captured the current source and terms versions. Both aggregate across source
+namespaces. A narrowed SKU/marketplace selection represents only part of the report;
+an unfiltered operator estimate can also include seller-wide controls that are not
+company payout amounts. The browser presents amount types and their contributing
+records together for both live estimates and saved reports.
+
+## Saved payout totals
+
+`public.payout_report_totals` uses the same `{ "rows": [...], "next_offset": ... }`
+response and exact numeric strings as `transaction_totals`. It accepts required
+`p_report_id` plus `p_group_by_type` (default `false`), `p_limit` (default `1000`),
+and `p_offset` (default `0`). Group paging uses the same bounds and currency/Type
+ordering as live totals. It is stable, uses invoker security and an empty search
+path, and is executable only by authenticated application users with access to
+the saved report under RLS.
+
+It reads frozen authoritative components across all namespaces, including
+zero-amount rows in its records and counts just as live totals do. Supporting
+comparisons and seller reconciliation never enter its totals. Missing or
+inaccessible reports return an empty result. A zero report without contributing
+records also returns no groups; its saved header still records the exact zero totals.
+
 ## Filter options
 
 Source, Marketplace, and Type menus use static application catalogs. All SKU menus use an already
@@ -328,9 +356,9 @@ Trailing keys support filters and eligibility checks where that partial index ap
 
 Data Kiosk uses
 `(activity_date, component_type, sku, version_id, category, marketplace_name)`
-where `amount <> 0`. The predicate matches UI reads while covering every category, including
-administrator account rows. Amount is not stored in the key. Zero-inclusive source/reference
-queries retain their semantics and use the remaining full indexes or table scans.
+without an amount predicate. It covers zero amounts and every category, including
+administrator account rows. Amount is not stored in the key; filters and RLS still
+determine each query's eligible rows.
 
 These indexes support bounded periods and unbounded reads. API dates remain optional, and the
 frontend does not apply dates by default. Date predicates apply to source facts before counting, aggregation, or page fee

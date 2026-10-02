@@ -25,14 +25,14 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         fill_payout_kiosk_month(self)
         return company
 
-    def generate(self, user: str, company: str, month: date = date(2026, 6, 1)) -> str:
-        rows = generate_payout_reports(self, user, company, month)
+    def generate(self, company: str, month: date = date(2026, 6, 1)) -> str:
+        rows = generate_payout_reports(self, company, month)
         self.assertEqual(len(rows), 1)
         return rows[0][0]
 
     def test_generation_freezes_month_and_includes_data_kiosk_costs_once(self) -> None:
         company = self.prepared_company()
-        report = self.generate(self.operator(), company)
+        report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
                 "select start_date,end_date,source_amount,fee_amount,company_amount,"
@@ -74,7 +74,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         with self.assertRaisesRegex(
             psycopg.errors.CheckViolation, "preprocessing versions|incompatible.*Data Kiosk"
         ):
-            self.generate(self.operator(), company)
+            self.generate(company)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.company_payout_reports"
@@ -111,7 +111,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
                     ).format(sql.Identifier(table))
                 )
             self.connection.execute("reset role")
-        self.generate(operator, company)
+        self.generate(company)
         for table in ("payout_resolved_components", "payout_reconciliation"):
             with self.subTest(table=table):
                 self.assertEqual(
@@ -130,7 +130,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self.fee(identity, [("2026-01-01", None, "5")])
         self.settlement([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
         fill_payout_kiosk_month(self)
-        report = self.generate(self.operator(), company)
+        report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
                 "select company_amount from public.company_payout_reports where id=%s", (report,)
@@ -155,7 +155,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self.kiosk(1, [self.component("-10"), self.component("100", category="SETTLEMENT")])
         fill_payout_kiosk_month(self)
         operator, member = self.operator(), self.member(company)
-        report = self.generate(operator, company)
+        report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount,reconciliation_count "
@@ -207,7 +207,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
 
     def test_saved_reconciliation_must_match_the_frozen_source_versions(self) -> None:
         company = self.prepared_company()
-        report = self.generate(self.operator(), company)
+        report = self.generate(company)
         with (
             self.assertRaisesRegex(psycopg.errors.CheckViolation, "reconciliation"),
             self.connection.transaction(),
@@ -225,27 +225,21 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             self.connection.execute("set constraints all immediate")
         self.connection.execute("set constraints all immediate")
 
-    def test_deferred_integrity_runs_while_authenticated_operator_role_is_active(self) -> None:
+    def test_deferred_integrity_runs_for_internal_generation_without_a_login(self) -> None:
         company = self.prepared_company()
-        operator = self.operator()
         self.connection.execute("set constraints all immediate")
         self.connection.execute("set constraints all deferred")
         with self.connection.transaction():
             self.connection.execute(
-                "select set_config('request.jwt.claim.sub',%s,true)", (operator,)
-            )
-            self.connection.execute("set local role authenticated")
-            self.connection.execute(
-                "select * from public.generate_company_payout_reports(%s,'2026-06-01')", (company,)
+                "select * from private.generate_company_payout_reports(%s,'2026-06-01')", (company,)
             ).fetchall()
             self.connection.execute("set constraints all immediate")
-            self.connection.execute("reset role")
 
     def test_company_with_only_data_kiosk_costs_can_generate(self) -> None:
         company, _ = self.owner()
         self.kiosk(1, [self.component("-10")])
         fill_payout_kiosk_month(self)
-        report = self.generate(self.operator(), company)
+        report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount from public.company_payout_reports "
@@ -264,15 +258,19 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_member_generation_is_denied_and_own_frozen_rows_are_visible(self) -> None:
+    def test_no_application_user_can_generate_and_own_frozen_rows_are_visible(self) -> None:
         company = self.prepared_company()
         own_member = self.member(company)
         other_company, _ = self.owner("OTHER")
         other_member = self.member(other_company)
-        report = self.generate(self.operator(), company)
-        for user in (own_member, other_member, self.auth_user()):
+        report = self.generate(company)
+        for user in (self.operator(), own_member, other_member, self.auth_user()):
             with self.subTest(user=user), self.assertRaises(psycopg.errors.InsufficientPrivilege):
-                self.generate(user, company)
+                self.as_user(
+                    user,
+                    "select * from private.generate_company_payout_reports(%s,'2026-06-01')",
+                    (company,),
+                )
         self.assertEqual(
             self.as_user(own_member, "select id::text from public.company_payout_reports"),
             [(report,)],
@@ -286,18 +284,17 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
 
     def test_generation_requires_exact_mature_month_and_allows_empty_history(self) -> None:
         company = self.prepared_company()
-        operator = self.operator()
         mature_cutoff_date = self.mature_cutoff_date()
         for month in (date(2026, 6, 15), mature_cutoff_date.replace(day=1), date(2030, 1, 1)):
             with self.subTest(month=month), self.assertRaises(psycopg.errors.InvalidParameterValue):
-                self.generate(operator, company, month)
+                self.generate(company, month)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.company_payout_reports"
             ).fetchone(),
             (0,),
         )
-        report = self.generate(operator, company, date(2025, 1, 1))
+        report = self.generate(company, date(2025, 1, 1))
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount from public.company_payout_reports "
@@ -311,12 +308,11 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self,
     ) -> None:
         company = self.prepared_company()
-        operator = self.operator()
         self.set_mature_cutoff_date(date(2026, 6, 30))
         with self.assertRaises(psycopg.errors.InvalidParameterValue):
-            self.generate(operator, company)
+            self.generate(company)
         self.set_mature_cutoff_date(date(2026, 7, 1))
-        self.generate(operator, company)
+        self.generate(company)
         self.connection.execute("set constraints all immediate")
 
     def test_private_publisher_enforces_month_and_mature_cutoff_date(self) -> None:

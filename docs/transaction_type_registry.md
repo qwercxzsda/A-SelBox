@@ -45,7 +45,13 @@ Administrator Transactions includes all registered types and the derived
 source. The difference is calculated in SQL; it does not change the Python registry or generated
 source catalog. Supported values may produce zero rows; option discovery does not inspect transactions to establish occurrence.
 
-Source offers Settlements and Data Kiosk, plus Reconciliation in administrator Transactions.
+The frontend organizes these choices into expandable, selectable browsing groups. Other fees &
+adjustments contains EPR, subscription, debt, and other unmatched entries. The groups reuse the
+existing amount-breakdown classification; they do not change allocation categories or stored
+types. Selecting a group sends its available exact keys through the existing Type filter. Search
+also finds individual labels and raw keys, with batch selection limited to the matching options.
+
+Source offers Settlement and Data Kiosk, plus Reconciliation in administrator Transactions.
 The derived source is absent from member menus and raw source tabs. Marketplace offers all
 supported names. Company members reuse the exact SKU strings in their already-loaded current assignments. Administrators
 preload the complete SKU catalog in one administrator-only RPC before showing the workspace because imported facts

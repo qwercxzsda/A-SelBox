@@ -46,7 +46,7 @@ test("coverage accepts adjoining and open-ended rates but identifies exact half-
     item({ periods: [period("2026-01-01", "2026-01-15"), period("2026-01-16", null)] }),
   );
   assert.equal(gaps.length, 1);
-  assert.match(gaps[0].message, /2026-01-15 to before 2026-01-16/);
+  assert.match(gaps[0].message, /2026-01-15 \(inclusive\) to 2026-01-16 \(exclusive\)/);
 });
 test("dates, marketplace overlap, and invalid rates cannot provide required coverage", () => {
   assert.ok(
@@ -122,7 +122,11 @@ test("source refresh adds new coverage requirements and stale drafts cannot sile
     requirements: [required("2026-01-01", "2026-03-01")],
   };
   const issues = resolveSkuConfiguration([refreshed], [draft]).issues;
-  assert.ok(issues.some((issue) => issue.message.includes("2026-02-01 to before 2026-03-01")));
+  assert.ok(
+    issues.some((issue) =>
+      issue.message.includes("2026-02-01 (inclusive) to 2026-03-01 (exclusive)"),
+    ),
+  );
   assert.ok(issues.some((issue) => issue.message.includes("Saved settings changed")));
 });
 

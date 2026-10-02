@@ -156,7 +156,7 @@ from private.data_kiosk_transactions as t
 inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id;
 
 -- Members read their own frozen payouts even if current SKU ownership changes.
--- Complete source manifests and other-company exclusion evidence stay operator-only.
+-- Supporting rows, complete manifests and exclusion evidence stay operator-only.
 create policy payout_reports_read on public.company_payout_reports for select to authenticated
 using ((select private.is_operator()) or company_id in (
     select a.company_id from public.app_accounts as a
@@ -164,7 +164,9 @@ using ((select private.is_operator()) or company_id in (
 ));
 create policy payout_components_read on public.company_payout_report_components
 for select to authenticated using (
-    report_id in (select r.id from public.company_payout_reports as r)
+    (select private.is_operator()) or (
+        authoritative and report_id in (select r.id from public.company_payout_reports as r)
+    )
 );
 -- Sum the full immutable company report, independently of detail pagination.
 -- Invoker security keeps the same own-company access as the underlying components.
@@ -178,6 +180,20 @@ select
 from public.company_payout_report_components
 where authoritative
 group by report_id, marketplace_name;
+-- One latest immutable report per company, month and currency; source namespaces
+-- are provenance only. Invoker security keeps the underlying company RLS.
+create view public.latest_company_payout_reports with (security_invoker = true) as
+select distinct on (r.company_id, r.start_date, r.currency) r.*
+from public.company_payout_reports as r
+where
+    r.currency is not null or not exists (
+        select 1 from public.company_payout_reports as other
+        where
+            other.company_id = r.company_id and other.start_date = r.start_date
+            and other.currency is not null
+    )
+order by r.company_id asc, r.start_date asc, r.currency asc, r.created_at desc, r.id desc;
+
 create policy payout_settlement_versions_read on private.payout_report_settlement_versions
 for select to authenticated using ((select private.is_operator()));
 create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
@@ -188,6 +204,133 @@ create policy payout_reconciliation_read on private.payout_report_reconciliation
 for select to authenticated using ((select private.is_operator()));
 create view public.payout_report_reconciliation with (security_invoker = true) as
 select * from private.payout_report_reconciliation;
+
+-- Financial review is a source comparison, not a second company ledger. Retain
+-- both current sources in every allocation category without ownership/fee joins.
+-- Operator gates are necessary because base facts also have member read policies.
+create view public.financial_review_records with (security_invoker = true) as
+select
+    'SETTLEMENT'::text as source, -- noqa: RF04
+    t.id as source_row_id,
+    t.version_id as source_version_id,
+    t.posted_date as activity_date,
+    t.seller_namespace,
+    t.marketplace_name,
+    t.sku,
+    t.component_type,
+    t.category,
+    t.currency,
+    t.amount
+from private.settlement_transactions as t
+inner join private.settlements as h on t.version_id = h.current_version_id
+where
+    (select private.is_operator())
+    and t.posted_date < (select private.mature_cutoff_date())
+union all
+select
+    'DATA_KIOSK'::text as source, -- noqa: RF04
+    t.id,
+    t.version_id,
+    t.activity_date,
+    t.seller_namespace,
+    t.marketplace_name,
+    t.sku,
+    t.component_type,
+    t.category,
+    t.currency,
+    t.amount
+from private.data_kiosk_transactions as t
+inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
+where
+    (select private.is_operator())
+    and t.activity_date < (select private.mature_cutoff_date())
+    and t.category in ('SETTLEMENT', 'DATA_KIOSK', 'SELBOX');
+
+-- Direct activity-date bounds are applied before aggregation. Filtering a
+-- date_trunc output in a view cannot use the source date indexes under RLS.
+create function private.validate_financial_review_scope(
+    p_month_from date, p_month_to date, p_category public.allocation_category
+) returns void
+language plpgsql immutable security invoker set search_path = '' as $$
+begin
+    if p_month_from is null or p_month_to is null
+        or not isfinite(p_month_from) or not isfinite(p_month_to)
+        or p_month_to <= p_month_from
+        or p_month_from <> date_trunc('month',p_month_from::timestamp)::date
+        or p_month_to <> date_trunc('month',p_month_to::timestamp)::date
+        or p_category is null or p_category not in ('SETTLEMENT','DATA_KIOSK','SELBOX') then
+        raise exception 'Financial review requires a category and a valid half-open month range'
+            using errcode = '22023';
+    end if;
+end;
+$$;
+
+create function public.financial_review_totals(
+    p_month_from date, p_month_to date, p_category public.allocation_category
+) returns table (
+    month date, category public.allocation_category, currency text,
+    settlement_amount numeric, data_kiosk_amount numeric, difference numeric,
+    settlement_row_count bigint, data_kiosk_row_count bigint
+)
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category);
+    return query
+    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency,
+        coalesce(sum(r.amount) filter (where r.source = 'SETTLEMENT'),0),
+        coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
+        coalesce(sum(r.amount) filter (where r.source = 'SETTLEMENT'),0)
+            - coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
+        count(*) filter (where r.source = 'SETTLEMENT'),
+        count(*) filter (where r.source = 'DATA_KIOSK')
+    from public.financial_review_records r
+    where r.activity_date >= p_month_from and r.activity_date < p_month_to
+        and r.category = p_category
+    group by date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency;
+end;
+$$;
+
+create function public.financial_review_type_totals(
+    p_month_from date, p_month_to date, p_category public.allocation_category, p_currency text
+) returns table (
+    month date, category public.allocation_category, currency text,
+    source text, component_type text, amount numeric, row_count bigint
+)
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category);
+    if p_currency is null or p_currency !~ '^[A-Z]{3}$' then
+        raise exception 'Financial review requires a currency' using errcode = '22023';
+    end if;
+    return query
+    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency,
+        r.source,r.component_type::text,sum(r.amount),count(*)
+    from public.financial_review_records r
+    where r.activity_date >= p_month_from and r.activity_date < p_month_to
+        and r.category = p_category and r.currency = p_currency
+    group by date_trunc('month',r.activity_date::timestamp)::date,
+        r.category,r.currency,r.source,r.component_type;
+end;
+$$;
+
+-- A saved report pins account-wide controls for audit, not company amounts.
+-- Never combine these repeated snapshots across reports.
+create view public.payout_reconciliation_totals with (security_invoker = true) as
+select
+    report_id,
+    currency,
+    sum(settlement_category_amount) as settlement_category_amount,
+    sum(selbox_category_amount) as selbox_category_amount,
+    sum(data_kiosk_settlement_control) as data_kiosk_settlement_control,
+    sum(data_kiosk_category_amount) as data_kiosk_category_amount,
+    sum(difference) as difference,
+    sum(settlement_total) as settlement_total,
+    sum(accounted_total) as accounted_total,
+    count(*) as source_group_count
+from private.payout_report_reconciliation
+where (select private.is_operator())
+group by report_id, currency;
+
 create view public.payout_report_settlement_versions with (security_invoker = true) as
 select * from private.payout_report_settlement_versions;
 create view public.payout_report_data_kiosk_versions with (security_invoker = true) as
@@ -270,11 +413,63 @@ select
     i.total_days_of_supply,
     i.recommended_ship_in_units,
     i.recommended_ship_in_date,
-    i.recommended_action
+    i.recommended_action,
+    -- Application priority for replenishment review, not an Amazon urgency score.
+    -- Unknown labels remain unranked instead of being treated as healthy/no action.
+    case lower(regexp_replace(i.health_status, '[^a-zA-Z0-9]', '', 'g'))
+        when 'outofstock' then 40
+        when 'lowstock' then 30
+        when 'excess' then 20
+        when 'excessstock' then 20
+        when 'excessinventory' then 20
+        when 'highstock' then 20
+        when 'overstock' then 20
+        when 'healthy' then 0
+    end as health_status_urgency,
+    case lower(regexp_replace(i.recommended_action, '[^a-zA-Z0-9]', '', 'g'))
+        when 'editlisting' then 50
+        when 'gotorestock' then 40
+        when 'restock' then 40
+        when 'restockinventory' then 40
+        when 'sendtofba' then 30
+        when 'advertiselisting' then 20
+        when 'noexcessinventory' then 0
+        when 'noactionrequired' then 0
+    end as recommended_action_urgency
 from public.latest_inventory_captures as c
 inner join private.inventory_items as i on c.capture_id = i.capture_id
 left join public.company_skus as o on i.sku = o.sku;
 
+-- Aggregate the complete authorized current catalog into one RPC result so
+-- PostgREST page limits cannot truncate column-filter choices.
+create function public.inventory_filter_options() returns jsonb
+language sql stable security invoker
+set search_path = '' set plan_cache_mode = force_custom_plan as $$
+    select jsonb_build_object(
+        'skus', coalesce(
+            jsonb_agg(distinct i.sku collate "C" order by i.sku collate "C"),
+            '[]'::jsonb
+        ),
+        'health_statuses', coalesce(
+            jsonb_agg(
+                distinct i.health_status collate "C"
+                order by i.health_status collate "C" nulls last
+            ),
+            '[]'::jsonb
+        ),
+        'recommendations', coalesce(
+            jsonb_agg(
+                distinct i.recommended_action collate "C"
+                order by i.recommended_action collate "C" nulls last
+            ),
+            '[]'::jsonb
+        )
+    )
+    from public.latest_inventory_items as i;
+$$;
+
+revoke all on function public.inventory_filter_options()
+from public, anon, authenticated, service_role;
 revoke all on function private.latest_inventory_capture_references()
 from public, anon, authenticated, service_role;
 revoke all on public.latest_inventory_captures, public.latest_inventory_items

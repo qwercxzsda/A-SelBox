@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
-import { Alert, Button, Group, Stack, Text, Title } from "@mantine/core";
+import { useMemo } from "react";
+import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationChange, SkuConfigurationItem } from "./api";
 import { SkuConfigurationEditor } from "./SkuConfigurationEditor";
 import { SkuConfigurationReview } from "./SkuConfigurationReview";
 import { SkuConfigurationList } from "./SkuConfigurationList";
 import type { useSkuConfiguration } from "./use-sku-configuration";
-import { newSkuItem, resolveSkuConfiguration } from "./sku-configuration-form";
+import { createSkuDraft, newSkuItem, resolveSkuConfiguration } from "./sku-configuration-form";
 import type { Identity } from "./auth-session";
 import { DATASET_PRESENTATION, getErrorMessage } from "./view-model";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
+import { WorkspaceIntro } from "./WorkspaceIntro";
 
 const EMPTY_ITEMS: SkuConfigurationItem[] = [];
 
@@ -17,14 +18,20 @@ export function CurrentFees({
   controller,
   viewState,
   onViewStateChange,
+  onShowTransactions,
 }: {
   identity: Identity;
   controller: ReturnType<typeof useSkuConfiguration>;
+  onShowTransactions: (sku: string) => void;
 } & ViewStateProps<FeeViewState>) {
   const administrator = identity.account.access_role === "operator";
-  const { drafts } = viewState;
-  const [editing, setEditing] = useState<{ sku: string; isNew: boolean } | null>(null);
-  const [reviewing, setReviewing] = useState(false);
+  const { drafts, editing, reviewing } = viewState;
+  const setEditing = (editing: FeeViewState["editing"]) => {
+    onViewStateChange((current) => ({ ...current, editing }));
+  };
+  const setReviewing = (reviewing: boolean) => {
+    onViewStateChange((current) => ({ ...current, reviewing }));
+  };
   const { configuration, save, isSaving, reloadSaved, savedNotice, refreshFailed, clearNotice } =
     controller;
   const companies = useMemo(
@@ -39,8 +46,19 @@ export function CurrentFees({
   } = useMemo(() => resolveSkuConfiguration(savedItems, drafts), [savedItems, drafts]);
   const incompleteSkus = new Set(issuesBySku.keys());
   function editSku(sku: string) {
-    setReviewing(false);
-    setEditing({ sku, isNew: false });
+    const saved = savedItems.find((item) => item.sku === sku) ?? newSkuItem(sku);
+    onViewStateChange((current) => ({
+      ...current,
+      reviewing: false,
+      editing: {
+        sku,
+        isNew: false,
+        form: structuredClone(
+          current.drafts.find((draft) => draft.sku === sku) ?? createSkuDraft(saved),
+        ),
+        submitError: null,
+      },
+    }));
   }
   function stage(change: SkuConfigurationChange) {
     onViewStateChange((current) => ({
@@ -55,26 +73,29 @@ export function CurrentFees({
     ? (savedItems.find((item) => item.sku === editing.sku) ?? newSkuItem(editing.sku))
     : null;
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="start">
-        <div>
-          <Title order={3}>Assignments and fees</Title>
-          <Text c="dimmed" size="sm">
-            {DATASET_PRESENTATION.fees.description}
-          </Text>
-        </div>
-        {administrator ? (
-          <Button
-            variant="light"
-            disabled={!configuration.data || configuration.isError || isSaving}
-            onClick={() => {
-              setEditing({ sku: "", isNew: true });
-            }}
-          >
-            Add SKU
-          </Button>
-        ) : null}
-      </Group>
+    <Stack gap="md" className="fee-panel">
+      <WorkspaceIntro
+        title="Assignments and fees"
+        description={DATASET_PRESENTATION.fees.description}
+        actions={
+          administrator ? (
+            <Button
+              variant="light"
+              disabled={!configuration.data || configuration.isError || isSaving}
+              onClick={() => {
+                setEditing({
+                  sku: "",
+                  isNew: true,
+                  form: createSkuDraft(newSkuItem("")),
+                  submitError: null,
+                });
+              }}
+            >
+              Add SKU
+            </Button>
+          ) : null
+        }
+      />
       {configuration.isPending ? <Text role="status">Loading assignments and fees…</Text> : null}
       {isSaving ? (
         <Text role="status">
@@ -102,7 +123,7 @@ export function CurrentFees({
           </Button>
         </Alert>
       ) : null}
-      {viewState.saveProblem ? (
+      {viewState.saveProblem && !reviewing ? (
         <Alert role="alert" color="red">
           <Text size="sm">{viewState.saveProblem}</Text>
           <Text size="sm">Your drafts are still available.</Text>
@@ -142,7 +163,7 @@ export function CurrentFees({
             </Alert>
           ) : null}
           {administrator ? (
-            <Group justify="space-between">
+            <Group justify="space-between" className="fee-draft-status">
               <Text size="sm">
                 {drafts.length
                   ? `${String(drafts.length)} SKU ${drafts.length === 1 ? "draft" : "drafts"} · not saved yet`
@@ -165,18 +186,30 @@ export function CurrentFees({
             administrator={administrator}
             isSaving={isSaving}
             onEdit={editSku}
+            onShowTransactions={onShowTransactions}
             viewState={viewState}
             onViewStateChange={onViewStateChange}
           />
         </>
       ) : null}
-      {administrator && editorItem && editing ? (
+      {administrator && configuration.data && editorItem && editing ? (
         <SkuConfigurationEditor
           key={editing.sku}
           item={editorItem}
-          draft={drafts.find((draft) => draft.sku === editing.sku)}
+          editing={editing}
+          onEditingChange={(update) => {
+            onViewStateChange((current) => ({
+              ...current,
+              editing: current.editing
+                ? typeof update === "function"
+                  ? update(current.editing)
+                  : update
+                : null,
+            }));
+          }}
           companies={identity.companies}
           knownSkus={effectiveItems.map((item) => item.sku)}
+          onEditExisting={editSku}
           isNew={editing.isNew}
           onClose={() => {
             setEditing(null);
@@ -184,9 +217,10 @@ export function CurrentFees({
           onStage={stage}
         />
       ) : null}
-      {administrator && reviewing ? (
+      {administrator && configuration.data && reviewing ? (
         <SkuConfigurationReview
           drafts={drafts}
+          savedItems={savedItems}
           companies={companies}
           issues={issues}
           changeReason={viewState.changeReason}
@@ -195,6 +229,9 @@ export function CurrentFees({
           }}
           isSaving={isSaving}
           blocked={viewState.requiresReload || configuration.isError || configuration.isFetching}
+          saveProblem={viewState.saveProblem}
+          isReloading={configuration.isFetching}
+          onReloadSaved={() => void reloadSaved()}
           onSave={() => {
             save.mutate(
               { changes: structuredClone(drafts), changeReason: viewState.changeReason },

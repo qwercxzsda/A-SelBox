@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from services.db.supabase.tests.integration_support import TransactionDatabase
+from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 from services.sync.src.database.company_terms import FeePeriod, create_company, publish_sku_terms
 from services.sync.src.database.financial_reads import load_company_financial_progress
@@ -66,17 +67,14 @@ class FinancialRepositoryTests(SourceModelFixture):
             periods=[FeePeriod("Amazon.com", date(2026, 1, 1), None, Numeric("5.123456"))],
             change_reason="Initial terms",
         )
-        settlement, _ = self.settlement([self.transaction("100")])
+        self.settlement([self.transaction("100")])
+        fill_payout_kiosk_month(self)
         report_id = publish_company_payout_report(
             database,
             company_id=company,
-            seller_namespace=self.seller,
             currency="USD",
             start_date=date(2026, 6, 1),
             end_date=date(2026, 6, 30),
-            preprocess_version="v0",
-            settlement_ids=[settlement],
-            marketplace_names=[],
             report_name="June report",
             change_reason="Freeze source and terms",
         )
@@ -86,7 +84,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             self.fail("Expected saved report.")
         self.assertEqual(before.fee_amount, Decimal("-5.123456"))
         self.assertEqual(before.company_amount, Decimal("94.876544"))
-        self.assertEqual(before.marketplace_names, ())
+        self.assertEqual(before.marketplace_names, ("Amazon.com",))
         self.assertEqual(components[0].terms_version_id, terms)
         publish_sku_terms(
             database,

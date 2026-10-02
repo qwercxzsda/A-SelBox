@@ -185,6 +185,7 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
             ("text[]", args.get("p_search_marketplaces")),
             ("text[]", args.get("p_search_sources")),
             ("boolean", amount),
+            ("text", args.get("p_currency")),
         ]
     else:
         dataset = args.get("p_dataset")
@@ -206,7 +207,7 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
         )
         replacements = (
             dataset + "_transactions",
-            "true" if settlement else "t.amount <> 0",
+            "true",
             date,
             "amount" if amount else date,
             direction,

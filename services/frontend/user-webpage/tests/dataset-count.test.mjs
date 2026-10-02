@@ -96,7 +96,7 @@ test("all transaction counts use the same literal search RPC arguments as their 
 
 test("non-transaction counts retain filtered HEAD requests", async () => {
   const client = createApiClient(SETTINGS, async (url, init) => {
-    assert.equal(new URL(url).pathname, "/rest/v1/company_payout_reports");
+    assert.equal(new URL(url).pathname, "/rest/v1/latest_company_payout_reports");
     assert.equal(init.method, "HEAD");
     assert.equal(init.headers.Prefer, "count=exact");
     assert.equal(init.body, undefined);

@@ -35,7 +35,7 @@ def verify_authority(connection: Connection, operator: str) -> tuple[date, dict[
             select t.currency,t.amount
             from private.data_kiosk_transactions t
             join private.data_kiosk_days h on h.current_version_id=t.version_id
-            where t.amount <> 0 and (t.category='DATA_KIOSK' or
+            where (t.category='DATA_KIOSK' or
                 (t.activity_date >= %s and t.category in ('SETTLEMENT','SELBOX')))
         ) select currency,sum(amount),count(*) from facts group by currency
         """,

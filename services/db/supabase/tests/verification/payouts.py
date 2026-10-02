@@ -30,20 +30,23 @@ from services.db.supabase.tests.verification.financial_seed import (
 from services.db.supabase.tests.verification.financial_supplement import publish_supplement
 
 from .output import validate_output_path, write_evidence
+from .payout_estimates import verify_estimate_parity
 
 
-def expect_denied(connection: Connection, user: str, company: str, month: date, code: str) -> None:
+def expect_generation_denied(connection: Connection, user: str) -> None:
     try:
-        as_user(
-            connection,
-            user,
-            "select * from public.generate_company_payout_reports(%s,%s)",
-            (company, month),
-        )
+        as_user(connection, user, "select * from private.refresh_company_payout_reports()")
     except psycopg.Error as error:
-        require(error.sqlstate == code, "Generation rejection returned an unexpected SQLSTATE")
+        require(error.sqlstate == "42501", "Generation rejection returned an unexpected SQLSTATE")
     else:
-        raise AssertionError("An unauthorized or invalid payout generation succeeded")
+        raise AssertionError("An application user invoked automatic payout generation")
+
+
+def refresh_payouts(connection: Connection) -> tuple[Any, ...]:
+    """Exercise the scheduled worker against pending mature company months."""
+    return connection.execute(
+        "select * from private.refresh_company_payout_reports(100)"
+    ).fetchall()[0]
 
 
 def independent_payout_totals(connection: Connection, report_id: str) -> tuple[Any, ...]:
@@ -135,7 +138,6 @@ def verify_member_access(
     connection: Connection,
     members: list[tuple[Any, ...]],
     reports: list[tuple[Any, ...]],
-    month: date,
 ) -> None:
     """Exercise both tenant boundaries and the generation permission boundary."""
     for user, company in members:
@@ -164,39 +166,42 @@ def verify_member_access(
             as_user(connection, user, "select * from public.payout_report_reconciliation") == [],
             "A member can read another company's daily seller reconciliation context",
         )
-        expect_denied(connection, user, company, month, "42501")
-        other_company = next(value for _, value in members if value != company)
-        expect_denied(connection, user, other_company, month, "42501")
+        expect_generation_denied(connection, user)
 
 
 def verify_payouts(
     connection: Connection, operator: str, month: date, mature_cutoff_date: date
 ) -> dict[str, object]:
-    """Generate real monthly snapshots, then test each stored member's visibility."""
+    """Refresh all eligible months, then verify June totals and tenant visibility."""
     members = connection.execute(
         "select user_id::text,company_id::text from public.app_accounts "
         "where access_role='company_member' order by company_id"
     ).fetchall()
     require(len(members) >= 2, "Seed must provide members of at least two companies")
-    report_ids: list[str] = []
-    for _, company in members:
-        reports = as_user(
-            connection,
-            operator,
-            "select * from public.generate_company_payout_reports(%s,%s)",
-            (company, month),
-        )
-        require(bool(reports), "A seeded company's mature month produced no report")
-        report_ids.extend(str(row[0]) for row in reports)
+    checked, created, reused, failed = refresh_payouts(connection)
+    require(checked > 0, "The automatic worker discovered no mature company months")
     connection.execute("set constraints all immediate")
-    reports = connection.execute(
+    all_reports = connection.execute(
         "select id::text,company_id::text,start_date,end_date,source_amount,fee_amount,"
         "company_amount from public.company_payout_reports"
     ).fetchall()
-    require(len(reports) == len(report_ids), "Generation returned an incomplete report inventory")
+    reports = [report for report in all_reports if report[2] == month]
+    require(
+        {company for _, company in members} <= {report[1] for report in reports},
+        "Automatic refresh did not produce every seeded company's mature month",
+    )
+    require(
+        connection.execute(
+            "select count(*) from private.payout_report_refresh_state "
+            "where month=%s and (last_success_at is null or last_error_sqlstate is not null)",
+            (month,),
+        ).fetchall()[0][0]
+        == 0,
+        "The completed month retained an automatic refresh error",
+    )
     require(
         len(as_user(connection, operator, "select id from public.company_payout_reports"))
-        == len(reports),
+        == len(all_reports),
         "Administrator cannot see every generated company's reports",
     )
     elaboration_count = verify_report_components(connection, reports, month)
@@ -204,22 +209,38 @@ def verify_payouts(
     reconciliation_count = verify_frozen_reconciliation(
         connection, operator, reports, mature_cutoff_date
     )
-    verify_member_access(connection, members, reports, month)
-    # Server and UI enforce calendar shape and the mature cutoff date.
-    expect_denied(connection, operator, members[0][1], month.replace(day=2), "22023")
-    expect_denied(connection, operator, members[0][1], date(2099, 1, 1), "22023")
+    verify_member_access(connection, members, all_reports)
+    expect_generation_denied(connection, operator)
+    require(
+        connection.execute(
+            "select to_regprocedure('public.generate_company_payout_reports(uuid,date)')"
+        ).fetchall()[0][0]
+        is None,
+        "Manual payout generation remains exposed in the application API",
+    )
+    repeat = refresh_payouts(connection)
+    require(repeat == (0, 0, 0, 0), "Unchanged automatic refresh did not stay idle")
+    estimate_comparison = verify_estimate_parity(connection, operator)
     return {
         "month": month.isoformat(),
         "companies_verified": len(members),
         "reports_generated": len(reports),
+        "automatic_refresh": {
+            "checked_company_months": checked,
+            "created_reports": created,
+            "reused_reports": reused,
+            "failed_company_months": failed,
+        },
         "elaboration_components": elaboration_count,
         "frozen_reconciliation_rows": reconciliation_count,
         "frozen_reconciliation_exact_and_admin_only": True,
         "exact_component_sums_match": True,
         "independent_source_and_fee_sums_match": True,
         "member_company_isolation": True,
-        "member_generation_rejected": True,
-        "invalid_and_recent_months_rejected": True,
+        "application_generation_rejected": True,
+        "manual_generation_api_absent": True,
+        "unchanged_automatic_refresh_skipped": True,
+        "estimate_comparison": estimate_comparison,
     }
 
 
@@ -235,15 +256,12 @@ def verify_seed(seed: Path, supplement_cache: Path) -> dict[str, object]:
         mature_cutoff_date, evidence["authority"] = verify_authority(connection, operator)
         evidence["reconciliation"] = verify_live_reconciliation(connection, mature_cutoff_date)
         evidence["original_june_coverage"] = month_coverage(connection, date(2026, 6, 1))
-        company = connection.execute(
-            "select company_id::text from public.app_accounts "
-            "where access_role='company_member' limit 1"
-        ).fetchall()[0][0]
-        expect_denied(connection, operator, company, date(2026, 6, 1), "23514")
+        first_refresh = refresh_payouts(connection)
+        require(first_refresh[3] > 0, "Incomplete June coverage was not recorded as a failure")
         require(
-            connection.execute("select count(*) from public.company_payout_reports").fetchall()[0][
-                0
-            ]
+            connection.execute(
+                "select count(*) from public.company_payout_reports where start_date='2026-06-01'"
+            ).fetchall()[0][0]
             == 0,
             "Incomplete June coverage left a partial report",
         )

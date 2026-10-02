@@ -1,5 +1,5 @@
 .muted-value {
-  color: #7a8792;
+  color: var(--mantine-color-dimmed);
 }
 
 .missing-value {

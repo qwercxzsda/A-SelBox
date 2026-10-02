@@ -241,21 +241,19 @@ test("count caches require the exact account, dataset, search, and normalized fi
   }
 });
 
-test("account and payout counts expire after 30 seconds because source revisions do not cover them", async (context) => {
+test("account counts expire after 30 seconds because revisions do not cover them", async (context) => {
   let now = Date.now();
   context.mock.method(Date, "now", () => now);
   const client = createQueryClient();
   try {
-    for (const dataset of ["accounts", "payouts"]) {
-      let requests = 0;
-      const options = countOptions({ dataset }, async () => ++requests);
-      assert.equal(options.staleTime, 30_000);
-      assert.equal(await client.query(options), 1);
-      now += 29_999;
-      assert.equal(await client.query(options), 1);
-      now += 1;
-      assert.equal(await client.query(options), 2);
-    }
+    let requests = 0;
+    const options = countOptions({ dataset: "accounts" }, async () => ++requests);
+    assert.equal(options.staleTime, 30_000);
+    assert.equal(await client.query(options), 1);
+    now += 29_999;
+    assert.equal(await client.query(options), 1);
+    now += 1;
+    assert.equal(await client.query(options), 2);
   } finally {
     client.clear();
   }

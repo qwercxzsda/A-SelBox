@@ -5,11 +5,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  background: #e8edf1;
-  color: #1d2733;
-}
-
 #root {
   min-height: 100svh;
 }

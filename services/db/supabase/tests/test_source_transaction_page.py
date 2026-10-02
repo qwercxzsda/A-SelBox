@@ -60,9 +60,7 @@ class SourceTransactionPageTests(SourceModelFixture):
         numeric_columns = ["amount", "quantity", "source_line_number"]
         if dataset == "data_kiosk":
             numeric_columns.append("fee_base")
-        predicates: list[sql.Composable] = [
-            sql.SQL("amount <> 0" if dataset == "data_kiosk" else "true")
-        ]
+        predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
             if options.get(name) is not None:
@@ -201,10 +199,14 @@ class SourceTransactionPageTests(SourceModelFixture):
         for dataset in ("settlement", "data_kiosk"):
             operator_page = self.assert_matches_view(operator, dataset, p_order_by="amount")
             member_page = self.assert_matches_view(member, dataset, p_order_by="amount")
-            self.assertEqual(operator_page["total_count"], "3")
-            self.assertEqual(member_page["total_count"], "1")
+            kiosk = dataset == "data_kiosk"
+            self.assertEqual(operator_page["total_count"], "5" if kiosk else "3")
+            self.assertEqual(member_page["total_count"], "2" if kiosk else "1")
             rows = cast(list[dict[str, object]], operator_page["rows"])
-            self.assertEqual([row["amount"] for row in rows], ["1000", "999", "10"])
+            self.assertEqual(
+                [row["amount"] for row in rows],
+                ["1000", "999", "10"] + (["0", "0"] if kiosk else []),
+            )
             self.assertEqual(rows[0]["category"], "SELBOX")
         self.assign("SKU", None, expected=old_terms)
         for dataset in ("settlement", "data_kiosk"):

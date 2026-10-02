@@ -1,5 +1,3 @@
-import type { SummaryPeriod } from "./summary-types";
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTransactionTypeTotals } from "./api";
 import type { DateRange } from "./estimated-periods";
@@ -9,13 +7,25 @@ import type { Identity } from "./auth-session";
 import { companyLabel, getErrorMessage } from "./view-model";
 import { useTransactionSummaries, type TransactionSummaryScope } from "./use-transaction-summaries";
 import type { SummaryFilter } from "./SummaryFilters";
+import { EstimateRecords } from "./EstimateRecords";
+import { useWorkspacePreference } from "./use-workspace-preference";
+import {
+  decodeSummaryBreakdown,
+  summaryBreakdownKey,
+  type SummaryBreakdownSelection,
+} from "./detail-view-state";
 
-interface BreakdownSelection {
-  period: SummaryPeriod;
-  title: string;
-  currency: string;
-  scope: TransactionSummaryScope;
-  appliedFilters: SummaryFilter[];
+function scopeLabels(
+  scope: TransactionSummaryScope,
+  companies: Map<string, string>,
+): SummaryFilter[] {
+  return (
+    [
+      { label: "Company", values: scope.companyIds.map((id) => companyLabel(id, companies)) },
+      { label: "SKU", values: scope.skus },
+      { label: "Marketplace", values: scope.marketplaces },
+    ] satisfies SummaryFilter[]
+  ).filter((filter) => filter.values.length > 0);
 }
 
 export function TransactionSummaries({
@@ -26,6 +36,8 @@ export function TransactionSummaries({
   skus,
   marketplaces,
   onPeriodSelect,
+  selectedCurrency,
+  onCurrencyChange,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
@@ -34,6 +46,8 @@ export function TransactionSummaries({
   skus: string[];
   marketplaces: string[];
   onPeriodSelect: (range: DateRange) => void;
+  selectedCurrency: string | null;
+  onCurrencyChange: (currency: string) => void;
 }) {
   const { session, account } = identity;
   const { scope, ...summaries } = useTransactionSummaries(identity, dateRange, {
@@ -42,14 +56,13 @@ export function TransactionSummaries({
     marketplaces,
   });
   const companyNames = new Map(identity.companies.map((company) => [company.id, company.name]));
-  const appliedFilters = (
-    [
-      { label: "Company", values: scope.companyIds.map((id) => companyLabel(id, companyNames)) },
-      { label: "SKU", values: scope.skus },
-      { label: "Marketplace", values: scope.marketplaces },
-    ] satisfies SummaryFilter[]
-  ).filter((filter) => filter.values.length > 0);
-  const [breakdown, setBreakdown] = useState<BreakdownSelection | null>(null);
+  const appliedFilters = scopeLabels(scope, companyNames);
+  const [breakdown, setBreakdown] = useWorkspacePreference<SummaryBreakdownSelection | null>(
+    "estimate-breakdown",
+    () => null,
+    decodeSummaryBreakdown,
+  );
+  const stateKey = summaryBreakdownKey(breakdown);
   const breakdownQuery = useQuery({
     queryKey: [
       "transaction-type-totals",
@@ -78,15 +91,16 @@ export function TransactionSummaries({
     <>
       <EstimatedSummaries
         {...summaries}
+        selectedCurrency={selectedCurrency}
+        onCurrencyChange={onCurrencyChange}
         appliedFilters={appliedFilters}
         onPeriodSelect={onPeriodSelect}
         onOpenBreakdown={(period, title, currency) => {
           setBreakdown({
-            period,
+            period: { label: period.label, range: period.range },
             title,
             currency,
             scope,
-            appliedFilters,
           });
         }}
         onRetry={onRetry}
@@ -97,12 +111,13 @@ export function TransactionSummaries({
         }
       />
       <TypeBreakdown
+        stateKey={stateKey}
         opened={breakdown !== null}
         onClose={() => {
           setBreakdown(null);
         }}
         title={breakdown?.title ?? ""}
-        appliedFilters={breakdown?.appliedFilters ?? []}
+        appliedFilters={breakdown ? scopeLabels(breakdown.scope, companyNames) : []}
         periodLabel={breakdown?.period.label ?? ""}
         currency={breakdown?.currency ?? ""}
         totals={breakdownQuery.data}
@@ -111,6 +126,19 @@ export function TransactionSummaries({
         onRetry={() => {
           void breakdownQuery.refetch();
         }}
+        renderRecords={(selection) =>
+          breakdown ? (
+            <EstimateRecords
+              key={`${stateKey}:${String(selection.revision ?? 0)}:${JSON.stringify(selection.types)}`}
+              stateKey={`${stateKey}:selection:${String(selection.revision ?? 0)}`}
+              identity={identity}
+              range={breakdown.period.range}
+              scope={breakdown.scope}
+              currency={breakdown.currency}
+              types={selection.types}
+            />
+          ) : null
+        }
       />
     </>
   );

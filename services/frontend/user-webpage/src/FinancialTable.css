@@ -1,4 +1,5 @@
 .table-card {
+  --type-column-width: 20rem;
   overflow: hidden;
 }
 
@@ -7,16 +8,8 @@
 }
 
 .table-horizontal-scroll:focus-visible {
-  outline: 2px solid var(--mantine-primary-color-filled);
+  outline: 2px solid var(--ui-accent);
   outline-offset: -2px;
-}
-
-.table-card th {
-  background: #f3f6f8;
-  color: #445360;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .table-card th,
@@ -25,36 +18,60 @@
 }
 
 .table-card [data-column="component_type"] {
-  width: 20rem;
-  max-width: 20rem;
+  width: var(--type-column-width);
+  max-width: var(--type-column-width);
+}
+
+.table-card[data-dataset="live"] [data-column="component_type"] {
+  min-width: var(--type-column-width);
 }
 
 .table-card td[data-column="component_type"] > span {
   display: block;
-  max-width: 20rem;
+  max-width: var(--type-column-width);
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
-.inspectable-row {
-  cursor: pointer;
+.table-card[data-dataset="live"] .transaction-type {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  overflow: hidden;
+  font-size: var(--ui-font-data);
+  white-space: nowrap;
 }
 
-.inspectable-row:focus-visible {
-  outline: 3px solid var(--mantine-primary-color-filled);
-  outline-offset: -3px;
+.table-card[data-dataset="live"] .transaction-type-prefix,
+.table-card[data-dataset="live"] .transaction-type-leaf {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.table-card tbody tr.selected {
-  background: #f0f9fa;
-  box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
+.table-card[data-dataset="live"] .transaction-type-prefix {
+  flex: 0 1 auto;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+}
+
+.table-card[data-dataset="live"] .transaction-type-separator {
+  flex: 0 0 auto;
+  color: var(--ui-text-muted);
+}
+
+.table-card[data-dataset="live"] .transaction-type-leaf {
+  flex: 0 0 auto;
+  max-width: 100%;
+  font-weight: 500;
+}
+
+.table-card[data-dataset="live"] .transaction-type[data-hierarchical] .transaction-type-leaf {
+  max-width: calc(100% - 4rem);
 }
 
 .table-card .numeric {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.table-card td.numeric {
-  font-weight: 600;
 }

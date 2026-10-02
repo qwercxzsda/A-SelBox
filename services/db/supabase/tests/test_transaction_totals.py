@@ -54,9 +54,7 @@ class TransactionTotalsTests(SourceModelFixture):
 
     def expected(self, user: str | None, **options: object) -> dict[str, object]:
         options = {"p_date_from": "2026-01-01", **options}
-        predicates: list[sql.Composable] = [
-            sql.SQL("authoritative and (source <> 'DATA_KIOSK' or source_amount <> 0)")
-        ]
+        predicates: list[sql.Composable] = [sql.SQL("authoritative")]
         parameters: list[object] = []
         for name, column, comparison, type_name in (
             ("p_date_from", "activity_date", ">=", "date"),

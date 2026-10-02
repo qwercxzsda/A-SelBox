@@ -18,6 +18,7 @@ _PARAMETER_TYPES = {
     **{name: "uuid[]" if name == "p_company_ids" else "text[]" for name in _ARRAY_FILTERS},
     "p_fee_applicable": "boolean",
     **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
+    "p_currency": "text",
 }
 
 
@@ -52,8 +53,8 @@ class TransactionCountTests(SourceModelFixture):
     def test_roles_zero_visibility_and_missing_fee_rows_are_counted_exactly(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, expected in (
-            (self.operator(), "19"),
-            (self.member(company_a), "9"),
+            (self.operator(), "20"),
+            (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
         ):
@@ -140,10 +141,10 @@ class TransactionCountTests(SourceModelFixture):
         )
         self.kiosk(2, [self.component("0")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, expected in ((operator, "2"), (member_a, "0"), (member_b, "2")):
+        for user, expected in ((operator, "3"), (member_a, "0"), (member_b, "3")):
             self.assertEqual(self.assert_matches_view(user), expected)
         self.assign("SKU", None, rate="7", expected=new_terms)
-        for user, expected in ((operator, "2"), (member_a, "0"), (member_b, "0")):
+        for user, expected in ((operator, "3"), (member_a, "0"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
 
     def test_anonymous_execution_is_denied_and_function_keeps_invoker_security(self) -> None:
@@ -155,8 +156,8 @@ class TransactionCountTests(SourceModelFixture):
     def test_text_marketplace_counts_match_pages_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
-            (self.operator(), "19"),
-            (self.member(company_a), "9"),
+            (self.operator(), "20"),
+            (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
         ):

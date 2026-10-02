@@ -46,8 +46,10 @@ create function private.prune_data_kiosk_preprocess(
     p_keep_observations integer default 3
 ) returns integer
 language plpgsql set search_path = '' as $$
-declare candidate record; removed integer := 0;
+declare candidate record; removed integer := 0; removed_skus text[];
+    scope_removed boolean := false;
 begin
+    perform private.lock_payout_report_inputs();
     perform private.require_read_committed();
     if p_keep_observations is null or p_keep_observations < 3 then
         raise exception 'Retain at least three observations' using errcode = '23514';
@@ -62,7 +64,7 @@ begin
             select *,row_number() over (partition by day_id order by root_query_created_at desc,id desc) as observation_rank
             from observations
         )
-        select v.id,v.day_id from private.data_kiosk_preprocess_versions v
+        select v.id,v.day_id,d.seller_namespace from private.data_kiosk_preprocess_versions v
         join private.data_kiosk_days d on d.id = v.day_id
         join private.data_kiosk_preprocess_batches b on b.id = v.batch_id
         join ranked r on r.day_id = v.day_id and r.id = b.acquisition_id
@@ -76,9 +78,16 @@ begin
            or exists (select 1 from private.data_kiosk_days d where d.current_version_id = candidate.id)
            or exists (select 1 from private.payout_report_data_kiosk_versions p where p.version_id = candidate.id) then continue; end if;
         insert into private.data_kiosk_pruned_versions(version_id) values (candidate.id);
+        select coalesce(array_agg(distinct t.sku) filter (where t.sku is not null),'{}'::text[])
+        into removed_skus from private.data_kiosk_transactions t where t.version_id = candidate.id;
         delete from private.data_kiosk_transactions where version_id = candidate.id;
+        scope_removed := scope_removed or private.payout_source_has_new_skus(
+            candidate.seller_namespace,removed_skus);
         removed := removed + 1;
     end loop;
+    if scope_removed then
+        perform private.request_all_payout_report_refreshes();
+    end if;
     return removed;
 end;
 $$;

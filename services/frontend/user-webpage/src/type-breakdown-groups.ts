@@ -150,7 +150,7 @@ function normalizePart(value: string): string {
     .toUpperCase();
 }
 
-function groupId(type: string): GroupId {
+export function transactionTypeBreakdownGroupId(type: string): GroupId {
   const parts = type.split("/").map(normalizePart);
   if (parts.length === 1) return DIRECT_TYPES.get(parts[0]) ?? "other";
   if (parts.length !== 3) return "other";
@@ -233,7 +233,7 @@ export function groupTransactionTypes(
   const grouped = new Map<GroupId, TransactionTypeTotal[]>();
   for (const row of rows) {
     if (row.currency !== currency) continue;
-    const id = groupId(row.type);
+    const id = transactionTypeBreakdownGroupId(row.type);
     const types = grouped.get(id) ?? [];
     types.push(row);
     grouped.set(id, types);

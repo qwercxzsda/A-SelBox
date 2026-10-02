@@ -234,6 +234,12 @@ SETTLEMENT_TYPES: tuple[SettlementType, ...] = (
         category=AllocationCategory.SELBOX,
     ),
     *_types(
+        "Other",
+        "MCF Preferred Pricing Seller Credit",
+        ("Base charge",),
+        category=AllocationCategory.SELBOX,
+    ),
+    *_types(
         "other-transaction",
         "other-transaction",
         ("Fee Adjustment",),
@@ -252,6 +258,8 @@ SETTLEMENT_TYPES: tuple[SettlementType, ...] = (
             "Cross-Account Debt Adjustment against BE, NL, ES",
             "Cross-Account Debt Adjustment against DE",
             "Cross-Account Debt Adjustment against DE, BE, ES",
+            "Cross-Account Debt Adjustment against DE, ES, NL",
+            "Cross-Account Debt Adjustment against DE, FR",
             "Cross-Account Debt Adjustment against DE, NL, ES",
             "Cross-Account Debt Adjustment against ES",
             "Cross-Account Debt Adjustment against ES, NL",

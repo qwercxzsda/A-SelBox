@@ -1,5 +1,7 @@
 import { useId, useState } from "react";
 import { DateFilter, SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
+import { MonthFilter } from "./MonthFilter";
+import { TransactionTypeFilter } from "./TransactionTypeFilter";
 import {
   Button,
   CloseButton,
@@ -33,7 +35,8 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
   const filterCount =
     filter?.kind === "selection"
       ? filter.value.length
-      : filter?.kind === "date" && (filter.from || filter.to)
+      : (filter?.kind === "date" && (filter.from || filter.to)) ||
+          (filter?.kind === "month" && filter.value)
         ? 1
         : 0;
 
@@ -45,9 +48,14 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
     <Popover
       opened={opened}
       onChange={setOpened}
-      width="min(340px, calc(100vw - 24px))"
+      width={
+        filter?.kind === "selection" && filter.groupBy === "transaction-type"
+          ? "min(420px, calc(100vw - 24px))"
+          : "min(340px, calc(100vw - 24px))"
+      }
       position="bottom-start"
-      middlewares={{ shift: { crossAxis: true } }}
+      // Keep controls reachable when resizing or scrolling moves the column off-screen.
+      middlewares={{ shift: { crossAxis: true, limiter: undefined, padding: 12 } }}
       shadow="md"
       trapFocus
       returnFocus
@@ -88,8 +96,15 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
           {opened && filter?.kind === "date" ? (
             <DateFilter filter={filter} onClose={close} />
           ) : null}
+          {opened && filter?.kind === "month" ? (
+            <MonthFilter filter={filter} onClose={close} />
+          ) : null}
           {opened && filter?.kind === "selection" ? (
-            <SelectionFilter label={label} filter={filter} />
+            filter.groupBy === "transaction-type" ? (
+              <TransactionTypeFilter filter={filter} onClose={close} />
+            ) : (
+              <SelectionFilter label={label} filter={filter} />
+            )
           ) : null}
           {filter && sort ? <Divider /> : null}
           {sort ? (

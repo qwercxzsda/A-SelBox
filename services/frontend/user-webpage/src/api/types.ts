@@ -28,7 +28,7 @@ export interface AppAccount {
   company_id: string | null;
 }
 
-export type RevisionSource = "settlement" | "data_kiosk" | "fees" | "inventory";
+export type RevisionSource = "settlement" | "data_kiosk" | "fees" | "inventory" | "payouts";
 export type WorkspaceRevisions = Partial<Record<RevisionSource, string>>;
 
 export interface WorkspaceRevisionSnapshot {
@@ -94,11 +94,12 @@ export interface FetchDatasetPageOptions {
   sort: DatasetSort;
   filters?: DatasetFilters;
   includeCount?: boolean;
+  currency?: string;
 }
 
 export type FetchDatasetCountOptions = Pick<
   FetchDatasetPageOptions,
-  "accessToken" | "signal" | "dataset" | "search" | "searchValues" | "filters"
+  "accessToken" | "signal" | "dataset" | "search" | "searchValues" | "filters" | "currency"
 >;
 
 export interface CurrencyTotal {

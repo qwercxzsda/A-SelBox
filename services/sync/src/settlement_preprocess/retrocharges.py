@@ -60,10 +60,22 @@ def validate_retrocharge_groups(
         for row in group:
             by_tax[RETROCHARGE_COMPONENTS[(row.amount_type, row.amount_description)]].append(row)
         for pair in by_tax.values():
+            # Reviewed Amazon reports retain an explicit zero ShippingTax row
+            # without emitting a zero shipping-withholding counterpart. Keep
+            # that source row; all nonzero subgroups still require an exact pair.
+            if (
+                len(pair) == 1
+                and pair[0].amount_type == "ItemPrice"
+                and pair[0].amount_description == "ShippingTax"
+                and pair[0].amount == ZERO
+            ):
+                continue
             if len(pair) != 2 or {row.amount_type for row in pair} != {
                 "ItemPrice",
                 "ItemWithheldTax",
             }:
                 raise ValueError("F7 tax/withholding pair is incomplete or ambiguous.")
+            if sum((row.amount for row in pair), ZERO) != ZERO:
+                raise ValueError("F7 tax/withholding pair must have an exact zero net amount.")
         if sum((row.amount for row in group), ZERO) != ZERO:
             raise ValueError("F7 retrocharge group must have an exact zero net amount.")

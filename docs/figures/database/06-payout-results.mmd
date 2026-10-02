@@ -1,17 +1,29 @@
 erDiagram
     direction LR
     public_companies ||..o{ public_company_payout_reports : "company_id"
+    public_companies ||--o{ private_payout_report_refresh_state : "company_id"
     public_company_payout_reports ||..o{ public_company_payout_report_components : "report_id"
     public_company_payout_reports ||--o{ private_payout_report_reconciliation : "report_id"
+
+    private_payout_report_refresh_state["private.payout_report_refresh_state"] {
+        local_uuid company_id PK, FK "NN"
+        date month PK "NN first day"
+        bigint requested_revision "NN default 1"
+        bigint completed_revision "NN default 0"
+        timestamptz next_attempt_at "NN"
+        integer failure_count "NN default 0"
+        timestamptz last_attempt_at "NULL"
+        timestamptz last_success_at "NULL"
+        text last_error_sqlstate "NULL"
+        text last_error_message "NULL"
+    }
 
     public_company_payout_reports["public.company_payout_reports"] {
         local_uuid id PK "NN"
         local_uuid company_id FK "NN"
-        nonblank seller_namespace "NULL"
         text currency "NULL"
         date start_date "NN"
         date end_date "NN"
-        nonblank preprocess_version "NULL"
         text dataset_key "NN"
         text[] marketplace_names "NN"
         nonblank report_name "NN"

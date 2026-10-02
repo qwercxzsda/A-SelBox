@@ -1,0 +1,120 @@
+.fee-panel > .ui-workspace-intro {
+  margin-bottom: 0;
+}
+
+.fee-draft-status {
+  padding: 12px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface-subtle);
+}
+
+.fee-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.fee-list-search {
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 430px;
+}
+
+.fee-list-rows {
+  width: 108px;
+}
+
+.fee-list-incomplete {
+  padding-bottom: 8px;
+}
+
+.fee-list-collapse {
+  margin-bottom: 2px;
+  margin-left: auto;
+}
+
+.fee-sku-list .mantine-Accordion-item {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  overflow: hidden;
+}
+
+.fee-sku-list .mantine-Accordion-item[data-active] {
+  border-color: var(--ui-border);
+}
+
+.fee-sku-list .mantine-Accordion-content {
+  padding: 0 16px 16px;
+}
+
+.fee-sku-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 12px 16px;
+}
+
+.fee-sku-identity {
+  min-width: 0;
+}
+
+.fee-sku-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.fee-sku-toggle {
+  width: auto;
+  border-radius: var(--ui-radius-sm);
+  font-size: var(--ui-font-data);
+  color: var(--ui-text-muted);
+}
+
+.fee-sku-toggle:hover {
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text);
+}
+
+.fee-sku-toggle .mantine-Accordion-label {
+  padding: 8px 0;
+  white-space: nowrap;
+}
+
+.fee-period-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.fee-period-table th,
+.fee-period-table td {
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.fee-period-date {
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .fee-list-search {
+    max-width: none;
+  }
+
+  .fee-list-collapse {
+    margin-left: 0;
+  }
+
+  .fee-sku-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fee-sku-actions {
+    align-self: flex-end;
+  }
+}

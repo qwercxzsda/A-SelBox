@@ -13,6 +13,7 @@ import {
 import { sessionRefreshDelayMs } from "./session";
 import { getErrorMessage } from "./view-model";
 import { sameAccount } from "./workspace-revisions";
+import { clearBrowserWorkspace } from "./workspace-browser-storage";
 
 type SessionTask = (save: (session: Session) => Session) => Promise<Identity | null>;
 
@@ -61,6 +62,7 @@ export function useAuth() {
             setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
           } else {
             store.clear();
+            clearBrowserWorkspace();
             setRestoreError(null);
             setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
           }
@@ -79,6 +81,7 @@ export function useAuth() {
     () =>
       runSessionTask(async (save) => {
         const saved = store.read();
+        if (!saved) clearBrowserWorkspace();
         return saved ? restoreIdentity(saved, save) : null;
       }),
     [runSessionTask, store],
@@ -114,6 +117,7 @@ export function useAuth() {
     ++operation.current;
     pendingAuth.current = null;
     store.clear();
+    clearBrowserWorkspace();
     updateIdentity(null);
     setPassword("");
     setIsRestoring(false);
@@ -131,6 +135,7 @@ export function useAuth() {
     setRestoreError(null);
     updateIdentity(null);
     store.clear();
+    clearBrowserWorkspace();
     let saved: Session | null = null;
     try {
       const received = await signIn(email.trim(), password);

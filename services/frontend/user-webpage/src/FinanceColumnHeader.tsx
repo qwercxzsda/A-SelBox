@@ -48,6 +48,7 @@ function SelectionColumnHeader({
         kind: "selection",
         value: selected,
         options: filterOptions(field, choices, selected),
+        groupBy: field === "component_type" ? "transaction-type" : undefined,
         onChange: (value) => {
           onFiltersChange({ [key]: value });
         },
@@ -78,7 +79,7 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
     );
   }
   if (
-    dataset === "live" &&
+    (dataset === "live" || dataset === "payouts") &&
     column.key === "company_id" &&
     identity.account.access_role === "operator"
   ) {
@@ -104,10 +105,10 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
   const field = fields.find((value) => value === column.key);
   if (field) return <SelectionColumnHeader {...props} field={field} />;
 
-  // Payouts use the month control so browsing and generation share one period.
   const dateFilter = dataset !== "payouts" && config.dateColumn === column.key;
-  if (!dateFilter && !column.sortable) return column.label;
-  const date = column.kind === "date";
+  const monthFilter = dataset === "payouts" && column.key === "start_date";
+  if (!dateFilter && !monthFilter && !column.sortable) return column.label;
+  const date = column.kind === "date" || column.kind === "month";
   const numeric = column.kind === "money" || column.kind === "percent" || column.kind === "number";
   const ordering: ColumnMenuSort | undefined = column.sortable
     ? {
@@ -130,16 +131,25 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
     <ColumnMenu
       label={column.label}
       filter={
-        dateFilter
+        monthFilter
           ? {
-              kind: "date",
-              from: filters.dateFrom,
-              to: filters.dateTo,
-              onChange: (dateFrom, dateTo) => {
-                onFiltersChange({ dateFrom, dateTo });
+              kind: "month",
+              value: filters.dateFrom.slice(0, 7),
+              onChange: (month) => {
+                const date = month ? `${month}-01` : "";
+                onFiltersChange({ dateFrom: date, dateTo: date });
               },
             }
-          : undefined
+          : dateFilter
+            ? {
+                kind: "date",
+                from: filters.dateFrom,
+                to: filters.dateTo,
+                onChange: (dateFrom, dateTo) => {
+                  onFiltersChange({ dateFrom, dateTo });
+                },
+              }
+            : undefined
       }
       sort={ordering}
     />

@@ -46,12 +46,14 @@ export function useSkuConfiguration(
   }
   const save = useMutation({
     mutationKey,
-    mutationFn: (submitted: { changes: SkuConfigurationChange[]; changeReason: string }) =>
-      publishSkuConfiguration({
+    mutationFn: (submitted: { changes: SkuConfigurationChange[]; changeReason: string }) => {
+      onViewStateChange((current) => ({ ...current, savePending: true, savedNotice: null }));
+      return publishSkuConfiguration({
         accessToken: identity.session.access_token,
         changes: submitted.changes,
         changeReason: submitted.changeReason,
-      }),
+      });
+    },
     retry: false,
     onSuccess: async (result, submitted) => {
       onViewStateChange((current) => ({
@@ -60,6 +62,7 @@ export function useSkuConfiguration(
         changeReason: current.changeReason === submitted.changeReason ? "" : current.changeReason,
         saveProblem: null,
         requiresReload: false,
+        savePending: false,
         savedNotice: `${String(result.changed_count)} SKU ${result.changed_count === 1 ? "change" : "changes"} saved.`,
       }));
       try {
@@ -77,6 +80,7 @@ export function useSkuConfiguration(
         ...current,
         saveProblem: getErrorMessage(error),
         requiresReload: mustReload,
+        savePending: false,
       }));
       if (error instanceof SkuConfigurationError && error.kind === "incomplete")
         void configuration.refetch();

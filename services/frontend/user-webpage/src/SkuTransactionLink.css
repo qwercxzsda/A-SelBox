@@ -1,0 +1,7 @@
+.sku-transaction-link {
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--ui-font-data);
+  color: var(--ui-accent);
+}

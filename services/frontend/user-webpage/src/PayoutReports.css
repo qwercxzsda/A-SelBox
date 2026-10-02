@@ -1,0 +1,39 @@
+.payout-reports-table {
+  min-width: 1020px;
+}
+
+.payout-report-updated {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  font-size: var(--ui-font-caption);
+}
+
+.payout-report-updated button {
+  margin-left: -6px;
+}
+
+.payout-reports-table .payout-history-row > td {
+  padding: 0;
+}
+
+.payout-report-history {
+  padding: 16px;
+  background: var(--ui-surface-subtle);
+  border-block: 1px solid var(--ui-border);
+}
+
+.payout-report-history p {
+  white-space: normal;
+}
+
+.payout-version-table {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+}
+
+.payout-version-navigation {
+  padding: 10px 12px;
+  background: var(--ui-surface-subtle);
+  border-radius: var(--ui-radius-sm);
+}

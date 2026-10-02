@@ -12,6 +12,7 @@ interface PaginationBarProps {
   onNext: () => void;
   onPageChange?: (pageIndex: number) => void;
   summary: string;
+  ariaLabel?: string;
 }
 
 export function PaginationBar({
@@ -24,6 +25,7 @@ export function PaginationBar({
   onNext,
   onPageChange,
   summary,
+  ariaLabel = "Pagination",
 }: PaginationBarProps) {
   const [previousPageIndex, setPreviousPageIndex] = useState(pageIndex);
   const [draftPage, setDraftPage] = useState<string | number>(pageIndex + 1);
@@ -51,7 +53,7 @@ export function PaginationBar({
       component="nav"
       className="pagination-bar"
       justify="space-between"
-      aria-label="Pagination"
+      aria-label={ariaLabel}
     >
       <Text className="pagination-summary" size="sm" c="dimmed">
         {summary}

@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from services.db.supabase.tests.payout_fixtures import (
+    fill_payout_kiosk_month,
     generate_payout_reports,
     prepare_payout,
     publish_payout,
@@ -45,6 +46,7 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
             ],
             expected=inputs.kiosk_version,
         )
+        fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         report = publish_payout(self, inputs)
         other_report = publish_payout(self, inputs, company_id=other_company)
         operator, member, other_member = (
@@ -112,7 +114,7 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
             expected=inputs.kiosk_version,
         )
         operator = self.operator()
-        reports = generate_payout_reports(self, operator, inputs.company)
+        reports = generate_payout_reports(self, inputs.company)
         self.assertEqual(len(reports), 2)
         self.assertTrue(all(created for _, created in reports))
         self.assertEqual(

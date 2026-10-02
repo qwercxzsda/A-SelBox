@@ -24,8 +24,12 @@ const QUANTITIES = [
   ["Recommended ship-in units", "recommended_ship_in_units"],
 ];
 const RECOMMENDATION_LABELS = new Map([
+  ["EditListing", "Edit listing"],
   ["SendToFBA", "Send to FBA"],
   ["GoToRestock", "Restock"],
+  ["NoExcessInventory", "No excess inventory"],
+  ["NoActionRequired", "No action required"],
+  ["AdvertiseListing", "Advertise listing"],
 ]);
 
 const itemCount = (count) => `${count} inventory ${count === 1 ? "item" : "items"}`;
@@ -63,15 +67,18 @@ async function readAfter(page, expectedParams, action) {
 }
 
 async function verifyCatalog(page, account) {
-  await expect(page.getByText(itemCount(account.count), { exact: true })).toBeVisible();
+  await expect(page.getByText(itemCount(account.count), { exact: true }).first()).toBeVisible();
   let rows = await readAfter(page, { limit: "100", offset: "0" }, () =>
-    page.getByLabel("Inventory rows", { exact: true }).selectOption("100"),
+    page.getByLabel("Rows", { exact: true }).selectOption("100"),
   );
   const visible = rows.map((row) => row.sku);
   while (visible.length < account.count) {
     const offset = visible.length;
     rows = await readAfter(page, { limit: "100", offset: String(offset) }, () =>
-      page.getByRole("button", { name: "Next", exact: true }).click(),
+      page
+        .getByRole("navigation", { name: "Inventory pagination, top", exact: true })
+        .getByRole("button", { name: "Next", exact: true })
+        .click(),
     );
     if (rows.length === 0) throw new Error("Inventory pages did not advance");
     visible.push(...rows.map((row) => row.sku));
@@ -90,24 +97,26 @@ async function verifyMetrics(page, sample) {
   await expect(row.locator(".inventory-sku")).toHaveText(sample.sku);
   // Python's CSV reader supplies empty cells as strings. The API parser preserves SQL NULL.
   const field = (name) => (sample[name] === "" || sample[name] === null ? null : sample[name]);
-  const breakdown = row.locator("details");
-  if ((await breakdown.getAttribute("open")) === null)
-    await row.getByText("Inventory breakdown", { exact: true }).click();
+  await row.focus();
+  await row.press("Enter");
+  const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
+  await expect(detail).toBeVisible();
   for (const [label, name] of QUANTITIES)
-    await expect(metric(row, label)).toHaveText(formatExactDecimal(field(name)));
-  await expect(metric(row, "Sales")).toHaveText(
+    await expect(metric(detail, label)).toHaveText(formatExactDecimal(field(name)));
+  await expect(metric(detail, "Sales")).toHaveText(
     formatExactMoney(field("sales_amount_90d"), field("currency")),
   );
-  await expect(metric(row, "Recommended ship-in date")).toHaveText(
+  await expect(metric(detail, "Recommended ship-in date")).toHaveText(
     field("recommended_ship_in_date") ?? "—",
   );
-  await expect(row.locator(".inventory-health-label")).toHaveText(field("health_status") ?? "—");
-  await expect(row.locator(".inventory-action-label")).toHaveText(
+  await expect(detail.locator(".inventory-health-label")).toHaveText(field("health_status") ?? "—");
+  await expect(detail.locator(".inventory-action-label")).toHaveText(
     RECOMMENDATION_LABELS.get(field("recommended_action")) ?? field("recommended_action") ?? "—",
   );
-  await expect(
-    row.getByText(`Snapshot: ${field("snapshot_date") ?? "—"}`, { exact: true }),
-  ).toBeVisible();
+  const source = detail.getByRole("button", { name: "Source capture", exact: true });
+  if ((await source.getAttribute("aria-expanded")) !== "true") await source.click();
+  await expect(metric(detail, "Snapshot date")).toHaveText(field("snapshot_date") ?? "—");
+  await detail.getByRole("button", { name: "Close inventory details", exact: true }).click();
 }
 
 async function verifyLightweightCheck(page, sample) {
@@ -182,23 +191,28 @@ try {
       viewports: await reviewInventoryLayout(page, `${role}-${accountIndex}`),
     });
     stage = role + ":sku-filter";
-    await readAfter(page, { sku: exactFilter(account.sample.sku), offset: "0" }, () =>
-      page.getByLabel("Exact SKU", { exact: true }).fill(account.sample.sku),
+    await inventoryRegion(page).getByRole("button", { name: "SKU", exact: true }).click();
+    const skuSearch = page.getByLabel("Search sku", { exact: true });
+    if (await skuSearch.count()) await skuSearch.fill(account.sample.sku);
+    const skuFilter = `(sku.in.(${JSON.stringify(account.sample.sku)}))`;
+    await readAfter(page, { and: skuFilter, offset: "0" }, () =>
+      page.getByRole("checkbox", { name: account.sample.sku, exact: true }).check(),
     );
+    await page.keyboard.press("Escape");
     stage = role + ":marketplace-filter";
     await readAfter(
       page,
       {
-        sku: exactFilter(account.sample.sku),
+        and: skuFilter,
         marketplace_name: exactFilter(account.sample.marketplace_name),
         offset: "0",
       },
       () =>
         page
-          .getByLabel("Inventory marketplace", { exact: true })
+          .getByLabel("Marketplace", { exact: true })
           .selectOption(account.sample.marketplace_name),
     );
-    await expect(page.getByText("1 inventory item", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
     stage = role + ":metrics";
     await verifyMetrics(page, account.sample);
     stage = role + ":lightweight-refresh";

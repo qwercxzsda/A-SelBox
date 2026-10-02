@@ -31,7 +31,7 @@ export function sourceTransactionFilterParams(args) {
   const date = args.p_dataset === "settlement" ? "posted_date" : "activity_date";
   const params = new URLSearchParams();
   addSearch(params, args);
-  if (args.p_dataset === "data_kiosk") params.set("amount", "neq.0");
+  if (args.p_dataset === "data_kiosk") params.set("amount", "not.is.null");
   if (args.p_date_from) params.append(date, `gte.${args.p_date_from}`);
   if (args.p_date_to) params.append(date, `lte.${args.p_date_to}`);
   for (const [field, values] of [
@@ -45,8 +45,9 @@ export function sourceTransactionFilterParams(args) {
 }
 
 export function transactionFilterParams(args) {
-  const params = new URLSearchParams({ and: "(or(source.neq.DATA_KIOSK,source_amount.neq.0))" });
+  const params = new URLSearchParams();
   addSearch(params, args);
+  if (args.p_currency) params.set("currency", `eq.${args.p_currency}`);
   if (args.p_fee_applicable !== null) params.set("fee_applicable", String(args.p_fee_applicable));
   if (args.p_date_from) params.append("activity_date", `gte.${args.p_date_from}`);
   if (args.p_date_to) params.append("activity_date", `lte.${args.p_date_to}`);

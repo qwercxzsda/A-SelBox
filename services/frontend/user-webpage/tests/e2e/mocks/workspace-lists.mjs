@@ -10,13 +10,14 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
     dataset,
     params: url.searchParams,
     transport: "rest",
+    endpoint: url.pathname,
     completed: false,
     failure: null,
   };
   track(request, entry);
   const counting = request.method() === "HEAD";
   (counting ? fixture.countRequests : fixture.requests).push(entry);
-  const source =
+  let source =
     dataset === "payouts"
       ? fixture.payoutRows.filter(
           (row) =>
@@ -28,6 +29,19 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
           company_id: fixture.roles[id] === "operator" ? null : fixture.companyIds[id],
           created_at: "2026-09-01T00:00:00Z",
         }));
+  if (url.pathname.endsWith("/latest_company_payout_reports")) {
+    const sorted = sortRecordRows(
+      source,
+      new URLSearchParams({ order: "created_at.desc,id.desc" }),
+    );
+    source = [
+      ...new Map(
+        sorted
+          .map((row) => [JSON.stringify([row.company_id, row.start_date, row.currency]), row])
+          .reverse(),
+      ).values(),
+    ];
+  }
   const rows = sortRecordRows(filterRecordRows(source, url.searchParams), url.searchParams);
   const offset = Number(url.searchParams.get("offset"));
   const limit = Number(url.searchParams.get("limit"));
