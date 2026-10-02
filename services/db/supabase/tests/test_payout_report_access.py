@@ -12,21 +12,28 @@ class PayoutReportAccessTests(SourceModelFixture):
         company, identity = self.owner()
         other_company, _ = self.owner("OTHER")
         self.fee(identity, [("2026-01-01", None, "5")])
-        settlement, _ = self.settlement([self.transaction("100")])
-        self.kiosk(1, [self.component(), self.component("-20", sku="OTHER")])
+        self.settlement([self.transaction("100")])
+        self.kiosk(
+            1,
+            [
+                self.component(),
+                self.component("-20", sku="OTHER"),
+                self.component("0", category="ANALYSIS_ONLY")
+                | {"component_type": "UNKNOWN_ZERO_DETAIL"},
+                self.component("0", category="ANALYSIS_ONLY")
+                | {"component_type": "UNKNOWN_QUANTITY_DETAIL", "quantity": "2"},
+                self.component("500", category="SETTLEMENT"),
+            ],
+        )
         fill_payout_kiosk_month(self)
         report = self.call(
             "publish_company_payout_report",
             {
                 "id": new_id(),
                 "company_id": company,
-                "seller_namespace": self.seller,
                 "currency": "USD",
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",
-                "preprocess_version": "v0",
-                "settlement_ids": [settlement],
-                "marketplace_names": ["Amazon.com"],
                 "dataset_key": "economics",
                 "report_name": "Complete source access",
                 "change_reason": "Freeze both source manifests and exclusion evidence",
@@ -44,11 +51,16 @@ class PayoutReportAccessTests(SourceModelFixture):
                 "data_kiosk_version_count,terms_version_count,company_amount "
                 "from public.company_payout_reports",
             ),
-            [(report, company, 2, 1, 30, 2, Decimal(85))],
+            [(report, company, 5, 1, 30, 2, Decimal(85))],
         )
         queries: tuple[tuple[LiteralString, int, int], ...] = (
             ("select * from public.company_payout_reports", 1, 1),
-            ("select * from public.company_payout_report_components", 2, 2),
+            ("select * from public.company_payout_report_components", 5, 2),
+            (
+                "select * from public.company_payout_report_components where not authoritative",
+                3,
+                0,
+            ),
             ("select * from public.payout_report_settlement_versions", 1, 0),
             ("select * from public.payout_report_data_kiosk_versions", 30, 0),
             ("select * from public.payout_report_terms_versions", 2, 0),
@@ -57,6 +69,7 @@ class PayoutReportAccessTests(SourceModelFixture):
             ("select * from private.payout_report_terms_versions", 2, 0),
             ("select * from public.payout_report_reconciliation", 1, 0),
             ("select * from private.payout_report_reconciliation", 1, 0),
+            ("select * from public.payout_reconciliation_totals", 1, 0),
         )
         for query, operator_count, member_count in queries:
             with self.subTest(query=query):
@@ -64,3 +77,25 @@ class PayoutReportAccessTests(SourceModelFixture):
                 self.assertEqual(len(self.as_user(owner, query)), member_count)
                 for user in denied_users:
                     self.assertEqual(self.as_user(user, query), [])
+        self.assertEqual(
+            self.as_user(
+                owner,
+                "select public.payout_report_totals(%s)::jsonb->'rows'",
+                (report,),
+            ),
+            [
+                (
+                    [
+                        {
+                            "currency": "USD",
+                            "component_type": None,
+                            "reported_amount": "90",
+                            "service_fee": "-5.00",
+                            "company_amount": "85.00",
+                            "row_count": "2",
+                            "known_company_count": "2",
+                        }
+                    ],
+                )
+            ],
+        )

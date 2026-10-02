@@ -103,7 +103,7 @@ currency, endpoint, or another row to fill a missing required settlement name.
 
 ### Shared preprocessor version
 
-One Python `PREPROCESS_VERSION = "v1"` applies to both sources. Successful result
+One Python `PREPROCESS_VERSION = "v2"` applies to both sources. Successful result
 headers store the actual nonblank `preprocess_version`; children reference their
 result UUID. The UUID identifies an execution's result, while the version string
 identifies its parsing, normalization, marketplace mapping, classification, and
@@ -377,12 +377,18 @@ An explicit 0% rate means known coverage; noncommission activity needs no rate.
 Reassignment restates all live history. See the [company-fee contract](company_fees.md)
 for exact rates, fee eligibility, current-only access, and partial summaries.
 
-Administrators request all reports for one company/month through
-`public.generate_company_payout_reports(p_company_id, p_month)`. Generation captures
-current processed inputs and SKU terms, validates them, and aggregates company amounts
-into immutable seller/currency reports. Empty inputs sum to zero through the same
-calculation. Changes to sources or terms never generate snapshots automatically.
-A request reuses the latest report when its scope and exact input versions match.
+The scheduled payout worker processes up to 10 pending, mature company/months every
+five minutes. Source and terms publications request affected months transactionally;
+a metadata frontier discovers newly mature work. An indexed pending revision skips
+completed months until another change occurs. Generation captures current processed
+inputs and SKU terms, validates them, and aggregates company amounts into immutable
+reports per currency across all source namespaces. Empty inputs sum to zero through
+the same calculation. Coverage is validated for each actual seller/marketplace
+pair, and manifests retain the namespace and preprocessing version of every input.
+Matching scope and exact input versions reuse the latest report. Incomplete inputs
+block only that company/month and retry with backoff; changed inputs reset the delay.
+No browser or manual generation request is needed. Five minutes is the worker
+cadence; a backlog can need several runs.
 
 Saved components, source/terms manifests, marketplace totals, and administrator-only
 account reconciliation remain tied to those captured versions. Read saved values with
@@ -429,9 +435,9 @@ report/day/version references are shared across registered company members; full
 administrator-only.
 Operators manage member access, publish complete terms, and read all retained
 source/terms history and all payout reports, components, and input references.
-Company members read only their own company's saved reports and components and cannot
-generate reports. Operators generate any company's eligible monthly reports through
-the guarded RPC. Original archives, source publication, and pruning remain
+Company members read only their own company's saved reports and components. Neither
+application role generates reports; the private scheduler handles eligible months.
+Original archives, source publication, and pruning remain
 direct-database/archive-service operations.
 See the [application-access contract](access_control.md).
 

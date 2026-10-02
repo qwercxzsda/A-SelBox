@@ -1,4 +1,4 @@
-"""Concurrent identical admin requests publish one immutable payout snapshot."""
+"""Concurrent internal generation publishes one immutable payout snapshot."""
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -19,25 +19,20 @@ from services.db.supabase.tests.payout_fixtures import (
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
-def generate_on_connection(
-    connection: psycopg.Connection, user: str, company: str
-) -> tuple[str, bool]:
+def generate_on_connection(connection: psycopg.Connection, company: str) -> tuple[str, bool]:
     connection.execute("set statement_timeout='10s'")
-    connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user,))
-    connection.execute("set local role authenticated")
     rows = connection.execute(
         "select report_id::text,created "
-        "from public.generate_company_payout_reports(%s,'2026-06-01')",
+        "from private.generate_company_payout_reports(%s,'2026-06-01')",
         (company,),
     ).fetchall()
-    connection.execute("reset role")
     if len(rows) != 1:
         raise AssertionError("Expected one monthly scope.")
     return str(rows[0][0]), cast(bool, rows[0][1])
 
 
 class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
-    def test_competing_admin_requests_reuse_the_committed_snapshot(self) -> None:
+    def test_competing_generation_reuses_the_committed_snapshot(self) -> None:
         inputs = prepare_payout(self)
         self.assert_competing_requests_reuse(inputs.company)
 
@@ -50,7 +45,6 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
         self.assert_competing_requests_reuse(company)
 
     def assert_competing_requests_reuse(self, company: str) -> None:
-        first_admin, second_admin = self.operator(), self.operator()
         self.connection.commit()
         database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
         with (
@@ -58,14 +52,14 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
             psycopg.connect(database_url, autocommit=True) as observer,
             ThreadPoolExecutor(max_workers=1) as executor,
         ):
-            first = generate_on_connection(winner, first_admin, company)
+            first = generate_on_connection(winner, company)
             self.assertTrue(first[1])
 
             def competing_request() -> tuple[str, bool]:
                 with psycopg.connect(
                     database_url, application_name="matching-payout-worker"
                 ) as worker:
-                    return generate_on_connection(worker, second_admin, company)
+                    return generate_on_connection(worker, company)
 
             future = executor.submit(competing_request)
             try:
@@ -81,13 +75,12 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
     def test_new_source_namespace_during_lock_wait_is_captured_by_the_next_request(self) -> None:
         self.seller = "seller-z"
         inputs = prepare_payout(self)
-        operator = self.operator()
         self.connection.commit()
         database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
 
         def generate_waiting_company() -> tuple[str, bool]:
             with psycopg.connect(database_url, application_name="seller-scope-a") as worker:
-                return generate_on_connection(worker, operator, inputs.company)
+                return generate_on_connection(worker, inputs.company)
 
         with (
             psycopg.connect(database_url) as holder,
@@ -114,23 +107,23 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
 
         self.assertEqual(
             self.connection.execute(
-                "select seller_namespace from public.company_payout_reports where id=%s",
+                "select source_amount from public.company_payout_reports where id=%s",
                 (first_report,),
             ).fetchone(),
-            ("seller-z",),
+            (90,),
         )
         before = payout_snapshot(self, first_report)
-        results = generate_payout_reports(self, operator, inputs.company)
-        self.assertEqual(len(results), 2)
-        self.assertIn((first_report, False), results)
-        self.assertEqual(sum(created for _, created in results), 1)
+        results = generate_payout_reports(self, inputs.company)
+        self.assertEqual(len(results), 1)
+        self.assertNotEqual(results[0][0], first_report)
+        self.assertTrue(results[0][1])
         self.assertEqual(
             self.connection.execute(
-                "select seller_namespace from public.company_payout_reports "
-                "where company_id=%s order by seller_namespace",
+                "select source_amount from public.latest_company_payout_reports "
+                "where company_id=%s",
                 (inputs.company,),
             ).fetchall(),
-            [("seller-a",), ("seller-z",)],
+            [(140,)],
         )
         self.assertEqual(payout_snapshot(self, first_report), before)
 
@@ -180,17 +173,16 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
 
     def test_latest_order_uses_save_time_when_transaction_started_before_prior_report(self) -> None:
         inputs = prepare_payout(self)
-        operator = self.operator()
         self.connection.commit()
         database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
         with psycopg.connect(database_url) as older_transaction:
             older_transaction.execute("select now()")
-            first = generate_on_connection(self.connection, operator, inputs.company)
+            first = generate_on_connection(self.connection, inputs.company)
             self.assertTrue(first[1])
             self.connection.commit()
             self.fee(inputs.sku_identity, [("2026-01-01", None, "5")])
             self.connection.commit()
-            second = generate_on_connection(older_transaction, operator, inputs.company)
+            second = generate_on_connection(older_transaction, inputs.company)
             self.assertTrue(second[1])
             self.assertNotEqual(first[0], second[0])
             older_transaction.commit()
@@ -204,7 +196,7 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
             (True,),
         )
         self.assertEqual(
-            generate_on_connection(self.connection, operator, inputs.company), (second[0], False)
+            generate_on_connection(self.connection, inputs.company), (second[0], False)
         )
         self.assertEqual(
             self.connection.execute(

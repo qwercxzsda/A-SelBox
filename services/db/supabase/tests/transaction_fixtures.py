@@ -58,6 +58,7 @@ TRANSACTION_PARAMETER_TYPES = {
     "p_fee_applicable": "boolean",
     "p_order_by": "text",
     **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
+    "p_currency": "text",
 }
 
 
@@ -77,9 +78,7 @@ class TransactionPageFixture(FinancialFixture):
         return cast(dict[str, object], result[0][0])
 
     def expected(self, user: str, **options: object) -> dict[str, object]:
-        predicates: list[sql.Composable] = [
-            sql.SQL("authoritative and (source <> 'DATA_KIOSK' or source_amount <> 0)")
-        ]
+        predicates: list[sql.Composable] = [sql.SQL("authoritative")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
             if options.get(name) is not None:
@@ -89,6 +88,9 @@ class TransactionPageFixture(FinancialFixture):
                     )
                 )
                 parameters.append(options[name])
+        if options.get("p_currency") is not None:
+            predicates.append(sql.SQL("currency = %s::text"))
+            parameters.append(options["p_currency"])
         for name, (column, type_name) in TRANSACTION_ARRAY_FILTERS.items():
             if options.get(name):
                 predicates.append(

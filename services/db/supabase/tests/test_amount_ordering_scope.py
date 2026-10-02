@@ -34,9 +34,8 @@ class AmountOrderingScopeTests(SourceModelFixture):
         settlement_rows.append(
             self.transaction("10001", 10003, sku="OTHER") | {"component_type": "FOCUS"}
         )
-        kiosk_rows = [self.component(str(i)) for i in range(1, 10001)]
+        kiosk_rows = [self.component(str(i)) for i in range(10000)]
         kiosk_rows.append(self.component("10001", sku="OTHER") | {"component_type": "FOCUS"})
-        kiosk_rows.append(self.component("0"))
         self.settlement(settlement_rows)
         self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
 
@@ -64,7 +63,10 @@ class AmountOrderingScopeTests(SourceModelFixture):
                 expected_count = "10000" if include_count else None
                 self.assertEqual(source["total_count"], expected_count)
                 self.assertEqual(live["total_count"], expected_count)
-                expected_amounts = ["1", "2"] if direction == "asc" else ["10000", "9999"]
+                if dataset == "data_kiosk":
+                    expected_amounts = ["0", "1"] if direction == "asc" else ["9999", "9998"]
+                else:
+                    expected_amounts = ["1", "2"] if direction == "asc" else ["10000", "9999"]
                 self.assertEqual(
                     [r["amount"] for r in cast(list[dict[str, object]], source["rows"])],
                     expected_amounts,

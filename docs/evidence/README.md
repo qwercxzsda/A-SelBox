@@ -4,6 +4,9 @@ These records support the current [classification](../settlement_component_categ
 [source allocation](../source_allocation.md), and [workflow](../data_workflows.md) contracts.
 Source observations retain their dates and coverage limits. Performance evidence records the
 current SKU identity model; superseded query and index experiments are not maintained.
+Test counts, UI descriptions, schema counts, and API samples in these records describe their dated
+runs. Use the linked current contracts for maintained behavior; historical evidence is not a setup
+guide or a claim that every observed interface is still public.
 
 | Record | Purpose |
 | --- | --- |
@@ -16,6 +19,10 @@ current SKU identity model; superseded query and index experiments are not maint
 | [Settlement classification](settlement_classification_audit_2026-09-08.md) | Country coverage, retrocharge groups, and out-of-period postings. |
 | [Trailing columns](settlement_trailing_columns_investigation_2026-09-11.md) | Source rows supporting optional trailing-omission parsing. |
 | [Data Kiosk disposal discrepancy](data_kiosk_disposal_discrepancy_2026-09-07.md) | Measured variance, fresh-query controls, and unresolved cause. |
+| [October reconciliation refresh](reconciliation_refresh_2026-10-01.md) | Restored US statements, remaining advertising differences, marketplace grouping, and missing Settlement coverage. |
+| [Non-advertising reconciliation](non_ad_reconciliation_2026-10-01.md) | Real API investigation of storage periods, removal timing, repeated source fees, missing allocations and Japan controls. |
+| [MCF pricing credit](mcf_preferred_pricing_credit_2026-10-01.md) | Exact observed credit type and its explicit allocation. |
+| [Debt adjustment country lists](debt_adjustment_country_lists_2026-10-01.md) | Reviewed exact F5 labels under the existing balance-movement policy. |
 | [Company-cost countries](category3_country_evidence_2026-09-13.md) | Source cost labels, taxes, credits, and observed country coverage. |
 | [EPR and adjustments](data_kiosk_epr_and_adjustment_coverage_2026-09-13.md) | Checked responses and the limits of individual cost mapping. |
 

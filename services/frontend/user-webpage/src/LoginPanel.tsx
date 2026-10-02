@@ -29,7 +29,7 @@ export function LoginPanel({
               Sign in
             </Title>
             <Text c="dimmed" size="sm">
-              View transactions, marketplace charges, and fee rates.
+              View transactions, payouts, fee settings, and inventory.
             </Text>
           </div>
           {errorMessage ? (
@@ -41,6 +41,9 @@ export function LoginPanel({
             <Stack gap="md">
               <TextInput
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                inputMode="email"
                 label="Email"
                 onChange={(event) => {
                   onEmailChange(event.target.value);

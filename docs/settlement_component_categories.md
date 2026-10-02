@@ -236,8 +236,10 @@ amounts in one currency. Nonzero, unidentified, incomplete, or unexpected groups
 abort; they are neither reassigned to SKU nor absorbed as SelBox variance.
 
 For each principal or shipping component present, require exactly one `ItemPrice`
-tax row and one `ItemWithheldTax` row. Check the monetary zero across the complete
-event, not separately for each pair. Multiple withholding rows fail even if their
+tax row and one `ItemWithheldTax` row. The reviewed exception is one explicit zero
+`ItemPrice / ShippingTax` row without a withholding counterpart; preserve that row.
+Require monetary zero for each matched pair and across the complete
+event. Principal and shipping imbalances must not offset one another. Multiple withholding rows fail even if their
 sum offsets the tax. The [retrocharge limitation](known_issues.md#retrocharge-validation)
 records the evidence required to change these checks.
 

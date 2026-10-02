@@ -239,7 +239,7 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   await expect(group).toBeVisible();
 });
 
-test("Transactions hides only zero Data Kiosk rows before pagination", async ({ page }) => {
+test("Transactions retains zero Data Kiosk rows in pagination and counting", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = [
     { ...liveRow("SETTLEMENT-ZERO", 1), source_amount: "0" },
@@ -256,16 +256,18 @@ test("Transactions hides only zero Data Kiosk rows before pagination", async ({ 
   ];
   await signIn(page);
   await expect(rowWithSku(page, "SETTLEMENT-ZERO-001")).toBeVisible();
-  await expect(rowWithSku(page, "KIOSK-NONZERO-001")).toBeVisible();
-  await expect(page.getByText(/KIOSK-ZERO/)).toHaveCount(0);
+  await expect(rowWithSku(page, "KIOSK-ZERO-001")).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     26,
   );
-  await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-  expect(fixture.requests.at(-1).params.get("and")).toBe(
-    "(or(source.neq.DATA_KIOSK,source_amount.neq.0))",
+  await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(rowWithSku(page, "KIOSK-NONZERO-001")).toBeVisible();
+  await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
+    6,
   );
+  expect(fixture.requests.at(-1).params.get("and")).toBeNull();
 });
 
 for (const role of ["company_member", "operator"]) {
@@ -276,10 +278,12 @@ for (const role of ["company_member", "operator"]) {
     fixture.feeRows = [feeRow(0)];
     await signIn(page);
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-    await expect(page.getByRole("tab")).toHaveCount(role === "operator" ? 7 : 4);
+    await expect(
+      page.getByRole("tablist", { name: "Workspace data", exact: true }).getByRole("tab"),
+    ).toHaveCount(role === "operator" ? 8 : 4);
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
-    for (const sourceTab of ["Settlements", "Data Kiosk"]) {
+    for (const sourceTab of ["Settlements", "Data Kiosk", "Financial review"]) {
       await expect(page.getByRole("tab", { name: sourceTab, exact: true })).toHaveCount(
         role === "operator" ? 1 : 0,
       );
@@ -331,9 +335,8 @@ for (const role of ["company_member", "operator"]) {
     }
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    const group = page.getByRole("button", {
-      name: "Show marketplace fees for GROUP-001",
-      exact: true,
+    const group = page.locator(".fee-sku-header").filter({
+      has: page.getByRole("button", { name: "Show transactions for GROUP-001", exact: true }),
     });
     await expect(group).toContainText(companyName);
   });

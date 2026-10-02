@@ -9,7 +9,7 @@ import {
   summaryAmount as amount,
 } from "./summary-fixtures.mjs";
 
-test("period shortcuts reset pagination, preserve other refinements, and return to Transactions", async ({
+test("period shortcuts reset pagination and preserve refinements after a tab roundtrip", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -60,6 +60,9 @@ test("period shortcuts reset pagination, preserve other refinements, and return 
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
   const ordering = fixture.requests.at(-1).params.get("order");
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
+  await expect(cards(page).summaries).toHaveCount(0);
+  await page.getByRole("tab", { name: "Transactions", exact: true }).click();
+  await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
   await month.getByRole("button", { name: /^Filter transactions to / }).click();
   await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
     "aria-selected",

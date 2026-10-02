@@ -10,6 +10,8 @@ import { respondWithOptions } from "./mocks/options.mjs";
 import { respondWithWorkspaceLists } from "./mocks/workspace-lists.mjs";
 import { transactionPageParams } from "./transaction-page-fixtures.mjs";
 import { respondWithPayouts } from "./mocks/payouts.mjs";
+import { respondWithReconciliation } from "./mocks/reconciliation.mjs";
+import { respondWithFinancialReview } from "./mocks/financial-review.mjs";
 import { respondWithSkuConfiguration } from "./mocks/sku-configuration.mjs";
 
 export function deferred() {
@@ -47,6 +49,16 @@ export async function mockSupabase(page) {
     if (request.method() === "OPTIONS") return context.reply({});
     fixture.events.push({ endpoint: url.pathname, user });
     if (
+      [
+        "/rest/v1/rpc/financial_review_totals",
+        "/rest/v1/rpc/financial_review_type_totals",
+        "/rest/v1/financial_review_records",
+      ].includes(url.pathname)
+    )
+      return respondWithFinancialReview(fixture, context);
+    if (url.pathname === "/rest/v1/payout_reconciliation_totals")
+      return respondWithReconciliation(fixture, context);
+    if (
       ["/rest/v1/rpc/sku_configuration", "/rest/v1/rpc/publish_sku_configuration"].includes(
         url.pathname,
       )
@@ -55,7 +67,7 @@ export async function mockSupabase(page) {
     if (
       [
         "/rest/v1/rpc/payout_report_policy",
-        "/rest/v1/rpc/generate_company_payout_reports",
+        "/rest/v1/rpc/payout_report_totals",
         "/rest/v1/company_payout_report_components",
         "/rest/v1/payout_report_marketplace_totals",
         "/rest/v1/payout_report_reconciliation",
@@ -75,7 +87,13 @@ export async function mockSupabase(page) {
     )
       return respondWithCount(fixture, context);
     if (ACCOUNT_PATHS.has(url.pathname)) return accounts.respond(context);
-    if (["/rest/v1/app_accounts", "/rest/v1/company_payout_reports"].includes(url.pathname))
+    if (
+      [
+        "/rest/v1/app_accounts",
+        "/rest/v1/company_payout_reports",
+        "/rest/v1/latest_company_payout_reports",
+      ].includes(url.pathname)
+    )
       return respondWithWorkspaceLists(fixture, context);
     if (url.pathname === "/rest/v1/rpc/source_transaction_page")
       return respondWithSourceRows(fixture, context);

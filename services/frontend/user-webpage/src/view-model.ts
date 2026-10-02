@@ -1,7 +1,7 @@
 import type { AppAccount, CanonicalRow, DatasetKey, TableDatasetKey } from "./api/types.ts";
 import { DATASET_CONFIG } from "./api/config.ts";
 
-type CellKind = "code" | "company" | "date" | "money" | "percent" | "number" | "text";
+type CellKind = "code" | "company" | "date" | "month" | "money" | "percent" | "number" | "text";
 
 export interface ColumnDefinition {
   align?: "right";
@@ -38,7 +38,7 @@ export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description:
-      "Mature cutoff period: two calendar months (assumed). Mature dates (before the mature cutoff date) use Settlement authority with Data Kiosk detail. Recent dates (the mature cutoff date and later) use Data Kiosk only.",
+      "Mature dates use Settlement totals with Data Kiosk detail; recent dates use Data Kiosk estimates. Maturity uses an assumed two-calendar-month cutoff.",
     searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
@@ -50,8 +50,7 @@ export const DATASET_PRESENTATION = {
   },
   data_kiosk: {
     label: "Data Kiosk",
-    description:
-      "Daily sales, refunds, and charges reported by Amazon. Rows with a zero amount are hidden.",
+    description: "Daily sales, refunds, and charges reported by Amazon, including zero amounts.",
     searchPlaceholder: "SKU, type, or marketplace",
     emptyMessage: "No Data Kiosk records match this view.",
   },
@@ -76,12 +75,6 @@ export const DATASET_PRESENTATION = {
   Record<TableDatasetKey, DatasetPresentation>;
 
 export const PAGE_SIZES = [25, 50, 100] as const;
-
-export const FINANCIAL_AMOUNTS = [
-  ["reportedAmount", "Reported amount"],
-  ["serviceFee", "Service fee"],
-  ["companyAmount", "Company amount"],
-] as const;
 
 function column(key: string, label: string, kind: CellKind = "text"): ColumnDefinition {
   return {
@@ -115,7 +108,6 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("component_type", "Type", "code"),
     column("amount", "Reported amount", "money"),
     column("quantity", "Quantity", "number"),
-    column("preprocess_version", "Processing version"),
   ],
   data_kiosk: [
     column("activity_date", "Date", "date"),
@@ -125,13 +117,12 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("component_type", "Type", "code"),
     column("amount", "Reported amount", "money"),
     column("quantity", "Quantity", "number"),
-    column("preprocess_version", "Processing version"),
   ],
   payouts: [
-    column("created_at", "Created", "date"),
+    column("start_date", "Month", "month"),
     column("company_id", "Company", "company"),
-    column("start_date", "From", "date"),
-    column("end_date", "Through", "date"),
+    column("currency", "Currency"),
+    column("created_at", "Updated", "date"),
     column("source_amount", "Reported amount", "money"),
     column("fee_amount", "Service fee", "money"),
     column("company_amount", "Company amount", "money"),

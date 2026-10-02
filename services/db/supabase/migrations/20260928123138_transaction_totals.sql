@@ -70,8 +70,7 @@ begin
                 case when p_group_by_type then t.component_type::text end,
                 t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
             from private.data_kiosk_transactions as t
-            where t.amount <> 0
-                and (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+            where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
                     and t.category in ('SETTLEMENT', 'SELBOX')))
                 and (kiosk_policy_is_sufficient or exists (
                     select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
@@ -176,3 +175,50 @@ $$;
 revoke all on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean, integer, bigint
 ) from public, anon, authenticated, service_role;
+
+-- The frozen read uses the live totals response shape, keeping one UI for both
+-- financial bases. Numeric values stay decimal strings and access stays RLS-bound.
+create function public.payout_report_totals(
+    p_report_id uuid,
+    p_group_by_type boolean default false,
+    p_limit integer default 1000,
+    p_offset bigint default 0
+) returns jsonb
+language plpgsql stable security invoker set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
+begin
+    if p_report_id is null or p_group_by_type is null then
+        raise exception 'Report and grouping preference are required' using errcode = '22023';
+    end if;
+    perform private.validate_page_bounds(p_limit,p_offset);
+    return (
+        with totals as (
+            select r.currency,
+                case when p_group_by_type then c.component_type::text end as component_type,
+                sum(c.source_amount)::text as reported_amount,
+                sum(c.fee_amount)::text as service_fee,
+                sum(c.company_amount)::text as company_amount,
+                count(*)::text as row_count,
+                count(c.company_amount)::text as known_company_count
+            from public.company_payout_report_components c
+            join public.company_payout_reports r on r.id = c.report_id
+            where c.report_id = p_report_id and c.authoritative
+            group by r.currency,case when p_group_by_type then c.component_type::text end
+        ), selected as materialized (
+            select * from totals
+            order by currency collate "C",component_type collate "C" nulls first
+            limit p_limit + 1 offset p_offset
+        ), page as (
+            select * from selected
+            order by currency collate "C",component_type collate "C" nulls first limit p_limit
+        )
+        select jsonb_build_object(
+            'rows',coalesce((select jsonb_agg(to_jsonb(page)
+                order by currency collate "C",component_type collate "C" nulls first) from page),'[]'::jsonb),
+            'next_offset',case when (select count(*) from selected) > p_limit then p_offset + p_limit end
+        )
+    );
+end;
+$$;
+revoke all on function public.payout_report_totals(uuid, boolean, integer, bigint)
+from public, anon, authenticated, service_role;

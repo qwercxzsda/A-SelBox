@@ -231,7 +231,7 @@ class SourceTransactionSearchTests(SourceModelFixture):
             self.assertEqual(self.count(member, dataset, p_search_skus=["SKU"]), "0")
             self.assertEqual(
                 self.count(operator, dataset, p_search_skus=["SKU"]),
-                "2" if dataset == "settlement" else "1",
+                "2",
             )
 
     def test_source_count_contract_and_invalid_search_requests(self) -> None:

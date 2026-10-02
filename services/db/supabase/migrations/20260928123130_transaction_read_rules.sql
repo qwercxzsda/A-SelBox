@@ -17,16 +17,14 @@ on private.settlement_transactions (
 )
 where category = 'SETTLEMENT';
 
--- Date-led coverage also serves bounded-period Data Kiosk counts. The live and
--- raw count RPCs exclude zero amounts; use that predicate instead of a numeric
--- key to retain B-tree deduplication. Include every category and version for
--- operator raw counts; queries and RLS still enforce their respective scopes.
-create index data_kiosk_transactions_nonzero_count_idx
+-- Date-led coverage serves bounded-period Data Kiosk counts, including zero
+-- amounts. Cover every category and version for raw reads; queries and RLS
+-- still enforce their respective scopes without a numeric index key.
+create index data_kiosk_transactions_date_count_idx
 on private.data_kiosk_transactions (
     activity_date, component_type, sku, version_id,
     category, marketplace_name
-)
-where amount <> 0;
+);
 
 -- Match each owned fact to its currently selected source version.
 create index settlements_current_version_idx

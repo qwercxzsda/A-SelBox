@@ -124,7 +124,7 @@ export function validateSkuItem(item: SkuConfigurationItem): SkuFormIssue[] {
     add("These dates overlap another fee period for this marketplace.", "valid_from", index);
   for (const gap of feeCoverageGaps(item.requirements, periods)) {
     add(
-      `${gap.marketplace_name} needs a fee rate from ${gap.valid_from} to before ${gap.valid_to}.`,
+      `${gap.marketplace_name} needs a fee rate from ${gap.valid_from} (inclusive) to ${gap.valid_to} (exclusive).`,
     );
   }
   return issues;

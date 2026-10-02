@@ -20,8 +20,8 @@ transactions contain no copied company, fee-rate, or payable values. Missing
 business configuration does not prevent preprocessing, but it prevents complete
 financial totals for the affected scope.
 
-Both sources use the same `PREPROCESS_VERSION`, currently `v1`. A strict combined read
-requires this exact name on every required selected source version. Marketplace
+Both sources use the shared [`PREPROCESS_VERSION`](../services/sync/src/preprocess_version.py).
+A strict combined read requires this exact name on every required selected source version. Marketplace
 names join as exact `text`, validated against the same supported-name list in Python and database
 `CHECK` constraints. Original API IDs
 remain in source provenance. Queries accept explicit dates and apply the mature cutoff date
@@ -242,13 +242,20 @@ distinguish scopes with authoritative rows from empty aggregates.
 
 Dashboard and strict reads apply the same [source policy](source_allocation.md). Dashboard totals
 sum imported authoritative rows; strict reads additionally require complete declared coverage and
-resolved ownership/fees. Zero Data Kiosk amounts remain excluded from dashboard pages and counts,
-while verified empty days satisfy coverage. Comparison and analysis rows do not add money.
+resolved ownership/fees. Authoritative zero-amount rows remain in dashboard pages,
+counts, totals, and payout records and retain the same ownership and applicable
+fee requirements as other rows. Verified empty days satisfy coverage. Comparison
+and analysis rows do not add money.
 
 Company amounts use exact SKU ownership and the signed fee formula above. SelBox category and
 reconciliation rows have no company ownership, require no fee configuration, and contribute zero
 to company amounts. Company and SKU selections exclude those account rows. See the
 [summary API](transaction_query_contracts.md#period-totals-and-type-breakdowns) for request scope.
+
+For the same company, full mature month, and currency, a complete estimate and the
+latest payout report agree after automatic generation has captured the current
+inputs. Both combine all source namespaces. Reports retain their saved ownership
+and fee versions; a newer live correction appears in the next successful refresh.
 
 ## Access and performance
 
@@ -256,8 +263,9 @@ Company views use `security_invoker = true`, underlying read grants, and RLS
 based on `app_accounts`. Company members cannot change ownership, fee terms, or
 source publications. They see selected terms for their assigned company's SKUs
 and permitted current source results. Operators read all terms versions and
-retained source history, publish complete terms, and generate/read saved payout
-reports for any company and eligible calendar month. Company members can read their own saved payout reports and components. See the
+retained source history, publish complete terms, and read saved payout reports for
+any company. The periodic worker generates eligible monthly reports automatically.
+Company members can read their own saved payout reports and components. See the
 [application-access contract](access_control.md). The
 [PostgreSQL view contract](https://www.postgresql.org/docs/17/sql-createview.html)
 defines how invoker permissions and base-table policies apply.

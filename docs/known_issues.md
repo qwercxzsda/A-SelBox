@@ -49,8 +49,12 @@ trigger. Neither status establishes the cause of a discrepancy or guarantees sou
 **Reason: insufficient concrete Amazon evidence.**
 
 [`validate_retrocharge_groups`](../services/sync/src/settlement_preprocess/retrocharges.py) requires
-exactly one tax and one withholding row for each principal/shipping component group, plus exact zero
-net for the whole event. For example, a synthetic same-event group containing `Tax +3`,
+exactly one tax and one withholding row for each nonzero principal/shipping component group, plus exact zero
+net for the whole event. The reviewed exception is a lone `ItemPrice / ShippingTax` row whose amount
+is exactly zero. Two archived US reports reviewed on October 1, 2026 contain this row alongside a
+complete, balanced principal tax/withholding pair. The zero source row is retained, and reviewed
+event coverage remains mandatory. Duplicate zero rows and other unpaired components still fail.
+For example, a synthetic same-event group containing `Tax +3`,
 `MarketplaceFacilitatorTax-Principal -1`, and `MarketplaceFacilitatorVAT-Principal -2` has complete
 coverage and zero net but is rejected as ambiguous.
 
@@ -66,9 +70,8 @@ that Amazon universally guarantees zero-net retrocharges. The
 [classification audit](evidence/settlement_classification_audit_2026-09-08.md) records the observed
 zero-net groups and limits of their coverage.
 
-Because monetary zero is checked across the event, a principal imbalance can cancel a shipping
-imbalance. Whether each pair must independently net to zero also requires concrete source evidence
-before changing the rule.
+The v2 preprocessing rule requires each matched principal and shipping pair to net to zero
+independently, as well as the complete event. Opposing component imbalances cannot cancel.
 
 ### Deferred refund commission over-credit risk
 
@@ -86,14 +89,15 @@ the separate refund-policy decision.
 
 **Reason and revisit phase: payout approval and payment workflow.**
 
-[Monthly payout snapshots](company_payout_reports.md), administrator generation, and
+[Monthly payout snapshots](company_payout_reports.md), scheduled generation, and
 members' own-company access are implemented. Approval, payment execution, adjustments,
 negative-balance handling, and currency rounding remain decisions for the payment workflow.
 Saved reports preserve a calculation; they do not establish an approved or paid amount.
 
 A [zero aggregate](company_payout_reports.md#empty-aggregates) can reflect incomplete
 upstream acquisition or preprocessing. It does not certify inactivity. Reports are
-created only on request, so later source arrival does not change a saved result.
+generated automatically when eligible inputs change; later source arrival can produce
+a new snapshot while preserving the earlier saved result.
 
 ## Accepted
 
@@ -129,6 +133,13 @@ The [source policy](source_allocation.md) preserves costs in the Data Kiosk cate
 variance. For mature dates it records Settlement report controls minus Data Kiosk amounts in
 that category per day/marketplace/seller/currency, so the complete account ledger reconciles
 to Settlement. Recent dates use only Data Kiosk. FBA and Finances are not inputs.
+
+The [October reconciliation investigation](evidence/reconciliation_refresh_2026-10-01.md)
+separates this accepted disposal discrepancy from missing imports and advertising differences.
+Payout validation checks supplied Settlement versions but does not establish complete Settlement
+discovery or acquisition. A missing Settlement counterpart is currently treated as zero, so a
+successful report generation or an exact account-ledger identity does not prove source completeness.
+Explicit Settlement coverage evidence remains needed; complete Data Kiosk days alone are insufficient.
 
 ### Archive bucket visibility race
 
@@ -242,8 +253,9 @@ scopes before sorting. The [query contract](transaction_query_contracts.md) defi
 ordering, filters, and result shapes.
 
 The frontend renders rows before requesting their exact count. Financial counts are reused across
-page and sort changes until a relevant source or fee revision invalidates them; account and payout
-counts expire after 30 seconds. This reduces repeat work and often improves first-row latency, but a
+page and sort changes until a relevant source or fee revision invalidates them. Payout counts remain
+cached until their publication revision changes; account counts have 30-second freshness.
+This reduces repeat work and often improves first-row latency, but a
 cold page and separate count can consume more database time than a combined request.
 
 Summary cards discover the latest transaction date and aggregate only the requested day, month, or
@@ -275,12 +287,12 @@ reprocessed. See the
 
 ### Manual operational tooling
 
-Publication failures roll back completely and remain in Python logs; the service does not
-automatically retry them. Report publication and fee administration have trusted Python repository
-interfaces; operators also manage member access, publish complete terms, and generate
-eligible monthly payout reports through REST and the administration UI. Payment approval
-and execution are not implemented. Payout dependencies are immutable and have no
-independent pin-update interface.
+Source acquisition and preprocessing failures remain in Python logs, and failed database
+publications roll back. The service does not automatically retry those operations. Operators
+manage member access and publish complete terms through REST and the administration UI. Monthly payout reports use the
+automatic database worker, which processes pending company/months and retries failures with backoff.
+Payment approval and execution are not implemented. Payout dependencies are immutable and have
+no independent pin-update interface.
 
 These are current tooling boundaries, not recorded decisions to implement retries or another
 administration interface. See the

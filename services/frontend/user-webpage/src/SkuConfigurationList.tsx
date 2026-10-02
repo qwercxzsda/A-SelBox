@@ -5,7 +5,6 @@ import {
   Checkbox,
   CloseButton,
   Group,
-  NativeSelect,
   Paper,
   Stack,
   Text,
@@ -13,11 +12,14 @@ import {
 } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { SkuFeePeriods } from "./SkuFeePeriods";
+import { SkuTransactionLink } from "./SkuTransactionLink";
 import { PaginationBar } from "./PaginationBar";
 import { filterFeeSkus, paginateFeeSkus } from "./fee-skus";
 import type { SkuFormIssue } from "./sku-configuration-form";
-import { companyLabel, PAGE_SIZES } from "./view-model";
+import { companyLabel } from "./view-model";
+import { RowsSelect } from "./RowsSelect";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
+import "./SkuConfigurationList.css";
 
 export function SkuConfigurationList({
   items,
@@ -26,6 +28,7 @@ export function SkuConfigurationList({
   administrator,
   isSaving,
   onEdit,
+  onShowTransactions,
   viewState,
   onViewStateChange,
 }: {
@@ -35,6 +38,7 @@ export function SkuConfigurationList({
   administrator: boolean;
   isSaving: boolean;
   onEdit: (sku: string) => void;
+  onShowTransactions: (sku: string) => void;
 } & ViewStateProps<FeeViewState>) {
   const { search, pageSize, expanded, drafts } = viewState;
   const draftSkus = new Set(drafts.map((draft) => draft.sku));
@@ -47,19 +51,17 @@ export function SkuConfigurationList({
   }
   return (
     <>
-      <Group align="end">
+      <div className="fee-list-toolbar">
         <TextInput
+          className="fee-list-search"
           label="Search SKUs"
           placeholder={administrator ? "SKU or company" : "SKU"}
           value={search}
-          flex="1"
-          miw={200}
           rightSectionPointerEvents="auto"
           rightSection={
             search ? (
               <CloseButton
                 aria-label="Clear search"
-                size="sm"
                 onClick={() => {
                   change({ search: "", pageIndex: 0 });
                 }}
@@ -70,17 +72,15 @@ export function SkuConfigurationList({
             change({ search: event.currentTarget.value, pageIndex: 0 });
           }}
         />
-        <NativeSelect
-          label="SKUs per page"
+        <RowsSelect
+          className="fee-list-rows"
           value={pageSize}
-          data={PAGE_SIZES.map(String)}
-          onChange={(event) => {
-            change({ pageSize: Number(event.currentTarget.value), pageIndex: 0 });
+          onChange={(pageSize) => {
+            change({ pageSize, pageIndex: 0 });
           }}
         />
-      </Group>
-      <Group justify="space-between">
         <Checkbox
+          className="fee-list-incomplete"
           label="Needs setup only"
           checked={viewState.onlyIncomplete}
           onChange={(event) => {
@@ -88,6 +88,7 @@ export function SkuConfigurationList({
           }}
         />
         <Button
+          className="fee-list-collapse"
           variant="subtle"
           size="compact-sm"
           disabled={expanded.length === 0}
@@ -97,7 +98,7 @@ export function SkuConfigurationList({
         >
           Collapse all
         </Button>
-      </Group>
+      </div>
       <PaginationBar
         pageIndex={pagination.pageIndex}
         pageCount={pagination.pageCount}
@@ -138,6 +139,7 @@ export function SkuConfigurationList({
         </Paper>
       ) : (
         <Accordion
+          className="fee-sku-list"
           multiple
           variant="separated"
           value={expanded.map(encodeURIComponent)}
@@ -147,12 +149,10 @@ export function SkuConfigurationList({
         >
           {pagination.visibleSkus.map((item) => (
             <Accordion.Item key={item.sku} value={encodeURIComponent(item.sku)}>
-              <Accordion.Control aria-label={`Show marketplace fees for ${item.sku}`}>
-                <Stack gap={2}>
+              <div className="fee-sku-header">
+                <Stack gap={2} className="fee-sku-identity">
                   <Group gap="xs">
-                    <Text fw={600} style={{ overflowWrap: "anywhere" }}>
-                      {item.sku}
-                    </Text>
+                    <SkuTransactionLink sku={item.sku} onShowTransactions={onShowTransactions} />
                     {issuesBySku.has(item.sku) ? <Badge color="orange">Needs setup</Badge> : null}
                     {draftSkus.has(item.sku) ? <Badge variant="light">Draft</Badge> : null}
                   </Group>
@@ -160,34 +160,43 @@ export function SkuConfigurationList({
                     {companyLabel(item.company_id, companies)}
                   </Text>
                 </Stack>
-              </Accordion.Control>
+                <Group gap="xs" className="fee-sku-actions">
+                  {administrator ? (
+                    <Button
+                      variant="light"
+                      aria-label={`Edit ${item.sku}`}
+                      disabled={isSaving}
+                      onClick={() => {
+                        onEdit(item.sku);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  ) : null}
+                  <Accordion.Control
+                    aria-label={`Show marketplace fees for ${item.sku}`}
+                    className="fee-sku-toggle"
+                  >
+                    Fee periods ({item.periods.length})
+                  </Accordion.Control>
+                </Group>
+              </div>
               <Accordion.Panel>
                 {expanded.includes(item.sku) ? (
                   <Stack gap="sm">
-                    {administrator ? (
+                    {administrator && draftSkus.has(item.sku) ? (
                       <Group justify="flex-end">
                         <Button
-                          variant="light"
-                          size="xs"
+                          variant="subtle"
+                          color="#9e1834"
+                          aria-label={`Discard draft for ${item.sku}`}
                           disabled={isSaving}
                           onClick={() => {
-                            onEdit(item.sku);
+                            change({ drafts: drafts.filter((draft) => draft.sku !== item.sku) });
                           }}
                         >
-                          Edit {item.sku}
+                          Discard draft
                         </Button>
-                        {draftSkus.has(item.sku) ? (
-                          <Button
-                            variant="subtle"
-                            size="xs"
-                            disabled={isSaving}
-                            onClick={() => {
-                              change({ drafts: drafts.filter((draft) => draft.sku !== item.sku) });
-                            }}
-                          >
-                            Discard draft for {item.sku}
-                          </Button>
-                        ) : null}
                       </Group>
                     ) : null}
                     {(issuesBySku.get(item.sku) ?? []).map((issue, index) => (

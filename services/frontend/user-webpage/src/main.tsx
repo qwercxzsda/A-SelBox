@@ -1,17 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createTheme, MantineProvider } from "@mantine/core";
+import { MantineProvider } from "@mantine/core";
+import { appTheme } from "./design-system";
 import "@mantine/core/styles.css";
+import "./design-system.css";
 import "./index.css";
 import App from "./App.tsx";
-
-const theme = createTheme({
-  primaryColor: "cyan",
-  primaryShade: 8,
-  defaultRadius: "md",
-  fontFamily:
-    'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-});
 
 const rootElement = document.getElementById("root");
 if (rootElement === null) {
@@ -20,7 +14,7 @@ if (rootElement === null) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <MantineProvider theme={theme} forceColorScheme="light">
+    <MantineProvider theme={appTheme} forceColorScheme="light">
       <App />
     </MantineProvider>
   </StrictMode>,

@@ -29,7 +29,9 @@ test("administrators stage multiple SKUs and cannot save until every known SKU i
   ).toBeDisabled();
   await review(page).getByRole("button", { name: "Complete S2", exact: true }).click();
   await expect(editor(page).getByLabel("Fee rate 2 (%)", { exact: true })).toHaveValue("");
-  await expect(editor(page).getByLabel("Start date 2", { exact: true })).toHaveValue("2026-09-02");
+  await expect(editor(page).getByLabel("Start date 2 (inclusive)", { exact: true })).toHaveValue(
+    "2026-09-02",
+  );
   await editor(page).getByLabel("Company", { exact: true }).selectOption(COMPANY);
   await editor(page).getByLabel("Fee rate 2 (%)", { exact: true }).fill("7.123456");
   await page.screenshot({
@@ -111,6 +113,16 @@ test("invalid draft fields are kept with inline errors and block the global save
       exact: true,
     }),
   ).toBeVisible();
+  const invalidRate = editor(page).getByLabel("Fee rate 1 (%)", { exact: true });
+  const errorBorder = await invalidRate.evaluate(
+    (element) => globalThis.getComputedStyle(element).borderTopColor,
+  );
+  const ordinaryBorder = await editor(page)
+    .getByLabel("Start date 1 (inclusive)", { exact: true })
+    .evaluate((element) => globalThis.getComputedStyle(element).borderTopColor);
+  expect(errorBorder).not.toBe(ordinaryBorder);
+  await invalidRate.focus();
+  await expect(invalidRate).toHaveCSS("border-top-color", errorBorder);
   expect(fixture.configurationSaves).toHaveLength(0);
 });
 
@@ -272,7 +284,8 @@ test("a pending save remains exclusive after the fee screen unmounts and remount
     .getByRole("tab", { name: "Transactions", exact: true })
     .evaluate((element) => element.click());
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Edit S1", exact: true })).toBeDisabled();
+  await expect(review(page)).toBeVisible();
+  await expect(review(page).getByRole("button", { name: "Edit S1", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Add SKU", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: /^Review changes/ })).toBeDisabled();
   await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();

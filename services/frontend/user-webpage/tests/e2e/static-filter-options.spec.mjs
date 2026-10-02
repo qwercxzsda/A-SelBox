@@ -38,12 +38,14 @@ for (const role of ["company_member", "operator"]) {
     await closeMenu(marketplace);
 
     const type = await openColumn(page, "Type");
+    await type.getByLabel("Search type", { exact: true }).fill("subscription");
     await expect(
       type.getByRole("checkbox", {
         name: "Other transaction · Other transaction · Subscription fee",
         exact: true,
       }),
     ).toHaveCount(role === "operator" ? 1 : 0);
+    await type.getByLabel("Search type", { exact: true }).fill("inventory storage");
     await expect(
       type.getByRole("checkbox", {
         name: "FBA fees · FBA inventory storage fee · Base fee",

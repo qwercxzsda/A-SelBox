@@ -261,7 +261,7 @@ test("Data Kiosk rows do not wait for their independent RPC count", async ({ pag
     await expect(rowWithSku(page, "KIOSK-1")).toBeVisible();
     await expect(pagination(page, 1, "—")).toBeVisible();
     expect(fixture.countRequests.at(-1).transport).toBe("rpc");
-    expect(fixture.countRequests.at(-1).params.get("amount")).toBe("neq.0");
+    expect(fixture.countRequests.at(-1).params.get("amount")).toBe("not.is.null");
     release.resolve();
     await expect(pagination(page, 1, 1)).toBeVisible();
     await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();

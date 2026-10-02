@@ -402,6 +402,16 @@
   {
     "source": "SETTLEMENT",
     "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against DE, ES, NL"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against DE, FR"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
     "type": "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against DE, NL, ES"
   },
   {
@@ -488,6 +498,11 @@
     "source": "SETTLEMENT",
     "category": "SELBOX",
     "type": "Order_Retrocharge/ItemWithheldTax/MarketplaceFacilitatorVAT-Shipping"
+  },
+  {
+    "source": "SETTLEMENT",
+    "category": "SELBOX",
+    "type": "Other/MCF Preferred Pricing Seller Credit/Base charge"
   },
   {
     "source": "SETTLEMENT",

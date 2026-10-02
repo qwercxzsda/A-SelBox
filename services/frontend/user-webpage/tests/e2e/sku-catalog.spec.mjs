@@ -94,6 +94,7 @@ for (const [role, revision] of [
         "data_kiosk",
         "fees",
         "inventory",
+        "payouts",
         "settlement",
       ]);
     else expect(fixture.optionRequests).toHaveLength(0);

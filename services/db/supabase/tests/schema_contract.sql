@@ -46,8 +46,18 @@ begin
         or has_table_privilege('authenticated','public.sku_terms_versions','INSERT,UPDATE,DELETE')
         or has_function_privilege('authenticated','private.publish_sku_terms(jsonb)','EXECUTE')
         or has_function_privilege('authenticated','private.publish_company_payout_report(jsonb)','EXECUTE')
+        or has_function_privilege('authenticated','private.generate_company_payout_reports(uuid,date)','EXECUTE')
+        or has_function_privilege('authenticated','private.refresh_company_payout_reports(integer)','EXECUTE')
+        or has_table_privilege('authenticated','private.payout_report_refresh_state','SELECT')
         or has_table_privilege('authenticated','private.settlement_acquisitions','SELECT') then
         raise exception 'Private source evidence and administrative writes must not be exposed';
+    end if;
+    if to_regprocedure('public.generate_company_payout_reports(uuid,date)') is not null then
+        raise exception 'Monthly payouts must not have a manual generation API';
+    end if;
+    if to_regclass('public.account_reconciliation_details') is not null
+        or to_regclass('public.account_reconciliation_totals') is not null then
+        raise exception 'Current review must use the category-scoped financial review API';
     end if;
     if has_column_privilege('authenticated','public.app_accounts','access_role','INSERT')
         or has_column_privilege('authenticated','public.app_accounts','access_role','UPDATE')

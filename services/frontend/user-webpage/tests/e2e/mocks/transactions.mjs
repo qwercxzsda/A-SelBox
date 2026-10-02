@@ -17,7 +17,9 @@ export async function respondWithTransactions(
     failure: null,
   };
   track(request, entry);
-  fixture.requests.push(entry);
+  (transactionArgs.p_currency ? (fixture.summaryRecordRequests ??= []) : fixture.requests).push(
+    entry,
+  );
   const prefix = fixture.prefixes[user];
   await fixture.beforeDataset(entry);
   if (fixture.status !== 200) return reply({ message: "Denied fixture request" }, fixture.status);

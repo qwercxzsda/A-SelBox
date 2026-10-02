@@ -41,7 +41,7 @@ _READS: dict[str, LiteralString] = {
         "p_date_to=>'2026-06-30',p_skus=>array['SHARED-SKU'])"
     ),
 }
-_INDEX_COMPARISONS: tuple[tuple[str, str, tuple[str, ...], LiteralString], ...] = (
+_INDEX_COMPARISONS: tuple[tuple[str, str, tuple[str, ...], LiteralString | None], ...] = (
     (
         "settlement_owner",
         "settlement_transactions",
@@ -58,7 +58,7 @@ _INDEX_COMPARISONS: tuple[tuple[str, str, tuple[str, ...], LiteralString], ...] 
         "kiosk_date_count",
         "data_kiosk_transactions",
         ("activity_date", "component_type", "sku", "version_id", "category", "marketplace_name"),
-        "amount <> 0",
+        None,
     ),
 )
 
@@ -175,11 +175,13 @@ def _index_sizes(fixture: SourceModelFixture) -> list[dict[str, object]]:
                 keys.insert(keys.index("sku"), "seller_namespace")
             index_name = "benchmark_" + name + "_" + variant
             fixture.connection.execute(
-                sql.SQL("create index {} on private.{} ({}) where {}").format(
+                sql.SQL("create index {} on private.{} ({}){}").format(
                     sql.Identifier(index_name),
                     sql.Identifier(table),
                     sql.SQL(", ").join(map(sql.Identifier, keys)),
-                    sql.SQL(predicate),
+                    sql.SQL("")
+                    if predicate is None
+                    else sql.SQL(" where {} ").format(sql.SQL(predicate)),
                 )
             )
             sizes[variant] = int(

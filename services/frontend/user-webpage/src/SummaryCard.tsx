@@ -54,7 +54,7 @@ export function SummaryCard({
       component="article"
       className="estimated-summary-card"
       withBorder
-      p="md"
+      p="sm"
       aria-label={`${title} estimated totals`}
     >
       {period && total && total.rowCount > 0 && currency ? (
@@ -102,7 +102,7 @@ export function SummaryCard({
           {period && total && total.rowCount > 0 ? (
             <>
               <SummaryAmounts total={total} />
-              <Text className="estimated-summary-affordance" size="xs" mt="sm" aria-hidden="true">
+              <Text className="estimated-summary-affordance" size="xs" mt="xs" aria-hidden="true">
                 View by type →
               </Text>
             </>

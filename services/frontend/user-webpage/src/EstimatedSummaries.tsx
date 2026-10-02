@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { SummaryCard } from "./SummaryCard";
 import type { SummaryPeriod, SummaryState } from "./summary-types";
 import { Alert, Button, Group, NativeSelect, Text, Title } from "@mantine/core";
@@ -8,6 +7,8 @@ import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import "./EstimatedSummaries.css";
 
 interface EstimatedSummariesProps {
+  selectedCurrency: string | null;
+  onCurrencyChange: (currency: string) => void;
   day: SummaryState;
   month: SummaryState;
   selected: SummaryState;
@@ -21,6 +22,8 @@ interface EstimatedSummariesProps {
 }
 
 export function EstimatedSummaries({
+  selectedCurrency,
+  onCurrencyChange,
   day,
   month,
   selected,
@@ -32,7 +35,6 @@ export function EstimatedSummaries({
   coverageNote,
   appliedFilters = [],
 }: EstimatedSummariesProps) {
-  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
   const periods = [day.period, month.period, selectionActive ? selected.period : null];
   const errors = [
     ...new Set(
@@ -53,9 +55,9 @@ export function EstimatedSummaries({
 
   return (
     <section className="estimated-summaries" aria-label="Estimated totals" aria-busy={loading}>
-      <Group justify="space-between" align="end" mb="sm">
+      <Group justify="space-between" align="center" mb={4}>
         <div>
-          <Title order={2} size="h4">
+          <Title order={2} className="ui-workspace-intro-title">
             Estimated totals
           </Title>
           <UpdateStatus active={loading && periods.some((period) => period !== null)}>
@@ -65,11 +67,12 @@ export function EstimatedSummaries({
         {currencies.length > 1 ? (
           <NativeSelect
             label="Currency"
+            className="estimated-summary-currency"
             size="xs"
             value={currency ?? ""}
             data={currencies}
             onChange={(event) => {
-              setSelectedCurrency(event.currentTarget.value);
+              onCurrencyChange(event.currentTarget.value);
             }}
           />
         ) : null}

@@ -1,103 +1,50 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn, captureResponsiveReview, deferred } from "./fixtures.mjs";
+import { applyReportMonth, selectColumnOptions } from "./table-actions.mjs";
 
 const company = "0198b50b-701a-7000-8000-000000000001";
 const report = "0198b50b-701a-7000-8000-000000000002";
 
-test("missing required Data Kiosk days explain why no report was saved", async ({ page }) => {
-  const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
-  fixture.companyIds["member-b"] = company;
-  fixture.companyNames[company] = "Monthly Company";
-  fixture.payoutGenerationStatus = 400;
-  fixture.payoutGenerationError = {
-    code: "23514",
-    message: "Incomplete, pruned or incompatible payout Data Kiosk coverage",
-  };
-  await signIn(page);
-  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByLabel("Report company").selectOption(company);
-  await page.getByLabel("Report month").fill("2026-06");
-  await page.getByRole("button", { name: "Generate payout reports" }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "Complete, compatible Data Kiosk coverage is required",
-  );
-  expect(fixture.payoutRows).toHaveLength(0);
-});
+for (const role of ["operator", "company_member"]) {
+  test(`${role} browses automatically generated reports without generation controls`, async ({
+    page,
+  }, testInfo) => {
+    const fixture = await mockSupabase(page);
+    fixture.roles["member-a"] = role;
+    fixture.companyIds["member-a"] = company;
+    fixture.companyIds["member-b"] = company;
+    fixture.companyNames[company] = "Monthly Company";
+    fixture.payoutRows = [
+      {
+        id: report,
+        company_id: company,
+        start_date: "2026-06-01",
+        end_date: "2026-06-30",
+        source_amount: "100",
+        fee_amount: "-5",
+        company_amount: "95",
+        created_at: "2026-09-27T00:00:00Z",
+        currency: "USD",
+      },
+    ];
+    await signIn(page);
+    await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
+    if (role === "operator") await selectColumnOptions(page, "Company", ["Monthly Company"]);
+    await expect(page.getByLabel("Report company")).toHaveCount(0);
+    await applyReportMonth(page, "2026-07");
+    await expect(page.getByText("This month is not mature yet.", { exact: false })).toBeVisible();
+    await expect(
+      page.getByText("Reports are generated automatically", { exact: false }),
+    ).toBeVisible();
+    await applyReportMonth(page, "2026-06");
+    await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /generate|refresh|reload/i })).toHaveCount(0);
+    expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
+    await captureResponsiveReview(page, testInfo, `${role}-payout-reports`);
+  });
+}
 
-test("administrator rejects recent dates and reuses an unchanged report on repeated generation", async ({
-  page,
-}, testInfo) => {
-  const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
-  fixture.companyIds["member-b"] = company;
-  fixture.companyNames[company] = "Monthly Company";
-  await signIn(page);
-  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByLabel("Report company").selectOption(company);
-  await page.getByLabel("Report month").fill("2026-07");
-  await expect(page.getByRole("button", { name: "Generate payout reports" })).toBeDisabled();
-  await expect(
-    page.getByText("This month includes recent dates and cannot be used for a payout report."),
-  ).toBeVisible();
-  await page.getByLabel("Report month").fill("2026-06");
-  await page.getByRole("button", { name: "Generate payout reports" }).click();
-  await expect(page.getByText("1 payout report saved.")).toBeVisible();
-  await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toBeVisible();
-  expect(fixture.generatedPayouts).toEqual([{ p_company_id: company, p_month: "2026-06-01" }]);
-  const readsBefore = fixture.requests.filter(({ dataset }) => dataset === "payouts").length;
-  await page.getByRole("button", { name: "Generate payout reports" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "payout report" })).toHaveText(
-    "Reports unchanged. No new reports saved. 1 existing payout report reused.",
-  );
-  expect(fixture.payoutRows).toHaveLength(1);
-  await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toHaveCount(1);
-  expect(fixture.generatedPayouts).toHaveLength(2);
-  expect(fixture.requests.filter(({ dataset }) => dataset === "payouts").length).toBeGreaterThan(
-    readsBefore,
-  );
-  await captureResponsiveReview(page, testInfo, "payout-reports");
-});
-
-test("one company and month action creates and reuses reports across currencies", async ({
-  page,
-}) => {
-  const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
-  fixture.companyIds["member-b"] = company;
-  fixture.companyNames[company] = "Monthly Company";
-  fixture.payoutRows = [
-    {
-      id: report,
-      company_id: company,
-      start_date: "2026-06-01",
-      end_date: "2026-06-30",
-      source_amount: "90",
-      fee_amount: "-5",
-      company_amount: "85",
-      created_at: "2026-09-27T00:00:00Z",
-      currency: "EUR",
-    },
-  ];
-  fixture.payoutGenerationResults = [
-    { report_id: report, created: false },
-    { report_id: "0198b50b-701a-7000-8000-000000000099", created: true },
-  ];
-  await signIn(page);
-  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByLabel("Report company").selectOption(company);
-  await page.getByLabel("Report month").fill("2026-06");
-  await page.getByRole("button", { name: "Generate payout reports" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "payout report" })).toHaveText(
-    "1 payout report saved. 1 existing payout report reused.",
-  );
-  expect(fixture.payoutRows).toHaveLength(2);
-  await expect(page.getByRole("cell", { name: "85 EUR", exact: true })).toHaveCount(1);
-  await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toHaveCount(1);
-  expect(fixture.generatedPayouts).toEqual([{ p_company_id: company, p_month: "2026-06-01" }]);
-});
-
-test("members see both company amount sources and separate comparisons without account controls", async ({
+test("members see both company amount sources without supporting or account controls", async ({
   page,
 }, testInfo) => {
   const fixture = await mockSupabase(page);
@@ -201,31 +148,34 @@ test("members see both company amount sources and separate comparisons without a
   await expect(page.getByLabel("Report company")).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "999 USD", exact: true })).toHaveCount(0);
   await page.getByRole("cell", { name: "87 USD", exact: true }).click();
+  await page.getByText("Marketplace breakdown", { exact: true }).first().click();
   const breakdown = page.getByRole("table", { name: "Payout marketplace breakdown" });
   await expect(breakdown).toBeVisible();
-  await expect(breakdown.getByRole("columnheader", { name: "Company (USD)" })).toBeVisible();
+  await expect(breakdown.getByRole("columnheader", { name: "Company amount (USD)" })).toBeVisible();
   await expect(breakdown.getByRole("cell", { name: "Not specified", exact: true })).toBeVisible();
   await expect(breakdown.getByRole("cell", { name: "-8", exact: true })).toHaveCount(2);
   await expect(breakdown.getByRole("cell", { name: "999", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("table", { name: "Company payout components" })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Amount records", exact: true })).toBeVisible();
   await expect(
     page
-      .getByRole("table", { name: "Company payout components" })
+      .getByRole("table", { name: "Amount records", exact: true })
       .getByRole("cell", { name: "Data Kiosk", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "OUTSIDE-FIRST-PAGE", exact: true })).toHaveCount(0);
   await captureResponsiveReview(page, testInfo, "payout-marketplace-breakdown");
   await expect(page.getByText("Seller reconciliation", { exact: true })).toHaveCount(0);
-  await page.getByRole("tab", { name: "Supporting details", exact: true }).click();
-  await expect(
-    page.getByText("Comparison and analysis details are excluded from the payout total."),
-  ).toBeVisible();
-  await expect(page.getByRole("cell", { name: "102", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Saved source details", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Reconciliation", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("cell", { name: "102", exact: true })).toHaveCount(0);
   await expect(breakdown.getByRole("cell", { name: "102", exact: true })).toHaveCount(0);
   await expect(breakdown.getByRole("cell", { name: "-8", exact: true })).toHaveCount(2);
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
   ).toBe(false);
+  expect(
+    fixture.payoutComponentRequests.every(({ authoritative }) => authoritative === "true"),
+  ).toBe(true);
 });
 
 test("marketplace breakdown loads independently and retries an error into an empty result", async ({
@@ -241,8 +191,9 @@ test("marketplace breakdown loads independently and retries an error into an emp
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await page.getByRole("cell", { name: "85 USD", exact: true }).click();
+  await page.getByText("Marketplace breakdown", { exact: true }).first().click();
   await expect(page.getByText("Loading marketplace breakdown…", { exact: true })).toBeVisible();
-  await expect(page.getByText("No saved details for this section.")).toBeVisible();
+  await expect(page.getByText("No records match this selection.").first()).toBeVisible();
   pending.resolve();
   await expect(page.getByRole("alert")).toContainText("Could not load marketplace breakdown.");
   fixture.payoutMarketplaceTotalsStatus = 0;
@@ -250,7 +201,7 @@ test("marketplace breakdown loads independently and retries an error into an emp
   await expect(page.getByText("No saved marketplace amounts.", { exact: true })).toBeVisible();
 });
 
-test("administrators inspect frozen daily marketplace differences without adding them to company payouts", async ({
+test("administrator payout drawers contain only their payout amounts and records", async ({
   page,
 }, testInfo) => {
   const fixture = await mockSupabase(page);
@@ -274,6 +225,7 @@ test("administrators inspect frozen daily marketplace differences without adding
     {
       report_id: report,
       row_number: "1",
+      seller_namespace: "seller-a",
       activity_date: "2026-06-12",
       marketplace_name: "Amazon.com",
       currency: "USD",
@@ -292,13 +244,14 @@ test("administrators inspect frozen daily marketplace differences without adding
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
   ).toBe(false);
-  await page.getByText("Reconciliation", { exact: true }).click();
-  const ledger = page.getByRole("table", { name: "Saved reconciliation" });
-  await expect(ledger.getByRole("cell", { name: "5", exact: true })).toBeVisible();
-  await expect(ledger.getByRole("cell", { name: "77", exact: true })).toHaveCount(2);
-  await expect(page.getByText(/Do not add them across reports/)).toBeVisible();
   const drawer = page.getByRole("dialog", { name: "Selected row details" });
-  await expect(drawer.getByText("Source namespace", { exact: true })).toBeVisible();
-  await expect(drawer.getByText("seller-a", { exact: true })).toBeVisible();
-  await captureResponsiveReview(page, testInfo, "payout-reconciliation");
+  await expect(
+    drawer.getByRole("button", { name: /Saved source details|Saved account reconciliation/ }),
+  ).toHaveCount(0);
+  await expect(drawer.getByRole("table", { name: "Saved reconciliation" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toBeVisible();
+  expect(
+    fixture.payoutComponentRequests.every(({ authoritative }) => authoritative === "true"),
+  ).toBe(true);
+  await captureResponsiveReview(page, testInfo, "payout-only-details");
 });

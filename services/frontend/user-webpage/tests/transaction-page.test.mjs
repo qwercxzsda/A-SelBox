@@ -100,6 +100,31 @@ test("transaction pages use the authenticated REST function for both date direct
   }
 });
 
+test("amount record pages and counts filter currency on the server and reject invalid currencies", async () => {
+  const calls = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    calls.push(JSON.parse(init.body));
+    return json(url.endsWith("transaction_count") ? "0" : { rows: [], total_count: "0" });
+  });
+  await client.fetchDatasetPage(request({ currency: "USD" }));
+  await client.fetchDatasetCount(request({ currency: "USD" }));
+  assert.deepEqual(
+    calls.map((call) => call.p_currency),
+    ["USD", "USD"],
+  );
+  for (const currency of ["usd", "", "US", "USD,EUR"]) {
+    await assert.rejects(
+      client.fetchDatasetPage(request({ currency })),
+      /valid transaction currency/,
+    );
+    await assert.rejects(
+      client.fetchDatasetCount(request({ currency })),
+      /valid transaction currency/,
+    );
+  }
+  assert.equal(calls.length, 2);
+});
+
 test("transaction page arrays preserve exact text and inclusive dates without filter syntax interpolation", async () => {
   let args;
   const selections = filters({

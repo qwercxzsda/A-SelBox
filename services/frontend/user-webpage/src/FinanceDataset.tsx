@@ -1,9 +1,9 @@
 import "./FinanceDataset.css";
-import { Alert, Button, CloseButton, Group, NativeSelect, Text, TextInput } from "@mantine/core";
+import { Alert, Button, CloseButton, Group, Text, TextInput } from "@mantine/core";
 import { type TableDatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
-import { DATASET_PRESENTATION, PAGE_SIZES, displayColumns, getErrorMessage } from "./view-model";
+import { DATASET_PRESENTATION, displayColumns, getErrorMessage } from "./view-model";
 import type { Identity } from "./auth-session";
 import { FinancialTable } from "./FinancialTable";
 import { UpdateStatus } from "./UpdateStatus";
@@ -12,19 +12,35 @@ import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { FinanceColumnHeader } from "./FinanceColumnHeader";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { AmountOrderingLimitError } from "./api/amount-ordering";
-import { PayoutControls } from "./PayoutControls";
+import { PayoutReports } from "./PayoutReports";
+import { AppliedTableFilters } from "./AppliedTableFilters";
+import { WorkspaceIntro } from "./WorkspaceIntro";
+import { filterOptions, transactionTypeValues } from "./filter-options";
+import { transactionTypeSelectionLabels } from "./transaction-type-groups";
+import { RowsSelect } from "./RowsSelect";
 
-export function FinanceDataset({
+interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
+  identity: Identity;
+  dataset: TableDatasetKey;
+  onRetry: () => Promise<void>;
+  reviewMode?: boolean;
+}
+
+export function FinanceDataset(props: FinanceDatasetProps) {
+  return props.dataset === "payouts" ? (
+    <PayoutReports {...props} />
+  ) : (
+    <StandardFinanceDataset {...props} />
+  );
+}
+
+function StandardFinanceDataset({
   identity,
   dataset,
   onRetry,
   viewState,
   onViewStateChange,
-}: {
-  identity: Identity;
-  dataset: TableDatasetKey;
-  onRetry: () => Promise<void>;
-} & ViewStateProps<DatasetViewState>) {
+}: FinanceDatasetProps) {
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, dataset, viewState, onViewStateChange);
   const { pageIndex, pageSize } = table.state.pagination;
@@ -41,12 +57,7 @@ export function FinanceDataset({
   const amountLimitExceeded = query.error instanceof AmountOrderingLimitError;
   return (
     <>
-      <Text mb="md" role="note" c="dimmed" size="sm">
-        {presentation.description}
-      </Text>
-      {dataset === "payouts" ? (
-        <PayoutControls identity={identity} filters={filters} onChange={changeFilters} />
-      ) : null}
+      <WorkspaceIntro description={presentation.description} />
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -69,101 +80,96 @@ export function FinanceDataset({
       ) : null}
       <Group className="table-toolbar" justify="space-between" align="end">
         <Group align="end" className="table-toolbar-fields">
-          <TextInput
-            className="search-field"
-            label="Search"
-            type="search"
-            value={search}
-            placeholder={presentation.searchPlaceholder}
-            disabled={DATASET_CONFIG[dataset].searchColumns.length === 0}
-            rightSectionPointerEvents="auto"
-            rightSection={
-              search ? (
-                <CloseButton
-                  aria-label="Clear search"
-                  onClick={() => {
-                    changeSearch("");
-                  }}
-                />
-              ) : undefined
-            }
-            onChange={(event) => {
-              changeSearch(event.currentTarget.value);
-            }}
-          />
-          <NativeSelect
-            label="Rows"
+          {DATASET_CONFIG[dataset].searchColumns.length > 0 ? (
+            <TextInput
+              className="search-field"
+              label="Search"
+              type="search"
+              value={search}
+              placeholder={presentation.searchPlaceholder}
+              rightSectionPointerEvents="auto"
+              rightSection={
+                search ? (
+                  <CloseButton
+                    aria-label="Clear search"
+                    onClick={() => {
+                      changeSearch("");
+                    }}
+                  />
+                ) : undefined
+              }
+              onChange={(event) => {
+                changeSearch(event.currentTarget.value);
+              }}
+            />
+          ) : null}
+          <RowsSelect
             value={pageSize}
-            data={PAGE_SIZES.map(String)}
-            onChange={(event) => {
-              table.setPagination({ pageIndex: 0, pageSize: Number(event.currentTarget.value) });
+            onChange={(pageSize) => {
+              table.setPagination({ pageIndex: 0, pageSize });
             }}
           />
         </Group>
+        <PaginationBar
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          canPrevious={table.getCanPreviousPage()}
+          canNext={totalCount === null ? rows.length === pageSize : table.getCanNextPage()}
+          isBusy={isBusy}
+          onPrevious={() => {
+            table.previousPage();
+          }}
+          onNext={() => {
+            table.nextPage();
+          }}
+          onPageChange={(index) => {
+            table.setPageIndex(index);
+          }}
+          summary={
+            amountLimitExceeded
+              ? "Narrow your filters or order by date to load rows."
+              : query.isPending
+                ? `Loading page ${String(pageIndex + 1)}…`
+                : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} rows`
+          }
+        />
       </Group>
-      {hasFilters ? (
-        <Group gap="xs" mb="xs">
-          <Text size="sm" c="dimmed">
-            {filterCount} {filterCount === 1 ? "filter" : "filters"} applied
-          </Text>
-          <Button
-            size="compact-sm"
-            variant="subtle"
-            onClick={() => {
-              changeFilters(normalizeDatasetFilters());
-            }}
-          >
-            Clear filters
-          </Button>
-        </Group>
-      ) : null}
-      <PaginationBar
-        pageIndex={pageIndex}
-        pageCount={pageCount}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={totalCount === null ? rows.length === pageSize : table.getCanNextPage()}
-        isBusy={isBusy}
-        onPrevious={() => {
-          table.previousPage();
-        }}
-        onNext={() => {
-          table.nextPage();
-        }}
-        onPageChange={(index) => {
-          table.setPageIndex(index);
-        }}
-        summary={
-          amountLimitExceeded
-            ? "Narrow your filters or order by date to load rows."
-            : query.isPending
-              ? `Loading page ${String(pageIndex + 1)}…`
-              : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} rows`
-        }
-      />
-      <Group gap="xs" mb="xs" mih={24}>
-        {query.countQuery.isError ? (
-          <>
-            <Text size="xs" c="red" role="status">
-              Row count unavailable.
-            </Text>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              onClick={() => void query.countQuery.refetch()}
-            >
-              Retry count
-            </Button>
-          </>
-        ) : (
-          <UpdateStatus active={query.countQuery.isFetching}>Counting rows…</UpdateStatus>
+      <AppliedTableFilters
+        dataset={dataset}
+        filters={filters}
+        companies={companies}
+        typeLabels={transactionTypeSelectionLabels(
+          filterOptions(
+            "component_type",
+            transactionTypeValues(dataset, identity.account.access_role),
+            filters.types,
+          ),
+          filters.types,
         )}
-      </Group>
-      <Text size="xs" c="dimmed" mb="xs">
-        Select a row or press Enter to view its details.
-      </Text>
+        onChange={changeFilters}
+      />
       <FinancialTable
+        dataset={dataset}
         table={table}
         isBusy={isBusy}
+        status={
+          query.countQuery.isError ? (
+            <>
+              <Text size="xs" c="red" role="status">
+                Row count unavailable.
+              </Text>
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                onClick={() => void query.countQuery.refetch()}
+              >
+                Retry count
+              </Button>
+            </>
+          ) : (
+            <UpdateStatus active={query.countQuery.isFetching}>Counting rows…</UpdateStatus>
+          )
+        }
         renderColumnHeader={(columnId) => {
           const column = columns.find((definition) => definition.key === columnId);
           return column ? (
@@ -197,11 +203,26 @@ export function FinanceDataset({
                   : presentation.emptyMessage}
             </Text>
             {hasRefinements ? (
-              <Text c="dimmed" size="sm">
-                {hasFilters
-                  ? "Adjust your selections or use Clear filters to see more records."
-                  : "Try a different search or use Clear search to see all records."}
-              </Text>
+              <>
+                <Text c="dimmed" size="sm">
+                  Adjust your search or filters, or reset them to see all records.
+                </Text>
+                <Button
+                  mt="sm"
+                  variant="light"
+                  onClick={() => {
+                    onViewStateChange({
+                      ...viewState,
+                      search: "",
+                      filters: normalizeDatasetFilters(),
+                      pagination: { ...viewState.pagination, pageIndex: 0 },
+                      selectedRowId: null,
+                    });
+                  }}
+                >
+                  Reset search and filters
+                </Button>
+              </>
             ) : null}
           </div>
         ) : null}

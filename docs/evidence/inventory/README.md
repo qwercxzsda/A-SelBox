@@ -85,11 +85,15 @@ replacement, rollback, concurrency, idempotency, empty latest captures, ownershi
 Supabase advisors previously reported zero errors and no inventory security warnings. Four existing
 financial-helper warnings concern deliberate SQL inlining choices.
 
-The current baseline has 27 dependency-ordered migrations. Cleanup compared the installed database
+At the 2026-09-30 cleanup, the baseline had 27 dependency-ordered migrations. Verification compared the installed database
 before and after regrouping: tables, columns, all 69 function bodies, 18 views, constraints, indexes,
 triggers, RLS, and ACLs matched. The updated private seed restored successfully and its file remained
 unchanged. Replaying retained US/Japan reports after parser cleanup produced identical rows and
 diagnostics; the reorganized verifier also passed a real US pipeline run.
+
+These counts and screenshots describe the dated runs above. The current [schema](../../database_schema.md)
+and [frontend guide](../../../services/frontend/user-webpage/README.md#inventory) define the maintained
+interfaces, including the later compact inventory table and detail drawer.
 
 ## Reproduce
 

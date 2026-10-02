@@ -6,7 +6,6 @@ check (value::text not in ('NaN', 'Infinity', '-Infinity'));
 create table public.company_payout_reports (
     id public.local_uuid primary key default private.uuid7(),
     company_id public.local_uuid not null references public.companies (id),
-    seller_namespace private.nonblank,
     currency text check (currency ~ '^[A-Z]{3}$'),
     start_date date not null check (isfinite(start_date)),
     end_date date not null check (isfinite(end_date) and end_date >= start_date),
@@ -14,7 +13,6 @@ create table public.company_payout_reports (
         start_date = date_trunc('month', start_date)::date
         and end_date = (start_date + interval '1 month - 1 day')::date
     ),
-    preprocess_version private.nonblank,
     dataset_key text not null check (dataset_key = 'economics'),
     marketplace_names text[] not null check (
         array_position(marketplace_names, null) is null
@@ -39,21 +37,44 @@ create table public.company_payout_reports (
     company_amount private.calculated_amount not null,
     created_at timestamptz not null default clock_timestamp(),
     check (company_amount = source_amount + fee_amount),
-    -- An empty company/month has no inferred seller, currency or preprocessing version.
-    check (num_nonnulls(seller_namespace, currency, preprocess_version) in (0, 3)),
-    check (seller_namespace is not null or (
+    -- An empty company/month has no inferred currency.
+    check (currency is not null or (
         component_count = 0 and reconciliation_count = 0
         and source_amount = 0 and fee_amount = 0 and company_amount = 0
-        and cardinality(marketplace_names) = 0
     ))
 );
 -- Scope lookup supports reuse and the leading company key supports FK checks.
 create index company_payout_reports_scope_idx
 on public.company_payout_reports (
-    company_id, seller_namespace, start_date, currency, created_at desc, id desc
+    company_id, start_date, currency, created_at desc, id desc
 );
 create index company_payout_reports_created_idx
 on public.company_payout_reports (created_at desc nulls last, id asc);
+
+-- Pending revisions make idle checks independent of completed report history.
+-- This is operational state; immutable reports remain the financial evidence.
+create table private.payout_report_refresh_state (
+    company_id public.local_uuid not null references public.companies (id) on delete cascade,
+    month date not null check ( -- noqa: RF04
+        isfinite(month) and month = date_trunc('month', month)::date
+    ),
+    requested_revision bigint not null default 1 check (requested_revision > 0),
+    completed_revision bigint not null default 0 check (
+        completed_revision >= 0 and completed_revision <= requested_revision
+    ),
+    next_attempt_at timestamptz not null default clock_timestamp(),
+    failure_count integer not null default 0 check (failure_count >= 0),
+    last_attempt_at timestamptz,
+    last_success_at timestamptz,
+    last_error_sqlstate text check (last_error_sqlstate ~ '^[0-9A-Z]{5}$'),
+    last_error_message text,
+    primary key (company_id, month),
+    check (num_nonnulls(last_error_sqlstate, last_error_message) in (0, 2))
+);
+
+create index payout_report_refresh_pending_idx
+on private.payout_report_refresh_state (next_attempt_at, month, company_id)
+where requested_revision > completed_revision;
 
 -- These complete manifests are also the retention pins. They include empty
 -- source versions and ownership inputs used to exclude other companies' rows.
@@ -165,7 +186,9 @@ create table private.payout_report_reconciliation (
     settlement_total private.calculated_amount not null,
     accounted_total private.calculated_amount not null,
     primary key (report_id, row_number),
-    unique nulls not distinct (report_id, activity_date, marketplace_name, currency),
+    unique nulls not distinct (
+        report_id, seller_namespace, activity_date, marketplace_name, currency
+    ),
     check (difference = data_kiosk_settlement_control - data_kiosk_category_amount),
     check (
         settlement_total

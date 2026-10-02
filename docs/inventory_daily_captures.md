@@ -121,6 +121,32 @@ ownership by exact SKU alone. An absent SKU or empty latest capture never falls 
 per-SKU stock. Namespaces describe source provenance, not ownership; quantities across marketplaces
 or namespaces are not an assumed physical total.
 
+`public.inventory_filter_options()` returns complete distinct `skus`, `health_statuses`, and
+`recommendations` arrays from the same current, authorized rows. Text uses deterministic C ordering;
+nullable status/recommendation arrays retain one null option last. The authenticated invoker RPC
+does not accept a company identity or bypass RLS, and its single JSON result is not truncated by
+REST page limits. Browser searches resolve these exact values before the server applies filters,
+ordering, and pagination. Numeric sales sorting retains the source currency and amount.
+
+Health and recommendation sorting uses nullable integer ranks derived in
+`public.latest_inventory_items`: `health_status_urgency` and `recommended_action_urgency`.
+These are application priorities, not an urgency score supplied by Amazon. Higher ranks come
+first for "Most urgent first"; unknown labels and absent values remain last in either direction.
+The database orders the full filtered result before pagination, with exact SKU, marketplace, and
+capture ID as stable ties. Source labels and normalized captures are unchanged.
+
+| Health priority | Rank | Recommendation priority | Rank |
+| --- | ---: | --- | ---: |
+| Out of stock | 40 | Edit listing | 50 |
+| Low stock | 30 | Restock | 40 |
+| Excess | 20 | Send to FBA | 30 |
+| Healthy | 0 | Advertise listing | 20 |
+| | | No excess inventory / No action required | 0 |
+
+Matching ignores case, spaces, and punctuation. Excess also recognizes `ExcessStock`,
+`ExcessInventory`, `HighStock`, and `Overstock`; Restock recognizes `GoToRestock` and
+`RestockInventory`. Unrecognized labels are preserved and have no inferred rank.
+
 All three private tables use RLS. Members read latest items for currently owned SKUs; operators also
 see unassigned items and retained history. A caller-checked private helper exposes minimal latest
 capture references/dates, including empty captures, and hides seller namespaces from members.
@@ -158,7 +184,8 @@ No recurring scheduler or deployment is installed by these commands.
 The read-only Inventory tab uses the same lightweight revision checks as Transactions. While
 visible and online it checks every 60 seconds; focus/visibility return checks when at least 30
 seconds stale, and reconnection checks immediately. Unchanged `inventory` and ownership (`fees`)
-tokens retain cached rows/counts. Relevant changes reload the active page; failed reads retry on
+tokens retain cached rows/counts and filter catalogs. Relevant changes reload the active page and
+catalog; failed reads retry on
 the next check. These checks read the small token table, not capture headers or item rows, and never
 call Amazon. No manual reload or shipment controls are present.
 

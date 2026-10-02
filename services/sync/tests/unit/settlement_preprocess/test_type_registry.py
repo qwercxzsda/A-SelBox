@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from ....src.allocation import AllocationCategory
 from ....src.amazon.data_kiosk.economics_models import EconomicsCost
+from ....src.numeric import Numeric
 from ....src.settlement_preprocess.classification import classify_settlement_row
 from ....src.settlement_preprocess.raw_report import prepare_settlement_report
 from ....src.settlement_preprocess.retrocharges import RETROCHARGE_COMPONENTS
@@ -23,6 +24,63 @@ REPOSITORY = Path(__file__).resolve().parents[5]
 
 
 class TransactionTypeRegistryTests(unittest.TestCase):
+    def test_reviewed_debt_country_lists_keep_the_existing_balance_movement_policy(self) -> None:
+        source = {
+            "transaction-type": "Debt Adjustment",
+            "amount-type": "Debt Adjustment",
+            "sku": "",
+            "marketplace-name": "",
+            "amount": "96.82",
+        }
+        for countries in ("DE, FR", "DE, ES, NL"):
+            description = "Cross-Account Debt Adjustment against " + countries
+            with self.subTest(countries=countries):
+                row = prepare_settlement_report(
+                    settlement_document(source | {"amount-description": description})
+                ).transactions[0]
+                self.assertEqual(row.category, AllocationCategory.SELBOX)
+                self.assertEqual(row.family, "F5")
+                self.assertEqual(row.accounting_subtype, "BALANCE_MOVEMENT")
+                self.assertEqual(row.source_fields["amount-description"], description)
+                with self.assertRaisesRegex(ValueError, "SKU"):
+                    prepare_settlement_report(
+                        settlement_document(
+                            source | {"amount-description": description, "sku": "UNEXPECTED"}
+                        )
+                    )
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            prepare_settlement_report(
+                settlement_document(
+                    source
+                    | {"amount-description": "Cross-Account Debt Adjustment against DE, FR, SE"}
+                )
+            )
+
+    def test_reviewed_mcf_preferred_pricing_credit_is_retained_without_sku_inference(self) -> None:
+        source = {
+            "transaction-type": "Other",
+            "amount-type": "MCF Preferred Pricing Seller Credit",
+            "amount-description": "Base charge",
+            "sku": "",
+            "marketplace-name": "Non-Amazon US",
+            "amount": "1.00",
+        }
+        prepared = prepare_settlement_report(settlement_document(source))
+        row = prepared.transactions[0]
+        self.assertEqual(row.category, AllocationCategory.SELBOX)
+        self.assertEqual(row.amount, Numeric("1.00"))
+        self.assertIsNone(row.sku)
+        self.assertIsNone(row.family)
+        self.assertIsNone(row.accounting_subtype)
+        self.assertEqual(row.source_fields["amount-description"], "Base charge")
+        for changed in (
+            {"transaction-type": "Other credit"},
+            {"amount-type": "MCF Preferred Pricing Seller Credit Adjustment"},
+            {"amount-description": "Tax on credit"},
+        ):
+            with self.subTest(changed=changed), self.assertRaisesRegex(ValueError, "Unsupported"):
+                prepare_settlement_report(settlement_document(source | changed))
+
     def test_retained_real_source_audit_has_no_unknown_triples(self) -> None:
         audit = json.loads(
             (

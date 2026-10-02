@@ -36,7 +36,6 @@ from services.sync.src.database.acquisitions import (
 )
 from services.sync.src.database.company_terms import create_company, publish_sku_terms
 from services.sync.src.database.payout_reports import publish_company_payout_report
-from services.sync.src.preprocess_version import PREPROCESS_VERSION
 from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
 from services.sync.src.settlements.acquisition import download_settlement_acquisition
 
@@ -73,13 +72,9 @@ class LocalWorkflowTests(LocalWorkflowCase):
         report_id = publish_company_payout_report(
             self.database,
             company_id=company,
-            seller_namespace=self.seller,
             currency="USD",
             start_date=START,
             end_date=month_end,
-            preprocess_version=PREPROCESS_VERSION,
-            settlement_ids=[str(canonical[0])],
-            marketplace_names=["Amazon.com"],
             report_name="Frozen company report",
             change_reason="Initial source-backed report",
         )

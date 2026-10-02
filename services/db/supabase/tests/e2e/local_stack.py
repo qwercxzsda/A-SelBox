@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx
+import psycopg
 
 _PROJECT_PATTERN = re.compile(r"aselbox_e2e_[0-9a-f]{12}")
 _EXCLUDED_SERVICES = (
@@ -258,6 +259,15 @@ class LocalSupabaseStack:
         self.database_url = database_url
         self.anon_key = _status_text(status, "ANON_KEY")
         self.service_key = _status_text(status, "SERVICE_ROLE_KEY")
+        # Fixture setup must not race the production scheduler. This stack is
+        # owned by this test; normal installations retain the active cron job.
+        with psycopg.connect(self.database_url) as connection:
+            jobs = connection.execute(
+                "select jobid from cron.job where jobname='company-payout-reports'"
+            ).fetchall()
+            if len(jobs) != 1:
+                raise RuntimeError("The application payout scheduler was not installed.")
+            connection.execute("select cron.alter_job(%s,active:=false)", (jobs[0][0],))
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
 

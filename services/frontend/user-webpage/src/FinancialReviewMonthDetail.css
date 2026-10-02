@@ -1,0 +1,63 @@
+.monthly-review-heading {
+  gap: 12px;
+}
+
+.monthly-review-title {
+  min-width: 0;
+}
+
+.monthly-review-title h3 {
+  font-size: 20px;
+}
+
+.monthly-review-total {
+  min-width: 0;
+  background: var(--ui-surface-subtle);
+}
+
+.monthly-review-total-title {
+  font-size: var(--ui-font-section);
+  font-weight: 600;
+}
+
+.monthly-review-total .detail-table {
+  background: var(--ui-surface);
+}
+
+.monthly-review-total .detail-table th:first-child,
+.monthly-review-total .detail-table td:first-child {
+  width: 110px;
+}
+
+.monthly-review-total .detail-table td:first-child {
+  font-weight: 600;
+}
+
+.monthly-review-total .detail-table th:last-child,
+.monthly-review-total .detail-table td:last-child {
+  background: var(--ui-accent-soft);
+}
+
+.monthly-review-total .detail-table td:last-child {
+  font-weight: 600;
+}
+
+.monthly-review-total-formula {
+  margin-top: 12px;
+  color: var(--ui-text-muted);
+}
+
+.monthly-review-context {
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.financial-review-types .transaction-type {
+  max-width: 360px;
+}
+
+@media (max-width: 600px) {
+  .monthly-review-heading {
+    flex-direction: column;
+  }
+}

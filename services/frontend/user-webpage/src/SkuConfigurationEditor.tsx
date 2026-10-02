@@ -1,16 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import {
   Alert,
+  Autocomplete,
   Button,
   Divider,
   Drawer,
   Group,
   NativeSelect,
-  Paper,
-  SimpleGrid,
   Stack,
   Text,
-  TextInput,
   Title,
 } from "@mantine/core";
 import type {
@@ -19,32 +17,57 @@ import type {
   SkuConfigurationItem,
   SkuConfigurationPeriod,
 } from "./api";
-import marketplaces from "./generated/marketplaces.json";
+import { SkuFeePeriodEditor } from "./SkuFeePeriodEditor";
 import { createSkuDraft, validateSkuItem } from "./sku-configuration-form";
+import type { FeeEditorState } from "./workspace-view-state";
+import "./SkuConfigurationDrawer.css";
 
 export function SkuConfigurationEditor({
   item,
-  draft,
+  editing,
+  onEditingChange,
   companies,
   knownSkus,
   isNew,
   onClose,
   onStage,
+  onEditExisting,
 }: {
   item: SkuConfigurationItem;
-  draft?: SkuConfigurationChange;
+  editing: FeeEditorState;
+  onEditingChange: Dispatch<SetStateAction<FeeEditorState>>;
   companies: Company[];
   knownSkus: string[];
   isNew: boolean;
   onClose: () => void;
   onStage: (change: SkuConfigurationChange) => void;
+  onEditExisting: (sku: string) => void;
 }) {
-  const [form, setForm] = useState<SkuConfigurationChange>(() =>
-    structuredClone(draft ?? createSkuDraft(item)),
-  );
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { form, submitError } = editing;
+  const marketplaceInputs = useRef(new Map<number, HTMLSelectElement>());
+  const addPeriodButton = useRef<HTMLButtonElement>(null);
+  const periodFocus = useRef<number | "add" | null>(null);
+  useEffect(() => {
+    if (periodFocus.current === null) return;
+    const target =
+      periodFocus.current === "add"
+        ? addPeriodButton.current
+        : marketplaceInputs.current.get(periodFocus.current);
+    target?.focus();
+    periodFocus.current = null;
+  }, [form.periods.length]);
+  const setForm = (update: SetStateAction<SkuConfigurationChange>) => {
+    onEditingChange((current) => ({
+      ...current,
+      form: typeof update === "function" ? update(current.form) : update,
+    }));
+  };
+  const setSubmitError = (submitError: string | null) => {
+    onEditingChange((current) => ({ ...current, submitError }));
+  };
   const issues = validateSkuItem({ ...item, ...form });
   const stale = form.expected_current_version_id !== item.terms_version_id;
+  const existingSku = isNew && knownSkus.includes(form.sku);
   function updatePeriod(index: number, field: keyof SkuConfigurationPeriod, value: string | null) {
     setForm((current) => ({
       ...current,
@@ -53,35 +76,55 @@ export function SkuConfigurationEditor({
       ),
     }));
   }
-  const errorFor = (index: number, field: keyof SkuConfigurationPeriod) =>
-    issues.find((issue) => issue.periodIndex === index && issue.field === field)?.message;
+  function addPeriod() {
+    periodFocus.current = form.periods.length;
+    setForm({
+      ...form,
+      periods: [
+        ...form.periods,
+        { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "" },
+      ],
+    });
+  }
+  function removePeriod(index: number) {
+    if (index === form.periods.length - 1) periodFocus.current = index === 0 ? "add" : index - 1;
+    setForm((current) => ({
+      ...current,
+      periods: current.periods.filter((_, position) => position !== index),
+    }));
+  }
   return (
     <Drawer
       opened
       onClose={onClose}
       title={isNew ? "Add SKU" : `Edit ${item.sku}`}
       position="right"
-      size="xl"
+      size={960}
+      classNames={{
+        content: "sku-configuration-drawer-content",
+        body: "sku-configuration-drawer-body",
+        title: "sku-configuration-drawer-title",
+      }}
       closeButtonProps={{ "aria-label": "Close SKU editor" }}
     >
       <form
+        className="sku-configuration-drawer-layout"
         onSubmit={(event) => {
           event.preventDefault();
           if (!form.sku.trim() || form.sku.includes("\0")) {
             setSubmitError("Enter a SKU.");
             return;
           }
-          if (isNew && knownSkus.includes(form.sku)) {
+          if (existingSku) {
             setSubmitError("This exact SKU already exists. Edit its current settings instead.");
             return;
           }
           onStage(form);
         }}
       >
-        <Stack gap="lg">
+        <Stack gap="md" className="sku-configuration-drawer-scroll">
           <Text size="sm" c="dimmed">
-            Changes stay in a draft until you review and save all changes. Every known SKU needs a
-            company and fee coverage for its applicable transactions.
+            Changes stay in a draft until you review and save all changes.
           </Text>
           {stale ? (
             <Alert color="orange" role="alert">
@@ -98,20 +141,40 @@ export function SkuConfigurationEditor({
             </Alert>
           ) : null}
           {isNew ? (
-            <TextInput
+            <Autocomplete
               label="SKU"
-              description="Use the exact SKU, including its spelling and spaces."
+              description="Type a SKU prefix to find existing settings, or enter a new exact SKU. Spelling and spaces are preserved."
               value={form.sku}
-              onChange={(event) => {
+              data={
+                form.sku
+                  ? knownSkus
+                      .filter((sku) => sku.toLowerCase().startsWith(form.sku.toLowerCase()))
+                      .slice(0, 20)
+                  : []
+              }
+              filter={({ options }) => options}
+              onChange={(sku) => {
                 setSubmitError(null);
-                setForm({ ...form, sku: event.currentTarget.value });
+                setForm({ ...form, sku });
               }}
               error={submitError}
               data-autofocus
             />
-          ) : (
-            <Title order={3}>{item.sku}</Title>
-          )}
+          ) : null}
+          {existingSku ? (
+            <Alert color="blue" title="This SKU already has settings">
+              <Text size="sm">Open its settings to continue editing any existing draft.</Text>
+              <Button
+                mt="sm"
+                variant="light"
+                onClick={() => {
+                  onEditExisting(form.sku);
+                }}
+              >
+                Edit existing SKU
+              </Button>
+            </Alert>
+          ) : null}
           <NativeSelect
             label="Company"
             value={form.company_id ?? ""}
@@ -125,10 +188,12 @@ export function SkuConfigurationEditor({
             error={!form.company_id ? "A company is required before saving." : undefined}
           />
           <Divider />
-          <Stack gap="xs">
-            <Title order={4}>Marketplace fee periods</Title>
+          <Stack gap={4}>
+            <Title order={4} className="sku-configuration-section-title">
+              Marketplace fee periods
+            </Title>
             <Text size="sm" c="dimmed">
-              Start dates are included. End dates are not included; leave an end date blank for an
+              Start dates are inclusive. End dates are exclusive; leave an end date blank for an
               ongoing rate. Enter 0 only when the agreed fee is zero.
             </Text>
           </Stack>
@@ -138,80 +203,23 @@ export function SkuConfigurationEditor({
             </Text>
           ) : null}
           {form.periods.map((period, index) => (
-            <Paper withBorder p="md" key={index}>
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <Text fw={600}>Period {index + 1}</Text>
-                  <Button
-                    size="compact-sm"
-                    color="red"
-                    variant="subtle"
-                    aria-label={`Remove period ${String(index + 1)}`}
-                    onClick={() => {
-                      setForm({
-                        ...form,
-                        periods: form.periods.filter((_, position) => position !== index),
-                      });
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </Group>
-                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                  <NativeSelect
-                    label={`Marketplace ${String(index + 1)}`}
-                    value={period.marketplace_name}
-                    data={[{ value: "", label: "Choose a marketplace" }, ...marketplaces]}
-                    onChange={(event) => {
-                      updatePeriod(index, "marketplace_name", event.currentTarget.value);
-                    }}
-                    error={errorFor(index, "marketplace_name")}
-                  />
-                  <TextInput
-                    label={`Fee rate ${String(index + 1)} (%)`}
-                    inputMode="decimal"
-                    value={period.fee_rate_percent}
-                    onChange={(event) => {
-                      updatePeriod(index, "fee_rate_percent", event.currentTarget.value);
-                    }}
-                    error={errorFor(index, "fee_rate_percent")}
-                  />
-                  <TextInput
-                    label={`Start date ${String(index + 1)}`}
-                    type="date"
-                    value={period.valid_from}
-                    onChange={(event) => {
-                      updatePeriod(index, "valid_from", event.currentTarget.value);
-                    }}
-                    error={errorFor(index, "valid_from")}
-                  />
-                  <TextInput
-                    label={`End date ${String(index + 1)} (not included)`}
-                    type="date"
-                    value={period.valid_to ?? ""}
-                    onChange={(event) => {
-                      updatePeriod(index, "valid_to", event.currentTarget.value || null);
-                    }}
-                    error={errorFor(index, "valid_to")}
-                  />
-                </SimpleGrid>
-              </Stack>
-            </Paper>
+            <SkuFeePeriodEditor
+              key={index}
+              period={period}
+              index={index}
+              issues={issues}
+              marketplaceRef={(element) => {
+                if (element) marketplaceInputs.current.set(index, element);
+                else marketplaceInputs.current.delete(index);
+              }}
+              onUpdate={(field, value) => {
+                updatePeriod(index, field, value);
+              }}
+              onRemove={() => {
+                removePeriod(index);
+              }}
+            />
           ))}
-          <Button
-            variant="light"
-            onClick={() => {
-              setForm({
-                ...form,
-                periods: [
-                  ...form.periods,
-                  { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "" },
-                ],
-              });
-            }}
-          >
-            Add fee period
-          </Button>
           {issues.some((issue) => !issue.field) ? (
             <Alert color="orange" title="Fee coverage still needed">
               <Stack gap={4}>
@@ -225,14 +233,28 @@ export function SkuConfigurationEditor({
               </Stack>
             </Alert>
           ) : null}
-          <Text size="sm" c="dimmed">
+        </Stack>
+        <Stack gap="xs" className="sku-configuration-drawer-actions">
+          <Text size="xs" c="dimmed">
             You can keep an unfinished draft and complete it before saving.
           </Text>
           <Group justify="space-between">
-            <Button variant="default" onClick={onClose}>
-              Cancel
+            <Button
+              ref={addPeriodButton}
+              variant="light"
+              onClick={addPeriod}
+              disabled={existingSku}
+            >
+              Add fee period
             </Button>
-            <Button type="submit">Keep draft</Button>
+            <Group gap="xs">
+              <Button variant="default" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={existingSku}>
+                Keep draft
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </form>

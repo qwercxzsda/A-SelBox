@@ -10,6 +10,7 @@ with one current definition per object.
 - [Performance](../../../docs/database_performance.md): current access paths, measurements, and scaling limits.
 - [Company fees](../../../docs/company_fees.md): current ownership, signed fees, and missing configuration.
 - [Payout reports](../../../docs/company_payout_reports.md): monthly generation, snapshots, and reuse.
+- [Financial review](../../../docs/financial_review.md): current source comparisons and saved report diagnostics.
 
 ## Local setup
 
@@ -19,10 +20,9 @@ From the repository root:
 supabase start --workdir services/db
 ```
 
-API and Storage use `http://127.0.0.1:54321`; PostgreSQL uses port 54322. The frontend can target a
-separate seeded instance through its explicit configuration; that instance currently uses ports
-55421 and 55422. Read the [frontend setup guide](../../frontend/user-webpage/README.md#configuration)
-for its configuration.
+The default API and Storage URL is `http://127.0.0.1:54321`; PostgreSQL uses port 54322. Additional
+local stacks can use different ports. The frontend must use the explicit public API URL for the
+intended stack, as described in the [frontend setup guide](../../frontend/user-webpage/README.md#configuration).
 
 Starting Supabase preserves existing local data. This undeployed project's canonical migrations
 install a fresh database. Verification creates disposable databases without changing development
@@ -54,19 +54,22 @@ New split modules must fit around those stable anchors. The table below follows 
 | [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs. |
 | [financial_components](migrations/20260928123111_financial_components.sql) | Current and explicit-version company components with ownership and fees. |
 | [financial_reads](migrations/20260928123113_financial_reads.sql) | Strict complete and partial financial reads with declared source coverage. |
-| [payout_schema](migrations/20260928123115_payout_schema.sql) | Frozen payout headers, components, source manifests, and reconciliation records. |
+| [payout_schema](migrations/20260928123115_payout_schema.sql) | Frozen payout headers, components, source manifests, reconciliation records, and private refresh state. |
 | [publication_integrity](migrations/20260928123116_publication_integrity.sql) | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
 | [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals validation. |
-| [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture, aggregation, and latest-report reuse. |
+| [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture across namespaces, company/currency aggregation, and latest-report reuse. |
 | [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
 | [application_access](migrations/20260928123123_application_access.sql) | Account, financial, payout, and inventory RLS policies and authorized REST projections. |
-| [payout_generation](migrations/20260928123125_payout_generation.sql) | Administrator company/month generation and maturity policy RPCs. |
-| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, inventory, ownership, and company-label revision tokens and lightweight polling. |
+| [payout_generation](migrations/20260928123125_payout_generation.sql) | Atomic company/month generation and read-only maturity policy. |
+| [payout_refresh](migrations/20260928123126_payout_refresh.sql) | Pending revision requests, maturity discovery, bounded processing, and retry backoff. |
+| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling. |
+| [payout_invalidation](migrations/20260928123128_payout_invalidation.sql) | Transactional requests after source or terms changes, scope expansion, and pruning. |
 | [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
 | [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility. |
 | [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
+| [payout_schedule](migrations/20260928123139_payout_schedule.sql) | Five-minute pg_cron registration in the configured scheduler database. |
 | [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql) | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics. |
 | [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic operator batches, and stale-write checks. |
 | [application_grants](migrations/20260928123142_application_grants.sql) | Final explicit table, column, and function allowlist for the entire application. |
@@ -114,13 +117,14 @@ comparison and analysis facts.
 
 `workspace_revisions` reads the authenticated account and requested opaque tokens from the small
 `workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial
-source and inventory revisions are global; fee, ownership, and company-name revisions are
+source and inventory revisions are global; fee, ownership, company-name, and payout revisions are
 company-scoped for members and global for operators. Source-version publication, current-pointer
 changes, and historical Data Kiosk pruning update financial source tokens atomically at commit.
 This covers administrator history reads as well as current Transactions. Changed daily inventory
 captures rotate the separate `inventory` token in the publication transaction; raw acquisitions,
-idempotent replays, and rolled-back publications do not. Only financial source tokens include the
-UTC mature cutoff date. The browser checks relevant tokens on its polling interval, focus, and
+idempotent replays, and rolled-back publications do not. New payout headers rotate `payouts` tokens
+for their company and the global operator scope; unchanged report reuse does not. Only financial
+source tokens include the UTC mature cutoff date. The browser checks relevant tokens on its polling interval, focus, and
 reconnection, then invalidates dependent reads when a token changes. Unchanged inventory and
 ownership tokens retain successful cached inventory reads; failed reads can retry. The
 [frontend lifecycle](../../frontend/user-webpage/README.md#requests-and-session-lifecycle) defines
@@ -139,8 +143,10 @@ The trusted Python repositories publish complete JSON payloads through these pri
 ```text
 private.publish_settlement_acquisition(jsonb)
 private.publish_data_kiosk_acquisition(jsonb)
+private.publish_inventory_acquisition(jsonb)
 private.publish_settlement_preprocess(jsonb)
 private.publish_data_kiosk_preprocess(jsonb)
+private.publish_inventory_capture(jsonb)
 private.publish_sku_terms(jsonb)
 private.publish_company_payout_report(jsonb)
 ```
@@ -152,17 +158,27 @@ do not assign companies or create fee terms. Operators publish terms only throug
 and fees for current commission-capable source dates, while preserving older incomplete terms.
 `public.sku_configuration` exposes all known settings to operators and only owned settings to
 members. Source publication remains trusted Python/SQL work.
-Operators call `public.generate_company_payout_reports(p_company_id, p_month)` for all
-scopes of one eligible company/month. It returns `(report_id uuid, created boolean)`
-per scope. The trusted publisher returns one saved UUID. Both aggregate empty inputs
-as zero and reuse the latest report when its scope and exact versions match. Snapshots
-are created only on request. See the [payout contract](../../../docs/company_payout_reports.md),
+The private payout worker runs every five minutes and processes up to 10 pending mature
+company/months through a partial index. Source and terms publications request affected work;
+a metadata frontier adds newly mature months. Completed months are skipped until inputs change.
+A blocked month records its error and retries with backoff, without preventing other months
+from completing. A changed input resets the delay. All scopes for one company/month are atomic. There is
+no public generation RPC or browser generation action. See the [payout contract](../../../docs/company_payout_reports.md),
 [workflow](../../../docs/data_workflows.md), and [sync API](../../sync/README.md).
+
+The baseline registers `company-payout-reports` in `cron.database_name` (normally `postgres`).
+Auxiliary databases in that cluster install the worker without a schedule and emit a notice,
+because pg_cron can only be installed in its configured database. The private
+`payout_report_refresh_state` table records pending/completed revisions, retry timing, attempts,
+successes, and errors for DB administrators; application roles cannot read or modify it. The [scheduler operations](../../../docs/company_payout_reports.md#scheduler-operations)
+queries inspect its progress. Five minutes is the job cadence, not a per-report freshness guarantee.
 
 DB administrators create companies and bootstrap operators. Application accounts live
 in the database; user-editable Auth metadata cannot grant access. Company members read
 permitted current facts and terms plus their own saved payout headers, components,
-and marketplace totals. Payout manifests and seller reconciliation are administrator-only.
+and marketplace/Type totals. The latest-report view groups only by company, month,
+and currency; source namespaces remain input provenance. Payout manifests and
+seller reconciliation are administrator-only.
 The [permission matrix](../../../docs/access_control.md#permission-matrix) defines all access.
 
 ## Observation comparison and retention

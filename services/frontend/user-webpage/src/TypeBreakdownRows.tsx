@@ -1,12 +1,18 @@
 import { useId } from "react";
 import { FinancialAmounts } from "./FinancialAmounts";
-import { Accordion, Group, Table, Text, VisuallyHidden } from "@mantine/core";
+import { Accordion, Button, Group, Table, Text } from "@mantine/core";
 import type { CurrencyTotal, TransactionTypeTotal } from "./api/types";
 import { transactionTypeLabel } from "./categories";
 import { formatExactMoney } from "./decimal";
 import type { TransactionTypeGroup } from "./type-breakdown-groups";
 
-import { FINANCIAL_AMOUNTS } from "./view-model";
+import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
+import type { RecordSelection } from "./AmountBreakdown";
+import { useWorkspacePreference } from "./use-workspace-preference";
+import { decodeDetailStrings } from "./detail-view-state";
+import { TypeBreakdownAmounts } from "./TypeBreakdownAmounts";
+
+type SelectRecords = (selection: RecordSelection) => void;
 
 function UncalculatedNote({ total }: { total: CurrencyTotal }) {
   return total.missingFeeCount > 0 ? (
@@ -16,12 +22,18 @@ function UncalculatedNote({ total }: { total: CurrencyTotal }) {
   ) : null;
 }
 
-function AmountRow({ total }: { total: TransactionTypeTotal }) {
+function AmountRow({
+  total,
+  onSelectRecords,
+}: {
+  total: TransactionTypeTotal;
+  onSelectRecords: SelectRecords;
+}) {
   const label = transactionTypeLabel(total.type);
   return (
     <Table.Tr aria-label={`${label} amounts`}>
       <Table.Th scope="row">
-        <Text size="sm" fw={500} title={total.type}>
+        <Text inherit fw={500} title={total.type}>
           {label}
         </Text>
         <UncalculatedNote total={total} />
@@ -31,12 +43,29 @@ function AmountRow({ total }: { total: TransactionTypeTotal }) {
           {formatExactMoney(total[field], total.currency)}
         </Table.Td>
       ))}
-      <Table.Td ta="right">{total.rowCount.toLocaleString("en-US")}</Table.Td>
+      <Table.Td ta="right">
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          aria-label={`View ${label} records`}
+          onClick={() => {
+            onSelectRecords({ label, types: [total.type] });
+          }}
+        >
+          {total.rowCount.toLocaleString("en-US")}
+        </Button>
+      </Table.Td>
     </Table.Tr>
   );
 }
 
-function MobileType({ total }: { total: TransactionTypeTotal }) {
+function MobileType({
+  total,
+  onSelectRecords,
+}: {
+  total: TransactionTypeTotal;
+  onSelectRecords: SelectRecords;
+}) {
   const label = transactionTypeLabel(total.type);
   return (
     <article className="type-breakdown-type" aria-label={`${label} amounts`}>
@@ -44,9 +73,16 @@ function MobileType({ total }: { total: TransactionTypeTotal }) {
         <Text component="h4" m={0} fw={500} size="sm" flex={1} miw={0} title={total.type}>
           {label}
         </Text>
-        <Text size="xs" c="dimmed">
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          aria-label={`View ${label} records`}
+          onClick={() => {
+            onSelectRecords({ label, types: [total.type] });
+          }}
+        >
           {total.rowCount.toLocaleString("en-US")} {total.rowCount === 1 ? "record" : "records"}
-        </Text>
+        </Button>
       </Group>
       <FinancialAmounts total={total} />
       <UncalculatedNote total={total} />
@@ -54,15 +90,16 @@ function MobileType({ total }: { total: TransactionTypeTotal }) {
   );
 }
 
-function OriginalTypes({ types }: { types: TransactionTypeTotal[] }) {
+function OriginalTypes({
+  types,
+  onSelectRecords,
+}: {
+  types: TransactionTypeTotal[];
+  onSelectRecords: SelectRecords;
+}) {
   return (
     <>
-      <Table
-        className="type-breakdown-table"
-        aria-label="Transaction type amounts"
-        fz="sm"
-        verticalSpacing="sm"
-      >
+      <Table className="detail-table type-breakdown-table" aria-label="Transaction type amounts">
         <colgroup>
           <col style={{ width: "24%" }} />
           <col style={{ width: "22%" }} />
@@ -83,82 +120,104 @@ function OriginalTypes({ types }: { types: TransactionTypeTotal[] }) {
         </Table.Thead>
         <Table.Tbody>
           {types.map((total) => (
-            <AmountRow key={total.type} total={total} />
+            <AmountRow key={total.type} total={total} onSelectRecords={onSelectRecords} />
           ))}
         </Table.Tbody>
       </Table>
       <div className="type-breakdown-mobile">
         {types.map((total) => (
-          <MobileType key={total.type} total={total} />
+          <MobileType key={total.type} total={total} onSelectRecords={onSelectRecords} />
         ))}
       </div>
     </>
   );
 }
 
-export function TypeBreakdownRows({ groups }: { groups: TransactionTypeGroup[] }) {
+export function TypeBreakdownRows({
+  groups,
+  onSelectRecords,
+  stateKey,
+}: {
+  groups: TransactionTypeGroup[];
+  onSelectRecords: SelectRecords;
+  stateKey: string;
+}) {
   const amountIdPrefix = useId();
+  const hasUncalculatedAmounts = groups.some((group) => group.totals.missingFeeCount > 0);
+  const [expanded, setExpanded] = useWorkspacePreference<string[]>(
+    `${stateKey}:type-groups`,
+    () => [],
+    decodeDetailStrings,
+  );
 
   return (
-    <Accordion
-      multiple
-      keepMounted={false}
-      className="type-breakdown-groups"
-      classNames={{
-        label: "type-breakdown-control-label",
-        chevron: "type-breakdown-chevron",
-      }}
-    >
-      {groups.map((group) => (
-        <Accordion.Item key={group.id} value={group.id}>
-          <Accordion.Control
-            aria-label={`${group.label} details`}
-            aria-describedby={`${amountIdPrefix}-${group.id}-amount`}
-          >
-            <span className="type-breakdown-control-text">
-              <span className="type-breakdown-group-name">{group.label}</span>
-              <span
-                id={`${amountIdPrefix}-${group.id}-amount`}
-                className="type-breakdown-group-amount"
-              >
-                <VisuallyHidden>
-                  {group.totals.missingFeeCount > 0 ? "Known company amount" : "Company amount"}
-                  :{" "}
-                </VisuallyHidden>
-                {formatExactMoney(group.totals.companyAmount, group.totals.currency)}
-                {group.totals.missingFeeCount > 0 ? (
-                  <Text
-                    component="span"
-                    display="block"
-                    size="xs"
-                    c="orange.9"
-                    mt={2}
-                    aria-hidden="true"
-                  >
-                    Known company amount
-                  </Text>
-                ) : null}
-              </span>
-            </span>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <section
-              className="type-breakdown-group-summary"
-              aria-label={`${group.label} subtotal`}
+    <>
+      <div className="type-breakdown-column-headings" aria-hidden="true">
+        <span className="type-breakdown-group-name">Type</span>
+        <span className="type-breakdown-group-amounts">
+          {FINANCIAL_AMOUNTS.map((field) => (
+            <span key={field[0]}>{financialAmountLabel(field, hasUncalculatedAmounts)}</span>
+          ))}
+        </span>
+      </div>
+      <Accordion
+        transitionDuration={0}
+        multiple
+        value={expanded}
+        onChange={setExpanded}
+        keepMounted={false}
+        className="type-breakdown-groups"
+        classNames={{
+          label: "type-breakdown-control-label",
+          chevron: "type-breakdown-chevron",
+        }}
+      >
+        {groups.map((group) => (
+          <Accordion.Item key={group.id} value={group.id}>
+            <Accordion.Control
+              aria-label={`${group.label} details`}
+              aria-describedby={`${amountIdPrefix}-${group.id}-amount`}
             >
-              <Text size="xs" c="dimmed">
-                {group.totals.rowCount.toLocaleString("en-US")}{" "}
-                {group.totals.rowCount === 1 ? "record" : "records"} across{" "}
-                {group.types.length.toLocaleString("en-US")}{" "}
-                {group.types.length === 1 ? "type" : "types"}
-              </Text>
-              <FinancialAmounts total={group.totals} />
-              <UncalculatedNote total={group.totals} />
-            </section>
-            <OriginalTypes types={group.types} />
-          </Accordion.Panel>
-        </Accordion.Item>
-      ))}
-    </Accordion>
+              <span className="type-breakdown-control-text">
+                <span className="type-breakdown-group-name">{group.label}</span>
+                <TypeBreakdownAmounts
+                  id={`${amountIdPrefix}-${group.id}-amount`}
+                  total={group.totals}
+                />
+              </span>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <section
+                className="type-breakdown-group-summary"
+                aria-label={`${group.label} subtotal`}
+              >
+                <Text size="xs" c="dimmed">
+                  {group.totals.rowCount.toLocaleString("en-US")}{" "}
+                  {group.totals.rowCount === 1 ? "record" : "records"} across{" "}
+                  {group.types.length.toLocaleString("en-US")}{" "}
+                  {group.types.length === 1 ? "type" : "types"}
+                </Text>
+                <FinancialAmounts total={group.totals} />
+                <UncalculatedNote total={group.totals} />
+                <Button
+                  mt="sm"
+                  size="xs"
+                  variant="light"
+                  onClick={() => {
+                    onSelectRecords({
+                      label: group.label,
+                      types: group.types.map((type) => type.type),
+                    });
+                  }}
+                >
+                  View {group.label} records
+                </Button>
+              </section>
+              <OriginalTypes types={group.types} onSelectRecords={onSelectRecords} />
+            </Accordion.Panel>
+          </Accordion.Item>
+        ))}
+      </Accordion>
+    </>
   );
 }

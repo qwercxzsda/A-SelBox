@@ -40,7 +40,9 @@ for (const role of ["company_member", "operator"]) {
     await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
       /1[-–]25 of 26 SKUs/,
     );
-    await expect(skuButton(page)).toContainText("Company A");
+    await expect(
+      page.locator(".mantine-Accordion-item").filter({ has: skuButton(page) }),
+    ).toContainText("Company A");
     await page
       .getByLabel("Search SKUs", { exact: true })
       .fill(role === "operator" ? "Company A" : SKU);
@@ -49,7 +51,7 @@ for (const role of ["company_member", "operator"]) {
     await expect(table.getByRole("row")).toHaveCount(6);
     await expect(table.getByRole("cell", { name: "5.123456%", exact: true })).toBeVisible();
     await expect(table.getByRole("cell", { name: "0%", exact: true })).toBeVisible();
-    await expect(table).toContainText("Before 2026-01-02");
+    await expect(table).toContainText("2026-01-02 (exclusive)");
     await expect(table.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(0);
     await expect(table.getByRole("row").last()).toBeVisible();
     if (mobile) {

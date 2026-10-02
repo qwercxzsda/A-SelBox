@@ -2,6 +2,12 @@ import { createApiClient } from "./api/client.ts";
 import { readBuildConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
+import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
+import type {
+  FinancialReviewCategory,
+  FinancialReviewPageCursor,
+  FinancialReviewRecordFilters,
+} from "./api/financial-review.ts";
 import type {
   Company,
   CurrencyTotal,
@@ -20,6 +26,13 @@ import type {
 } from "./api/types.ts";
 
 export { ApiError } from "./api/transport.ts";
+export type {
+  FinancialReviewCategory,
+  FinancialReviewSource,
+  FinancialReviewRecordFilters,
+  FinancialReviewMonthPage,
+  FinancialReviewPageCursor,
+} from "./api/financial-review.ts";
 export { SkuConfigurationError } from "./api/sku-configuration-errors.ts";
 export type {
   SkuConfiguration,
@@ -74,6 +87,8 @@ export const fetchSkuOptions = (accessToken: string, signal?: AbortSignal): Prom
   getDefaultClient().fetchSkuOptions(accessToken, signal);
 export const fetchInventoryPage = (options: FetchInventoryPageOptions) =>
   getDefaultClient().fetchInventoryPage(options);
+export const fetchInventoryFilterOptions = (accessToken: string, signal?: AbortSignal) =>
+  getDefaultClient().fetchInventoryFilterOptions(accessToken, signal);
 export const fetchSkuConfiguration = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchSkuConfiguration(accessToken, signal);
 export const publishSkuConfiguration = (options: PublishSkuConfigurationOptions) =>
@@ -93,8 +108,10 @@ export const fetchTransactionTypeTotals = (
 
 export const fetchPayoutPolicy = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchPayoutPolicy(accessToken, signal);
-export const generatePayoutReports = (accessToken: string, companyId: string, month: string) =>
-  getDefaultClient().generatePayoutReports(accessToken, companyId, month);
+export const fetchPayoutHistory = (options: FetchPayoutHistoryOptions): Promise<PageResult> =>
+  getDefaultClient().fetchPayoutHistory(options);
+export const fetchPayoutVersion = (options: FetchPayoutVersionOptions) =>
+  getDefaultClient().fetchPayoutVersion(options);
 export const fetchPayoutMarketplaceTotals = (
   accessToken: string,
   reportId: string,
@@ -106,8 +123,23 @@ export const fetchPayoutComponents = (
   authoritative: boolean,
   pageIndex: number,
   signal?: AbortSignal,
+  types: string[] = [],
 ) =>
-  getDefaultClient().fetchPayoutComponents(accessToken, reportId, authoritative, pageIndex, signal);
+  getDefaultClient().fetchPayoutComponents(
+    accessToken,
+    reportId,
+    authoritative,
+    pageIndex,
+    signal,
+    types,
+  );
+
+export const fetchPayoutTypeTotals = (
+  accessToken: string,
+  reportId: string,
+  currency: string,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchPayoutTypeTotals(accessToken, reportId, currency, signal);
 
 export const fetchPayoutReconciliation = (
   accessToken: string,
@@ -115,3 +147,66 @@ export const fetchPayoutReconciliation = (
   pageIndex: number,
   signal?: AbortSignal,
 ) => getDefaultClient().fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal);
+
+export const fetchPayoutReconciliationTotals = (
+  accessToken: string,
+  reportId: string,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchPayoutReconciliationTotals(accessToken, reportId, signal);
+
+export const fetchFinancialReviewMonths = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  cursor: FinancialReviewPageCursor | null,
+  pageSize: number,
+  filterMonth: string,
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchFinancialReviewMonths(
+    accessToken,
+    category,
+    cursor,
+    pageSize,
+    filterMonth,
+    signal,
+  );
+export const fetchFinancialReviewTotals = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  month: string,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchFinancialReviewTotals(accessToken, category, month, signal);
+export const fetchFinancialReviewTypes = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  month: string,
+  currency: string,
+  pageIndex = 0,
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchFinancialReviewTypes(
+    accessToken,
+    category,
+    month,
+    currency,
+    pageIndex,
+    signal,
+  );
+export const fetchFinancialReviewRecords = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  month: string,
+  currency: string,
+  pageIndex: number,
+  filters: FinancialReviewRecordFilters = {},
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchFinancialReviewRecords(
+    accessToken,
+    category,
+    month,
+    currency,
+    pageIndex,
+    filters,
+    signal,
+  );

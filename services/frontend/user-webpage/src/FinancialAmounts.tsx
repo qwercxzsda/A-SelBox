@@ -2,25 +2,21 @@ import "./FinancialAmounts.css";
 import type { CurrencyTotal } from "./api";
 import { formatExactMoney } from "./decimal";
 
-import { FINANCIAL_AMOUNTS } from "./view-model";
+import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
 
 export function FinancialAmounts({
   total,
-  className = "type-breakdown-amounts",
+  className = "financial-amounts",
 }: {
   total: CurrencyTotal;
   className?: string;
 }) {
   return (
     <dl className={className}>
-      {FINANCIAL_AMOUNTS.map(([field, label]) => (
-        <div key={field}>
-          <dt>
-            {field === "companyAmount" && total.missingFeeCount > 0
-              ? "Known company amount"
-              : label}
-          </dt>
-          <dd>{formatExactMoney(total[field], total.currency)}</dd>
+      {FINANCIAL_AMOUNTS.map((field) => (
+        <div key={field[0]}>
+          <dt>{financialAmountLabel(field, total.missingFeeCount > 0)}</dt>
+          <dd>{formatExactMoney(total[field[0]], total.currency || null)}</dd>
         </div>
       ))}
     </dl>

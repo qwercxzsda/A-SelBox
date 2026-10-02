@@ -1,4 +1,4 @@
-import { DATASET_CONFIG, isTableDataset } from "./config.ts";
+import { DATASET_CONFIG, isTableDataset, type DatasetConfig } from "./config.ts";
 import { parseTotalCount, parseExactCount } from "./content-range.ts";
 import { datasetFilterValues } from "./filters.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
@@ -20,6 +20,12 @@ import type {
 } from "./types.ts";
 
 const SORT_DIRECTIONS: ReadonlySet<string> = new Set(["asc", "desc"]);
+
+function datasetEndpoint(options: FetchDatasetCountOptions) {
+  const config: DatasetConfig = DATASET_CONFIG[options.dataset];
+  if (!config.endpoint) throw new Error("This dataset uses the transaction API");
+  return config.endpoint;
+}
 
 function validatePageRequest(
   dataset: TableDatasetKey,
@@ -55,6 +61,7 @@ function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
   const config = DATASET_CONFIG[dataset];
   const order = [
     `${sort.column}.${sort.direction}.nullslast`,
+    ...(dataset === "payouts" ? ["company_id.asc", "currency.asc"] : []),
     ...config.idColumns.filter((column) => column !== sort.column).map((column) => `${column}.asc`),
   ];
   const params = buildMembershipParams(options);
@@ -90,7 +97,7 @@ export function createDatasetApi(transport: ApiTransport) {
       params.set("limit", "0");
       params.set("offset", "0");
       const response = await request(
-        `/rest/v1/${config.endpoint}?${params.toString()}`,
+        `/rest/v1/${datasetEndpoint(options)}?${params.toString()}`,
         {
           method: "HEAD",
           signal: options.signal,
@@ -126,7 +133,7 @@ export function createDatasetApi(transport: ApiTransport) {
       const config = DATASET_CONFIG[dataset];
       const result = await readCsvPage(
         options.accessToken,
-        config.endpoint,
+        datasetEndpoint(options),
         buildDatasetParams(options),
         config.label,
         options.signal,

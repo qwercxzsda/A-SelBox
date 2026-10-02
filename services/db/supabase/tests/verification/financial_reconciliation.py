@@ -23,7 +23,6 @@ def raw_reconciliation(
             or exists (select 1 from private.payout_report_settlement_versions p
                 join public.company_payout_reports r on r.id=p.report_id
                 where p.report_id=%s and p.version_id=t.version_id
-                    and r.seller_namespace=t.seller_namespace
                     and t.posted_date between r.start_date and r.end_date))
         group by t.seller_namespace,t.posted_date,t.marketplace_name,t.currency,t.category
         union all
@@ -36,7 +35,6 @@ def raw_reconciliation(
             or exists (select 1 from private.payout_report_data_kiosk_versions p
                 join public.company_payout_reports r on r.id=p.report_id
                 where p.report_id=%s and p.version_id=t.version_id
-                    and r.seller_namespace=t.seller_namespace
                     and t.activity_date between r.start_date and r.end_date))
         group by t.seller_namespace,t.activity_date,t.marketplace_name,t.currency,t.category
         """,

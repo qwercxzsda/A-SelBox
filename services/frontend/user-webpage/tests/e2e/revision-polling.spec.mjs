@@ -142,7 +142,7 @@ for (const [source, tab, other] of [
   ["settlement", "Settlements", "data_kiosk"],
   ["data_kiosk", "Data Kiosk", "settlement"],
 ]) {
-  test(`an administrator's ${tab} table reloads only for its own source, while totals follow all three revisions`, async ({
+  test(`an administrator's ${tab} table reloads only for its own source, while inactive totals catch up on return`, async ({
     page,
   }) => {
     const fixture = await setup(page, "operator");
@@ -151,6 +151,7 @@ for (const [source, tab, other] of [
     await expect(rowWithSku(page, sku)).toBeVisible();
     const rows = () => fixture.requests.filter(({ dataset }) => dataset === source).length;
     const initialRows = rows();
+    const summaryRequests = fixture.aggregateRequests.length;
     const identity = fixture.identityRequests.length;
     let pollCount = completedPolls(fixture).length;
 
@@ -158,7 +159,8 @@ for (const [source, tab, other] of [
     fixture.aggregateRows[1] = summaryBucket("2026-09-01", "30");
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, pollCount);
-    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30 USD");
+    await expect(summaryCards(page).summaries).toHaveCount(0);
+    expect(fixture.aggregateRequests).toHaveLength(summaryRequests);
     expect(rows()).toBe(initialRows);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 
@@ -170,7 +172,8 @@ for (const [source, tab, other] of [
     });
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, pollCount);
-    await expect(summaryAmount(summaryCards(page).day, "Service fee")).toHaveText("3 USD");
+    await expect(summaryCards(page).summaries).toHaveCount(0);
+    expect(fixture.aggregateRequests).toHaveLength(summaryRequests);
     expect(rows()).toBe(initialRows);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 
@@ -184,6 +187,9 @@ for (const [source, tab, other] of [
       rowWithSku(page, source === "settlement" ? "SETTLEMENT-UPDATED" : "KIOSK-UPDATED"),
     ).toBeVisible();
     expect(rows()).toBeGreaterThan(initialRows);
+    await page.getByRole("tab", { name: "Transactions", exact: true }).click();
+    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30 USD");
+    await expect(summaryAmount(summaryCards(page).day, "Service fee")).toHaveText("3 USD");
   });
 }
 
@@ -465,7 +471,7 @@ test("a manual retry requested during an unrelated selective refresh runs when t
   fixture.revisionStatus = 200;
   const started = deferred();
   const release = deferred();
-  fixture.beforeAggregates = async () => {
+  fixture.beforeRevisions = async () => {
     started.resolve();
     await release.promise;
   };

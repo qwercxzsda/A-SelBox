@@ -5,6 +5,11 @@ import type { FilterOption } from "./filter-options";
 
 export type ColumnMenuFilter =
   | {
+      kind: "month";
+      value: string;
+      onChange: (value: string) => void;
+    }
+  | {
       kind: "date";
       from: string;
       to: string;
@@ -14,6 +19,7 @@ export type ColumnMenuFilter =
       kind: "selection";
       value: string[];
       options: FilterOption[];
+      groupBy?: "transaction-type";
       onChange: (values: string[]) => void;
     };
 
@@ -93,19 +99,21 @@ export function DateFilter({
   );
 }
 
-function OptionSearch({
+export function OptionSearch({
   label,
   search,
   onChange,
+  placeholder = "Find an option",
 }: {
   label: string;
   search: string;
   onChange: (value: string) => void;
+  placeholder?: string;
 }) {
   return (
     <TextInput
       label={`Search ${label.toLowerCase()}`}
-      placeholder="Find an option"
+      placeholder={placeholder}
       data-autofocus
       value={search}
       onChange={(event) => {

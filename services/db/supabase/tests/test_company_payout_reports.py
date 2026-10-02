@@ -10,21 +10,16 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_i
 
 
 class CompanyPayoutReportTests(SourceModelFixture):
-    def report(self, company: str, settlements: list[str], **scope: object) -> str:
-        if scope.get("marketplace_names"):
-            fill_payout_kiosk_month(self)
+    def report(self, company: str, **scope: object) -> str:
+        fill_payout_kiosk_month(self)
         return self.call(
             "publish_company_payout_report",
             {
                 "id": new_id(),
                 "company_id": company,
-                "seller_namespace": self.seller,
                 "currency": "USD",
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",
-                "preprocess_version": "v0",
-                "settlement_ids": settlements,
-                "marketplace_names": [],
                 "dataset_key": "economics",
                 "report_name": "June entitlement",
                 "change_reason": "Save exact source and terms inputs",
@@ -56,11 +51,11 @@ class CompanyPayoutReportTests(SourceModelFixture):
         company, identity = self.owner()
         terms = self.fee(identity, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        settlement, settlement_version = self.settlement(
+        _, settlement_version = self.settlement(
             [self.transaction("100")], acquisition_id=acquisition
         )
         _, kiosk_version = self.kiosk(1, [self.component()])
-        report = self.report(company, [settlement], marketplace_names=["Amazon.com"])
+        report = self.report(company)
         before = payout_snapshot(self, report)
         self.assertEqual(
             self.connection.execute(
@@ -115,10 +110,8 @@ class CompanyPayoutReportTests(SourceModelFixture):
         _, other_identity = self.owner("OTHER")
         own_terms = self.fee(identity, [("2026-01-01", None, "5")])
         other_terms = self.fee(other_identity, [("2026-01-01", None, "10")])
-        settlement, _ = self.settlement(
-            [self.transaction("100"), self.transaction("200", 4, sku="OTHER")]
-        )
-        report = self.report(company, [settlement])
+        self.settlement([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
+        report = self.report(company)
         self.assertEqual(
             set(
                 self.connection.execute(
@@ -147,8 +140,8 @@ class CompanyPayoutReportTests(SourceModelFixture):
         old_user, new_user = self.member(company), self.member(other_company)
         operator = self.operator()
         self.fee(identity, [("2026-01-01", None, "5")])
-        settlement, _ = self.settlement([self.transaction("100")])
-        report = self.report(company, [settlement])
+        self.settlement([self.transaction("100")])
+        report = self.report(company)
         self.reassign(identity, other_company)
         self.connection.execute("set constraints all immediate")
         self.assertEqual(
@@ -184,17 +177,17 @@ class CompanyPayoutReportTests(SourceModelFixture):
 
     def test_incomplete_ownership_fees_and_source_coverage_fail_atomically(self) -> None:
         company, identity = self.owner()
-        settlement, _ = self.settlement([self.transaction("100")])
+        self.settlement([self.transaction("100")])
         for scope in ({}, {"marketplace_names": ["Amazon.com"]}):
             with (
                 self.subTest(scope=scope),
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
-                self.report(company, [settlement], **scope)
+                self.report(company, **scope)
         self.reassign(identity, None)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.report(company, [settlement])
+            self.report(company)
         self.reassign(identity, company)
         self.fee(identity, [("2026-01-01", None, "0")])
         for scope in (
@@ -207,14 +200,14 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
-                self.report(company, [settlement], **scope)
+                self.report(company, **scope)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.company_payout_reports"
             ).fetchone(),
             (0,),
         )
-        report = self.report(company, [settlement])
+        report = self.report(company)
         self.assertEqual(
             self.connection.execute(
                 "select fee_amount,company_amount from public.company_payout_reports where id=%s",
@@ -227,13 +220,13 @@ class CompanyPayoutReportTests(SourceModelFixture):
     def test_refund_uses_its_posting_date_rate_without_overcredit_adjustment(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", "2026-06-15", "5"), ("2026-06-15", None, "7")])
-        settlement, _ = self.settlement(
+        self.settlement(
             [
                 self.transaction("100", activity_date="2026-06-14"),
                 self.transaction("-100", 4, kind="Refund"),
             ]
         )
-        report = self.report(company, [settlement])
+        report = self.report(company)
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount from public.company_payout_reports "
@@ -247,14 +240,14 @@ class CompanyPayoutReportTests(SourceModelFixture):
     def test_deferred_validator_rejects_fabricated_component_and_missing_inputs(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
-        settlement, _ = self.settlement([self.transaction("100")])
+        self.settlement([self.transaction("100")])
         for corrupt in ("component", "inputs"):
             with (
                 self.subTest(corrupt=corrupt),
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
-                report = self.report(company, [settlement])
+                report = self.report(company)
                 # Exercise deferred validation independently of the mutation guards.
                 if corrupt == "component":
                     self.connection.execute(

@@ -1,0 +1,29 @@
+.financial-review-months {
+  min-width: 0;
+  scroll-margin-top: 100px;
+}
+
+.financial-review-months-table {
+  min-width: 740px;
+}
+
+.financial-review-months-table .month-group-cell {
+  width: 180px;
+}
+
+.financial-review-months-table .financial-review-months-difference {
+  font-weight: 600;
+}
+
+.financial-review-months-open {
+  display: flex;
+  margin-top: 8px;
+  margin-left: -6px;
+}
+
+.financial-review-months-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 24px 4px;
+}

@@ -13,7 +13,8 @@ define API behavior; [access control](access_control.md) defines visibility.
 | Period total | Filter dates and scope, combine facts sharing fee inputs, resolve relevant terms and fees, then aggregate by currency and optional Type. |
 | Filter options | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog. |
 | Assignments and fees | Load the caller's complete SKU configuration, deduplicate required source dates, and return compressed coverage ranges and setup gaps in one response. |
-| Revision polling | Read the current account and at most three revision-token rows, then refresh only dependent queries when a revision changes. |
+| Revision polling | Read the current account and requested revision-token rows, then refresh only dependent queries when a revision changes. |
+| Financial review | Apply category and mature-date bounds to current source facts before monthly/type grouping; page exact source records separately. |
 
 ### Authorization and current versions
 
@@ -35,8 +36,9 @@ so compatible facts from every namespace share one fee lookup. Raw rows retain t
 ### Indexes
 
 Each source has one reversible `(date, id)` index and compact `(sku, date)`, `(component_type, date)`,
-and `(marketplace_name, date)` indexes. Date-leading partial covering indexes support counts:
-Settlement includes category `SETTLEMENT`; Data Kiosk includes nonzero amounts across categories.
+and `(marketplace_name, date)` indexes. Date-leading covering indexes support counts:
+Settlement uses a partial index for category `SETTLEMENT`; Data Kiosk includes all
+amounts across categories, including zero.
 Settlement also has a compact ownership/version index for unbounded and marketplace counts.
 The [index map](transaction_query_contracts.md#index-access-paths) lists exact keys and consumers.
 
@@ -54,6 +56,12 @@ For mature dates, administrator reads aggregate Settlement controls and Data Kio
 marketplace, and currency. These derived groups join the live ledger; member reads exclude them.
 Date and marketplace predicates can restrict grouping, while broad administrator counts and totals
 still pay for the matching source aggregation. Company and SKU selections omit account groups.
+
+[Financial review](financial_review.md#read-contract) compares each monetary category directly from
+current source facts, without company ownership or fee joins. Its monthly list fills requested row
+pages through bounded six-month aggregations and single-row date anchors. The selected month's
+type totals and source rows have their own bounded queries. Date discovery can still examine many
+eligible rows; it is not a constant-time lookup or a full-history rollup cache.
 
 ### Search and SKU discovery
 

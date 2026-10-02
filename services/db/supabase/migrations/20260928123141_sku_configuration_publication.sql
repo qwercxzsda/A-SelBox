@@ -1,9 +1,10 @@
 -- Publish a complete immutable ownership/fee revision using compare-and-swap.
-create function private.publish_sku_terms(p_payload jsonb) returns uuid
+create function private.publish_sku_terms_version(p_payload jsonb) returns uuid
 language plpgsql set search_path = '' as $$
 declare identity public.skus; published_version_id public.local_uuid := (p_payload->>'id')::uuid;
     next_version_number bigint;
 begin
+    perform private.lock_payout_report_inputs();
     if jsonb_typeof(p_payload) is distinct from 'object'
         or not (p_payload ?& array['id','sku_id','sku','company_id',
             'expected_current_version_id','change_reason','periods'])
@@ -34,6 +35,20 @@ begin
             (period_payload->>'fee_rate_percent')::numeric
         from jsonb_array_elements(p_payload->'periods') as periods(period_payload);
     update public.skus set current_terms_version_id = published_version_id where id = identity.id;
+    return published_version_id;
+end;
+$$;
+
+-- Trusted single-SKU callers and the operator batch share one immutable writer.
+-- Invalidation happens after the complete publication, once for a batch.
+create function private.publish_sku_terms(p_payload jsonb) returns uuid
+language plpgsql set search_path = '' as $$
+declare published_version_id uuid;
+begin
+    published_version_id := private.publish_sku_terms_version(p_payload);
+    perform private.invalidate_payout_sku_terms(array(
+        select v.sku_id from public.sku_terms_versions v where v.id = published_version_id
+    ));
     return published_version_id;
 end;
 $$;
@@ -128,6 +143,7 @@ begin
     if not private.is_operator() then
         raise exception 'Administrator access required' using errcode = '42501';
     end if;
+    perform private.lock_payout_report_inputs();
     perform private.validate_sku_configuration_changes(p_changes, p_change_reason);
     -- Take every lock before writing. Concurrent batches use the same ordering,
     -- and the trusted single-SKU publisher uses the identical lock key.
@@ -140,7 +156,7 @@ begin
         select coalesce(jsonb_agg(value || jsonb_build_object('id', private.uuid7())), '[]'::jsonb)
         into periods_with_ids from jsonb_array_elements(change->'periods');
         begin
-            version_id := private.publish_sku_terms(jsonb_build_object(
+            version_id := private.publish_sku_terms_version(jsonb_build_object(
                 'id', private.uuid7(), 'sku_id', private.uuid7(), 'sku', change->>'sku',
                 'company_id', change->'company_id',
                 'expected_current_version_id', change->'expected_current_version_id',
@@ -170,6 +186,10 @@ begin
         raise exception 'SKU configuration is incomplete' using errcode = '23514',
             detail = jsonb_build_object('issues', issues)::text;
     end if;
+    perform private.invalidate_payout_sku_terms(array(
+        select v.sku_id from public.sku_terms_versions v
+        where v.id in (select (item->>'terms_version_id')::uuid from jsonb_array_elements(published) item)
+    ));
     return jsonb_build_object('published', published, 'changed_count', jsonb_array_length(published));
 end;
 $$;

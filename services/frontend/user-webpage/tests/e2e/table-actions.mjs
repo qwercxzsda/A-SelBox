@@ -18,3 +18,17 @@ export async function applyDates(page, from = "", to = "") {
   await menu.getByLabel("To date", { exact: true }).fill(to);
   await menu.getByRole("button", { name: "Apply dates", exact: true }).click();
 }
+
+export async function applyReportMonth(page, month) {
+  const menu = await openColumn(page, "Month");
+  await menu.getByLabel("Report month", { exact: true }).fill(month);
+  await menu.getByRole("button", { name: "Apply month", exact: true }).click();
+}
+
+export async function selectColumnOptions(page, column, options) {
+  const menu = await openColumn(page, column);
+  for (const option of options) {
+    await menu.getByRole("checkbox", { name: option, exact: true }).check();
+  }
+  await menu.getByRole("button", { name: "Close options", exact: true }).click();
+}

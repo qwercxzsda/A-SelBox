@@ -1,0 +1,22 @@
+.month-grouped-table > tbody + tbody {
+  border-top: 2px solid var(--ui-border);
+}
+
+.month-grouped-table > tbody > tr > td {
+  padding-block: 12px;
+}
+
+.month-grouped-table .month-group-cell {
+  min-width: 156px;
+  vertical-align: top;
+  padding: 16px;
+  background: var(--ui-surface-subtle);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.month-group-cell h3 {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ui-text);
+}

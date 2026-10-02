@@ -18,7 +18,8 @@ create function public.transaction_count(
     p_search_skus text[] default null,
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
-    p_search_sources text[] default null
+    p_search_sources text[] default null,
+    p_currency text default null
 ) returns text
 language plpgsql stable security invoker
 set search_path = ''
@@ -27,6 +28,9 @@ declare
     settlement_policy_is_sufficient boolean;
     kiosk_policy_is_sufficient boolean;
 begin
+    if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
+        raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
+    end if;
     perform private.validate_transaction_filters(
         p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
         p_sources, p_types
@@ -64,6 +68,7 @@ begin
                 )
                 and (p_date_from is null or t.posted_date >= p_date_from)
                 and (p_date_to is null or t.posted_date <= p_date_to)
+                and (p_currency is null or t.currency = p_currency)
                 and (
                     coalesce(cardinality(p_company_ids), 0) = 0
                     or exists (
@@ -95,8 +100,7 @@ begin
             union all
             select count(*) as row_count
             from private.data_kiosk_transactions as t
-            where t.amount <> 0
-                and (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
+            where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
                     and t.category in ('SETTLEMENT', 'SELBOX')))
                 and (
                     kiosk_policy_is_sufficient
@@ -107,6 +111,7 @@ begin
                 )
                 and (p_date_from is null or t.activity_date >= p_date_from)
                 and (p_date_to is null or t.activity_date <= p_date_to)
+                and (p_currency is null or t.currency = p_currency)
                 and (
                     coalesce(cardinality(p_company_ids), 0) = 0
                     or exists (
@@ -138,6 +143,7 @@ begin
             where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
                 and (p_date_from is null or t.activity_date >= p_date_from)
                 and (p_date_to is null or t.activity_date <= p_date_to)
+                and (p_currency is null or t.currency = p_currency)
                 and coalesce(cardinality(p_company_ids),0) = 0
                 and coalesce(cardinality(p_skus),0) = 0
                 and (coalesce(cardinality(p_marketplaces),0) = 0
@@ -156,7 +162,8 @@ begin
 end;
 $$;
 revoke all on function public.transaction_count(
-    date, date, uuid[], text[], text[], text[], text[], boolean, text[], text[], text[], text[]
+    date, date, uuid[], text[], text[], text[], text[], boolean,
+    text[], text[], text[], text[], text
 )
 from public, anon, authenticated, service_role;
 
@@ -209,8 +216,7 @@ begin
     end if;
     return (
         select count(*)::text from private.data_kiosk_transactions as t
-        where t.amount <> 0
-            and (p_date_from is null or t.activity_date >= p_date_from)
+        where (p_date_from is null or t.activity_date >= p_date_from)
             and (p_date_to is null or t.activity_date <= p_date_to)
             and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
             and (coalesce(cardinality(p_marketplaces), 0) = 0

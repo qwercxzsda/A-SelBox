@@ -10,7 +10,6 @@ from uuid import uuid7
 
 from ..amazon.marketplace_names import validate_marketplace_name
 from .connection import DatabaseConnection
-from .financial_scope import financial_scope_parameters
 from .financial_values import (
     financial_amount,
     financial_currency,
@@ -24,15 +23,13 @@ from .values import normalize_uuid, required_date, required_text
 
 @dataclass(frozen=True, slots=True)
 class CompanyPayoutReport:
-    """One saved monthly aggregate; an empty initial scope has no seller or currency."""
+    """One saved company/month aggregate across sources, separated only by currency."""
 
     id: str
     company_id: str
-    seller_namespace: str | None
     currency: str | None
     start_date: date
     end_date: date
-    preprocess_version: str | None
     dataset_key: str
     marketplace_names: tuple[str, ...]
     report_name: str
@@ -100,45 +97,38 @@ def publish_company_payout_report(
     database: DatabaseConnection,
     *,
     company_id: str,
-    seller_namespace: str,
-    currency: str,
+    currency: str | None,
     start_date: date,
     end_date: date,
-    preprocess_version: str,
-    settlement_ids: Sequence[str],
-    marketplace_names: Sequence[str],
     report_name: str,
     change_reason: str,
     dataset_key: str = "economics",
 ) -> str:
     """Save or reuse monetary amounts, supporting details, and exact source evidence.
 
-    The database validates available inputs and requires complete day coverage when
-    authoritative company rows exist. Empty aggregates sum to zero. No amounts come
-    from callers. Matching immutable inputs return the latest report's identity.
+    The database discovers all company source namespaces and validates coverage
+    before computing amounts. No source selection or amounts come from callers.
+    Matching immutable inputs return the latest report's identity. A null currency
+    is valid only for an empty company/month with no known currency.
     """
-    payload = financial_scope_parameters(
-        seller_namespace=seller_namespace,
-        start_date=start_date,
-        end_date=end_date,
-        preprocess_version=preprocess_version,
-        settlement_ids=settlement_ids,
-        marketplace_names=marketplace_names,
-        dataset_key=dataset_key,
-    )
+    required_date(start_date, "start_date")
+    required_date(end_date, "end_date")
     if start_date.day != 1 or end_date != start_date.replace(
         day=monthrange(start_date.year, start_date.month)[1]
     ):
         raise ValueError("A payout report must cover exactly one complete calendar month.")
-    payload.update(
-        id=str(uuid7()),
-        company_id=normalize_uuid(company_id, "company_id"),
-        currency=financial_currency(currency),
-        start_date=start_date.isoformat(),
-        end_date=end_date.isoformat(),
-        report_name=required_text(report_name, "report_name"),
-        change_reason=required_text(change_reason, "change_reason"),
-    )
+    if dataset_key != "economics":
+        raise ValueError("Financial calculations require the economics dataset.")
+    payload = {
+        "id": str(uuid7()),
+        "company_id": normalize_uuid(company_id, "company_id"),
+        "currency": None if currency is None else financial_currency(currency),
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "dataset_key": dataset_key,
+        "report_name": required_text(report_name, "report_name"),
+        "change_reason": required_text(change_reason, "change_reason"),
+    }
     return publish_json(
         database,
         "SELECT private.publish_company_payout_report(%(payload)s)",
@@ -153,8 +143,8 @@ def load_company_payout_report(
     with database.connection() as connection, connection.cursor() as cursor:
         cursor.execute(
             """
-            select id, company_id, seller_namespace, currency, start_date, end_date,
-                preprocess_version, dataset_key, marketplace_names, report_name,
+            select id, company_id, currency, start_date, end_date,
+                dataset_key, marketplace_names, report_name,
                 change_reason, calculation_version, component_count, reconciliation_count,
                 settlement_version_count, data_kiosk_version_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at
@@ -206,47 +196,36 @@ def load_company_payout_reconciliation(
 
 
 def _report(row: Sequence[object]) -> CompanyPayoutReport:
-    if len(row) != 21:
+    if len(row) != 19:
         raise RuntimeError("The payout report query returned an invalid shape.")
-    created_at = row[20]
+    created_at = row[18]
     if not isinstance(created_at, datetime) or created_at.utcoffset() is None:
         raise RuntimeError("created_at must be a timezone-aware datetime.")
-    calculation_version = required_text(row[11], "calculation_version")
+    calculation_version = required_text(row[9], "calculation_version")
     if calculation_version != "v1":
         raise RuntimeError("Unsupported payout calculation version.")
-    scope = (row[2], row[3], row[6])
-    if sum(value is not None for value in scope) not in (0, len(scope)):
-        raise RuntimeError(
-            "A payout scope must provide seller, currency and preprocessing together."
-        )
     report = CompanyPayoutReport(
         id=normalize_uuid(row[0], "id"),
         company_id=normalize_uuid(row[1], "company_id"),
-        seller_namespace=(
-            None
-            if row[2] is None
-            else validate_seller_namespace(required_text(row[2], "seller_namespace"))
-        ),
-        currency=None if row[3] is None else financial_currency(row[3]),
-        start_date=required_date(row[4], "start_date"),
-        end_date=required_date(row[5], "end_date"),
-        preprocess_version=None if row[6] is None else required_text(row[6], "preprocess_version"),
-        dataset_key=required_text(row[7], "dataset_key"),
-        marketplace_names=_marketplaces(row[8]),
-        report_name=required_text(row[9], "report_name"),
-        change_reason=required_text(row[10], "change_reason"),
+        currency=None if row[2] is None else financial_currency(row[2]),
+        start_date=required_date(row[3], "start_date"),
+        end_date=required_date(row[4], "end_date"),
+        dataset_key=required_text(row[5], "dataset_key"),
+        marketplace_names=_marketplaces(row[6]),
+        report_name=required_text(row[7], "report_name"),
+        change_reason=required_text(row[8], "change_reason"),
         calculation_version=calculation_version,
-        component_count=nonnegative_count(row[12], "component_count"),
-        reconciliation_count=nonnegative_count(row[13], "reconciliation_count"),
-        settlement_version_count=nonnegative_count(row[14], "settlement_version_count"),
-        data_kiosk_version_count=nonnegative_count(row[15], "data_kiosk_version_count"),
-        terms_version_count=nonnegative_count(row[16], "terms_version_count"),
-        source_amount=financial_amount(row[17], "source_amount"),
-        fee_amount=financial_amount(row[18], "fee_amount"),
-        company_amount=financial_amount(row[19], "company_amount"),
+        component_count=nonnegative_count(row[10], "component_count"),
+        reconciliation_count=nonnegative_count(row[11], "reconciliation_count"),
+        settlement_version_count=nonnegative_count(row[12], "settlement_version_count"),
+        data_kiosk_version_count=nonnegative_count(row[13], "data_kiosk_version_count"),
+        terms_version_count=nonnegative_count(row[14], "terms_version_count"),
+        source_amount=financial_amount(row[15], "source_amount"),
+        fee_amount=financial_amount(row[16], "fee_amount"),
+        company_amount=financial_amount(row[17], "company_amount"),
         created_at=created_at,
     )
-    if report.seller_namespace is None and any(
+    if report.currency is None and any(
         (
             report.component_count,
             report.reconciliation_count,
@@ -256,7 +235,7 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
             report.marketplace_names,
         )
     ):
-        raise RuntimeError("A payout without a seller/currency scope must be an empty aggregate.")
+        raise RuntimeError("A payout without a currency must be an empty aggregate.")
     return report
 
 

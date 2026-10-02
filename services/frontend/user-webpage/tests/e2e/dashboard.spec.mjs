@@ -8,7 +8,7 @@ import {
   signIn,
 } from "./fixtures.mjs";
 
-test("Data Kiosk excludes zero amounts before the server computes page counts", async ({
+test("Data Kiosk retains zero amounts and excludes unavailable amounts before counting", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -17,21 +17,23 @@ test("Data Kiosk excludes zero amounts before the server computes page counts", 
     ...Array.from({ length: 5 }, (_, index) => kioskRow(`ZERO-${index}`, "0.000000")),
     ...Array.from({ length: 24 }, (_, index) => kioskRow(index + 1, "1.25")),
     kioskRow("NEGATIVE", "-2.5"),
+    kioskRow("UNAVAILABLE", null),
   ];
   await signIn(page);
   await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
   const table = page.getByRole("table", { name: "Financial records" });
   await expect(table.getByRole("row")).toHaveCount(26);
   await expect(table.getByText("KIOSK-NEGATIVE", { exact: true })).toBeVisible();
-  await expect(table.getByText(/KIOSK-ZERO/)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-  await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
+  await expect(table.getByText(/KIOSK-ZERO/)).toHaveCount(5);
+  await expect(table.getByText("KIOSK-UNAVAILABLE", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+  await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
   expect(
     fixture.requests
       .filter((request) => request.dataset === "data_kiosk")
       .at(-1)
       .params.get("amount"),
-  ).toBe("neq.0");
+  ).toBe("not.is.null");
 });
 
 test("the complete configuration supplies every marketplace fee period without per-SKU reads", async ({

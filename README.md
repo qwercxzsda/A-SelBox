@@ -2,8 +2,11 @@
 
 A-SelBox archives Amazon Settlement Reports and Data Kiosk documents, preprocesses
 those saved inputs into complete source versions, and calculates company amounts
-and fees through live PostgreSQL views. Immutable payout reports save exact
-amounts and retain the source and fee versions used.
+and fees through live PostgreSQL views. Monthly payout reports are generated
+automatically as dates mature and source or fee inputs change. Immutable reports
+save exact amounts across all source namespaces, separately by currency, and retain
+the versions used. A full mature company/month estimate matches the latest report
+once automatic generation has captured the current inputs.
 
 Daily Inventory Planning reports use the same archive/offline preprocessing pattern and retain one
 normalized capture per seller, marketplace, and day. The read-only Inventory tab shows historical
@@ -17,9 +20,9 @@ without contacting Amazon. Successful archives are retained indefinitely.
 Financial source facts contain original SKU evidence, exact values, and
 one shared [`PREPROCESS_VERSION`](services/sync/src/preprocess_version.py). Each SKU selects an
 immutable version containing its company assignment and all marketplace fee
-periods. Reassignment and fee corrections restate live calculations without
-reprocessing sources or changing saved reports. Partial live summaries identify
-missing fees; complete totals and payout reports require resolved configuration
+periods. Reassignment and fee corrections restate live calculations and are picked
+up by the scheduled payout worker; previously saved reports remain unchanged. Partial live
+summaries identify missing fees; complete totals and payout reports require resolved configuration
 and source coverage.
 
 One named enum category selects the allocation: `SETTLEMENT`, `SELBOX`,
@@ -28,8 +31,8 @@ account controls; selected Data Kiosk components supply company costs.
 Analysis-only components stay outside strict financial totals. Dashboard estimates
 combine all eligible transaction sources, as described in the query contract. Complete day
 versions include empty days and retain independent Amazon observation ordering.
-Application accounts distinguish operators from company members. Members read
-current own-company facts and terms; operators also read retained history and all
+Application accounts distinguish administrators (`operator`) from company members
+(`company_member`). Members read current own-company facts and terms; administrators also read retained history and all
 payout reports. Raw documents remain private. Data Kiosk retention preserves
 current versions, the latest three Amazon observations, and all payout
 dependencies. Approval, rounding, and payment execution remain deferred.
@@ -61,7 +64,7 @@ and `--no-load-dotenv`. Do not inspect, print, or edit `.env` directly. Keep ori
 reports and other private financial artifacts out of version control.
 
 The [Company Finance frontend](services/frontend/user-webpage/README.md) reads the
-current company fees, live calculations, source results, and operator views. Administrators
+current company fees, live calculations, source results, and administrator views. Administrators
 can review and publish complete assignment/fee batches; members inspect their own settings.
 Its Node tooling runs in Docker and connects to an explicitly configured Supabase instance.
 
@@ -75,6 +78,8 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
   administration, and row-level security.
 - [Source allocation](docs/source_allocation.md).
 - [Payout reports](docs/company_payout_reports.md): publication and saved evidence.
+- [Financial review](docs/financial_review.md): category/month comparisons, exact source records,
+  and saved report diagnostics.
 - [Database schema and figures](docs/database_schema.md): current tables, keys, and read views.
 - [Daily inventory pipeline](docs/inventory_daily_captures.md): archived daily replenishment
   estimates, offline preprocessing, and one retained capture per day.

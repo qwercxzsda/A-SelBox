@@ -1,10 +1,10 @@
 import marketplaces from "../generated/marketplaces.json" with { type: "json" };
-import { requireCalendarDate } from "./filters.ts";
-import { validatePagination } from "./pagination.ts";
-import { isJsonObject, isUuid, requireUuid } from "./validation.ts";
+import { requireCalendarDate, textSelectionValues } from "./filters.ts";
+import { decodeTypeTotals } from "./aggregates.ts";
+import { readOffsetRpcRows } from "./rpc-pagination.ts";
+import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
+import { isJsonObject, requireUuid } from "./validation.ts";
 import type { ApiTransport } from "./transport.ts";
-
-export const PAYOUT_DETAIL_PAGE_SIZE = 50;
 
 export const PAYOUT_MARKETPLACE_COLUMNS = [
   "report_id",
@@ -29,6 +29,7 @@ export const PAYOUT_COMPONENT_COLUMNS = [
 
 export const PAYOUT_RECONCILIATION_COLUMNS = [
   "row_number",
+  "seller_namespace",
   "activity_date",
   "marketplace_name",
   "currency",
@@ -47,24 +48,19 @@ export interface PayoutPolicy {
   mature_cutoff_months: number;
 }
 
-export interface PayoutGenerationResult {
-  report_id: string;
-  created: boolean;
-}
-
 function reportPageParams(
   reportId: string,
   pageIndex: number,
   columns: readonly string[],
 ): URLSearchParams {
   requireUuid(reportId, "report");
-  validatePagination(pageIndex, PAYOUT_DETAIL_PAGE_SIZE);
+  validatePagination(pageIndex, DETAIL_PAGE_SIZE);
   return new URLSearchParams({
     select: columns.join(","),
     report_id: `eq.${reportId}`,
     order: "row_number.asc",
-    limit: String(PAYOUT_DETAIL_PAGE_SIZE),
-    offset: String(pageIndex * PAYOUT_DETAIL_PAGE_SIZE),
+    limit: String(DETAIL_PAGE_SIZE),
+    offset: String(pageIndex * DETAIL_PAGE_SIZE),
   });
 }
 
@@ -97,35 +93,6 @@ export function createPayoutApi(transport: ApiTransport) {
         mature_cutoff_months: value.mature_cutoff_months,
       };
     },
-    async generatePayoutReports(
-      accessToken: string,
-      companyId: string,
-      month: string,
-    ): Promise<PayoutGenerationResult[]> {
-      requireUuid(companyId, "company");
-      requireCalendarDate(month);
-      if (!month.endsWith("-01")) throw new Error("Choose a complete calendar month");
-      const value = await transport.postRpc(
-        accessToken,
-        "generate_company_payout_reports",
-        { p_company_id: companyId, p_month: month },
-        "Generate payout reports",
-      );
-      if (!Array.isArray(value) || value.length === 0)
-        throw new Error("Payout generation returned invalid results");
-      const reportIds = new Set<string>();
-      return value.map((row: unknown) => {
-        if (
-          !isJsonObject(row) ||
-          !isUuid(row.report_id) ||
-          typeof row.created !== "boolean" ||
-          reportIds.has(row.report_id)
-        )
-          throw new Error("Payout generation returned invalid results");
-        reportIds.add(row.report_id);
-        return { report_id: row.report_id, created: row.created };
-      });
-    },
     async fetchPayoutMarketplaceTotals(
       accessToken: string,
       reportId: string,
@@ -154,14 +121,49 @@ export function createPayoutApi(transport: ApiTransport) {
       authoritative: boolean,
       pageIndex: number,
       signal?: AbortSignal,
+      types: string[] = [],
     ) {
       const params = reportPageParams(reportId, pageIndex, PAYOUT_COMPONENT_COLUMNS);
+      params.set("order", "activity_date.desc,source.desc,source_row_id.desc,id.desc");
       params.set("authoritative", `eq.${String(authoritative)}`);
+      const selectedTypes = textSelectionValues("component_type", types);
+      if (selectedTypes.length > 0)
+        params.set(
+          "component_type",
+          `in.(${selectedTypes.map((type) => JSON.stringify(type)).join(",")})`,
+        );
       return transport.readCsvPage(
         accessToken,
         "company_payout_report_components",
         params,
         "Payout details",
+        signal,
+      );
+    },
+    async fetchPayoutTypeTotals(
+      accessToken: string,
+      reportId: string,
+      currency: string,
+      signal?: AbortSignal,
+    ) {
+      requireUuid(reportId, "report");
+      return readOffsetRpcRows(
+        (offset) =>
+          transport.postRpc(
+            accessToken,
+            "payout_report_totals",
+            {
+              p_report_id: reportId,
+              p_group_by_type: true,
+              p_limit: LOOKUP_PAGE_SIZE,
+              p_offset: offset,
+            },
+            "Payout amounts by type",
+            signal,
+          ),
+        (rows) => decodeTypeTotals(rows, currency),
+        (row) => row.type,
+        "Payout amounts by type",
         signal,
       );
     },

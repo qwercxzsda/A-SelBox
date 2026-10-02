@@ -1,5 +1,5 @@
-.inventory-panel {
-  --mantine-color-dimmed: #536373;
+.inventory-panel > .ui-workspace-intro {
+  margin-bottom: 0;
 }
 
 .inventory-filters > :first-child {
@@ -15,28 +15,26 @@
 .inventory-scroll {
   max-width: 100%;
   overflow-x: auto;
-  border-radius: 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
 }
 .inventory-scroll:focus-visible {
-  outline: 2px solid #12657a;
+  outline: 2px solid var(--ui-accent);
   outline-offset: 3px;
 }
 .inventory-table {
-  min-width: 1100px;
-}
-.inventory-table th {
-  color: #12657a;
-  background: #f0f5f7;
+  min-width: 1000px;
 }
 .inventory-table td {
   vertical-align: top;
-  padding-block: 1rem;
+  padding-block: 12px;
 }
 .inventory-table th:first-child {
   width: 22%;
 }
 .inventory-table dl {
-  margin: 0.5rem 0 0;
+  margin: 0;
 }
 .inventory-metric {
   display: flex;
@@ -46,8 +44,8 @@
   margin-block: 0.35rem;
 }
 .inventory-metric dt {
-  color: #536373;
-  font-size: 0.875rem;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-data);
 }
 .inventory-metric dd {
   margin: 0;
@@ -55,25 +53,17 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.inventory-sku {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.inventory-dates {
-  margin-top: 0.6rem;
-  color: #536373;
-}
 .inventory-health-label {
   width: fit-content;
   padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  background: #edf1f4;
-  color: #344252;
-  font-size: 0.875rem;
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-header);
+  color: var(--ui-text);
+  font-size: var(--ui-font-data);
 }
 .inventory-health-label[data-status="out of stock"] {
-  background: #fff0f1;
-  color: #a71936;
+  background: var(--mantine-color-red-0);
+  color: var(--mantine-color-red-9);
 }
 .inventory-health-label[data-status="low stock"] {
   background: #fff4da;
@@ -84,18 +74,31 @@
   color: #386515;
 }
 .inventory-action-label {
+  width: fit-content;
+  border-inline-start: 3px solid currentColor;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-header);
+  color: var(--ui-text);
   overflow-wrap: anywhere;
 }
-.inventory-table summary {
-  cursor: pointer;
-  color: #12657a;
-  margin-top: 0.7rem;
-  font-size: 0.875rem;
+.inventory-action-label[data-tone="listing"] {
+  background: var(--mantine-color-red-0);
+  color: var(--mantine-color-red-9);
+}
+.inventory-action-label[data-tone="restock"] {
+  background: #fff4da;
+  color: #805000;
+}
+.inventory-action-label[data-tone="shipment"] {
+  background: var(--mantine-color-blue-0);
+  color: var(--mantine-color-blue-9);
 }
 .inventory-table caption {
   caption-side: bottom;
   padding: 0.6rem;
-  color: #536373;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
   text-align: left;
 }
 

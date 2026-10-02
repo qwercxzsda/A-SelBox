@@ -1,7 +1,7 @@
 .pagination-bar {
   margin: 12px 0;
-  color: #5f6c78;
-  font-size: 13px;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-data);
   gap: 8px;
 }
 

@@ -27,8 +27,8 @@ class EvidenceIntegrityTests(SourceModelFixture):
                 ).fetchone()
             )[0]
         )
-        settlement, _ = self.settlement([self.transaction("100")])
-        report = self.report(company, [settlement])
+        self.settlement([self.transaction("100")])
+        report = self.report(company)
         self.connection.execute("set constraints all immediate")
         return report, other_identity, other_terms, other_period
 

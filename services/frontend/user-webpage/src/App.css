@@ -4,7 +4,7 @@
 }
 
 .app-frame {
-  width: min(1480px, 100%);
+  width: min(1800px, 100%);
   margin: 0 auto;
 }
 
@@ -22,7 +22,7 @@
 
 .app-brand {
   margin: 0;
-  color: #65717e;
+  color: var(--ui-text-muted);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -31,7 +31,7 @@
 
 .session-panel {
   justify-content: flex-end;
-  color: #52606d;
+  color: var(--ui-text-muted);
   font-size: 13px;
 }
 
@@ -56,6 +56,17 @@
 
 .dataset-tabs {
   margin-bottom: 16px;
+}
+
+.dataset-tabs > .ui-tabs-list {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  padding-inline: 8px;
+  background: var(--ui-surface);
+}
+
+.dataset-tabs > .ui-tabs-list::before {
+  display: none;
 }
 
 @media (max-width: 720px) {

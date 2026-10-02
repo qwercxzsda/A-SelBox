@@ -9,6 +9,7 @@ export const FINANCIAL_REVISION_SOURCES: readonly RevisionSource[] = [
 export const REVISION_SOURCES: readonly RevisionSource[] = [
   ...FINANCIAL_REVISION_SOURCES,
   "inventory",
+  "payouts",
 ];
 
 export function sameAccount(left: AppAccount, right: AppAccount): boolean {
@@ -21,6 +22,8 @@ export function sameAccount(left: AppAccount, right: AppAccount): boolean {
 
 function datasetDependencies(dataset: unknown, operator: boolean): readonly RevisionSource[] {
   switch (dataset) {
+    case "payouts":
+      return ["payouts"];
     case "live":
       return FINANCIAL_REVISION_SOURCES;
     case "settlement":
@@ -38,12 +41,17 @@ export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
     return datasetDependencies(key[4], key[2] === "operator");
   }
   if (family === "sku-configuration") return FINANCIAL_REVISION_SOURCES;
+  if (family === "payout-history") return ["payouts"];
+  if (family === "financial-review") return ["settlement", "data_kiosk"];
   if (family === "inventory") return ["inventory", "fees"];
   if (
     typeof family === "string" &&
-    ["transaction-latest-date", "transaction-period-totals", "transaction-type-totals"].includes(
-      family,
-    )
+    [
+      "transaction-latest-date",
+      "transaction-period-totals",
+      "transaction-type-totals",
+      "transaction-summary-records",
+    ].includes(family)
   ) {
     return FINANCIAL_REVISION_SOURCES;
   }
@@ -74,7 +82,7 @@ function needsRevisionRefresh(query: Query, changed: readonly RevisionSource[]):
 
 /** These lists refresh by polling, independently of financial source revisions. */
 export function isPolledDataset(dataset: unknown): boolean {
-  return dataset === "accounts" || dataset === "payouts";
+  return dataset === "accounts";
 }
 
 export function isPolledQuery(query: Query): boolean {

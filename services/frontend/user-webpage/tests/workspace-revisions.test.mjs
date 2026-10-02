@@ -102,6 +102,9 @@ test("changed opaque tokens are compared only for requested sources, including n
 
 test("pages, choices, counts, cards and fees carry the correct source dependencies", () => {
   for (const family of ["dataset", "dataset-count"]) {
+    assert.deepEqual(queryRevisionSources([family, "u", "company_member", "a", "payouts"]), [
+      "payouts",
+    ]);
     assert.deepEqual(queryRevisionSources([family, "u", "operator", null, "settlement"]), [
       "settlement",
     ]);
@@ -131,7 +134,19 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
     "data_kiosk",
     "fees",
   ]);
+  assert.deepEqual(queryRevisionSources(["transaction-summary-records"]), [
+    "settlement",
+    "data_kiosk",
+    "fees",
+  ]);
   assert.deepEqual(queryRevisionSources(["unrelated"]), []);
+  for (const section of ["months", "totals", "types", "records"])
+    assert.deepEqual(queryRevisionSources(["financial-review", section]), [
+      "settlement",
+      "data_kiosk",
+    ]);
+  assert.deepEqual(queryRevisionSources(["payout-reconciliation-totals", "report"]), []);
+  assert.deepEqual(queryRevisionSources(["payout-reconciliation", "report", 0]), []);
   assert.deepEqual(queryRevisionSources(["inventory", "u", "company_member", "a"]), [
     "inventory",
     "fees",
@@ -156,11 +171,11 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
   }
 });
 
-test("polling refreshes account and payout lists plus eligibility, independently of source revisions", () => {
+test("polling refreshes account lists and eligibility, while payouts follow revision tokens", () => {
   assert.equal(isPolledQuery({ queryKey: ["payout-policy", "u"] }), true);
   assert.equal(isPolledQuery({ queryKey: ["inventory", "u"] }), false);
   for (const dataset of ["accounts", "payouts", "live", "settlement", "data_kiosk", "fees"]) {
-    const expected = dataset === "accounts" || dataset === "payouts";
+    const expected = dataset === "accounts";
     assert.equal(isPolledDataset(dataset), expected);
     for (const key of [
       ["dataset", "u", "operator", null, dataset],
@@ -252,6 +267,58 @@ test("inventory revisions are accepted and remain opaque without affecting finan
     ),
     ["inventory"],
   );
+});
+
+test("payout publication tokens refresh report pages, history and counts without refetching unchanged reports or immutable details", async () => {
+  const client = createQueryClient();
+  const reads = [];
+  const page = ["dataset", "u", "company_member", "a", "payouts"];
+  const count = ["dataset-count", "u", "company_member", "a", "payouts"];
+  const history = ["payout-history", "u", "company_member", "a", "2026-07-01", "USD", 0];
+  const details = ["payout-components", "report", true, 0];
+  const keys = [page, count, history, details];
+  const unsubscribers = keys.map((key) =>
+    new QueryObserver(client, {
+      queryKey: key,
+      initialData: "cached",
+      staleTime: Infinity,
+      queryFn: async () => {
+        reads.push(key);
+        return "fresh";
+      },
+    }).subscribe(() => {}),
+  );
+  try {
+    await refreshWorkspaceQueries(client, [], false, new AbortController().signal);
+    assert.deepEqual(reads, []);
+    await refreshWorkspaceQueries(
+      client,
+      ["fees", "data_kiosk"],
+      false,
+      new AbortController().signal,
+    );
+    assert.deepEqual(reads, []);
+    await refreshWorkspaceQueries(client, ["payouts"], false, new AbortController().signal);
+    assert.deepEqual(reads, [page, history]);
+    assert.equal(client.getQueryState(count).isInvalidated, true);
+    assert.equal(client.getQueryState(details).isInvalidated, false);
+  } finally {
+    for (const unsubscribe of unsubscribers) unsubscribe();
+    client.clear();
+  }
+});
+
+test("payout publication revisions are accepted as opaque tokens", async () => {
+  const client = createApiClient(SETTINGS, async () =>
+    json({ account, revisions: { payouts: "published-report-token" } }),
+  );
+  assert.deepEqual(await client.fetchWorkspaceRevisions({ ...options, sources: ["payouts"] }), {
+    account,
+    revisions: { payouts: "published-report-token" },
+  });
+  assert.deepEqual(changedRevisionSources({ payouts: "before" }, { payouts: "after" }), [
+    "payouts",
+  ]);
 });
 
 test("an aborted workspace refresh leaves cached data untouched", async () => {

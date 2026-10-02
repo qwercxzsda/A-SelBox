@@ -1,16 +1,19 @@
 -- Opaque publication tokens make polling independent of transaction-table size.
--- Source tokens are global; fee tokens also have a company scope. The nil UUID
+-- Source tokens are global; fee and payout tokens also have a company scope. The nil UUID
 -- is an internal global scope and is never accepted from an API caller.
 -- Company IDs use public.local_uuid (UUIDv7), which rejects this nil UUID.
 create table private.workspace_revision_tokens (
     source text not null check (source in ( -- noqa: RF04
-        'settlement', 'data_kiosk', 'fees', 'inventory'
+        'settlement', 'data_kiosk', 'fees', 'inventory', 'payouts'
     )),
     scope_company_id uuid not null,
     revision uuid not null default gen_random_uuid(),
     changed_in xid8 not null default pg_current_xact_id(),
     primary key (source, scope_company_id),
-    check (source = 'fees' or scope_company_id = '00000000-0000-0000-0000-000000000000')
+    check (
+        source in ('fees', 'payouts')
+        or scope_company_id = '00000000-0000-0000-0000-000000000000'
+    )
 );
 alter table private.workspace_revision_tokens enable row level security;
 revoke all on private.workspace_revision_tokens from public, anon, authenticated, service_role;
@@ -114,15 +117,27 @@ create constraint trigger workspace_company_revision
 after insert or update or delete on public.companies
 deferrable initially deferred for each row execute function private.track_fee_revision();
 
+-- Reused reports do not insert a header and therefore do not invalidate readers.
+create function private.track_payout_revision() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+    perform private.bump_workspace_revision('payouts',array[new.company_id::uuid]);
+    return null;
+end;
+$$;
+create constraint trigger workspace_payout_revision
+after insert on public.company_payout_reports
+deferrable initially deferred for each row execute function private.track_payout_revision();
+
 create function private.read_workspace_revisions(p_sources text[]) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare account public.app_accounts; revisions jsonb;
 begin
     select * into account from public.app_accounts as a where a.user_id = auth.uid();
     if not found then raise exception 'Application access required' using errcode = '42501'; end if;
-    if p_sources is null or cardinality(p_sources) > 4 or array_ndims(p_sources) > 1
+    if p_sources is null or cardinality(p_sources) > 5 or array_ndims(p_sources) > 1
         or exists (select 1 from unnest(p_sources) as s(source)
-            where source is null or source not in ('settlement', 'data_kiosk', 'fees', 'inventory')) then
+            where source is null or source not in ('settlement', 'data_kiosk', 'fees', 'inventory', 'payouts')) then
         raise exception 'Invalid revision sources' using errcode = '22023';
     end if;
     -- The mature cutoff date moves even when no source is imported. Include it
@@ -134,7 +149,8 @@ begin
     from (select distinct source from unnest(p_sources) as requested(source)) as s
     left join private.workspace_revision_tokens as r on r.source = s.source
         and r.scope_company_id = case
-            when s.source = 'fees' and account.access_role = 'company_member' then account.company_id::uuid
+            when s.source in ('fees','payouts') and account.access_role = 'company_member'
+                then account.company_id::uuid
             else '00000000-0000-0000-0000-000000000000'::uuid end;
     return jsonb_build_object(
         'account', jsonb_build_object('user_id', account.user_id,
@@ -145,15 +161,17 @@ end;
 $$;
 
 create function public.workspace_revisions(
-    p_sources text[] default array['settlement', 'data_kiosk', 'fees', 'inventory']::text[]
+    p_sources text[] default array[
+        'settlement', 'data_kiosk', 'fees', 'inventory', 'payouts'
+    ]::text[]
 ) returns jsonb language sql stable security invoker set search_path = '' as $$
     select private.read_workspace_revisions(p_sources);
 $$;
 
 revoke all on function private.bump_workspace_revision(text, uuid[]),
-private.track_source_revision(), private.track_fee_revision(),
+private.track_source_revision(), private.track_fee_revision(), private.track_payout_revision(),
 private.read_workspace_revisions(text[]), public.workspace_revisions(text[])
 from public, anon, authenticated, service_role;
 
 comment on function public.workspace_revisions(text[]) is
-'Opaque change tokens for published sources and authorized fees/ownership/labels.';
+'Opaque change tokens for published sources and authorized fees/ownership/labels/payouts.';

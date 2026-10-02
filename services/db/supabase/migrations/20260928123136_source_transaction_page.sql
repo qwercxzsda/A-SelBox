@@ -42,7 +42,6 @@ declare
     marketplace_candidate_budget constant bigint := 4096;
     projection text;
     candidate_projection text;
-    source_predicate text;
     result jsonb;
 begin
     perform private.validate_page_bounds(p_limit, p_offset);
@@ -74,7 +73,6 @@ begin
         version_relation := 'settlement_preprocess_versions';
         date_column := 'posted_date';
         identity_column := 'settlement_id';
-        source_predicate := 'true';
         candidate_projection := 't.family, t.accounting_subtype, t.posted_date, t.posted_at,
             t.transaction_type, t.amount_type, t.amount_description';
         projection := 'p.family, p.accounting_subtype, p.posted_date, p.posted_at,
@@ -84,7 +82,6 @@ begin
         version_relation := 'data_kiosk_preprocess_versions';
         date_column := 'activity_date';
         identity_column := 'day_id';
-        source_predicate := 't.amount <> 0';
         candidate_projection := 't.activity_date, t.component_key, t.fee_base, t.source_document_id';
         projection := 'p.activity_date, p.component_key, p.fee_base::text,
             p.source_document_id';
@@ -123,11 +120,10 @@ begin
         with matching as not materialized (
             select t.id, t.version_id, t.seller_namespace, t.source_line_number,
                 t.category, t.component_type, t.sku, t.marketplace_name, t.amount,
-                t.currency, t.quantity, t.created_at, %12$s
+                t.currency, t.quantity, t.created_at, %11$s
             from private.%1$I as t
-            where %2$s
-                and ($1::date is null or t.%3$I >= $1)
-                and ($2::date is null or t.%3$I <= $2)
+            where ($1::date is null or t.%2$I >= $1)
+                and ($2::date is null or t.%2$I <= $2)
                 and (coalesce(cardinality($3::text[]), 0) = 0 or t.sku = any($3))
                 and case when cardinality($4::text[]) = 1
                     then t.marketplace_name = ($4::text[])[array_lower($4::text[], 1)]
@@ -141,25 +137,25 @@ begin
                     or t.marketplace_name = any($11)
                 )
         ),
-        candidates as %10$s (
-            %11$s
+        candidates as %9$s (
+            %10$s
         ),
         candidate_count as materialized (
             select count(*) as value from candidates
         ),
         page as materialized (
             select t.* from candidates as t
-            order by t.%4$I %5$s nulls %13$s, t.id %14$s
+            order by t.%3$I %4$s nulls %12$s, t.id %13$s
             limit $6::integer offset $7::bigint
         ),
         result_rows as (
-            select p.id, p.version_id, v.%6$I, v.preprocess_version,
+            select p.id, p.version_id, v.%5$I, v.preprocess_version,
                 p.seller_namespace, p.source_line_number::text,
                 p.category, p.component_type, p.sku, p.marketplace_name,
                 p.amount::text, p.currency, p.quantity::text, p.created_at,
-                %7$s
+                %6$s
             from page as p
-            join private.%8$I as v on v.id = p.version_id
+            join private.%7$I as v on v.id = p.version_id
         )
         -- Probe fully filtered visibility before evaluating the sorted page.
         -- The bounded candidate inventory is reused when amount count is wanted.
@@ -168,7 +164,7 @@ begin
         else jsonb_build_object(
             'rows', (
                 select coalesce(jsonb_agg(to_jsonb(r)
-                    order by %9$s %5$s nulls %13$s, r.id %14$s), '[]'::jsonb)
+                    order by %8$s %4$s nulls %12$s, r.id %13$s), '[]'::jsonb)
                 from result_rows as r
             ),
             'total_count', case when $8::boolean then
@@ -176,7 +172,7 @@ begin
                 else (select count(*)::text from matching) end
             end
         ) end
-    $query$, fact_relation, source_predicate, date_column, sort_column,
+    $query$, fact_relation, date_column, sort_column,
         sort_direction, identity_column, projection, version_relation,
         case p_order_by when 'amount' then 'r.amount::numeric' else format('r.%I', date_column) end,
         candidate_materialization, candidate_query, candidate_projection, sort_nulls, tie_direction)

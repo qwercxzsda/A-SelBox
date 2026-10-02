@@ -18,8 +18,8 @@ export async function reviewInventoryLayout(page, name) {
     });
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.getByText("Estimated totals", { exact: true })).toHaveCount(0);
-    await expect(page.getByLabel("Exact SKU", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Inventory marketplace", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Search", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Marketplace", { exact: true })).toBeVisible();
     const layout = await page.evaluate(() => ({
       viewport: window.innerWidth,
       page: document.documentElement.scrollWidth,
@@ -44,7 +44,7 @@ export async function reviewInventoryLayout(page, name) {
           0,
         );
       };
-      const hint = panel.querySelector(".mantine-InputWrapper-description");
+      const hint = panel.querySelector(".inventory-metric dt");
       const foreground = luminance(getComputedStyle(hint).color);
       const background = luminance(getComputedStyle(document.body).backgroundColor);
       return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);

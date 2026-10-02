@@ -1,29 +1,29 @@
-.type-breakdown-amounts {
+.financial-amounts {
   display: grid;
   gap: 8px;
   margin: 14px 0 0;
   font-variant-numeric: tabular-nums;
 }
 
-.type-breakdown-amounts > div {
+.financial-amounts > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
   align-items: baseline;
   gap: 12px;
 }
 
-.type-breakdown-amounts dt {
-  color: var(--mantine-color-dimmed);
-  font-size: 13px;
+.financial-amounts dt {
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-data);
 }
 
-.type-breakdown-amounts dd {
+.financial-amounts dd {
   margin: 0;
   font-size: 14px;
   text-align: right;
   overflow-wrap: anywhere;
 }
 
-.type-breakdown-amounts > div:last-child dd {
+.financial-amounts > div:last-child dd {
   font-weight: 600;
 }

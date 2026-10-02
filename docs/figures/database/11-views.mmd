@@ -10,6 +10,9 @@ flowchart TB
     CF["VIEW public.current_sku_fee_periods"]
     RI["VIEW private.source_reconciliation_inputs"]
     LR["VIEW private.live_source_reconciliation"]
+    FR["VIEW public.financial_review_records<br/>Operator only · selected versions<br/>activity_date &lt; mature_cutoff_date()"]
+    FT["RPC public.financial_review_totals<br/>Bounded months + category<br/>Monthly currency amounts, differences and row counts"]
+    FY["RPC public.financial_review_type_totals<br/>Bounded months + category + currency<br/>Monthly source/Type amounts and row counts"]
     CI["VIEW private.live_company_component_inputs"]
     LC["VIEW public.live_company_components"]
     SE["VIEW public.settlement_preprocess_entries"]
@@ -19,17 +22,25 @@ flowchart TB
     H["Operator-guarded metadata readers"]
     PAY["PRIVATE TABLES: payout reconciliation + three version manifests"]
     PR["VIEW public.payout_report_reconciliation"]
+    PRS["VIEW public.payout_reconciliation_totals"]
     PS["VIEW public.payout_report_settlement_versions"]
     PD["VIEW public.payout_report_data_kiosk_versions"]
     PT["VIEW public.payout_report_terms_versions"]
     PC["TABLE: company_payout_report_components"]
     PM["VIEW public.payout_report_marketplace_totals"]
+    PH["TABLE: company_payout_reports"]
+    PL["VIEW public.latest_company_payout_reports"]
     T --> C --> CS --> CF
     F --> CF
     S --> RI
     D --> RI
     RI --> LR
     P --> LR
+    S --> FR
+    D --> FR
+    P --> FR
+    FR --> FT
+    FR --> FY
     LR --> CI
     S --> CI
     D --> CI
@@ -43,10 +54,12 @@ flowchart TB
     H --> SR
     H --> DR
     PAY --> PR
+    PAY --> PRS
     PAY --> PS
     PAY --> PD
     PAY --> PT
     PC --> PM
+    PH --> PL
 
     IA["TABLE: inventory_acquisitions"]
     IC["TABLE: inventory_daily_captures"]

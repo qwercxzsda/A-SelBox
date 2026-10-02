@@ -86,6 +86,7 @@ async function selectValues(page, label, values, choices = SKUS) {
     await menu.getByRole("button", { name: `Clear ${label.toLowerCase()}`, exact: true }).click();
   } else {
     for (const name of choices) {
+      if (label === "Type") await menu.getByLabel("Search type", { exact: true }).fill(name);
       await menu.getByRole("checkbox", { name, exact: true }).setChecked(values.includes(name));
     }
   }

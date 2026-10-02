@@ -124,7 +124,7 @@ test("daily and previous-month estimates include both sources, stay exact, and i
     expect(request.args.p_group_by_type).toBe(false);
     expect(request.args.p_currency).toBeNull();
     expect(request.params.getAll("activity_date")).toHaveLength(2);
-    expect(request.params.get("and")).toBe("(or(source.neq.DATA_KIOSK,source_amount.neq.0))");
+    expect(request.params.get("and")).toBeNull();
   }
   const summaryRequestCount = fixture.aggregateRequests.length;
   await page.getByRole("button", { name: "Next", exact: true }).click();
