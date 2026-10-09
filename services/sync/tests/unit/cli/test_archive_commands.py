@@ -3,6 +3,8 @@
 import contextlib
 import io
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +20,54 @@ from services.sync.src.cli import (
 
 
 class ArchiveCommandTests(unittest.TestCase):
+    def test_workflow_modules_run_their_cli_without_loading_credentials_for_help(self) -> None:
+        commands = {
+            "download_settlement_reports": "--scope",
+            "download_data_kiosk": "--marketplace-id",
+            "download_inventory": "--marketplace-id",
+            "preprocess_settlement": "--retrocharge-coverage",
+            "preprocess_data_kiosk": "--acquisition-id",
+            "preprocess_inventory": "--acquisition-id",
+        }
+        for command, required_option in commands.items():
+            module = "services.sync.src.cli." + command
+            with self.subTest(module=module):
+                # Only fixed repository modules and --help execute in this smoke check.
+                result = subprocess.run(  # noqa: S603
+                    [sys.executable, "-m", module, "--help"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                self.assertIn(required_option, result.stdout)
+                self.assertIn("--no-load-dotenv", result.stdout)
+                self.assertEqual(result.stderr, "")
+
+    def test_module_entry_point_preserves_failed_workflow_exit_status(self) -> None:
+        # The reversed date range fails before credentials, Amazon, or DB access.
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "services.sync.src.cli.download_data_kiosk",
+                "--marketplace-id",
+                "ATVPDKIKX0DER",
+                "--start-date",
+                "2026-08-31",
+                "--end-date",
+                "2026-08-01",
+                "--no-load-dotenv",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("failed", result.stderr)
+
     def test_configuration_uses_service_file_and_preserves_process_environment(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

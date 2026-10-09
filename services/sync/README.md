@@ -52,15 +52,15 @@ Download discovers or queries Amazon and archives complete decoded bytes. It doe
 not parse TSV/JSONL, split days, classify amounts, or load companies and fees.
 
 ```sh
-conda run -n A-SelBox python -m services.sync.run_download_settlement_reports \
+conda run -n A-SelBox python -m services.sync.src.cli.download_settlement_reports \
   --scope NA --seller-namespace seller-na
 
-conda run -n A-SelBox python -m services.sync.run_download_data_kiosk \
+conda run -n A-SelBox python -m services.sync.src.cli.download_data_kiosk \
   --scope NA --seller-namespace seller-na \
   --marketplace-id ATVPDKIKX0DER \
   --start-date 2026-08-01 --end-date 2026-08-31
 
-conda run -n A-SelBox python -m services.sync.run_download_inventory \
+conda run -n A-SelBox python -m services.sync.src.cli.download_inventory \
   --scope NA --seller-namespace seller-na --marketplace-id ATVPDKIKX0DER
 ```
 
@@ -111,13 +111,13 @@ Pass a saved successful acquisition ID. These commands need PostgreSQL and
 private Storage access, and make no Amazon requests:
 
 ```sh
-conda run -n A-SelBox python -m services.sync.run_preprocess_settlement \
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_settlement \
   --acquisition-id ACQUISITION_UUID
 
-conda run -n A-SelBox python -m services.sync.run_preprocess_data_kiosk \
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_data_kiosk \
   --acquisition-id ACQUISITION_UUID
 
-conda run -n A-SelBox python -m services.sync.run_preprocess_inventory \
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_inventory \
   --acquisition-id ACQUISITION_UUID
 ```
 

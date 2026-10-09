@@ -32,3 +32,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as error:
         logger.error("Data Kiosk preprocessing failed [exception_type=%s].", type(error).__name__)
         return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

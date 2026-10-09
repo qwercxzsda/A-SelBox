@@ -162,10 +162,10 @@ Run from the repository root in the `A-SelBox` Anaconda environment. Shared CLI 
 `services/sync/.env`; keep credentials there, not in command arguments.
 
 ```bash
-conda run -n A-SelBox python -m services.sync.run_download_inventory \
+conda run -n A-SelBox python -m services.sync.src.cli.download_inventory \
   --scope NA --seller-namespace seller-na --marketplace-id ATVPDKIKX0DER
 
-conda run -n A-SelBox python -m services.sync.run_preprocess_inventory \
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_inventory \
   --acquisition-id ACQUISITION_UUID
 ```
 

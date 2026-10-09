@@ -60,3 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     finally:
         close_quietly(client)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
