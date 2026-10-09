@@ -220,6 +220,9 @@ flat-file/XML types still returned zero reports across the available 90-day
 window, with no API errors or additional pages. Those filters and formats do not
 explain the absence.
 
+This absence concerns Settlement V2 files, not Japanese financial activity or
+every Seller Central report product.
+
 Eleven retained older EU report references cannot be downloaded. A fresh probe
 returned `InvalidInput`; no recoverable copies were found among 201 local file
 candidates. Amazon's [Reports API reference](https://developer-docs.amazon/sp-api/reference/getreports)

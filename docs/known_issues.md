@@ -202,6 +202,20 @@ Three equal independent Data Kiosk observations are diagnostic evidence, not fin
 reprocessing rerun is not another Amazon observation. Matching observations do not establish
 universal source coverage or prevent later Amazon revisions.
 
+The [October 2 Financial review investigation](evidence/financial_review_differences_2026-10-02.md)
+provides a concrete example: Swedish July Economics repeatedly returns zero fulfillment fees and
+no referral charges, while Settlement and Finances agree on the charged amounts. Complete daily
+captures and stable historical values do not establish complete fee representation. The same
+investigation separates this source discrepancy from verified posting and month-boundary timing;
+the existing dates and source policy remain unchanged.
+
+The [Data Kiosk category payout audit](evidence/data_kiosk_payout_impact_2026-10-02.md)
+isolates payout-relevant costs. Fresh German transportation queries return an additional amount at
+child-ASIN level that is missing from the SKU output used by company reports. Amount arithmetic
+and complete daily captures cannot detect such missing SKU allocations. The audit records direct
+saved-report exposure and distinguishes source discrepancies from verified later charges; it does
+not change the approved source policy or automatically redistribute account-level differences.
+
 Unsupported monetary components, uncertain component overlap, and incomplete requested day coverage
 fail the affected selection. Keep explicit business coverage and the source-selection checks;
 numerical agreement cannot replace them. See the [workflow contract](data_workflows.md).

@@ -26,6 +26,8 @@ Unassigned (`unassigned`); see [application access](../access_control.md).
 | [Data Kiosk disposal discrepancy](data_kiosk_disposal_discrepancy_2026-09-07.md) | Measured variance, fresh-query controls, and unresolved cause. |
 | [October reconciliation refresh](reconciliation_refresh_2026-10-01.md) | Restored US statements, remaining advertising differences, marketplace grouping, and missing Settlement coverage. |
 | [Non-advertising reconciliation](non_ad_reconciliation_2026-10-01.md) | Real API investigation of storage periods, removal timing, repeated source fees, missing allocations and Japan controls. |
+| [Financial review differences](financial_review_differences_2026-10-02.md) | All three current categories: verified UI sums, missing historical coverage, purchase/posting timing, native Economics fee anomalies and unmatched account movements. |
+| [Data Kiosk category payout impact](data_kiosk_payout_impact_2026-10-02.md) | Complete cost-type inventory, source-grain omissions, saved company report exposure, matched timing and unresolved cost attribution. |
 | [MCF pricing credit](mcf_preferred_pricing_credit_2026-10-01.md) | Exact observed credit type and its explicit allocation. |
 | [Debt adjustment country lists](debt_adjustment_country_lists_2026-10-01.md) | Reviewed exact F5 labels under the existing balance-movement policy. |
 | [Company-cost countries](category3_country_evidence_2026-09-13.md) | Source cost labels, taxes, credits, and observed country coverage. |

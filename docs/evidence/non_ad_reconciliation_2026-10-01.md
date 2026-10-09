@@ -247,7 +247,14 @@ Data Kiosk dates the 35.19 allocation August 31 and Finances dates a matching
 charge September 1. The amount/date pattern is consistent with timing, but the
 missing Data Kiosk shipment ID prevents the same identity proof available for
 the removal-order cases. **The exact July EUR 184.4071 decomposition remains
-unresolved.** No amount-only shipment match was used to correct data.
+unresolved as of October 1.** No amount-only shipment match was used to correct data.
+
+**October 2 follow-up:** the [payout-impact audit](data_kiosk_payout_impact_2026-10-02.md#transport-missing-sku-allocations-isolated-by-fresh-queries)
+recovers missing tape costs with child-ASIN queries and corroborating shipment
+contents: EUR 84.3286 in June and 70.0471 in July. The original July difference
+decomposes into 114.36 of June 30 expense billed July 1 and 70.0471 of omitted
+July SKU cost. The separate June 8 charge is not reused as that timing match.
+No production dates, source facts or payout calculations were changed.
 
 ### German deals and Canadian coupons
 
@@ -275,8 +282,10 @@ There is no evidence proving that a lack of redemptions caused the omission.
 
 **Consistency conclusion:** these missing deal/coupon counterparts persist in a
 complete historical Data Kiosk capture. A later billing date is not demonstrated
-as the explanation. The EUR transport case also remains unresolved; waiting is
-not a verified remedy for either class of issue.
+as the explanation. The EUR transport case was unresolved at this investigation;
+the October 2 follow-up above identifies the missing SKU allocations and timing
+portion. Waiting alone is not a verified remedy for those missing allocations
+or the promotion omissions.
 
 ## Japan: released fees exist despite missing Settlement documents
 
@@ -310,6 +319,9 @@ comparison. It is not evidence that the fees are uncharged or awaiting release.
 Waiting for daily Data Kiosk refreshes cannot supply an absent Settlement source.
 The reason Amazon does not expose those Japanese Settlement documents is still
 unresolved.
+
+This absence concerns Settlement V2 files, not Japanese financial activity or
+every Seller Central report product.
 
 ## Evidence and boundaries
 

@@ -37,6 +37,14 @@ Dates before `mature_cutoff_date` are eligible under the shared [source policy](
 A month containing the cutoff can appear as a partial month. Maturity is an application assumption,
 not proof that Amazon's sources agree or that every statement has been acquired. The
 [source investigations](evidence/README.md) document observed coverage and timing differences.
+The [October 2 investigation](evidence/financial_review_differences_2026-10-02.md)
+also checks all three category comparisons, including missing Economics fee amounts and
+Settlement-only account movements. A nonzero diagnostic difference does not by itself establish
+a missing statement, an application error, or eventual agreement.
+The [Data Kiosk category payout audit](evidence/data_kiosk_payout_impact_2026-10-02.md)
+lists the costs that remain authoritative for company payouts and traces suspect amounts into
+saved reports. SelBox's reconciliation amount balances the account without correcting a company's
+misstated source cost.
 
 ## Monthly browsing and source records
 
