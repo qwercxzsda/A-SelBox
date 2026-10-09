@@ -38,7 +38,7 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
     ) -> None:
         company, _ = self.owner("A")
         self.assign("B", company)
-        operator = self.operator()
+        administrator = self.administrator()
         changes = [
             self.change("B", company, [self.period("8")]),
             self.change("A", company, [self.period("7")]),
@@ -50,7 +50,7 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
             psycopg.connect(database_url, autocommit=True) as observer,
             ThreadPoolExecutor(max_workers=1) as executor,
         ):
-            published = save_configuration(winner, operator, changes)
+            published = save_configuration(winner, administrator, changes)
             self.assertEqual(published["changed_count"], 2)
 
             def competing_save() -> tuple[str | None, str | None]:
@@ -58,7 +58,7 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
                     database_url, application_name="configuration-stale-worker"
                 ) as worker:
                     try:
-                        save_configuration(worker, operator, list(reversed(changes)))
+                        save_configuration(worker, administrator, list(reversed(changes)))
                     except psycopg.Error as error:
                         return error.sqlstate, error.diag.message_primary
                 return None, None

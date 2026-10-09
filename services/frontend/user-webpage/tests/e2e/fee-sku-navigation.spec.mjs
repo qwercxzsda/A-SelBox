@@ -7,11 +7,11 @@ const SKU = 'SKU (A), "blue" / 50%';
 const transactionTable = (page) =>
   page.getByRole("table", { name: "Financial records", exact: true });
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} opens all exact-SKU transactions from fees and retains the selection after F5`, async ({
     page,
   }, testInfo) => {
-    await page.setViewportSize({ width: role === "operator" ? 1440 : 390, height: 1000 });
+    await page.setViewportSize({ width: role === "administrator" ? 1440 : 390, height: 1000 });
     const fixture = await setup(page, role, [item("S1"), item(SKU)], (fixture) => {
       fixture.liveRows = Array.from({ length: 60 }, (_, index) => ({
         ...liveRow("NAVIGATION", index + 1, COMPANY),
@@ -26,7 +26,7 @@ for (const role of ["operator", "company_member"]) {
     const sku = page.getByRole("button", { name: `Show transactions for ${SKU}`, exact: true });
     await expect(feesToggle).toHaveAttribute("aria-expanded", "false");
     await expect(feesToggle).toContainText("Fee periods (1)");
-    if (role === "operator") {
+    if (role === "administrator") {
       // The primary edit action is available before expanding the fee periods.
       await expect(page.getByRole("button", { name: `Edit ${SKU}`, exact: true })).toBeVisible();
       await stageRate(page, "6.123456");
@@ -100,7 +100,7 @@ for (const role of ["operator", "company_member"]) {
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     await expect(feesToggle).toHaveAttribute("aria-expanded", "false");
-    if (role === "operator") {
+    if (role === "administrator") {
       await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
       await expect(
         page.getByRole("table", { name: "Marketplace fees for S1", exact: true }),

@@ -7,13 +7,13 @@ const skuButton = (page) =>
   page.getByRole("button", { name: `Show marketplace fees for ${SKU}`, exact: true });
 const feeTable = (page) =>
   page.getByRole("table", { name: `Marketplace fees for ${SKU}`, exact: true });
-async function feeFixture(page, role = "company_member") {
+async function feeFixture(page, role = "member") {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
   fixture.assignments = Array.from({ length: 26 }, (_, index) => ({
     ...skuAssignment(index + 1),
     sku: index === 0 ? SKU : `GROUP-${String(index + 1).padStart(3, "0")}`,
-    company_id: role === "operator" && index > 0 ? "company-member-b" : "company-member-a",
+    company_id: role === "administrator" && index > 0 ? "company-member-b" : "company-member-a",
   }));
   fixture.feeRows = ["5.123456", "4.8", "0", "7.25", "4.8"].map((rate, index) => ({
     ...feeRow(index, assignmentId(1)),
@@ -22,11 +22,11 @@ async function feeFixture(page, role = "company_member") {
   }));
   return fixture;
 }
-for (const role of ["company_member", "operator"]) {
+for (const role of ["member", "administrator"]) {
   test(`${role} views one complete SKU configuration with persistent search and expanded fees`, async ({
     page,
   }, testInfo) => {
-    const mobile = role === "company_member";
+    const mobile = role === "member";
     await page.setViewportSize({ width: mobile ? 390 : 1280, height: 1000 });
     const fixture = await feeFixture(page, role);
     const pending = deferred();
@@ -45,7 +45,7 @@ for (const role of ["company_member", "operator"]) {
     ).toContainText("Company A");
     await page
       .getByLabel("Search SKUs", { exact: true })
-      .fill(role === "operator" ? "Company A" : SKU);
+      .fill(role === "administrator" ? "Company A" : SKU);
     await skuButton(page).click();
     const table = feeTable(page);
     await expect(table.getByRole("row")).toHaveCount(6);

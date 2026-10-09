@@ -48,7 +48,7 @@ test("primary sign-in text remains readable before and during hover", async ({ p
 
 test("fee setup warning titles remain readable on their tinted background", async ({ page }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = COMPANY;
   fixture.skuConfigurationItems = [item("S1", { periods: [] })];
   await signIn(page);
@@ -65,15 +65,16 @@ for (const width of [1440, 390]) {
   test(`small shared links and active controls remain readable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     fixture.companyIds["member-a"] = COMPANY;
     fixture.skuConfigurationItems = [item("S1")];
     fixture.aggregateRows = [summaryBucket("2026-06-30", "120")];
     await mockInventory(page, [inventoryRow("S1", { company_id: COMPANY })]);
     await signIn(page);
-    const affordance = page.locator(".estimated-summary-affordance").first();
-    await expect(affordance).toBeVisible();
-    expect(await contrast(affordance)).toBeGreaterThanOrEqual(4.5);
+    const period = page.locator(".estimated-summary-period").first();
+    await expect(period).toBeVisible();
+    expect(await contrast(period)).toBeGreaterThanOrEqual(4.5);
+    await expect(page.getByText("View by type →", { exact: true })).toHaveCount(0);
     for (const name of ["Current fees", "Inventory"]) {
       const tab = page.getByRole("tab", { name, exact: true });
       await tab.click();

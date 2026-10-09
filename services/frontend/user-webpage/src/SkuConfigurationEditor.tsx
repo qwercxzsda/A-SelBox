@@ -32,6 +32,7 @@ export function SkuConfigurationEditor({
   onClose,
   onStage,
   onEditExisting,
+  onAddCompany,
 }: {
   item: SkuConfigurationItem;
   editing: FeeEditorState;
@@ -42,6 +43,7 @@ export function SkuConfigurationEditor({
   onClose: () => void;
   onStage: (change: SkuConfigurationChange) => void;
   onEditExisting: (sku: string) => void;
+  onAddCompany: () => void;
 }) {
   const { form, submitError } = editing;
   const marketplaceInputs = useRef(new Map<number, HTMLSelectElement>());
@@ -65,7 +67,9 @@ export function SkuConfigurationEditor({
   const setSubmitError = (submitError: string | null) => {
     onEditingChange((current) => ({ ...current, submitError }));
   };
-  const issues = validateSkuItem({ ...item, ...form });
+  const knownCompanyIds = new Set(companies.map(({ id }) => id));
+  const issues = validateSkuItem({ ...item, ...form }, knownCompanyIds);
+  const unavailableCompany = form.company_id !== null && !knownCompanyIds.has(form.company_id);
   const stale = form.expected_current_version_id !== item.terms_version_id;
   const existingSku = isNew && knownSkus.includes(form.sku);
   function updatePeriod(index: number, field: keyof SkuConfigurationPeriod, value: string | null) {
@@ -175,18 +179,26 @@ export function SkuConfigurationEditor({
               </Button>
             </Alert>
           ) : null}
-          <NativeSelect
-            label="Company"
-            value={form.company_id ?? ""}
-            data={[
-              { value: "", label: "Choose a company" },
-              ...companies.map((company) => ({ value: company.id, label: company.name })),
-            ]}
-            onChange={(event) => {
-              setForm({ ...form, company_id: event.currentTarget.value || null });
-            }}
-            error={!form.company_id ? "A company is required before saving." : undefined}
-          />
+          <Stack gap={4}>
+            <Group justify="space-between" align="flex-start" gap="xs">
+              <Text className="ui-input-label">Company</Text>
+              <Button type="button" variant="subtle" size="compact-sm" onClick={onAddCompany}>
+                Add company
+              </Button>
+            </Group>
+            <NativeSelect
+              aria-label="Company"
+              value={unavailableCompany ? "" : (form.company_id ?? "")}
+              data={[
+                { value: "", label: "Choose a company" },
+                ...companies.map((company) => ({ value: company.id, label: company.name })),
+              ]}
+              onChange={(event) => {
+                setForm({ ...form, company_id: event.currentTarget.value || null });
+              }}
+              error={issues.find((issue) => issue.field === "company_id")?.message}
+            />
+          </Stack>
           <Divider />
           <Stack gap={4}>
             <Title order={4} className="sku-configuration-section-title">

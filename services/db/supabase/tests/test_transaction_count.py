@@ -53,7 +53,7 @@ class TransactionCountTests(SourceModelFixture):
     def test_roles_zero_visibility_and_missing_fee_rows_are_counted_exactly(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, expected in (
-            (self.operator(), "20"),
+            (self.administrator(), "20"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
@@ -73,7 +73,7 @@ class TransactionCountTests(SourceModelFixture):
             "p_types": ["FbaStorageFee"],
             "p_fee_applicable": False,
         }
-        users = (self.operator(), self.member(company_a))
+        users = (self.administrator(), self.member(company_a))
         for size in range(len(filters) + 1):
             for names in combinations(filters, size):
                 options = {name: filters[name] for name in names}
@@ -84,7 +84,7 @@ class TransactionCountTests(SourceModelFixture):
     def test_fee_applicability_counts_match_pages_and_partition_visible_facts(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user in (
-            self.operator(),
+            self.administrator(),
             self.member(company_a),
             self.member(company_b),
             self.auth_user(),
@@ -101,7 +101,7 @@ class TransactionCountTests(SourceModelFixture):
         company_a, company_b = self.financial_fixture()
         member = self.member(company_a)
         empty_selections: tuple[object, ...] = (None, [])
-        for user in (self.operator(), member):
+        for user in (self.administrator(), member):
             for empty in empty_selections:
                 self.assert_matches_view(
                     user, p_date_from=None, p_date_to=None, **dict.fromkeys(_ARRAY_FILTERS, empty)
@@ -123,16 +123,16 @@ class TransactionCountTests(SourceModelFixture):
     def test_reprocessing_reassignment_and_unassignment_update_the_count(self) -> None:
         company_a, sku = self.owner()
         company_b, _ = self.owner("OTHER")
-        member_a, member_b, operator = (
+        member_a, member_b, administrator = (
             self.member(company_a),
             self.member(company_b),
-            self.operator(),
+            self.administrator(),
         )
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
         _, settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
-        for user, expected in ((operator, "3"), (member_a, "2"), (member_b, "0")):
+        for user, expected in ((administrator, "3"), (member_a, "2"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
         self.settlement(
             [self.transaction("200", 3), self.transaction("300", 4)],
@@ -141,10 +141,10 @@ class TransactionCountTests(SourceModelFixture):
         )
         self.kiosk(2, [self.component("0")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, expected in ((operator, "3"), (member_a, "0"), (member_b, "3")):
+        for user, expected in ((administrator, "3"), (member_a, "0"), (member_b, "3")):
             self.assertEqual(self.assert_matches_view(user), expected)
         self.assign("SKU", None, rate="7", expected=new_terms)
-        for user, expected in ((operator, "3"), (member_a, "0"), (member_b, "0")):
+        for user, expected in ((administrator, "3"), (member_a, "0"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
 
     def test_anonymous_execution_is_denied_and_function_keeps_invoker_security(self) -> None:
@@ -156,7 +156,7 @@ class TransactionCountTests(SourceModelFixture):
     def test_text_marketplace_counts_match_pages_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
-            (self.operator(), "20"),
+            (self.administrator(), "20"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
@@ -181,7 +181,7 @@ class TransactionCountTests(SourceModelFixture):
     def test_unknown_marketplaces_are_rejected_instead_of_ignored(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user in (
-            self.operator(),
+            self.administrator(),
             self.member(company_a),
             self.member(company_b),
             self.auth_user(),
@@ -202,7 +202,7 @@ class TransactionCountTests(SourceModelFixture):
                     self.count(user, p_marketplaces=selection)
 
     def test_invalid_date_bounds_are_rejected(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         invalid: tuple[dict[str, object], ...] = (
             {"p_date_from": "2026-06-17", "p_date_to": "2026-06-16"},
             {"p_date_from": "-infinity"},
@@ -215,11 +215,11 @@ class TransactionCountTests(SourceModelFixture):
                 self.subTest(options=options),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
-                self.count(operator, **options)
+                self.count(administrator, **options)
 
     def test_invalid_filter_shapes_are_rejected(self) -> None:
         company, _ = self.owner()
-        operator = self.operator()
+        administrator = self.administrator()
         for name in _ARRAY_FILTERS:
             value = (
                 company
@@ -233,4 +233,4 @@ class TransactionCountTests(SourceModelFixture):
                     self.subTest(name=name, values=values),
                     self.assertRaises(psycopg.errors.InvalidParameterValue),
                 ):
-                    self.count(operator, **{name: values})
+                    self.count(administrator, **{name: values})

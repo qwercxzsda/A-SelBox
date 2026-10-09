@@ -19,7 +19,7 @@ export async function respondWithPayouts(fixture, { url, request, user, reply, c
   const totalsArgs = url.pathname.endsWith("/payout_report_totals") ? request.postDataJSON() : null;
   const reportId = totalsArgs?.p_report_id ?? url.searchParams.get("report_id").slice(3);
   if (url.pathname.endsWith("/payout_report_reconciliation")) {
-    if (fixture.roles[user] !== "operator") return reply({}, 403);
+    if (fixture.roles[user] !== "administrator") return reply({}, 403);
     const rows = (fixture.payoutReconciliation ?? []).filter((row) => row.report_id === reportId);
     const offset = Number(url.searchParams.get("offset"));
     return csvReply(
@@ -32,7 +32,7 @@ export async function respondWithPayouts(fixture, { url, request, user, reply, c
   const visible = fixture.payoutRows.some(
     (row) =>
       row.id === reportId &&
-      (fixture.roles[user] === "operator" || row.company_id === fixture.companyIds[user]),
+      (fixture.roles[user] === "administrator" || row.company_id === fixture.companyIds[user]),
   );
   if (totalsArgs) {
     const report = fixture.payoutRows.find((row) => row.id === reportId);
@@ -77,7 +77,7 @@ export async function respondWithPayouts(fixture, { url, request, user, reply, c
         visible &&
         row.report_id === reportId &&
         row.authoritative === authoritative &&
-        (fixture.roles[user] === "operator" || row.authoritative === "true"),
+        (fixture.roles[user] === "administrator" || row.authoritative === "true"),
     ),
     filters,
   );

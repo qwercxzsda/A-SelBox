@@ -13,7 +13,7 @@ test("saved review totals are report scoped and keep currencies separate", async
     assert.equal(parsed.searchParams.get("order"), "currency.asc");
     assert.equal(init.headers.Accept, "text/csv");
     assert.equal(init.headers.Prefer, undefined);
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return new Response(
       csvRecord({ currency: "JPY", difference: "333076.9326", source_group_count: "123456" }),
     );

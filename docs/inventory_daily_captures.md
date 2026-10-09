@@ -147,10 +147,10 @@ Matching ignores case, spaces, and punctuation. Excess also recognizes `ExcessSt
 `ExcessInventory`, `HighStock`, and `Overstock`; Restock recognizes `GoToRestock` and
 `RestockInventory`. Unrecognized labels are preserved and have no inferred rank.
 
-All three private tables use RLS. Members read latest items for currently owned SKUs; operators also
+All three private tables use RLS. Members read latest items for currently owned SKUs; administrators also
 see unassigned items and retained history. A caller-checked private helper exposes minimal latest
 capture references/dates, including empty captures, and hides seller namespaces from members.
-Manifests, raw headers, and diagnostics stay operator-only. No application role can publish captures
+Manifests, raw headers, and diagnostics stay administrator-only. No application role can publish captures
 or mutate inventory. Source imports require no SKU/company FK and may precede assignment.
 
 Inventory-only discoveries do not enter financial setup validation automatically. Inventory creates

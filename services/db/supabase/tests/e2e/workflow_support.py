@@ -9,6 +9,7 @@ import httpx
 
 from services.db.supabase.tests.e2e.local_stack import LocalSupabaseStack
 from services.sync.src.archives.storage import SupabaseArchiveStorage
+from services.sync.src.database.account_access import set_administrator_access
 from services.sync.src.database.connection import PostgresDatabaseConnection
 
 
@@ -64,25 +65,37 @@ class LocalWorkflowCase(unittest.TestCase):
         self.assertEqual(signed_in.status_code, 200)
         return cast(str, signed_in.json()["access_token"])
 
-    def create_operator(self) -> tuple[str, str]:
-        """Bootstrap an operator in SQL; subsequent requests use its ordinary JWT."""
+    def create_administrator(self) -> tuple[str, str]:
+        """Bootstrap an administrator in SQL; subsequent requests use its ordinary JWT."""
         user_id, token = self.create_auth_user()
-        with self.database.connection() as connection, connection.transaction():
-            connection.execute(
-                "insert into public.app_accounts(user_id, access_role) values (%s, 'operator')",
-                (user_id,),
-            )
+        set_administrator_access(self.database, user_id=user_id, enabled=True)
         return user_id, token
 
     def create_member(self, company: str) -> tuple[str, str]:
-        """Bootstrap a member fixture without granting it operator capabilities."""
+        """Bootstrap a member fixture without granting it administrator capabilities."""
         user_id, token = self.create_auth_user()
         with self.database.connection() as connection, connection.transaction():
             connection.execute(
-                "insert into public.app_accounts(user_id, company_id) values (%s, %s)",
-                (user_id, company),
+                "update public.app_accounts set access_role='member',company_id=%s "
+                "where user_id=%s",
+                (company, user_id),
             )
         return user_id, token
+
+    def set_membership(self, token: str, user_id: str, company_id: str | None) -> httpx.Response:
+        """Read the current account then issue the same guarded mutation as the UI."""
+        account = self.read_rows("app_accounts", token, user_id="eq." + user_id)[0]
+        return self.stack.request(
+            "POST",
+            "/rest/v1/rpc/set_company_membership",
+            token=token,
+            json={
+                "target_user_id": user_id,
+                "target_company_id": company_id,
+                "expected_access_role": account["access_role"],
+                "expected_company_id": account["company_id"],
+            },
+        )
 
     def read_rows(self, relation: str, token: str, **params: str) -> list[dict[str, object]]:
         response = self.stack.request("GET", "/rest/v1/" + relation, token=token, params=params)

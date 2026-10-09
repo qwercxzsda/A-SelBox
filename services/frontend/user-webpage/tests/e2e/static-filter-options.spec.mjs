@@ -7,7 +7,7 @@ async function closeMenu(menu) {
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
 }
 
-for (const role of ["company_member", "operator"]) {
+for (const role of ["member", "administrator"]) {
   test(`${role} keeps complete static options available with zero matching transactions`, async ({
     page,
   }) => {
@@ -20,9 +20,9 @@ for (const role of ["company_member", "operator"]) {
     await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
 
     const source = await openColumn(page, "Source");
-    await expect(source.getByRole("checkbox")).toHaveCount(role === "operator" ? 3 : 2);
+    await expect(source.getByRole("checkbox")).toHaveCount(role === "administrator" ? 3 : 2);
     await expect(source.getByRole("checkbox", { name: "Reconciliation", exact: true })).toHaveCount(
-      role === "operator" ? 1 : 0,
+      role === "administrator" ? 1 : 0,
     );
     await expect(source.getByLabel("Search source", { exact: true })).toHaveCount(0);
     await source.getByRole("checkbox", { name: "Data Kiosk", exact: true }).check();
@@ -44,7 +44,7 @@ for (const role of ["company_member", "operator"]) {
         name: "Other transaction · Other transaction · Subscription fee",
         exact: true,
       }),
-    ).toHaveCount(role === "operator" ? 1 : 0);
+    ).toHaveCount(role === "administrator" ? 1 : 0);
     await type.getByLabel("Search type", { exact: true }).fill("inventory storage");
     await expect(
       type.getByRole("checkbox", {
@@ -66,7 +66,7 @@ for (const role of ["company_member", "operator"]) {
     expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Amazon.co.za"]);
     expect(fixture.requests.at(-1).args.p_sources).toEqual(["DATA_KIOSK"]);
 
-    if (role === "operator") {
+    if (role === "administrator") {
       for (const tab of ["Settlements", "Data Kiosk"]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
         const rawType = await openColumn(page, "Type");

@@ -50,7 +50,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         month_end = date(2026, 8, 31)
         company = company_with_fees(self.database, self.seller)
         _, original_token = self.create_member(company)
-        _, operator_token = self.create_operator()
+        _, administrator_token = self.create_administrator()
         settlement = persist_settlement_acquisition(
             self.database, archived_settlement(self.storage, self.seller)
         )
@@ -80,12 +80,12 @@ class LocalWorkflowTests(LocalWorkflowCase):
         )
         header = self.read_rows(
             "company_payout_reports",
-            operator_token,
+            administrator_token,
             id="eq." + report_id,
         )
         components = self.read_rows(
             "company_payout_report_components",
-            operator_token,
+            administrator_token,
             report_id="eq." + report_id,
             order="row_number",
         )
@@ -94,6 +94,8 @@ class LocalWorkflowTests(LocalWorkflowCase):
         self.assertEqual(header[0]["marketplace_names"], ["Amazon.com"])
         self.assertEqual(len(components), 6)
         self.assertEqual(sum(row["authoritative"] is True for row in components), 4)
+        member_components = [row for row in components if row["authoritative"]]
+        self.assertEqual(sum(Decimal(str(row["company_amount"])) for row in member_components), -10)
         self.assertEqual({row["terms_version_id"] for row in components}, {str(selected[0])})
         self.assertEqual(header[0]["settlement_version_count"], 1)
         self.assertEqual(header[0]["data_kiosk_version_count"], 31)
@@ -101,7 +103,8 @@ class LocalWorkflowTests(LocalWorkflowCase):
         for source, count in (("settlement", 1), ("data_kiosk", 31), ("terms", 1)):
             relation = "payout_report_" + source + "_versions"
             self.assertEqual(
-                len(self.read_rows(relation, operator_token, report_id="eq." + report_id)), count
+                len(self.read_rows(relation, administrator_token, report_id="eq." + report_id)),
+                count,
             )
             self.assertEqual(
                 self.read_rows(relation, original_token, report_id="eq." + report_id), []
@@ -117,7 +120,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                 report_id="eq." + report_id,
                 order="row_number",
             ),
-            components,
+            member_components,
         )
 
         next_company = create_company(self.database, "New current owner")
@@ -130,7 +133,10 @@ class LocalWorkflowTests(LocalWorkflowCase):
             periods=[],
             change_reason="Correct owner",
         )
-        for token in (operator_token, original_token):
+        for token, visible_components in (
+            (administrator_token, components),
+            (original_token, member_components),
+        ):
             self.assertEqual(
                 self.read_rows("company_payout_reports", token, id="eq." + report_id),
                 header,
@@ -142,7 +148,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                     report_id="eq." + report_id,
                     order="row_number",
                 ),
-                components,
+                visible_components,
             )
         self.assertEqual(self.read_rows("live_company_components", original_token), [])
         self.assertEqual(len(self.read_rows("settlement_preprocess_entries", next_token)), 2)
@@ -314,11 +320,11 @@ class LocalWorkflowTests(LocalWorkflowCase):
         manifest = acquisition.document
         location = manifest.bucket + "/" + manifest.object_path
         before = self.storage.get(manifest.bucket, manifest.object_path)
-        _, operator_token = self.create_operator()
+        _, administrator_token = self.create_administrator()
         for role, credential in (
             ("anonymous", None),
             ("company", token),
-            ("operator", operator_token),
+            ("administrator", administrator_token),
         ):
             for prefix in ("object/authenticated/", "object/public/"):
                 with self.subTest(role=role, route=prefix):

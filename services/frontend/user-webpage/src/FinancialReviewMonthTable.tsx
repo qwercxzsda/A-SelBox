@@ -110,7 +110,7 @@ export function FinancialReviewMonthTable({
                             </Badge>
                           ) : null}
                           <Button
-                            className="financial-review-months-open"
+                            className="financial-review-months-open ui-text-action"
                             size="compact-xs"
                             variant="subtle"
                             aria-label={`Open review for ${label}`}

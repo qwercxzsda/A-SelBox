@@ -100,7 +100,9 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         )
         self.connection.commit()
 
-    def test_every_company_gets_each_known_mature_month_including_inactive_months(self) -> None:
+    def test_every_assigned_company_gets_known_mature_months_including_no_sales_months(
+        self,
+    ) -> None:
         inputs = prepare_payout(self)
         other, _ = self.owner("INACTIVE")
         self.set_mature_cutoff_date(date(2026, 8, 1))
@@ -173,7 +175,7 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
         self.assertEqual(self.state(inputs.company)[2:], (None, None))
 
-    def test_transferred_ownership_refreshes_old_company_to_zero(self) -> None:
+    def test_transfer_of_last_sku_stops_old_company_work_and_preserves_its_history(self) -> None:
         inputs = prepare_payout(self)
         other, _ = self.owner("OTHER")
         self.assertEqual(refresh_payout_reports(self), (2, 2, 0, 0))
@@ -205,8 +207,8 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
                 ],
             },
         )
-        self.assertEqual(refresh_payout_reports(self), (2, 2, 0, 0))
-        for company, amount in ((inputs.company, Decimal(0)), (other, Decimal(85))):
+        self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
+        for company, amount in ((inputs.company, Decimal(85)), (other, Decimal(85))):
             self.assertEqual(
                 self.connection.execute(
                     "select company_amount from public.company_payout_reports where id=%s",
@@ -215,6 +217,13 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
                 (amount,),
             )
         self.assertEqual(payout_snapshot(self, previous), snapshot)
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.payout_report_refresh_state where company_id=%s",
+                (inputs.company,),
+            ).fetchone(),
+            (0,),
+        )
         self.connection.commit()
 
     def test_bounded_sweeps_visit_unattempted_work_before_retrying_failures(self) -> None:

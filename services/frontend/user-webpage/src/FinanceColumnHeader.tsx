@@ -79,9 +79,9 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
     );
   }
   if (
-    (dataset === "live" || dataset === "payouts") &&
+    (dataset === "live" || dataset === "payouts" || dataset === "accounts") &&
     column.key === "company_id" &&
-    identity.account.access_role === "operator"
+    identity.account.access_role === "administrator"
   ) {
     const companies = new Map(identity.companies.map(({ id, name }) => [id, name]));
     return (

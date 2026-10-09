@@ -28,8 +28,8 @@ def account(
     require(response.status_code == 200, "Disposable Auth user creation failed.")
     with database.connection() as connection:
         connection.execute(
-            "INSERT INTO public.app_accounts(user_id,access_role,company_id) VALUES (%s,%s,%s)",
-            (response.json()["id"], "company_member" if company else "operator", company),
+            "update public.app_accounts set access_role=%s,company_id=%s where user_id=%s",
+            ("member" if company else "administrator", company, response.json()["id"]),
         )
     signed = stack.request(
         "POST",
@@ -43,7 +43,7 @@ def account(
     return {
         "email": email,
         "password": password,
-        "role": "member" if company else "operator",
+        "role": "member" if company else "administrator",
         "token": signed.json()["access_token"],
     }
 

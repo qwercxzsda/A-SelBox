@@ -5,11 +5,11 @@ import registry from "../src/generated/transaction-types.json" with { type: "jso
 import { filterOptions, localFilterValues, transactionTypeValues } from "../src/filter-options.ts";
 
 test("source and marketplace menus are complete even without facts or assignments", () => {
-  for (const role of ["company_member", "operator"]) {
+  for (const role of ["member", "administrator"]) {
     assert.deepEqual(localFilterValues("source", "live", role, []), [
       "SETTLEMENT",
       "DATA_KIOSK",
-      ...(role === "operator" ? ["RECONCILIATION"] : []),
+      ...(role === "administrator" ? ["RECONCILIATION"] : []),
     ]);
     const values = localFilterValues("marketplace_name", "live", role, []);
     assert.deepEqual(values, marketplaces);
@@ -20,7 +20,7 @@ test("source and marketplace menus are complete even without facts or assignment
 });
 
 test("Transactions types include all known categories except SELBOX for members", () => {
-  for (const role of ["company_member", "operator"]) {
+  for (const role of ["member", "administrator"]) {
     const values = transactionTypeValues("live", role);
     for (const type of [
       "PRODUCT_SALES",
@@ -32,16 +32,16 @@ test("Transactions types include all known categories except SELBOX for members"
       assert.ok(values.includes(type), `${role} should see ${type}`);
     assert.equal(
       values.includes("other-transaction/other-transaction/Subscription Fee"),
-      role === "operator",
+      role === "administrator",
     );
-    assert.equal(values.includes("SUBSCRIPTION_FEE"), role === "operator");
+    assert.equal(values.includes("SUBSCRIPTION_FEE"), role === "administrator");
   }
   assert.deepEqual(
-    new Set(transactionTypeValues("live", "operator")),
+    new Set(transactionTypeValues("live", "administrator")),
     new Set([...registry.map(({ type }) => type), "SETTLEMENT_KIOSK_DIFFERENCE"]),
   );
   assert.deepEqual(
-    new Set(transactionTypeValues("live", "company_member")),
+    new Set(transactionTypeValues("live", "member")),
     new Set(registry.filter(({ category }) => category !== "SELBOX").map(({ type }) => type)),
   );
 });
@@ -52,11 +52,11 @@ test("raw administrator tabs retain every known type in their respective source"
     ["data_kiosk", "DATA_KIOSK"],
   ]) {
     assert.deepEqual(
-      new Set(transactionTypeValues(dataset, "operator")),
+      new Set(transactionTypeValues(dataset, "administrator")),
       new Set(registry.filter((entry) => entry.source === source).map(({ type }) => type)),
     );
     assert.deepEqual(
-      new Set(transactionTypeValues(dataset, "company_member")),
+      new Set(transactionTypeValues(dataset, "member")),
       new Set(
         registry
           .filter((entry) => entry.source === source && entry.category !== "SELBOX")
@@ -64,12 +64,12 @@ test("raw administrator tabs retain every known type in their respective source"
       ),
     );
   }
-  assert.deepEqual(transactionTypeValues("accounts", "operator"), []);
+  assert.deepEqual(transactionTypeValues("accounts", "administrator"), []);
 });
 
 test("both roles use their preloaded SKU catalog without changing exact keys", () => {
   const values = ["A", "  Exact, SKU  "];
-  for (const role of ["company_member", "operator"]) {
+  for (const role of ["member", "administrator"]) {
     assert.deepEqual(localFilterValues("sku", "live", role, values), values);
   }
 });

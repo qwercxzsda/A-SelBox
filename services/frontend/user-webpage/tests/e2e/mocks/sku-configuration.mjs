@@ -55,14 +55,15 @@ export async function respondWithSkuConfiguration(
     await fixture.beforeConfiguration(entry);
     if (fixture.configurationStatus !== 200) return reply({}, fixture.configurationStatus);
     const items = configurationItems(fixture).filter(
-      (item) => fixture.roles[user] === "operator" || item.company_id === fixture.companyIds[user],
+      (item) =>
+        fixture.roles[user] === "administrator" || item.company_id === fixture.companyIds[user],
     );
     return reply({ items });
   }
   const args = request.postDataJSON();
   fixture.configurationSaves.push(args);
   await fixture.beforeConfigurationSave(args);
-  if (fixture.roles[user] !== "operator") return reply({}, 403);
+  if (fixture.roles[user] !== "administrator") return reply({}, 403);
   if (fixture.configurationSaveNetworkFailure) return route.abort("failed");
   if (fixture.configurationSaveStatus !== 200)
     return reply(fixture.configurationSaveError, fixture.configurationSaveStatus);

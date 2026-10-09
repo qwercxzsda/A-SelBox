@@ -47,8 +47,6 @@ def reference_parameters(case: SearchCase) -> dict[str, str]:
     }
     if dataset.key == "live":
         parameters["and"] = "(or(source.neq.DATA_KIOSK,source_amount.neq.0))"
-    elif dataset.key == "data_kiosk":
-        parameters["amount"] = "neq.0"
     if case.marketplace is not None:
         parameters["marketplace_name"] = "eq." + case.marketplace
     return parameters
@@ -85,7 +83,7 @@ class RawOrderingTests(LocalWorkflowCase):
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, seller)
         )
-        # Operators retain both versions in raw tabs; members remain current-only.
+        # Administrators retain both versions in raw tabs; members remain current-only.
         for _ in range(2):
             preprocess_settlement_acquisition(self.database, self.storage, settlement)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
@@ -146,9 +144,12 @@ class RawOrderingTests(LocalWorkflowCase):
         self.publish_sources(self.seller)
         self.publish_sources(other_seller)
         member_id, member = self.create_member(company)
-        _, operator = self.create_operator()
+        _, administrator = self.create_administrator()
         _, outsider = self.create_auth_user()
-        for token, sellers in ((member, {self.seller}), (operator, {self.seller, other_seller})):
+        for token, sellers in (
+            (member, {self.seller}),
+            (administrator, {self.seller, other_seller}),
+        ):
             for dataset in DATASETS:
                 for order_by in ("amount", "date"):
                     for direction in ("asc", "desc"):
@@ -156,7 +157,7 @@ class RawOrderingTests(LocalWorkflowCase):
                             dataset=dataset.key,
                             order_by=order_by,
                             direction=direction,
-                            operator=token == operator,
+                            administrator=token == administrator,
                         ):
                             self.assert_equivalent(token, dataset, order_by, direction, sellers)
                 args = SearchCase(dataset, "invalid", "amount", "desc").arguments()
@@ -181,10 +182,8 @@ class RawOrderingTests(LocalWorkflowCase):
                 self.assertEqual(unmatched.status_code, 200)
                 self.assertEqual(unmatched.json(), {"rows": [], "total_count": "0"})
 
-        revoked = self.stack.request(
-            "DELETE", "/rest/v1/app_accounts", token=operator, params={"user_id": "eq." + member_id}
-        )
-        self.assertEqual(revoked.status_code, 204)
+        revoked = self.set_membership(administrator, member_id, None)
+        self.assertEqual(revoked.status_code, 200)
         for dataset in DATASETS:
             args = SearchCase(dataset, "revoked", "amount", "desc").arguments(include_count=True)
             for token in (member, outsider):

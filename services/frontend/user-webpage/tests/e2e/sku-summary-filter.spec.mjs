@@ -17,7 +17,7 @@ const MARKETPLACES = ["Amazon.com", "Amazon.co.jp"];
 const skuScope = (...skus) => `in.(${[...new Set(skus)].sort().map(JSON.stringify).join(",")})`;
 const companyScope = (id) => `in.(${id})`;
 
-async function skuFixture(page, role = "company_member") {
+async function skuFixture(page, role = "member") {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
   fixture.companyIds = { "member-a": COMPANY_A, "member-b": COMPANY_B };
@@ -53,7 +53,7 @@ async function skuFixture(page, role = "company_member") {
     bucket(COMPANY_B, "BETA", "2026-05-05", "50"),
     bucket(COMPANY_B, "BETA", "2026-06-15", "1000"),
   ];
-  if (role === "company_member") {
+  if (role === "member") {
     fixture.aggregateRowsByUser["member-a"] = fixture.aggregateRows.filter(
       (row) => row.company_id === COMPANY_A,
     );
@@ -175,7 +175,7 @@ test("member SKU selections scope all cards and raw breakdowns while unrelated t
 test("administrator company, SKU, and marketplace selections intersect while DATE changes only selected totals", async ({
   page,
 }, testInfo) => {
-  const fixture = await skuFixture(page, "operator");
+  const fixture = await skuFixture(page, "administrator");
   await signIn(page);
   const { day, month, selected } = cards(page);
   await expect(amount(day, "Reported amount")).toHaveText("1,000 USD");
@@ -199,7 +199,7 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
     await expect(summaryFilters).toContainText(value);
   }
   await cards(page).summaries.screenshot({
-    path: testInfo.outputPath("operator-summary-filters.png"),
+    path: testInfo.outputPath("administrator-summary-filters.png"),
     animations: "disabled",
   });
   const dialog = await openSelectedBreakdown(page, "15 USD");
@@ -220,7 +220,7 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
     .getByRole("region", { name: "Applied filters", exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({
-    path: testInfo.outputPath("operator-drawer-filters.png"),
+    path: testInfo.outputPath("administrator-drawer-filters.png"),
     animations: "disabled",
   });
   await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();

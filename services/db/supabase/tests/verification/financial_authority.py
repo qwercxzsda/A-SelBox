@@ -8,14 +8,14 @@ from services.db.supabase.tests.verification.financial_reconciliation import raw
 from services.db.supabase.tests.verification.financial_seed import Connection, as_user, require
 
 
-def verify_authority(connection: Connection, operator: str) -> tuple[date, dict[str, object]]:
+def verify_authority(connection: Connection, administrator: str) -> tuple[date, dict[str, object]]:
     today = connection.execute("select (now() at time zone 'UTC')::date").fetchall()[0][0]
     month_index = today.year * 12 + today.month - 1 - 2
     year, month_zero = divmod(month_index, 12)
     mature_cutoff_date = date(
         year, month_zero + 1, min(today.day, calendar.monthrange(year, month_zero + 1)[1])
     )
-    policy = as_user(connection, operator, "select public.payout_report_policy()")[0][0]
+    policy = as_user(connection, administrator, "select public.payout_report_policy()")[0][0]
     require(
         policy["mature_cutoff_date"] == mature_cutoff_date.isoformat(),
         "Policy does not use two calendar months",
@@ -55,7 +55,7 @@ def verify_authority(connection: Connection, operator: str) -> tuple[date, dict[
         "(select min(activity_date) from private.data_kiosk_transactions))"
     ).fetchall()[0][0]
     actual = as_user(
-        connection, operator, "select public.transaction_totals(p_date_from => %s)", (minimum,)
+        connection, administrator, "select public.transaction_totals(p_date_from => %s)", (minimum,)
     )[0][0]["rows"]
     require(
         expected
@@ -63,7 +63,7 @@ def verify_authority(connection: Connection, operator: str) -> tuple[date, dict[
             row["currency"]: [Decimal(row["reported_amount"]), int(row["row_count"])]
             for row in actual
         },
-        "Operator totals differ from mature Settlement/SelBox categories, Data Kiosk costs, "
+        "Administrator totals differ from mature Settlement/SelBox categories, Data Kiosk costs, "
         "daily differences, and recent Data Kiosk amounts",
     )
     excluded = connection.execute(

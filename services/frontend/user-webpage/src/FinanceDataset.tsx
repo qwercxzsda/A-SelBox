@@ -18,12 +18,14 @@ import { WorkspaceIntro } from "./WorkspaceIntro";
 import { filterOptions, transactionTypeValues } from "./filter-options";
 import { transactionTypeSelectionLabels } from "./transaction-type-groups";
 import { RowsSelect } from "./RowsSelect";
+import { CompanyMembership } from "./CompanyMembership";
 
 interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   identity: Identity;
   dataset: TableDatasetKey;
   onRetry: () => Promise<void>;
   reviewMode?: boolean;
+  onAddCompany?: () => void;
 }
 
 export function FinanceDataset(props: FinanceDatasetProps) {
@@ -40,6 +42,7 @@ function StandardFinanceDataset({
   onRetry,
   viewState,
   onViewStateChange,
+  onAddCompany,
 }: FinanceDatasetProps) {
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, dataset, viewState, onViewStateChange);
@@ -52,12 +55,21 @@ function StandardFinanceDataset({
   const filterCount = activeFilterCount(filters);
   const hasFilters = filterCount > 0;
   const hasRefinements = hasFilters || search.trim().length > 0;
-  const columns = displayColumns(dataset, identity.account.access_role === "operator");
+  const columns = displayColumns(dataset, identity.account.access_role === "administrator");
   const sort = viewState.sorting[0];
   const amountLimitExceeded = query.error instanceof AmountOrderingLimitError;
   return (
     <>
-      <WorkspaceIntro description={presentation.description} />
+      <WorkspaceIntro
+        description={presentation.description}
+        actions={
+          dataset === "accounts" && onAddCompany ? (
+            <Button variant="light" onClick={onAddCompany}>
+              Add company
+            </Button>
+          ) : undefined
+        }
+      />
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -227,16 +239,28 @@ function StandardFinanceDataset({
           </div>
         ) : null}
       </FinancialTable>
-      <RowDetail
-        accessToken={identity.session.access_token}
-        isAdministrator={identity.account.access_role === "operator"}
-        companies={companies}
-        dataset={dataset}
-        row={selectedRow}
-        onClose={() => {
-          table.resetRowSelection();
-        }}
-      />
+      {dataset === "accounts" ? (
+        <CompanyMembership
+          accessToken={identity.session.access_token}
+          companies={identity.companies}
+          row={selectedRow}
+          onAddCompany={onAddCompany}
+          onClose={() => {
+            table.resetRowSelection();
+          }}
+        />
+      ) : (
+        <RowDetail
+          accessToken={identity.session.access_token}
+          isAdministrator={identity.account.access_role === "administrator"}
+          companies={companies}
+          dataset={dataset}
+          row={selectedRow}
+          onClose={() => {
+            table.resetRowSelection();
+          }}
+        />
+      )}
     </>
   );
 }

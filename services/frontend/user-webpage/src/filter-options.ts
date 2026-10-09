@@ -18,14 +18,14 @@ const RECONCILIATION_TYPE = "SETTLEMENT_KIOSK_DIFFERENCE";
 export function transactionTypeValues(dataset: TableDatasetKey, role: AccessRole): string[] {
   const types = transactionTypes
     .filter(({ source, category }) => {
-      if (role !== "operator" && category === "SELBOX") return false;
+      if (role !== "administrator" && category === "SELBOX") return false;
       if (dataset === "settlement") return source === "SETTLEMENT";
       if (dataset === "data_kiosk") return source === "DATA_KIOSK";
       return dataset === "live";
     })
     .map(({ type }) => type);
   // This is a calculated ledger row, not a preprocessing classification.
-  return dataset === "live" && role === "operator" ? [...types, RECONCILIATION_TYPE] : types;
+  return dataset === "live" && role === "administrator" ? [...types, RECONCILIATION_TYPE] : types;
 }
 
 /** Local options do not depend on matching facts, search, dates, or other selections. */
@@ -37,7 +37,7 @@ export function localFilterValues(
 ): readonly string[] {
   switch (field) {
     case "source":
-      return dataset === "live" && role === "operator"
+      return dataset === "live" && role === "administrator"
         ? [...TRANSACTION_SOURCES, "RECONCILIATION"]
         : TRANSACTION_SOURCES;
     case "marketplace_name":

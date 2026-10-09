@@ -30,7 +30,7 @@ async function checkRevision(page, workspace) {
   await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
 }
 
-for (const role of ["company_member", "operator"]) {
+for (const role of ["member", "administrator"]) {
   test(`${role} opens compact inventory rows by mouse and keyboard with complete exact details`, async ({
     page,
   }, testInfo) => {
@@ -144,7 +144,7 @@ for (const role of ["company_member", "operator"]) {
 test("inventory details distinguish missing metrics from zero and SKU navigation closes the drawer", async ({
   page,
 }) => {
-  await openInventory(page, "operator", [
+  await openInventory(page, "administrator", [
     inventoryRow("ZERO", { available_quantity: "0", minimum_inventory_units: "0" }),
   ]);
   await row(page, "ZERO").getByText("Amazon.com", { exact: true }).click();
@@ -173,7 +173,7 @@ test("inventory F5 restores the selected capture using fresh data and revisions 
   page,
 }) => {
   await page.clock.install();
-  const { workspace, fixture } = await openInventory(page, "operator", [
+  const { workspace, fixture } = await openInventory(page, "administrator", [
     inventoryRow("CURRENT", { available_quantity: "10" }),
   ]);
   await row(page, "CURRENT").getByText("Amazon.com", { exact: true }).click();
@@ -210,7 +210,7 @@ test("inventory F5 restores the selected capture using fresh data and revisions 
 test("inventory details keep identical SKUs from different source captures distinct", async ({
   page,
 }) => {
-  const { fixture } = await openInventory(page, "operator", [
+  const { fixture } = await openInventory(page, "administrator", [
     inventoryRow("SHARED", { capture_id: "first-source", available_quantity: "11" }),
     inventoryRow("SHARED", { capture_id: "second-source", available_quantity: "22" }),
   ]);
@@ -229,7 +229,7 @@ test("inventory restores details only for a row on the current page and retains 
 }) => {
   const { fixture } = await openInventory(
     page,
-    "company_member",
+    "member",
     Array.from({ length: 26 }, (_, index) => inventoryRow(`SKU-${String(index).padStart(2, "0")}`)),
   );
   await row(page, "SKU-24").getByText("Amazon.com", { exact: true }).click();

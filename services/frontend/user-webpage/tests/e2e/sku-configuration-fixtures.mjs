@@ -26,7 +26,12 @@ export const editor = (page) => page.getByRole("dialog", { name: /^Edit |^Add SK
 export const review = (page) =>
   page.getByRole("dialog", { name: "Review configuration changes", exact: true });
 
-export async function setup(page, role = "operator", items = [item("S1")], configure = () => {}) {
+export async function setup(
+  page,
+  role = "administrator",
+  items = [item("S1")],
+  configure = () => {},
+) {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
   fixture.companyIds["member-a"] = COMPANY;

@@ -25,10 +25,10 @@ class AmountOrderingScopeTests(SourceModelFixture):
         company, sku = self.owner()
         other_company, _ = self.owner("OTHER")
         self.fee(sku, [("2026-01-01", None, "5")])
-        member, other_member, operator = (
+        member, other_member, administrator = (
             self.member(company),
             self.member(other_company),
-            self.operator(),
+            self.administrator(),
         )
         settlement_rows = [self.transaction(str(i), i + 2) for i in range(1, 10001)]
         settlement_rows.append(
@@ -52,9 +52,9 @@ class AmountOrderingScopeTests(SourceModelFixture):
                 for live in (False, True):
                     with self.assertRaises(psycopg.errors.InvalidParameterValue) as raised:
                         if live:
-                            self.live_page(operator, p_sources=[dataset.upper()], **options)
+                            self.live_page(administrator, p_sources=[dataset.upper()], **options)
                         else:
-                            self.source_page(operator, dataset, **options)
+                            self.source_page(administrator, dataset, **options)
                     self.assertEqual(raised.exception.diag.message_primary, _AMOUNT_SCOPE_MESSAGE)
                 # Exact 10,000-row membership is accepted; another company's
                 # visible row cannot consume this member's sort budget.
@@ -77,7 +77,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
                 )
                 # Offsets do not turn a broad amount sort into an eligible one.
                 with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                    self.source_page(operator, dataset, p_offset=20000, **options)
+                    self.source_page(administrator, dataset, p_offset=20000, **options)
                 tail = self.source_page(member, dataset, p_offset=9999, **options)
                 self.assertEqual(len(cast(list[object], tail["rows"])), 1)
 
@@ -93,9 +93,9 @@ class AmountOrderingScopeTests(SourceModelFixture):
             )
             for selection in filters:
                 with self.subTest(dataset=dataset, selection=selection):
-                    raw = self.source_page(operator, dataset, p_order_by="amount", **selection)
+                    raw = self.source_page(administrator, dataset, p_order_by="amount", **selection)
                     live = self.live_page(
-                        operator, p_sources=[source], p_order_by="amount", **selection
+                        administrator, p_sources=[source], p_order_by="amount", **selection
                     )
                     expected_count = (
                         "1"
@@ -111,24 +111,24 @@ class AmountOrderingScopeTests(SourceModelFixture):
             # Date pages and exact counts stay available above the amount cap.
             for direction in ("asc", "desc"):
                 self.assertEqual(
-                    self.source_page(operator, dataset, p_direction=direction)["total_count"],
+                    self.source_page(administrator, dataset, p_direction=direction)["total_count"],
                     "10001",
                 )
                 self.assertEqual(
-                    self.live_page(operator, p_sources=[source], p_direction=direction)[
+                    self.live_page(administrator, p_sources=[source], p_direction=direction)[
                         "total_count"
                     ],
                     "10001",
                 )
-                self.assertEqual(self.live_count(operator, p_sources=[source]), "10001")
+                self.assertEqual(self.live_count(administrator, p_sources=[source]), "10001")
 
         # The limit covers the combined Transactions result, not each source.
         with self.assertRaises(psycopg.errors.InvalidParameterValue):
             self.live_page(member, p_order_by="amount")
-        selected = self.live_page(operator, p_order_by="amount", p_search_types=["FOCUS"])
+        selected = self.live_page(administrator, p_order_by="amount", p_search_types=["FOCUS"])
         self.assertEqual(selected["total_count"], "2")
-        self.assertEqual(self.live_page(operator)["total_count"], "20002")
-        self.assertEqual(self.live_count(operator), "20002")
+        self.assertEqual(self.live_page(administrator)["total_count"], "20002")
+        self.assertEqual(self.live_count(administrator), "20002")
         # The cap check runs before any monetary projection. It returns the
         # allowlisted overflow error, even if fee calculation would fail.
         self.connection.execute(
@@ -138,5 +138,5 @@ class AmountOrderingScopeTests(SourceModelFixture):
             "raise exception 'Fee projection must not execute'; end; $$"
         )
         with self.assertRaises(psycopg.errors.InvalidParameterValue) as raised:
-            self.live_page(operator, p_order_by="amount")
+            self.live_page(administrator, p_order_by="amount")
         self.assertEqual(raised.exception.diag.message_primary, _AMOUNT_SCOPE_MESSAGE)

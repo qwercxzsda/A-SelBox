@@ -82,12 +82,12 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             (0,),
         )
 
-    def test_operator_cannot_inject_a_temporary_table_trigger_into_publication(self) -> None:
+    def test_administrator_cannot_inject_a_temporary_table_trigger_into_publication(self) -> None:
         company = self.prepared_company()
-        operator = self.operator()
+        administrator = self.administrator()
         with self.connection.transaction():
             self.connection.execute(
-                "select set_config('request.jwt.claim.sub',%s,true)", (operator,)
+                "select set_config('request.jwt.claim.sub',%s,true)", (administrator,)
             )
             self.connection.execute("set local role authenticated")
             self.connection.execute(
@@ -154,7 +154,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         )
         self.kiosk(1, [self.component("-10"), self.component("100", category="SETTLEMENT")])
         fill_payout_kiosk_month(self)
-        operator, member = self.operator(), self.member(company)
+        administrator, member = self.administrator(), self.member(company)
         report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
@@ -166,7 +166,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         )
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select marketplace_name,settlement_category_amount,selbox_category_amount,"
                 "data_kiosk_settlement_control,"
                 "data_kiosk_category_amount,difference,settlement_total,accounted_total "
@@ -264,7 +264,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         other_company, _ = self.owner("OTHER")
         other_member = self.member(other_company)
         report = self.generate(company)
-        for user in (self.operator(), own_member, other_member, self.auth_user()):
+        for user in (self.administrator(), own_member, other_member, self.auth_user()):
             with self.subTest(user=user), self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 self.as_user(
                     user,

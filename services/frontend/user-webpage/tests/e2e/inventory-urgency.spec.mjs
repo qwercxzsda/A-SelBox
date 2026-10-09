@@ -6,7 +6,7 @@ const scenarios = [
   {
     column: "health_status",
     label: "Inventory health status",
-    user: "company_member",
+    user: "member",
     urgent: "Out of stock",
     urgentAlias: "OUT_OF_STOCK",
     medium: "Low stock",
@@ -17,7 +17,7 @@ const scenarios = [
   {
     column: "recommended_action",
     label: "Recommendation",
-    user: "operator",
+    user: "administrator",
     urgent: "EditListing",
     urgentAlias: "Edit listing",
     medium: "GoToRestock",

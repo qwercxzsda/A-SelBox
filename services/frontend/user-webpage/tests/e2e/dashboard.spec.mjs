@@ -12,7 +12,7 @@ test("Data Kiosk retains zero amounts and excludes unavailable amounts before co
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.kioskRows = [
     ...Array.from({ length: 5 }, (_, index) => kioskRow(`ZERO-${index}`, "0.000000")),
     ...Array.from({ length: 24 }, (_, index) => kioskRow(index + 1, "1.25")),

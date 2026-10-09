@@ -38,7 +38,7 @@ class PayoutReconciliationAccessTests(SourceModelFixture):
         )
         report = publish_payout(self, inputs)
         other_report = publish_payout(self, inputs, company_id=other_company)
-        operator = self.operator()
+        administrator = self.administrator()
         query: LiteralString = (
             "select report_id::text,currency,settlement_category_amount,"
             "data_kiosk_settlement_control,data_kiosk_category_amount,difference,"
@@ -50,14 +50,14 @@ class PayoutReconciliationAccessTests(SourceModelFixture):
             for report_id in sorted((report, other_report))
             for currency, sales, costs in (("EUR", 0, -3), ("USD", 100, -17))
         ]
-        self.assertEqual(self.as_user(operator, query), expected)
+        self.assertEqual(self.as_user(administrator, query), expected)
         for user in (self.member(inputs.company), self.member(other_company), self.auth_user()):
             self.assertEqual(self.as_user(user, query), [])
         self.kiosk(3, [self.component("-100")], expected=kiosk_version, digest="b")
-        self.assertEqual(self.as_user(operator, query), expected)
+        self.assertEqual(self.as_user(administrator, query), expected)
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select currency,difference from public.financial_review_totals("
                 "'2026-06-01','2026-07-01','DATA_KIOSK')",
             ),

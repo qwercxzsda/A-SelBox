@@ -60,8 +60,8 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 activity_date=day.isoformat(),
             )
             kiosk_versions.append(kiosk_version)
-        operator, member = self.operator(), self.member(company)
-        for user, count, reported in ((operator, "7", "260"), (member, "4", "270")):
+        administrator, member = self.administrator(), self.member(company)
+        for user, count, reported in ((administrator, "7", "260"), (member, "4", "270")):
             page = self.assert_matches_view(user, p_direction="asc")
             self.assertEqual(page["total_count"], count)
             totals = self.as_user(
@@ -73,11 +73,11 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             self.assertEqual(Decimal(total["company_amount"]), Decimal(240))
             self.assertEqual(total["row_count"], count)
         self.assertEqual(
-            self.page(operator, p_company_ids=[company])["rows"], self.page(member)["rows"]
+            self.page(administrator, p_company_ids=[company])["rows"], self.page(member)["rows"]
         )
         retained_rows = [
             row
-            for row in cast(list[dict[str, object]], self.page(operator)["rows"])
+            for row in cast(list[dict[str, object]], self.page(administrator)["rows"])
             if row["category"] == "SELBOX"
         ]
         self.assertEqual(len(retained_rows), 3)
@@ -190,16 +190,16 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             (day, "Amazon.com", "USD", -8, -10, 2, 87, 87),
         ]
         self.assertEqual(rows, expected)
-        operator = self.operator()
+        administrator = self.administrator()
         selection = {
             "p_sources": ["RECONCILIATION"],
             "p_date_from": day.isoformat(),
             "p_marketplaces": ["Amazon.com"],
             "p_types": ["SETTLEMENT_KIOSK_DIFFERENCE"],
         }
-        original = self.assert_matches_view(operator, **selection)
+        original = self.assert_matches_view(administrator, **selection)
         self.assertEqual(original["total_count"], "2")
-        self.assertEqual(self.page(operator, p_fee_applicable=True, **selection)["rows"], [])
+        self.assertEqual(self.page(administrator, p_fee_applicable=True, **selection)["rows"], [])
         ids = {
             row["currency"]: row["source_row_id"]
             for row in cast(list[dict[str, object]], original["rows"])
@@ -210,7 +210,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             expected=kiosk_version,
             activity_date=day.isoformat(),
         )
-        revised = self.assert_matches_view(operator, p_order_by="amount", **selection)
+        revised = self.assert_matches_view(administrator, p_order_by="amount", **selection)
         self.assertEqual(
             {
                 row["currency"]: row["source_row_id"]

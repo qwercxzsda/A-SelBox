@@ -26,11 +26,11 @@ class WorkspaceRevisionTests(SourceModelFixture):
 
     def test_subset_empty_request_and_account_identity(self) -> None:
         company, _ = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         self.connection.commit()
         for user, role, company_id in (
-            (member, "company_member", company),
-            (operator, "operator", None),
+            (member, "member", company),
+            (administrator, "administrator", None),
         ):
             with self.subTest(role=role):
                 response = self.poll(user, ["settlement", "fees"])
@@ -66,13 +66,11 @@ class WorkspaceRevisionTests(SourceModelFixture):
         company, _ = self.owner()
         member, unaffiliated = self.member(company), self.auth_user()
         self.connection.commit()
-        for user in (unaffiliated, member):
-            if user == member:
-                self.connection.execute(
-                    "delete from public.app_accounts where user_id=%s", (member,)
-                )
-            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
-                self.poll(user)
+        self.assertEqual(self.revisions(unaffiliated), dict.fromkeys(_SOURCES, "0"))
+        self.assertEqual(self.poll(unaffiliated, [])["revisions"], {})
+        self.connection.execute("delete from public.app_accounts where user_id=%s", (member,))
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            self.poll(member)
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.workspace_revisions()")
@@ -99,13 +97,13 @@ class WorkspaceRevisionTests(SourceModelFixture):
         )
 
     def test_invalid_source_arguments_are_rejected(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         for sources in (None, ["private"], [None], ["fees"] * 6, [["fees", "settlement"]]):
             with (
                 self.subTest(sources=sources),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
-                self.as_user(operator, _POLL, (sources,))
+                self.as_user(administrator, _POLL, (sources,))
 
     def test_settlement_backdated_republication_rotates_only_source_at_commit(self) -> None:
         company, _ = self.owner()
@@ -159,26 +157,28 @@ class WorkspaceRevisionTests(SourceModelFixture):
 
     def test_pruning_rotates_source_token_only_when_history_is_removed(self) -> None:
         company, _ = self.owner()
-        operator, member = self.operator(), self.member(company)
+        administrator, member = self.administrator(), self.member(company)
         current = None
         for observation in range(1, 5):
             _, current = self.kiosk(observation, [self.component()], expected=current)
         self.connection.commit()
-        initial = self.revisions(operator)
+        initial = self.revisions(administrator)
         self.assertEqual(self.revisions(member)["data_kiosk"], initial["data_kiosk"])
         self.assertEqual(
             self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(),
             (1,),
         )
-        self.assertEqual(self.revisions(operator), initial)
+        self.assertEqual(self.revisions(administrator), initial)
         self.connection.commit()
-        pruned = self.revisions(operator)
+        pruned = self.revisions(administrator)
         self.assertNotEqual(pruned["data_kiosk"], initial["data_kiosk"])
         self.assertEqual(pruned["settlement"], initial["settlement"])
         self.assertEqual(pruned["fees"], initial["fees"])
         self.assertEqual(self.revisions(member)["data_kiosk"], pruned["data_kiosk"])
         self.assertEqual(
-            self.as_user(operator, "select count(*) from public.data_kiosk_preprocess_entries"),
+            self.as_user(
+                administrator, "select count(*) from public.data_kiosk_preprocess_entries"
+            ),
             [(3,)],
         )
         self.assertEqual(
@@ -186,27 +186,27 @@ class WorkspaceRevisionTests(SourceModelFixture):
             (0,),
         )
         self.connection.commit()
-        self.assertEqual(self.revisions(operator), pruned)
+        self.assertEqual(self.revisions(administrator), pruned)
 
     def test_source_tokens_are_global_but_fees_are_company_scoped(self) -> None:
         company_a, sku_a = self.owner()
         company_b, _ = self.owner("OTHER")
-        member_a, member_b, operator = (
+        member_a, member_b, administrator = (
             self.member(company_a),
             self.member(company_b),
-            self.operator(),
+            self.administrator(),
         )
         self.connection.commit()
         first_a, first_b, first_admin = (
             self.revisions(member_a),
             self.revisions(member_b),
-            self.revisions(operator),
+            self.revisions(administrator),
         )
         self.fee(sku_a, [("2026-01-01", None, "5")])
         self.connection.commit()
         self.assertNotEqual(self.revisions(member_a)["fees"], first_a["fees"])
         self.assertEqual(self.revisions(member_b), first_b)
-        self.assertNotEqual(self.revisions(operator)["fees"], first_admin["fees"])
+        self.assertNotEqual(self.revisions(administrator)["fees"], first_admin["fees"])
         self.settlement([self.transaction("9")])
         self.connection.commit()
         self.assertEqual(

@@ -105,7 +105,7 @@ export function TransactionSummaries({
         }}
         onRetry={onRetry}
         coverageNote={
-          account.access_role === "operator"
+          account.access_role === "administrator"
             ? "Company, SKU, and Marketplace filters apply to all three totals. DATE applies only to Selected dates. Select a day or month to filter Transactions."
             : "SKU and Marketplace filters apply to all three totals. DATE applies only to Selected dates. Select a day or month to filter Transactions."
         }

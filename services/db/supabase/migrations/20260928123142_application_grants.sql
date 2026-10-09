@@ -3,6 +3,8 @@ revoke all on all tables in schema public, private from public, anon, authentica
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
 revoke all on function public.payout_report_policy(), public.sku_configuration(),
 public.publish_sku_configuration(jsonb, text),
+public.create_company(text), public.delete_company(uuid),
+public.account_directory(), public.set_company_membership(uuid, uuid, public.app_access_role, uuid),
 public.financial_review_totals(date, date, public.allocation_category),
 public.financial_review_type_totals(date, date, public.allocation_category, text)
 from public, anon, authenticated, service_role;
@@ -10,8 +12,12 @@ grant usage on schema private to authenticated;
 grant select on public.app_accounts, public.companies, public.skus,
 public.sku_terms_versions, public.sku_fee_periods, public.company_skus,
 public.current_sku_fee_periods to authenticated;
-grant insert (user_id, company_id), update (company_id) on public.app_accounts to authenticated;
-grant delete on public.app_accounts to authenticated;
+grant execute on function private.read_account_directory(), public.account_directory(),
+private.create_administrator_company(text), public.create_company(text),
+private.delete_administrator_company(uuid), public.delete_company(uuid),
+private.set_administrator_company_membership(uuid, uuid, public.app_access_role, uuid),
+public.set_company_membership(uuid, uuid, public.app_access_role, uuid)
+to authenticated;
 grant select on private.settlement_transactions, private.data_kiosk_transactions to authenticated;
 -- Members can read current references across companies, never report totals.
 grant select (id, current_version_id) on private.settlements,
@@ -34,7 +40,7 @@ private.payout_report_reconciliation, public.payout_report_reconciliation,
 public.financial_review_records,
 public.payout_reconciliation_totals,
 private.live_source_reconciliation, private.source_reconciliation_inputs to authenticated;
-grant execute on function private.is_operator(), private.is_company_member(),
+grant execute on function private.is_administrator(), private.is_member(),
 private.current_owned_sku_terms(),
 private.mature_cutoff_date(), private.financial_account_visible(),
 private.reconciliation_group_id(text, date, text, text),
@@ -94,11 +100,11 @@ grant execute on function public.sku_filter_options() to authenticated;
 
 -- Complete SKU configuration is exposed only through caller-checked entry points.
 grant execute on function private.read_sku_configuration(), public.sku_configuration(),
-private.publish_operator_sku_configuration(jsonb, text),
+private.publish_administrator_sku_configuration(jsonb, text),
 public.publish_sku_configuration(jsonb, text)
 to authenticated;
 
--- Inventory publishers stay privileged. Header tables are operator-only under
+-- Inventory publishers stay privileged. Header tables are administrator-only under
 -- RLS; the guarded helper exposes just current scope timestamps to members.
 grant select on private.inventory_acquisitions, private.inventory_daily_captures,
 private.inventory_items, public.latest_inventory_captures,

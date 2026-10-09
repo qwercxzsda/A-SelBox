@@ -1,6 +1,8 @@
 import { createTransport } from "./transport.ts";
 import { createAuthApi } from "./auth.ts";
 import { createWorkspaceApi } from "./workspace.ts";
+import { createMembershipApi } from "./membership.ts";
+import { createCompanyApi } from "./companies.ts";
 import { createDatasetApi } from "./datasets.ts";
 import { createSummaryApi } from "./summaries.ts";
 import { createPayoutApi } from "./payouts.ts";
@@ -22,6 +24,8 @@ export function createApiClient(
   return {
     ...createAuthApi(transport),
     ...createWorkspaceApi(transport),
+    ...createMembershipApi(transport),
+    ...createCompanyApi(transport),
     ...datasets,
     ...createPayoutApi(transport),
     ...createPayoutHistoryApi(transport),

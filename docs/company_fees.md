@@ -36,7 +36,7 @@ rule described in the source policy.
 | `sku_fee_periods`    | Marketplace-specific effective periods and rates belonging to one terms version.                                  |
 
 These tables live in `public`; trusted writers publish through
-`private.publish_sku_terms(jsonb)`. Operators use the caller-checked atomic batch
+`private.publish_sku_terms(jsonb)`. Administrators use the caller-checked atomic batch
 `public.publish_sku_configuration(...)` REST RPC. UUIDv7 identifiers and audit times
 are generated automatically. Administrators provide business terms and an
 expected current version. `version_number` labels publications within one SKU;
@@ -46,7 +46,7 @@ periods. Both views are read-only.
 
 The **Current fees** screen lets administrators stage multiple assignment and fee changes,
 review them, and save one complete batch. `public.sku_configuration()` includes imported-only
-and unassigned SKUs for administrators, so incomplete settings can be repaired. Company members
+and unassigned SKUs for administrators, so incomplete settings can be repaired. Members
 receive only their own assigned SKUs and can inspect their fees and coverage without editing.
 
 ### Administrator completeness
@@ -260,12 +260,12 @@ and fee versions; a newer live correction appears in the next successful refresh
 ## Access and performance
 
 Company views use `security_invoker = true`, underlying read grants, and RLS
-based on `app_accounts`. Company members cannot change ownership, fee terms, or
+based on `app_accounts`. Members cannot change ownership, fee terms, or
 source publications. They see selected terms for their assigned company's SKUs
-and permitted current source results. Operators read all terms versions and
+and permitted current source results. Administrators read all terms versions and
 retained source history, publish complete terms, and read saved payout reports for
 any company. The periodic worker generates eligible monthly reports automatically.
-Company members can read their own saved payout reports and components. See the
+Members can read their own saved payout reports and components. See the
 [application-access contract](access_control.md). The
 [PostgreSQL view contract](https://www.postgresql.org/docs/17/sql-createview.html)
 defines how invoker permissions and base-table policies apply.

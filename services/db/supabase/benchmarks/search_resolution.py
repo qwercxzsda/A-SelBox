@@ -27,7 +27,7 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
     ).fetchone()
     if account is None:
         return {name: [] for name in names}
-    if account[0] == "company_member":
+    if account[0] == "member":
         skus = connection.execute("select distinct sku from public.company_skus").fetchall()
     else:
         skus = connection.execute(
@@ -43,7 +43,7 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
         )
         if dataset in ("live", source)
         for item in entries
-        if account[0] == "operator" or item.category != "SELBOX"
+        if account[0] == "administrator" or item.category != "SELBOX"
     ]
     result: dict[str, object] = {
         "p_search_skus": sorted({str(row[0]) for row in skus if normalized in str(row[0]).lower()}),

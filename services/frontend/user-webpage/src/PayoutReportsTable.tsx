@@ -54,7 +54,7 @@ export function PayoutReportsTable({
 }) {
   const scrollTarget = useRef<HTMLDivElement>(null);
   const scrollId = useId();
-  const columns = displayColumns("payouts", identity.account.access_role === "operator");
+  const columns = displayColumns("payouts", identity.account.access_role === "administrator");
   const reportColumns = columns.filter((column) => column.key !== "start_date");
   return (
     <>
@@ -62,7 +62,7 @@ export function PayoutReportsTable({
         <Text size="xs" c="dimmed">
           {fixedMonth
             ? "Saved reports for this month. "
-            : `Filter by month${identity.account.access_role === "operator" ? " or company" : ""} in the column headings. `}
+            : `Filter by month${identity.account.access_role === "administrator" ? " or company" : ""} in the column headings. `}
           Select a report for details, or show its previous versions.
         </Text>
         <Group gap="xs">
@@ -164,6 +164,7 @@ export function PayoutReportsTable({
                                     />
                                   </Group>
                                   <Button
+                                    className="ui-text-action"
                                     size="compact-xs"
                                     variant="subtle"
                                     aria-expanded={expanded}

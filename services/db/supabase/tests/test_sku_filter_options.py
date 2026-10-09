@@ -41,7 +41,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
 
     def test_catalog_is_administrator_only_without_changing_table_visibility(self) -> None:
         first, second = self.financial_fixture()
-        self.assert_matches_views(self.operator())
+        self.assert_matches_views(self.administrator())
         for company in (first, second):
             member = self.member(company)
             self.assertTrue(self.expected(member)["values"])
@@ -66,9 +66,9 @@ class SkuFilterOptionsTests(SourceModelFixture):
                 self.component("1", category="SELBOX") | {"sku": None},
             ],
         )
-        operator, member = self.operator(), self.member(company)
+        administrator, member = self.administrator(), self.member(company)
         self.assertEqual(
-            self.assert_matches_views(operator)["values"],
+            self.assert_matches_views(administrator)["values"],
             ["ASSIGNED_NO_TRANSACTIONS", "SKU", "UNASSIGNED", "UNREGISTERED", "ZERO_UNREGISTERED"],
         )
         self.assertEqual(self.expected(member)["values"], ["ASSIGNED_NO_TRANSACTIONS", "SKU"])
@@ -82,14 +82,18 @@ class SkuFilterOptionsTests(SourceModelFixture):
         acquisition = self.acquisition()
         _, version = self.settlement([self.transaction("1", sku="OLD")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("2", sku="OLD_KIOSK")])
-        operator, member_a, member_b = self.operator(), self.member(first), self.member(second)
+        administrator, member_a, member_b = (
+            self.administrator(),
+            self.member(first),
+            self.member(second),
+        )
         self.settlement([self.transaction("3")], acquisition_id=acquisition, expected=version)
         self.kiosk(2, [], expected=kiosk)
-        self.assertIn("OLD", cast(list[str], self.assert_matches_views(operator)["values"]))
+        self.assertIn("OLD", cast(list[str], self.assert_matches_views(administrator)["values"]))
         # Registered, assigned SKUs remain usable menu options without current facts.
         self.assertIn("OLD", cast(list[str], self.expected(member_a)["values"]))
         terms = self.assign("SKU", second, rate="7", expected=terms)
-        self.assert_matches_views(operator)
+        self.assert_matches_views(administrator)
         for user in (member_a, member_b):
             self.assert_denied(user)
         self.assertNotIn("SKU", cast(list[str], self.expected(member_a)["values"]))
@@ -112,7 +116,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
             "😀",
         ]
         self.settlement([self.transaction("1", line, sku=sku) for line, sku in enumerate(skus, 3)])
-        result = self.assert_matches_views(self.operator())
+        result = self.assert_matches_views(self.administrator())
         self.assertEqual(result, {"values": sorted(skus, key=lambda value: value.encode())})
         self.assertEqual(len(cast(list[object], result["values"])), 1010)
 
@@ -123,12 +127,12 @@ class SkuFilterOptionsTests(SourceModelFixture):
         self.assert_denied(member)
 
     def test_empty_and_null_only_sources_terminate(self) -> None:
-        operator = self.operator()
-        self.assertEqual(self.options(operator), {"values": []})
+        administrator = self.administrator()
+        self.assertEqual(self.options(administrator), {"values": []})
         self.settlement([self.transaction("1", category="SELBOX") | {"sku": None}])
-        self.assertEqual(self.options(operator), {"values": []})
+        self.assertEqual(self.options(administrator), {"values": []})
         self.kiosk(1, [self.component("0", category="SELBOX") | {"sku": None}])
-        self.assertEqual(self.assert_matches_views(operator), {"values": []})
+        self.assertEqual(self.assert_matches_views(administrator), {"values": []})
         for user in (self.auth_user(), ""):
             self.assert_denied(user)
 
@@ -162,21 +166,21 @@ class SkuFilterOptionsTests(SourceModelFixture):
         self.kiosk(
             1, [self.component("0", sku=sku) for sku in [*visible, *visible, *imported_only]]
         )
-        member_a, member_b, operator = (
+        member_a, member_b, administrator = (
             self.member(company_a),
             self.member(company_b),
-            self.operator(),
+            self.administrator(),
         )
         for user, expected in (
             (member_a, {*visible, "REGISTERED-ONLY"}),
             (member_b, {*hidden}),
-            (operator, {*visible, *hidden, *imported_only, "REGISTERED-ONLY"}),
+            (administrator, {*visible, *hidden, *imported_only, "REGISTERED-ONLY"}),
         ):
             self.assertEqual(
-                self.assert_matches_views(user) if user == operator else self.expected(user),
+                self.assert_matches_views(user) if user == administrator else self.expected(user),
                 {"values": sorted(expected, key=lambda value: value.encode())},
             )
-            if user != operator:
+            if user != administrator:
                 self.assert_denied(user)
         self.connection.execute("delete from public.app_accounts where user_id=%s", (member_a,))
         self.assert_denied(member_a)
@@ -207,7 +211,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
         self.connection.execute("select set_config('request.jwt.claim.sub','',true)")
         self.connection.execute("select set_config('request.jwt.claims','{}',true)")
         self.assertEqual(
-            self.connection.execute("select private.is_operator()").fetchone(), (False,)
+            self.connection.execute("select private.is_administrator()").fetchone(), (False,)
         )
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("select public.sku_filter_options()")
@@ -222,19 +226,23 @@ class SkuFilterOptionsTests(SourceModelFixture):
 
     def test_prepared_catalog_rechecks_demotion_deletion_and_restoration(self) -> None:
         company, _ = self.financial_fixture()
-        operator, member, outsider = self.operator(), self.member(company), self.auth_user()
-        operator_catalog = self.expected(operator)
+        administrator, member, outsider = (
+            self.administrator(),
+            self.member(company),
+            self.auth_user(),
+        )
+        administrator_catalog = self.expected(administrator)
         self.connection.execute("set local plan_cache_mode='force_generic_plan'")
         self.connection.execute(
             "prepare catalog_scope_security as select public.sku_filter_options()"
         )
         self.assertEqual(
-            self.as_user(operator, "execute catalog_scope_security"), [(operator_catalog,)]
+            self.as_user(administrator, "execute catalog_scope_security"),
+            [(administrator_catalog,)],
         )
         self.connection.execute(
-            "update public.app_accounts set access_role='company_member',company_id=%s "
-            "where user_id=%s",
-            (company, operator),
+            "update public.app_accounts set access_role='member',company_id=%s where user_id=%s",
+            (company, administrator),
         )
 
         def assert_prepared_denied(user: str) -> None:
@@ -260,17 +268,20 @@ class SkuFilterOptionsTests(SourceModelFixture):
                 """)
                 self.connection.execute("reset role")
 
-        for user in (operator, member):
-            assert_prepared_denied(user)
-        self.connection.execute("delete from public.app_accounts where user_id=%s", (operator,))
-        for user in (operator, outsider):
+        for user in (administrator, member):
             assert_prepared_denied(user)
         self.connection.execute(
-            "insert into public.app_accounts(user_id,access_role) values (%s,'operator')",
-            (operator,),
+            "delete from public.app_accounts where user_id=%s", (administrator,)
+        )
+        for user in (administrator, outsider):
+            assert_prepared_denied(user)
+        self.connection.execute(
+            "insert into public.app_accounts(user_id,access_role) values (%s,'administrator')",
+            (administrator,),
         )
         self.assertEqual(
-            self.as_user(operator, "execute catalog_scope_security"), [(operator_catalog,)]
+            self.as_user(administrator, "execute catalog_scope_security"),
+            [(administrator_catalog,)],
         )
         self.assertEqual(
             self.connection.execute(
@@ -290,8 +301,8 @@ class SkuFilterOptionsTests(SourceModelFixture):
                         {
                             "sub": user,
                             "role": "authenticated",
-                            "app_metadata": {"access_role": "operator"},
-                            "user_metadata": {"access_role": "operator"},
+                            "app_metadata": {"access_role": "administrator"},
+                            "user_metadata": {"access_role": "administrator"},
                         }
                     ),
                 ),

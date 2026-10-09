@@ -6,7 +6,7 @@ import { openColumn, sortBy } from "./table-actions.mjs";
 
 async function prepare(page, dataset, tab) {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   const rows = Array.from({ length: 30 }, (_, index) => ({
     ...(dataset === "live"
       ? liveRow("CAP", index + 1)

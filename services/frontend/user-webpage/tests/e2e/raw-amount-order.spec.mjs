@@ -12,7 +12,7 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
     page,
   }) => {
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     const rows = Array.from({ length: 30 }, (_, index) => {
       const exactExtremes = {
         0: "-9007199254740993.000000000000000002",

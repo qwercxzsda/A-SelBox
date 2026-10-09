@@ -6,11 +6,11 @@ import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
 
 const SKU = 'SKU (A), "blue" / 50%';
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} opens exact-SKU transactions from inventory and retains both tab states`, async ({
     page,
   }) => {
-    await page.setViewportSize({ width: role === "operator" ? 1440 : 390, height: 1000 });
+    await page.setViewportSize({ width: role === "administrator" ? 1440 : 390, height: 1000 });
     const fixture = await setup(page, role, [item("S1"), item(SKU)], (fixture) => {
       fixture.liveRows = Array.from({ length: 60 }, (_, index) => ({
         ...liveRow("INVENTORY-NAVIGATION", index + 1, COMPANY),
@@ -49,7 +49,7 @@ for (const role of ["operator", "company_member"]) {
       name: `Show transactions for ${SKU}`,
       exact: true,
     });
-    if (role === "operator") await sku.click();
+    if (role === "administrator") await sku.click();
     else {
       await sku.focus();
       await page.keyboard.press("Enter");

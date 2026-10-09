@@ -6,7 +6,11 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 test("fee review remains usable with long SKU identifiers", async ({ page }, testInfo) => {
   const sku = "REPLACEMENT_PART_EXTRA_LARGE_BLACK_WITH_ACCESSORIES_AND_INSTRUCTIONS_2026";
   const incompleteSku = `${sku}_NEEDS_SETUP`;
-  await setup(page, "operator", [item("S1"), item(sku), item(incompleteSku, { company_id: null })]);
+  await setup(page, "administrator", [
+    item("S1"),
+    item(sku),
+    item(incompleteSku, { company_id: null }),
+  ]);
   await page.getByRole("button", { name: `Edit ${sku}`, exact: true }).click();
   await page.setViewportSize({ width: 390, height: 1000 });
   await expect(editor(page).getByRole("button", { name: "Close SKU editor" })).toBeInViewport();
@@ -46,7 +50,7 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
   await expect(editor(page)).toHaveAccessibleName(`Edit ${incompleteSku}`);
 });
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} can page inventory from the desktop toolbar and clear search without losing marketplace`, async ({
     page,
   }, testInfo) => {

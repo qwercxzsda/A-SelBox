@@ -270,7 +270,7 @@ test("Transactions retains zero Data Kiosk rows in pagination and counting", asy
   expect(fixture.requests.at(-1).params.get("and")).toBeNull();
 });
 
-for (const role of ["company_member", "operator"]) {
+for (const role of ["member", "administrator"]) {
   test(`${role} sees company information only where needed for its scope`, async ({ page }) => {
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = role;
@@ -280,31 +280,34 @@ for (const role of ["company_member", "operator"]) {
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     await expect(
       page.getByRole("tablist", { name: "Workspace data", exact: true }).getByRole("tab"),
-    ).toHaveCount(role === "operator" ? 8 : 4);
+    ).toHaveCount(role === "administrator" ? 9 : 4);
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
     for (const sourceTab of ["Settlements", "Data Kiosk", "Financial review"]) {
       await expect(page.getByRole("tab", { name: sourceTab, exact: true })).toHaveCount(
-        role === "operator" ? 1 : 0,
+        role === "administrator" ? 1 : 0,
       );
     }
     const companyName = "Company A";
     const companyColumn = page.getByRole("columnheader", { name: "Company", exact: true });
-    await expect(companyColumn).toHaveCount(role === "operator" ? 1 : 0);
+    await expect(companyColumn).toHaveCount(role === "administrator" ? 1 : 0);
     await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(1);
     const header = page.locator("header");
     await expect(header.getByRole("heading")).toHaveCount(0);
     await expect(header.getByText("A-SelBox", { exact: true })).toBeVisible();
-    const identityLabel = header.getByText(role === "operator" ? "Administrator" : companyName, {
-      exact: true,
-    });
+    const identityLabel = header.getByText(
+      role === "administrator" ? "Administrator" : companyName,
+      {
+        exact: true,
+      },
+    );
     const email = header.getByText("member-a@example.test", { exact: true });
     await expect(identityLabel).toBeVisible();
     await expect(email).toBeVisible();
     const identityBounds = await identityLabel.boundingBox();
     const emailBounds = await email.boundingBox();
     expect(identityBounds.y + identityBounds.height).toBeLessThanOrEqual(emailBounds.y);
-    if (role === "company_member") {
+    if (role === "member") {
       await expect(
         page
           .getByRole("table", { name: "Financial records" })
@@ -316,9 +319,9 @@ for (const role of ["company_member", "operator"]) {
     const details = page.getByRole("dialog", { name: "Selected row details" });
     await expect(details.getByText("ALPHA-001", { exact: true })).toHaveCount(1);
     await expect(details.getByText("Company", { exact: true })).toHaveCount(
-      role === "operator" ? 1 : 0,
+      role === "administrator" ? 1 : 0,
     );
-    if (role === "company_member") {
+    if (role === "member") {
       await expect(details.getByText("Additional details", { exact: true })).toHaveCount(0);
       await expect(details.getByText("company id", { exact: true })).toHaveCount(0);
       await expect(details.getByText("company-member-a", { exact: true })).toHaveCount(0);
@@ -329,7 +332,7 @@ for (const role of ["company_member", "operator"]) {
     }
     await details.getByRole("button", { name: "Close row details", exact: true }).click();
 
-    if (role === "operator") {
+    if (role === "administrator") {
       await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
       await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(0);
     }

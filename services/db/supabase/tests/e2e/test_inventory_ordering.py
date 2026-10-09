@@ -134,12 +134,12 @@ class InventoryOrderingTests(LocalWorkflowCase):
                 if repeat < 4:
                     self.assign(sku, companies[0 if repeat < 3 else 1])
         self.publish_inventory(items)
-        _, operator = self.create_operator()
+        _, administrator = self.create_administrator()
         member_id, first_member = self.create_member(companies[0])
         _, second_member = self.create_member(companies[1])
         _, unprovisioned = self.create_auth_user()
         for token, rows in (
-            (operator, expected),
+            (administrator, expected),
             (first_member, expected[:30]),
             (second_member, expected[30:40]),
             (unprovisioned, []),
@@ -148,10 +148,8 @@ class InventoryOrderingTests(LocalWorkflowCase):
                 for direction in ("asc", "desc"):
                     with self.subTest(row_count=len(rows), column=column, direction=direction):
                         self.assert_pages(token, rows, column, direction)
-        revoked = self.stack.request(
-            "DELETE", "/rest/v1/app_accounts", token=operator, params={"user_id": "eq." + member_id}
-        )
-        self.assertEqual(revoked.status_code, 204)
+        revoked = self.set_membership(administrator, member_id, None)
+        self.assertEqual(revoked.status_code, 200)
         self.assert_pages(first_member, [], "health_status", "desc")
         denied = self.stack.request(
             "GET",

@@ -23,13 +23,15 @@ class InventoryFilterOptionsTests(InventoryFixture):
 
     def test_empty_and_unprovisioned_accounts_receive_empty_arrays(self) -> None:
         company, _ = self.owner()
-        for user in (self.member(company), self.operator(), self.auth_user(), ""):
+        for user in (self.member(company), self.administrator(), self.auth_user(), ""):
             self.assert_empty(user)
         self.capture(self.acquire(), [self.item()])
         self.assert_empty(self.auth_user())
         self.assert_empty("")
 
-    def test_members_see_exact_current_owned_skus_and_operators_include_unregistered(self) -> None:
+    def test_members_see_exact_current_owned_skus_and_administrators_include_unregistered(
+        self,
+    ) -> None:
         first_company, _ = self.owner(" SKU ")
         second_company, _ = self.owner("SKU")
         rows = [
@@ -49,7 +51,7 @@ class InventoryFilterOptionsTests(InventoryFixture):
             {"skus": ["SKU"], "health_statuses": ["Healthy"], "recommendations": ["Hold"]},
         )
         self.assertEqual(
-            self.options(self.operator()),
+            self.options(self.administrator()),
             {
                 "skus": [" SKU ", "SKU", "UNREGISTERED"],
                 "health_statuses": ["Healthy", "Low", "Source-only status"],
@@ -59,7 +61,7 @@ class InventoryFilterOptionsTests(InventoryFixture):
 
     def test_latest_capture_excludes_removed_rows_and_empty_capture_hides_old_options(self) -> None:
         company, _ = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         old = self.acquire(capture_date="2026-09-28", report_created_at="2026-09-28T12:00:00Z")
         self.capture(
             old,
@@ -68,12 +70,12 @@ class InventoryFilterOptionsTests(InventoryFixture):
         self.capture(self.acquire(), [self.item("NEW")])
         self.assert_empty(member)
         self.assertEqual(
-            self.options(operator),
+            self.options(administrator),
             {"skus": ["NEW"], "health_statuses": [None], "recommendations": [None]},
         )
         empty = self.acquire(capture_date="2026-09-30", report_created_at="2026-09-30T12:00:00Z")
         self.capture(empty, [])
-        self.assert_empty(operator)
+        self.assert_empty(administrator)
         self.assert_empty(member)
 
     def test_punctuation_case_and_null_labels_are_lossless_distinct_and_c_sorted(self) -> None:
@@ -87,7 +89,7 @@ class InventoryFilterOptionsTests(InventoryFixture):
         self.capture(self.acquire(seller_namespace="duplicate-source"), rows)
         labels = sorted({value for value in values if value is not None}, key=str.encode)
         self.assertEqual(
-            self.options(self.operator()),
+            self.options(self.administrator()),
             {
                 "skus": sorted(skus, key=str.encode),
                 "health_statuses": [*labels, None],
@@ -103,7 +105,7 @@ class InventoryFilterOptionsTests(InventoryFixture):
         ]
         self.capture(self.acquire(), rows)
         self.assertEqual(
-            self.options(self.operator()),
+            self.options(self.administrator()),
             {"skus": values, "health_statuses": values, "recommendations": values},
         )
 

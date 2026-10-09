@@ -157,10 +157,10 @@ class MarketplaceContractTests(SourceModelFixture):
         self.connection.execute("set constraints all immediate")
 
     def test_text_rpc_filters_keep_supported_labels_and_array_validation(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         query = "select public.transaction_count(p_marketplaces=>%s::text[])"
         for names in (None, [], sorted(MARKETPLACE_NAMES)):
-            self.assertEqual(self.as_user(operator, query, (names,)), [("0",)])
+            self.assertEqual(self.as_user(administrator, query, (names,)), [("0",)])
         for name in MARKETPLACE_NAMES:
             self.assertEqual(validate_marketplace_name(name), name)
         for name in _INVALID_LABELS:
@@ -179,7 +179,7 @@ class MarketplaceContractTests(SourceModelFixture):
             *([name] for name in _INVALID_LABELS),
         ):
             with self.subTest(names=names), self.assertRaises(psycopg.errors.InvalidParameterValue):
-                self.as_user(operator, query, (names,))
+                self.as_user(administrator, query, (names,))
 
     def test_optional_kiosk_fact_marketplaces_keep_publication_validation(self) -> None:
         _, current = self.kiosk(1, [self.component() | {"marketplace_name": "Amazon.ca"}])

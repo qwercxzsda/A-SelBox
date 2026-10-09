@@ -46,6 +46,9 @@ create function private.invalidate_payout_sku_terms(p_sku_ids uuid[])
 returns void language plpgsql security invoker set search_path = '' as $$
 declare affected_months date[]; owner_companies uuid[]; affected_scope record;
 begin
+    -- Bootstrap first assignments and remove abandoned work after the final
+    -- assignment moves away, even if the SKU has never appeared in source rows.
+    perform private.ensure_payout_report_months();
     select coalesce(array_agg(distinct source_month),'{}'::date[]) into affected_months
     from (
         select date_trunc('month',t.posted_date)::date as source_month

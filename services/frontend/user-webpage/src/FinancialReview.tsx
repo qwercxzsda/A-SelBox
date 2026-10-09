@@ -16,7 +16,7 @@ export function FinancialReview({
     () => reviewCategory(null),
     reviewCategory,
   );
-  if (identity.account.access_role !== "operator") return null;
+  if (identity.account.access_role !== "administrator") return null;
   return (
     <Tabs
       value={category}

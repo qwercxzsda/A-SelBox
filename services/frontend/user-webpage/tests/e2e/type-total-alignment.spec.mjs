@@ -44,7 +44,7 @@ function record(type, amount, index, fee = "0") {
   };
 }
 
-async function setRecords(page, rows, user = "member-a", role = "company_member") {
+async function setRecords(page, rows, user = "member-a", role = "member") {
   const fixture = await mockSupabase(page);
   fixture.roles[user] = role;
   fixture.companyIds[user] = companyId;
@@ -117,9 +117,9 @@ async function assertHeaderAmounts(drawer, name, amounts, missing = false) {
 }
 
 for (const [user, role] of [
-  ["operator", "operator"],
-  ["member-a", "company_member"],
-  ["member-b", "company_member"],
+  ["administrator", "administrator"],
+  ["member-a", "member"],
+  ["member-b", "member"],
 ]) {
   for (const width of [1440, 390]) {
     test(`${user} sees every type amount reconcile with totals and records at ${width}px`, async ({

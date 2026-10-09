@@ -34,7 +34,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
         self.assign("UNASSIGNED", None, rate="9")
         self.member_a = self.member(self.company_a)
         self.member_b = self.member(self.company_b)
-        self.admin = self.operator()
+        self.admin = self.administrator()
         self.outsider = self.auth_user()
         self.deleted = self.member(self.company_a)
         self.connection.execute("delete from auth.users where id=%s", (self.deleted,))
@@ -169,8 +169,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
         self.connection.execute("delete from auth.users where id=%s", (self.member_b,))
         self.assert_snapshot(self.execute_prepared(self.member_b), [], (0, 0, 0))
         self.connection.execute(
-            "update public.app_accounts set access_role='company_member',company_id=%s "
-            "where user_id=%s",
+            "update public.app_accounts set access_role='member',company_id=%s where user_id=%s",
             (self.company_b, self.admin),
         )
         self.assert_snapshot(self.execute_prepared(self.admin), both_skus, (2, 4, 2))
@@ -188,8 +187,14 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             (
                 json.dumps(
                     {
-                        "user_metadata": {"access_role": "operator", "company_id": self.company_b},
-                        "app_metadata": {"access_role": "operator", "company_id": self.company_b},
+                        "user_metadata": {
+                            "access_role": "administrator",
+                            "company_id": self.company_b,
+                        },
+                        "app_metadata": {
+                            "access_role": "administrator",
+                            "company_id": self.company_b,
+                        },
                     }
                 ),
             ),
@@ -198,7 +203,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             "create temporary table app_accounts(user_id uuid,access_role text,company_id uuid)"
         )
         self.connection.execute(
-            "insert into app_accounts values (%s,'operator',null)", (self.outsider,)
+            "insert into app_accounts values (%s,'administrator',null)", (self.outsider,)
         )
         self.connection.execute("set local search_path=pg_temp,public,private")
         self.assert_snapshot(self.snapshot(self.member_a), ["REGISTERED", "SHARED"], (2, 4, 2))

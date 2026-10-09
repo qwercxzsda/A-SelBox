@@ -89,7 +89,7 @@ export async function mockSupabase(page) {
     if (ACCOUNT_PATHS.has(url.pathname)) return accounts.respond(context);
     if (
       [
-        "/rest/v1/app_accounts",
+        "/rest/v1/rpc/account_directory",
         "/rest/v1/company_payout_reports",
         "/rest/v1/latest_company_payout_reports",
       ].includes(url.pathname)

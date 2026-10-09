@@ -20,16 +20,16 @@ export function sameAccount(left: AppAccount, right: AppAccount): boolean {
   );
 }
 
-function datasetDependencies(dataset: unknown, operator: boolean): readonly RevisionSource[] {
+function datasetDependencies(dataset: unknown, administrator: boolean): readonly RevisionSource[] {
   switch (dataset) {
     case "payouts":
       return ["payouts"];
     case "live":
       return FINANCIAL_REVISION_SOURCES;
     case "settlement":
-      return operator ? ["settlement"] : ["settlement", "fees"];
+      return administrator ? ["settlement"] : ["settlement", "fees"];
     case "data_kiosk":
-      return operator ? ["data_kiosk"] : ["data_kiosk", "fees"];
+      return administrator ? ["data_kiosk"] : ["data_kiosk", "fees"];
     default:
       return [];
   }
@@ -38,7 +38,7 @@ function datasetDependencies(dataset: unknown, operator: boolean): readonly Revi
 export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   const [family] = key;
   if (family === "dataset" || family === "dataset-count") {
-    return datasetDependencies(key[4], key[2] === "operator");
+    return datasetDependencies(key[4], key[2] === "administrator");
   }
   if (family === "sku-configuration") return FINANCIAL_REVISION_SOURCES;
   if (family === "payout-history") return ["payouts"];

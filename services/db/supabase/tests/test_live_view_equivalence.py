@@ -64,10 +64,10 @@ class LiveViewEquivalenceTests(FinancialFixture):
 
     def test_all_fields_match_for_roles_filters_categories_and_exact_amounts(self) -> None:
         company_a, company_b = self.financial_fixture()
-        member_a, member_b, operator = (
+        member_a, member_b, administrator = (
             self.member(company_a),
             self.member(company_b),
-            self.operator(),
+            self.administrator(),
         )
         scopes: tuple[tuple[LiteralString, tuple[object, ...], tuple[int, int, int]], ...] = (
             ("true", (), (23, 12, 2)),
@@ -91,13 +91,13 @@ class LiveViewEquivalenceTests(FinancialFixture):
         for predicate, parameters, counts in scopes:
             for user, expected_rows in (
                 (None, counts[0]),
-                (operator, counts[0]),
+                (administrator, counts[0]),
                 (member_a, counts[1]),
                 (member_b, counts[2]),
             ):
                 with self.subTest(role="trusted" if user is None else user, predicate=predicate):
                     self.assert_matches_resolver(user, expected_rows, predicate, parameters)
-        for user, count in ((None, 23), (operator, 23), (member_a, 12), (member_b, 2)):
+        for user, count in ((None, 23), (administrator, 23), (member_a, 12), (member_b, 2)):
             with self.subTest(page_role="trusted" if user is None else user):
                 self.assert_matches_resolver(user, count, limit=3)
         self.assert_matches_resolver(self.auth_user(), 0)
@@ -131,7 +131,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
         company_a, sku = self.owner()
         company_b, _ = self.owner("OTHER")
         members = (self.member(company_a), self.member(company_b))
-        operator = self.operator()
+        administrator = self.administrator()
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
         _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
@@ -143,7 +143,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
         )
         _, new_kiosk = self.kiosk(2, [self.component("-20")], expected=old_kiosk)
         revised_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, count in ((None, 3), (operator, 3), (members[0], 0), (members[1], 2)):
+        for user, count in ((None, 3), (administrator, 3), (members[0], 0), (members[1], 2)):
             self.assert_matches_resolver(user, count)
         self.assertEqual(
             {
@@ -172,7 +172,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             Decimal(85),
         )
         self.assign("SKU", None, rate="7", expected=revised_terms)
-        for user, count in ((None, 3), (operator, 3), (members[0], 0), (members[1], 0)):
+        for user, count in ((None, 3), (administrator, 3), (members[0], 0), (members[1], 0)):
             self.assert_matches_resolver(user, count)
         self.connection.execute("set constraints all immediate")
 

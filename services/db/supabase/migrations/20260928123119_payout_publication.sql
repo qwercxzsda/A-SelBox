@@ -62,6 +62,13 @@ begin
     if report_input.end_date <> private.payout_month_end(report_input.start_date) then
         raise exception 'A payout report must cover exactly one complete calendar month' using errcode = '22023';
     end if;
+    -- Match the worker's input lock before all company/source locks. Current SKU
+    -- ownership cannot disappear between eligibility and the captured manifest.
+    perform pg_advisory_xact_lock(hashtextextended('company_payout_inputs',0));
+    if not private.payout_company_eligible(report_input.company_id) then
+        raise exception 'Payout reports require at least one currently assigned SKU'
+        using errcode = '23514';
+    end if;
     -- All entry points lock company/month before ordered seller/month locks.
     -- This also serializes an empty scope that has no seller to lock.
     perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(

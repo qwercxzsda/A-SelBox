@@ -36,7 +36,7 @@ export function DetailSection({
         <Title order={4} className="detail-section-title">
           {collapsible ? (
             <UnstyledButton
-              className="detail-section-toggle"
+              className="detail-section-toggle ui-text-action"
               aria-expanded={opened}
               aria-controls={contentId}
               onClick={() => {

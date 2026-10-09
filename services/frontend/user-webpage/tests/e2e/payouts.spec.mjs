@@ -5,7 +5,7 @@ import { applyReportMonth, selectColumnOptions } from "./table-actions.mjs";
 const company = "0198b50b-701a-7000-8000-000000000001";
 const report = "0198b50b-701a-7000-8000-000000000002";
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} browses automatically generated reports without generation controls`, async ({
     page,
   }, testInfo) => {
@@ -29,7 +29,7 @@ for (const role of ["operator", "company_member"]) {
     ];
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-    if (role === "operator") await selectColumnOptions(page, "Company", ["Monthly Company"]);
+    if (role === "administrator") await selectColumnOptions(page, "Company", ["Monthly Company"]);
     await expect(page.getByLabel("Report company")).toHaveCount(0);
     await applyReportMonth(page, "2026-07");
     await expect(page.getByText("This month is not mature yet.", { exact: false })).toBeVisible();
@@ -205,7 +205,7 @@ test("administrator payout drawers contain only their payout amounts and records
   page,
 }, testInfo) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.payoutRows = [
     {
       id: report,

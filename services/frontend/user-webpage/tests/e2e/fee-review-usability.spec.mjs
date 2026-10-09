@@ -45,7 +45,7 @@ test("desktop fee review makes changed rates, removed periods, and company reass
       index === 11 ? null : `2026-${String(index + 2).padStart(2, "0")}-01`,
     ),
   );
-  const fixture = await setup(page, "operator", [item("S1", { periods })]);
+  const fixture = await setup(page, "administrator", [item("S1", { periods })]);
   await openEditor(page);
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6.123456");
   await editor(page).getByLabel("Company", { exact: true }).selectOption(OTHER_COMPANY);
@@ -97,7 +97,7 @@ test("a blocked review explains the disabled save and jumps directly to required
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await setup(page, "operator", [item("S1"), item("S2", { company_id: null })]);
+  await setup(page, "administrator", [item("S1"), item("S2", { company_id: null })]);
   await openEditor(page);
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6");
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();

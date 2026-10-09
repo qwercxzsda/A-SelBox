@@ -1,17 +1,8 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { DateFilter, SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
 import { MonthFilter } from "./MonthFilter";
 import { TransactionTypeFilter } from "./TransactionTypeFilter";
-import {
-  Button,
-  CloseButton,
-  Divider,
-  Group,
-  Popover,
-  Stack,
-  Text,
-  UnstyledButton,
-} from "@mantine/core";
+import { Button, CloseButton, Group, Popover, Stack, Text, UnstyledButton } from "@mantine/core";
 import "./ColumnMenu.css";
 
 export interface ColumnMenuSort {
@@ -28,20 +19,32 @@ interface ColumnMenuProps {
   sort?: ColumnMenuSort;
 }
 
+function activeColumnFilterCount(filter?: ColumnMenuFilter): number {
+  switch (filter?.kind) {
+    case "selection":
+      return filter.value.length;
+    case "date":
+      return Number(Boolean(filter.from || filter.to));
+    case "month":
+      return Number(Boolean(filter.value));
+    default:
+      return 0;
+  }
+}
+
 export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
   const [opened, setOpened] = useState(false);
   const titleId = useId();
   const disabledSortId = useId();
-  const filterCount =
-    filter?.kind === "selection"
-      ? filter.value.length
-      : (filter?.kind === "date" && (filter.from || filter.to)) ||
-          (filter?.kind === "month" && filter.value)
-        ? 1
-        : 0;
+  const dropdown = useRef<HTMLDivElement>(null);
+  const filterCount = activeColumnFilterCount(filter);
 
   function close() {
     setOpened(false);
+  }
+
+  function resetScroll() {
+    if (dropdown.current) dropdown.current.scrollTop = 0;
   }
 
   return (
@@ -54,6 +57,8 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
           : "min(340px, calc(100vw - 24px))"
       }
       position="bottom-start"
+      floatingStrategy="fixed"
+      preventPositionChangeWhenVisible={false}
       // Keep controls reachable when resizing or scrolling moves the column off-screen.
       middlewares={{ shift: { crossAxis: true, limiter: undefined, padding: 12 } }}
       shadow="md"
@@ -64,7 +69,7 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
     >
       <Popover.Target>
         <UnstyledButton
-          className="column-menu-trigger"
+          className="column-menu-trigger ui-surface-action"
           aria-label={label}
           data-filtered={filterCount > 0 || undefined}
           onClick={() => {
@@ -85,9 +90,9 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
           </span>
         </UnstyledButton>
       </Popover.Target>
-      <Popover.Dropdown className="column-menu-dropdown" aria-labelledby={titleId}>
-        <Stack gap="sm">
-          <Group justify="space-between" wrap="nowrap">
+      <Popover.Dropdown ref={dropdown} className="column-menu-dropdown" aria-labelledby={titleId}>
+        <Stack gap="sm" p="md">
+          <Group className="column-menu-heading" justify="space-between" wrap="nowrap">
             <Text fw={600} size="sm" id={titleId}>
               {label} options
             </Text>
@@ -101,14 +106,17 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
           ) : null}
           {opened && filter?.kind === "selection" ? (
             filter.groupBy === "transaction-type" ? (
-              <TransactionTypeFilter filter={filter} onClose={close} />
+              <TransactionTypeFilter filter={filter} onClose={close} onResetScroll={resetScroll} />
             ) : (
-              <SelectionFilter label={label} filter={filter} />
+              <SelectionFilter label={label} filter={filter} onResetScroll={resetScroll} />
             )
           ) : null}
-          {filter && sort ? <Divider /> : null}
           {sort ? (
-            <Stack gap={4}>
+            <Stack
+              className="column-menu-footer"
+              data-separated={Boolean(filter) || undefined}
+              gap={4}
+            >
               {(["desc", "asc"] as const).map((direction, index) => (
                 <Button
                   key={direction}

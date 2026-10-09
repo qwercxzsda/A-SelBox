@@ -19,12 +19,14 @@ export function CurrentFees({
   viewState,
   onViewStateChange,
   onShowTransactions,
+  onAddCompany,
 }: {
   identity: Identity;
   controller: ReturnType<typeof useSkuConfiguration>;
   onShowTransactions: (sku: string) => void;
+  onAddCompany: () => void;
 } & ViewStateProps<FeeViewState>) {
-  const administrator = identity.account.access_role === "operator";
+  const administrator = identity.account.access_role === "administrator";
   const { drafts, editing, reviewing } = viewState;
   const setEditing = (editing: FeeViewState["editing"]) => {
     onViewStateChange((current) => ({ ...current, editing }));
@@ -43,7 +45,10 @@ export function CurrentFees({
     items: effectiveItems,
     issues,
     issuesBySku,
-  } = useMemo(() => resolveSkuConfiguration(savedItems, drafts), [savedItems, drafts]);
+  } = useMemo(
+    () => resolveSkuConfiguration(savedItems, drafts, new Set(companies.keys())),
+    [savedItems, drafts, companies],
+  );
   const incompleteSkus = new Set(issuesBySku.keys());
   function editSku(sku: string) {
     const saved = savedItems.find((item) => item.sku === sku) ?? newSkuItem(sku);
@@ -79,20 +84,25 @@ export function CurrentFees({
         description={DATASET_PRESENTATION.fees.description}
         actions={
           administrator ? (
-            <Button
-              variant="light"
-              disabled={!configuration.data || configuration.isError || isSaving}
-              onClick={() => {
-                setEditing({
-                  sku: "",
-                  isNew: true,
-                  form: createSkuDraft(newSkuItem("")),
-                  submitError: null,
-                });
-              }}
-            >
-              Add SKU
-            </Button>
+            <Group gap="xs" align="flex-start">
+              <Button variant="light" onClick={onAddCompany}>
+                Add company
+              </Button>
+              <Button
+                variant="light"
+                disabled={!configuration.data || configuration.isError || isSaving}
+                onClick={() => {
+                  setEditing({
+                    sku: "",
+                    isNew: true,
+                    form: createSkuDraft(newSkuItem("")),
+                    submitError: null,
+                  });
+                }}
+              >
+                Add SKU
+              </Button>
+            </Group>
           ) : null
         }
       />
@@ -215,6 +225,7 @@ export function CurrentFees({
             setEditing(null);
           }}
           onStage={stage}
+          onAddCompany={onAddCompany}
         />
       ) : null}
       {administrator && configuration.data && reviewing ? (

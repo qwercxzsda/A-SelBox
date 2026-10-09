@@ -74,7 +74,7 @@ def _publish(
 def _verify_writes(
     stack: LocalSupabaseStack,
     connection: Connection,
-    operator: str,
+    administrator: str,
     members: dict[str, str],
     items: list[dict[str, Any]],
 ) -> dict[str, object]:
@@ -88,14 +88,14 @@ def _verify_writes(
     incomplete = _change(other)
     incomplete["company_id"] = None
     before = _state(connection)
-    error = _publish(stack, operator, [change, incomplete], 400)
+    error = _publish(stack, administrator, [change, incomplete], 400)
     require(error.get("message") == "SKU configuration is incomplete", "Missing global rejection")
     require(_state(connection) == before, "Rejected batch changed immutable terms or revisions")
     _publish(stack, next(iter(members.values())), [change], 403)
     require(_state(connection) == before, "Member publication changed configuration")
-    saved = _publish(stack, operator, [change], 200)
+    saved = _publish(stack, administrator, [change], 200)
     require(saved["changed_count"] == 1, "Complete real-seed publication did not save once")
-    current = _configuration(stack, operator)
+    current = _configuration(stack, administrator)
     updated = next(item for item in current if item["sku"] == selected["sku"])
     require(updated["company_id"] == destination, "SKU reassignment did not publish")
     require(updated["periods"] == change["periods"], "Fee publication changed exact input values")
@@ -105,11 +105,11 @@ def _verify_writes(
         expected = {item["sku"] for item in current if item["company_id"] == company}
         require(visible == expected, "Member scope did not follow the reassignment")
     after = _state(connection)
-    conflict = _publish(stack, operator, [change], 409)
+    conflict = _publish(stack, administrator, [change], 409)
     require(conflict.get("code") == "PT409", "Stale save did not reject the expected version")
     missing_fees = _change(updated)
     missing_fees["periods"] = []
-    _publish(stack, operator, [missing_fees], 400)
+    _publish(stack, administrator, [missing_fees], 400)
     require(_state(connection) == after, "Rejected fee/stale save changed saved state")
     return {
         "atomic_global_rejection": True,
@@ -147,7 +147,7 @@ def verify(seed: Path) -> dict[str, object]:
         ):
             fixture = LocalWorkflowCase()
             fixture.stack, fixture.database = stack, database
-            operator_id, operator = fixture.create_operator()
+            administrator_id, administrator = fixture.create_administrator()
             companies = [
                 str(row[0]) for row in connection.execute("select id from public.companies")
             ]
@@ -157,7 +157,7 @@ def verify(seed: Path) -> dict[str, object]:
             members = {company: fixture.create_member(company)[1] for company in companies}
             versions = source_versions(connection)
             fingerprints = source_fingerprints(connection, versions)
-            items = _configuration(stack, operator)
+            items = _configuration(stack, administrator)
             require(bool(items), "The real seed has no configured SKUs")
             require(
                 not any(item["issues"] for item in items), "Real seed has incomplete configuration"
@@ -186,7 +186,7 @@ def verify(seed: Path) -> dict[str, object]:
                     visible == expected, "Member read differs from its exact saved configuration"
                 )
                 member_counts.append(len(visible))
-            cutoff, authority = verify_authority(connection, operator_id)
+            cutoff, authority = verify_authority(connection, administrator_id)
             reconciliation = verify_live_reconciliation(connection, cutoff)
             settlement_count, kiosk_count = require_row(
                 connection.execute(
@@ -198,7 +198,7 @@ def verify(seed: Path) -> dict[str, object]:
                 "settlement_transactions": int(settlement_count),
                 "data_kiosk_transactions": int(kiosk_count),
             }
-            publication = _verify_writes(stack, connection, operator, members, items)
+            publication = _verify_writes(stack, connection, administrator, members, items)
             require(
                 source_fingerprints(connection, versions) == fingerprints, "Source facts changed"
             )

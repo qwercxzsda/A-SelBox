@@ -12,7 +12,7 @@ for (const width of [1440, 1920]) {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     fixture.payoutRows = [
       {
         id: reportId,

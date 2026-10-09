@@ -142,14 +142,15 @@ begin
     end if;
     -- The mature cutoff date moves even when no source is imported. Include it
     -- in opaque source tokens so existing clients invalidate cached money/counts.
-    select coalesce(jsonb_object_agg(s.source, coalesce(r.revision::text, '0')
+    select coalesce(jsonb_object_agg(s.source,
+        case when account.access_role = 'unassigned' then '0' else coalesce(r.revision::text, '0')
         || case when s.source in ('settlement', 'data_kiosk')
-            then ':' || private.mature_cutoff_date()::text else '' end), '{}'::jsonb)
+            then ':' || private.mature_cutoff_date()::text else '' end end), '{}'::jsonb)
     into revisions
     from (select distinct source from unnest(p_sources) as requested(source)) as s
     left join private.workspace_revision_tokens as r on r.source = s.source
         and r.scope_company_id = case
-            when s.source in ('fees','payouts') and account.access_role = 'company_member'
+            when s.source in ('fees','payouts') and account.access_role = 'member'
                 then account.company_id::uuid
             else '00000000-0000-0000-0000-000000000000'::uuid end;
     return jsonb_build_object(

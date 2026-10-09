@@ -14,7 +14,7 @@ for (const [dataset, tab] of [
     page,
   }) => {
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     const records = Array.from({ length: 30 }, (_, index) => {
       const id = index + 1;
       const source = dataset === "live" && id % 2 === 0 ? "DATA_KIOSK" : "SETTLEMENT";

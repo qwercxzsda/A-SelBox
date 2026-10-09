@@ -14,7 +14,7 @@ class TransactionPageTests(TransactionPageFixture):
     def test_all_roles_preserve_exact_rows_null_states_and_visibility(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, count in (
-            (self.operator(), "20"),
+            (self.administrator(), "20"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
@@ -22,7 +22,7 @@ class TransactionPageTests(TransactionPageFixture):
             with self.subTest(user=user):
                 page = self.assert_matches_view(user, p_include_count=True)
                 self.assertEqual(page["total_count"], count)
-        rows = cast(list[dict[str, object]], self.page(self.operator())["rows"])
+        rows = cast(list[dict[str, object]], self.page(self.administrator())["rows"])
         self.assertEqual(
             {row["resolution_status"] for row in rows},
             {"APPLIED", "NOT_APPLICABLE", "MISSING_FEE", "MISSING_OWNERSHIP"},
@@ -55,7 +55,7 @@ class TransactionPageTests(TransactionPageFixture):
             "p_sources": ["DATA_KIOSK"],
             "p_types": ["FbaStorageFee"],
         }
-        users = (self.operator(), self.member(company_a))
+        users = (self.administrator(), self.member(company_a))
         for size in range(len(filters) + 1):
             for names in combinations(filters, size):
                 options = {name: filters[name] for name in names}
@@ -67,7 +67,7 @@ class TransactionPageTests(TransactionPageFixture):
         company_a, company_b = self.financial_fixture()
         member = self.member(company_a)
         empty_selections: tuple[object, ...] = (None, [])
-        for user in (self.operator(), member):
+        for user in (self.administrator(), member):
             for empty in empty_selections:
                 with self.subTest(user=user, empty=empty):
                     options = dict.fromkeys(TRANSACTION_ARRAY_FILTERS, empty)
@@ -90,7 +90,7 @@ class TransactionPageTests(TransactionPageFixture):
     def test_date_and_amount_directions_offsets_and_count_modes(self) -> None:
         company, _ = self.financial_fixture()
         for user, ordering, direction, offset, include_count in product(
-            (self.operator(), self.member(company)),
+            (self.administrator(), self.member(company)),
             ("date", "amount"),
             ("asc", "desc"),
             (0, 3, 19, 9007199254740991),
@@ -146,7 +146,7 @@ class TransactionPageTests(TransactionPageFixture):
             {"p_skus": ["OTHER"], "p_sources": ["DATA_KIOSK"]},
         )
         for user, ordering, filters, include_count in product(
-            (self.operator(), self.member(company_a), self.member(company_b)),
+            (self.administrator(), self.member(company_a), self.member(company_b)),
             ("date", "amount"),
             selections,
             (False, True),
@@ -169,7 +169,7 @@ class TransactionPageTests(TransactionPageFixture):
         _, previous = self.kiosk(1, [self.component("999"), self.component("-999")])
         historical = previous
         users = (
-            (self.operator(), "1"),
+            (self.administrator(), "1"),
             (self.member(company), "1"),
             (self.member(other_company), "0"),
             (self.auth_user(), "0"),
@@ -233,7 +233,7 @@ class TransactionPageTests(TransactionPageFixture):
     def test_fee_applicability_filters_partition_every_role_before_paging(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user in (
-            self.operator(),
+            self.administrator(),
             self.member(company_a),
             self.member(company_b),
             self.auth_user(),
@@ -287,9 +287,9 @@ class TransactionPageTests(TransactionPageFixture):
             ],
             activity_date=self.recent_activity_date(),
         )
-        operator = self.operator()
+        administrator = self.administrator()
         for user, applicable_count, other_count in (
-            (operator, "8", "3"),
+            (administrator, "8", "3"),
             (self.member(company), "6", "3"),
         ):
             applicable = self.assert_matches_view(user, p_fee_applicable=True)
@@ -297,7 +297,7 @@ class TransactionPageTests(TransactionPageFixture):
             self.assertEqual(applicable["total_count"], applicable_count)
             self.assertEqual(other["total_count"], other_count)
         applicable_rows = cast(
-            list[dict[str, object]], self.page(operator, p_fee_applicable=True)["rows"]
+            list[dict[str, object]], self.page(administrator, p_fee_applicable=True)["rows"]
         )
         self.assertEqual(
             {row["resolution_status"] for row in applicable_rows},
@@ -329,7 +329,7 @@ class TransactionPageTests(TransactionPageFixture):
         # Filtering uses TYPE; returned financial values still use source fields.
         applicable_ids = {row["id"] for row in [*settlement_rows[1:], kiosk_rows[1]]}
         all_ids = {row["id"] for row in [*settlement_rows, *kiosk_rows]}
-        for user in (self.operator(), self.member(company), self.auth_user()):
+        for user in (self.administrator(), self.member(company), self.auth_user()):
             for direction in ("asc", "desc"):
                 unfiltered = self.assert_matches_view(user, p_direction=direction, p_limit=1000)
                 visible = cast(list[dict[str, object]], unfiltered["rows"])
@@ -394,26 +394,26 @@ class TransactionPageTests(TransactionPageFixture):
     def test_current_reprocessing_and_ownership_changes_are_immediately_reflected(self) -> None:
         company_a, sku = self.owner()
         company_b, _ = self.owner("OTHER")
-        member_a, member_b, operator = (
+        member_a, member_b, administrator = (
             self.member(company_a),
             self.member(company_b),
-            self.operator(),
+            self.administrator(),
         )
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
         _, settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
-        for user in (operator, member_a, member_b):
+        for user in (administrator, member_a, member_b):
             self.assert_matches_view(user)
         self.settlement([self.transaction("200")], acquisition_id=acquisition, expected=settlement)
         self.kiosk(2, [self.component("-20")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, count in ((operator, "3"), (member_a, "0"), (member_b, "2")):
+        for user, count in ((administrator, "3"), (member_a, "0"), (member_b, "2")):
             for include_count in (False, True):
                 page = self.assert_matches_view(user, p_limit=1, p_include_count=include_count)
                 self.assertEqual(page["total_count"], count if include_count else None)
         unassigned = self.assign("SKU", None, rate="7", expected=new_terms)
-        for user, count in ((operator, "3"), (member_a, "0"), (member_b, "0")):
+        for user, count in ((administrator, "3"), (member_a, "0"), (member_b, "0")):
             for include_count in (False, True):
                 page = self.assert_matches_view(user, p_limit=1, p_include_count=include_count)
                 self.assertEqual(page["total_count"], count if include_count else None)

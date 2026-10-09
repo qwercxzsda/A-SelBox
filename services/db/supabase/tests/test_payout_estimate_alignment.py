@@ -64,7 +64,9 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.assertEqual(live, {key: tuple(value) for key, value in frozen.items()})
         self.assertEqual(page["total_count"], str(len(frozen)))
 
-    def test_all_namespaces_currencies_types_and_rows_match_for_company_and_operator(self) -> None:
+    def test_all_namespaces_currencies_types_and_rows_match_for_company_and_administrator(
+        self,
+    ) -> None:
         inputs = prepare_payout(self)
         self.seller = "seller-two"
         prepare_payout(self, inputs.company)
@@ -92,9 +94,9 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
                 ("USD", Decimal(180), Decimal(-10), Decimal(170)),
             ],
         )
-        member, operator = self.member(inputs.company), self.operator()
+        member, administrator = self.member(inputs.company), self.administrator()
         for report, currency, *_ in headers:
-            for user in (member, operator):
+            for user in (member, administrator):
                 self.assert_same_basis(inputs.company, user, report, currency)
         self.assertEqual(
             self.connection.execute(

@@ -16,7 +16,7 @@ export async function respondWithOptions(fixture, { request, url, user, reply, t
   };
   fixture.optionRequests.push(entry);
   track(request, entry);
-  if (fixture.roles[user] !== "operator")
+  if (fixture.roles[user] !== "administrator")
     return reply({ code: "42501", message: "Administrator access required" }, 403);
   await fixture.beforeOptions(entry);
   if (fixture.optionStatus !== 200)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
-import { ApiError, signIn, signOut, type Session } from "./api";
+import { ApiError, fetchSessionUser, signIn, signUp, signOut, type Session } from "./api";
 import {
   browserSessionStore,
   isTemporaryAuthError,
@@ -14,6 +14,7 @@ import { sessionRefreshDelayMs } from "./session";
 import { getErrorMessage } from "./view-model";
 import { sameAccount } from "./workspace-revisions";
 import { clearBrowserWorkspace } from "./workspace-browser-storage";
+import { takeEmailConfirmation } from "./email-confirmation";
 
 type SessionTask = (save: (session: Session) => Session) => Promise<Identity | null>;
 
@@ -21,6 +22,8 @@ export function useAuth() {
   const [store] = useState(browserSessionStore);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [authStatus, setAuthStatus] = useState<string | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const latestIdentity = useRef<Identity | null>(null);
   const identityLoad = useRef(0);
@@ -28,7 +31,7 @@ export function useAuth() {
     latestIdentity.current = next;
     setIdentity(next);
   }, []);
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
   const [restoreError, setRestoreError] = useState<string | null>(null);
@@ -36,6 +39,7 @@ export function useAuth() {
   const operation = useRef(0);
   const mounted = useRef(false);
   const pendingAuth = useRef<Promise<void> | null>(null);
+  const pendingConfirmation = useRef<ReturnType<typeof takeEmailConfirmation>>(null);
   const session = identity?.session;
 
   // StrictMode may replay effects. Share one task so a refresh token is exchanged only once.
@@ -61,6 +65,7 @@ export function useAuth() {
           if (isTemporaryAuthError(error)) {
             setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
           } else {
+            pendingConfirmation.current = null;
             store.clear();
             clearBrowserWorkspace();
             setRestoreError(null);
@@ -80,6 +85,16 @@ export function useAuth() {
   const restoreSavedSession = useCallback(
     () =>
       runSessionTask(async (save) => {
+        const confirmation = pendingConfirmation.current ?? takeEmailConfirmation();
+        if (confirmation) {
+          pendingConfirmation.current = confirmation;
+          clearBrowserWorkspace();
+          store.clear();
+          const user = await fetchSessionUser(confirmation.access_token);
+          const saved = save({ ...confirmation, user });
+          pendingConfirmation.current = null;
+          return loadIdentity(saved);
+        }
         const saved = store.read();
         if (!saved) clearBrowserWorkspace();
         return saved ? restoreIdentity(saved, save) : null;
@@ -116,6 +131,7 @@ export function useAuth() {
   function discardStoredSession() {
     ++operation.current;
     pendingAuth.current = null;
+    pendingConfirmation.current = null;
     store.clear();
     clearBrowserWorkspace();
     updateIdentity(null);
@@ -123,25 +139,50 @@ export function useAuth() {
     setIsRestoring(false);
     setRestoreError(null);
     setAuthError(null);
+    setAuthStatus(null);
+    setAuthMode("sign-in");
   }
 
-  async function handleSignIn(event: SubmitEvent<HTMLFormElement>) {
+  function changeAuthMode(mode: "sign-in" | "sign-up") {
+    if (isSubmitting) return;
+    setAuthMode(mode);
+    setPassword("");
+    setAuthError(null);
+    setAuthStatus(null);
+  }
+
+  async function handleAuthenticate(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSigningIn || isSigningOut || isRestoring) return;
+    if (isSubmitting || isSigningOut || isRestoring) return;
     const generation = ++operation.current;
     const current = () => mounted.current && generation === operation.current;
-    setIsSigningIn(true);
+    setIsSubmitting(true);
     setAuthError(null);
+    setAuthStatus(null);
     setRestoreError(null);
     updateIdentity(null);
     store.clear();
     clearBrowserWorkspace();
     let saved: Session | null = null;
     try {
-      const received = await signIn(email.trim(), password);
+      const received =
+        authMode === "sign-up"
+          ? await signUp(
+              email.trim(),
+              password,
+              `${window.location.origin}${window.location.pathname}`,
+            )
+          : await signIn(email.trim(), password);
       if (!current()) return;
-      saved = store.write(received);
       setPassword("");
+      if (!received) {
+        setAuthMode("sign-in");
+        setAuthStatus(
+          "If this address needs confirmation, you’ll receive an email with a confirmation link. Open it to continue, or sign in below if your email is already confirmed.",
+        );
+        return;
+      }
+      saved = store.write(received);
       const next = await loadIdentity(saved);
       if (current()) updateIdentity(next);
     } catch (error) {
@@ -150,10 +191,16 @@ export function useAuth() {
         setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
       } else {
         store.clear();
-        setAuthError(getErrorMessage(error));
+        setAuthError(
+          authMode === "sign-up" &&
+            error instanceof ApiError &&
+            [400, 422].includes(error.status ?? 0)
+            ? "Could not create an account with these details. Try signing in if you already have an account."
+            : getErrorMessage(error),
+        );
       }
     } finally {
-      if (current()) setIsSigningIn(false);
+      if (current()) setIsSubmitting(false);
     }
   }
 
@@ -208,13 +255,16 @@ export function useAuth() {
     setEmail,
     password,
     setPassword,
+    authMode,
+    changeAuthMode,
+    authStatus,
     identity,
-    isSigningIn,
+    isSubmitting,
     isSigningOut,
     isRestoring,
     restoreError,
     authError,
-    handleSignIn,
+    handleAuthenticate,
     handleSignOut,
     refreshIdentity,
     retryRestore,

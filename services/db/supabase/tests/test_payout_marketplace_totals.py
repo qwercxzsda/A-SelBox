@@ -49,8 +49,8 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         report = publish_payout(self, inputs)
         other_report = publish_payout(self, inputs, company_id=other_company)
-        operator, member, other_member = (
-            self.operator(),
+        administrator, member, other_member = (
+            self.administrator(),
             self.member(inputs.company),
             self.member(other_company),
         )
@@ -72,7 +72,7 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         self.assertEqual(self.marketplace_totals(other_member), other_expected)
         self.assertEqual(self.marketplace_totals(member, other_report), [])
         self.assertEqual(self.marketplace_totals(other_member, report), [])
-        self.assertCountEqual(self.marketplace_totals(operator), expected + other_expected)
+        self.assertCountEqual(self.marketplace_totals(administrator), expected + other_expected)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) filter(where authoritative),"
@@ -113,13 +113,13 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
             [self.component("-10"), self.component("-7.25") | {"currency": "EUR"}],
             expected=inputs.kiosk_version,
         )
-        operator = self.operator()
+        administrator = self.administrator()
         reports = generate_payout_reports(self, inputs.company)
         self.assertEqual(len(reports), 2)
         self.assertTrue(all(created for _, created in reports))
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select r.currency,m.marketplace_name,m.source_amount,"
                 "m.fee_amount,m.company_amount "
                 "from public.company_payout_reports r "

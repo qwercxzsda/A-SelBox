@@ -31,7 +31,7 @@ begin
     end if;
     perform private.validate_page_bounds(p_limit, p_offset);
     -- The unchanged fact RLS already requires current versions for members.
-    -- Operators, owners, and bypass contexts still use the explicit pointer check.
+    -- Administrators, owners, and bypass contexts still use the explicit pointer check.
     settlement_policy_is_sufficient := private.member_policy_covers_current_version(
         'private.settlement_transactions'::regclass
     );

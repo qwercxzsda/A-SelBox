@@ -10,7 +10,7 @@ for (const width of [1440, 1920, 834, 390]) {
   }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     fixture.liveRows = Array.from({ length: 40 }, (_, index) => ({
       ...liveRow("DESKTOP", index),
       activity_date: "2026-07-31",
@@ -54,7 +54,14 @@ for (const width of [1440, 1920, 834, 390]) {
     await pagination.getByRole("button", { name: "Next", exact: true }).click();
     await expect(pagination.getByRole("textbox", { name: "Page number" })).toHaveValue("2");
 
-    for (const name of ["Settlements", "Data Kiosk", "Current fees", "User access", "Inventory"]) {
+    for (const name of [
+      "Settlements",
+      "Data Kiosk",
+      "Current fees",
+      "User access",
+      "Companies",
+      "Inventory",
+    ]) {
       await page.getByRole("tab", { name, exact: true }).click();
       await expect(summaries).toHaveCount(0);
       await page.evaluate(() => globalThis.scrollTo(0, 0));
@@ -65,7 +72,7 @@ for (const width of [1440, 1920, 834, 390]) {
         ),
       ).toBe(false);
       if (name === "User access") {
-        await expect(page.getByRole("searchbox", { name: "Search", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("searchbox", { name: "Search", exact: true })).toBeVisible();
       }
     }
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();

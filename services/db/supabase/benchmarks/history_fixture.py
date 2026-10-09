@@ -326,7 +326,7 @@ def _stats(connection: Connection) -> dict[str, object]:
 
 
 def _protected_data(connection: Connection) -> str:
-    """Hash original payout payloads and account/company membership without exporting them."""
+    """Hash original payout payloads and account/membership without exporting them."""
     rows: list[object] = []
     for relation in (*PAYOUT_TABLES, "public.app_accounts", "public.companies"):
         result = connection.execute(

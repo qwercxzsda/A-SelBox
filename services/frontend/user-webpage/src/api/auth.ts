@@ -53,6 +53,25 @@ export function createAuthApi({
       return requestSession("password", { email, password }, "Sign in");
     },
 
+    async signUp(email: string, password: string, redirectTo?: string): Promise<Session | null> {
+      const operation = "Create account";
+      const query = redirectTo ? `?${new URLSearchParams({ redirect_to: redirectTo })}` : "";
+      const value = await requestJson(
+        `/auth/v1/signup${query}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: publishableKey },
+          body: JSON.stringify({ email, password }),
+        },
+        operation,
+      );
+      // Auth returns tokens when confirmation is disabled, otherwise a User object.
+      if (isJsonObject(value) && "access_token" in value) return parseSession(value, operation);
+      if (!isJsonObject(value)) throw new Error(`${operation} returned an invalid user`);
+      requiredJsonString(value, "id");
+      return null;
+    },
+
     refreshSession(refreshToken: string): Promise<Session> {
       if (refreshToken.trim().length === 0) throw new Error("A refresh token is required");
       return requestSession("refresh_token", { refresh_token: refreshToken }, "Session refresh");
@@ -70,12 +89,14 @@ export function createAuthApi({
     },
 
     async signOut(accessToken: string): Promise<void> {
-      const response = await request(
+      await request(
         "/auth/v1/logout?scope=local",
         { method: "POST", headers: authenticatedHeaders(accessToken) },
         "Sign out",
+        (response) => {
+          if (!response.ok) throw new ApiError("Sign out", response.status);
+        },
       );
-      if (!response.ok) throw new ApiError("Sign out", response.status);
     },
   };
 }

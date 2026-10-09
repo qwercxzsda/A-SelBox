@@ -249,7 +249,7 @@ export function PayoutReports({
         stackId={fixedMonth && reviewMode ? "financial-review-snapshot" : undefined}
         onExitTransitionEnd={fixedMonth ? restoreSelectionFocus : undefined}
         accessToken={identity.session.access_token}
-        isAdministrator={identity.account.access_role === "operator"}
+        isAdministrator={identity.account.access_role === "administrator"}
         companies={companies}
         dataset="payouts"
         row={selected}

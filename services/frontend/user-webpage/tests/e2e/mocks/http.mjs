@@ -35,6 +35,12 @@ export function contentRange(length, total, offset = 0, includeCount = true) {
 
 export function trackRequests(page) {
   const entries = new WeakMap();
+  // Header-only/error reads can deliberately cancel an unused response body.
+  // Record the HTTP result independently from completion of its full transfer.
+  page.on("response", (response) => {
+    const entry = entries.get(response.request());
+    if (entry) entry.responseStatus = response.status();
+  });
   page.on("requestfinished", (request) => {
     const entry = entries.get(request);
     if (entry) entry.completed = true;

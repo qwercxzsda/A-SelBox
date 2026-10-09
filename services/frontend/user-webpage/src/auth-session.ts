@@ -18,7 +18,7 @@ import { sessionRefreshDelayMs } from "./session";
 import { createSessionStore, sessionStorageKey } from "./session-storage";
 import { REVISION_SOURCES } from "./workspace-revisions";
 import { normalizeSelections } from "./dataset-filters";
-import { reusableAdminSkuOptions } from "./identity-catalog";
+import { reusableAdministratorSkuOptions } from "./identity-catalog";
 
 export interface Identity {
   session: Session;
@@ -64,7 +64,10 @@ export async function loadIdentity(
     userId: session.user.id,
     sources: REVISION_SOURCES,
   });
-  const reusableCatalog = reusableAdminSkuOptions(
+  if (account.access_role === "unassigned") {
+    return { session, account, revisions, companies: [], assignments: [], skuOptions: [] };
+  }
+  const reusableCatalog = reusableAdministratorSkuOptions(
     previous,
     session,
     { account, revisions },
@@ -73,7 +76,7 @@ export async function loadIdentity(
   const [companies, assignments, catalog] = await Promise.all([
     fetchCompanies(session.access_token),
     fetchSkuAssignments(session.access_token),
-    account.access_role === "operator"
+    account.access_role === "administrator"
       ? reusableCatalog === null
         ? fetchSkuOptions(session.access_token)
         : Promise.resolve(reusableCatalog)

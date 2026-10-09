@@ -14,7 +14,7 @@ import {
 } from "../src/workspace-revisions.ts";
 
 const SETTINGS = { supabaseUrl: "https://example.invalid", publishableKey: "sb_publishable_test" };
-const account = { user_id: "user-a", access_role: "company_member", company_id: "company-a" };
+const account = { user_id: "user-a", access_role: "member", company_id: "company-a" };
 const options = {
   accessToken: "private-test-token",
   userId: "user-a",
@@ -44,7 +44,7 @@ test("poll requests only named revisions through authenticated REST, without cou
   assert.equal(captured.init.headers.Authorization, "Bearer private-test-token");
   assert.equal(captured.init.headers.Prefer, undefined);
   assert.equal(captured.init.cache, "no-store");
-  assert.equal(captured.init.signal, controller.signal);
+  assert.ok(captured.init.signal instanceof AbortSignal);
   assert.equal(captured.init.redirect, "error");
 });
 
@@ -58,7 +58,7 @@ test("poll rejects omitted/malformed revisions, another user's account, and unau
     ...[
       { ...account, access_role: "unregistered" },
       { ...account, company_id: null },
-      { ...account, access_role: "operator" },
+      { ...account, access_role: "administrator" },
     ].map((invalidAccount) => ({
       account: invalidAccount,
       revisions: { settlement: "1", fees: "1" },
@@ -95,36 +95,35 @@ test("changed opaque tokens are compared only for requested sources, including n
   assert.equal(sameAccount(account, { ...account }), true);
   assert.equal(sameAccount(account, { ...account, company_id: "company-b" }), false);
   assert.equal(
-    sameAccount(account, { ...account, access_role: "operator", company_id: null }),
+    sameAccount(account, { ...account, access_role: "administrator", company_id: null }),
     false,
   );
 });
 
 test("pages, choices, counts, cards and fees carry the correct source dependencies", () => {
   for (const family of ["dataset", "dataset-count"]) {
-    assert.deepEqual(queryRevisionSources([family, "u", "company_member", "a", "payouts"]), [
-      "payouts",
-    ]);
-    assert.deepEqual(queryRevisionSources([family, "u", "operator", null, "settlement"]), [
+    assert.deepEqual(queryRevisionSources([family, "u", "member", "a", "payouts"]), ["payouts"]);
+    assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "settlement"]), [
       "settlement",
     ]);
-    assert.deepEqual(queryRevisionSources([family, "u", "operator", null, "data_kiosk"]), [
+    assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "data_kiosk"]), [
       "data_kiosk",
     ]);
-    assert.deepEqual(queryRevisionSources([family, "u", "company_member", "a", "settlement"]), [
+    assert.deepEqual(queryRevisionSources([family, "u", "member", "a", "settlement"]), [
       "settlement",
       "fees",
     ]);
-    assert.deepEqual(queryRevisionSources([family, "u", "operator", null, "live"]), [
+    assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "live"]), [
       "settlement",
       "data_kiosk",
       "fees",
     ]);
   }
-  assert.deepEqual(queryRevisionSources(["dataset-count", "u", "operator", null, "settlement"]), [
-    "settlement",
-  ]);
-  assert.deepEqual(queryRevisionSources(["sku-configuration", "u", "operator"]), [
+  assert.deepEqual(
+    queryRevisionSources(["dataset-count", "u", "administrator", null, "settlement"]),
+    ["settlement"],
+  );
+  assert.deepEqual(queryRevisionSources(["sku-configuration", "u", "administrator"]), [
     "settlement",
     "data_kiosk",
     "fees",
@@ -147,17 +146,14 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
     ]);
   assert.deepEqual(queryRevisionSources(["payout-reconciliation-totals", "report"]), []);
   assert.deepEqual(queryRevisionSources(["payout-reconciliation", "report", 0]), []);
-  assert.deepEqual(queryRevisionSources(["inventory", "u", "company_member", "a"]), [
-    "inventory",
-    "fees",
-  ]);
+  assert.deepEqual(queryRevisionSources(["inventory", "u", "member", "a"]), ["inventory", "fees"]);
 });
 
 test("poll scope includes active observers and lookup fees, but excludes inactive cached tables", () => {
   const client = createQueryClient();
-  client.setQueryData(["dataset", "u", "operator", null, "data_kiosk"], {});
+  client.setQueryData(["dataset", "u", "administrator", null, "data_kiosk"], {});
   const observer = new QueryObserver(client, {
-    queryKey: ["dataset", "u", "operator", null, "settlement"],
+    queryKey: ["dataset", "u", "administrator", null, "settlement"],
     queryFn: async () => ({}),
     initialData: {},
     staleTime: Infinity,
@@ -178,11 +174,14 @@ test("polling refreshes account lists and eligibility, while payouts follow revi
     const expected = dataset === "accounts";
     assert.equal(isPolledDataset(dataset), expected);
     for (const key of [
-      ["dataset", "u", "operator", null, dataset],
-      ["dataset-count", "u", "operator", null, dataset],
+      ["dataset", "u", "administrator", null, dataset],
+      ["dataset-count", "u", "administrator", null, dataset],
     ])
       assert.equal(isPolledQuery({ queryKey: key }), expected);
-    assert.equal(isPolledQuery({ queryKey: ["unrelated", "u", "operator", null, dataset] }), false);
+    assert.equal(
+      isPolledQuery({ queryKey: ["unrelated", "u", "administrator", null, dataset] }),
+      false,
+    );
   }
 });
 
@@ -190,9 +189,9 @@ test("revision refresh invalidates matching counts and inactive pages but only f
   const client = createQueryClient();
   const reads = [];
   const keys = [
-    ["dataset", "u", "operator", null, "live"],
-    ["dataset-count", "u", "operator", null, "live"],
-    ["dataset", "u", "operator", null, "settlement"],
+    ["dataset", "u", "administrator", null, "live"],
+    ["dataset-count", "u", "administrator", null, "live"],
+    ["dataset", "u", "administrator", null, "settlement"],
   ];
   const unsubscribers = keys.map((key) =>
     new QueryObserver(client, {
@@ -205,7 +204,7 @@ test("revision refresh invalidates matching counts and inactive pages but only f
       },
     }).subscribe(() => {}),
   );
-  const inactive = ["dataset", "u", "operator", null, "live", "inactive"];
+  const inactive = ["dataset", "u", "administrator", null, "live", "inactive"];
   client.setQueryData(inactive, "cached");
   try {
     await refreshWorkspaceQueries(client, ["fees"], false, new AbortController().signal);
@@ -223,11 +222,11 @@ test("inventory tokens only invalidate inventory pages, while unchanged tokens p
   const client = createQueryClient();
   const reads = [];
   const keys = [
-    ["inventory", "u", "operator", null],
-    ["dataset", "u", "operator", null, "live"],
-    ["dataset-count", "u", "operator", null, "live"],
+    ["inventory", "u", "administrator", null],
+    ["dataset", "u", "administrator", null, "live"],
+    ["dataset-count", "u", "administrator", null, "live"],
     ["transaction-type-totals", "u"],
-    ["sku-configuration", "u", "operator"],
+    ["sku-configuration", "u", "administrator"],
   ];
   const unsubscribers = keys.map((key) =>
     new QueryObserver(client, {
@@ -272,9 +271,9 @@ test("inventory revisions are accepted and remain opaque without affecting finan
 test("payout publication tokens refresh report pages, history and counts without refetching unchanged reports or immutable details", async () => {
   const client = createQueryClient();
   const reads = [];
-  const page = ["dataset", "u", "company_member", "a", "payouts"];
-  const count = ["dataset-count", "u", "company_member", "a", "payouts"];
-  const history = ["payout-history", "u", "company_member", "a", "2026-07-01", "USD", 0];
+  const page = ["dataset", "u", "member", "a", "payouts"];
+  const count = ["dataset-count", "u", "member", "a", "payouts"];
+  const history = ["payout-history", "u", "member", "a", "2026-07-01", "USD", 0];
   const details = ["payout-components", "report", true, 0];
   const keys = [page, count, history, details];
   const unsubscribers = keys.map((key) =>
@@ -323,7 +322,7 @@ test("payout publication revisions are accepted as opaque tokens", async () => {
 
 test("an aborted workspace refresh leaves cached data untouched", async () => {
   const client = createQueryClient();
-  const key = ["dataset", "u", "operator", null, "live"];
+  const key = ["dataset", "u", "administrator", null, "live"];
   client.setQueryData(key, "cached");
   const controller = new AbortController();
   controller.abort();

@@ -1,6 +1,21 @@
 -- Schema checks complement the publication, RLS and archive integration tests.
 do $$
 begin
+    if enum_range(null::public.app_access_role)::text[] is distinct from
+        array['administrator','member','unassigned'] then
+        raise exception 'Application roles must use the canonical access names';
+    end if;
+    if (select array_agg(conrelid::regclass::text order by conrelid::regclass::text)
+        from pg_constraint where contype = 'f' and confrelid = 'public.companies'::regclass
+    ) is distinct from array['app_accounts','company_payout_reports',
+        'private.payout_report_refresh_state','sku_terms_versions'] then
+        raise exception 'Company deletion reasons must cover every company foreign key';
+    end if;
+    if not has_function_privilege('authenticated','public.delete_company(uuid)','EXECUTE')
+        or has_function_privilege('anon','public.delete_company(uuid)','EXECUTE')
+        or has_function_privilege('service_role','public.delete_company(uuid)','EXECUTE') then
+        raise exception 'Company deletion requires an authenticated, administrator-gated RPC';
+    end if;
     if exists (
         select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('public','private') and c.relkind = 'r' and not c.relrowsecurity
@@ -43,6 +58,7 @@ begin
     end if;
     if has_schema_privilege('anon','private','USAGE')
         or has_table_privilege('authenticated','public.skus','INSERT,UPDATE,DELETE')
+        or has_table_privilege('authenticated','public.companies','INSERT,UPDATE,DELETE')
         or has_table_privilege('authenticated','public.sku_terms_versions','INSERT,UPDATE,DELETE')
         or has_function_privilege('authenticated','private.publish_sku_terms(jsonb)','EXECUTE')
         or has_function_privilege('authenticated','private.publish_company_payout_report(jsonb)','EXECUTE')
@@ -61,7 +77,10 @@ begin
     end if;
     if has_column_privilege('authenticated','public.app_accounts','access_role','INSERT')
         or has_column_privilege('authenticated','public.app_accounts','access_role','UPDATE')
-        or has_column_privilege('authenticated','public.app_accounts','user_id','UPDATE') then
+        or has_any_column_privilege('authenticated','public.app_accounts','INSERT,UPDATE')
+        or has_table_privilege('authenticated','public.app_accounts','DELETE')
+        or has_function_privilege('authenticated','private.set_administrator_access(uuid,boolean)','EXECUTE')
+        or has_function_privilege('service_role','private.set_administrator_access(uuid,boolean)','EXECUTE') then
         raise exception 'Application access management must not promote roles or move Auth identities';
     end if;
     if exists (

@@ -1,0 +1,142 @@
+/* Shared feedback, while buttons, links, tabs, and rows retain their own shape. */
+:is(
+  .ui-button,
+  .ui-icon-button,
+  .ui-close-button,
+  .ui-surface-action,
+  .ui-text-action,
+  .ui-tabs-tab,
+  .ui-accordion-control,
+  .ui-choice-option,
+  .ui-checkbox,
+  .ui-input,
+  .inspectable-row
+) {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.ui-text-action {
+  font-weight: 500;
+  text-underline-offset: 3px;
+  border-radius: var(--ui-radius-sm);
+}
+
+.ui-text-action:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]) {
+  color: var(--ui-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ui-checkbox {
+  border-radius: var(--ui-radius-sm);
+}
+
+:is(
+    .ui-button,
+    .ui-icon-button,
+    .ui-close-button,
+    .ui-surface-action,
+    .ui-text-action,
+    .ui-tabs-tab,
+    .ui-accordion-control
+  ):not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+/* Follow the browser's actual hover state. Capability queries can report no hover
+   even while a mouse or trackpad is driving a touch-first browser. */
+.ui-button:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):hover {
+  background-color: var(--button-hover, var(--mantine-primary-color-filled-hover));
+  color: var(--button-hover-color, var(--button-color));
+}
+
+.ui-icon-button:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):hover {
+  background-color: var(--ai-hover, var(--mantine-primary-color-filled-hover));
+  color: var(--ai-hover-color, var(--ai-color));
+}
+
+/* Colored variants retain their matching shades, including destructive actions. */
+.ui-button[data-variant="default"]:not(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"],
+    [data-loading]
+  ):hover {
+  background-color: var(--ui-hover-surface);
+  border-color: var(--ui-accent);
+}
+
+:is(.ui-tabs-tab, .ui-accordion-control, .ui-close-button, .ui-surface-action):not(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"],
+    [data-loading]
+  ):hover {
+  background-color: var(--ui-hover-tint);
+}
+
+:is(.column-menu-trigger, .type-filter-expand):not(:disabled, [data-disabled]):hover {
+  color: var(--ui-accent);
+}
+
+.ui-text-action:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):hover {
+  background-color: transparent;
+  color: var(--ui-accent);
+  text-decoration-thickness: 2px;
+}
+
+.ui-table .inspectable-row:hover {
+  background-color: var(--ui-hover-surface);
+}
+
+.ui-table .inspectable-row[aria-selected="true"]:hover {
+  background-color: var(--ui-hover-selected);
+}
+
+.ui-checkbox:not(:has(input:disabled)):hover,
+.ui-choice-option:not([data-combobox-disabled], [aria-disabled="true"]):hover {
+  background-color: var(--ui-hover-tint);
+}
+
+.ui-choice-option[data-combobox-selected]:not(
+    [data-combobox-disabled],
+    [aria-disabled="true"]
+  ):hover {
+  background-color: var(--ui-hover-selected);
+}
+
+.ui-input:not(:disabled, [data-disabled], [data-error], [data-success]):hover {
+  background-color: var(--ui-hover-surface);
+  border-color: var(--ui-accent);
+}
+
+.ui-choice-option[data-combobox-selected]:not([data-combobox-disabled]) {
+  background-color: var(--ui-hover-surface);
+  color: var(--ui-text);
+}
+
+.ui-surface-action:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):active {
+  background-color: var(--ui-hover-selected);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .ui-button,
+    .ui-icon-button,
+    .ui-close-button,
+    .ui-surface-action,
+    .ui-text-action,
+    .ui-tabs-tab,
+    .ui-accordion-control,
+    .ui-choice-option,
+    .ui-checkbox,
+    .ui-input,
+    .inspectable-row
+  ) {
+    transition: none;
+  }
+}

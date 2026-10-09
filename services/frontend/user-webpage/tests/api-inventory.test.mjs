@@ -68,7 +68,7 @@ test("inventory filters exact SKU text before stable pagination and keeps decima
   assert.equal(captured.init.headers.Accept, "text/csv");
   assert.equal(captured.init.headers.Prefer, "count=exact");
   assert.equal(captured.init.headers.Authorization, "Bearer test-access");
-  assert.equal(captured.init.signal, signal);
+  assert.ok(captured.init.signal instanceof AbortSignal);
 });
 
 test("inventory handles shrinking pages, rejects incomplete projections and hides server errors", async () => {

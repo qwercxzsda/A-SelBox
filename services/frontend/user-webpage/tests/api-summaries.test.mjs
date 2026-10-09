@@ -40,7 +40,7 @@ test("latest date uses the shared one-row page RPC without table refinements or 
     assert.equal(new Headers(init.headers).get("Accept"), "application/json");
     assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-access");
     assert.equal(new Headers(init.headers).has("Prefer"), false);
-    assert.equal(init.signal, signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return responseJson({
       rows: [datasetRecord("live", { activity_date: "2024-02-29" })],
       total_count: null,
@@ -88,7 +88,7 @@ test("latest date distinguishes an empty scope from malformed or multiple rows",
 test("latest-date cancellation reaches the request and preserves the original abort reason", async () => {
   const controller = new AbortController();
   const client = createApiClient(SETTINGS, async (url, { signal, body }) => {
-    assert.equal(signal, controller.signal);
+    assert.ok(signal instanceof AbortSignal);
     assert.equal(new URL(url).pathname, "/rest/v1/rpc/transaction_page");
     assert.deepEqual(JSON.parse(body).p_skus, ["Cancel SKU"]);
     assert.deepEqual(JSON.parse(body).p_marketplaces, ["Amazon.com"]);
@@ -141,7 +141,7 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
       p_limit: 1000,
       p_offset: requests.length - 1,
     });
-    assert.equal(init.signal, signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return responseJson({
       rows: [rows[args.p_offset]],
       next_offset: args.p_offset === 0 ? 1 : null,

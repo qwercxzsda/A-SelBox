@@ -63,18 +63,24 @@ class TransactionSearchTests(SourceModelFixture):
     def test_or_sets_match_authorized_views_and_exact_counts(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, selection in product(
-            (self.operator(), self.member(company_a), self.member(company_b), self.auth_user()),
+            (
+                self.administrator(),
+                self.member(company_a),
+                self.member(company_b),
+                self.auth_user(),
+            ),
             selections(live=True),
         ):
             with self.subTest(selection=selection):
                 result = self.assert_matches_view(user, p_limit=1000, **selection)
                 self.assertEqual(self.count(user, **selection), result["total_count"])
-        operator = self.operator()
-        self.assertEqual(self.count(operator, p_search_skus=[]), "0")
-        self.assertEqual(self.count(operator, p_search_skus=["sku"]), "0")
-        self.assertGreater(int(self.count(operator, p_search_skus=["SKU"])), 0)
+        administrator = self.administrator()
+        self.assertEqual(self.count(administrator, p_search_skus=[]), "0")
+        self.assertEqual(self.count(administrator, p_search_skus=["sku"]), "0")
+        self.assertGreater(int(self.count(administrator, p_search_skus=["SKU"])), 0)
         self.assertEqual(
-            self.count(operator, **dict.fromkeys(LIVE_SEARCH_FIELDS, None)), self.count(operator)
+            self.count(administrator, **dict.fromkeys(LIVE_SEARCH_FIELDS, None)),
+            self.count(administrator),
         )
 
     def test_search_and_selection_filters_precede_pagination_and_amount_cap(self) -> None:
@@ -88,7 +94,7 @@ class TransactionSearchTests(SourceModelFixture):
             {"p_search_sources": ["DATA_KIOSK"], "p_marketplaces": ["Amazon.co.uk"]},
         )
         for user, order, direction, selection, include_count in product(
-            (self.operator(), self.member(company_a)),
+            (self.administrator(), self.member(company_a)),
             ("date", "amount"),
             ("asc", "desc"),
             filters,
@@ -115,7 +121,7 @@ class TransactionSearchTests(SourceModelFixture):
             [self.component("-100.123456789012345678901", sku=sku)],
             activity_date=self.recent_activity_date(),
         )
-        for user in (self.operator(), self.member(company)):
+        for user in (self.administrator(), self.member(company)):
             self.assertEqual(
                 self.assert_matches_view(user, p_search_skus=[sku])["total_count"], "2"
             )
@@ -127,8 +133,8 @@ class TransactionSearchTests(SourceModelFixture):
         company_a, sku = self.owner()
         company_b, _ = self.owner("OTHER")
         terms = self.fee(sku, [("2026-01-01", None, "5")])
-        operator, member_a, member_b = (
-            self.operator(),
+        administrator, member_a, member_b = (
+            self.administrator(),
             self.member(company_a),
             self.member(company_b),
         )
@@ -140,14 +146,18 @@ class TransactionSearchTests(SourceModelFixture):
         self.assertEqual(self.count(member_a, p_search_skus=["SKU"]), "0")
         self.assertEqual(self.count(member_b, p_search_skus=["SKU"]), "2")
         self.assign("SKU", None, expected=new_terms)
-        for user in (operator, member_a, member_b):
+        for user in (administrator, member_a, member_b):
             result = self.assert_matches_view(user, p_search_skus=["SKU"])
-            self.assertEqual(result["total_count"], "2" if user == operator else "0")
-        self.connection.execute("delete from public.app_accounts where user_id=%s", (operator,))
-        self.assertEqual(self.count(operator, p_search_sources=["SETTLEMENT", "DATA_KIOSK"]), "0")
+            self.assertEqual(result["total_count"], "2" if user == administrator else "0")
+        self.connection.execute(
+            "delete from public.app_accounts where user_id=%s", (administrator,)
+        )
+        self.assertEqual(
+            self.count(administrator, p_search_sources=["SETTLEMENT", "DATA_KIOSK"]), "0"
+        )
 
     def test_invalid_search_shapes_are_rejected_by_both_live_rpcs(self) -> None:
-        user = self.operator()
+        user = self.administrator()
         for field in LIVE_SEARCH_FIELDS:
             value = "Amazon.com" if field == "p_search_marketplaces" else "SKU"
             for selection in ([None], [value, None], [[value]]):
@@ -188,7 +198,12 @@ class SourceTransactionSearchTests(SourceModelFixture):
     def test_source_search_or_sets_keep_history_roles_order_and_filters(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, dataset, selection, order in product(
-            (self.operator(), self.member(company_a), self.member(company_b), self.auth_user()),
+            (
+                self.administrator(),
+                self.member(company_a),
+                self.member(company_b),
+                self.auth_user(),
+            ),
             ("settlement", "data_kiosk"),
             selections(live=False),
             ("date", "amount"),
@@ -212,16 +227,16 @@ class SourceTransactionSearchTests(SourceModelFixture):
                 p_include_count=include_count,
             )
 
-    def test_source_count_retains_operator_history_and_current_member_scope(self) -> None:
+    def test_source_count_retains_administrator_history_and_current_member_scope(self) -> None:
         company, sku = self.owner()
-        operator, member = self.operator(), self.member(company)
+        administrator, member = self.administrator(), self.member(company)
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
         _, settlement = self.settlement([self.transaction("10")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("10")])
         self.settlement([self.transaction("20")], acquisition_id=acquisition, expected=settlement)
         self.kiosk(2, [self.component("0")], expected=kiosk)
-        for user, dataset in product((operator, member), ("settlement", "data_kiosk")):
+        for user, dataset in product((administrator, member), ("settlement", "data_kiosk")):
             result = self.assert_matches_view(user, dataset, p_search_skus=["SKU"])
             self.assertEqual(
                 self.count(user, dataset, p_search_skus=["SKU"]), result["total_count"]
@@ -230,7 +245,7 @@ class SourceTransactionSearchTests(SourceModelFixture):
         for dataset in ("settlement", "data_kiosk"):
             self.assertEqual(self.count(member, dataset, p_search_skus=["SKU"]), "0")
             self.assertEqual(
-                self.count(operator, dataset, p_search_skus=["SKU"]),
+                self.count(administrator, dataset, p_search_skus=["SKU"]),
                 "2",
             )
 
@@ -239,16 +254,16 @@ class SourceTransactionSearchTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.source_transaction_count('settlement')")
-        operator = self.operator()
+        administrator = self.administrator()
         for dataset in (None, "live", "settlement;select 1"):
             with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                self.count(operator, dataset)
+                self.count(administrator, dataset)
         for field in SOURCE_SEARCH_FIELDS:
             value = "Amazon.com" if field == "p_search_marketplaces" else "SKU"
             for selection in ([None], [value, None], [[value]]):
                 for call in (self.page, self.count):
                     with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                        call(operator, "settlement", **{field: selection})
+                        call(administrator, "settlement", **{field: selection})
         for call in (self.page, self.count):
             with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                call(operator, "data_kiosk", p_search_marketplaces=["Unknown"])
+                call(administrator, "data_kiosk", p_search_marketplaces=["Unknown"])

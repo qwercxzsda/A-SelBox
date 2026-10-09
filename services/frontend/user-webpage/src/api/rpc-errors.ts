@@ -1,11 +1,13 @@
 import { AMOUNT_ORDER_LIMIT_MESSAGE, AmountOrderingLimitError } from "./amount-ordering.ts";
 import { isJsonObject } from "./validation.ts";
 import { skuConfigurationRpcError } from "./sku-configuration-errors.ts";
+import { companyDeletionRpcError } from "./company-errors.ts";
 
 /** Only allowlisted public errors may expose database messages to the interface. */
 export function publicRpcError(name: string, args: object, body: unknown): Error | null {
   if (!isJsonObject(body)) return null;
   if (name === "publish_sku_configuration") return skuConfigurationRpcError(body);
+  if (name === "delete_company") return companyDeletionRpcError(body);
   if (
     ["transaction_page", "source_transaction_page"].includes(name) &&
     isJsonObject(args) &&

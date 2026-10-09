@@ -44,9 +44,9 @@ class TextSearchTests(LocalWorkflowCase):
             preprocess_settlement_acquisition(self.database, self.storage, settlement)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         member_id, member = self.create_member(company)
-        _, operator = self.create_operator()
+        _, administrator = self.create_administrator()
         _, outsider = self.create_auth_user()
-        for token in (member, operator):
+        for token in (member, administrator):
             for dataset in _DATASETS:
                 live = dataset == "live"
                 page = "transaction_page" if live else "source_transaction_page"
@@ -115,9 +115,7 @@ class TextSearchTests(LocalWorkflowCase):
                         self.assertEqual(response.status_code, 400)
                         self.assertEqual(response.json()["code"], "22023")
 
-        self.stack.request(
-            "DELETE", "/rest/v1/app_accounts", token=operator, params={"user_id": "eq." + member_id}
-        ).raise_for_status()
+        self.set_membership(administrator, member_id, None).raise_for_status()
         for dataset in _DATASETS:
             page = "transaction_page" if dataset == "live" else "source_transaction_page"
             count = "transaction_count" if dataset == "live" else "source_transaction_count"

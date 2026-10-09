@@ -11,10 +11,10 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 
 const SCOPES = [
-  ["company_member", "live", "Transactions"],
-  ["operator", "live", "Transactions"],
-  ["operator", "settlement", "Settlements"],
-  ["operator", "data_kiosk", "Data Kiosk"],
+  ["member", "live", "Transactions"],
+  ["administrator", "live", "Transactions"],
+  ["administrator", "settlement", "Settlements"],
+  ["administrator", "data_kiosk", "Data Kiosk"],
 ];
 
 for (const [role, dataset, tab] of SCOPES) {
@@ -65,7 +65,7 @@ for (const [role, dataset, tab] of SCOPES) {
       await table.getByRole("cell", { name: amount, exact: true }).click();
       const drawer = page.getByRole("dialog", { name: "Selected row details" });
       await expect(drawer.getByRole("heading", { name: "S1", exact: true })).toBeVisible();
-      if (role === "operator") {
+      if (role === "administrator") {
         await expect(drawer.getByText("Source namespace", { exact: true })).toBeVisible();
         await expect(drawer.getByText(namespace, { exact: true })).toBeVisible();
       } else {

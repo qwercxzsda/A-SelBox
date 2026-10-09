@@ -106,14 +106,17 @@ def verify_live_reconciliation(
 
 
 def verify_frozen_reconciliation(
-    connection: Connection, operator: str, reports: list[tuple[Any, ...]], mature_cutoff_date: date
+    connection: Connection,
+    administrator: str,
+    reports: list[tuple[Any, ...]],
+    mature_cutoff_date: date,
 ) -> int:
     count = 0
     for report in reports:
         expected = raw_reconciliation(connection, mature_cutoff_date, str(report[0]))
         actual = as_user(
             connection,
-            operator,
+            administrator,
             "select seller_namespace,activity_date,marketplace_name,currency,"
             "settlement_category_amount,selbox_category_amount,"
             "data_kiosk_settlement_control,data_kiosk_category_amount,"

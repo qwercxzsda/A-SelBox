@@ -46,10 +46,10 @@ async function setup(page, role) {
 }
 
 for (const [role, width] of [
-  ["operator", 1440],
-  ["operator", 1920],
-  ["operator", 834],
-  ["company_member", 390],
+  ["administrator", 1440],
+  ["administrator", 1920],
+  ["administrator", 834],
+  ["member", 390],
 ]) {
   test(`${role} browses month groups and exact-scope history at ${width}px`, async ({
     page,
@@ -66,7 +66,7 @@ for (const [role, width] of [
     await expect(page.getByLabel("Report company", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Report versions", { exact: true })).toHaveCount(0);
     expect(historyReads(fixture)).toHaveLength(0);
-    if (role === "company_member") {
+    if (role === "member") {
       await expect(table.getByRole("cell", { name: "999 USD", exact: true })).toHaveCount(0);
       await expect(table.getByRole("button", { name: "Company", exact: true })).toHaveCount(0);
     }
@@ -107,7 +107,7 @@ for (const [role, width] of [
 test("column filters and historical selection survive F5 without returning to the latest version", async ({
   page,
 }) => {
-  const fixture = await setup(page, "operator");
+  const fixture = await setup(page, "administrator");
   await selectColumnOptions(page, "Company", [COMPANY_NAME]);
   await applyReportMonth(page, "2026-06");
   await expect(page.getByRole("heading", { name: "May 2026", exact: true })).toHaveCount(0);

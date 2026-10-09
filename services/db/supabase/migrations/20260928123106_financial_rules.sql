@@ -2,7 +2,7 @@
 create function private.financial_account_visible() returns boolean
 language sql stable security invoker set search_path = '' as $$
     select not pg_catalog.row_security_active('private.settlement_transactions'::regclass)
-        or private.is_operator();
+        or private.is_administrator();
 $$;
 
 -- Maturity assumes Settlement completion after two calendar months. Use a UTC

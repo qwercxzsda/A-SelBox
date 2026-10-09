@@ -218,8 +218,8 @@ def identities(connection: Connection) -> dict[str, str]:
         "select user_id::text,access_role::text "
         "from public.app_accounts order by access_role,user_id"
     ).fetchall()
-    members = [str(user) for user, role in rows if role == "company_member"]
-    operators = [str(user) for user, role in rows if role == "operator"]
-    if not members or not operators:
-        raise RuntimeError("Benchmark needs an existing member and operator account")
-    return {"member_a": members[0], "operator": operators[0]}
+    members = [str(user) for user, role in rows if role == "member"]
+    administrators = [str(user) for user, role in rows if role == "administrator"]
+    if not members or not administrators:
+        raise RuntimeError("Benchmark needs an existing member and administrator account")
+    return {"member_a": members[0], "administrator": administrators[0]}

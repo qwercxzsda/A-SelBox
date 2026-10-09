@@ -2,8 +2,8 @@ import { DATASET_CONFIG } from "../../../src/api/config.ts";
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
 
 export function respondWithWorkspaceLists(fixture, { request, url, user, reply, csvReply, track }) {
-  const dataset = url.pathname === "/rest/v1/app_accounts" ? "accounts" : "payouts";
-  if (fixture.roles[user] !== "operator" && dataset === "accounts")
+  const dataset = url.pathname === "/rest/v1/rpc/account_directory" ? "accounts" : "payouts";
+  if (fixture.roles[user] !== "administrator" && dataset === "accounts")
     return reply({ message: "Administrator required" }, 403);
   const entry = {
     user,
@@ -21,12 +21,14 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
     dataset === "payouts"
       ? fixture.payoutRows.filter(
           (row) =>
-            fixture.roles[user] === "operator" || row.company_id === fixture.companyIds[user],
+            fixture.roles[user] === "administrator" || row.company_id === fixture.companyIds[user],
         )
       : Object.keys(fixture.roles).map((id) => ({
           user_id: id,
+          email: fixture.accountEmails[id] ?? `${id}@example.test`,
+          email_confirmed: fixture.accountConfirmed[id] ?? true,
           access_role: fixture.roles[id],
-          company_id: fixture.roles[id] === "operator" ? null : fixture.companyIds[id],
+          company_id: fixture.roles[id] === "member" ? fixture.companyIds[id] : null,
           created_at: "2026-09-01T00:00:00Z",
         }));
   if (url.pathname.endsWith("/latest_company_payout_reports")) {

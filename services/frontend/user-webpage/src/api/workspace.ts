@@ -10,18 +10,18 @@ import type {
 } from "./types.ts";
 import { isJsonObject, requiredJsonString } from "./validation.ts";
 
-function parseAppAccount(value: Record<string, unknown>, userId: string): AppAccount {
+export function parseAppAccount(value: Record<string, unknown>, userId: string): AppAccount {
   const user_id = requiredJsonString(value, "user_id");
   const access_role = requiredJsonString(value, "access_role");
   const company_id = value.company_id === null ? null : requiredJsonString(value, "company_id");
   if (
     user_id !== userId ||
-    (access_role !== "operator" && access_role !== "company_member") ||
-    (access_role === "operator" ? company_id !== null : company_id === null)
+    !["administrator", "member", "unassigned"].includes(access_role) ||
+    (access_role === "member" ? !company_id : company_id !== null)
   ) {
     throw new Error("Application account query returned an invalid account");
   }
-  return { user_id, access_role, company_id };
+  return { user_id, access_role: access_role as AppAccount["access_role"], company_id };
 }
 
 /** One complete catalog; preserve PostgreSQL's ordering and exact SKU text. */

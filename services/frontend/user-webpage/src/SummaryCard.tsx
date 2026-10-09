@@ -59,7 +59,7 @@ export function SummaryCard({
     >
       {period && total && total.rowCount > 0 && currency ? (
         <UnstyledButton
-          className="estimated-summary-open"
+          className="estimated-summary-open ui-surface-action"
           type="button"
           aria-label={`View ${title} by type`}
           aria-haspopup="dialog"
@@ -84,7 +84,7 @@ export function SummaryCard({
           {period ? (
             onPeriodSelect ? (
               <UnstyledButton
-                className="estimated-summary-period"
+                className="estimated-summary-period ui-text-action"
                 type="button"
                 aria-label={`Filter transactions to ${period.label}`}
                 onClick={() => {
@@ -100,12 +100,7 @@ export function SummaryCard({
             )
           ) : null}
           {period && total && total.rowCount > 0 ? (
-            <>
-              <SummaryAmounts total={total} />
-              <Text className="estimated-summary-affordance" size="xs" mt="xs" aria-hidden="true">
-                View by type →
-              </Text>
-            </>
+            <SummaryAmounts total={total} />
           ) : (
             <Text className="estimated-summary-empty" c="dimmed" size="sm">
               {period

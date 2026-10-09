@@ -58,7 +58,7 @@ These controls contribute only to reconciliation; company amounts come from Data
 
 Exact SKU terms assign amounts in the Settlement and Data Kiosk categories to
 companies. Amounts in the SelBox category and the difference stay with SelBox. An administrator sees the complete
-account ledger. Company members see their own company's allocated rows; they
+account ledger. Members see their own company's allocated rows; they
 cannot read account-wide controls or another company's amounts. Company and SKU
 selections exclude the SelBox category and difference rows, even when a raw
 row in the SelBox category preserves the selected SKU. Those account amounts are never
@@ -99,8 +99,10 @@ A [payout report](company_payout_reports.md) covers one company and a complete c
 month whose last day is mature. On 2026-09-27 UTC, `mature_cutoff_date` is July 27:
 July 26 and earlier are mature, and July 27 and later are recent. June is eligible;
 July is not. The periodic worker automatically generates one report per currency
-across all source namespaces for eligible company/months. Members read only their
-own company's saved reports.
+across all source namespaces for eligible company/months. Companies need at least
+one currently assigned SKU; no activity is required. Losing the last assignment stops
+new reports, while saved history remains available. Members read only their own
+company's saved reports.
 
 Payouts use the same authority and fee rules. An empty aggregate sums to zero using
 available processed inputs; a scope containing authoritative company rows requires

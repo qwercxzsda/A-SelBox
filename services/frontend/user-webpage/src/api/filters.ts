@@ -64,7 +64,12 @@ export function datasetFilterValues(dataset: TableDatasetKey, filters?: DatasetF
   };
   if (feeApplicable !== null && dataset !== "live")
     throw new Error("Fee applicability filtering is unavailable for this view");
-  if (companyIds.length > 0 && dataset !== "live" && dataset !== "payouts")
+  if (
+    companyIds.length > 0 &&
+    dataset !== "live" &&
+    dataset !== "payouts" &&
+    dataset !== "accounts"
+  )
     throw new Error("Company filtering is unavailable for this view");
   requireDateRange(dateFrom, dateTo);
   if ((dateFrom || dateTo) && DATASET_CONFIG[dataset].dateColumn === null)

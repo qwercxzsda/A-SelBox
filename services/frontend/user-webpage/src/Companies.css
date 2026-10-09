@@ -1,0 +1,72 @@
+.companies-panel > .ui-workspace-intro {
+  margin-bottom: 0;
+}
+
+.company-return-guide {
+  flex: 1 1 320px;
+}
+
+.company-create-fields {
+  max-width: 720px;
+}
+
+.company-create-name {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.company-create-notice,
+.company-list-name,
+.company-details-id {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.company-list-search {
+  flex: 1 1 280px;
+  max-width: 430px;
+  min-width: 0;
+}
+
+.company-list-collapse {
+  margin-left: auto;
+  margin-bottom: 2px;
+}
+
+.company-list-summary {
+  padding-right: 12px;
+}
+
+.company-details {
+  border-top: 1px solid var(--ui-border);
+  padding-top: 16px;
+}
+
+.company-assigned-skus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.company-assigned-skus li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.company-deletion-reasons {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 600px) {
+  .company-list-search {
+    max-width: none;
+  }
+
+  .company-list-collapse {
+    margin-left: 0;
+  }
+}

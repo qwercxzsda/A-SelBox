@@ -52,7 +52,7 @@ async function expectCenteredChip(chip) {
 
 test("clearing payout column filters stays cleared after F5", async ({ page }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-b"] = COMPANY;
   fixture.companyNames[COMPANY] = COMPANY_NAME;
   await signIn(page);
@@ -78,10 +78,10 @@ test("clearing payout column filters stays cleared after F5", async ({ page }) =
 });
 
 for (const [role, width] of [
-  ["operator", 1440],
-  ["operator", 834],
-  ["operator", 390],
-  ["company_member", 390],
+  ["administrator", 1440],
+  ["administrator", 834],
+  ["administrator", 390],
+  ["member", 390],
 ]) {
   test(`${role} applied filters fit and remove only the chosen filter at ${width}px`, async ({
     page,
@@ -99,7 +99,7 @@ for (const [role, width] of [
     await signIn(page);
     await page.getByLabel("Search", { exact: true }).fill("Amazon");
     await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
-    if (role === "operator") await selectOptions(page, "Company", [COMPANY_NAME]);
+    if (role === "administrator") await selectOptions(page, "Company", [COMPANY_NAME]);
     await selectOptions(page, "Marketplace", ["Amazon.com"]);
     await selectOptions(page, "SKU", [LONG_SKU]);
     const skuChip = appliedFilters(page).getByRole("button", {
@@ -107,7 +107,7 @@ for (const [role, width] of [
       exact: true,
     });
     await expectCenteredChip(skuChip);
-    if (role === "operator") {
+    if (role === "administrator") {
       await expectCenteredChip(
         appliedFilters(page).getByRole("button", {
           name: `Clear company filter: ${COMPANY_NAME}`,
@@ -151,7 +151,7 @@ for (const [role, width] of [
     await expect.poll(() => fixture.requests.at(-1).args.p_skus).toEqual([]);
     expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Amazon.com"]);
     expect(fixture.requests.at(-1).args.p_company_ids).toEqual(
-      role === "operator" ? [COMPANY] : [],
+      role === "administrator" ? [COMPANY] : [],
     );
     await expect(
       appliedFilters(page).getByRole("button", {

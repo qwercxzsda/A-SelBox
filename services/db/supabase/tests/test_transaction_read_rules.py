@@ -131,7 +131,7 @@ class TransactionReadRulesTests(SourceModelFixture):
             "private.member_policy_covers_current_version('public.skus'::regclass)"
         )
         self.assertEqual(self.connection.execute(query).fetchone(), (False, False, False))
-        self.assertEqual(self.as_user(self.operator(), query), [(False, False, False)])
+        self.assertEqual(self.as_user(self.administrator(), query), [(False, False, False)])
         self.assertEqual(self.as_user(self.member(company), query), [(True, True, False)])
 
     def test_current_terms_use_exact_sku_identity_and_do_not_broaden_member_scope(self) -> None:
@@ -142,7 +142,7 @@ class TransactionReadRulesTests(SourceModelFixture):
         self.assign("UNASSIGNED", None)
         query = "select sku,company_id::text from private.current_sku_terms order by sku"
         self.assertEqual(
-            self.as_user(self.operator(), query),
+            self.as_user(self.administrator(), query),
             [
                 ("SKU", first),
                 ("SKU ", second),

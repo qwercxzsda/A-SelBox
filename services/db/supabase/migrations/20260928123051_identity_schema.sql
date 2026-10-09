@@ -3,18 +3,19 @@ create table public.companies (
     name text not null check (length(btrim(name)) > 0), -- noqa: RF04
     created_at timestamptz not null default now()
 );
-create type public.app_access_role as enum ('operator', 'company_member');
+create type public.app_access_role as enum ('administrator', 'member', 'unassigned');
 create table public.app_accounts (
     user_id uuid primary key references auth.users (id) on delete cascade,
-    access_role public.app_access_role not null default 'company_member',
+    access_role public.app_access_role not null default 'unassigned',
     company_id public.local_uuid references public.companies (id),
     created_at timestamptz not null default now(),
     check (
-        (access_role = 'operator' and company_id is null)
-        or (access_role = 'company_member' and company_id is not null)
+        (access_role in ('administrator', 'unassigned') and company_id is null)
+        or (access_role = 'member' and company_id is not null)
     )
 );
 create index app_accounts_company_idx on public.app_accounts (company_id);
+
 -- Ownership and fees follow exact SKU text across every source namespace.
 create table public.skus (
     id public.local_uuid primary key default private.uuid7(),

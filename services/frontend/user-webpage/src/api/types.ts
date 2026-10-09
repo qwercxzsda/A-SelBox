@@ -24,7 +24,7 @@ export interface Company {
 
 export interface AppAccount {
   user_id: string;
-  access_role: "operator" | "company_member";
+  access_role: "administrator" | "member" | "unassigned";
   company_id: string | null;
 }
 

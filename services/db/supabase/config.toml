@@ -15,6 +15,9 @@ major_version = 17
 [db.seed]
 enabled = false
 
+[auth]
+enable_signup = true
+
 [studio]
 port = 54323
 api_url = "http://127.0.0.1"

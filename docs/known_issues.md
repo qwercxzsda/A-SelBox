@@ -260,7 +260,7 @@ cold page and separate count can consume more database time than a combined requ
 
 Summary cards discover the latest transaction date and aggregate only the requested day, month, or
 selected DATE range through dedicated RPCs. Compatible facts are combined before resolving fees;
-Source, Marketplace, and Type options come from static catalogs. Company-member SKU options reuse
+Source, Marketplace, and Type options come from static catalogs. Member SKU options reuse
 loaded assignments. Administrator SKU catalogs are preloaded from source history and registrations,
 then reused by menus and table search. Search text is resolved on the frontend to exact OR sets;
 Currency is excluded. Empty matches avoid a source scan, while broad matching sets, full-period
@@ -288,7 +288,7 @@ reprocessed. See the
 ### Manual operational tooling
 
 Source acquisition and preprocessing failures remain in Python logs, and failed database
-publications roll back. The service does not automatically retry those operations. Operators
+publications roll back. The service does not automatically retry those operations. Administrators
 manage member access and publish complete terms through REST and the administration UI. Monthly payout reports use the
 automatic database worker, which processes pending company/months and retries failures with backoff.
 Payment approval and execution are not implemented. Payout dependencies are immutable and have

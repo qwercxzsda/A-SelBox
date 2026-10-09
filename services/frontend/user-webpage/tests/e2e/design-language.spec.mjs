@@ -48,7 +48,7 @@ async function setupDesignWorkspace(page, role) {
   await signIn(page);
 }
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} tables and drawers share typography while retaining each tab's workflow`, async ({
     page,
   }, testInfo) => {
@@ -84,7 +84,7 @@ for (const role of ["operator", "company_member"]) {
     await screenshot("transaction-details");
     await rowDetail.getByRole("button", { name: "Close row details", exact: true }).click();
 
-    if (role === "operator") {
+    if (role === "administrator") {
       for (const name of ["Settlements", "Data Kiosk", "User access"]) {
         await openTab(name);
         await checkTable(financialTable(page));
@@ -100,7 +100,7 @@ for (const role of ["operator", "company_member"]) {
       page.getByRole("table", { name: "Marketplace fees for DESIGN-SKU", exact: true }),
     );
     await screenshot("fees");
-    if (role === "operator") {
+    if (role === "administrator") {
       await page.getByRole("button", { name: "Edit DESIGN-SKU", exact: true }).click();
       const editor = page.getByRole("dialog", { name: "Edit DESIGN-SKU", exact: true });
       await checkDrawer(editor);
@@ -125,7 +125,7 @@ for (const role of ["operator", "company_member"]) {
     await screenshot("payout-details");
     await rowDetail.getByRole("button", { name: "Close row details", exact: true }).click();
 
-    if (role === "operator") {
+    if (role === "administrator") {
       await openTab("Financial review");
       const monthly = page.getByRole("table", {
         name: "Monthly financial review",

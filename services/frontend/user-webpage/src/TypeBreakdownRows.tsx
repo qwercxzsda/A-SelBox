@@ -45,6 +45,7 @@ function AmountRow({
       ))}
       <Table.Td ta="right">
         <Button
+          className="ui-text-action"
           size="compact-xs"
           variant="subtle"
           aria-label={`View ${label} records`}
@@ -74,6 +75,7 @@ function MobileType({
           {label}
         </Text>
         <Button
+          className="ui-text-action"
           size="compact-xs"
           variant="subtle"
           aria-label={`View ${label} records`}

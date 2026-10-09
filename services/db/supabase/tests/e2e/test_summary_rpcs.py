@@ -26,13 +26,13 @@ class SummaryRpcTests(LocalWorkflowCase):
             )
             preprocess_settlement_acquisition(self.database, self.storage, acquisition)
         member_id, member_token = self.create_member(first)
-        _, operator_token = self.create_operator()
+        _, administrator_token = self.create_administrator()
         _, outsider_token = self.create_auth_user()
         dates: dict[str, object] = {"p_date_from": "2026-08-01", "p_date_to": "2026-08-02"}
 
         for token, expected_count, reported, expected_amount, type_count, expected_skus in (
             (member_token, "2", "0", "2", 2, [fixture_sku(self.seller)]),
-            (operator_token, "6", "-20", "4", 3, sorted([fixture_sku(self.seller), "OTHER"])),
+            (administrator_token, "6", "-20", "4", 3, sorted([fixture_sku(self.seller), "OTHER"])),
         ):
             for select in ("source_amount.sum()", "currency,source_amount.sum()", "count()"):
                 rejected = self.stack.request(
@@ -83,7 +83,7 @@ class SummaryRpcTests(LocalWorkflowCase):
             options = self.stack.request(
                 "POST", "/rest/v1/rpc/sku_filter_options", token=token, json={}
             )
-            if token == operator_token:
+            if token == administrator_token:
                 self.assertEqual(options.status_code, 200)
                 self.assertEqual(options.json(), {"values": expected_skus})
             else:
@@ -121,12 +121,7 @@ class SummaryRpcTests(LocalWorkflowCase):
         self.assertEqual(invalid.status_code, 400)
         self.assertEqual(invalid.json()["code"], "22023")
 
-        self.stack.request(
-            "DELETE",
-            "/rest/v1/app_accounts",
-            token=operator_token,
-            params={"user_id": "eq." + member_id},
-        ).raise_for_status()
+        self.set_membership(administrator_token, member_id, None).raise_for_status()
         empty_responses: tuple[tuple[str, dict[str, object], dict[str, object]], ...] = (
             ("transaction_totals", dates, {"rows": [], "next_offset": None}),
         )
@@ -151,9 +146,9 @@ class SummaryRpcTests(LocalWorkflowCase):
             self.assertEqual(denied.json()["code"], "42501")
 
     def test_complete_catalog_exceeds_rest_row_limit_in_one_response(self) -> None:
-        operator_id, operator = self.create_operator()
+        administrator_id, administrator = self.create_administrator()
         baseline = self.stack.request(
-            "POST", "/rest/v1/rpc/sku_filter_options", token=operator, json={}
+            "POST", "/rest/v1/rpc/sku_filter_options", token=administrator, json={}
         )
         self.assertEqual(baseline.status_code, 200)
         previous = cast(list[str], baseline.json()["values"])
@@ -174,12 +169,12 @@ class SummaryRpcTests(LocalWorkflowCase):
         _, member = self.create_member(company)
         _, outsider = self.create_auth_user()
         limited = self.stack.request(
-            "GET", "/rest/v1/skus", token=operator, params={"select": "id", "limit": "2000"}
+            "GET", "/rest/v1/skus", token=administrator, params={"select": "id", "limit": "2000"}
         )
         self.assertEqual(limited.status_code, 200)
         self.assertEqual(len(limited.json()), 1000)
         complete = self.stack.request(
-            "POST", "/rest/v1/rpc/sku_filter_options", token=operator, json={}
+            "POST", "/rest/v1/rpc/sku_filter_options", token=administrator, json={}
         )
         self.assertEqual(complete.status_code, 200)
         expected = set(previous) | {base_sku, *skus}
@@ -197,14 +192,14 @@ class SummaryRpcTests(LocalWorkflowCase):
         # account is demoted; ordinary company assignment reads remain available.
         with self.database.connection() as connection, connection.transaction():
             connection.execute(
-                "update public.app_accounts set access_role='company_member',company_id=%s "
+                "update public.app_accounts set access_role='member',company_id=%s "
                 "where user_id=%s",
-                (company, operator_id),
+                (company, administrator_id),
             )
         denied = self.stack.request(
-            "POST", "/rest/v1/rpc/sku_filter_options", token=operator, json={}
+            "POST", "/rest/v1/rpc/sku_filter_options", token=administrator, json={}
         )
         self.assertEqual(denied.status_code, 403)
         self.assertEqual(denied.json()["code"], "42501")
-        assignments = self.read_rows("company_skus", operator, select="sku", limit="1")
+        assignments = self.read_rows("company_skus", administrator, select="sku", limit="1")
         self.assertEqual(len(assignments), 1)

@@ -1,11 +1,16 @@
 import {
   Accordion,
+  ActionIcon,
   Alert,
+  Autocomplete,
   Button,
+  Checkbox,
+  CloseButton,
   Drawer,
   Input,
   InputWrapper,
   Paper,
+  Select,
   Table,
   Tabs,
   createTheme,
@@ -45,6 +50,11 @@ export const appTheme = createTheme({
       classNames: { root: "ui-surface" },
     }),
     Button: Button.extend({ classNames: { root: "ui-button" } }),
+    ActionIcon: ActionIcon.extend({ classNames: { root: "ui-icon-button" } }),
+    CloseButton: CloseButton.extend({ classNames: { root: "ui-close-button" } }),
+    Checkbox: Checkbox.extend({ classNames: { root: "ui-checkbox" } }),
+    Select: Select.extend({ classNames: { option: "ui-choice-option" } }),
+    Autocomplete: Autocomplete.extend({ classNames: { option: "ui-choice-option" } }),
     Input: Input.extend({ classNames: { input: "ui-input" } }),
     InputWrapper: InputWrapper.extend({
       classNames: { label: "ui-input-label", description: "ui-input-description" },
@@ -54,7 +64,14 @@ export const appTheme = createTheme({
       classNames: { table: "ui-table", th: "ui-table-heading", td: "ui-table-cell" },
     }),
     Drawer: Drawer.extend({
-      classNames: { header: "ui-drawer-header", title: "ui-drawer-title", body: "ui-drawer-body" },
+      // Native CSS locks the page without canceling zoom or browser navigation gestures.
+      defaultProps: { lockScroll: false },
+      classNames: {
+        content: "ui-drawer-content",
+        header: "ui-drawer-header",
+        title: "ui-drawer-title",
+        body: "ui-drawer-body",
+      },
     }),
     Tabs: Tabs.extend({
       classNames: { list: "ui-tabs-list", tab: "ui-tabs-tab", panel: "ui-tabs-panel" },

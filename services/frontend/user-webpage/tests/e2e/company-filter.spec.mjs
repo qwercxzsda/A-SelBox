@@ -16,7 +16,7 @@ const companyScope = (...ids) => `in.(${[...new Set(ids)].sort().join(",")})`;
 
 async function companyFixture(page) {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.companyIds = { "member-a": COMPANY_A, "member-b": COMPANY_B };
   fixture.companyNames = { [COMPANY_A]: "Company A", [COMPANY_B]: "Company B" };
   const bucket = (company, date, value, options) => ({

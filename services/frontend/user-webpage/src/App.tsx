@@ -38,13 +38,16 @@ function App() {
     setEmail,
     password,
     setPassword,
+    authMode,
+    changeAuthMode,
+    authStatus,
     identity,
-    isSigningIn,
+    isSubmitting,
     isSigningOut,
     isRestoring,
     restoreError,
     authError,
-    handleSignIn,
+    handleAuthenticate,
     handleSignOut,
     refreshIdentity,
     retryRestore,
@@ -55,7 +58,7 @@ function App() {
   const companyNames = new Map(identity?.companies.map((company) => [company.id, company.name]));
   const accountLabel = !account
     ? null
-    : account.access_role === "operator"
+    : account.access_role === "administrator"
       ? "Administrator"
       : companyLabel(account.company_id, companyNames);
   useEffect(() => {
@@ -93,12 +96,15 @@ function App() {
           />
         ) : !identity ? (
           <LoginPanel
+            mode={authMode}
             email={email}
             errorMessage={authError}
-            isSigningIn={isSigningIn || isSigningOut}
+            statusMessage={authStatus}
+            isSubmitting={isSubmitting || isSigningOut}
+            onModeChange={changeAuthMode}
             onEmailChange={setEmail}
             onPasswordChange={setPassword}
-            onSubmit={(event) => void handleSignIn(event)}
+            onSubmit={(event) => void handleAuthenticate(event)}
             password={password}
           />
         ) : (

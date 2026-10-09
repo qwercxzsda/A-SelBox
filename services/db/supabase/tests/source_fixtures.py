@@ -60,21 +60,21 @@ class SourceModelFixture(DatabaseTestCase):
 
     def account(
         self,
-        role: Literal["operator", "company_member"],
+        role: Literal["administrator", "member"],
         company: str | None = None,
     ) -> str:
         user = self.auth_user()
         self.connection.execute(
-            "insert into public.app_accounts(user_id,access_role,company_id) values (%s,%s,%s)",
-            (user, role, company),
+            "update public.app_accounts set access_role=%s,company_id=%s where user_id=%s",
+            (role, company, user),
         )
         return user
 
     def member(self, company: str) -> str:
-        return self.account("company_member", company)
+        return self.account("member", company)
 
-    def operator(self) -> str:
-        return self.account("operator")
+    def administrator(self) -> str:
+        return self.account("administrator")
 
     def as_user(
         self,

@@ -39,7 +39,7 @@ begin
 end;
 $$;
 
--- Trusted single-SKU callers and the operator batch share one immutable writer.
+-- Trusted single-SKU callers and the administrator batch share one immutable writer.
 -- Invalidation happens after the complete publication, once for a batch.
 create function private.publish_sku_terms(p_payload jsonb) returns uuid
 language plpgsql set search_path = '' as $$
@@ -135,12 +135,14 @@ $$;
 -- CAS is checked for every changed SKU; global validation sees one resulting
 -- configuration snapshot after all writes. Later source publications may expose
 -- new gaps and do not invalidate this immutable publication retroactively.
-create function private.publish_operator_sku_configuration(p_changes jsonb, p_change_reason text)
+create function private.publish_administrator_sku_configuration(
+    p_changes jsonb, p_change_reason text
+)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare change jsonb; periods_with_ids jsonb; version_id uuid;
     published jsonb := '[]'::jsonb; configuration jsonb; issues jsonb;
 begin
-    if not private.is_operator() then
+    if not private.is_administrator() then
         raise exception 'Administrator access required' using errcode = '42501';
     end if;
     perform private.lock_payout_report_inputs();
@@ -196,5 +198,5 @@ $$;
 
 create function public.publish_sku_configuration(p_changes jsonb, p_change_reason text)
 returns jsonb language sql volatile security invoker set search_path = '' as $$
-    select private.publish_operator_sku_configuration(p_changes, p_change_reason);
+    select private.publish_administrator_sku_configuration(p_changes, p_change_reason);
 $$;

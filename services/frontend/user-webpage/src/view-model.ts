@@ -31,7 +31,8 @@ export const DATASET_ORDER: readonly DatasetKey[] = [
 ];
 
 export function visibleDatasets(account: AppAccount): readonly DatasetKey[] {
-  return account.access_role === "operator" ? DATASET_ORDER : ["live", "fees", "payouts"];
+  if (account.access_role === "unassigned") return [];
+  return account.access_role === "administrator" ? DATASET_ORDER : ["live", "fees", "payouts"];
 }
 
 export const DATASET_PRESENTATION = {
@@ -67,8 +68,9 @@ export const DATASET_PRESENTATION = {
   },
   accounts: {
     label: "User access",
-    description: "User roles and company access. Each company member belongs to one company.",
-    searchPlaceholder: "Search unavailable for this view",
+    description:
+      "Select a user to assign, change, or revoke company membership. Administrator access is managed by the database manager.",
+    searchPlaceholder: "Search by email",
     emptyMessage: "No users match this view.",
   },
 } satisfies Record<DatasetKey, WorkspacePresentation> &
@@ -128,10 +130,10 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("company_amount", "Company amount", "money"),
   ],
   accounts: [
-    column("user_id", "User ID"),
+    column("email", "Email"),
     column("access_role", "Role", "code"),
     column("company_id", "Company", "company"),
-    column("created_at", "Added", "date"),
+    column("created_at", "Joined", "date"),
   ],
 };
 

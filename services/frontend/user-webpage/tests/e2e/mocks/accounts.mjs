@@ -5,6 +5,9 @@ export const ACCOUNT_PATHS = new Set([
   "/auth/v1/logout",
   "/auth/v1/user",
   "/rest/v1/rpc/workspace_revisions",
+  "/rest/v1/rpc/set_company_membership",
+  "/rest/v1/rpc/create_company",
+  "/rest/v1/rpc/delete_company",
   "/rest/v1/companies",
   "/rest/v1/company_skus",
 ]);
@@ -71,7 +74,7 @@ export function createAccountHandlers(fixture) {
             ? {
                 user_id: user,
                 access_role: role,
-                company_id: role === "operator" ? null : fixture.companyIds[user],
+                company_id: role === "member" ? fixture.companyIds[user] : null,
               }
             : null,
           revisions: Object.fromEntries(sources.map((source) => [source, revisionValues[source]])),
@@ -86,6 +89,88 @@ export function createAccountHandlers(fixture) {
         if (status !== 200) return reply({ message: "Revision fixture unavailable" }, status);
         return reply(response);
       }
+      if (url.pathname === "/rest/v1/rpc/set_company_membership") {
+        const body = request.postDataJSON();
+        const entry = { user, body };
+        fixture.membershipRequests.push(entry);
+        await fixture.beforeMembership(entry);
+        if (fixture.membershipStatus !== 200)
+          return reply(
+            { message: "Membership update unavailable", ...fixture.membershipError },
+            fixture.membershipStatus,
+          );
+        const target = body.target_user_id;
+        if (fixture.roles[user] !== "administrator" || fixture.roles[target] === "administrator")
+          return reply({ message: "Administrator access cannot be changed here" }, 403);
+        if (
+          body.expected_access_role !== fixture.roles[target] ||
+          body.expected_company_id !==
+            (fixture.roles[target] === "member" ? fixture.companyIds[target] : null)
+        )
+          return reply({ message: "The user's membership has changed" }, 409);
+        const company = body.target_company_id;
+        fixture.roles[target] = company === null ? "unassigned" : "member";
+        fixture.companyIds[target] = company;
+        return reply([
+          {
+            user_id: target,
+            access_role: fixture.roles[target],
+            company_id: company,
+            created_at: "2026-09-01T00:00:00Z",
+          },
+        ]);
+      }
+      if (url.pathname === "/rest/v1/rpc/create_company") {
+        const body = request.postDataJSON();
+        const entry = { user, body };
+        fixture.companyCreationRequests.push(entry);
+        await fixture.beforeCompanyCreation(entry);
+        if (fixture.roles[user] !== "administrator")
+          return reply({ message: "Administrator access required" }, 403);
+        if (fixture.companyCreationStatus !== 200)
+          return reply({ message: "Company creation unavailable" }, fixture.companyCreationStatus);
+        const name = body.company_name.trim();
+        if (!name) return reply({ message: "A company name is required" }, 400);
+        const existing = Object.entries(fixture.companyNames).find(
+          ([, candidate]) => candidate.toLowerCase() === name.toLowerCase(),
+        );
+        const id =
+          existing?.[0] ??
+          `0198b50b-701a-7000-8000-${String(900 + fixture.companyCreationRequests.length).padStart(12, "0")}`;
+        const result = { id, name: existing?.[1] ?? name, created: !existing };
+        fixture.companyNames[id] = result.name;
+        entry.result = result;
+        // Simulate a committed insert whose response was lost; a retry must reuse that company.
+        if (fixture.companyCreationNetworkFailure) return route.abort("internetdisconnected");
+        return reply([result]);
+      }
+      if (url.pathname === "/rest/v1/rpc/delete_company") {
+        const body = request.postDataJSON();
+        const entry = { user, body };
+        fixture.companyDeletionRequests.push(entry);
+        await fixture.beforeCompanyDeletion(entry);
+        if (fixture.roles[user] !== "administrator")
+          return reply({ message: "Administrator access required" }, 403);
+        if (fixture.companyDeletionStatus !== 200)
+          return reply({ message: "Private deletion failure" }, fixture.companyDeletionStatus);
+        const id = body.target_company_id;
+        const blockers = fixture.companyDeletionBlockers[id] ?? [];
+        if (blockers.length)
+          return reply(
+            {
+              code: "PT409",
+              message: "Company cannot be deleted while it has linked records",
+              details: JSON.stringify(blockers),
+              hint: null,
+            },
+            409,
+          );
+        const result = { id, deleted: Object.hasOwn(fixture.companyNames, id) };
+        delete fixture.companyNames[id];
+        entry.result = result;
+        if (fixture.companyDeletionNetworkFailure) return route.abort("internetdisconnected");
+        return reply([result]);
+      }
       if (["/rest/v1/companies", "/rest/v1/company_skus"].includes(url.pathname)) {
         fixture.identityRequests.push({
           user,
@@ -99,14 +184,17 @@ export function createAccountHandlers(fixture) {
         if (fixture.companiesStatus !== 200)
           return reply({ message: "Companies fixture unavailable" }, fixture.companiesStatus);
         const companies =
-          fixture.roles[user] === "operator"
+          fixture.companyCatalogRows ??
+          (fixture.roles[user] === "administrator"
             ? Object.entries(fixture.companyNames).map(([id, name]) => ({ id, name }))
-            : [
-                {
-                  id: fixture.companyIds[user],
-                  name: fixture.companyNames[fixture.companyIds[user]],
-                },
-              ];
+            : fixture.roles[user] === "unassigned"
+              ? []
+              : [
+                  {
+                    id: fixture.companyIds[user],
+                    name: fixture.companyNames[fixture.companyIds[user]],
+                  },
+                ]);
         return reply(companies, 200, {
           "Content-Range": contentRange(companies.length, companies.length),
         });

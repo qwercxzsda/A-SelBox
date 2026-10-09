@@ -22,7 +22,7 @@ class TransactionPageValidationTests(TransactionPageFixture):
     def test_text_marketplaces_preserve_rows_and_counts_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
-            (self.operator(), "20"),
+            (self.administrator(), "20"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
@@ -52,7 +52,7 @@ class TransactionPageValidationTests(TransactionPageFixture):
     def test_unknown_marketplaces_are_rejected_instead_of_ignored(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user in (
-            self.operator(),
+            self.administrator(),
             self.member(company_a),
             self.member(company_b),
             self.auth_user(),
@@ -73,7 +73,7 @@ class TransactionPageValidationTests(TransactionPageFixture):
                     self.page(user, p_marketplaces=selection)
 
     def test_invalid_scalar_arguments_are_rejected(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         invalid: tuple[dict[str, object], ...] = (
             {"p_limit": None},
             {"p_limit": 0},
@@ -97,11 +97,11 @@ class TransactionPageValidationTests(TransactionPageFixture):
                 self.subTest(options=options),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
-                self.page(operator, **options)
+                self.page(administrator, **options)
 
     def test_invalid_filter_array_shapes_are_rejected(self) -> None:
         company, _ = self.owner()
-        operator = self.operator()
+        administrator = self.administrator()
         for name in TRANSACTION_ARRAY_FILTERS:
             value = (
                 company
@@ -115,4 +115,4 @@ class TransactionPageValidationTests(TransactionPageFixture):
                     self.subTest(name=name, values=values),
                     self.assertRaises(psycopg.errors.InvalidParameterValue),
                 ):
-                    self.page(operator, **{name: values})
+                    self.page(administrator, **{name: values})

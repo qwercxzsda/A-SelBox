@@ -45,22 +45,20 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             (None, Decimal(0), Decimal(0), Decimal(0), 0, 0, *inventories),
         )
 
-    def test_unrelated_source_data_does_not_prevent_empty_company_snapshot_and_reuse(self) -> None:
+    def test_company_without_assigned_skus_gets_no_report_despite_members_or_source_data(
+        self,
+    ) -> None:
         company = self.company_without_skus()
         self.seller = "unrelated-seller"
         self.settlement([self.transaction("100", sku="UNASSIGNED")])
         member = self.member(company)
         self.assertEqual(self.report_count(), 0)
-        report, created = generate_payout_reports(self, company)[0]
-        self.assertTrue(created)
-        self.assert_empty_scope(report, (0, 0, 0))
-        before = payout_snapshot(self, report)
-        self.assertEqual(generate_payout_reports(self, company), [(report, False)])
-        self.assertEqual(payout_snapshot(self, report), before)
-        self.assertEqual(self.report_count(), 1)
+        self.assertEqual(generate_payout_reports(self, company), [])
+        self.assertEqual(generate_payout_reports(self, company), [])
+        self.assertEqual(self.report_count(), 0)
         self.assertEqual(
             self.as_user(member, "select id::text,currency from public.company_payout_reports"),
-            [(report, None)],
+            [],
         )
         other = self.member(self.company_without_skus())
         self.assertEqual(self.as_user(other, "select * from public.company_payout_reports"), [])

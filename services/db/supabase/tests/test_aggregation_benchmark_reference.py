@@ -17,9 +17,9 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
     def test_reference_matches_totals_for_current_authority_roles_and_grouping(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         company, _ = self.financial_fixture()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         for (role, user, expected_count), grouped in product(
-            (("member", member, 10), ("operator", operator, 20)), (False, True)
+            (("member", member, 10), ("administrator", administrator, 20)), (False, True)
         ):
             with self.subTest(role=role, grouped=grouped), self.connection.transaction():
                 self.connection.execute(
@@ -39,7 +39,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
                         "where authoritative and category='SELBOX'"
                     ).fetchone()
                 )[0]
-                if role == "operator":
+                if role == "administrator":
                     self.assertGreater(accounts, 0)
                 else:
                     self.assertEqual(accounts, 0)

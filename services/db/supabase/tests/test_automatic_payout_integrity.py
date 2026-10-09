@@ -93,19 +93,19 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
     def test_payout_revision_is_company_scoped_and_only_changes_for_inserted_reports(self) -> None:
         inputs = prepare_payout(self)
         other, _ = self.owner("OTHER")
-        member, other_member, operator = (
+        member, other_member, administrator = (
             self.member(inputs.company),
             self.member(other),
-            self.operator(),
+            self.administrator(),
         )
         self.connection.commit()
-        before = {user: self.revisions(user) for user in (member, other_member, operator)}
+        before = {user: self.revisions(user) for user in (member, other_member, administrator)}
         with self.connection.transaction():
             self.assertEqual(refresh_payout_reports(self, 1), (1, 1, 0, 0))
             # Deferred publication tokens describe committed financial snapshots.
             self.assertEqual(self.revisions(member), before[member])
         first = {user: self.revisions(user) for user in before}
-        for user in (member, operator):
+        for user in (member, administrator):
             self.assertNotEqual(first[user]["payouts"], before[user]["payouts"])
             self.assertEqual(
                 {key: value for key, value in first[user].items() if key != "payouts"},
@@ -138,7 +138,7 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
 
     def test_automatic_worker_and_state_have_no_application_api_access(self) -> None:
         company, _ = self.owner()
-        for user in (self.operator(), self.member(company), self.auth_user()):
+        for user in (self.administrator(), self.member(company), self.auth_user()):
             for query in (
                 "select * from private.refresh_company_payout_reports()",
                 "select * from private.payout_report_refresh_state",

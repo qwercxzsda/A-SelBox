@@ -21,7 +21,7 @@ test("large catalogs keep review bounded while every off-page SKU still blocks p
       requirements: [],
     }),
   );
-  const fixture = await setup(page, "operator", [item("S1"), ...missing]);
+  const fixture = await setup(page, "administrator", [item("S1"), ...missing]);
   await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
     "of 1,206 SKUs",
   );

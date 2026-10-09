@@ -1,4 +1,4 @@
-"""Operator batches preserve exact SKU identity and global configuration completeness."""
+"""Administrator batches preserve exact SKU identity and global configuration completeness."""
 
 from decimal import Decimal
 from uuid import UUID
@@ -13,9 +13,9 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self,
     ) -> None:
         company, _ = self.owner()
-        operator = self.operator()
+        administrator = self.administrator()
         result = self.save(
-            operator,
+            administrator,
             [
                 self.change(
                     " API SKU ",
@@ -30,10 +30,12 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.assertEqual(result["published"], [{"sku": " API SKU ", "terms_version_id": first}])
         self.assertEqual(UUID(first).version, 7)
         second = self.save(
-            operator, [self.change(" API SKU ", company, [self.period("7.123456")])]
+            administrator, [self.change(" API SKU ", company, [self.period("7.123456")])]
         )["published"][0]["terms_version_id"]
         self.assertNotEqual(first, second)
-        current = next(item for item in self.configuration(operator) if item["sku"] == " API SKU ")
+        current = next(
+            item for item in self.configuration(administrator) if item["sku"] == " API SKU "
+        )
         self.assertEqual(current["terms_version_id"], second)
         self.assertEqual(len(current["periods"]), 1)
         self.assertEqual(current["periods"][0]["fee_rate_percent"], "7.123456")
@@ -45,7 +47,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
             ).fetchall(),
             [(Decimal(6),), (Decimal(0),)],
         )
-        issues = self.assert_incomplete(operator, [self.change(" API SKU ", None)])
+        issues = self.assert_incomplete(administrator, [self.change(" API SKU ", None)])
         self.assertEqual({issue["kind"] for issue in issues}, {"missing_company"})
         self.connection.execute("set constraints all immediate")
 
@@ -55,17 +57,19 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         company, _ = self.owner("A")
         self.assign("B", None)
         self.settlement([self.transaction("100", sku="A"), self.transaction("0", 4, sku="B")])
-        operator = self.operator()
+        administrator = self.administrator()
         self.connection.commit()
-        items = self.configuration(operator)
+        items = self.configuration(administrator)
         self.assertTrue(all(item["issues"] for item in items))
-        issues = self.assert_incomplete(operator, [self.change("A", company, [self.period("0")])])
+        issues = self.assert_incomplete(
+            administrator, [self.change("A", company, [self.period("0")])]
+        )
         self.assertTrue(
             any(issue["sku"] == "B" and issue["kind"] == "missing_company" for issue in issues)
         )
         before = self.configuration_state()
         result = self.save(
-            operator,
+            administrator,
             [
                 self.change("A", company, [self.period("0")]),
                 self.change("B", company, [self.period("5")]),
@@ -75,9 +79,9 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.assertEqual({item["sku"] for item in result["published"]}, {"A", "B"})
         self.connection.commit()
         self.assertNotEqual(self.configuration_state(), before)
-        self.assertTrue(all(not item["issues"] for item in self.configuration(operator)))
+        self.assertTrue(all(not item["issues"] for item in self.configuration(administrator)))
         before = self.configuration_state()
-        self.assert_invalid(operator, [])
+        self.assert_invalid(administrator, [])
         self.connection.commit()
         self.assertEqual(self.configuration_state(), before)
 
@@ -91,21 +95,21 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
             [self.transaction("10", sku="HISTORY-ONLY")], acquisition_id=acquisition
         )
         self.settlement([], acquisition_id=acquisition, expected=previous)
-        operator = self.operator()
-        issues = self.assert_incomplete(operator, [self.change("OWNED", company)])
+        administrator = self.administrator()
+        issues = self.assert_incomplete(administrator, [self.change("OWNED", company)])
         self.assertEqual(
             {(issue["sku"], issue["kind"]) for issue in issues},
             {("REGISTERED-ONLY", "missing_company"), ("HISTORY-ONLY", "missing_company")},
         )
         result = self.save(
-            operator,
+            administrator,
             [
                 self.change("REGISTERED-ONLY", company),
                 self.change("HISTORY-ONLY", company),
             ],
         )
         self.assertEqual(result["changed_count"], 2)
-        self.assertTrue(all(not item["issues"] for item in self.configuration(operator)))
+        self.assertTrue(all(not item["issues"] for item in self.configuration(administrator)))
 
     def test_current_marketplace_and_date_gaps_are_reported_and_zero_percent_fills_them(
         self,
@@ -120,12 +124,12 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
                 | {"marketplace_name": "Amazon.ca"},
             ]
         )
-        operator = self.operator()
+        administrator = self.administrator()
         periods = [
             self.period("0", start="2026-06-15", end="2026-06-16"),
             self.period("5", start="2026-06-17", end="2026-06-18"),
         ]
-        issues = self.assert_incomplete(operator, [self.change("A", company, periods)])
+        issues = self.assert_incomplete(administrator, [self.change("A", company, periods)])
         self.assertCountEqual(
             issues,
             [
@@ -146,37 +150,43 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
             ]
         )
         self.assertEqual(
-            self.save(operator, [self.change("A", company, periods)])["changed_count"], 1
+            self.save(administrator, [self.change("A", company, periods)])["changed_count"], 1
         )
-        self.assertEqual(self.configuration(operator)[0]["issues"], [])
+        self.assertEqual(self.configuration(administrator)[0]["issues"], [])
 
     def test_new_imports_can_create_gaps_but_next_save_must_repair_the_whole_configuration(
         self,
     ) -> None:
         company, _ = self.owner("A")
-        operator = self.operator()
-        self.save(operator, [self.change("A", company, [self.period()])])
+        administrator = self.administrator()
+        self.save(administrator, [self.change("A", company, [self.period()])])
         self.settlement([self.transaction("10", sku="NEW")])
         self.assertTrue(
-            next(item for item in self.configuration(operator) if item["sku"] == "NEW")["issues"]
+            next(item for item in self.configuration(administrator) if item["sku"] == "NEW")[
+                "issues"
+            ]
         )
-        issues = self.assert_incomplete(operator, [self.change("A", company, [self.period("7")])])
+        issues = self.assert_incomplete(
+            administrator, [self.change("A", company, [self.period("7")])]
+        )
         self.assertTrue(any(issue["sku"] == "NEW" for issue in issues))
         self.assertEqual(
-            self.save(operator, [self.change("NEW", company, [self.period("0")])])["changed_count"],
+            self.save(administrator, [self.change("NEW", company, [self.period("0")])])[
+                "changed_count"
+            ],
             1,
         )
-        self.assertTrue(all(not item["issues"] for item in self.configuration(operator)))
+        self.assertTrue(all(not item["issues"] for item in self.configuration(administrator)))
 
     def test_stale_edit_uses_conflict_code_and_preserves_history_and_revision_tokens(self) -> None:
         company, _ = self.owner("A")
-        operator = self.operator()
+        administrator = self.administrator()
         stale = self.change("A", company, [self.period("5")])
-        self.save(operator, [self.change("A", company, [self.period("7")])])
+        self.save(administrator, [self.change("A", company, [self.period("7")])])
         self.connection.commit()
         before = self.configuration_state()
         with self.assertRaises(psycopg.Error) as error:
-            self.save(operator, [stale])
+            self.save(administrator, [stale])
         self.assertEqual(error.exception.sqlstate, "PT409")
         self.assertEqual(
             error.exception.diag.message_primary, "SKU configuration changed while editing"

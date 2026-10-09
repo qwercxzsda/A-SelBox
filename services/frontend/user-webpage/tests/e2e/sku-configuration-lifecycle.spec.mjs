@@ -6,12 +6,12 @@ test("a save completing after token renewal refreshes only with current credenti
   page,
 }) => {
   await page.clock.install();
-  const fixture = await setup(page, "operator", [item("S1")], (state) => {
+  const fixture = await setup(page, "administrator", [item("S1")], (state) => {
     state.authSessionForRequest = ({ grantType, user }) => ({
       access_token: grantType === "password" ? "initial-access" : "renewed-access",
       refresh_token: grantType === "password" ? "initial-refresh" : "renewed-refresh",
       token_type: "bearer",
-      expires_in: grantType === "password" ? 90 : 3600,
+      expires_in: grantType === "password" ? 75 : 3600,
       user: { id: user, email: `${user}@example.test` },
     });
   });
@@ -24,7 +24,8 @@ test("a save completing after token renewal refreshes only with current credenti
   await page
     .getByRole("tab", { name: "Transactions", exact: true })
     .evaluate((element) => element.click());
-  await page.clock.fastForward(30_000);
+  // Renew during the save, before its 30-second request deadline.
+  await page.clock.fastForward(15_000);
   await expect
     .poll(() =>
       fixture.identityRequests.some(({ accessToken }) => accessToken === "renewed-access"),

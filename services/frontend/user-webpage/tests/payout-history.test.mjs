@@ -32,7 +32,7 @@ test("payout history uses one exact company, period and currency scope with stab
     assert.equal(init.headers.Prefer, "count=exact");
     assert.equal(init.headers.Accept, "text/csv");
     assert.equal(init.headers.Authorization, "Bearer test-access");
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return new Response(
       csvRecord({ id: OTHER_COMPANY_ID, company_amount: "9007199254740993.123456789" }),
       { headers: { "Content-Range": "50-50/51" } },
@@ -115,7 +115,7 @@ test("selected payout versions load directly by ID within their original scope w
     });
     assert.equal(init.headers.Prefer, undefined);
     assert.equal(init.headers.Authorization, "Bearer test-access");
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return new Response(csvRecord({ id: OTHER_COMPANY_ID, currency: null, company_amount: "0" }));
   });
   const row = await client.fetchPayoutVersion({

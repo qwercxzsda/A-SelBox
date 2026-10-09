@@ -3,7 +3,7 @@ import { skuAssignments } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn, sortBy } from "./table-actions.mjs";
 
-async function setup(page, { role = "operator", expiresIn = 90 } = {}) {
+async function setup(page, { role = "administrator", expiresIn = 90 } = {}) {
   await page.clock.install();
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
@@ -112,7 +112,7 @@ test("administrator demotion during renewal removes administrator catalogs and r
 }) => {
   const fixture = await setup(page);
   await page.getByRole("tab", { name: "Settlements", exact: true }).click();
-  fixture.roles["member-a"] = "company_member";
+  fixture.roles["member-a"] = "member";
   fixture.assignments = skuAssignments(["MEMBER-ONLY"]);
   await page.clock.fastForward(30_000);
   await expectRenewedLookups(fixture);
@@ -129,7 +129,7 @@ test("administrator demotion during renewal removes administrator catalogs and r
 test("member renewal rebuilds SKU options from fresh assignments even with unchanged revisions", async ({
   page,
 }) => {
-  const fixture = await setup(page, { role: "company_member" });
+  const fixture = await setup(page, { role: "member" });
   fixture.assignments = skuAssignments(["MEMBER-NEW"]);
   fixture.companyNames["company-member-a"] = "Fresh member label";
   await page.clock.fastForward(30_000);

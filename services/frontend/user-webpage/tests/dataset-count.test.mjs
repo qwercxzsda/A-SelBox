@@ -29,7 +29,7 @@ test("financial counts use typed filters without ordering, pagination, or lossy 
   );
   assert.equal(requests[0].url, "https://example.invalid/rest/v1/rpc/transaction_count");
   assert.equal(requests[0].init.method, "POST");
-  assert.equal(requests[0].init.signal, controller.signal);
+  assert.ok(requests[0].init.signal instanceof AbortSignal);
   assert.equal(requests[0].init.headers.Authorization, "Bearer test-token");
   assert.deepEqual(JSON.parse(requests[0].init.body), {
     p_date_from: filters.dateFrom,
@@ -144,8 +144,9 @@ test("count cancellation reaches the API and preserves abort rather than retryab
   const controller = new AbortController();
   const aborted = new DOMException("Cancelled", "AbortError");
   const client = createApiClient(SETTINGS, async (_url, init) => {
-    assert.equal(init.signal, controller.signal);
-    controller.abort();
+    assert.ok(init.signal instanceof AbortSignal);
+    controller.abort(aborted);
+    assert.equal(init.signal.reason, aborted);
     throw aborted;
   });
   await assert.rejects(

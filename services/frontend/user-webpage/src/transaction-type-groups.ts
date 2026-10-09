@@ -85,6 +85,25 @@ export function transactionTypeGroups(options: readonly FilterOption[]): Transac
   });
 }
 
+/** Match all words against either a group name or an individual type, never a mix. */
+export function searchTransactionTypeGroups(
+  groups: TransactionTypeGroup[],
+  search: string,
+): TransactionTypeGroup[] {
+  const words = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return groups;
+
+  return groups.flatMap((group) => {
+    const groupName = group.label.toLocaleLowerCase();
+    if (words.every((word) => groupName.includes(word))) return [group];
+    const options = group.options.filter(({ label, value }) => {
+      const typeName = `${label} ${value}`.toLocaleLowerCase();
+      return words.every((word) => typeName.includes(word));
+    });
+    return options.length > 0 ? [{ ...group, options }] : [];
+  });
+}
+
 /** Collapse complete groups in applied-filter chips; keep partial selections explicit. */
 export function transactionTypeSelectionLabels(
   options: readonly FilterOption[],

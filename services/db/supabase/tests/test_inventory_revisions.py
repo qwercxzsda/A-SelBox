@@ -18,7 +18,7 @@ class InventoryRevisionTests(InventoryFixture):
 
     def test_only_committed_capture_publication_rotates_inventory_token(self) -> None:
         company, _ = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         self.connection.commit()
         initial = self.revisions(member)
         self.assertEqual(set(initial), {"settlement", "data_kiosk", "fees", "inventory", "payouts"})
@@ -35,7 +35,7 @@ class InventoryRevisionTests(InventoryFixture):
             {key: value for key, value in published.items() if key != "inventory"},
             {key: value for key, value in initial.items() if key != "inventory"},
         )
-        self.assertEqual(self.revisions(operator)["inventory"], published["inventory"])
+        self.assertEqual(self.revisions(administrator)["inventory"], published["inventory"])
         self.assertEqual(self.capture(acquisition, [self.item()]), capture)
         self.connection.commit()
         self.assertEqual(self.revisions(member), published)
@@ -45,32 +45,32 @@ class InventoryRevisionTests(InventoryFixture):
         self.assertNotEqual(self.revisions(member)["inventory"], published["inventory"])
 
     def test_rollback_restores_token_and_capture_together(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         original = self.capture(self.acquire(), [self.item()])
         self.connection.commit()
-        before = self.revisions(operator)
+        before = self.revisions(administrator)
         with self.connection.transaction(force_rollback=True):
             later = self.acquire(report_created_at="2026-09-29T13:00:00Z")
             self.capture(later, [], expected=original)
             self.connection.execute("set constraints all immediate")
-            self.assertNotEqual(self.revisions(operator)["inventory"], before["inventory"])
-        self.assertEqual(self.revisions(operator), before)
+            self.assertNotEqual(self.revisions(administrator)["inventory"], before["inventory"])
+        self.assertEqual(self.revisions(administrator), before)
         self.assertEqual(
             self.connection.execute("select count(*) from private.inventory_items").fetchone(),
             (1,),
         )
 
     def test_multiple_captures_in_one_commit_share_token(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         self.connection.commit()
         first = self.capture(self.acquire(), [self.item()])
         self.connection.execute("set constraints private.workspace_inventory_revision immediate")
-        first_token = self.revisions(operator)["inventory"]
+        first_token = self.revisions(administrator)["inventory"]
         later = self.acquire(report_created_at="2026-09-29T13:00:00Z")
         self.capture(later, [self.item(quantity=3)], expected=first)
-        self.assertEqual(self.revisions(operator)["inventory"], first_token)
+        self.assertEqual(self.revisions(administrator)["inventory"], first_token)
         self.connection.commit()
-        self.assertEqual(self.revisions(operator)["inventory"], first_token)
+        self.assertEqual(self.revisions(administrator)["inventory"], first_token)
 
     def test_unchanged_polls_never_scan_inventory_headers_or_facts(self) -> None:
         company, _ = self.owner()

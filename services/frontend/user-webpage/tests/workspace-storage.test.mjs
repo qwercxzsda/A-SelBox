@@ -13,7 +13,7 @@ import {
 } from "../src/workspace-view-codec.ts";
 import { createFeeViewState } from "../src/workspace-view-state.ts";
 
-const account = { user_id: "account-a", access_role: "operator", company_id: null };
+const account = { user_id: "account-a", access_role: "administrator", company_id: null };
 function storage() {
   const data = new Map();
   return {
@@ -38,6 +38,36 @@ function storage() {
 const text = (value) => (typeof value === "string" ? value : "default");
 const prefix = workspaceStoragePrefix("https://project.example/");
 
+test("current role scopes retain drafts on reload and discard them after identity changes", () => {
+  const member = { ...account, access_role: "member", company_id: "company-a" };
+  for (const [original, next] of [
+    [account, member],
+    [member, { ...member, company_id: "company-b" }],
+    [member, { ...account, access_role: "unassigned" }],
+    [member, { ...member, user_id: "other-user" }],
+  ]) {
+    const saved = storage();
+    const previous = createWorkspaceStore(saved, prefix, original);
+    previous.write("tab", "fees");
+    previous.write("fees", "unfinished draft");
+    assert.equal(
+      createWorkspaceStore(saved, prefix, original).read("fees", () => "default", text),
+      "unfinished draft",
+    );
+    const current = createWorkspaceStore(saved, prefix, next);
+    previous.write("fees", "late response from old scope");
+    assert.equal(
+      current.read("fees", () => "default", text),
+      "default",
+    );
+    assert.equal(
+      current.read("tab", () => "default", text),
+      "default",
+    );
+    assert.equal([...saved.data.values()].includes(JSON.stringify("unfinished draft")), false);
+  }
+});
+
 test("workspace restores in the same project and account and isolates permissions and other projects", () => {
   const saved = storage();
   createWorkspaceStore(saved, prefix, account).write("tab", "fees");
@@ -54,7 +84,7 @@ test("workspace restores in the same project and account and isolates permission
   otherProject.write("tab", "inventory");
   const changed = createWorkspaceStore(saved, prefix, {
     ...account,
-    access_role: "company_member",
+    access_role: "member",
     company_id: "company-a",
   });
   assert.equal(
@@ -176,13 +206,14 @@ test("view decoders whitelist table controls and preserve exact SKU text", () =>
   assert.equal(value.live.selectedRowId, "settlement:one");
   assert.equal("access_token" in value.live, false);
   assert.equal("invented" in value, false);
-  assert.equal(
-    decodeWorkspaceTab("accounts", { ...account, access_role: "company_member" }),
-    "live",
-  );
+  assert.equal(decodeWorkspaceTab("accounts", { ...account, access_role: "member" }), "live");
   assert.equal(decodeWorkspaceTab("financial-review", account), "financial-review");
+  assert.equal(decodeWorkspaceTab("companies", account), "companies");
+  for (const access_role of ["member", "unassigned"]) {
+    assert.equal(decodeWorkspaceTab("companies", { ...account, access_role }), "live");
+  }
   assert.equal(
-    decodeWorkspaceTab("financial-review", { ...account, access_role: "company_member" }),
+    decodeWorkspaceTab("financial-review", { ...account, access_role: "member" }),
     "live",
   );
   assert.deepEqual(

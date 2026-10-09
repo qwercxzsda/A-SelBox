@@ -88,7 +88,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
         settlement, days = self.publish_marketplaces("old")
         self.publish_marketplaces("current", settlement, days)
         self.connection.execute("set constraints all immediate")
-        return self.operator(), self.member(company)
+        return self.administrator(), self.member(company)
 
     def count(self, user: str, dataset: str, marketplaces: list[str] | None) -> str:
         if dataset == "live":
@@ -104,7 +104,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
         return cast(str, rows[0][0])
 
     def test_populated_marketplaces_keep_ordered_pages_counts_and_raw_history(self) -> None:
-        operator, member = self.marketplace_fixture()
+        administrator, member = self.marketplace_fixture()
         selections: tuple[list[str] | None, ...] = (
             None,
             [],
@@ -113,16 +113,18 @@ class MarketplaceOrderingTests(SourceModelFixture):
             list(_MARKETS),
             [*_MARKETS, _MARKETS[0]],
         )
-        for user, dataset in product((operator, member), ("live", "settlement", "data_kiosk")):
+        for user, dataset in product((administrator, member), ("live", "settlement", "data_kiosk")):
             unfiltered = self.expected(user, dataset, p_limit=1000)
             rows = cast(list[dict[str, object]], unfiltered["rows"])
             self.assertEqual({row["marketplace_name"] for row in rows}, set(_MARKETS))
             if dataset != "live":
                 self.assertEqual(
                     {row["preprocess_version"] for row in rows},
-                    {"old", "current"} if user == operator else {"current"},
+                    {"old", "current"} if user == administrator else {"current"},
                 )
-                self.assertEqual(any(row["category"] == "SELBOX" for row in rows), user == operator)
+                self.assertEqual(
+                    any(row["category"] == "SELBOX" for row in rows), user == administrator
+                )
             for selection in selections:
                 count = self.count(user, dataset, selection)
                 reference = self.expected(user, dataset, p_marketplaces=selection, p_limit=1000)

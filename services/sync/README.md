@@ -188,13 +188,13 @@ a 0% period is explicit valid coverage. Publication rejects stale edits.
 `public.company_skus` and `public.current_sku_fee_periods` expose the selected
 assigned terms. Source imports do not register or assign SKUs or create fees.
 
-Application operators use `public.publish_sku_configuration` to publish a nonempty batch of
+Application administrators use `public.publish_sku_configuration` to publish a nonempty batch of
 staged revisions atomically. That guarded API additionally requires ownership for every known
 SKU and coverage of applicable dates in selected source versions. The trusted Python helper
 supports internal revision publication and source-independent setup; it is not the
 administrator application's write interface.
-`public.app_accounts` records operator/member access; company members see only
-their assigned company's current terms and source results. See the
+`public.app_accounts` records the Administrator, Member, or Unassigned role. Members see only
+their assigned company's current terms and source results; Unassigned users receive no company data. See the
 [application-access contract](../../docs/access_control.md) for account management
 and the REST payload.
 
@@ -220,12 +220,16 @@ fee corrections immediately affect live reads. The refund formula still has the
 
 ## Saved company payout reports
 
-The database's scheduled worker generates mature monthly reports automatically and
+The database's scheduled worker generates mature monthly reports automatically for
+companies with at least one currently assigned SKU and
 requests updated reports after source, ownership, or fee changes. Each five-minute run
 processes up to 10 pending, mature company/months through an index. A metadata frontier
 adds newly mature months; completed months are skipped until another change requests work.
 Unchanged inputs reuse the latest report. Incomplete inputs retry with backoff, and
 changed inputs reset the delay. Publication and pending revisions commit atomically.
+Companies without current assignments receive no new reports or queued work. Assigning
+the first SKU activates generation; removing the last stops it without changing saved
+reports. An assigned SKU without activity still permits an ordinary zero report.
 
 `src/database/payout_reports.py` retains the low-level
 `publish_company_payout_report()` helper for trusted internal integration and verification.
@@ -233,10 +237,12 @@ It publishes one company/currency aggregate for a complete calendar month. The
 database discovers every source namespace, selects current versions, validates
 inputs, computes amounts, and returns a saved report UUID. Callers supply neither
 source selections nor calculated totals. This helper is not the application workflow.
+The database rejects publication without a current SKU assignment, including when
+historical reports or assignments exist.
 
 `load_company_payout_report()` and `load_company_payout_report_components()` read frozen
 values without recalculating current inputs. The header reader also supports the
-null currency produced by company/month generation when no currency scope is known.
+null currency produced for an eligible company/month when no currency scope is known.
 Those totals are zero. Namespace and preprocessing provenance belong to the pinned
 source manifests rather than the company report header.
 

@@ -103,13 +103,20 @@ export function OptionSearch({
   label,
   search,
   onChange,
+  onResetScroll,
   placeholder = "Find an option",
 }: {
   label: string;
   search: string;
   onChange: (value: string) => void;
+  onResetScroll: () => void;
   placeholder?: string;
 }) {
+  function changeSearch(value: string) {
+    onChange(value);
+    onResetScroll();
+  }
+
   return (
     <TextInput
       label={`Search ${label.toLowerCase()}`}
@@ -117,7 +124,7 @@ export function OptionSearch({
       data-autofocus
       value={search}
       onChange={(event) => {
-        onChange(event.currentTarget.value);
+        changeSearch(event.currentTarget.value);
       }}
       rightSectionPointerEvents="auto"
       rightSection={
@@ -126,7 +133,7 @@ export function OptionSearch({
             aria-label="Clear option search"
             size="sm"
             onClick={() => {
-              onChange("");
+              changeSearch("");
             }}
           />
         ) : undefined
@@ -138,9 +145,11 @@ export function OptionSearch({
 export function SelectionFilter({
   label,
   filter,
+  onResetScroll,
 }: {
   label: string;
   filter: Extract<ColumnMenuFilter, { kind: "selection" }>;
+  onResetScroll: () => void;
 }) {
   const [search, setSearch] = useState("");
   const searchable = filter.options.length > 8;
@@ -151,7 +160,14 @@ export function SelectionFilter({
 
   return (
     <Stack gap="sm">
-      {searchable ? <OptionSearch label={label} search={search} onChange={setSearch} /> : null}
+      {searchable ? (
+        <OptionSearch
+          label={label}
+          search={search}
+          onChange={setSearch}
+          onResetScroll={onResetScroll}
+        />
+      ) : null}
       <Group justify="space-between" gap="xs">
         <Text size="xs" c="dimmed" aria-live="polite">
           {filter.value.length === 0 ? "All" : `${String(filter.value.length)} selected`}

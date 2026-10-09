@@ -11,7 +11,7 @@ async function choose(page, label, choices) {
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
 }
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} can see and remove table refinements and recover without losing ordering`, async ({
     page,
   }, testInfo) => {
@@ -68,7 +68,7 @@ test("wide financial columns remain reachable at the top without reloading rows"
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.liveRows = Array.from({ length: 100 }, (_, index) => liveRow("ALPHA", index + 1));
   await signIn(page);
   await page.getByLabel("Rows", { exact: true }).selectOption("100");
@@ -106,7 +106,7 @@ for (const width of [1440, 834, 390]) {
   }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     fixture.settlementRows = [settlementRow(1, "0")];
     fixture.kioskRows = [kioskRow(1, "0")];
     await signIn(page);

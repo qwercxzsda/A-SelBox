@@ -10,22 +10,24 @@ from services.db.supabase.tests.source_fixtures import new_id
 class InventoryAccessTests(InventoryFixture):
     def test_latest_empty_scope_hides_previous_day_in_views_and_member_base_reads(self) -> None:
         company, _ = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         old = self.acquire(capture_date="2026-09-28", report_created_at="2026-09-28T12:00:00Z")
         self.capture(old, [self.item()])
         latest = self.capture(self.acquire(), [])
-        for user in (member, operator):
+        for user in (member, administrator):
             self.assertEqual(self.as_user(user, "select * from public.latest_inventory_items"), [])
             self.assertEqual(
                 self.as_user(user, "select capture_id::text from public.latest_inventory_captures"),
                 [(latest,)],
             )
         self.assertEqual(self.as_user(member, "select * from private.inventory_items"), [])
-        self.assertEqual(len(self.as_user(operator, "select * from private.inventory_items")), 1)
+        self.assertEqual(
+            len(self.as_user(administrator, "select * from private.inventory_items")), 1
+        )
 
     def test_ownership_is_exact_sku_across_namespaces_and_headers_remain_private(self) -> None:
         company, _ = self.owner(" SKU ")
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         first = self.acquire()
         self.capture(first, [self.item(" SKU "), self.item("SKU", 99, 3)])
         second = self.acquire(seller_namespace="other-import")
@@ -39,12 +41,12 @@ class InventoryAccessTests(InventoryFixture):
             [(" SKU ", 5, None, company), (" SKU ", 7, None, company)],
         )
         self.assertEqual(
-            len(self.as_user(operator, "select * from public.latest_inventory_items")), 3
+            len(self.as_user(administrator, "select * from public.latest_inventory_items")), 3
         )
         self.assertEqual(self.as_user(member, "select * from private.inventory_acquisitions"), [])
         self.assertEqual(self.as_user(member, "select * from private.inventory_daily_captures"), [])
         self.assertEqual(
-            len(self.as_user(operator, "select * from private.inventory_acquisitions")), 2
+            len(self.as_user(administrator, "select * from private.inventory_acquisitions")), 2
         )
         self.assertEqual(
             self.as_user(self.auth_user(), "select * from public.latest_inventory_captures"), []
@@ -88,7 +90,7 @@ class InventoryAccessTests(InventoryFixture):
         company, _ = self.owner()
         acquisition = self.acquire()
         payload = self.capture_payload(acquisition, [self.item()])
-        for user in (self.member(company), self.operator(), self.auth_user()):
+        for user in (self.member(company), self.administrator(), self.auth_user()):
             with self.subTest(user=user), self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 self.as_user(
                     user, "select private.publish_inventory_capture(%s)", (Jsonb(payload),)

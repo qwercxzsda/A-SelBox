@@ -48,7 +48,7 @@ export async function respondWithFinancialReview(
   const entry = { endpoint, params: url.searchParams, user, completed: false };
   fixture.financialReviewRequests.push(entry);
   track(request, entry);
-  if (fixture.roles[user] !== "operator") return reply({}, 403);
+  if (fixture.roles[user] !== "administrator") return reply({}, 403);
   await fixture.beforeFinancialReview(entry);
   const status = fixture.financialReviewStatusForRequest?.(entry) ?? fixture.financialReviewStatus;
   if (status !== 200) return reply({}, status);

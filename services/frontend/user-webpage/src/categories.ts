@@ -8,8 +8,9 @@ const LABELS: Record<string, string> = {
   NOT_APPLICABLE: "Fee not applicable",
   MISSING_FEE: "Fee rate missing",
   MISSING_OWNERSHIP: "Company assignment missing",
-  operator: "Administrator",
-  company_member: "Company member",
+  administrator: "Administrator",
+  member: "Member",
+  unassigned: "Unassigned",
   preprocess_version: "Processing version",
 };
 

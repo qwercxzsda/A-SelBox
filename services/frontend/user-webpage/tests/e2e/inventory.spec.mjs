@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn, captureResponsiveReview } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 
-for (const user of ["company_member", "operator"]) {
+for (const user of ["member", "administrator"]) {
   test(`${user} sees reported inventory groups, exact values and source dates without shipment controls`, async ({
     page,
   }, testInfo) => {
@@ -17,7 +17,7 @@ for (const user of ["company_member", "operator"]) {
         health_status: "Out of stock",
         recommended_ship_in_units: "1347",
         recommended_ship_in_date: "2026-09-30",
-        recommended_action: user === "operator" ? "SendToFBA" : "GoToRestock",
+        recommended_action: user === "administrator" ? "SendToFBA" : "GoToRestock",
         minimum_inventory_units: "1",
       }),
     ]);
@@ -43,7 +43,7 @@ for (const user of ["company_member", "operator"]) {
     await expect(region.getByText(/Snapshot:|Capture:|Report:|Processed:/)).toHaveCount(0);
     await expect(region.locator(".inventory-health-label")).toHaveText("Out of stock");
     await expect(region.locator(".inventory-action-label")).toHaveText(
-      user === "operator" ? "Send to FBA" : "Restock",
+      user === "administrator" ? "Send to FBA" : "Restock",
     );
     await region.getByText("Amazon.com", { exact: true }).click();
     const details = page.getByRole("dialog", { name: "Inventory details", exact: true });
@@ -371,7 +371,7 @@ async function poll(page, fixture) {
   await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
 }
 
-for (const role of ["company_member", "operator"]) {
+for (const role of ["member", "administrator"]) {
   test(`${role} inventory uses lightweight checks and reloads only for inventory or ownership changes`, async ({
     page,
   }) => {
@@ -416,7 +416,7 @@ for (const role of ["company_member", "operator"]) {
       ...financial,
       options: workspace.optionRequests.length,
     });
-    if (role === "company_member")
+    if (role === "member")
       expect(workspace.revisionRequests.at(-1).sources).toEqual(["fees", "inventory"]);
 
     const previousCatalogs = workspace.identityRequests.length;

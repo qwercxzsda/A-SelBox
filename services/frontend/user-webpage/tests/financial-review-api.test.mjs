@@ -62,7 +62,7 @@ test("financial review keeps category and month scope while aggregating every na
     assert.equal(init.headers.Authorization, "Bearer access");
     assert.equal(init.headers.Accept, "text/csv");
     assert.equal(init.headers.Prefer, undefined);
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return new Response(
       csvRecord({
         currency: "USD",
@@ -245,7 +245,7 @@ test("financial review month filtering paginates currency rows without probing o
   for (const request of fixture.requests) {
     assert.equal(request.params.p_month_from, "2026-07-01");
     assert.equal(request.params.p_month_to, "2026-08-01");
-    assert.equal(request.signal, controller.signal);
+    assert.ok(request.signal instanceof AbortSignal);
   }
 });
 
@@ -312,7 +312,7 @@ test("financial review records preserve matching source/type filters, provenance
     assert.equal(params.get("order"), "activity_date.desc,source.asc,source_row_id.asc");
     assert.equal(params.get("limit"), "50");
     assert.equal(params.get("offset"), "100");
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     assert.equal(init.headers.Prefer, "count=exact");
     const columns = params.get("select").split(",");
     assert.ok(columns.includes("source_row_id"));

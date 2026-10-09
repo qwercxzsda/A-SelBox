@@ -67,7 +67,8 @@ export function useTransactionSummaries(
 ) {
   const { session, account } = identity;
   const scope: TransactionSummaryScope = {
-    companyIds: account.access_role === "operator" ? normalizeSelections(filters.companyIds) : [],
+    companyIds:
+      account.access_role === "administrator" ? normalizeSelections(filters.companyIds) : [],
     skus: normalizeSelections(filters.skus),
     marketplaces: normalizeSelections(filters.marketplaces),
   };

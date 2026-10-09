@@ -132,7 +132,12 @@ class SourceTransactionPageTests(SourceModelFixture):
 
     def test_all_roles_orders_pages_and_exact_count_modes_match_raw_views(self) -> None:
         company_a, company_b = self.financial_fixture()
-        users = (self.operator(), self.member(company_a), self.member(company_b), self.auth_user())
+        users = (
+            self.administrator(),
+            self.member(company_a),
+            self.member(company_b),
+            self.auth_user(),
+        )
         for user, dataset, order, direction, offset, include_count in product(
             users,
             ("settlement", "data_kiosk"),
@@ -169,7 +174,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             {"p_skus": [], "p_types": None, "p_marketplaces": []},
         )
         for user, dataset, order, selection in product(
-            (self.operator(), self.member(company_a), self.member(company_b)),
+            (self.administrator(), self.member(company_a), self.member(company_b)),
             ("settlement", "data_kiosk"),
             ("date", "amount"),
             filters,
@@ -177,9 +182,9 @@ class SourceTransactionPageTests(SourceModelFixture):
             with self.subTest(dataset=dataset, selection=selection, order=order):
                 self.assert_matches_view(user, dataset, p_order_by=order, p_limit=1, **selection)
 
-    def test_operator_keeps_historical_and_account_rows_but_members_do_not(self) -> None:
+    def test_administrator_keeps_historical_and_account_rows_but_members_do_not(self) -> None:
         company, sku = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         old_terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
         _, old_settlement = self.settlement([self.transaction("999")], acquisition_id=acquisition)
@@ -197,12 +202,14 @@ class SourceTransactionPageTests(SourceModelFixture):
             2, [self.component("10"), self.component("0"), account_kiosk], expected=old_kiosk
         )
         for dataset in ("settlement", "data_kiosk"):
-            operator_page = self.assert_matches_view(operator, dataset, p_order_by="amount")
+            administrator_page = self.assert_matches_view(
+                administrator, dataset, p_order_by="amount"
+            )
             member_page = self.assert_matches_view(member, dataset, p_order_by="amount")
             kiosk = dataset == "data_kiosk"
-            self.assertEqual(operator_page["total_count"], "5" if kiosk else "3")
+            self.assertEqual(administrator_page["total_count"], "5" if kiosk else "3")
             self.assertEqual(member_page["total_count"], "2" if kiosk else "1")
-            rows = cast(list[dict[str, object]], operator_page["rows"])
+            rows = cast(list[dict[str, object]], administrator_page["rows"])
             self.assertEqual(
                 [row["amount"] for row in rows],
                 ["1000", "999", "10"] + (["0", "0"] if kiosk else []),
@@ -225,7 +232,7 @@ class SourceTransactionPageTests(SourceModelFixture):
         self.settlement(transactions)
         self.kiosk(1, components)
         for user, dataset, direction in product(
-            (self.operator(), self.member(company)),
+            (self.administrator(), self.member(company)),
             ("settlement", "data_kiosk"),
             ("asc", "desc"),
         ):
@@ -256,13 +263,13 @@ class SourceTransactionPageTests(SourceModelFixture):
             self.connection.execute("select public.source_transaction_page('settlement')")
 
     def test_invalid_requests_are_rejected(self) -> None:
-        operator = self.operator()
+        administrator = self.administrator()
         for dataset in (None, "live", "settlement; select 1", ""):
             with (
                 self.subTest(dataset=dataset),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
-                self.page(operator, dataset)
+                self.page(administrator, dataset)
         invalid: tuple[dict[str, object], ...] = (
             {"p_limit": None},
             {"p_limit": 0},
@@ -286,6 +293,6 @@ class SourceTransactionPageTests(SourceModelFixture):
                 self.subTest(options=options),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
-                self.page(operator, "settlement", **options)
+                self.page(administrator, "settlement", **options)
         with self.assertRaises(psycopg.errors.InvalidParameterValue):
-            self.page(operator, "data_kiosk", p_marketplaces=["Unknown marketplace"])
+            self.page(administrator, "data_kiosk", p_marketplaces=["Unknown marketplace"])

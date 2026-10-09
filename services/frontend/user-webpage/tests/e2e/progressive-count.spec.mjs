@@ -72,7 +72,7 @@ test("a count failure preserves rows and the count-only retry does not fetch the
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous", exact: true })).toBeEnabled();
   await expect
-    .poll(() => fixture.countRequests.filter(({ completed }) => completed).length)
+    .poll(() => fixture.countRequests.filter(({ responseStatus }) => responseStatus === 403).length)
     .toBe(2);
   await expect(retry).toBeEnabled();
   const rows = fixture.requests.length;
@@ -244,7 +244,7 @@ test("a newer publication replaces a pending count instead of accepting its olde
 
 test("Data Kiosk rows do not wait for their independent RPC count", async ({ page }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.kioskRows = Array.from({ length: 25 }, (_, index) => kioskRow(index + 1, "10"));
   const started = deferred();
   const release = deferred();

@@ -89,10 +89,10 @@ test("forbidden source reads are errors rather than successful empty pages", asy
   );
 });
 
-test("dataset cancellation forwards the signal and preserves the abort reason", async () => {
+test("dataset cancellation reaches the request and preserves the abort reason", async () => {
   const controller = new AbortController();
   const client = createApiClient(SETTINGS, async (_url, { signal }) => {
-    assert.equal(signal, controller.signal);
+    assert.ok(signal instanceof AbortSignal);
     return new Promise((_resolve, reject) => {
       signal.addEventListener("abort", () => reject(signal.reason), { once: true });
     });

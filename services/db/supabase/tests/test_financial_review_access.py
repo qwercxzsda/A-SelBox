@@ -1,4 +1,4 @@
-"""Current monthly source review remains operator-only and separate from payouts."""
+"""Current monthly source review remains administrator-only and separate from payouts."""
 
 from datetime import date
 from decimal import Decimal
@@ -21,7 +21,7 @@ _TOTALS: LiteralString = (
 
 
 class FinancialReviewAccessTests(SourceModelFixture):
-    def test_invoker_security_and_operator_gate_cover_records_and_summaries(self) -> None:
+    def test_invoker_security_and_administrator_gate_cover_records_and_summaries(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         company, _ = self.owner()
         self.settlement([self.transaction("100")])
@@ -60,7 +60,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
             "'2026-06-01','2026-07-01','DATA_KIOSK','USD')"
         )
         self.assertEqual(
-            self.as_user(self.operator(), query), [("records", 2), ("totals", 1), ("types", 1)]
+            self.as_user(self.administrator(), query), [("records", 2), ("totals", 1), ("types", 1)]
         )
         for user in (self.member(company), self.auth_user()):
             self.assertEqual(
@@ -99,7 +99,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
             [self.transaction("-5", category="DATA_KIOSK") | {"marketplace_name": "Amazon.ca"}]
         )
         self.kiosk(1, [self.component("0", category="SELBOX") | {"sku": None}])
-        operator = self.operator()
+        administrator = self.administrator()
         expected = [
             (date(2026, 6, 1), "DATA_KIOSK", "EUR", 0, -4, 4, 0, 1),
             (
@@ -125,10 +125,10 @@ class FinancialReviewAccessTests(SourceModelFixture):
             ),
             (date(2026, 7, 1), "DATA_KIOSK", "USD", 0, -2, 2, 0, 1),
         ]
-        self.assertEqual(self.as_user(operator, _TOTALS), expected)
+        self.assertEqual(self.as_user(administrator, _TOTALS), expected)
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select count(*),count(*) filter(where amount=0),"
                 "count(*) filter(where marketplace_name is null),"
                 "count(distinct seller_namespace) from public.financial_review_records",
@@ -138,7 +138,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
         # Every source-specific Type sum and count rolls up to its month/category.
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select t.month,t.category::text,t.currency "
                 "from unnest(array['SETTLEMENT','DATA_KIOSK','SELBOX']::"
                 "public.allocation_category[]) c(k) cross join lateral "
@@ -157,10 +157,10 @@ class FinancialReviewAccessTests(SourceModelFixture):
             [],
         )
         self.connection.execute("set local timezone='Pacific/Kiritimati'")
-        self.assertEqual(self.as_user(operator, _TOTALS), expected)
+        self.assertEqual(self.as_user(administrator, _TOTALS), expected)
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select count(*) from public.financial_review_records "
                 "where activity_date>='2026-07-01' and activity_date<'2026-08-01' "
                 "and category='DATA_KIOSK' and currency='USD'",
@@ -171,7 +171,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
 
     def test_summaries_require_explicit_valid_month_and_category_scope(self) -> None:
         query: LiteralString = "select * from public.financial_review_totals(%s,%s,%s)"
-        operator = self.operator()
+        administrator = self.administrator()
         for scope in (
             (None, "2026-07-01", "DATA_KIOSK"),
             ("2026-06-01", None, "DATA_KIOSK"),
@@ -184,11 +184,11 @@ class FinancialReviewAccessTests(SourceModelFixture):
             ("2026-06-01", "2026-07-01", "ANALYSIS_ONLY"),
         ):
             with self.subTest(scope=scope), self.assertRaises(InvalidParameterValue):
-                self.as_user(operator, query, scope)
+                self.as_user(administrator, query, scope)
         for currency in (None, "", "usd", "USD,EUR"):
             with self.subTest(currency=currency), self.assertRaises(InvalidParameterValue):
                 self.as_user(
-                    operator,
+                    administrator,
                     "select * from public.financial_review_type_totals("
                     "'2026-06-01','2026-07-01','DATA_KIOSK',%s)",
                     (currency,),
@@ -206,10 +206,10 @@ class FinancialReviewAccessTests(SourceModelFixture):
         )
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
         _, new_kiosk = self.kiosk(2, [self.component("-5")], expected=old_kiosk, digest="b")
-        operator = self.operator()
+        administrator = self.administrator()
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select source,source_version_id::text,count(*) "
                 "from public.financial_review_records group by source,source_version_id "
                 "order by source",
@@ -234,11 +234,11 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 for line in (3, 4)
             ]
         )
-        operator = self.operator()
+        administrator = self.administrator()
         for category in ("SETTLEMENT", "DATA_KIOSK"):
             self.assertEqual(
                 self.as_user(
-                    operator,
+                    administrator,
                     "select * from public.financial_review_totals('2026-06-01','2026-07-01',%s)",
                     (category,),
                 ),
@@ -246,7 +246,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
             )
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select settlement_amount,data_kiosk_amount,difference,"
                 "settlement_row_count,data_kiosk_row_count "
                 "from public.financial_review_totals('2026-06-01','2026-07-01','SELBOX')",

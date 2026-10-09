@@ -71,7 +71,7 @@ New split modules must fit around those stable anchors. The table below follows 
 | [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
 | [payout_schedule](migrations/20260928123139_payout_schedule.sql) | Five-minute pg_cron registration in the configured scheduler database. |
 | [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql) | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics. |
-| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic operator batches, and stale-write checks. |
+| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic administrator batches, and stale-write checks. |
 | [application_grants](migrations/20260928123142_application_grants.sql) | Final explicit table, column, and function allowlist for the entire application. |
 | [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and issue the single final schema reload. |
 
@@ -84,15 +84,15 @@ and fee projection. `transaction_count` counts the live ledger, including author
 `transaction_totals` combines compatible facts before fee lookup. Administrator identity bootstrap
 preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
 SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
-cursor page. Company members reuse their current assignments. Source, Marketplace, and Type menus
+cursor page. Members reuse their current assignments. Source, Marketplace, and Type menus
 use static catalogs. The frontend resolves table search to exact OR sets; Currency is not searchable.
 General REST aggregates are disabled. See the
 [query contracts](../../../docs/transaction_query_contracts.md) for parameters and numeric formats.
 
 Administrator catalog discovery uses the existing SKU/date indexes to seek between distinct source
-SKU values, avoiding repeated transaction entries. The RPC checks the stored application-operator
+SKU values, avoiding repeated transaction entries. The RPC checks the stored administrator
 role before discovery and rejects other callers with SQLSTATE `42501`. It includes the registry,
-returns exact strings in `C` order, and retains invoker security. Company-user filters use loaded
+returns exact strings in `C` order, and retains invoker security. Member filters use loaded
 assignments and make no discovery request.
 
 Ownership RLS uses the private caller-bound `current_owned_sku_terms()` set rather than repeated
@@ -118,12 +118,12 @@ comparison and analysis facts.
 `workspace_revisions` reads the authenticated account and requested opaque tokens from the small
 `workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial
 source and inventory revisions are global; fee, ownership, company-name, and payout revisions are
-company-scoped for members and global for operators. Source-version publication, current-pointer
+company-scoped for members and global for administrators. Source-version publication, current-pointer
 changes, and historical Data Kiosk pruning update financial source tokens atomically at commit.
 This covers administrator history reads as well as current Transactions. Changed daily inventory
 captures rotate the separate `inventory` token in the publication transaction; raw acquisitions,
 idempotent replays, and rolled-back publications do not. New payout headers rotate `payouts` tokens
-for their company and the global operator scope; unchanged report reuse does not. Only financial
+for their company and the global administrator scope; unchanged report reuse does not. Only financial
 source tokens include the UTC mature cutoff date. The browser checks relevant tokens on its polling interval, focus, and
 reconnection, then invalidates dependent reads when a token changes. Unchanged inventory and
 ownership tokens retain successful cached inventory reads; failed reads can retry. The
@@ -134,7 +134,7 @@ cache behavior.
 
 The private `source-archives` Storage bucket retains content-addressed XZ archives indefinitely.
 The archive service receives `SUPABASE_SERVICE_ROLE_KEY` through its process environment; application
-operators and company members cannot read those archives. Storage uploads finish before PostgreSQL
+administrators and members cannot read those archives. Storage uploads finish before PostgreSQL
 publication and do not share its transaction. A failed metadata publication may leave an orphaned
 upload for reconciliation.
 
@@ -153,14 +153,18 @@ private.publish_company_payout_report(jsonb)
 
 Source and terms replacements validate the expected current reference, complete inventories, and
 financial controls atomically. Published children cannot be extended or rewritten. Source imports
-do not assign companies or create fee terms. Operators publish terms only through the guarded
+do not assign companies or create fee terms. Administrators publish terms only through the guarded
 `public.publish_sku_configuration` RPC. Its batch validation requires owners for all known SKUs
 and fees for current commission-capable source dates, while preserving older incomplete terms.
-`public.sku_configuration` exposes all known settings to operators and only owned settings to
+`public.sku_configuration` exposes all known settings to administrators and only owned settings to
 members. Source publication remains trusted Python/SQL work.
 The private payout worker runs every five minutes and processes up to 10 pending mature
 company/months through a partial index. Source and terms publications request affected work;
 a metadata frontier adds newly mature months. Completed months are skipped until inputs change.
+Only companies with currently assigned SKUs receive new reports or queued work.
+Removing the last assignment clears mutable refresh state without changing saved reports;
+assigning a SKU again resumes automatic generation. Assigned SKUs without activity remain
+eligible for zero reports. The trusted single-report publisher enforces the same assignment rule.
 A blocked month records its error and retries with backoff, without preventing other months
 from completing. A changed input resets the delay. All scopes for one company/month are atomic. There is
 no public generation RPC or browser generation action. See the [payout contract](../../../docs/company_payout_reports.md),
@@ -170,11 +174,12 @@ The baseline registers `company-payout-reports` in `cron.database_name` (normall
 Auxiliary databases in that cluster install the worker without a schedule and emit a notice,
 because pg_cron can only be installed in its configured database. The private
 `payout_report_refresh_state` table records pending/completed revisions, retry timing, attempts,
-successes, and errors for DB administrators; application roles cannot read or modify it. The [scheduler operations](../../../docs/company_payout_reports.md#scheduler-operations)
+successes, and errors for DB managers; application roles cannot read or modify it. The [scheduler operations](../../../docs/company_payout_reports.md#scheduler-operations)
 queries inspect its progress. Five minutes is the job cadence, not a per-report freshness guarantee.
 
-DB administrators create companies and bootstrap operators. Application accounts live
-in the database; user-editable Auth metadata cannot grant access. Company members read
+DB managers bootstrap administrators; administrators create companies and manage memberships.
+Application accounts use the `administrator`, `member`, and `unassigned` roles stored in the
+database; user-editable Auth metadata cannot grant access. Members read
 permitted current facts and terms plus their own saved payout headers, components,
 and marketplace/Type totals. The latest-report view groups only by company, month,
 and currency; source namespaces remain input provenance. Payout manifests and

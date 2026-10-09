@@ -19,8 +19,8 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
             ]
         )
         self.kiosk(1, [self.component("-10")])
-        operator = self.operator()
-        for user in (operator, self.member(company)):
+        administrator = self.administrator()
+        for user in (administrator, self.member(company)):
             for direction in ("asc", "desc"):
                 for ordering in ("date", "amount"):
                     with self.subTest(user=user, direction=direction, ordering=ordering):
@@ -60,7 +60,7 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
             self.assertEqual(Decimal(str(rows[0]["company_amount"])), Decimal(85))
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select public.transaction_count(p_skus=>array['SKU'],"
                 "p_sources=>array['RECONCILIATION'])",
             ),
@@ -68,7 +68,7 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
         )
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select public.transaction_count(p_company_ids=>array[%s]::uuid[])",
                 (company,),
             ),
@@ -76,20 +76,22 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
         )
         self.assertEqual(
             self.as_user(
-                operator, "select public.transaction_count(p_sources=>array['RECONCILIATION'])"
+                administrator, "select public.transaction_count(p_sources=>array['RECONCILIATION'])"
             ),
             [("1",)],
         )
         # Raw source inspection/search retains supplied SKU text and category provenance.
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select public.source_transaction_count('settlement',p_skus=>array['SKU'])",
             ),
             [("2",)],
         )
         self.assertEqual(
-            self.as_user(operator, "select public.transaction_count(p_search_skus=>array['SKU'])"),
+            self.as_user(
+                administrator, "select public.transaction_count(p_search_skus=>array['SKU'])"
+            ),
             [("3",)],
         )
         self.connection.execute("set constraints all immediate")

@@ -18,7 +18,7 @@ async function checkForUpdates(page, fixture) {
   await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
 }
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   test(`${role} sees background payout publications after lightweight revision checks`, async ({
     page,
   }) => {

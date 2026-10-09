@@ -228,7 +228,7 @@ test("signing into another account and role never displays the previous breakdow
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-b"] = "operator";
+  fixture.roles["member-b"] = "administrator";
   fixture.aggregateRowsByUser = {
     "member-a": [summaryBucket("2026-03-15", "41.123456789012345678")],
     "member-b": [summaryBucket("2026-03-15", "907")],

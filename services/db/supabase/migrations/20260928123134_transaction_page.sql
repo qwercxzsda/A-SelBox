@@ -5,9 +5,9 @@
 -- Date direction reverses the complete date/source/ID order, matching a single
 -- source date/ID index in either scan direction. Amount ties remain ascending.
 -- SECURITY INVOKER preserves fact, metadata, ownership, and fee RLS throughout.
--- Only authenticated non-operators with active fact RLS omit the duplicate
+-- Only authenticated non-administrators with active fact RLS omit the duplicate
 -- current-pointer EXISTS: their unchanged fact policies already require it.
--- Operators, owners, bypass contexts, and disabled RLS keep the explicit check.
+-- Administrators, owners, bypass contexts, and disabled RLS keep the explicit check.
 -- Revalidate this optimization whenever the authenticated fact policies change.
 -- The count helper remains a full matching-row count; it is intentionally not
 -- replaced with the number of limited candidates. Both execute in one snapshot.

@@ -130,14 +130,14 @@ class TransactionTotalsTests(SourceModelFixture):
     def test_roles_exact_money_and_missing_states_match_view(self) -> None:
         first, second = self.financial_fixture()
         for user, grouped in product(
-            (None, self.operator(), self.member(first), self.member(second), self.auth_user()),
+            (None, self.administrator(), self.member(first), self.member(second), self.auth_user()),
             (False, True),
         ):
             with self.subTest(user=user, grouped=grouped):
                 self.assert_matches_view(user, p_group_by_type=grouped)
-        operator = self.operator()
+        administrator = self.administrator()
         for sku in ("GAP", "UNKNOWN", "UNASSIGNED"):
-            result = self.assert_matches_view(operator, p_skus=[sku])
+            result = self.assert_matches_view(administrator, p_skus=[sku])
             rows = cast(list[dict[str, object]], result["rows"])
             self.assertTrue(rows)
             self.assertTrue(all(row["company_amount"] is None for row in rows))
@@ -156,15 +156,15 @@ class TransactionTotalsTests(SourceModelFixture):
         for size in range(len(filters) + 1):
             for names in combinations(filters, size):
                 options = {name: filters[name] for name in names}
-                for user in (self.operator(), self.member(first)):
+                for user in (self.administrator(), self.member(first)):
                     self.assert_matches_view(user, p_group_by_type=True, **options)
         self.assert_matches_view(self.member(first), p_date_from=None, p_date_to="2026-06-16")
 
     def test_empty_unknown_and_other_company_filters_do_not_expand_scope(self) -> None:
         first, second = self.financial_fixture()
-        member, operator = self.member(first), self.operator()
+        member, administrator = self.member(first), self.administrator()
         empty_selections: tuple[object, ...] = (None, [])
-        for user in (member, operator):
+        for user in (member, administrator):
             for empty in empty_selections:
                 self.assert_matches_view(
                     user, p_company_ids=empty, p_skus=empty, p_marketplaces=empty
@@ -213,7 +213,7 @@ class TransactionTotalsTests(SourceModelFixture):
         acquisition = self.acquisition()
         _, version = self.settlement([self.transaction("10")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("3")])
-        users = (self.operator(), self.member(first), self.member(second))
+        users = (self.administrator(), self.member(first), self.member(second))
         for user in users:
             self.assert_matches_view(user)
         self.settlement([self.transaction("20")], acquisition_id=acquisition, expected=version)
@@ -250,7 +250,7 @@ class TransactionTotalsTests(SourceModelFixture):
         self.assert_matches_view(member, p_group_by_type=True, p_limit=2, p_offset=1)
 
     def test_invalid_inputs_and_unsupported_marketplaces_are_rejected(self) -> None:
-        user = self.operator()
+        user = self.administrator()
         invalid: tuple[dict[str, object], ...] = (
             {"p_date_from": None},
             {"p_date_from": "infinity"},

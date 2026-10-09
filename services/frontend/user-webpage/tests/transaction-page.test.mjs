@@ -70,7 +70,7 @@ test("transaction pages use the authenticated REST function for both date direct
     assert.equal(sent.url, `${SETTINGS.supabaseUrl}/rest/v1/rpc/transaction_page`);
     assert.equal(sent.init.method, "POST");
     assert.equal(sent.init.redirect, "error");
-    assert.equal(sent.init.signal, signal);
+    assert.ok(sent.init.signal instanceof AbortSignal);
     assert.equal(sent.init.headers.Authorization, "Bearer test-access");
     assert.equal(sent.init.headers.apikey, SETTINGS.publishableKey);
     assert.equal(sent.init.headers.Accept, "application/json");

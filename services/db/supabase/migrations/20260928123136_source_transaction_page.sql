@@ -1,11 +1,11 @@
--- Raw source pages retain the public source views' RLS, including operator
+-- Raw source pages retain the public source views' RLS, including administrator
 -- access to historical versions and account-level categories. Unlike live
 -- Transactions, these pages must not add a current-version/category predicate.
 -- Choose stored date/amount candidates before projecting version metadata.
 -- Keep large source JSON out of the bounded amount candidate inventory.
 -- Date ordering reverses the entire date/ID key; amount ties stay ascending.
 -- The unchanged fact/version RLS policies guarantee a visible parent version
--- for every visible fact (operators see all versions; members see all current references).
+-- for every visible fact (administrators see all versions; members see all current references).
 -- This allows pagination and counts to omit the metadata join; the final join
 -- remains SECURITY INVOKER. Recheck that implication if those policies change.
 create function public.source_transaction_page(

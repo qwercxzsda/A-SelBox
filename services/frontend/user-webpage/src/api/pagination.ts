@@ -17,43 +17,8 @@ export function validatePagination(pageIndex: number, pageSize: number): void {
   }
 }
 
-interface LookupPage<Row> {
-  rows: Row[];
-  totalCount: number | null;
-}
-
-async function readEveryPage<Row>(
-  readPage: (offset: number, includeCount: boolean) => Promise<LookupPage<Row>>,
-  rowKey: (row: Row) => string,
-  operation: string,
-): Promise<Row[]> {
-  const rows: Row[] = [];
-  const seen = new Set<string>();
-  let expectedCount: number | null = null;
-  for (;;) {
-    const page = await readPage(rows.length, expectedCount === null);
-    if (expectedCount !== null && page.totalCount !== null && page.totalCount !== expectedCount) {
-      throw new Error(`${operation} changed while loading. Please retry.`);
-    }
-    expectedCount ??= page.totalCount;
-    for (const row of page.rows) {
-      const key = rowKey(row);
-      if (seen.has(key)) throw new Error(`${operation} did not advance to the next page`);
-      seen.add(key);
-      rows.push(row);
-    }
-    if (expectedCount !== null && rows.length > expectedCount) {
-      throw new Error(`${operation} returned an inconsistent record count`);
-    }
-    if (rows.length === expectedCount) return rows;
-    if (page.rows.length === 0) {
-      if (expectedCount !== null) throw new Error(`${operation} returned an incomplete page`);
-      return rows;
-    }
-  }
-}
-
-export function readAllJsonRows(
+/** Read complete PostgREST catalogs, allowing server page caps below the requested limit. */
+export async function readAllJsonRows(
   transport: ApiTransport,
   accessToken: string,
   endpoint: string,
@@ -61,30 +26,51 @@ export function readAllJsonRows(
   order: string,
   operation: string,
 ): Promise<Record<string, unknown>[]> {
-  return readEveryPage(
-    async (offset, includeCount) => {
-      const params = new URLSearchParams({
-        select,
-        order,
-        limit: String(LOOKUP_PAGE_SIZE),
-        offset: String(offset),
-      });
-      const response = await transport.request(
+  const rows: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
+  let expectedCount: number | null = null;
+  for (;;) {
+    const params = new URLSearchParams({
+      select,
+      order,
+      limit: String(LOOKUP_PAGE_SIZE),
+      offset: String(rows.length),
+    });
+    const page: { rows: Record<string, unknown>[]; totalCount: number | null } =
+      await transport.request(
         `/rest/v1/${endpoint}?${params.toString()}`,
         {
           headers: {
             ...transport.authenticatedHeaders(accessToken),
-            ...(includeCount ? { Prefer: "count=exact" } : {}),
+            ...(expectedCount === null ? { Prefer: "count=exact" } : {}),
           },
         },
         operation,
+        async (response, signal) => {
+          const totalCount = parseTotalCount(response.headers.get("Content-Range"));
+          if (response.status === 416 && totalCount !== null) return { rows: [], totalCount };
+          if (!response.ok) throw new ApiError(operation, response.status);
+          return {
+            rows: parseObjectRows(await readJson(response, operation, signal), operation),
+            totalCount,
+          };
+        },
       );
-      const totalCount = parseTotalCount(response.headers.get("Content-Range"));
-      if (response.status === 416 && totalCount !== null) return { rows: [], totalCount };
-      if (!response.ok) throw new ApiError(operation, response.status);
-      return { rows: parseObjectRows(await readJson(response, operation), operation), totalCount };
-    },
-    (row) => requiredJsonString(row, "id"),
-    operation,
-  );
+    if (expectedCount !== null && page.totalCount !== null && page.totalCount !== expectedCount)
+      throw new Error(`${operation} changed while loading. Please retry.`);
+    expectedCount ??= page.totalCount;
+    for (const row of page.rows) {
+      const key = requiredJsonString(row, "id");
+      if (seen.has(key)) throw new Error(`${operation} did not advance to the next page`);
+      seen.add(key);
+      rows.push(row);
+    }
+    if (expectedCount !== null && rows.length > expectedCount)
+      throw new Error(`${operation} returned an inconsistent record count`);
+    if (rows.length === expectedCount) return rows;
+    if (page.rows.length === 0) {
+      if (expectedCount !== null) throw new Error(`${operation} returned an incomplete page`);
+      return rows;
+    }
+  }
 }

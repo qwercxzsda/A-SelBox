@@ -1,5 +1,5 @@
 -- Return the complete catalog in one scalar JSON value, unaffected by REST row limits.
--- Only a currently registered administrator can call this RPC. Company members
+-- Only a currently registered administrator can call this RPC. Members
 -- obtain their SKU choices from company_skus instead. Keep SECURITY INVOKER and
 -- authenticate against database state, not caller-controlled role metadata.
 -- Native deterministic SKU-index seeks skip duplicate facts; the final C ordering
@@ -9,7 +9,7 @@ language plpgsql stable security invoker
 set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 begin
-    if not private.is_operator() then
+    if not private.is_administrator() then
         raise exception 'Administrator access required' using errcode = '42501';
     end if;
     return (
@@ -165,10 +165,10 @@ create function private.read_sku_configuration() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare selected_skus text[];
 begin
-    if private.is_operator() then
+    if private.is_administrator() then
         select coalesce(array_agg(value), '{}'::text[]) into selected_skus
         from jsonb_array_elements_text(public.sku_filter_options()->'values');
-    elsif private.is_company_member() then
+    elsif private.is_member() then
         select coalesce(array_agg(o.sku), '{}'::text[]) into selected_skus
         from private.current_owned_sku_terms() as o;
     else

@@ -109,7 +109,10 @@ def publish_company_payout_report(
     The database discovers all company source namespaces and validates coverage
     before computing amounts. No source selection or amounts come from callers.
     Matching immutable inputs return the latest report's identity. A null currency
-    is valid only for an empty company/month with no known currency.
+    is valid only for an empty monetary aggregate with no known currency. At least
+    one currently assigned SKU is required, even for an empty aggregate; the
+    database rejects companies without current assignments. Saved reports remain
+    readable after the last assignment is removed.
     """
     required_date(start_date, "start_date")
     required_date(end_date, "end_date")

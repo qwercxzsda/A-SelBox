@@ -58,13 +58,13 @@ test("only session credentials, expiry, and minimal user identity are persisted"
   const supplied = {
     ...expected,
     password: "synthetic-password-must-not-be-saved",
-    account: { access_role: "operator", company_id: "cached-company" },
+    account: { access_role: "administrator", company_id: "cached-company" },
     companies: [{ id: "cached-company", name: "Cached company" }],
     assignments: [{ sku: "cached-sku" }],
     user: {
       ...expected.user,
       password: "also-not-saved",
-      app_metadata: { role: "operator" },
+      app_metadata: { role: "administrator" },
       user_metadata: { company: "cached-company" },
       identities: [{ provider: "email" }],
     },
@@ -80,9 +80,9 @@ test("reading stored records ignores untrusted account and user metadata", () =>
   const storage = memoryStorage({
     [KEY]: JSON.stringify({
       ...expected,
-      account: { access_role: "operator" },
+      account: { access_role: "administrator" },
       password: "not-restored",
-      user: { ...expected.user, app_metadata: { role: "operator" } },
+      user: { ...expected.user, app_metadata: { role: "administrator" } },
     }),
   });
   assert.deepEqual(createSessionStore(storage, KEY).read(), expected);

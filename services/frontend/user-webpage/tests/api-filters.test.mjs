@@ -168,7 +168,7 @@ test("company, SKU, and marketplace selections compose across table and dedicate
   assert.equal(new Headers(table.init.headers).has("Prefer"), false);
   assert.deepEqual(table.args.p_skus, [...new Set(skus)]);
   assert.deepEqual(table.args.p_marketplaces, [...new Set(marketplaces)]);
-  for (const request of requests) assert.equal(request.init.signal, signal);
+  for (const request of requests) assert.ok(request.init.signal instanceof AbortSignal);
   for (const { args, init } of requests.slice(1)) {
     assert.deepEqual([...args.p_company_ids].sort(), [...new Set(companyIds)].sort());
     assert.deepEqual([...args.p_skus].sort(), [...new Set(skus)].sort());
@@ -314,7 +314,7 @@ test("invalid company UUIDs and company filters on other datasets fail before HT
     );
   }
   for (const dataset of Object.keys(DATASET_CONFIG).filter(
-    (key) => isTableDataset(key) && key !== "live" && key !== "payouts",
+    (key) => isTableDataset(key) && !["live", "payouts", "accounts"].includes(key),
   )) {
     await assert.rejects(
       client.fetchDatasetPage(

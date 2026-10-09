@@ -105,7 +105,7 @@ test("administrator SKU options include unassigned imports from one complete cat
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   const lastSku = "ZZZ, last (special)";
   fixture.liveRows = [
     ...Array.from({ length: 1001 }, (_, index) => ({ ...liveRow("FIRST", index + 1), sku: "AAA" })),

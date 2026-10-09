@@ -186,7 +186,7 @@ function setupCurrentReview(fixture) {
 }
 
 export function setupFinancialReview(fixture) {
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = REVIEW_COMPANY;
   fixture.companyNames[REVIEW_COMPANY] = "Review Company";
   setupCurrentReview(fixture);

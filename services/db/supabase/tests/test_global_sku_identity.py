@@ -90,9 +90,13 @@ class GlobalSkuIdentityTests(FinancialFixture):
 
     def test_one_assignment_combines_sources_fees_and_reassignment_for_exact_sku(self) -> None:
         company, other, identity, original = self.shared_sources()
-        member, other_member, operator = self.member(company), self.member(other), self.operator()
+        member, other_member, administrator = (
+            self.member(company),
+            self.member(other),
+            self.administrator(),
+        )
         self.assert_shared_reads(member, "-15", company)
-        self.assert_shared_reads(operator, "-15", company)
+        self.assert_shared_reads(administrator, "-15", company)
         self.assert_shared_hidden(other_member)
         self.assertEqual(self.as_user(member, "select sku from public.company_skus"), [("S1",)])
         self.assertEqual(
@@ -128,9 +132,9 @@ class GlobalSkuIdentityTests(FinancialFixture):
 
     def test_current_member_source_pages_combine_namespaces_without_exposing_history(self) -> None:
         company, other, _, _ = self.shared_sources()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         for dataset in ("settlement", "data_kiosk"):
-            for user, expected in ((member, "2"), (operator, "4"), (self.member(other), "0")):
+            for user, expected in ((member, "2"), (administrator, "4"), (self.member(other), "0")):
                 with self.subTest(dataset=dataset, user=user):
                     page = cast(
                         dict[str, object],

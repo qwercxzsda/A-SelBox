@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { editor, item, openEditor, period, setup } from "./sku-configuration-fixtures.mjs";
 
 test("dismissing SKU autocomplete keeps the unfinished editor open", async ({ page }) => {
-  await setup(page, "operator", [item("S1"), item("SECOND")]);
+  await setup(page, "administrator", [item("S1"), item("SECOND")]);
   await page.getByRole("button", { name: "Add SKU", exact: true }).click();
   const sku = editor(page).getByRole("combobox", { name: "SKU", exact: true });
   await sku.fill("S");
@@ -14,7 +14,7 @@ test("dismissing SKU autocomplete keeps the unfinished editor open", async ({ pa
 });
 
 test("removing the only fee period keeps keyboard focus on an editor control", async ({ page }) => {
-  const fixture = await setup(page, "operator", [item("S1", { periods: [period()] })]);
+  const fixture = await setup(page, "administrator", [item("S1", { periods: [period()] })]);
   await openEditor(page);
   const remove = editor(page).getByRole("button", { name: "Remove period 1", exact: true });
   await remove.focus();
@@ -32,7 +32,7 @@ for (const interaction of ["keyboard", "pointer"]) {
   test(`removing the final fee period by ${interaction} focuses the preceding period`, async ({
     page,
   }) => {
-    const fixture = await setup(page, "operator", [
+    const fixture = await setup(page, "administrator", [
       item("S1", { periods: [period("1"), period("2")] }),
     ]);
     await openEditor(page);
@@ -49,7 +49,7 @@ for (const interaction of ["keyboard", "pointer"]) {
 }
 
 test("removing a middle fee period keeps the next period keyboard reachable", async ({ page }) => {
-  const fixture = await setup(page, "operator", [
+  const fixture = await setup(page, "administrator", [
     item("S1", { periods: [period("1"), period("2"), period("3")] }),
   ]);
   await openEditor(page);

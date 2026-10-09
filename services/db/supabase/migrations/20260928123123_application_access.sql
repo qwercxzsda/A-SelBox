@@ -1,40 +1,95 @@
--- Application RLS and narrow authorized read projections.
+-- Guarded application mutations, RLS and narrow authorized read projections.
 -- noqa: disable=AM04
+
+-- Deletion only removes an unused company. Historical assignments and pending
+-- payouts remain dependencies even when the current company directory looks empty.
+create function private.delete_administrator_company(target_company_id uuid)
+returns table (id uuid, deleted boolean)
+language plpgsql security definer set search_path = '' as $$
+declare
+    blockers jsonb;
+begin
+    if not private.is_administrator() then
+        raise exception 'Administrator access required' using errcode = '42501';
+    end if;
+    if target_company_id is null then
+        raise exception 'Company ID is required' using errcode = '22023';
+    end if;
+    -- Every company reference takes a conflicting FK key-share lock. Wait for
+    -- earlier assignments, then count their committed rows before deciding.
+    perform 1 from public.companies as c where c.id = target_company_id for update;
+    if not found then
+        return query select target_company_id, false;
+        return;
+    end if;
+    select jsonb_agg(jsonb_build_object('code', dependencies.code, 'count', dependencies.count)
+        order by dependencies.ordinal)
+    into blockers
+    from (
+        select 1 as ordinal, 'members' as code, count(*) as count
+        from public.app_accounts as a where a.company_id = target_company_id
+        union all
+        select 2, 'assigned_skus', count(*)
+        from private.current_sku_terms as t where t.company_id = target_company_id
+        union all
+        select 3, 'terms_versions', count(*)
+        from public.sku_terms_versions as v where v.company_id = target_company_id
+        union all
+        select 4, 'payout_reports', count(*)
+        from public.company_payout_reports as r where r.company_id = target_company_id
+        union all
+        select 5, 'payout_refreshes', count(*)
+        from private.payout_report_refresh_state as s where s.company_id = target_company_id
+    ) as dependencies
+    where dependencies.count > 0;
+    if blockers is not null then
+        raise exception 'Company cannot be deleted while it has linked records'
+        using errcode = 'PT409', detail = blockers::text;
+    end if;
+    begin
+        delete from public.companies as c where c.id = target_company_id;
+    exception when foreign_key_violation then
+        -- Fail closed if a future restrictive FK has not yet gained a named reason.
+        raise exception 'Company cannot be deleted while it has linked records'
+        using errcode = 'PT409', detail = '[{"code":"other_records","count":1}]';
+    end;
+    return query select target_company_id, true;
+end;
+$$;
+create function public.delete_company(target_company_id uuid)
+returns table (id uuid, deleted boolean)
+language sql security invoker set search_path = '' as $$
+    select * from private.delete_administrator_company(target_company_id);
+$$;
+
 create policy app_accounts_read on public.app_accounts for select to authenticated
-using ((select private.is_operator()) or user_id = (select auth.uid()));
-create policy app_accounts_insert on public.app_accounts for insert to authenticated
-with check ((select private.is_operator()) and access_role = 'company_member');
-create policy app_accounts_update on public.app_accounts for update to authenticated
-using ((select private.is_operator()) and access_role = 'company_member')
-with check ((select private.is_operator()) and access_role = 'company_member');
-create policy app_accounts_delete on public.app_accounts for delete to authenticated
-using ((select private.is_operator()) and access_role = 'company_member');
+using ((select private.is_administrator()) or user_id = (select auth.uid()));
 create policy companies_read on public.companies for select to authenticated
 using (
-    (select private.is_operator()) or id in (
+    (select private.is_administrator()) or id in (
         select a.company_id from public.app_accounts as a
         where a.user_id = (select auth.uid())
     )
 );
 create policy skus_read on public.skus for select to authenticated using (
-    (select private.is_operator()) or id in (
+    (select private.is_administrator()) or id in (
         select o.sku_id from private.current_owned_sku_terms() as o
     )
 );
 create policy terms_read on public.sku_terms_versions for select to authenticated using (
-    (select private.is_operator()) or id in (
+    (select private.is_administrator()) or id in (
         select o.terms_version_id from private.current_owned_sku_terms() as o
     )
 );
 create policy periods_read on public.sku_fee_periods for select to authenticated using (
-    (select private.is_operator()) or terms_version_id in (
+    (select private.is_administrator()) or terms_version_id in (
         select o.terms_version_id from private.current_owned_sku_terms() as o
     )
 );
 
 create policy settlement_facts_read on private.settlement_transactions
 for select to authenticated using (
-    (select private.is_operator()) or (
+    (select private.is_administrator()) or (
         category = 'SETTLEMENT'
         and sku in (
             select o.sku from private.current_owned_sku_terms() as o
@@ -46,7 +101,7 @@ for select to authenticated using (
 );
 create policy data_kiosk_facts_read on private.data_kiosk_transactions
 for select to authenticated using (
-    (select private.is_operator()) or (
+    (select private.is_administrator()) or (
         category <> 'SELBOX'
         and sku in (
             select o.sku from private.current_owned_sku_terms() as o
@@ -59,13 +114,13 @@ for select to authenticated using (
 -- Current metadata needs registration and a selected pointer, never a fact scan.
 create policy settlement_selection_read on private.settlements
 for select to authenticated using (
-    (select private.is_operator())
-    or ((select private.is_company_member()) and current_version_id is not null)
+    (select private.is_administrator())
+    or ((select private.is_member()) and current_version_id is not null)
 );
 create policy settlement_version_reference_read on private.settlement_preprocess_versions
 for select to authenticated using (
-    (select private.is_operator()) or (
-        (select private.is_company_member())
+    (select private.is_administrator()) or (
+        (select private.is_member())
         and exists (
             select 1 from private.settlements as h
             where h.current_version_id = settlement_preprocess_versions.id
@@ -74,13 +129,13 @@ for select to authenticated using (
 );
 create policy data_kiosk_selection_read on private.data_kiosk_days
 for select to authenticated using (
-    (select private.is_operator())
-    or ((select private.is_company_member()) and current_version_id is not null)
+    (select private.is_administrator())
+    or ((select private.is_member()) and current_version_id is not null)
 );
 create policy data_kiosk_version_reference_read on private.data_kiosk_preprocess_versions
 for select to authenticated using (
-    (select private.is_operator()) or (
-        (select private.is_company_member())
+    (select private.is_administrator()) or (
+        (select private.is_member())
         and exists (
             select 1 from private.data_kiosk_days as h
             where h.current_version_id = data_kiosk_preprocess_versions.id
@@ -101,8 +156,8 @@ create function private.read_settlement_preprocess_results() returns table (
 )
 language plpgsql stable security definer set search_path = '' as $$
 begin
-    if not private.is_operator() then
-        raise exception 'Application operator access required' using errcode = '42501';
+    if not private.is_administrator() then
+        raise exception 'Administrator access required' using errcode = '42501';
     end if;
     return query select v.id::uuid,v.settlement_id::uuid,s.seller_namespace::text,s.amazon_scope::text,
         s.settlement_id::text,s.document_sha256::text,v.acquisition_id::uuid,
@@ -122,8 +177,8 @@ create function private.read_data_kiosk_preprocess_results() returns table (
 )
 language plpgsql stable security definer set search_path = '' as $$
 begin
-    if not private.is_operator() then
-        raise exception 'Application operator access required' using errcode = '42501';
+    if not private.is_administrator() then
+        raise exception 'Administrator access required' using errcode = '42501';
     end if;
     return query select v.id::uuid,v.day_id::uuid,v.batch_id::uuid,b.acquisition_id::uuid,
         d.seller_namespace::text,a.amazon_scope::text,d.marketplace_name,d.activity_date,
@@ -156,15 +211,15 @@ from private.data_kiosk_transactions as t
 inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id;
 
 -- Members read their own frozen payouts even if current SKU ownership changes.
--- Supporting rows, complete manifests and exclusion evidence stay operator-only.
+-- Supporting rows, complete manifests and exclusion evidence stay administrator-only.
 create policy payout_reports_read on public.company_payout_reports for select to authenticated
-using ((select private.is_operator()) or company_id in (
+using ((select private.is_administrator()) or company_id in (
     select a.company_id from public.app_accounts as a
-    where a.user_id = (select auth.uid()) and a.access_role = 'company_member'
+    where a.user_id = (select auth.uid()) and a.access_role = 'member'
 ));
 create policy payout_components_read on public.company_payout_report_components
 for select to authenticated using (
-    (select private.is_operator()) or (
+    (select private.is_administrator()) or (
         authoritative and report_id in (select r.id from public.company_payout_reports as r)
     )
 );
@@ -195,19 +250,19 @@ where
 order by r.company_id asc, r.start_date asc, r.currency asc, r.created_at desc, r.id desc;
 
 create policy payout_settlement_versions_read on private.payout_report_settlement_versions
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using ((select private.is_administrator()));
 create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using ((select private.is_administrator()));
 create policy payout_terms_versions_read on private.payout_report_terms_versions
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using ((select private.is_administrator()));
 create policy payout_reconciliation_read on private.payout_report_reconciliation
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using ((select private.is_administrator()));
 create view public.payout_report_reconciliation with (security_invoker = true) as
 select * from private.payout_report_reconciliation;
 
 -- Financial review is a source comparison, not a second company ledger. Retain
 -- both current sources in every allocation category without ownership/fee joins.
--- Operator gates are necessary because base facts also have member read policies.
+-- Administrator gates are necessary because base facts also have member read policies.
 create view public.financial_review_records with (security_invoker = true) as
 select
     'SETTLEMENT'::text as source, -- noqa: RF04
@@ -224,7 +279,7 @@ select
 from private.settlement_transactions as t
 inner join private.settlements as h on t.version_id = h.current_version_id
 where
-    (select private.is_operator())
+    (select private.is_administrator())
     and t.posted_date < (select private.mature_cutoff_date())
 union all
 select
@@ -242,7 +297,7 @@ select
 from private.data_kiosk_transactions as t
 inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
 where
-    (select private.is_operator())
+    (select private.is_administrator())
     and t.activity_date < (select private.mature_cutoff_date())
     and t.category in ('SETTLEMENT', 'DATA_KIOSK', 'SELBOX');
 
@@ -328,7 +383,7 @@ select
     sum(accounted_total) as accounted_total,
     count(*) as source_group_count
 from private.payout_report_reconciliation
-where (select private.is_operator())
+where (select private.is_administrator())
 group by report_id, currency;
 
 create view public.payout_report_settlement_versions with (security_invoker = true) as
@@ -346,25 +401,25 @@ create function private.latest_inventory_capture_references() returns table (
 )
 language sql stable security definer set search_path = '' as $$
     select latest.id::uuid,
-        case when (select private.is_operator()) then latest.seller_namespace::text end,
+        case when (select private.is_administrator()) then latest.seller_namespace::text end,
         latest.marketplace_name, latest.capture_date, a.report_created_at, latest.created_at
     from (
         select distinct on (c.seller_namespace, c.marketplace_name)
             c.id, c.seller_namespace, c.marketplace_name, c.capture_date, c.acquisition_id, c.created_at
         from private.inventory_daily_captures as c
-        where (select private.is_operator()) or (select private.is_company_member())
+        where (select private.is_administrator()) or (select private.is_member())
         order by c.seller_namespace, c.marketplace_name, c.capture_date desc
     ) as latest
     join private.inventory_acquisitions as a on a.id = latest.acquisition_id;
 $$;
 
 create policy inventory_acquisitions_read on private.inventory_acquisitions
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using ((select private.is_administrator()));
 create policy inventory_captures_read on private.inventory_daily_captures
-for select to authenticated using ((select private.is_operator()));
+for select to authenticated using ((select private.is_administrator()));
 create policy inventory_items_read on private.inventory_items
 for select to authenticated using (
-    (select private.is_operator()) or (
+    (select private.is_administrator()) or (
         sku in (select o.sku from private.current_owned_sku_terms() as o)
         and capture_id in (
             select c.capture_id from private.latest_inventory_capture_references() as c

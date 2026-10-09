@@ -101,12 +101,17 @@ function applySkuDrafts(
   );
 }
 
-export function validateSkuItem(item: SkuConfigurationItem): SkuFormIssue[] {
+export function validateSkuItem(
+  item: SkuConfigurationItem,
+  knownCompanyIds?: ReadonlySet<string>,
+): SkuFormIssue[] {
   const issues: SkuFormIssue[] = [];
   const add = (message: string, field?: SkuFormIssue["field"], periodIndex?: number) =>
     issues.push({ sku: item.sku, message, field, periodIndex });
   if (!item.sku.trim() || item.sku.includes("\0")) add("Enter a SKU.", "sku");
   if (!item.company_id) add("Choose a company.", "company_id");
+  else if (knownCompanyIds && !knownCompanyIds.has(item.company_id))
+    add("This company is no longer available. Choose another company.", "company_id");
   item.periods.forEach((period, index) => {
     if (!isMarketplace(period.marketplace_name))
       add("Choose a marketplace.", "marketplace_name", index);
@@ -133,9 +138,10 @@ export function validateSkuItem(item: SkuConfigurationItem): SkuFormIssue[] {
 export function resolveSkuConfiguration(
   items: readonly SkuConfigurationItem[],
   drafts: readonly SkuConfigurationChange[],
+  knownCompanyIds?: ReadonlySet<string>,
 ) {
   const effectiveItems = applySkuDrafts(items, drafts);
-  const issues = effectiveItems.flatMap(validateSkuItem);
+  const issues = effectiveItems.flatMap((item) => validateSkuItem(item, knownCompanyIds));
   const savedBySku = new Map(items.map((item) => [item.sku, item]));
   for (const draft of drafts) {
     const saved = savedBySku.get(draft.sku);

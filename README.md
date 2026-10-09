@@ -3,10 +3,12 @@
 A-SelBox archives Amazon Settlement Reports and Data Kiosk documents, preprocesses
 those saved inputs into complete source versions, and calculates company amounts
 and fees through live PostgreSQL views. Monthly payout reports are generated
-automatically as dates mature and source or fee inputs change. Immutable reports
+automatically for companies with currently assigned SKUs as dates mature and source or
+fee inputs change. Immutable reports
 save exact amounts across all source namespaces, separately by currency, and retain
 the versions used. A full mature company/month estimate matches the latest report
-once automatic generation has captured the current inputs.
+once automatic generation has captured the current inputs for an eligible company.
+Removing a company's last SKU stops new reports while preserving its saved history.
 
 Daily Inventory Planning reports use the same archive/offline preprocessing pattern and retain one
 normalized capture per seller, marketplace, and day. The read-only Inventory tab shows historical
@@ -31,9 +33,11 @@ account controls; selected Data Kiosk components supply company costs.
 Analysis-only components stay outside strict financial totals. Dashboard estimates
 combine all eligible transaction sources, as described in the query contract. Complete day
 versions include empty days and retain independent Amazon observation ordering.
-Application accounts distinguish administrators (`operator`) from company members
-(`company_member`). Members read current own-company facts and terms; administrators also read retained history and all
-payout reports. Raw documents remain private. Data Kiosk retention preserves
+Application accounts use three roles: Administrator (`administrator`), Member (`member`),
+and Unassigned (`unassigned`). New signups are Unassigned until an administrator assigns a
+company. Members read current own-company facts and terms; administrators also read retained
+history and all payout reports. Only the DB manager can grant or revoke Administrator access.
+Raw documents remain private. Data Kiosk retention preserves
 current versions, the latest three Amazon observations, and all payout
 dependencies. Approval, rounding, and payment execution remain deferred.
 
@@ -74,7 +78,7 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
   source ordering, shared versions, retention, and exact values.
 - [Company ownership and fees](docs/company_fees.md): versioned terms,
   calculations, partial summaries, completeness, and access.
-- [Application access](docs/access_control.md): operator/member roles, REST
+- [Application access](docs/access_control.md): Administrator, Member, and Unassigned roles, REST
   administration, and row-level security.
 - [Source allocation](docs/source_allocation.md).
 - [Payout reports](docs/company_payout_reports.md): publication and saved evidence.

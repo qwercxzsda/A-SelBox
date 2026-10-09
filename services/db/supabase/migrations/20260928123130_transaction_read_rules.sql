@@ -36,7 +36,7 @@ on private.data_kiosk_days (current_version_id)
 where current_version_id is not null;
 
 -- Default date pages use one B-tree per source in either direction. Full
--- coverage also serves the raw operator tabs, including historical/account rows;
+-- coverage also serves the raw administrator tabs, including historical/account rows;
 -- unchanged RLS and live-query predicates still enforce their respective scopes.
 create index settlement_transactions_date_id_idx
 on private.settlement_transactions (posted_date asc nulls last, id asc);
@@ -130,7 +130,7 @@ end;
 $$;
 
 -- This only recognizes the two fact policies that already enforce current
--- source pointers for authenticated company members. It does not grant access.
+-- source pointers for authenticated members. It does not grant access.
 -- Call once before custom planning, or through a scalar InitPlan in page SQL.
 create function private.member_policy_covers_current_version(p_relation regclass)
 returns boolean
@@ -139,7 +139,7 @@ language sql stable security invoker set search_path = '' as $$
         'private.settlement_transactions'::regclass,
         'private.data_kiosk_transactions'::regclass
     ) then current_user = 'authenticated'
-        and not private.is_operator()
+        and not private.is_administrator()
         and pg_catalog.row_security_active(p_relation)
     else false end;
 $$;

@@ -4,6 +4,7 @@ import { MantineProvider } from "@mantine/core";
 import { appTheme } from "./design-system";
 import "@mantine/core/styles.css";
 import "./design-system.css";
+import "./interaction-states.css";
 import "./index.css";
 import App from "./App.tsx";
 

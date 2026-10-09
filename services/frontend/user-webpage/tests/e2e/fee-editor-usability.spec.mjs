@@ -17,7 +17,7 @@ test("Add SKU suggests literal case-insensitive prefixes and opens existing draf
 }) => {
   const fixture = await setup(
     page,
-    "operator",
+    "administrator",
     ["S1", "ABC-one", "abc-Two", "xABC-middle", "[literal]-sku", " literal SKU "].map(
       (sku, index) =>
         item(sku, { sku_id: version(index + 1), terms_version_id: version(index + 11) }),
@@ -78,7 +78,7 @@ test("period editing keeps desktop actions visible, focuses added periods, and s
       `2026-09-${String(index + 2).padStart(2, "0")}`,
     ),
   );
-  const fixture = await setup(page, "operator", [item("S1", { periods })]);
+  const fixture = await setup(page, "administrator", [item("S1", { periods })]);
   await openEditor(page);
   const keep = editor(page).getByRole("button", { name: "Keep draft", exact: true });
   await expect(keep).toBeInViewport();

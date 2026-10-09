@@ -7,7 +7,7 @@ test("administrator identity preloads the complete SKU catalog in one request in
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.skuOptions = [
     ...Array.from({ length: 1001 }, (_, index) => `REGISTERED-${String(index).padStart(4, "0")}`),
     "UNREGISTERED-IMPORTED",
@@ -46,10 +46,10 @@ test("administrator identity preloads the complete SKU catalog in one request in
 });
 
 for (const [role, revision] of [
-  ["operator", "settlement"],
-  ["operator", "data_kiosk"],
-  ["operator", "fees"],
-  ["company_member", "fees"],
+  ["administrator", "settlement"],
+  ["administrator", "data_kiosk"],
+  ["administrator", "fees"],
+  ["member", "fees"],
 ]) {
   test(`${role} refreshes SKU search matches before dependent reads after ${revision} changes`, async ({
     page,
@@ -71,7 +71,7 @@ for (const [role, revision] of [
       started.resolve();
       await release.promise;
     };
-    if (role === "operator") fixture.beforeOptions = wait;
+    if (role === "administrator") fixture.beforeOptions = wait;
     else fixture.beforeAssignments = wait;
     fixture.skuOptions = ["OLD-SKU", "NEW-SKU"];
     fixture.assignments = skuAssignments(["OLD-SKU", "NEW-SKU"]);
@@ -89,7 +89,7 @@ for (const [role, revision] of [
     expect(
       fixture.requests.slice(before).every(({ args }) => args.p_search_skus?.includes("NEW-SKU")),
     ).toBe(true);
-    if (role === "operator")
+    if (role === "administrator")
       expect(fixture.revisionRequests.at(-1).sources.sort()).toEqual([
         "data_kiosk",
         "fees",

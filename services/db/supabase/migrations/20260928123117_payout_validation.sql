@@ -1,5 +1,14 @@
 -- Payout eligibility, available source validation, and immutable inventory checks.
 -- noqa: disable=AM04
+-- Current assignment establishes payout eligibility, independently of sales.
+-- Membership and historical terms alone do not schedule new payout reports.
+create function private.payout_company_eligible(p_company_id uuid) returns boolean
+language sql stable security invoker set search_path = '' as $$
+    select exists (
+        select 1 from private.current_sku_terms t where t.company_id = p_company_id
+    );
+$$;
+
 -- Both publication entry points use the same calendar-month and mature cutoff date rule.
 create function private.payout_month_end(p_month date) returns date
 language plpgsql stable security invoker set search_path = '' as $$

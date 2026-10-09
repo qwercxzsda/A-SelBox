@@ -97,13 +97,13 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         )
 
     def assert_facts(
-        self, user: str, owned_versions: tuple[SourceVersion, ...], *, operator: bool = False
+        self, user: str, owned_versions: tuple[SourceVersion, ...], *, administrator: bool = False
     ) -> None:
         expected: list[tuple[object, ...]] = []
         for item in owned_versions:
             for row_id, category in item.facts:
                 if (
-                    operator
+                    administrator
                     or (item.source == "SETTLEMENT" and category == "SETTLEMENT")
                     or (item.source == "DATA_KIOSK" and category != "SELBOX")
                 ):
@@ -131,7 +131,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         self.assertCountEqual(self.as_user(user, _REFERENCES), expected)
 
     def assert_member(self, user: str, expected: bool) -> None:
-        self.assertEqual(self.as_user(user, "select private.is_company_member()"), [(expected,)])
+        self.assertEqual(self.as_user(user, "select private.is_member()"), [(expected,)])
 
     def test_members_share_all_current_references_while_facts_remain_owned(self) -> None:
         company, _ = self.owner()
@@ -154,10 +154,10 @@ class SourceVersionVisibilityTests(SourceModelFixture):
             self.assert_member(user, True)
             self.assert_references(user, all_current)
             self.assert_facts(user, owned)
-        operator = self.operator()
-        self.assert_member(operator, False)
-        self.assert_references(operator, all_current, historical=old)
-        self.assert_facts(operator, (*all_current, *old), operator=True)
+        administrator = self.administrator()
+        self.assert_member(administrator, False)
+        self.assert_references(administrator, all_current, historical=old)
+        self.assert_facts(administrator, (*all_current, *old), administrator=True)
         for user in (self.auth_user(), ""):
             self.assert_member(user, False)
             self.assert_references(user, ())
@@ -197,15 +197,15 @@ class SourceVersionVisibilityTests(SourceModelFixture):
 
     def test_publication_replaces_visible_references_and_null_pointers_stay_hidden(self) -> None:
         company, _ = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         old = self.publish_pair()
         self.assert_references(member, old)
         self.assert_facts(member, old)
         current = self.publish_pair(old, empty=True)
         self.assert_references(member, current)
         self.assert_facts(member, ())
-        self.assert_references(operator, current, historical=old)
-        self.assert_facts(operator, old, operator=True)
+        self.assert_references(administrator, current, historical=old)
+        self.assert_facts(administrator, old, administrator=True)
 
         with self.connection.transaction(force_rollback=True):
             settlement, day = new_id(), new_id()
@@ -223,7 +223,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
             )
             self.assert_references(member, current)
             self.assert_references(
-                operator,
+                administrator,
                 current,
                 historical=old,
                 unselected_headers=(("SETTLEMENT", settlement), ("DATA_KIOSK", day)),
@@ -233,12 +233,12 @@ class SourceVersionVisibilityTests(SourceModelFixture):
     def test_reference_columns_member_gate_and_full_metadata_remain_restricted(self) -> None:
         company, _ = self.owner()
         current = self.publish_pair()
-        member, no_skus, operator = (
+        member, no_skus, administrator = (
             self.member(company),
             self.member_without_skus(),
-            self.operator(),
+            self.administrator(),
         )
-        for user in (member, no_skus, operator):
+        for user in (member, no_skus, administrator):
             for statement in (
                 "select seller_namespace from private.settlements",
                 "select seller_namespace from private.data_kiosk_days",
@@ -262,7 +262,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
                     self.assertRaises(psycopg.errors.InsufficientPrivilege),
                 ):
                     self.as_user(user, statement)
-            self.assertEqual(len(self.as_user(operator, statement)), 1)
+            self.assertEqual(len(self.as_user(administrator, statement)), 1)
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute(_REFERENCES)
@@ -276,7 +276,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
                 "exists(select 1 from "
                 "aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a "
                 "where a.grantee=0 and a.privilege_type='EXECUTE') "
-                "from pg_proc p where p.oid='private.is_company_member()'::regprocedure"
+                "from pg_proc p where p.oid='private.is_member()'::regprocedure"
             ).fetchone(),
             (True, "s", False, True, True, False, False, False),
         )

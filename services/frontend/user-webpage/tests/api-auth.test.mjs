@@ -3,6 +3,48 @@ import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { SETTINGS, SESSION, responseJson } from "./api-fixtures.mjs";
 
+test("email signup sends only credentials and an optional confirmation redirect", async () => {
+  let requested;
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requested = { url: new URL(url), init };
+    return responseJson({ id: "new-user", email: "new@example.invalid" });
+  });
+  assert.equal(
+    await client.signUp("new@example.invalid", "new-password", "https://app.example.invalid/"),
+    null,
+  );
+  assert.equal(requested.url.pathname, "/auth/v1/signup");
+  assert.equal(requested.url.searchParams.get("redirect_to"), "https://app.example.invalid/");
+  assert.equal(requested.init.method, "POST");
+  assert.equal(requested.init.headers.apikey, SETTINGS.publishableKey);
+  assert.deepEqual(JSON.parse(requested.init.body), {
+    email: "new@example.invalid",
+    password: "new-password",
+  });
+});
+
+test("signup accepts an immediate Auth session when email confirmation is disabled", async () => {
+  const client = createApiClient(SETTINGS, async () => responseJson(SESSION));
+  assert.deepEqual(await client.signUp("new@example.invalid", "new-password"), SESSION);
+});
+
+test("signup rejects malformed success payloads and keeps server error details private", async () => {
+  for (const body of [null, {}, { id: 123 }, { access_token: "token" }]) {
+    const client = createApiClient(SETTINGS, async () => responseJson(body));
+    await assert.rejects(client.signUp("new@example.invalid", "new-password"));
+  }
+  for (const status of [400, 422, 429, 503]) {
+    const client = createApiClient(SETTINGS, async () =>
+      responseJson({ message: "private account details" }, status),
+    );
+    await assert.rejects(client.signUp("new@example.invalid", "new-password"), (error) => {
+      assert.equal(error.status, status);
+      assert.equal(error.message.includes("private account details"), false);
+      return true;
+    });
+  }
+});
+
 test("session verification reads the token's user from Auth rather than cached display identity", async () => {
   const requests = [];
   const client = createApiClient(SETTINGS, async (url, init) => {
@@ -10,7 +52,7 @@ test("session verification reads the token's user from Auth rather than cached d
     return responseJson({
       id: "verified-user",
       email: "verified@example.invalid",
-      user_metadata: { role: "operator" },
+      user_metadata: { role: "administrator" },
     });
   });
   assert.deepEqual(await client.fetchSessionUser("test-access"), {

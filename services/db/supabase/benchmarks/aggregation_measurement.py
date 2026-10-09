@@ -68,8 +68,8 @@ def _cases(latest: date, marketplace: str, currency: str, *, include_skus: bool)
 
 def _reference(connection: Connection, case: Case) -> list[Any]:
     if case.is_sku_catalog:
-        operator = connection.execute("select private.is_operator()").fetchone()
-        if operator != (True,):
+        administrator = connection.execute("select private.is_administrator()").fetchone()
+        if administrator != (True,):
             raise PermissionError("SKU catalog references require an application administrator")
         rows = connection.execute(
             'select distinct sku collate "C" as value from ('
@@ -148,7 +148,7 @@ def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, 
             latest,
             scope[0],
             scope[1],
-            include_skus=account is not None and account[0] == "operator",
+            include_skus=account is not None and account[0] == "administrator",
         )
         return cases, {case.name: _canonical(_reference(connection, case), case) for case in cases}
 

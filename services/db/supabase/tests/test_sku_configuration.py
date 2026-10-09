@@ -9,7 +9,7 @@ from services.db.supabase.tests.configuration_fixtures import ConfigurationFixtu
 
 
 class SkuConfigurationTests(ConfigurationFixture):
-    def test_operator_reads_all_known_exact_skus_but_members_only_their_current_assignments(
+    def test_administrator_reads_all_known_exact_skus_but_members_only_their_current_assignments(
         self,
     ) -> None:
         company, identity = self.owner("S1")
@@ -27,8 +27,12 @@ class SkuConfigurationTests(ConfigurationFixture):
             acquisition_id=acquisition,
             expected=old,
         )
-        operator, member, other_member = self.operator(), self.member(company), self.member(other)
-        items = self.configuration(operator)
+        administrator, member, other_member = (
+            self.administrator(),
+            self.member(company),
+            self.member(other),
+        )
+        items = self.configuration(administrator)
         self.assertEqual(
             [item["sku"] for item in items],
             ["HISTORY-ONLY", "IMPORT-ONLY", "S1", "S1 ", "UNASSIGNED", "s1"],
@@ -106,7 +110,7 @@ class SkuConfigurationTests(ConfigurationFixture):
             activity_date="2026-06-10",
         )
         self.kiosk(1, [self.component("-10", sku="S1")], activity_date="2026-06-25")
-        operator = self.operator()
+        administrator = self.administrator()
         expected = [
             {"marketplace_name": "Amazon.ca", "valid_from": "2026-06-20", "valid_to": "2026-06-21"},
             {
@@ -117,7 +121,7 @@ class SkuConfigurationTests(ConfigurationFixture):
         ]
         for cutoff in (date(2026, 1, 1), date(2027, 1, 1)):
             self.set_mature_cutoff_date(cutoff)
-            item = self.configuration(operator)[0]
+            item = self.configuration(administrator)[0]
             self.assertEqual(item["requirements"], expected)
             self.assertCountEqual(
                 item["issues"],
@@ -128,7 +132,7 @@ class SkuConfigurationTests(ConfigurationFixture):
         self.owner("STORAGE")
         self.kiosk(1, [self.component("-10", sku="STORAGE")])
         self.settlement([self.transaction("5", sku="STORAGE", description="Shipping")])
-        item = self.configuration(self.operator())[0]
+        item = self.configuration(self.administrator())[0]
         self.assertEqual(item["requirements"], [])
         self.assertEqual(item["periods"], [])
         self.assertEqual(item["issues"], [])

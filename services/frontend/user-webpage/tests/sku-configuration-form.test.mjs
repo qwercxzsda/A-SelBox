@@ -29,6 +29,23 @@ const item = (overrides = {}) => ({
   ...overrides,
 });
 
+test("a removed company blocks fee publication without rewriting the retained draft", () => {
+  const saved = item();
+  const draft = { ...createSkuDraft(saved), company_id: "deleted-company" };
+  const result = resolveSkuConfiguration([saved], [draft], new Set([saved.company_id]));
+  assert.equal(result.items[0].company_id, "deleted-company");
+  assert.equal(draft.company_id, "deleted-company");
+  assert.deepEqual(result.issuesBySku.get(saved.sku), [
+    {
+      sku: saved.sku,
+      field: "company_id",
+      message: "This company is no longer available. Choose another company.",
+      periodIndex: undefined,
+    },
+  ]);
+  assert.deepEqual(resolveSkuConfiguration([saved], [], new Set([saved.company_id])).issues, []);
+});
+
 test("rates accept exact zero and six decimals without inventing blank or rounded fees", () => {
   for (const value of ["0", "0.000000", ".5", "5.123456", "100.000000"])
     assert.equal(isFeeRate(value), true, value);

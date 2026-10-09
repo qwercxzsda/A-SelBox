@@ -74,11 +74,6 @@
   color: var(--ui-text-muted);
 }
 
-.fee-sku-toggle:hover {
-  background: var(--ui-surface-subtle);
-  color: var(--ui-text);
-}
-
 .fee-sku-toggle .mantine-Accordion-label {
   padding: 8px 0;
   white-space: nowrap;

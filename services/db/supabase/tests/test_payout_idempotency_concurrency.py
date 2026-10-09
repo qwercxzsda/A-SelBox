@@ -16,7 +16,7 @@ from services.db.supabase.tests.payout_fixtures import (
     prepare_payout,
     publish_payout,
 )
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 def generate_on_connection(connection: psycopg.Connection, company: str) -> tuple[str, bool]:
@@ -38,10 +38,7 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
 
     def test_competing_empty_requests_save_one_company_month_snapshot(self) -> None:
         self.set_mature_cutoff_date(date(2026, 7, 1))
-        company = new_id()
-        self.connection.execute(
-            "insert into public.companies(id,name) values (%s,'Empty company')", (company,)
-        )
+        company, _ = self.owner("NO-SALES")
         self.assert_competing_requests_reuse(company)
 
     def assert_competing_requests_reuse(self, company: str) -> None:
@@ -72,7 +69,9 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
                 (1,),
             )
 
-    def test_new_source_namespace_during_lock_wait_is_captured_by_the_next_request(self) -> None:
+    def test_new_source_namespace_waits_for_generation_and_is_captured_by_next_request(
+        self,
+    ) -> None:
         self.seller = "seller-z"
         inputs = prepare_payout(self)
         self.connection.commit()
@@ -82,10 +81,18 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
             with psycopg.connect(database_url, application_name="seller-scope-a") as worker:
                 return generate_on_connection(worker, inputs.company)
 
+        def publish_new_source() -> None:
+            with psycopg.connect(database_url, application_name="new-payout-source") as writer:
+                writer.execute("set statement_timeout='10s'")
+                source = SourceModelFixture()
+                source.connection, source.seller = writer, "seller-a"
+                source.settlement([source.transaction("50")])
+                fill_payout_kiosk_month(source)
+
         with (
             psycopg.connect(database_url) as holder,
             psycopg.connect(database_url, autocommit=True) as observer,
-            ThreadPoolExecutor(max_workers=1) as executor,
+            ThreadPoolExecutor(max_workers=2) as executor,
         ):
             holder.execute(
                 "select pg_advisory_xact_lock(hashtextextended(jsonb_build_array("
@@ -94,16 +101,15 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
             future = executor.submit(generate_waiting_company)
             try:
                 wait_for_block(observer, "seller-scope-a", wait_event="advisory")
-                # The SKU is already assigned globally; new source provenance is
-                # discovered from its matching facts, without another assignment.
-                self.seller = "seller-a"
-                self.settlement([self.transaction("50")])
-                fill_payout_kiosk_month(self)
-                self.connection.commit()
+                # Direct generation uses the same exclusive input guard as cron.
+                # A new source waits rather than changing the captured seller set.
+                source_future = executor.submit(publish_new_source)
+                wait_for_block(observer, "new-payout-source", wait_event="advisory")
             finally:
                 holder.commit()
             first_report, first_created = future.result(timeout=12)
             self.assertTrue(first_created)
+            source_future.result(timeout=12)
 
         self.assertEqual(
             self.connection.execute(

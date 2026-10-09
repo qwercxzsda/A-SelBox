@@ -58,7 +58,12 @@ def isolated_database(
                         """
                         create schema extensions;
                         create schema auth;
-                        create table auth.users(id uuid primary key);
+                        create table auth.users(
+                            id uuid primary key,
+                            email text,
+                            email_confirmed_at timestamptz,
+                            raw_user_meta_data jsonb default '{}'::jsonb
+                        );
                         create function auth.uid() returns uuid language sql stable
                         set search_path = '' as $$
                             select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;

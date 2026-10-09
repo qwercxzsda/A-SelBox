@@ -80,7 +80,7 @@ export function FinancialReviewSourceDetails({
       >
         <Title order={4} className="detail-section-title">
           <UnstyledButton
-            className="detail-section-toggle"
+            className="detail-section-toggle ui-text-action"
             aria-expanded={state.recordsOpen}
             aria-controls={recordsId}
             onClick={() => {

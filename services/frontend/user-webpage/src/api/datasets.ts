@@ -48,8 +48,8 @@ function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchPara
   const searchFilter = buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
   if (searchFilter !== null) params.set("or", searchFilter);
   const values = datasetFilterValues(dataset, filters);
+  if (values.companyIds.length) params.set("company_id", `in.(${values.companyIds.join(",")})`);
   if (dataset === "payouts") {
-    if (values.companyIds.length) params.set("company_id", `in.(${values.companyIds.join(",")})`);
     if (values.dateFrom) params.append("start_date", `gte.${values.dateFrom}`);
     if (values.dateTo) params.append("start_date", `lte.${values.dateTo}`);
   }
@@ -96,7 +96,7 @@ export function createDatasetApi(transport: ApiTransport) {
       params.set("select", config.idColumns.join(","));
       params.set("limit", "0");
       params.set("offset", "0");
-      const response = await request(
+      return request(
         `/rest/v1/${datasetEndpoint(options)}?${params.toString()}`,
         {
           method: "HEAD",
@@ -107,11 +107,13 @@ export function createDatasetApi(transport: ApiTransport) {
           },
         },
         operation,
+        (response) => {
+          if (!response.ok) throw new ApiError(operation, response.status);
+          const count = parseTotalCount(response.headers.get("Content-Range"));
+          if (count === null) throw new Error("Record count was not returned");
+          return count;
+        },
       );
-      if (!response.ok) throw new ApiError(operation, response.status);
-      const count = parseTotalCount(response.headers.get("Content-Range"));
-      if (count === null) throw new Error("Record count was not returned");
-      return count;
     },
 
     async fetchDatasetPage(options: FetchDatasetPageOptions): Promise<PageResult> {

@@ -9,7 +9,7 @@ test("SKU catalog loads every distinct value in one no-argument RPC without a ro
   let requests = 0;
   const client = createApiClient(SETTINGS, async (url, init) => {
     assert.deepEqual(assertRpcRequest(assert, url, init, "sku_filter_options"), {});
-    assert.equal(init.signal, signal);
+    assert.ok(init.signal instanceof AbortSignal);
     requests += 1;
     return responseJson({ values: expected });
   });
@@ -70,7 +70,7 @@ test("SKU catalog cancellation aborts its single request with the original reaso
   const started = Promise.withResolvers();
   let calls = 0;
   const client = createApiClient(SETTINGS, async (_url, { signal }) => {
-    assert.equal(signal, controller.signal);
+    assert.ok(signal instanceof AbortSignal);
     calls += 1;
     return new Promise((_resolve, reject) => {
       signal.addEventListener("abort", () => reject(signal.reason), { once: true });

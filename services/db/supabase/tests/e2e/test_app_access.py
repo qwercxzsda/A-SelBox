@@ -1,10 +1,12 @@
-"""Operator and member access through real Auth-issued JWTs and PostgREST."""
+"""Administrator and member access through real Auth-issued JWTs and PostgREST."""
 
 import base64
 import json
+import secrets
 import unittest
 from decimal import Decimal
 from typing import cast
+from uuid import uuid7
 
 from services.db.supabase.tests.e2e.fixtures import (
     START,
@@ -26,6 +28,81 @@ from services.sync.src.settlement_preprocess.workflow import preprocess_settleme
 class AppAccessTests(LocalWorkflowCase):
     """Service credentials create Auth fixtures; app operations use ordinary JWTs."""
 
+    def test_email_signup_and_directory_use_real_auth_without_granting_company_access(self) -> None:
+        email = f"signup-{uuid7().hex}@example.invalid"
+        signed_up = self.stack.request(
+            "POST",
+            "/auth/v1/signup",
+            json={
+                "email": email,
+                "password": secrets.token_urlsafe(32),
+                "data": {"access_role": "administrator", "company_id": str(uuid7())},
+            },
+        )
+        self.assertEqual(signed_up.status_code, 200)
+        token = signed_up.json()["access_token"]
+        user = signed_up.json()["user"]["id"]
+        self.assertEqual(
+            self.read_rows("app_accounts", token, select="user_id,access_role,company_id"),
+            [{"user_id": user, "access_role": "unassigned", "company_id": None}],
+        )
+        self.assertEqual(self.read_rows("companies", token), [])
+        for caller in (None, token):
+            denied = self.stack.request("GET", "/rest/v1/rpc/account_directory", token=caller)
+            self.assertIn(denied.status_code, (401, 403))
+        _, administrator = self.create_administrator()
+        directory = self.stack.request(
+            "GET",
+            "/rest/v1/rpc/account_directory",
+            token=administrator,
+            params={"email": "eq." + email, "order": "email.asc", "limit": "1"},
+            headers={"Prefer": "count=exact"},
+        )
+        self.assertEqual(directory.status_code, 200)
+        self.assertEqual(directory.headers["Content-Range"], "0-0/1")
+        self.assertEqual(directory.json()[0]["email"], email)
+        count = self.stack.request(
+            "HEAD",
+            "/rest/v1/rpc/account_directory",
+            token=administrator,
+            params={"email": "eq." + email},
+            headers={"Prefer": "count=exact"},
+        )
+        self.assertEqual(count.status_code, 200)
+        self.assertEqual(count.headers["Content-Range"], "0-0/1")
+
+    def test_membership_conflict_and_administrator_protection_are_http_errors(self) -> None:
+        company = create_company(self.database, "Membership conflict company")
+        administrator_id, administrator = self.create_administrator()
+        user, unassigned = self.create_auth_user()
+        payload = {
+            "target_user_id": user,
+            "target_company_id": company,
+            "expected_access_role": "unassigned",
+            "expected_company_id": None,
+        }
+        endpoint = "/rest/v1/rpc/set_company_membership"
+        self.assertEqual(
+            self.stack.request("POST", endpoint, token=unassigned, json=payload).status_code, 403
+        )
+        self.assertEqual(
+            self.stack.request("POST", endpoint, token=administrator, json=payload).status_code, 200
+        )
+        stale = self.stack.request("POST", endpoint, token=administrator, json=payload)
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(stale.json()["code"], "PT409")
+        protected = self.stack.request(
+            "POST",
+            endpoint,
+            token=administrator,
+            json={
+                **payload,
+                "target_user_id": administrator_id,
+                "expected_access_role": "administrator",
+            },
+        )
+        self.assertEqual(protected.status_code, 403)
+
     def test_one_sku_assignment_combines_namespaces_through_rest_and_transfers_together(
         self,
     ) -> None:
@@ -34,7 +111,7 @@ class AppAccessTests(LocalWorkflowCase):
         other = create_company(self.database, "Other global SKU owner")
         _, member = self.create_member(company)
         _, other_member = self.create_member(other)
-        _, operator = self.create_operator()
+        _, administrator = self.create_administrator()
         for seller in (self.seller, self.seller + "-second"):
             settlement = persist_settlement_acquisition(
                 self.database, archived_settlement(self.storage, seller, sku=sku)
@@ -68,11 +145,11 @@ class AppAccessTests(LocalWorkflowCase):
                 else:
                     self.assertEqual(payload["rows"][0]["row_count"], count)
                     self.assertEqual(Decimal(payload["rows"][0]["company_amount"]), -20)
-        current = self.read_rows("skus", operator, sku="eq." + sku)[0]
+        current = self.read_rows("skus", administrator, sku="eq." + sku)[0]
         published = self.stack.request(
             "POST",
             "/rest/v1/rpc/publish_sku_configuration",
-            token=operator,
+            token=administrator,
             json={
                 "p_changes": [
                     {
@@ -101,7 +178,9 @@ class AppAccessTests(LocalWorkflowCase):
             self.assertEqual(result.json()["total_count"], count)
             self.assertEqual(len(result.json()["rows"]), int(count))
 
-    def test_operator_manages_existing_accounts_and_existing_tokens_follow_access(self) -> None:
+    def test_administrator_manages_existing_accounts_and_existing_tokens_follow_access(
+        self,
+    ) -> None:
         first = company_with_fees(self.database, self.seller)
         second = company_with_fees(self.database, self.seller + "-second")
         for seller in (self.seller, self.seller + "-second"):
@@ -109,20 +188,16 @@ class AppAccessTests(LocalWorkflowCase):
                 self.database, archived_settlement(self.storage, seller)
             )
             preprocess_settlement_acquisition(self.database, self.storage, acquisition)
-        operator_id, operator_token = self.create_operator()
+        administrator_id, administrator_token = self.create_administrator()
         user_id, member_token = self.create_auth_user()
-        self.assertEqual(self.read_rows("app_accounts", member_token), [])
+        self.assertEqual(
+            self.read_rows("app_accounts", member_token)[0]["access_role"], "unassigned"
+        )
         self.assertEqual(self.read_rows("company_skus", member_token), [])
 
-        created = self.stack.request(
-            "POST",
-            "/rest/v1/app_accounts",
-            token=operator_token,
-            json={"user_id": user_id, "company_id": first},
-            headers={"Prefer": "return=representation"},
-        )
-        self.assertEqual(created.status_code, 201)
-        self.assertEqual(created.json()[0]["access_role"], "company_member")
+        created = self.set_membership(administrator_token, user_id, first)
+        self.assertEqual(created.status_code, 200)
+        self.assertEqual(created.json()[0]["access_role"], "member")
         self.assertEqual(
             self.read_rows("app_accounts", member_token, select="user_id,company_id"),
             [{"user_id": user_id, "company_id": first}],
@@ -138,20 +213,13 @@ class AppAccessTests(LocalWorkflowCase):
             {self.seller},
         )
         self.assertEqual(
-            self.read_rows("app_accounts", member_token, user_id="eq." + operator_id), []
+            self.read_rows("app_accounts", member_token, user_id="eq." + administrator_id), []
         )
         self.assertEqual(
-            len(self.read_rows("app_accounts", operator_token, user_id="eq." + user_id)), 1
+            len(self.read_rows("app_accounts", administrator_token, user_id="eq." + user_id)), 1
         )
 
-        updated = self.stack.request(
-            "PATCH",
-            "/rest/v1/app_accounts",
-            token=operator_token,
-            params={"user_id": "eq." + user_id},
-            json={"company_id": second},
-            headers={"Prefer": "return=representation"},
-        )
+        updated = self.set_membership(administrator_token, user_id, second)
         self.assertEqual(updated.status_code, 200)
         self.assertEqual(updated.json()[0]["company_id"], second)
         self.assertEqual(
@@ -166,17 +234,13 @@ class AppAccessTests(LocalWorkflowCase):
         )
         self.assertEqual(self.read_rows("company_skus", member_token, company_id="eq." + first), [])
 
-        removed = self.stack.request(
-            "DELETE",
-            "/rest/v1/app_accounts",
-            token=operator_token,
-            params={"user_id": "eq." + user_id},
-            headers={"Prefer": "return=representation"},
-        )
+        removed = self.set_membership(administrator_token, user_id, None)
         self.assertEqual(removed.status_code, 200)
         self.assertEqual([row["user_id"] for row in removed.json()], [user_id])
+        self.assertEqual(
+            self.read_rows("app_accounts", member_token)[0]["access_role"], "unassigned"
+        )
         for relation in (
-            "app_accounts",
             "company_skus",
             "companies",
             "live_company_components",
@@ -190,23 +254,25 @@ class AppAccessTests(LocalWorkflowCase):
 
     def test_metadata_cannot_grant_access_and_api_cannot_change_roles_or_user_ids(self) -> None:
         company = create_company(self.database, "Access boundary company")
-        operator_id, operator_token = self.create_operator()
+        administrator_id, administrator_token = self.create_administrator()
         member_id, member_token = self.create_member(company)
         outsider_id, outsider_token = self.create_auth_user(
-            user_metadata={"access_role": "operator", "company_id": company}
+            user_metadata={"access_role": "administrator", "company_id": company}
         )
         claims = json.loads(base64.urlsafe_b64decode(outsider_token.split(".")[1] + "=="))
         self.assertEqual(claims["role"], "authenticated")
-        self.assertEqual(claims["user_metadata"]["access_role"], "operator")
+        self.assertEqual(claims["user_metadata"]["access_role"], "administrator")
         metadata = self.stack.request(
             "PUT",
             "/auth/v1/user",
             token=outsider_token,
-            json={"data": {"access_role": "operator", "company_id": company}},
+            json={"data": {"access_role": "administrator", "company_id": company}},
         )
         self.assertEqual(metadata.status_code, 200)
-        self.assertEqual(metadata.json()["user_metadata"]["access_role"], "operator")
-        self.assertEqual(self.read_rows("app_accounts", outsider_token), [])
+        self.assertEqual(metadata.json()["user_metadata"]["access_role"], "administrator")
+        self.assertEqual(
+            self.read_rows("app_accounts", outsider_token)[0]["access_role"], "unassigned"
+        )
         self.assertEqual(self.read_rows("companies", outsider_token), [])
 
         for role, token in (("member", member_token), ("no account", outsider_token)):
@@ -229,11 +295,11 @@ class AppAccessTests(LocalWorkflowCase):
                         json=payload,
                         headers={"Prefer": "return=representation"},
                     )
-                    self.assertEqual(denied.status_code, 200)
-                    self.assertEqual(denied.json(), [])
+                    self.assertEqual(denied.status_code, 403)
+                    self.assertEqual(denied.json()["code"], "42501")
 
-        for token in (member_token, outsider_token, operator_token):
-            for payload in ({"access_role": "operator"}, {"user_id": outsider_id}):
+        for token in (member_token, outsider_token, administrator_token):
+            for payload in ({"access_role": "administrator"}, {"user_id": outsider_id}):
                 with self.subTest(operation="forbidden column", fields=tuple(payload)):
                     denied = self.stack.request(
                         "PATCH",
@@ -247,8 +313,8 @@ class AppAccessTests(LocalWorkflowCase):
         promoted = self.stack.request(
             "POST",
             "/rest/v1/app_accounts",
-            token=operator_token,
-            json={"user_id": outsider_id, "company_id": None, "access_role": "operator"},
+            token=administrator_token,
+            json={"user_id": outsider_id, "company_id": None, "access_role": "administrator"},
         )
         self.assertEqual(promoted.status_code, 403)
         self.assertEqual(promoted.json()["code"], "42501")
@@ -256,32 +322,35 @@ class AppAccessTests(LocalWorkflowCase):
             unchanged = self.stack.request(
                 method,
                 "/rest/v1/app_accounts",
-                token=operator_token,
-                params={"user_id": "eq." + operator_id},
+                token=administrator_token,
+                params={"user_id": "eq." + administrator_id},
                 json=payload,
                 headers={"Prefer": "return=representation"},
             )
-            self.assertEqual(unchanged.status_code, 200)
-            self.assertEqual(unchanged.json(), [])
+            self.assertEqual(unchanged.status_code, 403)
+            self.assertEqual(unchanged.json()["code"], "42501")
         self.assertEqual(
             self.read_rows(
                 "app_accounts",
-                operator_token,
+                administrator_token,
                 user_id="eq." + member_id,
                 select="company_id,access_role",
             ),
-            [{"company_id": company, "access_role": "company_member"}],
+            [{"company_id": company, "access_role": "member"}],
         )
         self.assertEqual(
-            self.read_rows("app_accounts", operator_token, user_id="eq." + outsider_id), []
+            self.read_rows("app_accounts", administrator_token, user_id="eq." + outsider_id)[0][
+                "access_role"
+            ],
+            "unassigned",
         )
 
-    def test_operator_publishes_complete_configuration_and_members_only_read_current_ownership(
+    def test_administrator_publishes_complete_configuration_and_members_only_read_current_ownership(
         self,
     ) -> None:
         company = create_company(self.database, "Configuration RPC company")
         other = create_company(self.database, "New configuration owner")
-        _, operator_token = self.create_operator()
+        _, administrator_token = self.create_administrator()
         _, member_token = self.create_member(company)
         _, recipient_token = self.create_member(other)
         _, outsider_token = self.create_auth_user()
@@ -306,7 +375,10 @@ class AppAccessTests(LocalWorkflowCase):
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
         published = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
+            "POST",
+            "/rest/v1/rpc/publish_sku_configuration",
+            token=administrator_token,
+            json=payload,
         )
         self.assertEqual(published.status_code, 200)
         first = cast(str, published.json()["published"][0]["terms_version_id"])
@@ -319,7 +391,10 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(periods[0]["fee_rate_percent"], 0)
         change.update(expected_current_version_id=first, company_id=None, periods=[])
         incomplete = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
+            "POST",
+            "/rest/v1/rpc/publish_sku_configuration",
+            token=administrator_token,
+            json=payload,
         )
         self.assertEqual(incomplete.status_code, 400)
         self.assertEqual(incomplete.json()["code"], "23514")
@@ -330,7 +405,10 @@ class AppAccessTests(LocalWorkflowCase):
         )
         change.update(company_id=other)
         transferred = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
+            "POST",
+            "/rest/v1/rpc/publish_sku_configuration",
+            token=administrator_token,
+            json=payload,
         )
         self.assertEqual(transferred.status_code, 200)
         second = cast(str, transferred.json()["published"][0]["terms_version_id"])
@@ -344,34 +422,37 @@ class AppAccessTests(LocalWorkflowCase):
             )
         history = self.read_rows(
             "sku_terms_versions",
-            operator_token,
+            administrator_token,
             id=f"in.({first},{second})",
             order="version_number",
         )
         self.assertEqual([row["company_id"] for row in history], [company, other])
         self.assertEqual([row["version_number"] for row in history], [1, 2])
         self.assertEqual(
-            self.read_rows("sku_fee_periods", operator_token, terms_version_id="eq." + first),
+            self.read_rows("sku_fee_periods", administrator_token, terms_version_id="eq." + first),
             periods,
         )
         stale = self.stack.request(
-            "POST", "/rest/v1/rpc/publish_sku_configuration", token=operator_token, json=payload
+            "POST",
+            "/rest/v1/rpc/publish_sku_configuration",
+            token=administrator_token,
+            json=payload,
         )
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(stale.json()["code"], "PT409")
         self.assertEqual(stale.json()["message"], "SKU configuration changed while editing")
         for relation in ("skus", "sku_terms_versions", "sku_fee_periods"):
             denied = self.stack.request(
-                "POST", "/rest/v1/" + relation, token=operator_token, json={}
+                "POST", "/rest/v1/" + relation, token=administrator_token, json={}
             )
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
 
-    def test_operator_reads_source_history_while_member_only_reads_owned_current_facts(
+    def test_administrator_reads_source_history_while_member_only_reads_owned_current_facts(
         self,
     ) -> None:
         company = company_with_fees(self.database, self.seller)
-        _, operator_token = self.create_operator()
+        _, administrator_token = self.create_administrator()
         _, member_token = self.create_member(company)
         settlement = persist_settlement_acquisition(
             self.database, archived_settlement(self.storage, self.seller)
@@ -386,7 +467,9 @@ class AppAccessTests(LocalWorkflowCase):
             ("settlement_preprocess_results", 2, 1),
             ("data_kiosk_preprocess_results", 4, 2),
         ):
-            rows = self.read_rows(relation, operator_token, seller_namespace="eq." + self.seller)
+            rows = self.read_rows(
+                relation, administrator_token, seller_namespace="eq." + self.seller
+            )
             self.assertEqual(len(rows), count)
             self.assertEqual(sum(row["is_current"] is True for row in rows), current_count)
             denied = self.stack.request(
@@ -397,7 +480,7 @@ class AppAccessTests(LocalWorkflowCase):
             )
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
-        for relation, operator_count, member_count in (
+        for relation, administrator_count, member_count in (
             ("settlement_preprocess_entries", 6, 2),
             # Each day also retains its zero net-sales comparison component.
             ("data_kiosk_preprocess_entries", 8, 4),
@@ -406,10 +489,10 @@ class AppAccessTests(LocalWorkflowCase):
                 self.assertEqual(
                     len(
                         self.read_rows(
-                            relation, operator_token, seller_namespace="eq." + self.seller
+                            relation, administrator_token, seller_namespace="eq." + self.seller
                         )
                     ),
-                    operator_count,
+                    administrator_count,
                 )
                 self.assertEqual(
                     len(
@@ -417,7 +500,7 @@ class AppAccessTests(LocalWorkflowCase):
                     ),
                     member_count,
                 )
-        for token in (operator_token, member_token):
+        for token in (administrator_token, member_token):
             private = self.stack.request(
                 "GET",
                 "/rest/v1/settlement_acquisitions",

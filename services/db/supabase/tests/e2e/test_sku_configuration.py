@@ -1,4 +1,4 @@
-"""Real Auth and REST enforce complete, atomic, operator-only SKU configuration."""
+"""Real Auth and REST enforce complete, atomic, administrator-only SKU configuration."""
 
 import json
 from typing import cast
@@ -71,7 +71,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
     ) -> None:
         company = create_company(self.database, "Configuration company")
         other = create_company(self.database, "Other configuration company")
-        _, operator = self.create_operator()
+        _, administrator = self.create_administrator()
         _, member = self.create_member(company)
         _, other_member = self.create_member(other)
         _, outsider = self.create_auth_user()
@@ -81,7 +81,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         self.import_source(self.seller, shared, kiosk=True)
         self.import_source(self.seller + "-two", shared, kiosk=True)
         self.import_source(self.seller + "-other", second)
-        original = self.configuration(operator)
+        original = self.configuration(administrator)
         self.assertEqual({item["sku"] for item in original}, {shared, second})
         self.assertTrue(all(item["sku_id"] is None and item["issues"] for item in original))
         self.assertEqual(self.configuration(member), [])
@@ -108,7 +108,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
                 "POST", "/rest/v1/rpc/sku_configuration", token=token, json={}
             )
             self.assertIn(denied.status_code, (401, 403))
-        incomplete = self.publish(operator, changes)
+        incomplete = self.publish(administrator, changes)
         self.assertEqual(incomplete.status_code, 400)
         self.assertEqual(incomplete.json()["code"], "23514")
         self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
@@ -116,31 +116,33 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         self.assertTrue(
             any(issue["sku"] == second and issue["kind"] == "missing_company" for issue in issues)
         )
-        self.assertEqual(self.configuration(operator), original)
+        self.assertEqual(self.configuration(administrator), original)
         changes = [self.change(shared, company), self.change(second, other)]
-        saved = self.publish(operator, changes)
+        saved = self.publish(administrator, changes)
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json()["changed_count"], 2)
         self.assertEqual({item["sku"] for item in saved.json()["published"]}, {shared, second})
-        self.assertTrue(all(not item["issues"] for item in self.configuration(operator)))
+        self.assertTrue(all(not item["issues"] for item in self.configuration(administrator)))
         self.assertEqual([item["sku"] for item in self.configuration(member)], [shared])
         self.assertEqual([item["sku"] for item in self.configuration(other_member)], [second])
         self.assertEqual(self.configuration(member)[0]["periods"][0]["fee_rate_percent"], "0")
-        stale = self.publish(operator, changes)
+        stale = self.publish(administrator, changes)
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(stale.json()["code"], "PT409")
         self.assertEqual(stale.json()["message"], "SKU configuration changed while editing")
         self.import_source(self.seller + "-future", future)
         self.assertTrue(
-            next(item for item in self.configuration(operator) if item["sku"] == future)["issues"]
+            next(item for item in self.configuration(administrator) if item["sku"] == future)[
+                "issues"
+            ]
         )
         updated = self.change(shared, company)
         updated["expected_current_version_id"] = self.configuration(member)[0]["terms_version_id"]
-        incomplete = self.publish(operator, [updated])
+        incomplete = self.publish(administrator, [updated])
         self.assertEqual(incomplete.status_code, 400)
         self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
         self.assertEqual([item["sku"] for item in self.configuration(member)], [shared])
-        repaired = self.publish(operator, [self.change(future, company)])
+        repaired = self.publish(administrator, [self.change(future, company)])
         self.assertEqual(repaired.status_code, 200)
-        self.assertTrue(all(not item["issues"] for item in self.configuration(operator)))
+        self.assertTrue(all(not item["issues"] for item in self.configuration(administrator)))
         self.assertEqual({item["sku"] for item in self.configuration(member)}, {shared, future})

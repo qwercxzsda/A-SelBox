@@ -3,7 +3,7 @@
 -- still resolves current ownership before counting. Existing fact RLS remains.
 -- Applicability uses source-specific Type codes, exposing existing Type/date
 -- indexes. Actual fee bases and rates are resolved separately by the page.
--- Only authenticated non-operators with active fact RLS omit the duplicate
+-- Only authenticated non-administrators with active fact RLS omit the duplicate
 -- current-pointer EXISTS: their unchanged fact policies already require it.
 -- Revalidate this optimization whenever the authenticated fact policies change.
 create function public.transaction_count(
@@ -42,7 +42,7 @@ begin
         p_search_sources, p_search_types
     );
     -- Bind the actor checks as known custom-plan parameters. This lets the
-    -- planner remove the redundant member check or expose the operator EXISTS
+    -- planner remove the redundant member check or expose the administrator EXISTS
     -- as a semi-join instead of retaining a per-row subplan behind an OR.
     settlement_policy_is_sufficient := private.member_policy_covers_current_version(
         'private.settlement_transactions'::regclass
@@ -169,7 +169,7 @@ from public, anon, authenticated, service_role;
 
 -- Count the same raw facts as source_transaction_page without metadata joins.
 -- Existing fact/version policies ensure every visible fact has a visible parent;
--- operators retain history/account rows and members retain only authorized facts.
+-- administrators retain history/account rows and members retain only authorized facts.
 create function public.source_transaction_count(
     p_dataset text,
     p_date_from date default null,

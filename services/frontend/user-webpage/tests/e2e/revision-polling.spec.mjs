@@ -14,7 +14,7 @@ const financialRequests = (fixture) => ({
   fees: fixture.configurationRequests.length,
 });
 
-async function setup(page, role = "company_member") {
+async function setup(page, role = "member") {
   await page.clock.install();
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
@@ -101,7 +101,7 @@ for (const source of ["settlement", "data_kiosk"]) {
   test(`${source} changes reload the live table, summaries, open details and administrator SKU options after refreshing identity catalogs`, async ({
     page,
   }) => {
-    const fixture = await setup(page, "operator");
+    const fixture = await setup(page, "administrator");
     await page.getByRole("button", { name: "SKU", exact: true }).click();
     await expect(
       page.getByRole("dialog", { name: "SKU options", exact: true }).getByRole("checkbox").first(),
@@ -145,7 +145,7 @@ for (const [source, tab, other] of [
   test(`an administrator's ${tab} table reloads only for its own source, while inactive totals catch up on return`, async ({
     page,
   }) => {
-    const fixture = await setup(page, "operator");
+    const fixture = await setup(page, "administrator");
     await page.getByRole("tab", { name: tab, exact: true }).click();
     const sku = source === "settlement" ? "SETTLEMENT-1" : "KIOSK-1";
     await expect(rowWithSku(page, sku)).toBeVisible();
@@ -241,9 +241,7 @@ test("offline tabs do not poll and reconnect checks revisions without reloading 
   expect(fixture.identityRequests).toHaveLength(identity);
 });
 
-test("simultaneous timer, focus, and reconnect events share one pending revision check", async ({
-  page,
-}) => {
+test("timer, focus, and reconnect events share one pending revision check", async ({ page }) => {
   const fixture = await setup(page);
   const started = deferred();
   const release = deferred();
@@ -254,17 +252,55 @@ test("simultaneous timer, focus, and reconnect events share one pending revision
   const initial = fixture.revisionRequests.length;
   const financial = financialRequests(fixture);
   try {
-    await page.clock.fastForward(60_000);
-    await started.promise;
+    // Start a focus check shortly before the timer tick, within the request deadline.
+    await page.clock.fastForward(45_000);
     await page.evaluate(() => {
       globalThis.dispatchEvent(new globalThis.Event("focus"));
       globalThis.dispatchEvent(new globalThis.Event("online"));
     });
-    await page.clock.fastForward(60_000);
+    await started.promise;
+    await page.clock.fastForward(16_000);
     expect(fixture.revisionRequests).toHaveLength(initial + 1);
     release.resolve();
     await finishPoll(page, fixture, initial);
     expect(financialRequests(fixture)).toEqual(financial);
+  } finally {
+    release.resolve();
+  }
+});
+
+test("a timed-out revision check keeps displayed data and the next scheduled check recovers", async ({
+  page,
+}) => {
+  const fixture = await setup(page);
+  const financial = financialRequests(fixture);
+  const started = deferred();
+  const release = deferred();
+  let timedOutPoll;
+  fixture.beforeRevisions = async (entry) => {
+    timedOutPoll = entry;
+    started.resolve();
+    await release.promise;
+  };
+  fixture.revisions.settlement = "1";
+  fixture.prefixes["member-a"] = "RECOVERED";
+  try {
+    await page.clock.fastForward(60_000);
+    await started.promise;
+    await page.clock.fastForward(30_000);
+    await expect(page.getByRole("alert")).toContainText("Workspace access timed out");
+    await expect.poll(() => timedOutPoll.failure).toBeTruthy();
+    await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
+    expect(financialRequests(fixture)).toEqual(financial);
+
+    fixture.beforeRevisions = async () => {};
+    release.resolve();
+    const initial = completedPolls(fixture).length;
+    await page.clock.fastForward(31_000);
+    await finishPoll(page, fixture, initial);
+    await expect(rowWithSku(page, "RECOVERED-001")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    expect(fixture.authRequests).toBe(1);
   } finally {
     release.resolve();
   }
@@ -336,10 +372,10 @@ test("a failed changed-data refresh is retried by the next poll even when the re
 test("an account role change rebuilds the workspace with the current permissions", async ({
   page,
 }) => {
-  const fixture = await setup(page, "operator");
+  const fixture = await setup(page, "administrator");
   await page.getByRole("tab", { name: "Settlements", exact: true }).click();
   await expect(rowWithSku(page, "SETTLEMENT-1")).toBeVisible();
-  fixture.roles["member-a"] = "company_member";
+  fixture.roles["member-a"] = "member";
   fixture.prefixes["member-a"] = "MEMBER";
   await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "MEMBER-001")).toBeVisible();
@@ -399,7 +435,7 @@ test("token rotation cancels an old-token revision check before its late rejecti
     access_token: grantType === "password" ? "initial-access" : "rotated-access",
     refresh_token: grantType === "password" ? "initial-refresh" : "rotated-refresh",
     token_type: "bearer",
-    expires_in: grantType === "password" ? 180 : 3600,
+    expires_in: grantType === "password" ? 140 : 3600,
     user: { id: user, email: `${user}@example.test` },
   });
   fixture.authStatusForRequest = ({ grantType, refreshToken }) =>
@@ -423,7 +459,8 @@ test("token rotation cancels an old-token revision check before its late rejecti
   try {
     await page.clock.fastForward(60_000);
     await started.promise;
-    await page.clock.fastForward(60_000);
+    // Rotation at 80 seconds cancels this poll before its 30-second deadline.
+    await page.clock.fastForward(20_000);
     await expect
       .poll(
         () =>
@@ -461,7 +498,7 @@ test("token rotation cancels an old-token revision check before its late rejecti
 test("a manual retry requested during an unrelated selective refresh runs when that check finishes", async ({
   page,
 }) => {
-  const fixture = await setup(page, "operator");
+  const fixture = await setup(page, "administrator");
   fixture.datasetStatusForRequest = ({ dataset }) => (dataset === "settlement" ? 403 : 200);
   await page.getByRole("tab", { name: "Settlements", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("HTTP 403");

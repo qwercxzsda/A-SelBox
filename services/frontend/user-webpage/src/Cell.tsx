@@ -31,7 +31,7 @@ export function TableCellValue({
   if (value === null) {
     if (column.kind === "company") {
       if (row.category === "SELBOX") return "SelBox";
-      return row.access_role === "operator" ? "All companies" : "Unassigned";
+      return row.access_role === "administrator" ? "All companies" : "Unassigned";
     }
     return <span className="muted-value">—</span>;
   }

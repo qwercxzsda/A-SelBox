@@ -8,12 +8,26 @@
   --ui-text-muted: #536373;
   --ui-accent: var(--mantine-color-cyan-8);
   --ui-accent-soft: var(--mantine-color-cyan-0);
+  --ui-hover-tint: color-mix(in srgb, var(--ui-accent) 3%, transparent);
+  --ui-hover-surface: color-mix(in srgb, var(--ui-accent) 3%, var(--ui-surface));
+  --ui-hover-selected: color-mix(in srgb, var(--ui-accent) 3%, var(--ui-accent-soft));
   --ui-radius: 8px;
   --ui-radius-sm: 6px;
   --ui-font-data: 13px;
+  --ui-font-control: 13px;
   --ui-font-caption: 12px;
   --ui-font-section: 16px;
   --ui-drawer-header-height: 64px;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Mounted drawer content includes its exit transition and any nested panels.
+   Keep the document still without intercepting touch/wheel browser gestures. */
+html:has(.ui-drawer-content) {
+  overflow: hidden;
 }
 
 body {
@@ -64,10 +78,10 @@ body {
 }
 
 .ui-input {
-  font-size: var(--ui-font-data);
+  font-size: var(--ui-font-control);
 }
 
-.ui-input:not([data-error]):not(:disabled):not([data-disabled]) {
+.ui-input:not([data-error], :disabled, [data-disabled]) {
   border-color: var(--ui-border);
   color: var(--ui-text);
   background: var(--ui-surface);
@@ -89,6 +103,10 @@ body {
 .ui-input-description {
   color: var(--ui-text-muted);
   font-size: var(--ui-font-caption);
+}
+
+.ui-drawer-content {
+  overscroll-behavior-y: contain;
 }
 
 .ui-drawer-header {
@@ -127,10 +145,6 @@ body {
 .ui-accordion-item {
   border-color: var(--ui-border);
   background: var(--ui-surface);
-}
-
-.ui-accordion-control:hover {
-  background: var(--ui-surface-subtle);
 }
 
 .inspectable-row {
@@ -173,6 +187,14 @@ body {
 
 .ui-workspace-intro-title + .ui-workspace-intro-description {
   margin-top: 4px;
+}
+
+/* Safari enlarges focused small-text controls. Size controls before focus,
+   including phone landscape, instead of restricting the user's pinch zoom. */
+@media (max-width: 720px), (pointer: coarse) {
+  :root {
+    --ui-font-control: max(16px, 1rem);
+  }
 }
 
 @media (max-width: 720px) {

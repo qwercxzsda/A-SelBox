@@ -167,7 +167,7 @@ try {
   await server.listen();
   browser = await chromium.launch({ headless: true });
   for (const [accountIndex, account] of config.accounts.entries()) {
-    const role = account.role === "operator" ? "operator" : "member";
+    const role = account.role === "administrator" ? "administrator" : "member";
     stage = role + ":login";
     const context = await browser.newContext({ viewport: { width: 1800, height: 1100 } });
     const page = await context.newPage();
@@ -221,7 +221,7 @@ try {
     await expect(
       page.getByRole("button", { name: /Refresh inventory|Retry inventory/i }),
     ).toHaveCount(0);
-    if (account.role === "operator")
+    if (account.role === "administrator")
       await page.screenshot({ path: "/evidence/inventory-live.png", fullPage: true });
     await context.close();
   }

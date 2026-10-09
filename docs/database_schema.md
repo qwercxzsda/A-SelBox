@@ -1,7 +1,7 @@
 # Database schema
 
 The canonical fresh-install migrations define **26 application tables, 258 columns, 31 foreign keys,
-and 23 ordinary views**. Each object has one maintained definition. Supabase-managed Auth/Storage
+and 21 ordinary views**. Each object has one maintained definition. Supabase-managed Auth/Storage
 internals are shown only at their application boundaries.
 
 The three inventory tables implement the
@@ -120,7 +120,7 @@ describes invalidation and scheduler operations.
 `inventory`, and `payouts`. Inventory reuses this table without adding columns: a changed daily capture
 publication rotates its global token in the same transaction. Raw acquisitions, idempotent replays,
 and rolled-back publications leave the token unchanged. Ownership uses the existing `fees` token,
-company-scoped for members and global for operators. New payout reports rotate the separate
+company-scoped for members and global for administrators. New payout reports rotate the separate
 `payouts` token for their company and the global scope; unchanged report reuse does not.
 
 The authenticated `workspace_revisions` RPC reads requested tokens without scanning source facts or
@@ -243,8 +243,8 @@ Payout component source IDs are polymorphic provenance validated by publication,
 to either financial source. Typed payout manifests do have composite version FKs and protect
 financial evidence. No inventory pin or monetary reconciliation is introduced.
 
-Company members read current owned live data and their own frozen reports; operator access includes
-additional history and control manifests. Inventory uses RLS, operator-only acquisition/capture tables, and
+Members read current owned live data and their own frozen reports; administrator access includes
+additional history and control manifests. Inventory uses RLS, administrator-only acquisition/capture tables, and
 a caller-checked private helper for minimal latest-capture metadata. Members see NULL seller namespaces;
 item ownership is enforced independently, after selecting the latest source scopes. Public schema does not mean public access. Revision-token company scope is
 not a company FK: ordinary UUID permits the global nil UUID.
@@ -278,20 +278,23 @@ The schema defines 21 invoker-security views, not additional tables:
 `public.latest_company_payout_reports` selects the newest immutable report for
 each company, month, and currency. Source namespaces remain in its pinned inputs;
 they do not create separate report groups. The full report table retains history.
+New payout publication and queued refresh work require at least one currently assigned
+SKU. Losing the last assignment removes mutable refresh work but preserves all saved
+reports and their evidence; assigning a SKU again resumes automatic generation.
 
 `public.financial_review_records` retains current mature rows from both sources in each of the three
-monetary categories, without ownership or fee joins. It is explicitly operator-gated. The stable
+monetary categories, without ownership or fee joins. It is explicitly administrator-gated. The stable
 invoker RPCs `financial_review_totals(date,date,allocation_category)` and
 `financial_review_type_totals(date,date,allocation_category,text)` apply direct activity-date bounds
 before aggregation. Their half-open month ranges preserve existing date indexes under RLS; neither
 RPC changes accounting classifications, maturity, or saved payout data.
 
-The [Financial review](financial_review.md) interfaces are operator-only. Current
+The [Financial review](financial_review.md) interfaces are administrator-only. Current
 comparisons aggregate mature source facts by category, month, and currency across
 namespaces and marketplaces. Exact source records preserve provenance. The saved
 reconciliation views aggregate one frozen report's account controls by currency or
 expose its daily controls; they do not add repeated controls across company reports.
-Company members can read only authoritative frozen payout components, while operators
+Members can read only authoritative frozen payout components, while administrators
 retain access to saved comparison rows.
 
 `public.latest_inventory_items` selects the latest successful capture per
@@ -313,9 +316,33 @@ defines the ordering and aliases.
 | `private.exact_numeric`      | Finite source numeric bounded to 1,000 fixed-point digits |
 | `private.calculated_amount`  | Finite calculated numeric without the source-value bound  |
 | `public.allocation_category` | `SETTLEMENT`, `SELBOX`, `DATA_KIOSK`, `ANALYSIS_ONLY`     |
-| `public.app_access_role`     | `operator`, `company_member`                              |
+| `public.app_access_role`     | `administrator`, `member`, `unassigned`                              |
 
 Marketplace names use checked text. Inventory metrics use nullable ordinary finite numerics/unit
 counts, not financial amount domains or allocation categories. Payout headers may have
 NULL currency only for a valid empty company-month report. Nonempty reports keep
 their currencies separate and combine all contributing source namespaces.
+
+New Auth users automatically receive an Unassigned application account. Administrator
+and Unassigned rows require NULL `company_id`; Member rows require a company.
+The default role is `unassigned`. Administrator-only account-directory and membership
+RPCs expose a minimal current Auth email roster and guarded company assignment;
+trusted Python DB administration exclusively grants/revokes Administrator access.
+See [application access](access_control.md) for lifecycle, privileges, and commands.
+
+`public.create_company(text)` provides guarded Administrator company creation and
+reuses an existing case-insensitive, outer-whitespace-trimmed name. Equivalent
+application requests serialize with an advisory transaction lock, while trusted
+Python imports retain their existing company-name semantics. The RPC adds no
+table, column, or global uniqueness constraint; new rows use the existing UUIDv7
+default and company-change revision trigger.
+
+`public.delete_company(uuid)` removes only an unused company through the guarded
+`private.delete_administrator_company(uuid)` helper. It locks the company row and
+checks all four company-referencing tables: `app_accounts`, `sku_terms_versions`,
+`company_payout_reports`, and `private.payout_report_refresh_state`. Current SKU
+assignments are also reported separately. Historical terms and zero-period terms
+remain blockers; even operational refresh rows are protected rather than cascaded.
+Linked records produce HTTP 409 with structured reason counts. Missing companies
+return `deleted: false` for safe retries. No new storage or table write permissions
+are introduced; successful removal uses the existing company revision trigger.

@@ -1,4 +1,4 @@
-"""Company members read current source facts under current SKU ownership."""
+"""Members read current source facts under current SKU ownership."""
 
 from decimal import Decimal
 

@@ -11,6 +11,8 @@ begin
     if p_company_id is null or not exists(select 1 from public.companies where id = p_company_id) then
         raise exception 'A valid company is required' using errcode = '22023';
     end if;
+    perform pg_advisory_xact_lock(hashtextextended('company_payout_inputs',0));
+    if not private.payout_company_eligible(p_company_id) then return; end if;
     perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
         'company_payout_month',p_company_id,p_month
     )::text,0));
@@ -66,7 +68,7 @@ begin
             select r.currency from public.company_payout_reports r
             where r.company_id = p_company_id and r.start_date = p_month and r.currency is not null
         )
-        -- A company/month always has a scope, even before any company inputs exist.
+        -- An assigned company still has an empty scope before its first sale.
         select scopes.currency
         from (values (p_company_id)) company(id) left join scopes on true
         order by scopes.currency
@@ -88,7 +90,7 @@ create function public.payout_report_policy() returns jsonb
 language plpgsql stable security invoker set search_path = '' as $$
 declare mature_cutoff_date date := private.mature_cutoff_date();
 begin
-    if not private.is_operator() and not private.is_company_member() then
+    if not private.is_administrator() and not private.is_member() then
         raise exception 'Application account access required' using errcode = '42501';
     end if;
     return jsonb_build_object('mature_cutoff_date',mature_cutoff_date,'mature_cutoff_months',2,

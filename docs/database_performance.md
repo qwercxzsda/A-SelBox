@@ -20,7 +20,7 @@ define API behavior; [access control](access_control.md) defines visibility.
 
 Source headers select complete current versions. Fact RLS checks that selection, source category,
 and current SKU ownership. Metadata policies use registered membership and current pointers;
-they do not scan facts to establish metadata ownership. Full metadata is operator-only, while
+they do not scan facts to establish metadata ownership. Full metadata is administrator-only, while
 members share narrow current references.
 
 `private.current_owned_sku_terms()` obtains the member's current permitted identities and terms

@@ -12,8 +12,8 @@ plans. Execution is granted to `authenticated`, with grants revoked from `PUBLIC
 company data. Company ownership and account access come from database state. An explicit company
 filter can narrow the caller's visible data but cannot expand it.
 
-The SKU discovery RPC additionally requires a current stored application-operator account. Company
-members use their assigned SKUs and cannot call that administrator endpoint.
+The SKU discovery RPC additionally requires a current stored Administrator account.
+Members use their assigned SKUs and cannot call that administrator endpoint.
 
 Current transaction reads use PostgreSQL's current UTC date minus the mature cutoff
 period of two calendar months as the mature cutoff date. Dates before it are mature;
@@ -87,7 +87,7 @@ response uses one statement and snapshot.
 
 The materialized terms projection includes only SKU keys present on that selected page.
 It reads the existing invoker-security current-terms view and retains left joins, including
-unassigned or unregistered operator-visible facts. Member RLS independently checks membership in
+unassigned or unregistered administrator-visible facts. Member RLS independently checks membership in
 the caller's current ownership set before candidate selection; page limits cannot bypass it.
 
 Date and Reported amount ordering, with or without text search, use this RPC. Reported amount is the
@@ -252,7 +252,7 @@ For one company, full mature month, and currency with complete valid inputs, the
 estimate matches the latest automatically generated payout after that report has
 captured the current source and terms versions. Both aggregate across source
 namespaces. A narrowed SKU/marketplace selection represents only part of the report;
-an unfiltered operator estimate can also include seller-wide controls that are not
+an unfiltered administrator estimate can also include seller-wide controls that are not
 company payout amounts. The browser presents amount types and their contributing
 records together for both live estimates and saved reports.
 
@@ -275,14 +275,14 @@ records also returns no groups; its saved header still records the exact zero to
 ## Filter options
 
 Source, Marketplace, and Type menus use static application catalogs. All SKU menus use an already
-loaded catalog: company members reuse their current `company_skus` assignments; administrators
+loaded catalog: members reuse their current `company_skus` assignments; administrators
 preload [`public.sku_filter_options`](../services/db/supabase/migrations/20260928123140_sku_configuration_reads.sql)
 during identity bootstrap. Opening a menu makes no database request. Options may return zero rows
 under the selected dataset and other filters.
 
 Administrators receive every known Type for the dataset's source scope. Administrator Transactions
 also offers source `RECONCILIATION` and type `SETTLEMENT_KIOSK_DIFFERENCE`, computed separately
-from the unchanged preprocessing registry. Company members receive
+from the unchanged preprocessing registry. Members receive
 every known Type except category `SELBOX`. These are local registry choices, not occurrence-based
 database discovery. After selection, page/count RPCs still query matching transaction rows for the
 table and exact pagination; knowing valid Type names does not establish their transaction counts.
@@ -293,9 +293,9 @@ one database snapshot; REST row limits do not paginate the nested array. There i
 occurrence count, or client loop repeating discovery. An empty catalog returns an empty array.
 The client validates the complete response before using it for filters or search.
 
-The function checks `private.is_operator()` before executing discovery. Company members,
-unregistered users, and callers without an application operator identity receive SQLSTATE `42501`
-(`Administrator access required`; HTTP 403 for authenticated requests). Operators and members
+The function checks `private.is_administrator()` before executing discovery. Members,
+unregistered users, and callers without an application administrator identity receive SQLSTATE `42501`
+(`Administrator access required`; HTTP 403 for authenticated requests). Administrators and members
 share Supabase's `authenticated` database role, so its execution grant remains while the function
 enforces the application-role restriction. Invoker RLS still applies to the permitted query.
 
@@ -406,18 +406,18 @@ source-specific fact selection and candidate limits remain in each optimized que
 normalizes search text and resolves exact catalog values. SQL receives those values as bound arrays,
 not raw search text; caller values are never interpolated into SQL.
 
-The current-pointer shortcut applies only to authenticated non-operators with active fact RLS that
-already requires current versions. Operators, owners, and bypass contexts retain explicit pointer
+The current-pointer shortcut applies only to authenticated non-administrators with active fact RLS that
+already requires current versions. Administrators, owners, and bypass contexts retain explicit pointer
 checks. These helpers preserve the existing access rules and financial results.
 
 [Application access](../services/db/supabase/migrations/20260928123123_application_access.sql)
 separates transaction authorization from reference visibility. Fact policies match current source
 pointers directly and still enforce each row's category and current SKU ownership. Metadata
-policies do not inspect facts: `private.is_company_member()` establishes registered member access,
+policies do not inspect facts: `private.is_member()` establishes registered member access,
 headers require a nonnull current pointer, and version references must match a current pointer.
-Members may read current references across companies, including empty or unowned versions; operators
+Members may read current references across companies, including empty or unowned versions; administrators
 retain historical reference access. Existing column grants continue to exclude full report metadata,
-and its operator-only functions remain guarded. The private member helper has a fixed search path and
+and its administrator-only functions remain guarded. The private member helper has a fixed search path and
 authenticated-only application execution.
 
 Public RPCs use invoker security. The

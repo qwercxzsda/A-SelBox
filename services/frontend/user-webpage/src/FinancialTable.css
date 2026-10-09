@@ -19,55 +19,46 @@
 
 .table-card [data-column="component_type"] {
   width: var(--type-column-width);
-  max-width: var(--type-column-width);
-}
-
-.table-card[data-dataset="live"] [data-column="component_type"] {
   min-width: var(--type-column-width);
-}
-
-.table-card td[data-column="component_type"] > span {
-  display: block;
   max-width: var(--type-column-width);
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
-.table-card[data-dataset="live"] .transaction-type {
+.table-card .transaction-type {
   display: flex;
   align-items: baseline;
   gap: 4px;
+  max-width: var(--type-column-width);
   overflow: hidden;
   font-size: var(--ui-font-data);
   white-space: nowrap;
 }
 
-.table-card[data-dataset="live"] .transaction-type-prefix,
-.table-card[data-dataset="live"] .transaction-type-leaf {
+.table-card .transaction-type-prefix,
+.table-card .transaction-type-leaf {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.table-card[data-dataset="live"] .transaction-type-prefix {
+.table-card .transaction-type-prefix {
   flex: 0 1 auto;
   color: var(--ui-text-muted);
   font-size: var(--ui-font-caption);
 }
 
-.table-card[data-dataset="live"] .transaction-type-separator {
+.table-card .transaction-type-separator {
   flex: 0 0 auto;
   color: var(--ui-text-muted);
 }
 
-.table-card[data-dataset="live"] .transaction-type-leaf {
+.table-card .transaction-type-leaf {
   flex: 0 0 auto;
   max-width: 100%;
   font-weight: 500;
 }
 
-.table-card[data-dataset="live"] .transaction-type[data-hierarchical] .transaction-type-leaf {
+.table-card .transaction-type[data-hierarchical] .transaction-type-leaf {
   max-width: calc(100% - 4rem);
 }
 

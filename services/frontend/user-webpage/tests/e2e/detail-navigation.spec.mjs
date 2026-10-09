@@ -47,7 +47,7 @@ async function openReport(page, role) {
   return fixture;
 }
 
-for (const role of ["operator", "company_member"]) {
+for (const role of ["administrator", "member"]) {
   for (const width of [1440, 1920]) {
     test(`${role} can navigate long report records from either end at ${width}px`, async ({
       page,
@@ -92,7 +92,7 @@ for (const role of ["operator", "company_member"]) {
       await expect(top).toContainText("Page 2 · 75 records");
       await top.getByRole("button", { name: "Previous records", exact: true }).click();
       await expect(records.locator("tbody tr")).toHaveCount(50);
-      if (role === "company_member") {
+      if (role === "member") {
         await expect(
           drawer.getByRole("button", { name: "Additional details", exact: true }),
         ).toHaveCount(0);
@@ -111,7 +111,7 @@ test("narrow report tables retain horizontal keyboard scrolling and one drawer s
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openReport(page, "company_member");
+  await openReport(page, "member");
   const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
   const wrapper = drawer.getByRole("region", { name: "Amount records table", exact: true });
   await expect(wrapper).toHaveAttribute("data-fitting", "false");

@@ -203,7 +203,7 @@ test("changing account and role clears estimates and the selected currency befor
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-b"] = "operator";
+  fixture.roles["member-b"] = "administrator";
   fixture.aggregateRowsByUser = {
     "member-a": [
       summaryBucket("2026-03-15", "7", { currency: "EUR" }),

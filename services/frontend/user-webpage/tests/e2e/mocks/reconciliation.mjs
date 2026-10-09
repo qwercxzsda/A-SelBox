@@ -22,7 +22,7 @@ export async function respondWithReconciliation(
   const entry = { endpoint, params: url.searchParams, user, completed: false };
   fixture.reconciliationRequests.push(entry);
   track(request, entry);
-  if (fixture.roles[user] !== "operator") return reply({}, 403);
+  if (fixture.roles[user] !== "administrator") return reply({}, 403);
   await fixture.beforeReconciliation(entry);
   const status = fixture.reconciliationStatusForRequest?.(entry) ?? fixture.reconciliationStatus;
   if (status !== 200) return reply({}, status);

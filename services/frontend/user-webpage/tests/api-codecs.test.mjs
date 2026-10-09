@@ -18,7 +18,7 @@ test("datasets use current source, payout, and application-account APIs", () => 
   for (const dataset of ["live", "settlement", "data_kiosk"])
     assert.equal(Object.hasOwn(DATASET_CONFIG[dataset], "endpoint"), false);
   assert.equal(DATASET_CONFIG.payouts.endpoint, "latest_company_payout_reports");
-  assert.equal(DATASET_CONFIG.accounts.endpoint, "app_accounts");
+  assert.equal(DATASET_CONFIG.accounts.endpoint, "rpc/account_directory");
   assert.deepEqual(DATASET_CONFIG.live.idColumns, ["source", "source_row_id"]);
   assert.deepEqual(DATASET_CONFIG.accounts.idColumns, ["user_id"]);
 });
@@ -55,7 +55,7 @@ test("search uses visible transaction text and excludes hidden or computed field
       "component_type",
       "marketplace_name",
     ]);
-  assert.deepEqual(DATASET_CONFIG.accounts.searchColumns, []);
+  assert.deepEqual(DATASET_CONFIG.accounts.searchColumns, ["email"]);
 });
 
 test("Content-Range supports successful, empty, unknown, and out-of-range counts", () => {

@@ -1,8 +1,9 @@
 # Monthly company payout reports
 
 Payout reports freeze one company and one full calendar month, aggregating every
-source namespace and separating only currencies. A company/month with no known
-currency still produces an aggregate of zero without inventing a currency.
+source namespace and separating only currencies. New reports require at least one
+currently assigned SKU. An eligible company/month with no known currency still
+produces an aggregate of zero without inventing a currency.
 The month end must be strictly before `mature_cutoff_date`, calculated from the
 database UTC date and `mature_cutoff_months = 2`. The
 [source policy](source_allocation.md) defines the boundary and applies identically
@@ -21,6 +22,13 @@ newest saved report per company, month, and currency. The complete
 
 ## Automatic generation
 
+Company eligibility follows current SKU ownership, not membership or monetary
+activity. A company without any currently assigned SKUs receives neither new
+reports nor queued refresh work. Assigning its first SKU starts automatic generation;
+removing its last assignment clears mutable refresh work and stops new generation.
+Previously saved reports and their source evidence remain unchanged and readable.
+A company with assigned SKUs but no activity remains eligible for zero reports.
+
 The `company-payout-reports` pg_cron job runs every five minutes and processes up to
 10 pending, mature company/months whose retry time has arrived. A partial index on
 `private.payout_report_refresh_state` selects work where `requested_revision` is
@@ -30,25 +38,26 @@ a large backlog can need several runs.
 
 Source and terms publications mark affected months pending in the same transaction,
 once the complete publication is validated. Ordinary source changes conservatively
-mark the changed calendar months for every company. Changes to source scope can
+mark the changed calendar months for every eligible company. Changes to source scope can
 also affect other months: a new marketplace, a new historical seller/SKU relationship,
 or pruning its last retained evidence can change coverage or saved manifests.
 Those cases request broader checks. Ownership and fee changes include old and new
 owners and other companies whose manifests depend on the changed terms. Raw archive
 acquisition and inventory captures do not request payout work.
 
-The worker also advances a small maturity frontier in the same table: each company
+The worker also advances a small maturity frontier in the same table: each eligible company
 keeps a pending future month, and newly mature months are added without rechecking
 completed historical months. Failed older work does not stop the frontier advancing.
-A company with no refresh state is initialized from known financial history once;
+An eligible company with no refresh state is initialized from known financial history once;
 historical backfills extend that range. The start includes Settlement posting dates
 and processed coverage, processed Data Kiosk days, saved reports, and existing
 refresh state. It can precede company creation and produce zero reports for companies
-with no activity. With no financial history or refresh state, no start month is
-invented. Saved reports and refresh state preserve older months after source pruning.
-An idle run performs indexed frontier lookups per company and checks the pending index;
+that have assigned SKUs but no activity. With no financial history or refresh state,
+no start month is invented. Saved reports and refresh state preserve older months
+after source pruning.
+An idle run performs indexed frontier lookups for eligible companies and checks the pending index;
 it does not resolve financial inputs or validate coverage for completed reports.
-Historical source discovery is needed when initializing new companies, and broader
+Historical source discovery is needed when initializing newly eligible companies, and broader
 scope changes can deliberately request historical work.
 
 Changes advance the requested revision and clear retry delays. Successful generation
@@ -80,11 +89,18 @@ or choose its source versions. Preprocessing must be compatible within each
 namespace. Separate namespaces can use different preprocessing versions, retained
 through their pinned input manifests.
 
+The eligibility rule also applies to trusted direct publication. The internal monthly
+generator returns no reports for a company without current SKU assignments; the
+single-report publisher rejects it with SQLSTATE `23514` and
+`Payout reports require at least one currently assigned SKU`. Historical assignments
+or previous reports alone do not make a company eligible.
+
 ## Comparing estimates and saved reports
 
 Select the same company, full mature calendar month, and currency to compare a
-live estimate with its latest payout report. With complete coverage, resolved
-ownership and fees, and automatic generation caught up to the current inputs,
+live estimate with its latest payout report. When the company has current SKU
+assignments, coverage is complete, ownership and fees resolve, and automatic
+generation has caught up to the current inputs,
 their company amount, source amount, service fee, amount types, and contributing
 records agree across all source namespaces. SKU or marketplace filters narrow
 an estimate and no longer represent the whole company report.
@@ -92,7 +108,9 @@ an estimate and no longer represent the whole company report.
 Estimates use current inputs; reports freeze the versions used when saved. A
 source or fee change can therefore change an estimate before the scheduled worker
 captures the new report. The previous saved report remains available during that
-interval. Recent dates can also differ because the live source-authority policy
+interval. If the company loses its last SKU assignment, its saved reports remain
+historical snapshots and no longer track current estimates until a SKU is assigned again.
+Recent dates can also differ because the live source-authority policy
 has not yet reached maturity. The two views use the same amount-by-type and record
 layout so their monetary results can be inspected in the same way.
 
@@ -115,6 +133,9 @@ comparison row. Ownership, coverage, and applicable fee rules still apply.
 Totals always cover the complete report, independently of the loaded record page.
 
 ## Empty aggregates
+
+An empty monetary aggregate is distinct from a company without assigned SKUs.
+The former can produce a zero report; the latter is ineligible for new reports.
 
 Every report uses `COALESCE(SUM(...), 0)`. No matching monetary rows therefore
 produce zero through the ordinary aggregation. This does not certify inactivity or
@@ -147,8 +168,8 @@ If there is no known currency, the header's `currency` is null. Its totals are z
 account-reconciliation rows; available source/terms manifests can still be present.
 A known currency remains in the header even when its aggregate is zero.
 
-Later refreshes can save zero totals for a previous currency scope whose amounts
-disappeared. Existing snapshots remain immutable.
+While the company remains eligible, later refreshes can save zero totals for a
+previous currency scope whose amounts disappeared. Existing snapshots remain immutable.
 
 ## Reuse unchanged reports
 
@@ -181,7 +202,7 @@ Comparison and analysis components can retain source detail with null company/fe
 contributions. The payout drawer's Records section shows authoritative rows from
 both monetary sources. Administrators inspect non-authoritative comparisons in
 **Financial review → month → Saved report snapshots**, selecting a saved company report.
-The component table's row policy prevents company members from reading these
+The component table's row policy prevents members from reading these
 supporting rows even by requesting them directly through the API. Zero amounts
 do not determine authority: authoritative zero rows remain ordinary payout
 records. Values remain exact decimal strings in the browser and `Decimal` in Python.
@@ -253,19 +274,22 @@ reports. Members cannot read them or the source manifests.
 Reports, company components, reconciliation rows, and complete source/terms
 manifests are immutable. Integrity checks verify provenance, exact sums, complete
 inventories, and the reconciliation identity against frozen versions. A null currency
-is restricted to an empty company/month aggregate. Publication locks company/month,
-captures its related seller set, then locks seller/month and source days in order.
-Source and terms publishers acquire a shared transaction advisory guard before
-publication; the worker tries the exclusive guard and skips if a publisher or
-another worker holds it. Publications that arrive during generation wait for the
-worker to finish, then commit their changes and pending revisions together. This
-lock order prevents publication/worker deadlocks. Capture and pruning use
+is restricted to an empty company/month aggregate. The worker, direct monthly generator,
+and single-report publisher acquire the exclusive payout-input transaction advisory
+guard before locking company/month, capturing its related seller set, and locking
+seller/month and source days in order. The worker skips its run if the guard is busy;
+direct publication waits. Source and terms publishers acquire the shared guard before
+publication. Publications that arrive during generation wait for it to finish, then
+commit their changes and pending revisions together. This lock order protects current
+assignment eligibility and prevents publication/generation deadlocks. Capture and pruning use
 `READ COMMITTED` and pin all referenced days, including empty ones. Privileged publication recreates its temporary work table
 to prevent caller-owned temporary tables or triggers from running with its role.
 
 Reassignment corrects mistaken ownership retroactively in live calculations and
-future generation; it does not establish a dated transfer. Saved reports keep their
-original company and amounts. Required unassigned SKUs block generation.
+future generation for eligible companies; it does not establish a dated transfer.
+Saved reports keep their original company and amounts, including after the last
+SKU is reassigned away. Required unassigned SKUs within an eligible company's source
+scope block generation.
 Member access follows the report's saved company and the member's current application
 account. Approval, adjustments, currency rounding,
 and payment execution remain separate features.
@@ -318,6 +342,7 @@ The disposable database suite covers category authority, exact boundary dates,
 monthly eligibility, reconciliation, tenant isolation, immutable snapshots,
 marketplace totals, unchanged-input reuse, concurrent publication, and retention.
 Automatic refresh tests cover maturity discovery, targeted invalidation, idle runs,
+first-SKU activation, last-SKU removal, assigned SKUs without activity,
 blocked-month recovery, retry backoff, concurrent publication, and denied application
 generation access.
 Frontend tests run in Docker. The real-seed verification tool replays archived inputs into a

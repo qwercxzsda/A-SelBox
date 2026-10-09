@@ -52,7 +52,7 @@ class TestPayoutReports(unittest.TestCase):
             },
         )
 
-    def test_empty_company_publication_does_not_fabricate_currency(self) -> None:
+    def test_empty_monthly_aggregate_does_not_fabricate_currency(self) -> None:
         saved_id = uuid7()
         database = FakeDatabaseConnection([(saved_id,)])
         result = publish_company_payout_report(
@@ -62,7 +62,7 @@ class TestPayoutReports(unittest.TestCase):
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 31),
             report_name="January report",
-            change_reason="Empty company",
+            change_reason="Empty reporting month",
         )
         self.assertEqual(result, str(saved_id))
         payload = cast(dict[str, object], cast(Jsonb, database.execute_calls[0][1]["payload"]).obj)

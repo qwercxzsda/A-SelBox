@@ -10,7 +10,7 @@ import { normalizeDatasetFilters } from "../src/dataset-filters.ts";
 const IDENTITY = {
   skuOptions: ["SKU_100"],
   session: { user: { id: "user-a" }, access_token: "private-access-token" },
-  account: { access_role: "company_member", company_id: "company-a" },
+  account: { access_role: "member", company_id: "company-a" },
 };
 const OPTIONS = {
   dataset: "live",
@@ -28,7 +28,7 @@ test("cached pages are separated by account access and every server-side query o
     for (const identity of [
       { ...IDENTITY, session: { ...IDENTITY.session, user: { id: "user-b" } } },
       { ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } },
-      { ...IDENTITY, account: { ...IDENTITY.account, access_role: "operator" } },
+      { ...IDENTITY, account: { ...IDENTITY.account, access_role: "administrator" } },
     ]) {
       assert.equal(client.getQueryData(datasetQueryOptions(identity, OPTIONS).queryKey), undefined);
     }
@@ -108,6 +108,7 @@ test("only network and server failures receive one retry", async () => {
   try {
     for (const [error, expectedAttempts] of [
       [new ApiError("query", null), 2],
+      [new ApiError("query", null, true), 2],
       [new ApiError("query", 503), 2],
       [new ApiError("query", 401), 1],
       [new ApiError("query", 403), 1],
@@ -208,7 +209,7 @@ test("count caches require the exact account, dataset, search, and normalized fi
     const distinct = [
       [{ ...IDENTITY, session: { ...IDENTITY.session, user: { id: "user-b" } } }, OPTIONS],
       [{ ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } }, OPTIONS],
-      [{ ...IDENTITY, account: { ...IDENTITY.account, access_role: "operator" } }, OPTIONS],
+      [{ ...IDENTITY, account: { ...IDENTITY.account, access_role: "administrator" } }, OPTIONS],
       [IDENTITY, { ...OPTIONS, dataset: "settlement" }],
       [IDENTITY, { ...OPTIONS, search: "SKU_100" }],
       ...[

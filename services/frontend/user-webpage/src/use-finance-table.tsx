@@ -58,7 +58,7 @@ export function useFinanceTable(
   function updateView(update: (current: DatasetViewState) => DatasetViewState) {
     onViewStateChange((current) => ({ ...update(current), selectedRowId: null }));
   }
-  const isAdministrator = identity.account.access_role === "operator";
+  const isAdministrator = identity.account.access_role === "administrator";
   const columns = useMemo<ColumnDef<typeof features, CanonicalRow>[]>(
     () =>
       displayColumns(dataset, isAdministrator).map((column) => ({

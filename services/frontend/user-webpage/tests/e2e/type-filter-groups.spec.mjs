@@ -13,7 +13,7 @@ const search = (menu) => menu.getByLabel("Search type", { exact: true });
 const checkbox = (menu, name) => menu.getByRole("checkbox", { name, exact: true });
 const typeChip = (page) => page.getByRole("button", { name: /^Clear type filter:/ });
 
-async function start(page, role = "operator") {
+async function start(page, role = "administrator") {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
   await signIn(page);
@@ -24,7 +24,7 @@ async function expectTypes(fixture, expected) {
   await expect.poll(() => sorted(typesSent(fixture))).toEqual(sorted(expected));
 }
 
-for (const role of ["company_member", "operator"]) {
+for (const role of ["member", "administrator"]) {
   test(`${role} type groups retain exact role and dataset scopes without option API requests`, async ({
     page,
   }) => {
@@ -38,20 +38,20 @@ for (const role of ["company_member", "operator"]) {
     expect(typesSent(fixture)).toContain("FBAFees/FBA Inventory Storage Fee/Base fee");
     const allowed = new Set(
       registry
-        .filter(({ category }) => role === "operator" || category !== "SELBOX")
+        .filter(({ category }) => role === "administrator" || category !== "SELBOX")
         .map(({ type }) => type),
     );
     expect(typesSent(fixture).every((value) => allowed.has(value))).toBe(true);
 
     await search(menu).fill("subscription");
-    await expect(checkbox(menu, "Subscription fee")).toHaveCount(role === "operator" ? 1 : 0);
+    await expect(checkbox(menu, "Subscription fee")).toHaveCount(role === "administrator" ? 1 : 0);
     await search(menu).fill("SETTLEMENT_KIOSK_DIFFERENCE");
     await expect(checkbox(menu, "Settlement / Data Kiosk difference")).toHaveCount(
-      role === "operator" ? 1 : 0,
+      role === "administrator" ? 1 : 0,
     );
     await menu.getByRole("button", { name: "Done", exact: true }).click();
 
-    if (role === "operator") {
+    if (role === "administrator") {
       for (const [tab, source] of [
         ["Settlements", "SETTLEMENT"],
         ["Data Kiosk", "DATA_KIOSK"],
@@ -150,6 +150,7 @@ test("search and batch actions select only matching exact types and preserve unr
   await expect(menu.getByRole("button", { name: "Select matches", exact: true })).toHaveCount(0);
   await menu.getByRole("button", { name: "Done", exact: true }).click();
   await page.reload();
+  await expect(typeChip(page)).toBeVisible();
   await expectTypes(fixture, [
     "PRODUCT_SALES",
     ...EPR_TYPES.filter((type) => !type.includes("Packaging")),

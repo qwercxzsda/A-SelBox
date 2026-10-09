@@ -5,7 +5,7 @@ test("administrator lists read CSV pages and independent counts without account 
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.payoutRows = [
     {
       id: "payout-1",
@@ -23,7 +23,9 @@ test("administrator lists read CSV pages and independent counts without account 
   expect(fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/app_accounts")).toBe(false);
   const table = page.getByRole("table", { name: "Financial records", exact: true });
   await page.getByRole("tab", { name: "User access", exact: true }).click();
-  await expect(table.getByRole("cell", { name: "member-b", exact: true })).toBeVisible();
+  await expect(
+    table.getByRole("cell", { name: "member-b@example.test", exact: true }),
+  ).toBeVisible();
   await expect(table.getByRole("cell", { name: "Company B", exact: true })).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
@@ -41,8 +43,9 @@ test("administrator lists read CSV pages and independent counts without account 
     await expect
       .poll(
         () =>
-          fixture.countRequests.filter((entry) => entry.dataset === dataset && entry.completed)
-            .length,
+          fixture.countRequests.filter(
+            (entry) => entry.dataset === dataset && entry.responseStatus === 200,
+          ).length,
       )
       .toBe(1);
     expect(fixture.requests.find((entry) => entry.dataset === dataset).transport).toBe("rest");

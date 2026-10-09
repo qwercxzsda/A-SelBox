@@ -47,9 +47,11 @@ export function useWorkspaceRefresh(
             accessToken: identity.session.access_token,
             userId: identity.session.user.id,
             sources:
-              identity.account.access_role === "operator"
-                ? REVISION_SOURCES
-                : activeRevisionSources(client),
+              identity.account.access_role === "unassigned"
+                ? []
+                : identity.account.access_role === "administrator"
+                  ? REVISION_SOURCES
+                  : activeRevisionSources(client),
             signal: controller.signal,
           });
           if (!current()) return;
@@ -69,7 +71,7 @@ export function useWorkspaceRefresh(
               const refreshCatalogs =
                 forced ||
                 changed.includes("fees") ||
-                (identity.account.access_role === "operator" &&
+                (identity.account.access_role === "administrator" &&
                   changed.some((source) => FINANCIAL_REVISION_SOURCES.includes(source)));
               if (refreshCatalogs && !(await checkIdentity({ forceCatalog: forced }))) return;
               if (!current()) return;

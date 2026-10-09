@@ -23,10 +23,10 @@ cleanup status and writes results atomically.
 
 ## Workloads
 
-- **Pages and counts:** member/operator newest, oldest, and marketplace reads with and without a 60-day range. A separate
+- **Pages and counts:** member/administrator newest, oldest, and marketplace reads with and without a 60-day range. A separate
   exact count starts after page rows arrive; its result must match the combined page/count response.
 - **Summaries and options:** latest-day/month and 60-day totals, Type/currency groups, marketplace totals, and the
-  operator's complete SKU catalog, including historical facts and registered-only SKUs. Untimed
+  administrator's complete SKU catalog, including historical facts and registered-only SKUs. Untimed
   authorized SQL provides independent exact-value references. Only current RPCs are timed;
   general REST aggregates stay disabled.
 - **Search and amount ordering:** all three datasets, exact OR search sets resolved from raw SKU,

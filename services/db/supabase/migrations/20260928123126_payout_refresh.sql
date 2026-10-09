@@ -32,6 +32,7 @@ language sql stable security invoker set search_path = '' as $$
         select min(r.start_date) from public.company_payout_reports r
         union all
         select min(s.month) from private.payout_report_refresh_state s
+        where private.payout_company_eligible(s.company_id)
     ) dates;
 $$;
 
@@ -40,14 +41,22 @@ language plpgsql volatile security invoker set search_path = '' as $$
 declare frontier date := date_trunc('month',private.mature_cutoff_date())::date;
     source_month date; source_loaded boolean := false; item record; start_month date;
 begin
+    perform private.lock_payout_report_inputs();
+    perform private.lock_payout_refresh_requests();
     for item in
-        select c.id,
+        select c.id,private.payout_company_eligible(c.id) as eligible,
             (select s.month from private.payout_report_refresh_state s where s.company_id=c.id
                 order by s.month limit 1) as first_month,
             (select s.month from private.payout_report_refresh_state s where s.company_id=c.id
                 and s.month <= frontier order by s.month desc limit 1) as last_month
         from public.companies c order by c.id
     loop
+        if not item.eligible then
+            -- Operational state is disposable; immutable report history/pins
+            -- survive unassignment. Reassignment bootstraps known months again.
+            delete from private.payout_report_refresh_state where company_id=item.id;
+            continue;
+        end if;
         if item.first_month is null then
             if not source_loaded then
                 source_month := private.first_payout_source_month();
@@ -82,8 +91,6 @@ begin
         raise exception 'Payout refresh requires finite calendar months' using errcode='22023';
     end if;
     if cardinality(p_months)=0 then return; end if;
-    perform private.lock_payout_report_inputs();
-    perform private.lock_payout_refresh_requests();
     perform private.ensure_payout_report_months();
     select min(month) into first_requested from unnest(p_months) m(month);
     -- An older backfill extends history once, rather than rediscovering every
@@ -91,7 +98,9 @@ begin
     for item in
         select c.id,(select s.month from private.payout_report_refresh_state s
             where s.company_id=c.id order by s.month limit 1) as first_month
-        from public.companies c where p_companies is null or c.id=any(p_companies) order by c.id
+        from public.companies c
+        where (p_companies is null or c.id=any(p_companies))
+            and private.payout_company_eligible(c.id) order by c.id
     loop
         if item.first_month > first_requested then
             insert into private.payout_report_refresh_state (company_id,month)
@@ -103,7 +112,8 @@ begin
     end loop;
     insert into private.payout_report_refresh_state (company_id,month)
     select c.id,m.month from public.companies c cross join (select distinct month from unnest(p_months) m(month)) m
-    where p_companies is null or c.id=any(p_companies)
+    where (p_companies is null or c.id=any(p_companies))
+        and private.payout_company_eligible(c.id)
     order by c.id,m.month
     on conflict (company_id,month) do update
     set requested_revision=payout_report_refresh_state.requested_revision+1,
@@ -116,15 +126,15 @@ $$;
 create function private.request_all_payout_report_refreshes(p_companies uuid[] default null)
 returns void language plpgsql volatile security invoker set search_path = '' as $$
 begin
-    perform private.lock_payout_report_inputs();
-    perform private.lock_payout_refresh_requests();
+    perform private.ensure_payout_report_months();
     -- These infrequent scope changes can alter older seller/marketplace inputs.
     -- Acquisitions alone never call this function and invent no financial history.
     update private.payout_report_refresh_state
     set requested_revision=requested_revision+1,
         next_attempt_at=case when requested_revision>completed_revision
             then least(next_attempt_at,clock_timestamp()) else clock_timestamp() end,failure_count=0
-    where p_companies is null or company_id=any(p_companies);
+    where (p_companies is null or company_id=any(p_companies))
+        and private.payout_company_eligible(company_id);
 end;
 $$;
 

@@ -8,7 +8,7 @@ test("a saved zero report displays without a currency and remains readable durin
   await page.clock.install();
   const fixture = await mockSupabase(page);
   const company = "0198b50b-701a-7000-8000-000000000001";
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-b"] = company;
   fixture.companyNames[company] = "Monthly Company";
   fixture.payoutRows = [

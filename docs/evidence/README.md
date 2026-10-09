@@ -8,6 +8,11 @@ Test counts, UI descriptions, schema counts, and API samples in these records de
 runs. Use the linked current contracts for maintained behavior; historical evidence is not a setup
 guide or a claim that every observed interface is still public.
 
+Historical role labels remain unchanged in dated measurements and captured payloads:
+`operator` means the current Administrator role (`administrator`), and `company_member`
+means Member (`member`). Current code and contracts use Administrator, Member, and
+Unassigned (`unassigned`); see [application access](../access_control.md).
+
 | Record | Purpose |
 | --- | --- |
 | [Daily inventory](inventory/README.md) | Real US/Japan pipeline, lightweight refresh, and responsive UI verification. |

@@ -1,4 +1,4 @@
-"""Frozen payout economics, operator access, and complete evidence validation."""
+"""Frozen payout economics, administrator access, and complete evidence validation."""
 
 from decimal import Decimal
 
@@ -138,19 +138,19 @@ class CompanyPayoutReportTests(SourceModelFixture):
         company, identity = self.owner()
         other_company, _ = self.owner("OTHER")
         old_user, new_user = self.member(company), self.member(other_company)
-        operator = self.operator()
+        administrator = self.administrator()
         self.fee(identity, [("2026-01-01", None, "5")])
         self.settlement([self.transaction("100")])
         report = self.report(company)
         self.reassign(identity, other_company)
         self.connection.execute("set constraints all immediate")
         self.assertEqual(
-            self.as_user(operator, "select id::text from public.company_payout_reports"),
+            self.as_user(administrator, "select id::text from public.company_payout_reports"),
             [(report,)],
         )
         self.assertEqual(
             self.as_user(
-                operator, "select company_amount from public.company_payout_report_components"
+                administrator, "select company_amount from public.company_payout_report_components"
             ),
             [(Decimal(95),)],
         )
@@ -172,8 +172,12 @@ class CompanyPayoutReportTests(SourceModelFixture):
             self.as_user(old_user, "select id from private.settlement_transactions"), []
         )
         self.assertEqual(self.as_user(old_user, "select id from public.sku_terms_versions"), [])
-        self.connection.execute("delete from public.app_accounts where user_id=%s", (operator,))
-        self.assertEqual(self.as_user(operator, "select id from public.company_payout_reports"), [])
+        self.connection.execute(
+            "delete from public.app_accounts where user_id=%s", (administrator,)
+        )
+        self.assertEqual(
+            self.as_user(administrator, "select id from public.company_payout_reports"), []
+        )
 
     def test_incomplete_ownership_fees_and_source_coverage_fail_atomically(self) -> None:
         company, identity = self.owner()

@@ -49,7 +49,12 @@ class DateOrderingTests(SourceModelFixture):
     def test_date_directions_are_exact_reverses_for_all_datasets_and_roles(self) -> None:
         company_a, company_b = self.tied_rows()
         for user, dataset in product(
-            (self.operator(), self.member(company_a), self.member(company_b), self.auth_user()),
+            (
+                self.administrator(),
+                self.member(company_a),
+                self.member(company_b),
+                self.auth_user(),
+            ),
             ("live", "settlement", "data_kiosk"),
         ):
             with self.subTest(user=user, dataset=dataset):
@@ -82,7 +87,7 @@ class DateOrderingTests(SourceModelFixture):
     def test_search_and_filters_keep_reverse_order_but_amount_ties_stay_ascending(self) -> None:
         company_a, _ = self.tied_rows()
         for user, dataset in product(
-            (self.operator(), self.member(company_a)), ("live", "settlement", "data_kiosk")
+            (self.administrator(), self.member(company_a)), ("live", "settlement", "data_kiosk")
         ):
             with self.subTest(user=user, dataset=dataset):
                 filters = {

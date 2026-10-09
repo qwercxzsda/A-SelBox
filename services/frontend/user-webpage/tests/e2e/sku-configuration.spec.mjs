@@ -17,7 +17,7 @@ import {
 test("administrators stage multiple SKUs and cannot save until every known SKU is complete", async ({
   page,
 }, testInfo) => {
-  const fixture = await setup(page, "operator", [
+  const fixture = await setup(page, "administrator", [
     item("S1"),
     item("S2", { company_id: null, periods: [period("0", "2026-09-01", "2026-09-02")] }),
   ]);
@@ -80,7 +80,7 @@ test("administrators stage multiple SKUs and cannot save until every known SKU i
 test("members see only their assigned settings and have no edit or save controls", async ({
   page,
 }) => {
-  const fixture = await setup(page, "company_member", [
+  const fixture = await setup(page, "member", [
     item("S1"),
     item("S2", { company_id: OTHER_COMPANY }),
   ]);

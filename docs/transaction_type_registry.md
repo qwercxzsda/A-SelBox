@@ -53,7 +53,7 @@ also finds individual labels and raw keys, with batch selection limited to the m
 
 Source offers Settlement and Data Kiosk, plus Reconciliation in administrator Transactions.
 The derived source is absent from member menus and raw source tabs. Marketplace offers all
-supported names. Company members reuse the exact SKU strings in their already-loaded current assignments. Administrators
+supported names. Members reuse the exact SKU strings in their already-loaded current assignments. Administrators
 preload the complete SKU catalog in one administrator-only RPC before showing the workspace because imported facts
 can contain unassigned or unregistered SKUs absent from assignments. Source and fee revisions
 refresh that list before dependent search queries. Table search resolves matching catalog values

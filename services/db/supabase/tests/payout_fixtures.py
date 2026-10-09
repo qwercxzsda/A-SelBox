@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import cast
 
+from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
@@ -180,3 +181,44 @@ def publish_payout(fixture: SourceModelFixture, inputs: PayoutInputs, **scope: o
             **scope,
         },
     )
+
+
+def reassign_payout_sku(fixture: SourceModelFixture, sku_id: str, company: str | None) -> None:
+    sku, version = require_row(
+        fixture.connection.execute(
+            "select sku,current_terms_version_id::text from public.skus where id=%s", (sku_id,)
+        ).fetchone()
+    )
+    fixture.call(
+        "publish_sku_terms",
+        {
+            "id": new_id(),
+            "sku_id": sku_id,
+            "sku": sku,
+            "company_id": company,
+            "expected_current_version_id": version,
+            "change_reason": "Change assignment eligibility",
+            "periods": [
+                {
+                    "id": new_id(),
+                    "marketplace_name": "Amazon.com",
+                    "valid_from": "2026-01-01",
+                    "valid_to": None,
+                    "fee_rate_percent": "5",
+                }
+            ],
+        },
+    )
+
+
+def empty_report_payload(company: str) -> dict[str, object]:
+    return {
+        "id": new_id(),
+        "company_id": company,
+        "currency": None,
+        "start_date": "2026-06-01",
+        "end_date": "2026-06-30",
+        "dataset_key": "economics",
+        "report_name": "June payout",
+        "change_reason": "Verify current assignment requirement",
+    }

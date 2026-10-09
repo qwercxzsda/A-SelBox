@@ -74,7 +74,7 @@ they are identified separately from the report's company/month/currency scope.
 
 Saved account controls remain immutable. The same controls can appear beside several company
 reports, so they must not be added across reports. The [saved reconciliation contract](company_payout_reports.md#saved-account-reconciliation)
-defines their exact identity. Company members cannot read these comparison rows, controls, or
+defines their exact identity. Members cannot read these comparison rows, controls, or
 input manifests through the API.
 
 ## Read contract
@@ -87,7 +87,7 @@ input manifests through the API.
 | `public.payout_reconciliation_totals` | Frozen account controls for one selected saved report, grouped by currency. |
 | `public.payout_report_reconciliation` | Frozen daily account controls and their source provenance. |
 
-Current-source interfaces use invoker security and an explicit operator check. Month RPCs require
+Current-source interfaces use invoker security and an explicit administrator check. Month RPCs require
 half-open date bounds and apply those bounds before grouping, with existing fact-date indexes.
 The browser fills pages using bounded six-calendar-month queries and one-row date anchors to skip
 gaps. It does not aggregate all history to count pages. Finding the newest eligible source date can

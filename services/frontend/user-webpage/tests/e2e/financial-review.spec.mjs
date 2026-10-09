@@ -601,7 +601,7 @@ test("failed monthly and source reads retry locally without losing month or curr
   await expect(drawer(page).getByRole("heading", { name: "July 2026", exact: true })).toBeVisible();
 });
 
-test("empty categories have no enabled pagination and company members never fetch review data", async ({
+test("empty categories have no enabled pagination and members never fetch review data", async ({
   page,
 }) => {
   const fixture = await openReview(page, (state) => {

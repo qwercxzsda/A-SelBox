@@ -2,12 +2,30 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { filterOptions, transactionTypeValues } from "../src/filter-options.ts";
 import {
+  searchTransactionTypeGroups,
   transactionTypeGroups,
   transactionTypeSelectionLabels,
 } from "../src/transaction-type-groups.ts";
 
-const catalog = filterOptions("component_type", transactionTypeValues("live", "operator"));
+const catalog = filterOptions("component_type", transactionTypeValues("live", "administrator"));
 const groups = transactionTypeGroups(catalog);
+
+test("search matches whole group names or precise type words without broadening to siblings", () => {
+  assert.deepEqual(searchTransactionTypeGroups(groups, "  "), groups);
+  assert.deepEqual(searchTransactionTypeGroups(groups, "INVENTORY storage"), [
+    groups.find(({ id }) => id === "inventory"),
+  ]);
+  const values = (search) =>
+    searchTransactionTypeGroups(groups, search).flatMap(({ options }) =>
+      options.map(({ value }) => value),
+    );
+  const storageFees = values("storage fee");
+  assert.ok(storageFees.includes("FBA_STORAGE_FEE"));
+  assert.ok(!storageFees.includes("DISPOSAL_FEE"));
+  assert.deepEqual(values("FBA_STORAGE_FEE"), ["FBA_STORAGE_FEE"]);
+  assert.deepEqual(values("inventory disposal"), []);
+  assert.deepEqual(values("no such type"), []);
+});
 
 function groupFor(value) {
   return groups.find(({ options }) => options.some((option) => option.value === value))?.id;
@@ -90,7 +108,7 @@ test("both sources' related types are easy to select together without merging th
 });
 
 test("role and source scopes are preserved and unfamiliar selected keys stay in Other", () => {
-  for (const role of ["company_member", "operator"])
+  for (const role of ["member", "administrator"])
     for (const dataset of ["live", "settlement", "data_kiosk"]) {
       const values = transactionTypeValues(dataset, role);
       const options = filterOptions("component_type", values, ["UNKNOWN_STORAGE_TAX_FEE"]);

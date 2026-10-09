@@ -78,6 +78,7 @@ export function FinancialReviewTypes({
             if (column.key !== "details") return undefined;
             return (
               <Button
+                className="ui-text-action"
                 size="compact-xs"
                 variant="subtle"
                 aria-label={`View records for ${sourceName(row.source)} · ${transactionTypeLabel(row.component_type ?? "")}`}

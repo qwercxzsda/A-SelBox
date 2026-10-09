@@ -56,3 +56,10 @@ export function parseObjectRows(value: unknown, operation: string): Record<strin
   }
   return value;
 }
+
+/** Mutations must acknowledge exactly one result before the interface changes local state. */
+export function parseSingleObjectRow(value: unknown, operation: string): Record<string, unknown> {
+  const rows = parseObjectRows(value, operation);
+  if (rows.length !== 1) throw new Error(`${operation} returned an invalid result`);
+  return rows[0];
+}

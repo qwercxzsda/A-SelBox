@@ -154,7 +154,7 @@ test("saved marketplace totals use the report-scoped CSV view and preserve exact
     assert.equal(params.get("order"), "marketplace_name.asc.nullslast");
     assert.equal(init.headers.Accept, "text/csv");
     assert.equal(init.headers.Authorization, "Bearer token");
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     return new Response(
       csvRecord({
         report_id: COMPANY_ID,

@@ -107,7 +107,15 @@ const PAYOUT_COLUMNS = [
   "created_at",
 ] as const;
 
-const ACCOUNT_COLUMNS = ["user_id", "access_role", "company_id", "created_at"] as const;
+// Keep RPC CSV projections alphabetical to match PostgREST's serialized column order.
+const ACCOUNT_COLUMNS = [
+  "access_role",
+  "company_id",
+  "created_at",
+  "email",
+  "email_confirmed",
+  "user_id",
+] as const;
 
 // Transaction searches resolve these visible fields to exact catalog values locally.
 // Other REST datasets search only native text fields.
@@ -155,10 +163,10 @@ export const DATASET_CONFIG = {
   },
   accounts: {
     label: "User access",
-    endpoint: "app_accounts",
+    endpoint: "rpc/account_directory",
     selectColumns: ACCOUNT_COLUMNS,
-    searchColumns: [],
-    sortColumns: ["user_id", "access_role", "created_at"],
+    searchColumns: ["email"],
+    sortColumns: ["email", "user_id", "access_role", "created_at"],
     defaultSort: { column: "created_at", direction: "desc" },
     idColumns: ["user_id"],
     dateColumn: null,

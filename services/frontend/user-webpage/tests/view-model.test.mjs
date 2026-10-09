@@ -13,10 +13,20 @@ import {
 } from "../src/view-model.ts";
 
 test("members see transactions, fees, and payouts while administrators retain all views", () => {
-  const member = { user_id: "member-id", access_role: "company_member", company_id: "company-a" };
-  const operator = { user_id: "operator-id", access_role: "operator", company_id: null };
+  const member = { user_id: "member-id", access_role: "member", company_id: "company-a" };
+  const administrator = {
+    user_id: "administrator-id",
+    access_role: "administrator",
+    company_id: null,
+  };
   assert.deepEqual(visibleDatasets(member), ["live", "fees", "payouts"]);
-  assert.deepEqual(visibleDatasets(operator), DATASET_ORDER);
+  assert.deepEqual(visibleDatasets(administrator), DATASET_ORDER);
+});
+
+test("account role labels use the same terminology throughout the workspace", () => {
+  assert.equal(humanizeCode("administrator"), "Administrator");
+  assert.equal(humanizeCode("member"), "Member");
+  assert.equal(humanizeCode("unassigned"), "Unassigned");
 });
 
 test("every displayed sort uses a real allowed API column", () => {

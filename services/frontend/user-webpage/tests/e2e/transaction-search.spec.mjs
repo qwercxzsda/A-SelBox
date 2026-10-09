@@ -12,7 +12,7 @@ for (const [dataset, tab] of [
     page,
   }) => {
     const fixture = await mockSupabase(page);
-    fixture.roles["member-a"] = "operator";
+    fixture.roles["member-a"] = "administrator";
     const type = dataset === "data_kiosk" ? "FBA_STORAGE_FEE" : "PRODUCT_SALES";
     const fields = [
       ["sku", 'Needle_%*.\\"(sample)', "p_search_skus"],
@@ -94,7 +94,7 @@ test("search combines SKU and displayed Type matches with OR before applying col
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "operator";
+  fixture.roles["member-a"] = "administrator";
   fixture.liveRows = [
     { ...liveRow("FBA-UNREGISTERED", 1), component_type: "PRODUCT_SALES" },
     { ...liveRow("STORAGE", 1), source: "DATA_KIOSK", component_type: "FBA_STORAGE_FEE" },

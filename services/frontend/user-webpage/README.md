@@ -15,12 +15,49 @@ Database row-level security enforces access. UI copy and browser review fixtures
 | Data Kiosk       | `source_transaction_page`, `source_transaction_count`                       | Administrators                                                                 |
 | Payout reports   | `latest_company_payout_reports`, report history, maturity policy            | All companies for administrators; own company for members                      |
 | Financial review | `financial_review_records`, category summary RPCs, saved report diagnostics | Administrators                                                                 |
-| User access      | `app_accounts`                                                              | Administrators                                                                 |
+| Companies        | `companies`, `company_skus`, `create_company`, `delete_company`             | Administrators browse, add, and delete unused companies                        |
+| User access      | `account_directory`, `set_company_membership`                               | Administrators manage company membership; administrator roles are DB-only      |
 
-Administrators (`operator`) browse all companies and edit complete SKU assignments/fees. Company
-members (`company_member`) read their own company data. User access manages application access for
-existing Auth users. Database authorization applies to every request; hiding a tab does not grant or
-revoke access. See the [access guide](../../../docs/access_control.md) for the permission matrix.
+Administrators (`administrator`) browse all companies and edit complete SKU assignments/fees.
+Members (`member`) read their own company data. New email/password signups start as **Unassigned**
+(`unassigned`) and see an access-pending screen with no company data. Signup supports both immediate
+sessions and email confirmation, according to the Auth server's settings. Confirmation links are
+verified with Auth; tokens are removed from the URL before loading the workspace. Reverse proxies
+must allow `/auth/v1/signup` alongside the existing token, user, and logout endpoints.
+Confirmation-enabled installations also need `/auth/v1/verify`, configured email delivery, and
+approved website redirect URLs. The local preview uses immediate sign-in and does not send
+confirmation emails.
+
+User access searches users by email and uses the same paginated table and detail drawer as other
+tabs. Administrators assign a company, transfer membership, or explicitly confirm revocation back to
+Unassigned. The saved role/company is checked atomically before a change; stale forms cannot
+overwrite a newer assignment. Administrator accounts are read-only here. Only the trusted Python
+database function can grant or revoke administrator access. Database authorization applies to every
+request; the lightweight access check automatically replaces the workspace and clears cached data
+after a role/company change. See the [access guide](../../../docs/access_control.md) for the
+permission matrix and database-manager instructions.
+
+The administrator-only **Companies** tab lists companies with search, Rows, and Previous/Next
+pagination. Expand a company to see its ID and saved SKU assignments; SKU links open Transactions
+with the exact SKU filter, and **View members** opens User access with that company's filter. The
+inline **Add company** form belongs to this tab. **Add company** shortcuts in Current fees, User
+access, and their company selectors switch to Companies and offer a return action to the original
+tab. Unfinished fee and membership drafts, the selected user, and the company name survive tab
+changes and reloads. Return to the original editor and explicitly select a newly created company;
+creation does not publish that editor's changes. Confirmed companies appear throughout the workspace
+immediately, then revision checks refresh the server catalog.
+
+Expanded company details also offer **Delete company**, followed by an inline confirmation naming
+the company. The interface shows the blocking kinds and counts for companies with linked records; it
+never deletes or unassigns those records. Confirmation does not survive reloads and mutations are
+never replayed automatically. Uncertain outcomes keep the company visible for an explicit retry;
+deleting an already missing company succeeds safely. Confirmed deletions immediately disappear from
+every company selector, even during a stale catalog refresh. Any unsaved fee or membership draft
+that selected the company is retained, marked as unavailable, and blocked from saving until another
+company is chosen.
+
+The [company API contract](../../../docs/access_control.md#company-creation) defines accepted names,
+deduplication, deletion restrictions, and retry behavior. Reloads never repeat mutation requests.
 
 Navigation stays above the active tab's content in one consistent position. Estimated totals appear
 only in Transactions; the selected currency and transaction filters survive tab changes and reloads.
@@ -29,7 +66,10 @@ allows. Each tab has its own associated panel for keyboard and assistive-technol
 
 - Column menus filter inclusive dates, SKUs, marketplaces, sources, and types. Company, SKU, and
   other selections are alternatives within each filter; different filters intersect. Menus offer
-  search when there are more than eight choices. Text search treats punctuation literally.
+  search when there are more than eight choices. Text search treats punctuation literally. Pop-ups
+  use one native scroll area: wheel input over the panel needs no extra click. Close and action
+  controls remain reachable while scrolling, and the panel stays within the viewport as the page
+  moves or resizes.
 - Type filters start with selectable groups, including Other fees & adjustments for EPR,
   subscription, and similar entries. Expand a group for exact types, or search across group names,
   readable labels, and source codes. Search words may appear in any order; Select matches and
@@ -55,12 +95,13 @@ allows. Each tab has its own associated panel for keyboard and assistive-technol
   currency, detail drawers, expanded sections, and fee editing state when the page reloads (F5).
   Versioned session storage belongs to this browser tab and Supabase project. Restored controls are
   validated; permissions and displayed records are fetched again. Sign-out, a new sign-in, or a
-  change of user, role, or assigned company clears the workspace and its cache. If browser storage
-  fails, a visible warning explains that reloading may lose edits; editing remains available in
-  memory.
+  change of user, role, or assigned company clears the workspace and its cache. Stored preferences
+  must match the current user, role, and company; incompatible state is discarded. If browser
+  storage fails, a visible warning explains that reloading may lose edits; editing remains available
+  in memory.
 - Exact SKU text identifies one product across all source namespaces. SKU catalogs, filters, and
   Transactions include its records from every namespace. Administrators can inspect the source
-  namespace in row details; company members never see it. Namespace is not a filter or SKU identity.
+  namespace in row details; members never see it. Namespace is not a filter or SKU identity.
 - Current fees loads one complete role-scoped configuration, including saved periods and required
   coverage. Administrators see imported-only and unassigned SKUs and can filter for setup gaps. They
   stage edits across multiple SKUs, review the changes, and publish one atomic batch. Every known
@@ -114,11 +155,34 @@ introductions use [WorkspaceIntro](src/WorkspaceIntro.tsx) for consistent titles
 
 Views keep layouts suited to their tasks: fee editing uses SKU cards and period forms, inventory
 keeps its descriptive metrics and urgency colors, and financial reports use grouped tables and
-detail drawers. Transactions retain the 320px, single-line Type column with smaller context text.
-Desktop density and local scrolling on smaller screens remain part of the shared conventions. Use
-Previous/Next for pagination, Rows for page size, and sentence case for labels. Use **exclusive**
-for amounts outside a payout or the end boundary of a fee period, with the scope explicit. Use
-**Settlement** for the source/category and **Settlements** only for the source tab.
+detail drawers. Transactions, Settlements, and Data Kiosk share the 320px, single-line Type column
+with smaller, muted prefixes and a more prominent final label. Complete labels remain available in
+the cell title and row details. Desktop density and local scrolling on smaller screens remain part
+of the shared conventions. Use Previous/Next for pagination, Rows for page size, and sentence case
+for labels. Use **exclusive** for amounts outside a payout or the end boundary of a fee period, with
+the scope explicit. Use **Settlement** for the source/category and **Settlements** only for the
+source tab.
+
+Interactive controls visibly change shade on hover, including buttons, tabs, column menus,
+expandable headings, and rows that open details. Neutral controls use a subtle 3% accent tint;
+colored buttons use their palette's hover shade. Disabled controls keep their disabled appearance.
+Text actions use an accent underline that thickens to 2px on hover while the text color and
+transparent background stay unchanged. Keyboard focus stays visible without moving the layout. Use
+normal `:hover` feedback without a capability media-query gate: browsers configured for touch can
+still receive mouse or trackpad input. Touch actions remain available with one tap and must not
+intercept native gestures. Estimated total cards retain their accessible button labels and open
+Amounts by type without a separate visible prompt.
+
+Drawers lock the document with CSS while their content is mounted, including nested panels and exit
+transitions. They do not intercept wheel or touch events: pinch zoom and browser navigation gestures
+remain available. Drawer and filter-menu scroll containment applies only vertically; horizontal
+browser gestures remain native. Focus trapping, Escape, and returning focus to the selected row
+retain the shared drawer behavior.
+
+On narrow screens and devices with a coarse pointer, form controls use at least 16px text to avoid
+iPhone Safari's automatic zoom on focus. This includes searchable selects, native selects, password
+fields, and page numbers. Desktop controls and table text retain their compact sizing; the viewport
+continues to allow manual zoom.
 
 ## Inventory
 
@@ -157,7 +221,10 @@ namespaces. Month and Company column menus filter the list; Company is administr
 **Previous** and **Next** switch pages. Each report's **Versions** disclosure loads earlier
 snapshots for that exact scope. History loads on demand; filters, expanded versions, and the
 selected report survive reloads. Source or fee changes can leave the preceding saved report visible
-until the automatic worker captures the updated inputs. The browser never generates reports.
+until the automatic worker captures the updated inputs. The browser never generates reports. New
+reports require at least one currently assigned SKU. Companies with no current assignments retain
+their saved history, but receive no new reports until a SKU is assigned. An assigned SKU without
+activity can still produce a zero report.
 
 Payout and estimate drawers share **Total**, **Amounts by type**, and **Records**. All three use
 Reported amount, Service fee, and Company amount; the Total card emphasizes Company amount and the
@@ -199,8 +266,8 @@ Totals use Data Kiosk for all monetary categories on recent dates (the mature cu
 later). For mature dates (before the mature cutoff date), Settlement reports supply the Settlement
 and SelBox categories, while Data Kiosk supplies the Data Kiosk category. An administrator-only
 daily marketplace difference compares the Data Kiosk category amounts reported by Settlement and
-Data Kiosk. Company members see their own Settlement and Data Kiosk category amounts; SelBox retains
-the SelBox category and the difference. Comparison/analysis rows are excluded and currencies stay
+Data Kiosk. Members see their own Settlement and Data Kiosk category amounts; SelBox retains the
+SelBox category and the difference. Comparison/analysis rows are excluded and currencies stay
 separate. Requests aggregate only the needed periods. Latest-date discovery, each period, and each
 opened breakdown have independent cache and error states. Totals and Type breakdowns call
 `transaction_totals`; compatible source facts are summed before their fee lookup. The response keeps
@@ -224,27 +291,24 @@ disabled; the frontend never sends aggregate expressions in REST query parameter
 
 ## Requests and session lifecycle
 
-Date and Reported amount ordering, including text search, use `transaction_page` for Transactions
-and `source_transaction_page` for Settlements and Data Kiosk. The functions page authorized,
-filtered rows using their date or reported amount; Transactions also includes derived differences
-and calculates output fees for the chosen page. Date ordering reverses both dates and row IDs (and
-source ties in Transactions). Amount ordering uses signed numeric values with ascending source/ID
-ties in either direction; currencies are not converted. Search is a trimmed, literal,
-case-insensitive substring resolved locally against complete SKU, Type, Marketplace, and (for
-Transactions) Source catalogs. Raw Type and Source codes and their displayed labels both match;
-Currency is excluded. The browser sends matching exact values as `p_search_skus`, `p_search_types`,
-`p_search_marketplaces`, and the Transactions-only `p_search_sources`. Matching fields combine with
-OR, then intersect with column filters. Blank search sends null arrays; an active search with no
-catalog matches sends empty arrays and returns no rows. Page and count RPCs share the same validated
-sets and include them in cache keys. Seller identifiers, processing versions, fee status, and other
-metadata are excluded. Matching fields are checked before pagination. Settlements uses the same Type
-column as the other transaction tabs; original source classification fields remain in row details.
-Fee applicability also applies before pagination and counting; changing search or filters returns to
-page one. Financial pages load before their independent exact counts: Transactions uses
-`transaction_count`; Settlements and Data Kiosk use `source_transaction_count`. Other datasets
-retain direct REST reads and filtered HEAD counts. Details and Previous/Next remain usable while
-counting. Page-number entry becomes available when the bound is known. Failed counts have their own
-retry.
+Each API request has one 30-second deadline covering both headers and the response body. Timeouts
+cancel the underlying request and show a recoverable error; caller cancellation retains its own
+reason. Unused response bodies are canceled, including rejected HTTP responses. Read queries retain
+their existing single retry for transient failures. Sign-in, signup, and writes are never
+automatically repeated. Session-restore timeouts preserve the stored session for Retry.
+
+Financial pages use `transaction_page` for Transactions and `source_transaction_page` for
+Settlements/Data Kiosk, followed by independent exact count RPCs. The browser resolves literal,
+case-insensitive search against complete SKU, Type, Marketplace, and Source catalogs before
+requesting rows. Search alternatives combine with OR and intersect with column filters. All filters,
+including fee applicability, apply before server pagination/counting and belong in the query key.
+Changing search or filters returns to page one. The
+[query contract](../../../docs/transaction_query_contracts.md) owns request fields, source
+authority, ordering/ties, null/empty search semantics, and amount limits.
+
+Other datasets use their dedicated REST/RPC interfaces. Details and Previous/Next remain usable
+while a separate count loads; page-number entry appears when its bound is known. Count failures have
+their own retry. Financial review uses bounded cursor pages rather than a full-history count.
 
 Administrators reload their SKU catalog on any financial source or fee revision before dependent
 search reads; members reload assigned SKUs on fee revisions. Refreshed catalogs update search keys
@@ -279,23 +343,19 @@ workspace. Token rotation is saved before dependent requests. Temporary restore 
 retry; sign-out immediately clears local session and workspace data and ends the current session.
 Authentication is not synchronized between tabs.
 
-Successful token renewal within the same account scope preserves the mounted workspace:
-
-| Data                                                          | Renewal behavior                                                                                                                     |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Access token, refresh token, expiry, minimal Auth user fields | Replace with the Auth response and save before dependent reads.                                                                      |
-| Application account, role/company, revision tokens            | Fetch from the database again.                                                                                                       |
-| Company names and current SKU assignments                     | Fetch again.                                                                                                                         |
-| Administrator SKU catalog                                     | Reuse only when the fresh account and `settlement`, `data_kiosk`, and `fees` revisions match; otherwise load the complete list once. |
-| Member SKU options                                            | Rebuild from refreshed assignments.                                                                                                  |
-| Selected tab, filters, sorting, pagination, expanded details  | Keep while the workspace remains mounted.                                                                                            |
-| Cached pages, counts, summaries and fee details               | Keep; normal query freshness and revision invalidation still apply.                                                                  |
-
-Tokens are not query-cache keys. A changed user, application role, or company mounts a new workspace
-and discards the previous workspace's query cache. Sign-out and failed access verification also
-remove the authenticated workspace; no catalog or financial result is restored from session storage.
+Token renewal rechecks account access and revisions, reloads company names and assignments, and uses
+the catalog reuse rules above. Within the same user/role/company scope, it preserves the mounted
+workspace, drafts, and query cache. Tokens are not query-cache keys. Changed scope mounts a new
+workspace and discards the previous cache; sign-out and failed access verification remove the
+authenticated workspace. Session storage never restores catalog or financial results.
 
 ## Configuration
+
+For the production preview, compress and privately cache fingerprinted `/assets/` files with
+`max-age=31536000, immutable`. Keep HTML, Auth, and REST responses `no-store`, so a reload picks up
+the latest build and financial data. Missing assets must return 404 instead of the SPA HTML; an
+absent browser icon should return 204. These settings avoid repeat application downloads and invalid
+icon/module responses through the tunnel.
 
 Apply the project's database migrations and configure Auth accounts using the
 [database guide](../../db/supabase/README.md). Do not reset an existing database to run this

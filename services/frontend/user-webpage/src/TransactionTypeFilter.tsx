@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -9,7 +9,11 @@ import {
   VisuallyHidden,
 } from "@mantine/core";
 import { OptionSearch, type ColumnMenuFilter } from "./ColumnFilters";
-import { transactionTypeGroups, type TransactionTypeGroup } from "./transaction-type-groups";
+import {
+  searchTransactionTypeGroups,
+  transactionTypeGroups,
+  type TransactionTypeGroup,
+} from "./transaction-type-groups";
 import "./TransactionTypeFilter.css";
 
 type TypeFilter = Extract<ColumnMenuFilter, { kind: "selection" }>;
@@ -51,7 +55,7 @@ function TypeGroup({
             : "Select all types in this group."}
         </VisuallyHidden>
         <UnstyledButton
-          className="type-filter-expand"
+          className="type-filter-expand ui-surface-action"
           aria-label={`${expanded ? "Hide" : "Show"} individual types in ${group.label}`}
           aria-expanded={expanded}
           aria-controls={optionsId}
@@ -90,12 +94,13 @@ function TypeGroup({
 export function TransactionTypeFilter({
   filter,
   onClose,
+  onResetScroll,
 }: {
   filter: TypeFilter;
   onClose: () => void;
+  onResetScroll: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const optionsRef = useRef<HTMLDivElement>(null);
   const groups = transactionTypeGroups(filter.options);
   const [expanded, setExpanded] = useState<string[]>(() =>
     groups
@@ -103,21 +108,8 @@ export function TransactionTypeFilter({
       .map(({ id }) => id),
   );
   const selected = new Set(filter.value);
-  const words = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  const searching = words.length > 0;
-  const visibleGroups = groups
-    .map((group) => ({
-      ...group,
-      options: group.options.filter((option) => {
-        const groupName = group.label.toLocaleLowerCase();
-        const typeName = `${option.label} ${option.value}`.toLocaleLowerCase();
-        return (
-          words.every((word) => groupName.includes(word)) ||
-          words.every((word) => typeName.includes(word))
-        );
-      }),
-    }))
-    .filter(({ options }) => options.length > 0);
+  const searching = search.trim().length > 0;
+  const visibleGroups = searchTransactionTypeGroups(groups, search);
   const matches = visibleGroups.flatMap(({ options }) => options.map(({ value }) => value));
 
   function select(values: string[], checked: boolean) {
@@ -134,10 +126,8 @@ export function TransactionTypeFilter({
       <OptionSearch
         label="Type"
         search={search}
-        onChange={(value) => {
-          setSearch(value);
-          if (optionsRef.current) optionsRef.current.scrollTop = 0;
-        }}
+        onChange={setSearch}
+        onResetScroll={onResetScroll}
         placeholder="Search groups or individual types"
       />
       <Text size="xs" c="dimmed">
@@ -189,7 +179,7 @@ export function TransactionTypeFilter({
           </Group>
         </Group>
       ) : null}
-      <div className="type-filter-groups" ref={optionsRef}>
+      <div className="type-filter-groups">
         {visibleGroups.map((group) => (
           <TypeGroup
             key={group.id}
@@ -213,7 +203,7 @@ export function TransactionTypeFilter({
           </Text>
         ) : null}
       </div>
-      <Group className="type-filter-footer" justify="space-between" gap="xs">
+      <Group className="column-menu-footer" data-separated justify="space-between" gap="xs">
         <Text size="xs" c="dimmed">
           Changes apply immediately.
         </Text>

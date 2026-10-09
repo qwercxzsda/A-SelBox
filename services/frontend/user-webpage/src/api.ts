@@ -1,6 +1,7 @@
 import { createApiClient } from "./api/client.ts";
 import { readBuildConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
+import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
 import type {
@@ -66,6 +67,11 @@ function getDefaultClient(): ReturnType<typeof createApiClient> {
 
 export const signIn = (email: string, password: string): Promise<Session> =>
   getDefaultClient().signIn(email, password);
+export const signUp = (
+  email: string,
+  password: string,
+  redirectTo?: string,
+): Promise<Session | null> => getDefaultClient().signUp(email, password, redirectTo);
 export const refreshSession = (refreshToken: string): Promise<Session> =>
   getDefaultClient().refreshSession(refreshToken);
 export const fetchSessionUser = (accessToken: string): Promise<SessionUser> =>
@@ -210,3 +216,12 @@ export const fetchFinancialReviewRecords = (
     filters,
     signal,
   );
+
+export const setCompanyMembership = (options: SetCompanyMembershipOptions) =>
+  getDefaultClient().setCompanyMembership(options);
+export const createCompany = (accessToken: string, name: string) =>
+  getDefaultClient().createCompany(accessToken, name);
+export const deleteCompany = (accessToken: string, companyId: string) =>
+  getDefaultClient().deleteCompany(accessToken, companyId);
+export type { CreateCompanyResult, DeleteCompanyResult } from "./api/companies.ts";
+export { CompanyDeletionBlockedError } from "./api/company-errors.ts";

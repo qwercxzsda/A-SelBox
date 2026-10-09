@@ -1,4 +1,4 @@
-"""Operators retain source history while members see only current owned facts."""
+"""Administrators retain source history while members see only current owned facts."""
 
 from decimal import Decimal
 from typing import LiteralString
@@ -8,11 +8,11 @@ import psycopg
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
-class OperatorSourceAccessTests(SourceModelFixture):
+class AdministratorSourceAccessTests(SourceModelFixture):
     def test_source_rows_and_result_headers_preserve_the_role_boundary(self) -> None:
         company, _ = self.owner()
         self.owner("OTHER")
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         acquisition = self.acquisition()
         _, settlement_version = self.settlement(
             [
@@ -61,13 +61,14 @@ class OperatorSourceAccessTests(SourceModelFixture):
                 [-60, -20, -2, -1],
             ),
         )
-        for query, member_amounts, operator_amounts in queries:
+        for query, member_amounts, administrator_amounts in queries:
             with self.subTest(query=query):
                 self.assertEqual(
                     self.as_user(member, query), [(Decimal(x),) for x in member_amounts]
                 )
                 self.assertEqual(
-                    self.as_user(operator, query), [(Decimal(x),) for x in operator_amounts]
+                    self.as_user(administrator, query),
+                    [(Decimal(x),) for x in administrator_amounts],
                 )
         for query in (
             "select * from public.settlement_preprocess_results",
@@ -76,7 +77,7 @@ class OperatorSourceAccessTests(SourceModelFixture):
             with self.subTest(query=query):
                 with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                     self.as_user(member, query)
-                self.assertEqual(len(self.as_user(operator, query)), 2)
+                self.assertEqual(len(self.as_user(administrator, query)), 2)
         historical_queries: tuple[tuple[LiteralString, str], ...] = (
             (
                 "select id from public.settlement_preprocess_entries where version_id=%s",
@@ -90,9 +91,9 @@ class OperatorSourceAccessTests(SourceModelFixture):
         for query, version in historical_queries:
             self.assertEqual(self.as_user(member, query, (version,)), [])
 
-    def test_operator_reads_unassigned_identity_and_all_terms_revisions(self) -> None:
+    def test_administrator_reads_unassigned_identity_and_all_terms_revisions(self) -> None:
         company, identity = self.owner()
-        member, operator = self.member(company), self.operator()
+        member, administrator = self.member(company), self.administrator()
         first = self.fee(identity, [("2026-01-01", None, "5")])
         second = self.fee(identity, [("2026-01-01", None, "7")])
         self.assertEqual(
@@ -100,7 +101,7 @@ class OperatorSourceAccessTests(SourceModelFixture):
         )
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select fee_rate_percent from public.sku_fee_periods order by fee_rate_percent",
             ),
             [(Decimal(5),), (Decimal(7),)],
@@ -120,11 +121,15 @@ class OperatorSourceAccessTests(SourceModelFixture):
         self.assertEqual(self.as_user(member, "select * from public.skus"), [])
         self.assertEqual(self.as_user(member, "select * from public.sku_terms_versions"), [])
         self.assertEqual(self.as_user(member, "select * from public.sku_fee_periods"), [])
-        self.assertEqual(len(self.as_user(operator, "select * from public.skus")), 1)
-        self.assertEqual(len(self.as_user(operator, "select * from public.sku_terms_versions")), 4)
+        self.assertEqual(len(self.as_user(administrator, "select * from public.skus")), 1)
+        self.assertEqual(
+            len(self.as_user(administrator, "select * from public.sku_terms_versions")), 4
+        )
         self.assertEqual(
             self.as_user(
-                operator, "select id::text from public.sku_terms_versions where id=%s", (first,)
+                administrator,
+                "select id::text from public.sku_terms_versions where id=%s",
+                (first,),
             ),
             [(first,)],
         )

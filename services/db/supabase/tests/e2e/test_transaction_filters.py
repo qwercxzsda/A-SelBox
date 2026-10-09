@@ -60,11 +60,11 @@ class TransactionFilterTests(LocalWorkflowCase):
             )
             preprocess_settlement_acquisition(self.database, self.storage, acquisition)
         _, member_token = self.create_member(first)
-        _, operator_token = self.create_operator()
+        _, administrator_token = self.create_administrator()
 
         for role, token, companies, count in (
             ("member", member_token, {first}, 2),
-            ("operator", operator_token, {first, second}, 4),
+            ("administrator", administrator_token, {first, second}, 4),
         ):
             matching: tuple[dict[str, object], ...] = (
                 {},
@@ -80,7 +80,7 @@ class TransactionFilterTests(LocalWorkflowCase):
             for filters in matching:
                 with self.subTest(role=role, filters=filters):
                     includes_account_rows = (
-                        role == "operator"
+                        role == "administrator"
                         and not filters.get("p_marketplaces")
                         and filters.get("p_fee_applicable") is not True
                     )
@@ -93,8 +93,8 @@ class TransactionFilterTests(LocalWorkflowCase):
             self.assert_page_and_count(
                 token,
                 {"p_fee_applicable": False},
-                companies={None} if role == "operator" else set(),
-                expected_count=2 if role == "operator" else 0,
+                companies={None} if role == "administrator" else set(),
+                expected_count=2 if role == "administrator" else 0,
             )
             for direction in ("asc", "desc"):
                 dated = self.stack.request(
@@ -139,7 +139,7 @@ class TransactionFilterTests(LocalWorkflowCase):
             expected_count=2,
         )
         self.assert_page_and_count(
-            operator_token,
+            administrator_token,
             {"p_marketplaces": ["Amazon.com"], "p_company_ids": [second]},
             companies={second},
             expected_count=2,

@@ -3,6 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
+import psycopg
+
 from services.db.supabase.tests.integration_support import TransactionDatabase
 from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
@@ -17,6 +19,26 @@ from services.sync.src.numeric import Numeric
 
 
 class FinancialRepositoryTests(SourceModelFixture):
+    def test_report_repository_rejects_company_without_assigned_skus(self) -> None:
+        database = TransactionDatabase(self.connection)
+        company = create_company(database, "Not assigned yet")
+        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "currently assigned SKU"):
+            publish_company_payout_report(
+                database,
+                company_id=company,
+                currency=None,
+                start_date=date(2026, 6, 1),
+                end_date=date(2026, 6, 30),
+                report_name="June report",
+                change_reason="No assignments cannot create a payout",
+            )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from public.company_payout_reports"
+            ).fetchone(),
+            (0,),
+        )
+
     def test_partial_reader_preserves_exact_missing_fee_details(self) -> None:
         database = TransactionDatabase(self.connection)
         company = create_company(database, "Partial sums")

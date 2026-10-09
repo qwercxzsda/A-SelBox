@@ -9,7 +9,9 @@ from services.db.supabase.tests.configuration_fixtures import ConfigurationFixtu
 
 
 class SkuConfigurationValidationTests(ConfigurationFixture):
-    def test_only_operator_can_publish_and_anonymous_configuration_access_is_denied(self) -> None:
+    def test_only_administrator_can_publish_and_anonymous_configuration_access_is_denied(
+        self,
+    ) -> None:
         company, _ = self.owner()
         changes = [self.change(" API SKU ", company)]
         for user in (self.member(company), self.auth_user(), ""):
@@ -35,7 +37,7 @@ class SkuConfigurationValidationTests(ConfigurationFixture):
 
     def test_invalid_payloads_rates_ranges_and_overlaps_leave_no_partial_versions(self) -> None:
         company, _ = self.owner("A")
-        operator = self.operator()
+        administrator = self.administrator()
         change = self.change("A", company, [self.period()])
         self.connection.commit()
         before = self.configuration_state()
@@ -84,6 +86,6 @@ class SkuConfigurationValidationTests(ConfigurationFixture):
         invalid.append([change | {"periods": [self.period(), self.period("7")]}])
         for payload in invalid:
             with self.subTest(payload=payload):
-                self.assert_invalid(operator, payload)
-        self.assert_invalid(operator, [change], reason="")
+                self.assert_invalid(administrator, payload)
+        self.assert_invalid(administrator, [change], reason="")
         self.assertEqual(self.configuration_state(), before)

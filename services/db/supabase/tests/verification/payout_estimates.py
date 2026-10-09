@@ -87,7 +87,7 @@ def verify_record_parity(
     return len(actual), sum(row[5] == 0 for row in actual)
 
 
-def verify_estimate_parity(connection: Connection, operator: str) -> dict[str, object]:
+def verify_estimate_parity(connection: Connection, administrator: str) -> dict[str, object]:
     """Match latest complete monthly reports, types, and records for both roles."""
     reports = connection.execute(
         "select id,company_id,start_date,end_date,currency,source_amount,fee_amount,"
@@ -96,8 +96,7 @@ def verify_estimate_parity(connection: Connection, operator: str) -> dict[str, o
     require(bool(reports), "No monetary reports were available for estimate comparison")
     members = dict(
         connection.execute(
-            "select company_id,user_id::text from public.app_accounts "
-            "where access_role='company_member'"
+            "select company_id,user_id::text from public.app_accounts where access_role='member'"
         ).fetchall()
     )
     records = 0
@@ -105,7 +104,7 @@ def verify_estimate_parity(connection: Connection, operator: str) -> dict[str, o
     type_groups = 0
     for report in reports:
         report_id, company, start, end, currency, *header_amounts = report
-        for user in (operator, members[company]):
+        for user in (administrator, members[company]):
             for grouped in (False, True):
                 frozen = as_user(
                     connection,
@@ -130,7 +129,7 @@ def verify_estimate_parity(connection: Connection, operator: str) -> dict[str, o
                         for key in ("reported_amount", "service_fee", "company_amount")
                     ]
                     require(amounts == header_amounts, "Type totals differ from the saved header")
-            if user == operator:
+            if user == administrator:
                 type_groups += len(frozen["rows"])
         record_count, zero_count = verify_record_parity(connection, members[company], report)
         records += record_count
@@ -140,7 +139,7 @@ def verify_estimate_parity(connection: Connection, operator: str) -> dict[str, o
         "type_groups": type_groups,
         "records": records,
         "zero_amount_records": zero_amount_records,
-        "operator_and_member_totals_match": True,
+        "administrator_and_member_totals_match": True,
         "exact_type_amounts_and_counts_match": True,
         "paginated_records_and_amounts_match": True,
     }

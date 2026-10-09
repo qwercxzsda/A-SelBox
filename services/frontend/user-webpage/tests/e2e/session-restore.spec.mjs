@@ -29,7 +29,7 @@ async function seedExpiredSession(page) {
   }, SESSION_KEY);
 }
 
-for (const originalRole of ["company_member", "operator"]) {
+for (const originalRole of ["member", "administrator"]) {
   test(`reloading ${originalRole} verifies the token user and waits for fresh account and lookup data`, async ({
     page,
   }) => {
@@ -38,7 +38,7 @@ for (const originalRole of ["company_member", "operator"]) {
     await signIn(page);
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     const before = fixture.requests.length;
-    const nextRole = originalRole === "operator" ? "company_member" : "operator";
+    const nextRole = originalRole === "administrator" ? "member" : "administrator";
     fixture.roles["member-a"] = nextRole;
     // Cached display identity must never override the user returned for the bearer token.
     await page.evaluate((key) => {
@@ -67,9 +67,9 @@ for (const originalRole of ["company_member", "operator"]) {
       await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
       await expect(
         page.getByRole("tablist", { name: "Workspace data", exact: true }).getByRole("tab"),
-      ).toHaveCount(nextRole === "operator" ? 8 : 4);
+      ).toHaveCount(nextRole === "administrator" ? 9 : 4);
       await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(
-        nextRole === "operator" ? 1 : 0,
+        nextRole === "administrator" ? 1 : 0,
       );
       await expect(page.locator("header")).toContainText("member-a@example.test");
       await expect(page.locator("header")).not.toContainText("cached-wrong@example.test");

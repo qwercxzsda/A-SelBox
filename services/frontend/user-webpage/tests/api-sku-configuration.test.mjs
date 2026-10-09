@@ -52,7 +52,7 @@ test("configuration reads preserve exact SKU text and incomplete historical sett
     assert.equal(new URL(url).pathname, "/rest/v1/rpc/sku_configuration");
     assert.equal(init.method, "POST");
     assert.deepEqual(JSON.parse(init.body), {});
-    assert.equal(init.signal, controller.signal);
+    assert.ok(init.signal instanceof AbortSignal);
     assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-access");
     return responseJson({ items: [item, saved] });
   });

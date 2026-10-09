@@ -1,4 +1,4 @@
-"""Members read their frozen payouts; full input inventories remain operator-only."""
+"""Members read their frozen payouts; full input inventories remain administrator-only."""
 
 from decimal import Decimal
 from typing import LiteralString
@@ -39,14 +39,14 @@ class PayoutReportAccessTests(SourceModelFixture):
                 "change_reason": "Freeze both source manifests and exclusion evidence",
             },
         )
-        operator = self.operator()
+        administrator = self.administrator()
         unconfigured = self.auth_user()
         owner = self.member(company)
         denied_users = (self.member(other_company), unconfigured)
         self.connection.execute("set constraints all immediate")
         self.assertEqual(
             self.as_user(
-                operator,
+                administrator,
                 "select id::text,company_id::text,component_count,settlement_version_count,"
                 "data_kiosk_version_count,terms_version_count,company_amount "
                 "from public.company_payout_reports",
@@ -71,9 +71,9 @@ class PayoutReportAccessTests(SourceModelFixture):
             ("select * from private.payout_report_reconciliation", 1, 0),
             ("select * from public.payout_reconciliation_totals", 1, 0),
         )
-        for query, operator_count, member_count in queries:
+        for query, administrator_count, member_count in queries:
             with self.subTest(query=query):
-                self.assertEqual(len(self.as_user(operator, query)), operator_count)
+                self.assertEqual(len(self.as_user(administrator, query)), administrator_count)
                 self.assertEqual(len(self.as_user(owner, query)), member_count)
                 for user in denied_users:
                     self.assertEqual(self.as_user(user, query), [])

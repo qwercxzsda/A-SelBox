@@ -170,12 +170,12 @@ def verify_member_access(
 
 
 def verify_payouts(
-    connection: Connection, operator: str, month: date, mature_cutoff_date: date
+    connection: Connection, administrator: str, month: date, mature_cutoff_date: date
 ) -> dict[str, object]:
     """Refresh all eligible months, then verify June totals and tenant visibility."""
     members = connection.execute(
         "select user_id::text,company_id::text from public.app_accounts "
-        "where access_role='company_member' order by company_id"
+        "where access_role='member' order by company_id"
     ).fetchall()
     require(len(members) >= 2, "Seed must provide members of at least two companies")
     checked, created, reused, failed = refresh_payouts(connection)
@@ -200,17 +200,17 @@ def verify_payouts(
         "The completed month retained an automatic refresh error",
     )
     require(
-        len(as_user(connection, operator, "select id from public.company_payout_reports"))
+        len(as_user(connection, administrator, "select id from public.company_payout_reports"))
         == len(all_reports),
         "Administrator cannot see every generated company's reports",
     )
     elaboration_count = verify_report_components(connection, reports, month)
     require(elaboration_count > 0, "Real monthly reports did not preserve Data Kiosk elaboration")
     reconciliation_count = verify_frozen_reconciliation(
-        connection, operator, reports, mature_cutoff_date
+        connection, administrator, reports, mature_cutoff_date
     )
     verify_member_access(connection, members, all_reports)
-    expect_generation_denied(connection, operator)
+    expect_generation_denied(connection, administrator)
     require(
         connection.execute(
             "select to_regprocedure('public.generate_company_payout_reports(uuid,date)')"
@@ -220,7 +220,7 @@ def verify_payouts(
     )
     repeat = refresh_payouts(connection)
     require(repeat == (0, 0, 0, 0), "Unchanged automatic refresh did not stay idle")
-    estimate_comparison = verify_estimate_parity(connection, operator)
+    estimate_comparison = verify_estimate_parity(connection, administrator)
     return {
         "month": month.isoformat(),
         "companies_verified": len(members),
@@ -250,10 +250,11 @@ def verify_seed(seed: Path, supplement_cache: Path) -> dict[str, object]:
         evidence = load_financial_seed(connection, seed)
         versions = source_versions(connection)
         fingerprints = source_fingerprints(connection, versions)
-        operator = connection.execute(
-            "select user_id::text from public.app_accounts where access_role='operator' limit 1"
+        administrator = connection.execute(
+            "select user_id::text from public.app_accounts "
+            "where access_role='administrator' limit 1"
         ).fetchall()[0][0]
-        mature_cutoff_date, evidence["authority"] = verify_authority(connection, operator)
+        mature_cutoff_date, evidence["authority"] = verify_authority(connection, administrator)
         evidence["reconciliation"] = verify_live_reconciliation(connection, mature_cutoff_date)
         evidence["original_june_coverage"] = month_coverage(connection, date(2026, 6, 1))
         first_refresh = refresh_payouts(connection)
@@ -271,12 +272,12 @@ def verify_seed(seed: Path, supplement_cache: Path) -> dict[str, object]:
         coverage = month_coverage(connection, date(2026, 6, 1))
         require(coverage["missing_days"] == 0, "Supplement did not complete June cost coverage")
         evidence["supplemented_june_coverage"] = coverage
-        _, evidence["supplemented_authority"] = verify_authority(connection, operator)
+        _, evidence["supplemented_authority"] = verify_authority(connection, administrator)
         evidence["supplemented_reconciliation"] = verify_live_reconciliation(
             connection, mature_cutoff_date
         )
         evidence["eligible_june_payouts"] = verify_payouts(
-            connection, operator, date(2026, 6, 1), mature_cutoff_date
+            connection, administrator, date(2026, 6, 1), mature_cutoff_date
         )
         require(
             source_fingerprints(connection, versions) == fingerprints,

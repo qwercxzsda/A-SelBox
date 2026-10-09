@@ -3,7 +3,7 @@ import type { Session, WorkspaceRevisionSnapshot } from "./api/types.ts";
 import { FINANCIAL_REVISION_SOURCES, sameAccount } from "./workspace-revisions.ts";
 
 /** Only a freshly verified, unchanged administrator scope can reuse this in-memory catalog. */
-export function reusableAdminSkuOptions(
+export function reusableAdministratorSkuOptions(
   previous: Identity | null | undefined,
   session: Session,
   snapshot: WorkspaceRevisionSnapshot,
@@ -12,7 +12,7 @@ export function reusableAdminSkuOptions(
   if (
     forceCatalog ||
     !previous ||
-    snapshot.account.access_role !== "operator" ||
+    snapshot.account.access_role !== "administrator" ||
     snapshot.account.user_id !== session.user.id ||
     previous.session.user.id !== session.user.id ||
     !sameAccount(previous.account, snapshot.account) ||

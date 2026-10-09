@@ -377,6 +377,9 @@ An explicit 0% rate means known coverage; noncommission activity needs no rate.
 Reassignment restates all live history. See the [company-fee contract](company_fees.md)
 for exact rates, fee eligibility, current-only access, and partial summaries.
 
+Only companies with currently assigned SKUs receive payout work. Assigning the first
+SKU activates generation; removing the last clears queued work while retaining saved
+reports. An assigned SKU with no activity remains eligible for zero reports.
 The scheduled payout worker processes up to 10 pending, mature company/months every
 five minutes. Source and terms publications request affected months transactionally;
 a metadata frontier discovers newly mature work. An indexed pending revision skips
@@ -429,13 +432,13 @@ queries rather than fetching all history for client filtering.
 
 Application accounts and current SKU assignment determine live company
 visibility without repeating company IDs on source transactions. Public views
-use `security_invoker = true`, underlying grants, and RLS. Company members see
+use `security_invoker = true`, underlying grants, and RLS. Members see
 only permitted current source facts and selected terms for their own company. Narrow current
-report/day/version references are shared across registered company members; full metadata is
+report/day/version references are shared across registered members; full metadata is
 administrator-only.
-Operators manage member access, publish complete terms, and read all retained
+Administrators manage member access, publish complete terms, and read all retained
 source/terms history and all payout reports, components, and input references.
-Company members read only their own company's saved reports and components. Neither
+Members read only their own company's saved reports and components. Neither
 application role generates reports; the private scheduler handles eligible months.
 Original archives, source publication, and pruning remain
 direct-database/archive-service operations.
