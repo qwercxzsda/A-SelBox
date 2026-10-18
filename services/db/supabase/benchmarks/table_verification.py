@@ -62,7 +62,7 @@ def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
             if field == "source":
                 matches.append(
                     sql.SQL(
-                        "(case v.source when 'SETTLEMENT' then 'Settlements' "
+                        "(case v.source when 'FINANCES' then 'Finances' "
                         "when 'DATA_KIOSK' then 'Data Kiosk' end) ~* %s"
                     )
                 )

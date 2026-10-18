@@ -44,7 +44,7 @@ def selections(*, live: bool) -> tuple[dict[str, object], ...]:
     extra: tuple[dict[str, object], ...] = (
         (
             {"p_search_sources": ["DATA_KIOSK"]},
-            {"p_search_sources": ["SETTLEMENT"], "p_search_skus": ["OTHER"]},
+            {"p_search_sources": ["FINANCES"], "p_search_skus": ["OTHER"]},
         )
         if live
         else ()
@@ -86,7 +86,7 @@ class TransactionSearchTests(SourceModelFixture):
     def test_search_and_selection_filters_precede_pagination_and_amount_cap(self) -> None:
         company_a, company_b = self.financial_fixture()
         filters = (
-            {"p_search_skus": ["SKU"], "p_sources": ["SETTLEMENT"]},
+            {"p_search_skus": ["SKU"], "p_sources": ["FINANCES"]},
             {"p_search_types": ["PRODUCT_SALES"], "p_types": ["FbaStorageFee"]},
             {"p_search_marketplaces": ["Amazon.com"], "p_date_from": "2026-06-16"},
             {"p_search_types": ["PRODUCT_SALES", "FbaStorageFee"], "p_fee_applicable": False},
@@ -115,7 +115,7 @@ class TransactionSearchTests(SourceModelFixture):
     def test_catalog_values_are_exact_including_punctuation_unicode_and_whitespace(self) -> None:
         sku = " Literal.*[]\\%,_\"'Ωä한국\ninside "
         company, _ = self.owner(sku)
-        self.settlement([self.transaction("100.123456789012345678901", sku=sku)])
+        self.finances([self.transaction("100.123456789012345678901", sku=sku)])
         self.kiosk(
             1,
             [self.component("-100.123456789012345678901", sku=sku)],
@@ -139,8 +139,8 @@ class TransactionSearchTests(SourceModelFixture):
             self.member(company_b),
         )
         acquisition = self.acquisition()
-        _, old = self.settlement([self.transaction("100")], acquisition_id=acquisition)
-        self.settlement([self.transaction("200")], acquisition_id=acquisition, expected=old)
+        _, old = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        self.finances([self.transaction("200")], acquisition_id=acquisition, expected=old)
         self.kiosk(1, [self.component("-20")], activity_date=self.recent_activity_date())
         new_terms = self.assign("SKU", company_b, expected=terms)
         self.assertEqual(self.count(member_a, p_search_skus=["SKU"]), "0")
@@ -153,7 +153,7 @@ class TransactionSearchTests(SourceModelFixture):
             "delete from public.app_accounts where user_id=%s", (administrator,)
         )
         self.assertEqual(
-            self.count(administrator, p_search_sources=["SETTLEMENT", "DATA_KIOSK"]), "0"
+            self.count(administrator, p_search_sources=["FINANCES", "DATA_KIOSK"]), "0"
         )
 
     def test_invalid_search_shapes_are_rejected_by_both_live_rpcs(self) -> None:
@@ -204,7 +204,7 @@ class SourceTransactionSearchTests(SourceModelFixture):
                 self.member(company_b),
                 self.auth_user(),
             ),
-            ("settlement", "data_kiosk"),
+            ("finances", "data_kiosk"),
             selections(live=False),
             ("date", "amount"),
         ):
@@ -213,7 +213,7 @@ class SourceTransactionSearchTests(SourceModelFixture):
             )
             self.assertEqual(self.count(user, dataset, **selection), result["total_count"])
         for dataset, direction, include_count in product(
-            ("settlement", "data_kiosk"), ("asc", "desc"), (True, False)
+            ("finances", "data_kiosk"), ("asc", "desc"), (True, False)
         ):
             self.assert_matches_view(
                 self.member(company_a),
@@ -232,17 +232,17 @@ class SourceTransactionSearchTests(SourceModelFixture):
         administrator, member = self.administrator(), self.member(company)
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, settlement = self.settlement([self.transaction("10")], acquisition_id=acquisition)
+        _, finances = self.finances([self.transaction("10")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("10")])
-        self.settlement([self.transaction("20")], acquisition_id=acquisition, expected=settlement)
+        self.finances([self.transaction("20")], acquisition_id=acquisition, expected=finances)
         self.kiosk(2, [self.component("0")], expected=kiosk)
-        for user, dataset in product((administrator, member), ("settlement", "data_kiosk")):
+        for user, dataset in product((administrator, member), ("finances", "data_kiosk")):
             result = self.assert_matches_view(user, dataset, p_search_skus=["SKU"])
             self.assertEqual(
                 self.count(user, dataset, p_search_skus=["SKU"]), result["total_count"]
             )
         self.assign("SKU", None, expected=terms)
-        for dataset in ("settlement", "data_kiosk"):
+        for dataset in ("finances", "data_kiosk"):
             self.assertEqual(self.count(member, dataset, p_search_skus=["SKU"]), "0")
             self.assertEqual(
                 self.count(administrator, dataset, p_search_skus=["SKU"]),
@@ -253,9 +253,9 @@ class SourceTransactionSearchTests(SourceModelFixture):
         assert_rpc_contract(self, "source_transaction_count", _SOURCE_COUNT_TYPES)
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
-            self.connection.execute("select public.source_transaction_count('settlement')")
+            self.connection.execute("select public.source_transaction_count('finances')")
         administrator = self.administrator()
-        for dataset in (None, "live", "settlement;select 1"):
+        for dataset in (None, "live", "finances;select 1"):
             with self.assertRaises(psycopg.errors.InvalidParameterValue):
                 self.count(administrator, dataset)
         for field in SOURCE_SEARCH_FIELDS:
@@ -263,7 +263,7 @@ class SourceTransactionSearchTests(SourceModelFixture):
             for selection in ([None], [value, None], [[value]]):
                 for call in (self.page, self.count):
                     with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                        call(administrator, "settlement", **{field: selection})
+                        call(administrator, "finances", **{field: selection})
         for call in (self.page, self.count):
             with self.assertRaises(psycopg.errors.InvalidParameterValue):
                 call(administrator, "data_kiosk", p_search_marketplaces=["Unknown"])

@@ -22,7 +22,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
     def expected(self, user: str) -> dict[str, object]:
         rows = self.as_user(
             user,
-            "select sku from public.settlement_preprocess_entries "
+            "select sku from public.finances_preprocess_entries "
             "union select sku from public.data_kiosk_preprocess_entries "
             "union select sku from public.skus",
         )
@@ -53,7 +53,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
         company, _ = self.owner()
         self.assign("UNASSIGNED", None)
         self.assign("ASSIGNED_NO_TRANSACTIONS", company)
-        self.settlement(
+        self.finances(
             [
                 self.transaction("1", line, sku=sku)
                 for line, sku in enumerate(("SKU", "UNREGISTERED"), 3)
@@ -80,14 +80,14 @@ class SkuFilterOptionsTests(SourceModelFixture):
         self.assign("OLD_KIOSK", first)
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, version = self.settlement([self.transaction("1", sku="OLD")], acquisition_id=acquisition)
+        _, version = self.finances([self.transaction("1", sku="OLD")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("2", sku="OLD_KIOSK")])
         administrator, member_a, member_b = (
             self.administrator(),
             self.member(first),
             self.member(second),
         )
-        self.settlement([self.transaction("3")], acquisition_id=acquisition, expected=version)
+        self.finances([self.transaction("3")], acquisition_id=acquisition, expected=version)
         self.kiosk(2, [], expected=kiosk)
         self.assertIn("OLD", cast(list[str], self.assert_matches_views(administrator)["values"]))
         # Registered, assigned SKUs remain usable menu options without current facts.
@@ -115,7 +115,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
             "가",
             "😀",
         ]
-        self.settlement([self.transaction("1", line, sku=sku) for line, sku in enumerate(skus, 3)])
+        self.finances([self.transaction("1", line, sku=sku) for line, sku in enumerate(skus, 3)])
         result = self.assert_matches_views(self.administrator())
         self.assertEqual(result, {"values": sorted(skus, key=lambda value: value.encode())})
         self.assertEqual(len(cast(list[object], result["values"])), 1010)
@@ -129,7 +129,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
     def test_empty_and_null_only_sources_terminate(self) -> None:
         administrator = self.administrator()
         self.assertEqual(self.options(administrator), {"values": []})
-        self.settlement([self.transaction("1", category="SELBOX") | {"sku": None}])
+        self.finances([self.transaction("1", category="SELBOX") | {"sku": None}])
         self.assertEqual(self.options(administrator), {"values": []})
         self.kiosk(1, [self.component("0", category="SELBOX") | {"sku": None}])
         self.assertEqual(self.assert_matches_views(administrator), {"values": []})
@@ -149,7 +149,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
             self.assign(sku, company_b)
         # The other source has an earlier shared-SKU row owned by company A.
         # Its unrelated SKUs remain accessible only to company B.
-        self.settlement(
+        self.finances(
             [
                 self.transaction("1", line, sku=sku, activity_date="2026-06-14")
                 for line, sku in enumerate([visible[0], *hidden], 3)
@@ -157,7 +157,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
         )
         self.kiosk(1, [self.component("0", sku=sku) for sku in [visible[0], *hidden]])
         self.seller = "seller-one"
-        self.settlement(
+        self.finances(
             [
                 self.transaction("1", line, sku=sku)
                 for line, sku in enumerate([*visible, *visible, *imported_only], 3)
@@ -195,14 +195,14 @@ class SkuFilterOptionsTests(SourceModelFixture):
             " and i.indkey[0]=a.attnum and i.indcollation[0]=a.attcollation) "
             "from pg_class t join pg_attribute a on a.attrelid=t.oid and a.attname='sku' "
             "join pg_collation c on c.oid=a.attcollation "
-            "where t.oid in ('private.settlement_transactions'::regclass,"
+            "where t.oid in ('private.finances_transaction_components'::regclass,"
             "'private.data_kiosk_transactions'::regclass) order by t.relname"
         ).fetchall()
         self.assertEqual(
             rows,
             [
                 ("data_kiosk_transactions", True, True),
-                ("settlement_transactions", True, True),
+                ("finances_transaction_components", True, True),
             ],
         )
 
@@ -218,7 +218,7 @@ class SkuFilterOptionsTests(SourceModelFixture):
         # The public RPC boundary does not change privileged direct table access.
         self.assertEqual(
             self.connection.execute(
-                "select exists(select 1 from private.settlement_transactions)"
+                "select exists(select 1 from private.finances_transaction_components)"
             ).fetchone(),
             (True,),
         )

@@ -28,12 +28,15 @@ PORT = 55422
 # All cloned primary/FK identities are allocated before any inserts. Cyclic
 # current-version FKs are checked explicitly after transaction-local setup mode.
 SOURCE_TABLES: dict[str, dict[str, str]] = {
-    "private.settlement_acquisitions": {},
-    "private.settlements": {"current_version_id": "private.settlement_preprocess_versions"},
-    "private.settlement_preprocess_versions": {
-        "settlement_id": "private.settlements",
-        "acquisition_id": "private.settlement_acquisitions",
+    "private.finances_acquisitions": {},
+    "private.finances_days": {"current_version_id": "private.finances_preprocess_versions"},
+    "private.finances_preprocess_batches": {"acquisition_id": "private.finances_acquisitions"},
+    "private.finances_preprocess_versions": {
+        "day_id": "private.finances_days",
+        "batch_id": "private.finances_preprocess_batches",
     },
+    "private.finances_transactions": {"version_id": "private.finances_preprocess_versions"},
+    "private.finances_summary_checks": {"acquisition_id": "private.finances_acquisitions"},
     "private.data_kiosk_acquisitions": {},
     "private.data_kiosk_days": {"current_version_id": "private.data_kiosk_preprocess_versions"},
     "private.data_kiosk_preprocess_batches": {"acquisition_id": "private.data_kiosk_acquisitions"},
@@ -43,13 +46,13 @@ SOURCE_TABLES: dict[str, dict[str, str]] = {
     },
 }
 FACT_TABLES = {
-    "private.settlement_transactions": "private.settlement_preprocess_versions",
+    "private.finances_transaction_components": "private.finances_preprocess_versions",
     "private.data_kiosk_transactions": "private.data_kiosk_preprocess_versions",
 }
 PAYOUT_TABLES = (
     "public.company_payout_reports",
     "public.company_payout_report_components",
-    "private.payout_report_settlement_versions",
+    "private.payout_report_finances_versions",
     "private.payout_report_data_kiosk_versions",
     "private.payout_report_terms_versions",
 )
@@ -64,6 +67,7 @@ def _columns(connection: Connection, relation: str) -> list[tuple[str, bool, boo
         "select attname,atttypid='date'::regtype,"
         "atttypid in ('timestamp'::regtype,'timestamptz'::regtype) "
         "from pg_attribute where attrelid=%s::regclass and attnum>0 and not attisdropped "
+        "and attgenerated='' "
         "order by attnum",
         (relation,),
     ).fetchall()
@@ -107,10 +111,11 @@ def _copy_source_graph(connection: Connection, copies: int, stride: int) -> None
                     "where r.relation={} and r.copy=m.copy and r.old_id=t.{})"
                 ).format(sql.Literal(foreign_keys[name]), sql.Identifier(name))
             elif (relation, name) in {
-                ("private.settlements", "settlement_id"),
-                ("private.settlement_acquisitions", "report_id"),
-                ("private.settlement_acquisitions", "report_document_id"),
                 ("private.data_kiosk_acquisitions", "root_query_id"),
+            } or name in {
+                "native_transaction_id",
+                "deferred_transaction_id",
+                "release_transaction_id",
             }:
                 expression = sql.SQL("t.{} || ':synthetic-history:' || m.copy").format(
                     sql.Identifier(name)
@@ -137,6 +142,15 @@ def _copy_source_graph(connection: Connection, copies: int, stride: int) -> None
             if name == "id"
             else sql.SQL("m.new_id")
             if name == "version_id"
+            else sql.SQL(
+                "(select p.new_id from pg_temp.benchmark_history_ids p "
+                "where p.relation='private.finances_transactions' "
+                "and p.copy=m.copy and p.old_id=t.transaction_id)"
+            )
+            if name == "transaction_id"
+            else sql.SQL("t.{} || ':synthetic-history:' || m.copy").format(sql.Identifier(name))
+            if name
+            in {"native_transaction_id", "deferred_transaction_id", "release_transaction_id"}
             else _shifted_column(name, is_date, is_timestamp, stride)
             for name, is_date, is_timestamp in columns
         ]
@@ -152,12 +166,29 @@ def _copy_source_graph(connection: Connection, copies: int, stride: int) -> None
                 sql.Literal(versions),
             )
         )
+    for source in ("finances", "data_kiosk"):
+        connection.execute(
+            sql.SQL(
+                "insert into private.{}(version_id,created_at) "
+                "select m.new_id,t.created_at - make_interval(days => m.copy * %s) "
+                "from private.{} t join pg_temp.benchmark_history_ids m "
+                "on m.relation={} and m.old_id=t.version_id"
+            ).format(
+                sql.Identifier(source + "_pruned_versions"),
+                sql.Identifier(source + "_pruned_versions"),
+                sql.Literal("private." + source + "_preprocess_versions"),
+            ),
+            (stride,),
+        )
     connection.execute(
-        "insert into private.data_kiosk_pruned_versions(version_id,created_at) "
-        "select m.new_id,t.created_at - make_interval(days => m.copy * %s) "
-        "from private.data_kiosk_pruned_versions t join pg_temp.benchmark_history_ids m "
-        "on m.relation='private.data_kiosk_preprocess_versions' and m.old_id=t.version_id",
-        (stride,),
+        "insert into private.finances_summary_check_versions(check_id,day_id,version_id) "
+        "select c.new_id,d.new_id,v.new_id from private.finances_summary_check_versions t "
+        "join pg_temp.benchmark_history_ids c on c.relation='private.finances_summary_checks' "
+        "and c.old_id=t.check_id "
+        "join pg_temp.benchmark_history_ids d on d.relation='private.finances_days' "
+        "and d.old_id=t.day_id and d.copy=c.copy "
+        "join pg_temp.benchmark_history_ids v on v.relation='private.finances_preprocess_versions' "
+        "and v.old_id=t.version_id and v.copy=c.copy"
     )
 
 
@@ -216,9 +247,11 @@ begin
         if invalid<>0 then raise exception 'History fixture contains invalid foreign keys'; end if;
     end loop;
     if exists (
-        select 1 from private.settlement_preprocess_versions v left join
-        (select version_id,count(*) n from private.settlement_transactions group by version_id) t
-        on t.version_id=v.id where v.row_count<>coalesce(t.n,0)
+        select 1 from private.finances_preprocess_versions v left join
+        (select version_id,count(*) n from private.finances_transaction_components
+            group by version_id) t
+        on t.version_id=v.id where v.row_count<>coalesce(t.n,0) and not exists (
+            select 1 from private.finances_pruned_versions p where p.version_id=v.id)
     ) or exists (
         select 1 from private.data_kiosk_preprocess_versions v left join
         (select version_id,count(*) n from private.data_kiosk_transactions group by version_id) t
@@ -252,9 +285,9 @@ begin
         where (t.seller_namespace,t.marketplace_name,t.activity_date) is distinct from
               (d.seller_namespace,d.marketplace_name,d.activity_date)
     ) or exists (
-        select 1 from private.settlement_transactions t
-        join private.settlement_preprocess_versions v on v.id=t.version_id
-        join private.settlements s on s.id=v.settlement_id
+        select 1 from private.finances_transaction_components t
+        join private.finances_preprocess_versions v on v.id=t.version_id
+        join private.finances_days s on s.id=v.day_id
         where t.seller_namespace is distinct from s.seller_namespace
     ) then raise exception 'History fixture source/header identity mismatch'; end if;
     if exists (
@@ -274,14 +307,14 @@ $validate$;
 def _stats(connection: Connection) -> dict[str, object]:
     counts: dict[str, object] = {}
     for label, relation in {
-        "settlement_facts": "private.settlement_transactions",
+        "finances_facts": "private.finances_transaction_components",
         "data_kiosk_facts": "private.data_kiosk_transactions",
-        "settlement_headers": "private.settlements",
+        "finances_headers": "private.finances_days",
         "day_headers": "private.data_kiosk_days",
-        "settlement_versions": "private.settlement_preprocess_versions",
+        "finances_versions": "private.finances_preprocess_versions",
         "day_versions": "private.data_kiosk_preprocess_versions",
         "batches": "private.data_kiosk_preprocess_batches",
-        "settlement_acquisitions": "private.settlement_acquisitions",
+        "finances_acquisitions": "private.finances_acquisitions",
         "data_kiosk_acquisitions": "private.data_kiosk_acquisitions",
         "pruned_versions": "private.data_kiosk_pruned_versions",
         "companies": "public.companies",
@@ -293,8 +326,8 @@ def _stats(connection: Connection) -> dict[str, object]:
     inventory = connection.execute(
         "select "
         "(select count(*) from private.data_kiosk_preprocess_versions where row_count=0),"
-        "(select count(*) from private.settlement_preprocess_versions v where not exists "
-        "(select 1 from private.settlements h where h.current_version_id=v.id)),"
+        "(select count(*) from private.finances_preprocess_versions v where not exists "
+        "(select 1 from private.finances_days h where h.current_version_id=v.id)),"
         "(select count(*) from private.data_kiosk_preprocess_versions v where not exists "
         "(select 1 from private.data_kiosk_days h where h.current_version_id=v.id))"
     ).fetchone()
@@ -302,13 +335,13 @@ def _stats(connection: Connection) -> dict[str, object]:
         raise RuntimeError("Missing fixture inventory statistics")
     counts.update(
         zip(
-            ("empty_day_versions", "obsolete_settlement_versions", "obsolete_day_versions"),
+            ("empty_day_versions", "obsolete_finances_versions", "obsolete_day_versions"),
             inventory,
             strict=True,
         )
     )
     for source, relation, date in (
-        ("settlement", "private.settlement_transactions", "posted_date"),
+        ("finances", "private.finances_transaction_components", "posted_date"),
         ("data_kiosk", "private.data_kiosk_transactions", "activity_date"),
     ):
         row = connection.execute(
@@ -357,7 +390,7 @@ def build_history(connection: Connection, copies: int = 10) -> dict[str, object]
         if mode != ("origin",):
             raise ValueError("History setup requires normal trigger execution on entry")
         before = _stats(connection)
-        if not before["settlement_facts"] or not before["data_kiosk_facts"]:
+        if not before["finances_facts"] or not before["data_kiosk_facts"]:
             raise ValueError("History setup requires source facts in both datasets")
         if connection.execute(
             "select exists(select 1 from private.data_kiosk_acquisitions "
@@ -368,7 +401,8 @@ def build_history(connection: Connection, copies: int = 10) -> dict[str, object]
         protected = _protected_data(connection)
         span = connection.execute(
             "select max(activity_day)-min(activity_day) from ("
-            "select posted_date as activity_day from private.settlement_transactions union all "
+            "select posted_date as activity_day from private.finances_transaction_components "
+            "union all "
             "select activity_date as activity_day from private.data_kiosk_days) dates"
         ).fetchone()
         stride = max(366, int(cast(tuple[int], span)[0]) + 1)

@@ -8,8 +8,9 @@ from typing import cast
 
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
+from sp_api.api import Reports
 
-from services.sync.src.amazon.client import create_reports_client
+from services.sync.src.amazon.client import create_explicit_sp_api_client
 from services.sync.src.amazon.credentials import close_quietly, load_lwa_credentials
 from services.sync.src.amazon.marketplaces import get_credential_scope
 from services.sync.src.archives.storage import SupabaseArchiveStorage, load_document_archive
@@ -50,8 +51,10 @@ def verify(
         client = None
         try:
             scope = get_credential_scope(scope_name)
-            client = create_reports_client(
-                scope_name, load_lwa_credentials(scope.refresh_token_environment)
+            client = create_explicit_sp_api_client(
+                Reports,
+                scope.client_marketplace,
+                load_lwa_credentials(scope.refresh_token_environment),
             )
             print(
                 json.dumps(
@@ -102,7 +105,7 @@ def verify(
         browser = verify_browser(stack, accounts, private_output)
         with database.connection() as connection:
             financial = connection.execute(
-                "SELECT (SELECT count(*) FROM private.settlement_transactions) + "
+                "SELECT (SELECT count(*) FROM private.finances_transaction_components) + "
                 "(SELECT count(*) FROM private.data_kiosk_transactions) + "
                 "(SELECT count(*) FROM public.company_payout_reports)"
             ).fetchone()

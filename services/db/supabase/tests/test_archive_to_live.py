@@ -6,6 +6,7 @@ from uuid import uuid7
 
 import psycopg
 
+from services.db.supabase.tests.finances_fixtures import finances_capture, native_transaction
 from services.db.supabase.tests.integration_support import (
     DatabaseTestCase,
     TransactionDatabase,
@@ -15,21 +16,16 @@ from services.sync.src.amazon.data_kiosk.query_builder import (
     ECONOMICS_SCHEMA_NAME,
     build_daily_msku_economics_query,
 )
-from services.sync.src.amazon.reports.discovery import SETTLEMENT_REPORT_TYPE
-from services.sync.src.amazon.reports.summaries import parse_done_report_summary
-from services.sync.src.amazon.settlement_models import SettlementReportReference
-from services.sync.src.amazon.settlement_tabular import SETTLEMENT_V2_COLUMNS
 from services.sync.src.archives.models import (
     ArchivedDataKioskPage,
     DataKioskAcquisition,
-    SettlementAcquisition,
 )
 from services.sync.src.archives.storage import archive_document
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
-    load_settlement_acquisition,
+    load_finances_acquisition,
     persist_data_kiosk_acquisition,
-    persist_settlement_acquisition,
+    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import (
     FeePeriod,
@@ -40,68 +36,14 @@ from services.sync.src.database.financial_reads import (
     CompanyFinancialTotal,
     load_company_financial_totals,
 )
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 from services.sync.src.numeric import Numeric
 from services.sync.src.preprocess_version import PREPROCESS_VERSION
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
-from services.sync.src.source_serialization import source_json
 from services.sync.tests.support.archives import MemoryArchiveStorage
 from services.sync.tests.support.economics import (
     complete_economics_document,
     economics_aggregated_detail,
 )
-
-
-def settlement_document(*, valid: bool = True) -> bytes:
-    """A sale, later full refund, and recognized disposal expense share one report."""
-    header = {
-        "settlement-id": "integration-settlement",
-        "settlement-start-date": "2026-08-01T00:00:00Z",
-        "settlement-end-date": "2026-08-02T23:59:59Z",
-        "deposit-date": "2026-08-03T00:00:00Z",
-        "total-amount": "-10",
-        "currency": "USD",
-    }
-    rows: list[dict[str, str]] = [header]
-    for transaction, amount, day in (("Order", "100", "01"), ("Refund", "-100", "02")):
-        rows.append(
-            {
-                "settlement-id": "integration-settlement",
-                "transaction-type": transaction,
-                "order-id": "integration-order",
-                "marketplace-name": "Amazon.com",
-                "amount-type": "ItemPrice",
-                "amount-description": "Principal",
-                "amount": amount,
-                "posted-date": f"2026-08-{day}",
-                "posted-date-time": f"2026-08-{day}T12:00:00Z",
-                "sku": "SKU-1" if valid else "",
-                "quantity-purchased": "1",
-            }
-        )
-    rows.append(
-        {
-            "settlement-id": "integration-settlement",
-            "transaction-type": "FBAFees",
-            "amount-type": "FBA Removal Order: Disposal Fee",
-            "amount-description": "Base fee",
-            "amount": "-10",
-            "posted-date": "2026-08-02",
-            "posted-date-time": "2026-08-02T12:00:00Z",
-            "sku": "",
-        }
-    )
-    return (
-        "\r\n".join(
-            [
-                "\t".join(SETTLEMENT_V2_COLUMNS),
-                *(
-                    "\t".join(row.get(column, "") for column in SETTLEMENT_V2_COLUMNS)
-                    for row in rows
-                ),
-            ]
-        )
-        + "\r\n"
-    ).encode()
 
 
 class TestArchiveToLive(DatabaseTestCase):
@@ -112,90 +54,46 @@ class TestArchiveToLive(DatabaseTestCase):
         self.storage = MemoryArchiveStorage()
         self.seller = f"archive-integration-{uuid7()}"
 
-    def test_report_aliases_without_marketplace_hints_keep_one_financial_settlement(self) -> None:
-        document = archive_document(self.storage, settlement_document(), source_compression=None)
-        aliases: tuple[tuple[str, dict[str, object]], ...] = (
-            ("alias-a", {}),
-            ("alias-b", {"marketplaceIds": []}),
-        )
-        for report_id, hints in aliases:
-            metadata: dict[str, object] = {
-                "reportId": report_id,
-                "reportDocumentId": "shared-document",
-                "reportType": SETTLEMENT_REPORT_TYPE,
-                "processingStatus": "DONE",
-                "createdTime": "2026-08-03T00:00:00Z",
-                **hints,
-            }
-            summary = parse_done_report_summary(
-                metadata, expected_report_types=(SETTLEMENT_REPORT_TYPE,)
-            )
-            acquisition = SettlementAcquisition(
-                id=uuid7(),
-                seller_namespace=self.seller,
-                amazon_scope="NA",
-                reference=SettlementReportReference(
-                    report_id=summary.report_id,
-                    report_document_id=summary.report_document_id,
-                    report_created_at=summary.created_at,
-                    marketplace_ids=summary.marketplace_ids,
-                    api_metadata=metadata,
-                ),
-                downloaded_at=datetime.now(UTC),
-                document=document,
-                api_metadata=metadata,
-            )
-            saved = persist_settlement_acquisition(self.database, acquisition)
-            loaded = load_settlement_acquisition(self.database, saved)
-            self.assertEqual(loaded.reference.marketplace_ids, ())
-            self.assertEqual(source_json(loaded.api_metadata), metadata)
-            preprocess_settlement_acquisition(self.database, self.storage, saved)
+    def test_repeated_captures_replace_days_without_adding_transactions(self) -> None:
+        rows = [
+            native_transaction(100),
+            native_transaction(-100, kind="Refund", day="2026-08-02"),
+            native_transaction(-10, kind="ServiceFee", sku=None, day="2026-08-02"),
+        ]
+        for _ in range(2):
+            capture = finances_capture(self.storage, rows, seller=self.seller)
+            identifier = persist_finances_acquisition(self.database, capture)
+            self.assertEqual(load_finances_acquisition(self.database, identifier), capture)
+            preprocess_finances_acquisition(self.database, self.storage, identifier)
         self.assertEqual(
-            self.connection.execute("select count(*) from private.settlements").fetchone(),
-            (1,),
+            self.connection.execute("select count(*) from private.finances_days").fetchone(), (2,)
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.live_company_components where source='SETTLEMENT'"
-            ).fetchone(),
-            (0,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*),sum(amount) from public.settlement_preprocess_entries "
+                "select count(*),sum(amount) from public.finances_preprocess_entries "
                 "where category='DATA_KIOSK' and version_id in "
-                "(select current_version_id from private.settlements)"
+                "(select current_version_id from private.finances_days)"
             ).fetchone(),
             (1, Numeric(-10)),
         )
         self.assertEqual(
             self.connection.execute(
-                "select family,sku from public.settlement_preprocess_entries "
+                "select component_type,sku from public.finances_preprocess_entries "
                 "where category='DATA_KIOSK' and version_id in "
-                "(select current_version_id from private.settlements)"
+                "(select current_version_id from private.finances_days)"
             ).fetchone(),
-            ("C3_DISPOSAL", None),
+            ("DISPOSAL_FEES", None),
         )
-        self.assertEqual(len(self.storage.objects), 1)
+        self.assertEqual(len(self.storage.objects), 2)
 
-    def save_settlement(self, *, valid: bool = True) -> str:
-        identifier = uuid7()
-        acquisition = SettlementAcquisition(
-            id=identifier,
-            seller_namespace=self.seller,
-            amazon_scope="NA",
-            reference=SettlementReportReference(
-                report_id=f"report-{identifier}",
-                report_document_id=f"document-{identifier}",
-                report_created_at=datetime(2026, 8, 3, tzinfo=UTC),
-                marketplace_ids=("ATVPDKIKX0DER", "unresolved-hint"),
-            ),
-            downloaded_at=datetime.now(UTC),
-            document=archive_document(
-                self.storage, settlement_document(valid=valid), source_compression=None
-            ),
-        )
-        return persist_settlement_acquisition(self.database, acquisition)
+    def save_finances(self, *, valid: bool = True) -> str:
+        rows = [
+            native_transaction(100, sku="SKU-1" if valid else None),
+            native_transaction(-100, kind="Refund", day="2026-08-02"),
+            native_transaction(-10, kind="ServiceFee", sku=None, day="2026-08-02"),
+        ]
+        capture = finances_capture(self.storage, rows, seller=self.seller)
+        return persist_finances_acquisition(self.database, capture)
 
     def save_data_kiosk(self, *, ads: str = "[]") -> str:
         identifier = uuid7()
@@ -272,7 +170,7 @@ class TestArchiveToLive(DatabaseTestCase):
             start_date=date(2026, 8, 1),
             end_date=date(2026, 8, 2),
             preprocess_version=PREPROCESS_VERSION,
-            settlement_ids=(),
+            finances_day_ids=(),
             marketplace_names=("Amazon.com",),
         )
         self.assertEqual(len(totals), 1)
@@ -280,18 +178,18 @@ class TestArchiveToLive(DatabaseTestCase):
         self.assertEqual(totals[0].fee_amount, Numeric(0))
         self.assertEqual(totals[0].company_amount, Numeric("-15.5"))
 
-    def test_recent_sources_ignore_settlement_refunds_and_use_kiosk_fee_base(self) -> None:
-        settlement_input, economics_input = self.save_settlement(), self.save_data_kiosk()
-        preprocess_settlement_acquisition(self.database, self.storage, settlement_input)
+    def test_recent_sources_ignore_finances_refunds_and_use_kiosk_fee_base(self) -> None:
+        finances_input, economics_input = self.save_finances(), self.save_data_kiosk()
+        preprocess_finances_acquisition(self.database, self.storage, finances_input)
         preprocess_data_kiosk_acquisition(self.database, self.storage, economics_input)
         row = self.connection.execute(
-            "select id from private.settlements where seller_namespace = %s", (self.seller,)
+            "select id from private.finances_days where seller_namespace = %s", (self.seller,)
         ).fetchone()
         if row is None:
-            self.fail("Canonical settlement was not published.")
-        settlement_id = str(row[0])
+            self.fail("Canonical finances was not published.")
+        finances_id = str(row[0])
         with self.assertRaises(psycopg.Error), self.connection.transaction():
-            self.read_totals(settlement_id)
+            self.read_totals(finances_id)
         company = create_company(self.database, "Archive integration company")
         version = publish_sku_terms(
             self.database,
@@ -304,7 +202,7 @@ class TestArchiveToLive(DatabaseTestCase):
                 FeePeriod("Amazon.com", date(2026, 8, 2), None, Numeric(7)),
             ],
         )
-        totals = self.read_totals(settlement_id)
+        totals = self.read_totals(finances_id)
         self.assertEqual(len(totals), 1)
         self.assertEqual(totals[0].source_amount, Numeric(-12))
         self.assertEqual(totals[0].fee_amount, Numeric(0))
@@ -321,50 +219,49 @@ class TestArchiveToLive(DatabaseTestCase):
             ],
         )
         self.assertEqual(
-            self.read_totals(settlement_id)[0].company_amount,
+            self.read_totals(finances_id)[0].company_amount,
             Numeric(-12),
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_preprocess_versions "
-                "where acquisition_id = %s",
-                (settlement_input,),
+                "select count(*) from private.finances_preprocess_versions v "
+                "join private.finances_preprocess_batches b on b.id=v.batch_id "
+                "where b.acquisition_id = %s",
+                (finances_input,),
             ).fetchone(),
-            (1,),
+            (2,),
         )
 
     def test_failed_preprocessing_retains_the_successful_acquisition(self) -> None:
-        acquisition_id = self.save_settlement(valid=False)
-        with (
-            self.assertLogs("services.sync.src.settlement_preprocess.workflow", level="ERROR"),
-            self.assertRaises(ValueError),
-        ):
-            preprocess_settlement_acquisition(self.database, self.storage, acquisition_id)
+        acquisition_id = self.save_finances(valid=False)
+        with self.assertRaises(ValueError):
+            preprocess_finances_acquisition(self.database, self.storage, acquisition_id)
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_acquisitions where id = %s",
+                "select count(*) from private.finances_acquisitions where id = %s",
                 (acquisition_id,),
             ).fetchone(),
             (1,),
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_preprocess_versions "
-                "where acquisition_id = %s",
+                "select count(*) from private.finances_preprocess_versions v "
+                "join private.finances_preprocess_batches b on b.id=v.batch_id "
+                "where b.acquisition_id = %s",
                 (acquisition_id,),
             ).fetchone(),
             (0,),
         )
-        self.assertEqual(len(self.storage.objects), 1)
+        self.assertEqual(len(self.storage.objects), 2)
 
-    def read_totals(self, settlement_id: str) -> tuple[CompanyFinancialTotal, ...]:
+    def read_totals(self, finances_id: str) -> tuple[CompanyFinancialTotal, ...]:
         return load_company_financial_totals(
             self.database,
             seller_namespace=self.seller,
             start_date=date(2026, 8, 1),
             end_date=date(2026, 8, 2),
             preprocess_version=PREPROCESS_VERSION,
-            settlement_ids=[settlement_id],
+            finances_day_ids=[finances_id],
             marketplace_names=["Amazon.com"],
         )
 

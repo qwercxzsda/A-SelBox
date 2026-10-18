@@ -86,7 +86,7 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
                 writer.execute("set statement_timeout='10s'")
                 source = SourceModelFixture()
                 source.connection, source.seller = writer, "seller-a"
-                source.settlement([source.transaction("50")])
+                source.finances([source.transaction("50")])
                 fill_payout_kiosk_month(source)
 
         with (

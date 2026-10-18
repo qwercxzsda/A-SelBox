@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, settlementRow } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
@@ -31,10 +31,10 @@ async function setupDesignWorkspace(page, role) {
   fixture.liveRows = [
     {
       ...liveRow("DESIGN", 1, REVIEW_COMPANY),
-      component_type: "Order/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal",
+      component_type: "TAX_WITHHELD",
     },
   ];
-  fixture.settlementRows = [settlementRow(1)];
+  fixture.financesRows = [financesRow(1)];
   fixture.kioskRows = [kioskRow(1, "12.5")];
   fixture.skuConfigurationItems = [item("DESIGN-SKU", { company_id: REVIEW_COMPANY })];
   await mockInventory(page, [
@@ -85,7 +85,7 @@ for (const role of ["administrator", "member"]) {
     await rowDetail.getByRole("button", { name: "Close row details", exact: true }).click();
 
     if (role === "administrator") {
-      for (const name of ["Settlements", "Data Kiosk", "User access"]) {
+      for (const name of ["Finances", "Data Kiosk", "User access"]) {
         await openTab(name);
         await checkTable(financialTable(page));
         await screenshot(name.toLowerCase().replaceAll(" ", "-"));

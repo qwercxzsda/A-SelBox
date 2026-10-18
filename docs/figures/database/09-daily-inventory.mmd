@@ -1,41 +1,43 @@
 erDiagram
     direction LR
-    inventory_acquisitions ||..o| inventory_daily_captures : source_for_retained_capture
-    inventory_daily_captures ||--o{ inventory_items : complete_sku_rows
+    private_inventory_acquisitions ||..o| private_inventory_daily_captures : "seller_namespace + marketplace_name + capture_date + acquisition_id"
+    private_inventory_daily_captures ||--o{ private_inventory_items : "capture_id"
 
-    inventory_acquisitions {
+    private_inventory_acquisitions["private.inventory_acquisitions"] {
         local_uuid id PK "NN"
         nonblank seller_namespace "NN"
         nonblank amazon_scope "NN"
         nonblank marketplace_id "NN"
-        text marketplace_name "NN; canonical checked text"
-        date capture_date "NN; source-local creation day"
-        text report_type "NN; inventory planning report"
+        text marketplace_name "NN"
+        date capture_date "NN"
+        text report_type "NN"
         nonblank report_id "NN"
         nonblank report_document_id "NN"
-        timestamptz report_created_at "NN"
-        timestamptz downloaded_at "NN"
+        timestamp_with_time_zone report_created_at "NN"
+        timestamp_with_time_zone downloaded_at "NN"
         sha256 document_sha256 "NN"
-        jsonb document "NN; archive manifest"
+        jsonb document "NN"
         jsonb api_metadata "NN"
-        timestamptz created_at "NN"
+        timestamp_with_time_zone created_at "NN"
     }
-    inventory_daily_captures {
-        local_uuid id PK "NN; new ID for replacement"
-        nonblank seller_namespace FK "NN; scoped acquisition FK"
-        text marketplace_name FK "NN; scoped acquisition FK"
-        date capture_date FK "NN; scoped acquisition FK"
+
+    private_inventory_daily_captures["private.inventory_daily_captures"] {
+        local_uuid id PK "NN"
+        nonblank seller_namespace FK "NN"
+        text marketplace_name FK "NN"
+        date capture_date FK "NN"
         local_uuid acquisition_id FK "NN"
         nonblank preprocess_version "NN"
-        integer row_count "NN; nonnegative"
-        jsonb diagnostics "NN; default empty array"
-        timestamptz created_at "NN; preprocessing time"
+        integer row_count "NN"
+        jsonb diagnostics "NN"
+        timestamp_with_time_zone created_at "NN"
     }
-    inventory_items {
-        local_uuid capture_id PK, FK "NN; cascade on capture delete"
-        text sku PK "NN; exact nonblank text"
-        integer source_line_number "NN; positive"
-        date snapshot_date "NULL; Amazon source date"
+
+    private_inventory_items["private.inventory_items"] {
+        local_uuid capture_id PK, FK "NN"
+        text sku PK "NN"
+        integer source_line_number "NN"
+        date snapshot_date "NULL"
         bigint available_quantity "NULL"
         bigint fba_supply_quantity "NULL"
         bigint inbound_quantity "NULL"
@@ -47,10 +49,10 @@ erDiagram
         bigint reserved_processing_quantity "NULL"
         bigint reserved_customer_order_quantity "NULL"
         bigint unfulfillable_quantity "NULL"
-        numeric sales_amount_90d "NULL; historical estimate"
+        numeric sales_amount_90d "NULL"
         bigint units_shipped_90d "NULL"
         text currency "NULL"
-        text health_status "NULL; Amazon text"
+        text health_status "NULL"
         bigint minimum_inventory_units "NULL"
         numeric days_of_supply "NULL"
         numeric total_days_of_supply "NULL"

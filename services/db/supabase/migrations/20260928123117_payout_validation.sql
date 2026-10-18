@@ -41,14 +41,14 @@ language sql stable set search_path = '' as $$
     select coalesce(array_agg(seller_namespace order by seller_namespace),'{}'::text[])
     from (
         select t.seller_namespace::text from company_skus s
-        join private.settlement_transactions t on t.sku = s.sku
+        join private.finances_activity_components t on t.sku = s.sku
         union
         select t.seller_namespace::text from company_skus s
         join private.data_kiosk_transactions t on t.sku = s.sku
         union
         select s.seller_namespace::text from public.company_payout_reports r
-        join private.payout_report_settlement_versions p on p.report_id = r.id
-        join private.settlements s on s.id = p.settlement_id where r.company_id = p_company_id
+        join private.payout_report_finances_versions p on p.report_id = r.id
+        join private.finances_days s on s.id = p.day_id where r.company_id = p_company_id
         union
         select d.seller_namespace::text from public.company_payout_reports r
         join private.payout_report_data_kiosk_versions p on p.report_id = r.id
@@ -57,43 +57,37 @@ language sql stable set search_path = '' as $$
 $$;
 
 -- Retain empty processed documents as well as documents with monthly rows.
-create function private.payout_settlement_ids(p_sellers text[], p_start date, p_end date)
+create function private.payout_finances_day_ids(p_sellers text[], p_start date, p_end date)
 returns uuid[] language sql stable set search_path = '' as $$
-    select coalesce(array_agg(s.id order by s.id),'{}'::uuid[])
-    from private.settlements s
-    join private.settlement_preprocess_versions v on v.id = s.current_version_id
-    where s.seller_namespace = any(p_sellers) and (
-        (v.settlement_start_date <= p_end and v.settlement_end_date >= p_start)
-        or exists (select 1 from private.settlement_transactions t where t.version_id = v.id
-            and t.posted_date between p_start and p_end)
-    );
+ select coalesce(array_agg(d.id order by d.id),'{}'::uuid[]) from private.finances_days d
+ where d.seller_namespace=any(p_sellers) and d.current_version_id is not null and d.activity_date between p_start and p_end;
 $$;
 
 -- Empty aggregates retain the available inputs without claiming complete imports.
 -- Nonempty company scopes still require complete compatible Data Kiosk coverage.
 create function private.assert_payout_source_versions(
     p_start date, p_end date, p_dataset_key text,
-    p_settlement_versions uuid[], p_data_kiosk_versions uuid[],
+    p_finances_versions uuid[], p_data_kiosk_versions uuid[],
     p_require_complete boolean, p_seller_namespaces text[] default null
 ) returns void language plpgsql set search_path = '' as $$
 begin
-    if p_settlement_versions is null or p_data_kiosk_versions is null
+    if p_finances_versions is null or p_data_kiosk_versions is null
         or p_dataset_key is distinct from 'economics'
         or p_start is null or p_end is null or not isfinite(p_start) or not isfinite(p_end)
         or p_end < p_start or p_require_complete is null
-        or array_position(p_settlement_versions,null) is not null
+        or array_position(p_finances_versions,null) is not null
         or array_position(p_data_kiosk_versions,null) is not null
-        or (select count(distinct value) from unnest(p_settlement_versions) value) <> cardinality(p_settlement_versions)
+        or (select count(distinct value) from unnest(p_finances_versions) value) <> cardinality(p_finances_versions)
         or (select count(distinct value) from unnest(p_data_kiosk_versions) value) <> cardinality(p_data_kiosk_versions) then
         raise exception 'Explicit valid payout source scope required' using errcode = '23514';
     end if;
     if exists (
-        select 1 from unnest(p_settlement_versions) requested(id)
-        left join private.settlement_preprocess_versions v on v.id = requested.id
-        where v.id is null
-    ) or (select count(distinct settlement_id) from private.settlement_preprocess_versions
-          where id = any(p_settlement_versions)) <> cardinality(p_settlement_versions) then
-        raise exception 'Missing, duplicate or incompatible payout Settlement version' using errcode = '23514';
+        select 1 from unnest(p_finances_versions) requested(id)
+        left join private.finances_preprocess_versions v on v.id = requested.id
+        where v.id is null or exists(select 1 from private.finances_pruned_versions p where p.version_id=v.id)
+    ) or (select count(distinct day_id) from private.finances_preprocess_versions
+          where id = any(p_finances_versions)) <> cardinality(p_finances_versions) then
+        raise exception 'Missing, duplicate or incompatible payout Finances version' using errcode = '23514';
     end if;
     if exists (
         select 1 from unnest(p_data_kiosk_versions) requested(id)
@@ -109,13 +103,13 @@ begin
     end if;
     -- Each source namespace has its own marketplace inventory. A combined report
     -- never requires the Cartesian product of all sellers and all marketplaces.
-    -- Declared pairs are known Data Kiosk markets plus this month's Settlement
-    -- markets; historical Settlement-only markets do not declare new day coverage.
+    -- Declared pairs are known Data Kiosk markets plus this month's Finances
+    -- markets; historical Finances-only markets do not declare new day coverage.
     if p_require_complete and exists (
         with sellers as (
-            select s.seller_namespace from private.settlements s
-            join private.settlement_preprocess_versions v on v.settlement_id = s.id
-            where v.id = any(p_settlement_versions)
+            select s.seller_namespace from private.finances_days s
+            join private.finances_preprocess_versions v on v.day_id = s.id
+            where v.id = any(p_finances_versions)
             union
             select d.seller_namespace from private.data_kiosk_days d
             join private.data_kiosk_preprocess_versions v on v.day_id = d.id
@@ -127,8 +121,9 @@ begin
             where d.seller_namespace in (select seller_namespace from sellers)
                 and d.dataset_key = p_dataset_key
             union
-            select t.seller_namespace,t.marketplace_name from private.settlement_transactions t
-            where t.version_id = any(p_settlement_versions)
+            select t.seller_namespace,private.finances_data_kiosk_marketplace(t.marketplace_name)
+            from private.finances_activity_components t
+            where t.version_id = any(p_finances_versions)
                 and t.posted_date between p_start and p_end and t.marketplace_name is not null
 
         )
@@ -144,12 +139,20 @@ begin
     ) then
         raise exception 'Incomplete, pruned or incompatible payout Data Kiosk coverage' using errcode = '23514';
     end if;
+    if p_require_complete and exists(
+        select 1 from private.data_kiosk_preprocess_versions kv join private.data_kiosk_days kd on kd.id=kv.day_id
+        where kv.id=any(p_data_kiosk_versions) and not exists(
+            select 1 from private.finances_preprocess_versions fv join private.finances_days fd on fd.id=fv.day_id
+            where fv.id=any(p_finances_versions) and (fd.seller_namespace,fd.marketplace_name,fd.activity_date)
+                =(kd.seller_namespace,kd.marketplace_name,kd.activity_date))) then
+        raise exception 'Complete Finances day coverage and Summary controls are required for payout' using errcode='23514';
+    end if;
     if exists (
         select 1 from (
             select s.seller_namespace,v.preprocess_version
-            from private.settlement_preprocess_versions v
-            join private.settlements s on s.id = v.settlement_id
-            where v.id = any(p_settlement_versions)
+            from private.finances_preprocess_versions v
+            join private.finances_days s on s.id = v.day_id
+            where v.id = any(p_finances_versions)
             union all
             select d.seller_namespace,v.preprocess_version
             from private.data_kiosk_preprocess_versions v
@@ -168,23 +171,23 @@ $$;
 -- publication caller. The trigger does not expose a callable application API.
 create function private.check_company_payout_report() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare settlement_versions uuid[]; kiosk_versions uuid[]; terms_versions uuid[];
+declare finances_versions uuid[]; kiosk_versions uuid[]; terms_versions uuid[];
     component_total bigint; source_total numeric; fee_total numeric; company_total numeric;
     used_terms bigint; unresolved boolean; differs boolean; has_amounts boolean;
 begin
-    select coalesce(array_agg(version_id order by settlement_id),'{}'::uuid[])
-        into settlement_versions from private.payout_report_settlement_versions where report_id = new.id;
+    select coalesce(array_agg(version_id order by day_id),'{}'::uuid[])
+        into finances_versions from private.payout_report_finances_versions where report_id = new.id;
     select coalesce(array_agg(version_id order by day_id),'{}'::uuid[])
         into kiosk_versions from private.payout_report_data_kiosk_versions where report_id = new.id;
     select coalesce(array_agg(terms_version_id order by sku_id),'{}'::uuid[])
         into terms_versions from private.payout_report_terms_versions where report_id = new.id;
-    if cardinality(settlement_versions) <> new.settlement_version_count
+    if cardinality(finances_versions) <> new.finances_version_count
         or cardinality(kiosk_versions) <> new.data_kiosk_version_count
         or cardinality(terms_versions) <> new.terms_version_count then
         raise exception 'Incomplete payout input inventory' using errcode = '23514';
     end if;
     with resolved as materialized (
-        select c.* from private.resolve_company_components(settlement_versions,kiosk_versions,terms_versions) c
+        select c.* from private.resolve_company_components(finances_versions,kiosk_versions,terms_versions) c
         where c.category <> 'SELBOX'
           and (c.authoritative or (c.source = 'DATA_KIOSK' and c.company_id is not null))
           and c.activity_date between new.start_date and new.end_date
@@ -209,7 +212,11 @@ begin
         exists(select 1 from difference)
     into used_terms, has_amounts, unresolved, differs;
     perform private.assert_payout_source_versions(new.start_date,new.end_date,
-        new.dataset_key,settlement_versions,kiosk_versions,has_amounts);
+        new.dataset_key,finances_versions,kiosk_versions,has_amounts);
+    if exists(select 1 from unnest(private.payout_finances_summary_ids(finances_versions,new.start_date,new.end_date)) c(id)
+        where not exists(select 1 from private.payout_report_finances_summary_checks p where p.report_id=new.id and p.check_id=c.id)) then
+        raise exception 'Incomplete frozen Finances Summary controls' using errcode='23514';
+    end if;
     if (has_amounts and used_terms <> new.terms_version_count)
         or (new.currency is null and has_amounts) or unresolved or differs then
         raise exception 'Payout contents do not match complete frozen source and terms inputs' using errcode = '23514';
@@ -225,7 +232,7 @@ begin
     end if;
     with expected as (
         select to_jsonb(r) as item
-        from private.resolve_source_reconciliation(settlement_versions,kiosk_versions) r
+        from private.resolve_source_reconciliation(finances_versions,kiosk_versions) r
         where new.currency is not null and r.activity_date between new.start_date and new.end_date
     ), actual as (
         select to_jsonb(r) - array['report_id','row_number'] as item
@@ -245,3 +252,45 @@ $$;
 create constraint trigger complete_company_payout_report
 after insert on public.company_payout_reports deferrable initially deferred
 for each row execute function private.check_company_payout_report();
+-- A Summary control certifies only its exact immutable day manifest.
+create function private.payout_finances_summary_ids(p_versions uuid[], p_start date, p_end date)
+returns uuid[] language plpgsql stable set search_path = '' as $$
+declare scope record; selected uuid[] := '{}'; eligible uuid[]; expected_count integer;
+begin
+ if exists(select 1 from unnest(p_versions) requested(id)
+   left join private.finances_preprocess_versions v on v.id=requested.id
+   where v.id is null or exists(select 1 from private.finances_pruned_versions p where p.version_id=v.id)) then
+  raise exception 'Summary controls require retained complete Finances versions' using errcode='23514';
+ end if;
+ for scope in select distinct d.seller_namespace,private.finances_summary_marketplace(d.marketplace_name) marketplace_name
+  from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id where v.id=any(p_versions)
+ loop
+  select count(distinct d.marketplace_name)*(p_end-p_start+1) into expected_count
+  from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id
+  where v.id=any(p_versions) and d.seller_namespace=scope.seller_namespace
+   and private.finances_summary_marketplace(d.marketplace_name)=scope.marketplace_name;
+  if (select count(*) from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id
+      where v.id=any(p_versions) and d.seller_namespace=scope.seller_namespace
+       and private.finances_summary_marketplace(d.marketplace_name)=scope.marketplace_name
+       and d.activity_date between p_start and p_end) <> expected_count then
+   raise exception 'Complete Finances day coverage is required for payout' using errcode='23514';
+  end if;
+  select array_agg(c.id) into eligible from private.finances_summary_checks c
+  where c.seller_namespace=scope.seller_namespace and c.marketplace_name=scope.marketplace_name
+   and c.start_date=p_start and c.end_date=p_end and c.version_count=expected_count
+   and not exists(select 1 from private.finances_summary_check_versions m where m.check_id=c.id and not (m.version_id=any(p_versions)));
+  if coalesce(cardinality(eligible),0)=0
+   or exists(select 1 from private.finances_summary_checks c where c.id=any(eligible) and not c.matched)
+   or exists(
+   select 1 from private.finances_transactions t where t.version_id=any(p_versions)
+    and t.seller_namespace=scope.seller_namespace
+    and private.finances_summary_marketplace(t.marketplace_name)=scope.marketplace_name
+    and not exists(select 1 from private.finances_summary_checks c where c.id=any(eligible) and c.account_type=t.account_type and c.currency=t.currency)
+  ) then
+   raise exception 'Matching listSummary controls for the exact Finances versions are required for payout' using errcode='23514';
+  end if;
+  selected := selected || eligible;
+ end loop;
+ return selected;
+end;
+$$;

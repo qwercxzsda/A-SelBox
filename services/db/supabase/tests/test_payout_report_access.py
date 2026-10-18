@@ -12,7 +12,7 @@ class PayoutReportAccessTests(SourceModelFixture):
         company, identity = self.owner()
         other_company, _ = self.owner("OTHER")
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.kiosk(
             1,
             [
@@ -22,7 +22,7 @@ class PayoutReportAccessTests(SourceModelFixture):
                 | {"component_type": "UNKNOWN_ZERO_DETAIL"},
                 self.component("0", category="ANALYSIS_ONLY")
                 | {"component_type": "UNKNOWN_QUANTITY_DETAIL", "quantity": "2"},
-                self.component("500", category="SETTLEMENT"),
+                self.component("500", category="FINANCES"),
             ],
         )
         fill_payout_kiosk_month(self)
@@ -47,11 +47,11 @@ class PayoutReportAccessTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select id::text,company_id::text,component_count,settlement_version_count,"
+                "select id::text,company_id::text,component_count,finances_version_count,"
                 "data_kiosk_version_count,terms_version_count,company_amount "
                 "from public.company_payout_reports",
             ),
-            [(report, company, 5, 1, 30, 2, Decimal(85))],
+            [(report, company, 5, 30, 30, 2, Decimal(85))],
         )
         queries: tuple[tuple[LiteralString, int, int], ...] = (
             ("select * from public.company_payout_reports", 1, 1),
@@ -61,10 +61,10 @@ class PayoutReportAccessTests(SourceModelFixture):
                 3,
                 0,
             ),
-            ("select * from public.payout_report_settlement_versions", 1, 0),
+            ("select * from public.payout_report_finances_versions", 30, 0),
             ("select * from public.payout_report_data_kiosk_versions", 30, 0),
             ("select * from public.payout_report_terms_versions", 2, 0),
-            ("select * from private.payout_report_settlement_versions", 1, 0),
+            ("select * from private.payout_report_finances_versions", 30, 0),
             ("select * from private.payout_report_data_kiosk_versions", 30, 0),
             ("select * from private.payout_report_terms_versions", 2, 0),
             ("select * from public.payout_report_reconciliation", 1, 0),

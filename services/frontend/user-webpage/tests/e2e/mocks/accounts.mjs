@@ -62,7 +62,7 @@ export function createAccountHandlers(fixture) {
       }
       if (url.pathname === "/rest/v1/rpc/workspace_revisions") {
         const sources = (
-          url.searchParams.get("p_sources") ?? "{settlement,data_kiosk,fees,inventory}"
+          url.searchParams.get("p_sources") ?? "{finances,data_kiosk,fees,inventory}"
         )
           .replace(/[{}]/g, "")
           .split(",")

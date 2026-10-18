@@ -37,10 +37,17 @@ so compatible facts from every namespace share one fee lookup. Raw rows retain t
 
 Each source has one reversible `(date, id)` index and compact `(sku, date)`, `(component_type, date)`,
 and `(marketplace_name, date)` indexes. Date-leading covering indexes support counts:
-Settlement uses a partial index for category `SETTLEMENT`; Data Kiosk includes all
+Finances uses a partial index for category `FINANCES`; Data Kiosk includes all
 amounts across categories, including zero.
-Settlement also has a compact ownership/version index for unbounded and marketplace counts.
+Finances also has a compact ownership/version index for unbounded and marketplace counts.
 The [index map](transaction_query_contracts.md#index-access-paths) lists exact keys and consumers.
+
+Finances native parents have an indexed seller/native-ID lookup for current
+identity conflicts and a release-reference index for lifecycle validation.
+Components have a parent-ID index for complete partition checks. Publication
+inserts whole parent/component day inventories in bulk. Summary checks use
+exact version manifests; they are performed for pending company/month work,
+not by scanning every completed payout every five minutes.
 
 Date bounds are applied to facts before counting, grouping, or fee lookup. Leading with date limits
 the covering index's range even without a selected SKU or Type. Index-only counts depend on the
@@ -52,7 +59,7 @@ array-filter path. This strategy changes execution, not the result limit or visi
 
 ### Reconciliation work
 
-For mature dates, administrator reads aggregate Settlement controls and Data Kiosk costs by seller, day,
+For mature dates, administrator reads aggregate Finances controls and Data Kiosk costs by seller, day,
 marketplace, and currency. These derived groups join the live ledger; member reads exclude them.
 Date and marketplace predicates can restrict grouping, while broad administrator counts and totals
 still pay for the matching source aggregation. Company and SKU selections omit account groups.
@@ -82,17 +89,12 @@ request-time authorization.
 
 ## Measurement evidence
 
-The [global SKU benchmark](evidence/global_sku_identity/README.md) verifies authenticated
-reads across namespaces and measures the current ownership indexes on synthetic data.
-The maintained runners below cover additional workload shapes.
-
-The [configuration-read sample](evidence/global_sku_identity/README.md#configuration-read-sample) used the
-103,244 real source facts with consistent synthetic assignments and fees. One warm-up and
-seven authenticated reads produced median times of **131.031 ms** for all 63 administrator SKUs
-(50,744 JSON bytes), and **50.516 ms** for the member's 32 SKUs (26,933 bytes). Timing includes
-direct SQL execution and result decoding, excluding transaction setup and HTTP/browser latency.
-Both responses had complete coverage and the expected role scope. This sample measures the
-configuration endpoint's cost on that fixture.
+The maintained runners below exercise authenticated reads across namespaces and different
+workload shapes using native Finances fixtures. Current verification includes live/native/Data
+Kiosk EXPLAIN paths for date and amount ordering, plus independent result comparisons.
+The [dated verification records](evidence/README.md) distinguish these regression checks from
+real API and HTTP pipeline checks. They do not establish a throughput
+or latency target for production data; measure the intended workload before capacity planning.
 
 ## Scaling limits
 

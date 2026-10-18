@@ -1,6 +1,6 @@
 # Sync service
 
-The service downloads Amazon Settlement Reports and Data Kiosk Economics into
+The service downloads Amazon Finances transactions, Summary controls, and Data Kiosk Economics into
 private archives, then preprocesses saved acquisitions into complete source
 versions. PostgreSQL resolves current company ownership and fees for live
 reads and freezes exact inputs and amounts when publishing a company payout report.
@@ -12,8 +12,8 @@ financial source versions and payouts.
 All three sources use `download_*_acquisition` and `preprocess_*_acquisition` for the online and
 offline phases. Acquisition persistence/loading lives in `src/database/acquisitions.py`; source
 modules own parsing and result publication. Each source has an `acquisition.py` and a preprocessing
-`workflow.py`. Settlement's `download_settlement_reports` is the batch discovery operation that
-downloads multiple acquisitions. `current_*` helpers identify selected financial versions or the
+`workflow.py`. Finances downloads split an explicit date range into monthly acquisitions.
+`current_*` helpers identify selected financial versions or the
 one inventory capture; those result types retain their different publication and retention rules.
 
 ## Configuration
@@ -49,11 +49,12 @@ must remain outside version control.
 ## Download and archive
 
 Download discovers or queries Amazon and archives complete decoded bytes. It does
-not parse TSV/JSONL, split days, classify amounts, or load companies and fees.
+not split days, classify amounts, or load companies and fees.
 
 ```sh
-conda run -n A-SelBox python -m services.sync.src.cli.download_settlement_reports \
-  --scope NA --seller-namespace seller-na
+conda run -n A-SelBox python -m services.sync.src.cli.download_finances \
+  --scope NA --seller-namespace seller-na \
+  --start-date 2026-08-01 --end-date 2026-08-31
 
 conda run -n A-SelBox python -m services.sync.src.cli.download_data_kiosk \
   --scope NA --seller-namespace seller-na \
@@ -67,8 +68,27 @@ conda run -n A-SelBox python -m services.sync.src.cli.download_inventory \
 Dates are inclusive marketplace-local calendar days. Data Kiosk validates the
 complete explicit window before querying; `--max-pages`, `--max-poll-attempts`,
 and `--poll-interval-seconds` bound acquisition work. Use `--help` for command options.
-Each successful acquisition logs its ID. Failures log diagnostics and produce
-no partial successful manifest. Independently completed downloads stay available.
+Each successful acquisition logs its ID. An incomplete source traversal logs diagnostics and
+publishes no partial successful manifest. Finances Summary is a separate optional control, as
+described below. Independently completed downloads stay available.
+
+Finances uses SP-API v2024-06-19 `listTransactions` and `listSummary`. It obtains the
+seller's participating marketplace roster and sends unfiltered regional requests, including all
+statuses and account types. This also preserves US merchant-fulfilled activity. `--marketplace-id`
+overrides the declared coverage roster; it does not filter the API request. Unexpected source
+marketplaces fail preprocessing. Each acquisition covers at most one calendar month, finishes
+pagination, and archives the exact decoded HTTP response bytes. Missing Summary access does not
+discard complete transactions, but prevents verified payout coverage.
+
+For historical periods, repeat `--marketplace-id` for the complete historical roster when older
+inactive marketplaces no longer appear in current participation discovery.
+
+Only finished local days can be captured, with the final UTC boundary at least two minutes old.
+The downloader rejects ranges outside its rolling two-year history bound. Amazon can lag by
+48 hours and later update past transactions; a complete API response is not financial finality.
+Re-fetch overlapping historical dates to observe those changes. The CLI uses explicit dates and
+does not install a source-download scheduler. See the
+[Finances contract](../../docs/finances_transactions.md) for capture and reconciliation rules.
 
 Inventory requests a full `GET_FBA_INVENTORY_PLANNING_DATA` report for one marketplace. It defaults
 to 60 status polls ten seconds apart; `--max-poll-attempts` and `--poll-interval-seconds` adjust the
@@ -111,7 +131,7 @@ Pass a saved successful acquisition ID. These commands need PostgreSQL and
 private Storage access, and make no Amazon requests:
 
 ```sh
-conda run -n A-SelBox python -m services.sync.src.cli.preprocess_settlement \
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_finances \
   --acquisition-id ACQUISITION_UUID
 
 conda run -n A-SelBox python -m services.sync.src.cli.preprocess_data_kiosk \
@@ -137,27 +157,18 @@ timezone, never preprocessing time. See the
 [inventory contract](../../docs/inventory_daily_captures.md) and
 [recorded verification](../../docs/evidence/inventory/README.md).
 
-The financial definition is `v2`. Both financial sources use the same named category enum:
-`SETTLEMENT`, `SELBOX`, `DATA_KIOSK`, or `ANALYSIS_ONLY`. Settlement accepts the
-first three. Exact Settlement types must be registered and pass their family checks;
-known retained charges explicitly use `SELBOX`. Unknown types abort the entire report.
+Both financial sources use the shared preprocessing definition and named category enum:
+`FINANCES`, `SELBOX`, `DATA_KIOSK`, or `ANALYSIS_ONLY`. Finances accepts the
+first three. Native transaction type and monetary breakdown paths must be explicitly registered;
+reviewed account-only types use `SELBOX`. Unknown paths abort the complete publication.
 Data Kiosk rejects unknown monetary
 components and missing required amounts before publishing any day. Its explicit
 analysis-only components remain available in source diagnostics and are excluded from
 financial pages and totals. The [shared registry](../../docs/transaction_type_registry.md) also generates the frontend Type catalog.
 
-Preprocessing preserves exact signed amounts and nonblank SKU text verbatim,
-including surrounding whitespace. Settlement requires exact report reconciliation
-and records optional trailing-field omissions and out-of-period postings as
-diagnostics. Identical decoded bodies with the same scoped settlement identity
-share one financial settlement, even across different API references; conflicting
-bodies fail.
-
-Tax retrocharges require reviewed complete source coverage. Supply
-`--retrocharge-coverage /path/to/coverage.json` with a JSON array of complete
-source-line groups, such as `[[3, 4], [8, 9, 10, 11]]`. The parser verifies group
-identity, component pairing, and exact event-wide zero. A zero sum alone does not
-prove coverage; incomplete or cross-report evidence requires review.
+Preprocessing preserves exact signed decimal amounts and nonblank SKU text verbatim,
+including surrounding whitespace. The [Finances contract](../../docs/finances_transactions.md)
+owns native identity validation, component partitioning, activity eligibility, and Summary controls.
 
 Data Kiosk verifies the pinned unfiltered DAY/MSKU query and complete page
 provenance. It prepares every covered day, including empty days, before atomic
@@ -165,7 +176,7 @@ publication. Disappeared SKUs remain absent in the replacement day. An older
 acquisition cannot displace a newer Amazon observation by finishing later.
 
 See the [workflow contract](../../docs/data_workflows.md) for validation and
-ordering, and the [family rules](../../docs/settlement_component_categories.md)
+ordering, and the [type registry](../../docs/transaction_type_registry.md)
 and [source policy](../../docs/source_allocation.md) for
 classification. Pure Data Kiosk preparation lives in `data_kiosk_economics/preprocess.py`;
 its database orchestration lives in `data_kiosk_economics/workflow.py`.
@@ -199,7 +210,7 @@ their assigned company's current terms and source results; Unassigned users rece
 and the REST payload.
 
 `src/database/financial_reads.py` reads strict company totals for explicitly
-selected canonical settlements, a required `PREPROCESS_VERSION`, and inclusive
+selected Finances day identities, a required `PREPROCESS_VERSION`, and inclusive
 marketplace/day coverage. It preserves exact decimal values and separate
 currencies. Missing source versions, ownership, fee coverage, or component
 mappings raise instead of producing incomplete totals. Company-facing views and
@@ -210,26 +221,21 @@ source coverage and ownership checks. It returns known fee/company sums together
 with every missing-fee component; fully unknown sums remain NULL. See the
 [partial-summary contract](../../docs/company_fees.md#partial-live-summaries).
 
-Live fees use signed Settlement product principal and refunds at each row's own
+Live fees use signed Finances product sales and refunds at each row's own
 posting-date rate for mature dates; recent dates use Data Kiosk net product sales.
 Data Kiosk amounts in the Data Kiosk category remain authoritative at every age and have no
-sales commission. For mature dates, Settlement report amounts in the SelBox category
+sales commission. For mature dates, Finances amounts in the SelBox category
 and the difference between the sources in the Data Kiosk category remain with SelBox. Company and
 fee corrections immediately affect live reads. The refund formula still has the
 [refund commission risk](../../docs/known_issues.md#deferred-refund-commission-over-credit-risk).
 
 ## Saved company payout reports
 
-The database's scheduled worker generates mature monthly reports automatically for
-companies with at least one currently assigned SKU and
-requests updated reports after source, ownership, or fee changes. Each five-minute run
-processes up to 10 pending, mature company/months through an index. A metadata frontier
-adds newly mature months; completed months are skipped until another change requests work.
-Unchanged inputs reuse the latest report. Incomplete inputs retry with backoff, and
-changed inputs reset the delay. Publication and pending revisions commit atomically.
-Companies without current assignments receive no new reports or queued work. Assigning
-the first SKU activates generation; removing the last stops it without changing saved
-reports. An assigned SKU without activity still permits an ordinary zero report.
+The database's scheduled worker generates mature monthly reports for companies with current SKU
+assignments and requests updates after source or terms changes. The
+[automatic generation contract](../../docs/company_payout_reports.md#automatic-generation) owns
+eligibility, queue limits, retry backoff, and unchanged-input reuse. Source acquisition is separate;
+the payout worker never contacts Amazon.
 
 `src/database/payout_reports.py` retains the low-level
 `publish_company_payout_report()` helper for trusted internal integration and verification.

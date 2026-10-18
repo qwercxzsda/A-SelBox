@@ -51,7 +51,7 @@ test("every displayed sort uses a real allowed API column", () => {
 
 test("row selection uses source-qualified IDs and each other view's stable identity", () => {
   assert.notEqual(
-    rowId({ source: "SETTLEMENT", source_row_id: "shared-id" }),
+    rowId({ source: "FINANCES", source_row_id: "shared-id" }),
     rowId({ source: "DATA_KIOSK", source_row_id: "shared-id" }),
   );
   assert.equal(rowId({ id: "source-fact" }), "source-fact");

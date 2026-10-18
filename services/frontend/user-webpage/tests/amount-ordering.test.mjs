@@ -8,7 +8,7 @@ import {
 import { pageRequest, responseJson, SETTINGS } from "./api-fixtures.mjs";
 
 test("amount page limits become actionable errors without exposing other database details", async () => {
-  for (const dataset of ["live", "settlement", "data_kiosk"]) {
+  for (const dataset of ["live", "finances", "data_kiosk"]) {
     const client = createApiClient(SETTINGS, async () =>
       responseJson(
         {

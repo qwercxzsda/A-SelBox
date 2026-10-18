@@ -32,7 +32,7 @@ for (const width of [1440, 1920]) {
       activity_date: "2026-06-12",
       sku: "SKU-ONE",
       marketplace_name: "Amazon.com",
-      source: "SETTLEMENT",
+      source: "FINANCES",
       component_type: "PRODUCT_SALES",
       quantity: "1",
       source_amount: "100",

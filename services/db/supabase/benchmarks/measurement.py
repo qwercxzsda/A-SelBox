@@ -55,10 +55,10 @@ def _metadata(connection: Connection, repeat: int) -> Record:
             "Install the current date/amount, fee-filterable RPCs before benchmarking"
         )
     counts = connection.execute(
-        "select (select count(*) from private.settlement_transactions),"
+        "select (select count(*) from private.finances_transaction_components),"
         "(select count(*) from private.data_kiosk_transactions),"
         "(select count(*) from public.companies),"
-        "(select count(*) from private.settlements),"
+        "(select count(*) from private.finances_days),"
         "(select count(*) from private.data_kiosk_days)"
     ).fetchone()
     if counts is None:
@@ -77,17 +77,18 @@ def _metadata(connection: Connection, repeat: int) -> Record:
         settings[key] = row[0]
     visibility = connection.execute(
         "select relname,relpages,relallvisible from pg_class where oid in "
-        "('private.settlement_transactions'::regclass,'private.data_kiosk_transactions'::regclass) "
+        "('private.finances_transaction_components'::regclass,"
+        "'private.data_kiosk_transactions'::regclass) "
         "order by relname"
     ).fetchall()
     return {
         "counts": dict(
             zip(
                 (
-                    "settlement_facts",
+                    "finances_facts",
                     "kiosk_facts",
                     "companies",
-                    "settlement_headers",
+                    "finances_headers",
                     "kiosk_headers",
                 ),
                 counts,

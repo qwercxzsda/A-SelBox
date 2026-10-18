@@ -9,12 +9,12 @@ from psycopg.errors import InvalidParameterValue
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _TOTALS_FROM: LiteralString = (
-    "from unnest(array['SETTLEMENT','DATA_KIOSK','SELBOX']::public.allocation_category[]) c(k) "
+    "from unnest(array['FINANCES','DATA_KIOSK','SELBOX']::public.allocation_category[]) c(k) "
     "cross join lateral public.financial_review_totals('2026-06-01','2026-08-01',c.k) t "
 )
 _TOTALS: LiteralString = (
-    "select month,category::text,currency,settlement_amount,data_kiosk_amount,"
-    "difference,settlement_row_count,data_kiosk_row_count "
+    "select month,category::text,currency,finances_amount,data_kiosk_amount,"
+    "difference,finances_row_count,data_kiosk_row_count "
     + _TOTALS_FROM
     + "order by month,category::text,currency"
 )
@@ -24,7 +24,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
     def test_invoker_security_and_administrator_gate_cover_records_and_summaries(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         company, _ = self.owner()
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.kiosk(1, [self.component("-10")])
         self.assertEqual(
             self.connection.execute(
@@ -70,21 +70,21 @@ class FinancialReviewAccessTests(SourceModelFixture):
     def test_categories_scope_zero_rows_precision_and_totals_agree(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         # Review includes unowned account source facts without company/fee joins.
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100.123456789"),
                 self.transaction("0", 4),
                 self.transaction("-20", 5, kind="ServiceFee", category="DATA_KIOSK")
-                | {"marketplace_name": None},
+                | {"marketplace_name": "Non-Amazon US"},
                 self.transaction("-3", 6, kind="ServiceFee", category="SELBOX")
-                | {"sku": None, "family": None, "marketplace_name": None},
+                | {"sku": None, "marketplace_name": "Non-Amazon US"},
                 self.transaction("1000", 7, activity_date="2026-08-01"),
             ]
         )
         self.kiosk(
             1,
             [
-                self.component("97.123456788", category="SETTLEMENT")
+                self.component("97.123456788", category="FINANCES")
                 | {"component_type": "NET_PRODUCT_SALES"},
                 self.component("-15.000000001"),
                 self.component("0"),
@@ -95,7 +95,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
         self.kiosk(1, [self.component("-999")], activity_date="2026-08-01")
         self.kiosk(1, [self.component("-2")], activity_date="2026-07-01")
         self.seller = "seller-two"
-        self.settlement(
+        self.finances(
             [self.transaction("-5", category="DATA_KIOSK") | {"marketplace_name": "Amazon.ca"}]
         )
         self.kiosk(1, [self.component("0", category="SELBOX") | {"sku": None}])
@@ -115,7 +115,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
             (date(2026, 6, 1), "SELBOX", "USD", -3, 0, -3, 1, 1),
             (
                 date(2026, 6, 1),
-                "SETTLEMENT",
+                "FINANCES",
                 "USD",
                 Decimal("100.123456789"),
                 Decimal("97.123456788"),
@@ -125,6 +125,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
             ),
             (date(2026, 7, 1), "DATA_KIOSK", "USD", 0, -2, 2, 0, 1),
         ]
+        expected.sort(key=lambda row: (row[0], row[1], row[2]))
         self.assertEqual(self.as_user(administrator, _TOTALS), expected)
         self.assertEqual(
             self.as_user(
@@ -133,25 +134,25 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 "count(*) filter(where marketplace_name is null),"
                 "count(distinct seller_namespace) from public.financial_review_records",
             ),
-            [(11, 3, 2, 2)],
+            [(11, 3, 0, 2)],
         )
         # Every source-specific Type sum and count rolls up to its month/category.
         self.assertEqual(
             self.as_user(
                 administrator,
                 "select t.month,t.category::text,t.currency "
-                "from unnest(array['SETTLEMENT','DATA_KIOSK','SELBOX']::"
+                "from unnest(array['FINANCES','DATA_KIOSK','SELBOX']::"
                 "public.allocation_category[]) c(k) cross join lateral "
                 "public.financial_review_totals('2026-06-01','2026-08-01',c.k) t "
                 "cross join lateral (select "
-                "coalesce(sum(amount) filter(where source='SETTLEMENT'),0) s,"
+                "coalesce(sum(amount) filter(where source='FINANCES'),0) s,"
                 "coalesce(sum(amount) filter(where source='DATA_KIOSK'),0) d,"
-                "coalesce(sum(row_count) filter(where source='SETTLEMENT'),0) sc,"
+                "coalesce(sum(row_count) filter(where source='FINANCES'),0) sc,"
                 "coalesce(sum(row_count) filter(where source='DATA_KIOSK'),0) dc "
                 "from public.financial_review_type_totals(t.month,"
                 "(t.month + interval '1 month')::date,t.category,t.currency)) a "
-                "where (t.settlement_amount,t.data_kiosk_amount,t.difference,"
-                "t.settlement_row_count,t.data_kiosk_row_count) is distinct from "
+                "where (t.finances_amount,t.data_kiosk_amount,t.difference,"
+                "t.finances_row_count,t.data_kiosk_row_count) is distinct from "
                 "(a.s,a.d,a.s-a.d,a.sc,a.dc)",
             ),
             [],
@@ -197,11 +198,11 @@ class FinancialReviewAccessTests(SourceModelFixture):
     def test_replacing_current_versions_does_not_count_retained_history(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         acquisition = self.acquisition()
-        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
-        _, new_settlement = self.settlement(
+        _, old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        _, new_finances = self.finances(
             [self.transaction("50")],
             acquisition_id=acquisition,
-            expected=old_settlement,
+            expected=old_finances,
             version="v1",
         )
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
@@ -214,11 +215,11 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 "from public.financial_review_records group by source,source_version_id "
                 "order by source",
             ),
-            [("DATA_KIOSK", new_kiosk, 1), ("SETTLEMENT", new_settlement, 1)],
+            [("DATA_KIOSK", new_kiosk, 1), ("FINANCES", new_finances, 1)],
         )
         self.assertEqual(
             self.connection.execute(
-                "select (select count(*) from private.settlement_transactions),"
+                "select (select count(*) from private.finances_transaction_components),"
                 "(select count(*) from private.data_kiosk_transactions)"
             ).fetchone(),
             (2, 2),
@@ -227,15 +228,14 @@ class FinancialReviewAccessTests(SourceModelFixture):
 
     def test_category_summaries_keep_zero_records_without_inventing_empty_categories(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
-        self.settlement(
+        self.finances(
             [
-                self.transaction("0", line, kind="ServiceFee", category="SELBOX")
-                | {"sku": None, "family": None}
+                self.transaction("0", line, kind="ServiceFee", category="SELBOX") | {"sku": None}
                 for line in (3, 4)
             ]
         )
         administrator = self.administrator()
-        for category in ("SETTLEMENT", "DATA_KIOSK"):
+        for category in ("FINANCES", "DATA_KIOSK"):
             self.assertEqual(
                 self.as_user(
                     administrator,
@@ -247,8 +247,8 @@ class FinancialReviewAccessTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select settlement_amount,data_kiosk_amount,difference,"
-                "settlement_row_count,data_kiosk_row_count "
+                "select finances_amount,data_kiosk_amount,difference,"
+                "finances_row_count,data_kiosk_row_count "
                 "from public.financial_review_totals('2026-06-01','2026-07-01','SELBOX')",
             ),
             [(0, 0, 0, 2, 0)],

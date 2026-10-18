@@ -25,10 +25,15 @@ FINANCIAL_SEED_TABLES = frozenset(
         "private.data_kiosk_preprocess_versions",
         "private.data_kiosk_pruned_versions",
         "private.data_kiosk_transactions",
-        "private.settlement_acquisitions",
-        "private.settlements",
-        "private.settlement_preprocess_versions",
-        "private.settlement_transactions",
+        "private.finances_acquisitions",
+        "private.finances_days",
+        "private.finances_preprocess_batches",
+        "private.finances_preprocess_versions",
+        "private.finances_pruned_versions",
+        "private.finances_transactions",
+        "private.finances_transaction_components",
+        "private.finances_summary_checks",
+        "private.finances_summary_check_versions",
         "public.companies",
         "public.skus",
         "public.sku_terms_versions",
@@ -61,7 +66,7 @@ def _validate_seed_schema(connection: Connection, seed: Path) -> None:
     expected: dict[str, set[str]] = {}
     for schema, table, column in connection.execute(
         "select table_schema,table_name,column_name from information_schema.columns "
-        "where table_schema in ('public','private')",
+        "where table_schema in ('public','private') and is_generated='NEVER'",
     ).fetchall():
         expected.setdefault(schema + "." + table, set()).add(column)
     with seed.open(encoding="utf-8") as source:
@@ -177,7 +182,7 @@ def source_versions(connection: Connection) -> dict[str, list[str]]:
                 sql.SQL("select distinct version_id from private.{}").format(sql.Identifier(table))
             ).fetchall()
         ]
-        for table in ("settlement_transactions", "data_kiosk_transactions")
+        for table in ("finances_transaction_components", "data_kiosk_transactions")
     }
 
 
@@ -191,5 +196,5 @@ def source_fingerprints(connection: Connection, versions: dict[str, list[str]]) 
             ).format(sql.Identifier(table)),
             (versions[table],),
         ).fetchall()[0][0]
-        for table in ("settlement_transactions", "data_kiosk_transactions")
+        for table in ("finances_transaction_components", "data_kiosk_transactions")
     }

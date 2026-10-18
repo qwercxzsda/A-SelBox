@@ -23,7 +23,7 @@ class DataKioskComponentTests(unittest.TestCase):
         self.assertEqual(
             [(row.component_type, row.amount, row.category) for row in rows],
             [
-                ("NET_PRODUCT_SALES", Numeric("20.25"), AllocationCategory.SETTLEMENT),
+                ("NET_PRODUCT_SALES", Numeric("20.25"), AllocationCategory.FINANCES),
                 ("COST_OF_GOODS_SOLD", Numeric("4.125"), AllocationCategory.ANALYSIS_ONLY),
                 ("SHIPPING_TO_AMAZON_COST", Numeric("0.625"), AllocationCategory.ANALYSIS_ONLY),
             ],
@@ -42,7 +42,7 @@ class DataKioskComponentTests(unittest.TestCase):
             "LiquidationReferralFee",
         ):
             with self.subTest(label=label):
-                self.assertEqual(classify_fee(label), AllocationCategory.SETTLEMENT)
+                self.assertEqual(classify_fee(label), AllocationCategory.FINANCES)
         self.assertEqual(classify_fee("SubscriptionFee"), AllocationCategory.SELBOX)
         for label in (
             "DisposalFee",

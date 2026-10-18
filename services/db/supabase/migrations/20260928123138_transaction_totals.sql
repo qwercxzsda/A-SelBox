@@ -16,7 +16,7 @@ language plpgsql stable security invoker
 set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 declare
-    settlement_policy_is_sufficient boolean;
+    finances_policy_is_sufficient boolean;
     kiosk_policy_is_sufficient boolean;
 begin
     perform private.validate_transaction_filters(
@@ -32,8 +32,8 @@ begin
     perform private.validate_page_bounds(p_limit, p_offset);
     -- The unchanged fact RLS already requires current versions for members.
     -- Administrators, owners, and bypass contexts still use the explicit pointer check.
-    settlement_policy_is_sufficient := private.member_policy_covers_current_version(
-        'private.settlement_transactions'::regclass
+    finances_policy_is_sufficient := private.member_policy_covers_current_version(
+        'private.finances_transaction_components'::regclass
     );
     kiosk_policy_is_sufficient := private.member_policy_covers_current_version(
         'private.data_kiosk_transactions'::regclass
@@ -44,14 +44,12 @@ begin
                 t.posted_date as activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end as component_type,
                 t.amount::numeric as reported_amount, t.category = 'SELBOX' as retained,
-                case when t.category = 'SETTLEMENT' and private.settlement_fee_applicable(
-                    t.transaction_type, t.amount_type, t.amount_description
-                ) then t.amount::numeric end as fee_base
-            from private.settlement_transactions as t
-            where t.category in ('SETTLEMENT', 'SELBOX')
+                t.fee_base::numeric as fee_base
+            from private.finances_activity_components as t
+            where t.category in ('FINANCES', 'SELBOX')
                 and t.posted_date < (select private.mature_cutoff_date())
-                and (settlement_policy_is_sufficient or exists (
-                    select 1 from private.settlements as h where h.current_version_id = t.version_id
+                and (finances_policy_is_sufficient or exists (
+                    select 1 from private.finances_days as h where h.current_version_id = t.version_id
                 ))
                 and (p_date_from is null or t.posted_date >= p_date_from)
                 and (p_date_to is null or t.posted_date <= p_date_to)
@@ -71,7 +69,7 @@ begin
                 t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
             from private.data_kiosk_transactions as t
             where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-                    and t.category in ('SETTLEMENT', 'SELBOX')))
+                    and t.category in ('FINANCES', 'SELBOX')))
                 and (kiosk_policy_is_sufficient or exists (
                     select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
                 ))
@@ -89,10 +87,10 @@ begin
                 and (p_currency is null or t.currency = p_currency)
             union all
             select null::text, t.marketplace_name, t.activity_date, t.currency,
-                case when p_group_by_type then 'SETTLEMENT_KIOSK_DIFFERENCE'::text end,
+                case when p_group_by_type then 'FINANCES_KIOSK_DIFFERENCE'::text end,
                 t.difference, true, null::numeric
             from private.live_source_reconciliation t
-            where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
+            where (t.data_kiosk_finances_control <> 0 or t.data_kiosk_category_amount <> 0)
                 and (p_date_from is null or t.activity_date >= p_date_from)
                 and (p_date_to is null or t.activity_date <= p_date_to)
                 and coalesce(cardinality(p_company_ids),0) = 0

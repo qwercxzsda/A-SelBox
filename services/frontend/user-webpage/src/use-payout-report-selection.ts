@@ -1,4 +1,4 @@
-import { useRef, type Dispatch, type SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CanonicalRow } from "./api";
 import type { Identity } from "./auth-session";
@@ -9,6 +9,7 @@ import {
   type PayoutHistoryState,
 } from "./payout-report-view";
 import { rowId } from "./view-model";
+import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 
 /** Keep report identity across list refreshes without persisting fetched financial values. */
 export function usePayoutReportSelection({
@@ -29,12 +30,15 @@ export function usePayoutReportSelection({
   restoreFocus: boolean;
 }) {
   const client = useQueryClient();
-  const returnFocus = useRef<HTMLElement | null>(null);
   const selectedLatest = rows.find((row) => rowId(row) === selectedRowId) ?? null;
   const selectedScope =
     !selectedLatest && history.selected?.reportId === selectedRowId ? history.selected : null;
   const versionQuery = useQuery(payoutVersionQueryOptions(identity, selectedScope));
   const selected = selectedLatest ?? (selectedScope ? (versionQuery.data ?? null) : null);
+  const { rememberOpener, restoreFocus: restoreSelectionFocus } = useDrawerFocusReturn({
+    opened: selected !== null,
+    enabled: restoreFocus,
+  });
   const latestOnPage = selected
     ? rows.find((row) => payoutScopeKey(row) === payoutScopeKey(selected))
     : undefined;
@@ -54,8 +58,7 @@ export function usePayoutReportSelection({
     rowId(selected) === rowId(latestForSelection);
 
   function rememberVersion(row: CanonicalRow) {
-    if (restoreFocus && !selected && document.activeElement instanceof HTMLElement)
-      returnFocus.current = document.activeElement;
+    rememberOpener();
     const selection = payoutVersionSelection(row);
     client.setQueryData(payoutVersionQueryOptions(identity, selection).queryKey, row);
     setHistory((current) => ({ ...current, selected: selection }));
@@ -70,11 +73,6 @@ export function usePayoutReportSelection({
   function selectVersion(row: CanonicalRow) {
     rememberVersion(row);
     onSelect(rowId(row));
-  }
-
-  function restoreSelectionFocus() {
-    if (returnFocus.current?.isConnected) returnFocus.current.focus();
-    returnFocus.current = null;
   }
 
   return {

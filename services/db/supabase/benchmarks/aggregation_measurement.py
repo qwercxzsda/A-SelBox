@@ -73,7 +73,7 @@ def _reference(connection: Connection, case: Case) -> list[Any]:
             raise PermissionError("SKU catalog references require an application administrator")
         rows = connection.execute(
             'select distinct sku collate "C" as value from ('
-            "select sku from private.settlement_transactions union all "
+            "select sku from private.finances_transaction_components union all "
             "select sku from private.data_kiosk_transactions union all "
             "select sku from public.skus) inventory "
             "where sku is not null order by value"
@@ -217,7 +217,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         before = catalog_fingerprint(connection)
         users = identities(connection)
         counts = connection.execute(
-            "select (select count(*) from private.settlement_transactions),"
+            "select (select count(*) from private.finances_transaction_components),"
             "(select count(*) from private.data_kiosk_transactions)"
         ).fetchone()
         if counts is None:
@@ -281,7 +281,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         )
     return {
         "database": database,
-        "settlement_facts": counts[0],
+        "finances_facts": counts[0],
         "data_kiosk_facts": counts[1],
         "repeat": repeat,
         "warmups": 1,

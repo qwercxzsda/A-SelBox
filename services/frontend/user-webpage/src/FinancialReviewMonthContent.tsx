@@ -76,7 +76,7 @@ export function FinancialReviewMonthContent({
           ) : null}
         </DetailData>
         <Text className="monthly-review-total-formula" size="sm">
-          Difference = Settlement {category === "DATA_KIOSK" ? "costs" : "amount"} − Data Kiosk{" "}
+          Difference = Finances {category === "DATA_KIOSK" ? "costs" : "amount"} − Data Kiosk{" "}
           {category === "DATA_KIOSK" ? "costs" : "amount"}. A source with no rows contributes zero
           to this comparison.
         </Text>

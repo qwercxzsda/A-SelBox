@@ -16,7 +16,7 @@ export function transactionPageParams(args) {
 
 export function sourceTransactionPageParams(args) {
   const params = sourceTransactionFilterParams(args);
-  const date = args.p_dataset === "settlement" ? "posted_date" : "activity_date";
+  const date = args.p_dataset === "finances" ? "posted_date" : "activity_date";
   params.set("limit", String(args.p_limit));
   params.set("offset", String(args.p_offset));
   const column = args.p_order_by === "amount" ? "amount" : date;
@@ -28,7 +28,7 @@ export function sourceTransactionPageParams(args) {
 }
 
 export function sourceTransactionFilterParams(args) {
-  const date = args.p_dataset === "settlement" ? "posted_date" : "activity_date";
+  const date = args.p_dataset === "finances" ? "posted_date" : "activity_date";
   const params = new URLSearchParams();
   addSearch(params, args);
   if (args.p_dataset === "data_kiosk") params.set("amount", "not.is.null");

@@ -4,7 +4,7 @@ from enum import StrEnum
 
 
 class AllocationCategory(StrEnum):
-    SETTLEMENT = "SETTLEMENT"
+    FINANCES = "FINANCES"
     SELBOX = "SELBOX"
     DATA_KIOSK = "DATA_KIOSK"
     ANALYSIS_ONLY = "ANALYSIS_ONLY"

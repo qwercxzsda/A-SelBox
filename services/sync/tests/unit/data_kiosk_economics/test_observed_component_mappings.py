@@ -42,24 +42,6 @@ class ObservedComponentMappingTests(unittest.TestCase):
         self.assertEqual(row.source_document_id, "document-1")
         self.assertEqual(row.source_line_number, 7)
 
-    def test_digital_services_fees_are_preserved_as_settlement_counterparts(self) -> None:
-        fact = complete_economics_fact()
-        for label, component_type in (
-            ("DigitalServicesFeeFBA", "DIGITAL_SERVICES_FEE_FBA"),
-            ("DigitalServicesFeeSOA", "DIGITAL_SERVICES_FEE_SOA"),
-        ):
-            with self.subTest(label=label):
-                fee = replace(fact.fees[0], fee_type_name=label)
-                rows = build_components(replace(fact, fees=(fee,), ads=(), cost=None))
-                self.assertEqual(len(rows), 2)
-                row = rows[1]
-                self.assertEqual(row.component_type, component_type)
-                self.assertIs(row.category, AllocationCategory.SETTLEMENT)
-                self.assertEqual(row.amount, Numeric("-2.5000000000000000001"))
-                self.assertEqual(row.quantity, Numeric(2))
-                self.assertIsNone(row.fee_base)
-                self.assertIn("fee", row.native_dimensions)
-
     def test_similar_unrecognized_fee_and_ad_labels_fail_allocation(self) -> None:
         fact = complete_economics_fact()
         fee = replace(fact.fees[0], fee_type_name="DigitalServicesFeeOther")

@@ -28,9 +28,9 @@ begin
     if exists (
         select 1 from (
             select t.seller_namespace,t.sku
-            from private.settlement_transactions t
-            join private.settlements s on s.current_version_id = t.version_id
-            where t.posted_date between p_month and month_end and t.category = 'SETTLEMENT'
+            from private.finances_activity_components t
+            join private.finances_days s on s.current_version_id = t.version_id
+            where t.posted_date between p_month and month_end and t.category = 'FINANCES'
                 and t.seller_namespace = any(seller_namespaces)
             union all
             select t.seller_namespace,t.sku
@@ -48,9 +48,9 @@ begin
     for scope in
         with company_sources as (
             select t.seller_namespace,t.sku,t.currency
-            from private.settlement_transactions t
-            join private.settlements s on s.current_version_id = t.version_id
-            where t.posted_date between p_month and month_end and t.category = 'SETTLEMENT'
+            from private.finances_activity_components t
+            join private.finances_days s on s.current_version_id = t.version_id
+            where t.posted_date between p_month and month_end and t.category = 'FINANCES'
                 and t.seller_namespace = any(seller_namespaces)
             union all
             select t.seller_namespace,t.sku,t.currency

@@ -40,9 +40,9 @@ class PayoutReconciliationAccessTests(SourceModelFixture):
         other_report = publish_payout(self, inputs, company_id=other_company)
         administrator = self.administrator()
         query: LiteralString = (
-            "select report_id::text,currency,settlement_category_amount,"
-            "data_kiosk_settlement_control,data_kiosk_category_amount,difference,"
-            "settlement_total,accounted_total,source_group_count "
+            "select report_id::text,currency,finances_category_amount,"
+            "data_kiosk_finances_control,data_kiosk_category_amount,difference,"
+            "finances_total,accounted_total,source_group_count "
             "from public.payout_reconciliation_totals order by report_id,currency"
         )
         expected = [

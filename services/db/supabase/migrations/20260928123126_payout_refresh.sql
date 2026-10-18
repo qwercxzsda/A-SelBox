@@ -19,11 +19,11 @@ $$;
 create function private.first_payout_source_month() returns date
 language sql stable security invoker set search_path = '' as $$
     select date_trunc('month',min(source_date))::date from (
-        select min(t.posted_date) as source_date from private.settlement_transactions t
+        select min(t.posted_date) as source_date from private.finances_activity_components t
         where isfinite(t.posted_date)
         union all
-        select min(v.settlement_start_date) from private.settlement_preprocess_versions v
-        where isfinite(v.settlement_start_date)
+        select min(d.activity_date) from private.finances_days d
+        where d.current_version_id is not null
         union all
         select min(d.activity_date) from private.data_kiosk_days d
         where d.dataset_key = 'economics' and d.current_version_id is not null

@@ -62,7 +62,7 @@ Required fee dates come from the selected current source versions:
 
 | Source | Rows requiring coverage | Effective date |
 | --- | --- | --- |
-| Settlement | Category `SETTLEMENT`, transaction type `Order` or `Refund`, amount type `ItemPrice`, description `Principal` | `posted_date` |
+| Finances | Activity-eligible category `FINANCES` components with a nonnull signed `fee_base` | Marketplace-local `posted_date` |
 | Data Kiosk | Category other than `SELBOX` with a nonnull `fee_base` | `activity_date` |
 
 Both sources contribute requirements independently of today's maturity boundary, including
@@ -156,23 +156,25 @@ failed publications.
 
 ## Live read contract
 
-A strict read selects the declared Settlement identities for mature dates and
+A strict read selects the declared Finances day identities for mature dates and
 Data Kiosk marketplace/day coverage for every date. It requires complete compatible
 source versions and applies the source policy before calculating money.
 It resolves SKU ownership independently of fee eligibility, then joins the
 selected terms version and its marketplace period covering the source activity date.
 
-Settlement commissions use only signed `Order / ItemPrice / Principal` and
-`Refund / ItemPrice / Principal`. Normal negative refunds reduce the base without
-another sign reversal. Shipping, gift wrap, taxes, promotions, and Amazon fees
-are outside this base. The posting date of each row selects its rate; report end,
-deposit, download, and preprocessing dates do not.
+Finances commissions use the signed principal components explicitly mapped to
+`PRODUCT_SALES` and `PRODUCT_REFUNDS`. Preprocessing stores their `fee_base`;
+SQL does not inspect report descriptions. Shipping, taxes, rebates and Amazon
+fees are outside this base. A normal negative refund reduces the base without
+another sign reversal. The native original activity's marketplace-local posting
+date selects its fee period. Release, bank transfer, capture and preprocessing
+dates do not select the rate.
 
 Recent Data Kiosk sales use validated `netProductSales`, preserving
 `orderedProductSales` and signed `refundedProductSales` separately for analysis. The source requires
 `net = ordered - refunded`, including negative refunds. Only the selected net component
-supplies the recent commission base; mature dates use Settlement reports. Data Kiosk
-comparisons in the Settlement category have null fee/company contributions and cannot add a
+supplies the recent commission base; mature dates use Finances activity components. Data Kiosk
+comparisons in the Finances category have null fee/company contributions and cannot add a
 second commission. Costs in the Data Kiosk category remain authoritative and have no sales commission.
 
 ```text
@@ -185,8 +187,9 @@ exact decimal arithmetic without currency rounding or a zero floor. Dashboard to
 combine rows sharing the same fee inputs before fee lookup without changing the result. At 5%,
 sales of 100 and refunds of 20 produce a fee of -4. Noncommission costs require
 ownership but no rate. Fee-eligible zero amounts still require fee coverage.
-Every ordinary Order/Refund row independently requires its explicit source
-marketplace, including noncommission rows.
+Every native Finances transaction requires its explicit validated marketplace,
+including noncommission rows. Linked release copies and transfers never create
+additional fee-bearing activity.
 
 Dashboard page queries project current terms only for SKU keys on the selected page;
 totals use keys in the already-filtered fact groups. Both retain left joins so missing ownership

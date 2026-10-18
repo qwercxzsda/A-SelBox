@@ -17,16 +17,11 @@ from services.sync.src.amazon.data_kiosk.models import (
     CompletedDataKioskQuery,
     DataKioskDocumentKind,
 )
-from services.sync.src.amazon.reports.models import DownloadedReportDocument
-from services.sync.src.archives.storage import ArchiveStorage
-from services.sync.src.settlements.acquisition import download_settlement_acquisition
 from services.sync.tests.support.archives import (
     ACQUISITION_MODULE,
-    SETTLEMENT_MODULE,
     MemoryArchiveStorage,
     download_kiosk_acquisition,
     page,
-    settlement_reference,
 )
 
 LOGGER = "services.sync.src.archives.acquisition_logging"
@@ -100,52 +95,6 @@ class AcquisitionLoggingTests(unittest.TestCase):
             {(event["bucket"], event["object_path"]) for event in retained}, set(storage.objects)
         )
         self._assert_no_publication_or_secrets(events, captured.records)
-
-    def test_settlement_publication_failure_keeps_uploaded_object_diagnostics(self) -> None:
-        publish = self._prepare_settlement()
-        publish.side_effect = RuntimeError(ERROR_MARKER)
-        storage = MemoryArchiveStorage()
-        with self.assertLogs(LOGGER, level="ERROR") as captured, self.assertRaises(RuntimeError):
-            self._download_settlement(storage)
-
-        events = self._events(captured.records)
-        failed = self._one(events, "acquisition_failed")
-        self.assertEqual(failed["stage"], "publication")
-        self.assertEqual(failed["publication_status"], "unconfirmed")
-        self.assertEqual(failed["verified_archive_count"], 1)
-        retained = self._one(events, "archive_retained")
-        self.assertEqual(retained["report_id"], "report")
-        self.assertEqual(retained["report_document_id"], "document")
-        self.assertIn((retained["bucket"], retained["object_path"]), storage.objects)
-        self._assert_no_publication_or_secrets(events, captured.records)
-        publish.assert_called_once()
-
-    def test_upload_saved_then_raised_logs_pending_location_without_verified_success(self) -> None:
-        class UnconfirmedStorage(MemoryArchiveStorage):
-            def put(self, bucket: str, object_path: str, content: bytes) -> None:
-                super().put(bucket, object_path, content)
-                raise OSError(ERROR_MARKER)
-
-        publish = self._prepare_settlement()
-        storage = UnconfirmedStorage()
-        with self.assertLogs(LOGGER, level="INFO") as captured, self.assertRaises(OSError):
-            self._download_settlement(storage)
-
-        events = self._events(captured.records)
-        started = self._one(events, "archive_upload_started")
-        failed = self._one(events, "acquisition_failed")
-        self.assertEqual(failed["stage"], "archive")
-        self.assertEqual(failed["publication_status"], "not_started")
-        self.assertEqual(failed["verified_archive_count"], 0)
-        self.assertEqual(failed["pending_archive_status"], "unconfirmed")
-        pending = cast(dict[str, object], failed["pending_archive"])
-        self.assertIsInstance(pending, dict)
-        self.assertEqual(pending["object_path"], started["object_path"])
-        self.assertIn((pending["bucket"], pending["object_path"]), storage.objects)
-        self.assertNotIn("archive_verified", [event["event"] for event in events])
-        self.assertNotIn("archive_retained", [event["event"] for event in events])
-        self._assert_no_publication_or_secrets(events, captured.records)
-        publish.assert_not_called()
 
     def test_poll_and_transfer_failures_log_query_identity_before_a_page_is_yielded(self) -> None:
         completed = CompletedDataKioskQuery(
@@ -300,28 +249,6 @@ class AcquisitionLoggingTests(unittest.TestCase):
     def _prepare_data_kiosk(self, pages: Iterator[DownloadedEconomicsPage]) -> None:
         self.enterContext(
             patch(ACQUISITION_MODULE + ".iter_economics_document_pages", return_value=pages)
-        )
-
-    def _prepare_settlement(self) -> Mock:
-        self.enterContext(
-            patch(
-                SETTLEMENT_MODULE + ".download_report_document",
-                return_value=DownloadedReportDocument(b"source", None),
-            )
-        )
-        return self.enterContext(
-            patch(SETTLEMENT_MODULE + ".persist_settlement_acquisition", return_value="saved-id")
-        )
-
-    @staticmethod
-    def _download_settlement(storage: ArchiveStorage) -> str:
-        return download_settlement_acquisition(
-            Mock(),
-            Mock(),
-            storage,
-            settlement_reference(),
-            amazon_scope="NA",
-            seller_namespace="seller",
         )
 
     @staticmethod

@@ -1,332 +1,212 @@
 # Known issues
 
-The [workflow contract](data_workflows.md) and [company-fee contract](company_fees.md) describe
-implemented behavior. This register records current limitations, their operating assumptions, and
-conditions for revisiting them. Remove completed fixes from this register; current behavior belongs
-in the implementation guides.
-
-## Classification vocabulary
-
-Use exactly these status names in the issue index and future status updates.
-
-| Status                    | Meaning                                                                                                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Unresolved**            | Investigation, a decision, or corrective work remains open; no acceptance or explicit postponement has been recorded.                                        |
-| **Postponed**             | Reviewed and deliberately deferred until a stated phase or evidence trigger.                                                                                 |
-| **Accepted**              | Reviewed and deliberately retained under a stated policy or operating assumption; no corrective change is planned while that condition holds.                |
-| **Documented limitation** | A boundary of the current architecture, source evidence, tooling, or verification. This status does not imply a defect, acceptance decision, or planned fix. |
-
-Each issue has one status. Acceptance retains a condition under its stated policy or operating
-assumption; revisit it if that condition changes. Postponement requires a reason and a revisit
-trigger. Neither status establishes the cause of a discrepancy or guarantees source correctness.
+The [workflow](data_workflows.md), [Finances implementation](finances_transactions.md)
+and [source allocation policy](source_allocation.md) describe current behavior.
+This register records remaining limitations and explicit deferred decisions.
+Historical investigation files preserve earlier measurements; they do not define
+the current production inputs.
 
 ## Issue index
 
-| Issue                                                                                               | Status                |
-| --------------------------------------------------------------------------------------------------- | --------------------- |
-| [Retrocharge validation](#retrocharge-validation)                                                   | Postponed             |
-| [Refund commission over-credit](#deferred-refund-commission-over-credit-risk)                       | Postponed             |
-| [Company payout workflow](#company-payout-workflow)                                                 | Postponed             |
-| [Reviewed Settlement amounts retained by SelBox](#reviewed-settlement-amounts-retained-by-selbox) | Accepted              |
-| [Archive bucket visibility race](#archive-bucket-visibility-race)                                   | Accepted              |
-| [Marketplace routing configuration race](#marketplace-routing-configuration-race)                   | Accepted              |
-| [Data Kiosk disposal discrepancy](#data-kiosk-disposal-discrepancy)                                 | Accepted |
-| [Out-of-period Settlement postings](#out-of-period-settlement-postings)                             | Accepted              |
-| [Trailing-omission parsing assumption](#trailing-omission-parsing-assumption)                       | Accepted              |
-| [Data Kiosk completeness and finality](#data-kiosk-completeness-and-finality)                       | Documented limitation |
-| [Nullable Data Kiosk list entries](#nullable-data-kiosk-list-entries)                               | Documented limitation |
-| [Empty Sellers response and SDK decoding](#empty-sellers-response-and-sdk-decoding)                 | Documented limitation |
-| [Source publication ordering across workers](#source-publication-ordering-across-workers)           | Documented limitation |
-| [Live calculation query scope](#live-calculation-query-scope)                                       | Documented limitation |
-| [Storage and database publication](#storage-and-database-publication)                               | Documented limitation |
-| [Manual operational tooling](#manual-operational-tooling)                                           | Documented limitation |
-| [Deployment and verification scope](#deployment-and-verification-scope)                             | Documented limitation |
-
-## Postponed
-
-### Retrocharge validation
-
-**Reason: insufficient concrete Amazon evidence.**
-
-[`validate_retrocharge_groups`](../services/sync/src/settlement_preprocess/retrocharges.py) requires
-exactly one tax and one withholding row for each nonzero principal/shipping component group, plus exact zero
-net for the whole event. The reviewed exception is a lone `ItemPrice / ShippingTax` row whose amount
-is exactly zero. Two archived US reports reviewed on October 1, 2026 contain this row alongside a
-complete, balanced principal tax/withholding pair. The zero source row is retained, and reviewed
-event coverage remains mandatory. Duplicate zero rows and other unpaired components still fail.
-For example, a synthetic same-event group containing `Tax +3`,
-`MarketplaceFacilitatorTax-Principal -1`, and `MarketplaceFacilitatorVAT-Principal -2` has complete
-coverage and zero net but is rejected as ambiguous.
-
-**Revisit when a concrete Amazon SP-API example establishes a supported source pattern rejected by
-these checks.** Keep the existing Python preprocessing checks unchanged. If preprocessing fails,
-retain the archived input, review the evidence, revise the rule when justified, and rerun
-preprocessing. General seller-remitted tax behavior alone does not establish a nonzero retrocharge
-example or its accounting treatment.
-
-Reviewed complete source coverage remains required. Unidentified, incomplete, or cross-report groups
-cannot be admitted merely because an available subset nets to zero. This postponement is not a claim
-that Amazon universally guarantees zero-net retrocharges. The
-[classification audit](evidence/settlement_classification_audit_2026-09-08.md) records the observed
-zero-net groups and limits of their coverage.
-
-The v2 preprocessing rule requires each matched principal and shipping pair to net to zero
-independently, as well as the complete event. Opposing component imbalances cannot cancel.
-
-### Deferred refund commission over-credit risk
-
-**Reason and revisit phase: a separate decision on refund commission policy.**
-
-Live fees use each refund's own posting-date rate. A USD 100 sale at 5% charges USD 5; a later full
-refund at 7% credits USD 7. Together they return USD 2 more commission than was charged. This is an
-arithmetic example, not a measured loss in the archived Amazon reports.
-
-Both live reads and frozen payout reports use this signed calculation without matching the original
-sale's commission. The [source and payout policy](source_allocation.md) retains this formula pending
-the separate refund-policy decision.
-
-### Company payout workflow
-
-**Reason and revisit phase: payout approval and payment workflow.**
-
-[Monthly payout snapshots](company_payout_reports.md), scheduled generation, and
-members' own-company access are implemented. Approval, payment execution, adjustments,
-negative-balance handling, and currency rounding remain decisions for the payment workflow.
-Saved reports preserve a calculation; they do not establish an approved or paid amount.
-
-A [zero aggregate](company_payout_reports.md#empty-aggregates) can reflect incomplete
-upstream acquisition or preprocessing. It does not certify inactivity. Reports are
-generated automatically when eligible inputs change; later source arrival can produce
-a new snapshot while preserving the earlier saved result.
-
-## Accepted
-
-### Reviewed Settlement amounts retained by SelBox
-
-The registry explicitly defines all accepted Settlement types, including reviewed `SELBOX`
-charges. Preserve their source SKU and signed amount without asserting that every retained
-transaction is an operating expense. Unknown types reject the complete report before publication;
-there is no automatic retained category.
-
-EPR charges, generic `Fee Adjustment`, Vine enrollment, advertiser refunds, and inbound defect fees
-currently have no approved settlement cost rule. Their Data Kiosk representation remains unverified;
-ordinary storage evidence does not justify a universal interpretation of generic adjustments. These
-reviewed types remain explicitly retained, rather than being mapped to company costs. The
-[EPR and adjustment investigation](evidence/data_kiosk_epr_and_adjustment_coverage_2026-09-13.md)
-records the checked responses and why they do not establish individual cost coverage.
-
-Approved Data Kiosk costs supply company amounts at every age, independently of an individual
-Settlement match. The registry controls both sources: unknown monetary components abort
-preprocessing, and missing required source coverage blocks authoritative totals. See the
-[explicit rules](settlement_component_categories.md).
-
-### Data Kiosk disposal discrepancy
-
-**Decision: use Data Kiosk costs and retain their difference from Settlement controls with SelBox.**
-
-Amazon's raw Data Kiosk disposal costs can differ from Settlement deductions, even
-after fresh queries. The internal cause remains unconfirmed. The
-[disposal investigation](evidence/data_kiosk_disposal_discrepancy_2026-09-07.md) retains
-the measured amounts and controls as historical evidence.
-
-The [source policy](source_allocation.md) preserves costs in the Data Kiosk category and SelBox
-variance. For mature dates it records Settlement report controls minus Data Kiosk amounts in
-that category per day/marketplace/seller/currency, so the complete account ledger reconciles
-to Settlement. Recent dates use only Data Kiosk. FBA and Finances are not inputs.
-
-The [October reconciliation investigation](evidence/reconciliation_refresh_2026-10-01.md)
-separates this accepted disposal discrepancy from missing imports and advertising differences.
-Payout validation checks supplied Settlement versions but does not establish complete Settlement
-discovery or acquisition. A missing Settlement counterpart is currently treated as zero, so a
-successful report generation or an exact account-ledger identity does not prove source completeness.
-Explicit Settlement coverage evidence remains needed; complete Data Kiosk days alone are insufficient.
-
-### Archive bucket visibility race
-
-**Decision: retain the existing checks under the assumption that trusted administration keeps bucket
-visibility stable during operations.**
-
-[`SupabaseArchiveStorage.put`](../services/sync/src/archives/storage.py) checks the bucket's private
-flag in one HTTP request, then uploads in another. A privileged concurrent change making the bucket
-public between those requests permits an upload before the later read-back check fails.
-
-Normal commands do not change bucket visibility. Repeated checks cannot make the requests atomic.
-Revisit if mutable visibility must be supported, using control over visibility changes or a
-transactional Storage capability.
-
-### Marketplace routing configuration race
-
-**Decision: retain the existing checks under the assumption that trusted configuration management
-keeps process-global routing stable during client construction.**
-
-[`create_explicit_sp_api_client`](../services/sync/src/amazon/client.py) checks
-`SP_API_DEFAULT_MARKETPLACE` before constructing the SDK client. The installed SDK reads that
-process-global variable again in its constructor. A concurrent in-process change can therefore route
-the client to another marketplace after the explicit routing check.
-
-Normal commands do not make this change. Revisit if mutable process-global routing must be
-supported. A lock around only this helper cannot synchronize arbitrary writers; support would need a
-defined configuration policy or verified SDK routing boundary.
-
-### Out-of-period Settlement postings
-
-**Decision: preserve valid postings in their original Settlement with diagnostics.**
-
-Settlement rows can carry posting timestamps outside their report's header period. The
-implementation preserves valid out-of-period timestamps and dates while requiring exact report
-reconciliation. Malformed or contradictory dates still fail. Consumers cannot assume every posting
-lies inside the report's header period. The
-[classification audit](evidence/settlement_classification_audit_2026-09-08.md) records reserve
-postings after their report's end timestamp.
-
-### Trailing-omission parsing assumption
-
-**Decision: normalize permitted optional trailing omissions and retain diagnostics.**
-
-Optional trailing omissions are normalized with source-width diagnostics; supplied interior cells
-stay in place and missing required values still fail. The
-[parsing contract](data_workflows.md#trailing-empty-fields) defines the permitted suffix for each
-row role. The
-[trailing-column investigation](evidence/settlement_trailing_columns_investigation_2026-09-11.md)
-records the shortened source rows supporting this convention.
-
-The accepted assumption is that these omissions belong to the optional trailing suffix. A plausible
-row and exact monetary reconciliation cannot prove that an interior delimiter was never lost.
-Revisit if a concrete source example contradicts the trailing-omission convention.
-
-## Documented limitation
-
-### Data Kiosk completeness and finality
-
-Three equal independent Data Kiosk observations are diagnostic evidence, not financial finality. A
-reprocessing rerun is not another Amazon observation. Matching observations do not establish
-universal source coverage or prevent later Amazon revisions.
-
-The [October 2 Financial review investigation](evidence/financial_review_differences_2026-10-02.md)
-provides a concrete example: Swedish July Economics repeatedly returns zero fulfillment fees and
-no referral charges, while Settlement and Finances agree on the charged amounts. Complete daily
-captures and stable historical values do not establish complete fee representation. The same
-investigation separates this source discrepancy from verified posting and month-boundary timing;
-the existing dates and source policy remain unchanged.
-
-The [Data Kiosk category payout audit](evidence/data_kiosk_payout_impact_2026-10-02.md)
-isolates payout-relevant costs. Fresh German transportation queries return an additional amount at
-child-ASIN level that is missing from the SKU output used by company reports. Amount arithmetic
-and complete daily captures cannot detect such missing SKU allocations. The audit records direct
-saved-report exposure and distinguishes source discrepancies from verified later charges; it does
-not change the approved source policy or automatically redistribute account-level differences.
-
-Unsupported monetary components, uncertain component overlap, and incomplete requested day coverage
-fail the affected selection. Keep explicit business coverage and the source-selection checks;
-numerical agreement cannot replace them. See the [workflow contract](data_workflows.md).
-
-### Nullable Data Kiosk list entries
-
-The
-[Amazon Economics schema](https://github.com/amzn/selling-partner-api-models/blob/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql)
-allows null entries inside `ads`, `fees`, `charges`, `components`, and `properties` lists. The
-normalizer requires each supplied entry to be an object, so a response containing such an entry can
-be archived but fails preprocessing.
-
-Keep the current rejection until concrete source evidence establishes how to interpret these
-entries. Skipping an unknown charge could understate costs; neither silently omitting it nor
-inventing a zero amount is justified. A supported null collection and an empty collection already
-retain their distinct meanings.
-
-### Empty Sellers response and SDK decoding
-
-The official Sellers model permits an empty participation list. The installed `python-amazon-sp-api`
-2.1.20 response constructor uses `payload or kwargs`, which turns a valid empty list into an empty
-mapping before our parser sees it. `fetch_marketplace_participations()` therefore rejects this
-response with `SellersParticipationResponseError` rather than returning no marketplaces.
-
-The same SDK conversion can produce an empty mapping for a missing or malformed payload, so
-accepting every mapping as an empty list would hide invalid responses. Keep the current rejection
-until an explicit SDK or response-adapter change can preserve the original distinction.
-
-### Source publication ordering across workers
-
-Settlement replacements and reprocessing of one Data Kiosk observation require a greater result UUID
-in addition to a matching expected-current reference. `uuid.uuid7()` is monotonic within one Python
-process; it does not establish ordering across independent generators or clocks.
-
-A lower UUID fails publication with SQLSTATE `23514` even when the expected-current reference
-matches, preserving the old selection. Clock skew or competing workers can therefore reject an
-otherwise current edit. There is no cross-worker clock policy or automatic retry. Company terms use
-an identity-locked revision counter instead.
-
-### Live calculation query scope
-
-Live reads use relational current-source joins, selected terms evaluated once per query, and
-caller-bound source authorization. Date and SKU filters can reach source facts. Date and
-reported-amount page requests, including text search, select the visible page before calculating its
-fees. Search matches visible text through frontend-resolved exact value sets; fee status and
-versions are excluded. Amount
-ordering is limited to 10,000 fully filtered, authorized matches; a 10,001-row probe rejects larger
-scopes before sorting. The [query contract](transaction_query_contracts.md) defines supported
-ordering, filters, and result shapes.
-
-The frontend renders rows before requesting their exact count. Financial counts are reused across
-page and sort changes until a relevant source or fee revision invalidates them. Payout counts remain
-cached until their publication revision changes; account counts have 30-second freshness.
-This reduces repeat work and often improves first-row latency, but a
-cold page and separate count can consume more database time than a combined request.
-
-Summary cards discover the latest transaction date and aggregate only the requested day, month, or
-selected DATE range through dedicated RPCs. Compatible facts are combined before resolving fees;
-Source, Marketplace, and Type options come from static catalogs. Member SKU options reuse
-loaded assignments. Administrator SKU catalogs are preloaded from source history and registrations,
-then reused by menus and table search. Search text is resolved on the frontend to exact OR sets;
-Currency is excluded. Empty matches avoid a source scan, while broad matching sets, full-period
-totals, and exact counts can still process many rows under RLS. No substring index is required.
-Explicit continuation markers protect against response caps, but multiple pages are live estimates
-and do not share an atomic database snapshot.
-
-Synthetic larger-data checks and short concurrent-read bursts do not establish sustained production
-capacity, storage locality, or a latency bound. Monitor real query plans and timings as the workload
-grows. The [performance guide](database_performance.md) records the current design, measurements,
-and possible responses to those costs.
-
-### Storage and database publication
-
-Storage uploads and PostgreSQL publication do not share a transaction. A failed publication may
-leave an unreferenced archive object for reconciliation; it must never create a successful
-acquisition with missing files.
-
-Retention removes only eligible complete Data Kiosk result payloads, preserving audit headers,
-current versions, pinned evidence, and every successful archive and acquisition. Increasing a
-retention limit does not restore already-pruned payloads; retained archives can be explicitly
-reprocessed. See the
-[database guide](../services/db/supabase/README.md#observation-comparison-and-retention).
-
-### Manual operational tooling
-
-Source acquisition and preprocessing failures remain in Python logs, and failed database
-publications roll back. The service does not automatically retry those operations. Administrators
-manage member access and publish complete terms through REST and the administration UI. Monthly payout reports use the
-automatic database worker, which processes pending company/months and retries failures with backoff.
-Payment approval and execution are not implemented. Payout dependencies are immutable and have
-no independent pin-update interface.
-
-These are current tooling boundaries, not recorded decisions to implement retries or another
-administration interface. See the
-[database guide](../services/db/supabase/README.md#observation-comparison-and-retention).
-
-### Deployment and verification scope
-
-The [local verification suites](../services/db/supabase/README.md#verification) install the baseline
-in disposable PostgreSQL databases and exercise local Supabase Storage, Auth, and PostgREST. They
-cover source publication, financial calculations, tenant permissions, frozen payouts, and concurrent
-publication and retention using synthetic Amazon documents.
-
-The [full-seed configuration verifier](../services/db/supabase/README.md#full-seed-configuration-verification)
-restores a current-schema fixture into a disposable Supabase stack and tests its configuration
-through actual Auth and PostgREST, including atomic writes and member restrictions. Independent
-source-authority and reconciliation checks complement those API checks. Verification preserves the
-supplied seed file and source facts; archive replay remains a separate check.
-The [recorded fixture run](evidence/global_sku_identity/configuration_seed.json) passed with
-complete settings for 63 global SKUs and preserved all 103,244 source facts.
-
-The fixture uses synthetic assignments and fees, with one owner per exact SKU and compatible fee
-periods. These checks do not establish real business assignments, approved rates,
-universal Amazon payload support, country coverage, financial finality, or production capacity.
+| Issue | Status |
+| --- | --- |
+| [Refund commission over-credit](#deferred-refund-commission-over-credit-risk) | Postponed |
+| [Company payout workflow](#company-payout-workflow) | Postponed |
+| [Advertising attribution](#advertising-attribution) | Postponed pending Ads API access |
+| [Data Kiosk source discrepancies](#data-kiosk-source-discrepancies) | Postponed; current source policy retained |
+| [Finances observation boundaries](#finances-observation-boundaries) | Documented limitation |
+| [Native SKU identity](#native-sku-identity) | Documented limitation |
+| [Source vocabulary](#source-vocabulary) | Documented limitation |
+| [Archive bucket visibility race](#archive-bucket-visibility-race) | Accepted operational assumption |
+| [Marketplace routing configuration race](#marketplace-routing-configuration-race) | Accepted operational assumption |
+| [Data Kiosk completeness and finality](#data-kiosk-completeness-and-finality) | Documented limitation |
+| [Nullable Data Kiosk list entries](#nullable-data-kiosk-list-entries) | Documented limitation |
+| [Empty Sellers response and SDK decoding](#empty-sellers-response-and-sdk-decoding) | Documented limitation |
+| [Source publication ordering](#source-publication-ordering-across-workers) | Documented limitation |
+| [Live calculation query scope](#live-calculation-query-scope) | Documented limitation |
+| [Storage and database publication](#storage-and-database-publication) | Documented limitation |
+| [Operational tooling](#manual-operational-tooling) | Documented limitation |
+| [Deployment and verification scope](#deployment-and-verification-scope) | Documented limitation |
+
+## Deferred refund commission over-credit risk
+
+Live fees use each refund's own activity-date rate. A USD 100 sale at 5% charges
+USD 5; a full refund at 7% credits USD 7. The example returns USD 2 more commission
+than was charged. It is an arithmetic consequence, not a measured loss.
+
+Live reads and frozen reports preserve this formula. Matching a refund to the
+original sale's commission requires a separate refund-policy decision.
+
+## Company payout workflow
+
+Automatic immutable monthly reports and member access are implemented. Approval,
+payment execution, adjustments, negative-balance handling and currency rounding
+remain outside the calculation workflow. A saved report does not prove payment.
+An explicitly empty company with no identified source scope does not certify
+upstream inactivity. Source arrival can generate a later immutable report.
+
+## Advertising attribution
+
+Finances/Summary agreement checks charged advertising amounts at account level.
+It does not establish why Data Kiosk's Sponsored Products attribution differs.
+The detailed advertising investigation remains deferred until Ads API access
+is available. No account-level residual is redistributed to company SKUs.
+
+## Data Kiosk source discrepancies
+
+On October 18, 2026, the user postponed addressing these SKU cost-allocation discrepancies.
+Independent allocation replacements and corrections remain deferred; the investigation and
+supporting evidence are retained for later work.
+
+The accepted policy continues to use Data Kiosk costs for company allocation.
+Finances supplies independent account controls, and their difference stays with
+SelBox. Disposal, inbound placement/transportation and promotion investigations
+have identified source discrepancies that repeated complete captures alone do
+not repair. Advertising has a separate scope/access investigation above.
+
+A zero Finances/`listSummary` difference establishes agreement between those
+account inputs. It does not establish correct Data Kiosk SKU attribution. The
+[Data Kiosk payout audit](evidence/data_kiosk_payout_impact_2026-10-02.md) retains
+the measured exposure and conditions; changing the financial source does not
+apply its suggested company cost corrections automatically.
+
+The [expanded comparison](evidence/expanded_source_comparison_2026-10-17.md)
+matches operational records to native billing: US September includes
+USD 430.44 of excess allocation, and Australia's January–October 15 disposal
+excess is AUD 23.56. Japan's disposal gap instead resolves through later billing.
+German January–September transport costs retain EUR 527.2307 of unallocated
+shipment costs, plus EUR 0.0003 of precision difference. These are specific
+observed cohorts, not a universal row-deduplication or cost-allocation rule.
+
+The [independent allocation investigation](evidence/sku_cost_allocation_feasibility_2026-10-18.md)
+identifies removal and aged-storage reports with direct SKU amounts, and distinguishes those
+from transport approximations and unresolved shared costs. Amazon documents that storage
+amounts can repeat across MSKUs sharing an FNSKU; SKU-grain output is not always an additive
+partition of the account charge. No replacement allocation policy has been applied.
+
+## Finances observation boundaries
+
+Complete pagination is not a shared atomic Amazon snapshot. New records or status
+changes can appear on a later request for the same posting period. Requests use
+posting dates, not modification dates. Original/release links must identify each
+activity contribution; statuses alone are insufficient. Missing or conflicting
+required identity/linkage information fails preprocessing instead of guessing.
+
+Finances pages and Summary responses have no common snapshot token. A valid
+complete day can be stored while Summary is unavailable or mismatched; new
+payouts require matching controls for their exact selected versions. Refreshing
+or investigating inputs is necessary to resolve a mismatch. No balancing amount
+is inserted. Matching observations do not prove permanent finality.
+
+Historical access is finite. Retain raw captures independently of Amazon's
+retrieval window, including data needed to reproduce saved reports. See the
+[API and refresh contract](finances_transactions.md).
+
+## Native SKU identity
+
+Allocation uses exact native product SKU strings. Missing SKUs are never inferred
+from currency, an order total or an account residual. A nonempty native product
+identifier does not by itself prove it is the merchant SKU used by another
+source; liquidations can expose FNSKU-like identifiers. Such identities require
+reviewed mapping or explicit configuration. Raw native parent context remains
+archived, and unresolved ownership blocks company payout publication.
+
+## Source vocabulary
+
+The [registry](transaction_type_registry.md) admits reviewed native transaction
+paths. New paths fail the complete preprocessing publication, preserving the
+archive and previous current versions. Unsupported future responses or rare
+families are not accepted through a generic charge or adjustment fallback.
+A successful tested month does not establish universal future payload support.
+
+## Archive bucket visibility race
+
+The archive service checks that its bucket is private before upload and verifies
+it afterward. A privileged visibility change between HTTP requests is not atomic
+with the upload. Normal commands do not change visibility. The operating assumption
+is that trusted administration keeps it stable during acquisition.
+
+## Marketplace routing configuration race
+
+The explicit SP-API client checks process-global routing configuration before
+SDK construction. Concurrent mutation of that environment variable could race the
+SDK's own read. Normal commands do not mutate it; trusted configuration management
+must keep routing stable during a process.
+
+## Data Kiosk completeness and finality
+
+Three equal independent observations are diagnostic evidence, not financial
+finality. Reprocessing one capture is not another Amazon observation. Known
+Data Kiosk omissions and SKU allocation discrepancies can remain stable across
+fresh queries and differ by grouping grain. Complete days, valid arithmetic and
+source agreement on unrelated categories do not prove company cost correctness.
+The current policy does not substitute ASIN-level amounts or distribute residuals
+without an explicit allocation decision.
+
+Historical completeness can also regress: repeating Japan's exact June–October
+query restored JPY 272,415 of July fees missing from the October 3 capture, while
+older Swedish ordinary fee omissions persist. Raw Data Kiosk net proceeds changed
+with Japan's missing fees; valid internal arithmetic alone did not detect them.
+See the [dated source controls](evidence/expanded_source_comparison_2026-10-17.md).
+
+## Nullable Data Kiosk list entries
+
+The Amazon Economics schema permits null entries in several collections.
+Preprocessing requires each supplied monetary list entry to be an object. Such
+responses remain archived but fail preprocessing until evidence establishes a
+safe interpretation. An unknown amount is not silently skipped or invented as zero.
+
+## Empty Sellers response and SDK decoding
+
+The installed SDK can turn a valid empty participation list into an empty mapping,
+which is also compatible with malformed responses. Participation discovery rejects
+that ambiguous representation. It does not infer that the seller has no stores.
+An SDK or response-adapter change must preserve the distinction before relaxing it.
+
+## Source publication ordering across workers
+
+Finances observation ordering uses capture start and acquisition identity; Data
+Kiosk uses query creation and acquisition identity. Reprocessing the same source
+observation requires a greater result UUID plus a matching expected-current
+reference. Python UUIDv7 is monotonic within one process, not a cross-worker clock.
+A stale or lower local version fails instead of overwriting a newer selection.
+Company terms use a locked revision counter. Trusted workers must keep clocks and
+capture serialization consistent.
+
+## Live calculation query scope
+
+Date/SKU filters restrict source facts before aggregation and fee lookup. Exact
+counts and broad period totals can still process many authorized rows. Reported
+amount ordering is limited to 10,000 matching rows; date ordering remains available
+for larger scopes. Browser count/catalog caches reduce repeated requests but do
+not replace request-time authorization.
+
+Separate live page requests do not share an atomic database snapshot. Benchmarks
+and short concurrent bursts do not establish sustained production capacity.
+See [query contracts](transaction_query_contracts.md) and
+[database performance](database_performance.md).
+
+## Storage and database publication
+
+Object upload and PostgreSQL publication do not share a transaction. A failed
+publication can leave an archived object without a successful acquisition header.
+Preserve it for investigation; do not infer that an uploaded object changed current
+financial facts. Publication of complete day versions and their pointers is atomic.
+
+## Manual operational tooling
+
+The payout worker handles pending calculations and retry backoff. It does not
+download new Amazon data. Acquisition and offline preprocessing have separate
+commands and logs; their successful publication enqueues affected payout months.
+Source failures preserve prior current selections and captured evidence.
+
+## Deployment and verification scope
+
+Disposable PostgreSQL and Supabase tests cover native source publication, account
+and company access, frozen calculations, lifecycle exclusion, Summary gates,
+concurrency and retention. The [verification evidence index](evidence/README.md)
+distinguishes live API captures from synthetic edge cases and archived replays.
+
+Synthetic owners and fee rates are test configuration, not approved business
+assignments. These checks do not prove universal source support, financial
+finality, production capacity, or that a payment was approved or executed.

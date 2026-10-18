@@ -17,10 +17,10 @@ class SearchResolutionTests(unittest.TestCase):
 
     def test_member_catalog_includes_non_selbox_types_from_both_sources(self) -> None:
         storage = cast(list[str], self.resolve("member", "  sToRaGe  ")["p_search_types"])
-        # Settlement DATA_KIOSK-category keys remain menu/search choices even
+        # Finances DATA_KIOSK-category keys remain menu/search choices even
         # when existing fact RLS means they produce no company transaction rows.
-        self.assertIn("FBAFees/FBA Long Term Storage Fee/Base fee", storage)
-        self.assertIn("other-transaction/other-transaction/StorageRenewalBilling", storage)
+        self.assertIn("AGED_STORAGE_FEES", storage)
+        self.assertIn("STORAGE_FEES", storage)
         self.assertIn("FBA_STORAGE_FEE", storage)
         self.assertEqual(
             self.resolve("member", "cost_of_goods")["p_search_types"],
@@ -28,14 +28,14 @@ class SearchResolutionTests(unittest.TestCase):
         )
 
     def test_member_catalog_excludes_selbox_types_in_every_dataset(self) -> None:
-        settlement_type = "other-transaction/other-transaction/Subscription Fee"
+        finances_type = "SUBSCRIPTION_FEES"
         kiosk_type = "SUBSCRIPTION_FEE"
         for role, dataset, expected in (
             ("member", "live", []),
-            ("member", "settlement", []),
+            ("member", "finances", []),
             ("member", "data_kiosk", []),
-            ("administrator", "live", sorted([settlement_type, kiosk_type])),
-            ("administrator", "settlement", [settlement_type]),
+            ("administrator", "live", sorted([finances_type, kiosk_type])),
+            ("administrator", "finances", [finances_type]),
             ("administrator", "data_kiosk", [kiosk_type]),
         ):
             with self.subTest(role=role, dataset=dataset):

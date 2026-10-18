@@ -30,17 +30,17 @@ class AmountOrderingScopeTests(SourceModelFixture):
             self.member(other_company),
             self.administrator(),
         )
-        settlement_rows = [self.transaction(str(i), i + 2) for i in range(1, 10001)]
-        settlement_rows.append(
+        finances_rows = [self.transaction(str(i), i + 2) for i in range(1, 10001)]
+        finances_rows.append(
             self.transaction("10001", 10003, sku="OTHER") | {"component_type": "FOCUS"}
         )
         kiosk_rows = [self.component(str(i)) for i in range(10000)]
         kiosk_rows.append(self.component("10001", sku="OTHER") | {"component_type": "FOCUS"})
-        self.settlement(settlement_rows)
+        self.finances(finances_rows)
         self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
 
         for dataset, direction, include_count in product(
-            ("settlement", "data_kiosk"), ("asc", "desc"), (False, True)
+            ("finances", "data_kiosk"), ("asc", "desc"), (False, True)
         ):
             with self.subTest(dataset=dataset, direction=direction, include_count=include_count):
                 options = {
@@ -81,7 +81,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
                 tail = self.source_page(member, dataset, p_offset=9999, **options)
                 self.assertEqual(len(cast(list[object], tail["rows"])), 1)
 
-        for dataset in ("settlement", "data_kiosk"):
+        for dataset in ("finances", "data_kiosk"):
             source = dataset.upper()
             filters: tuple[dict[str, object], ...] = (
                 {"p_skus": ["OTHER"]},

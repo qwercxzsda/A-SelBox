@@ -11,7 +11,7 @@ from uuid import uuid7
 from services.db.supabase.tests.e2e.fixtures import (
     START,
     archived_data_kiosk,
-    archived_settlement,
+    archived_finances,
     company_with_fees,
     fixture_sku,
 )
@@ -19,10 +19,10 @@ from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_settlement_acquisition,
+    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import create_company
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 
 class AppAccessTests(LocalWorkflowCase):
@@ -113,13 +113,13 @@ class AppAccessTests(LocalWorkflowCase):
         _, other_member = self.create_member(other)
         _, administrator = self.create_administrator()
         for seller in (self.seller, self.seller + "-second"):
-            settlement = persist_settlement_acquisition(
-                self.database, archived_settlement(self.storage, seller, sku=sku)
+            finances = persist_finances_acquisition(
+                self.database, archived_finances(self.storage, seller, sku=sku)
             )
             kiosk = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)
             )
-            preprocess_settlement_acquisition(self.database, self.storage, settlement)
+            preprocess_finances_acquisition(self.database, self.storage, finances)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         assignments = self.read_rows("company_skus", member)
         self.assertEqual(len(assignments), 1)
@@ -184,10 +184,10 @@ class AppAccessTests(LocalWorkflowCase):
         first = company_with_fees(self.database, self.seller)
         second = company_with_fees(self.database, self.seller + "-second")
         for seller in (self.seller, self.seller + "-second"):
-            acquisition = persist_settlement_acquisition(
-                self.database, archived_settlement(self.storage, seller)
+            acquisition = persist_finances_acquisition(
+                self.database, archived_finances(self.storage, seller)
             )
-            preprocess_settlement_acquisition(self.database, self.storage, acquisition)
+            preprocess_finances_acquisition(self.database, self.storage, acquisition)
         administrator_id, administrator_token = self.create_administrator()
         user_id, member_token = self.create_auth_user()
         self.assertEqual(
@@ -208,7 +208,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(
             {
                 row["seller_namespace"]
-                for row in self.read_rows("settlement_preprocess_entries", member_token)
+                for row in self.read_rows("finances_preprocess_entries", member_token)
             },
             {self.seller},
         )
@@ -228,7 +228,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(
             {
                 row["seller_namespace"]
-                for row in self.read_rows("settlement_preprocess_entries", member_token)
+                for row in self.read_rows("finances_preprocess_entries", member_token)
             },
             {self.seller + "-second"},
         )
@@ -244,7 +244,7 @@ class AppAccessTests(LocalWorkflowCase):
             "company_skus",
             "companies",
             "live_company_components",
-            "settlement_preprocess_entries",
+            "finances_preprocess_entries",
         ):
             self.assertEqual(self.read_rows(relation, member_token), [])
         # Removing app access leaves the existing Auth identity and session intact.
@@ -454,17 +454,17 @@ class AppAccessTests(LocalWorkflowCase):
         company = company_with_fees(self.database, self.seller)
         _, administrator_token = self.create_administrator()
         _, member_token = self.create_member(company)
-        settlement = persist_settlement_acquisition(
-            self.database, archived_settlement(self.storage, self.seller)
+        finances = persist_finances_acquisition(
+            self.database, archived_finances(self.storage, self.seller)
         )
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, self.seller)
         )
         for _ in range(2):
-            preprocess_settlement_acquisition(self.database, self.storage, settlement)
+            preprocess_finances_acquisition(self.database, self.storage, finances)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         for relation, count, current_count in (
-            ("settlement_preprocess_results", 2, 1),
+            ("finances_preprocess_results", 4, 2),
             ("data_kiosk_preprocess_results", 4, 2),
         ):
             rows = self.read_rows(
@@ -481,7 +481,7 @@ class AppAccessTests(LocalWorkflowCase):
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
         for relation, administrator_count, member_count in (
-            ("settlement_preprocess_entries", 6, 2),
+            ("finances_preprocess_entries", 6, 2),
             # Each day also retains its zero net-sales comparison component.
             ("data_kiosk_preprocess_entries", 8, 4),
         ):
@@ -503,7 +503,7 @@ class AppAccessTests(LocalWorkflowCase):
         for token in (administrator_token, member_token):
             private = self.stack.request(
                 "GET",
-                "/rest/v1/settlement_acquisitions",
+                "/rest/v1/finances_acquisitions",
                 token=token,
                 headers={"Accept-Profile": "private"},
             )

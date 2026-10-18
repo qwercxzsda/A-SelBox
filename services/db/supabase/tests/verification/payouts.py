@@ -50,17 +50,15 @@ def refresh_payouts(connection: Connection) -> tuple[Any, ...]:
 
 
 def independent_payout_totals(connection: Connection, report_id: str) -> tuple[Any, ...]:
-    """Recalculate Settlement category amounts and Data Kiosk costs from pinned inputs."""
+    """Recalculate Finances category amounts and Data Kiosk costs from pinned inputs."""
     return connection.execute(
         """
         with inputs as (
             select p.report_id,t.seller_namespace,t.sku,t.marketplace_name,t.posted_date as day,
-                t.currency,t.amount,case when t.transaction_type in ('Order','Refund')
-                    and t.amount_type='ItemPrice' and t.amount_description='Principal'
-                    then t.amount end as fee_base
-            from private.payout_report_settlement_versions p
-            join private.settlement_transactions t on t.version_id=p.version_id
-            where p.report_id=%s and t.category='SETTLEMENT'
+                t.currency,t.amount,t.fee_base
+            from private.payout_report_finances_versions p
+            join private.finances_transaction_components t on t.version_id=p.version_id
+            where p.report_id=%s and t.category='FINANCES' and t.activity_eligible
             union all
             select p.report_id,t.seller_namespace,t.sku,t.marketplace_name,t.activity_date,
                 t.currency,t.amount,t.fee_base
@@ -107,9 +105,9 @@ def verify_report_components(
                 coalesce(sum(company_amount) filter (where authoritative),0),
                 count(*) filter (where not authoritative),
                 count(*) filter (where authoritative and not (
-                    (source='SETTLEMENT' and exists (
-                        select 1 from private.settlement_transactions s
-                        where s.id=c.source_row_id and s.category='SETTLEMENT'))
+                    (source='FINANCES' and exists (
+                        select 1 from private.finances_transaction_components s
+                        where s.id=c.source_row_id and s.category='FINANCES'))
                     or (source='DATA_KIOSK' and exists (
                         select 1 from private.data_kiosk_transactions k
                         where k.id=c.source_row_id and k.category='DATA_KIOSK')))),

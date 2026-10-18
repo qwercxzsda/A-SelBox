@@ -31,7 +31,7 @@ function filteredRows() {
     target(3, { activity_date: "2026-09-01" }),
     target(4, { activity_date: "2026-09-04" }),
     target(5, { marketplace_name: "Amazon.co.uk" }),
-    target(6, { source: "SETTLEMENT" }),
+    target(6, { source: "FINANCES" }),
     target(7, { component_type: "PRINCIPAL" }),
     target(8, { sku: "DIFFERENT" }),
     target(9, { source_amount: "0" }),
@@ -183,7 +183,7 @@ test("one date or numeric ordering applies at a time while source and date filte
     },
   ];
   await signIn(page);
-  await selectOption(page, "Source", "Settlements");
+  await selectOption(page, "Source", "Finances");
   const dates = await openColumn(page, "Date");
   await dates.getByLabel("From date", { exact: true }).fill("2026-09-01");
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-03");
@@ -204,13 +204,13 @@ test("one date or numeric ordering applies at a time while source and date filte
     expect(params.get("order")).toBe(
       `${column}.${direction}.nullslast,source.asc,source_row_id.asc`,
     );
-    expect(params.get("source")).toBe('in.("SETTLEMENT")');
+    expect(params.get("source")).toBe('in.("FINANCES")');
     expect(params.getAll("activity_date")).toEqual(["gte.2026-09-01", "lte.2026-09-03"]);
   }
   const dateMenu = await openColumn(page, "Date");
   await dateMenu.getByRole("button", { name: "Clear dates", exact: true }).click();
   await expect.poll(() => fixture.requests.at(-1).params.getAll("activity_date")).toEqual([]);
-  expect(fixture.requests.at(-1).params.get("source")).toBe('in.("SETTLEMENT")');
+  expect(fixture.requests.at(-1).params.get("source")).toBe('in.("FINANCES")');
   expect(fixture.requests.at(-1).params.get("order")).toBe(
     "activity_date.asc.nullslast,source.asc,source_row_id.asc",
   );

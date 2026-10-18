@@ -18,7 +18,7 @@ const account = { user_id: "user-a", access_role: "member", company_id: "company
 const options = {
   accessToken: "private-test-token",
   userId: "user-a",
-  sources: ["settlement", "fees"],
+  sources: ["finances", "fees"],
 };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 
@@ -29,18 +29,18 @@ test("poll requests only named revisions through authenticated REST, without cou
     captured = { url: new URL(url), init };
     return json({
       account,
-      revisions: { settlement: "opaque-token", fees: "9007199254740993", data_kiosk: "ignored" },
+      revisions: { finances: "opaque-token", fees: "9007199254740993", data_kiosk: "ignored" },
     });
   });
   assert.deepEqual(
     await client.fetchWorkspaceRevisions({ ...options, signal: controller.signal }),
     {
       account,
-      revisions: { settlement: "opaque-token", fees: "9007199254740993" },
+      revisions: { finances: "opaque-token", fees: "9007199254740993" },
     },
   );
   assert.equal(captured.url.pathname, "/rest/v1/rpc/workspace_revisions");
-  assert.deepEqual([...captured.url.searchParams], [["p_sources", "{settlement,fees}"]]);
+  assert.deepEqual([...captured.url.searchParams], [["p_sources", "{finances,fees}"]]);
   assert.equal(captured.init.headers.Authorization, "Bearer private-test-token");
   assert.equal(captured.init.headers.Prefer, undefined);
   assert.equal(captured.init.cache, "no-store");
@@ -51,17 +51,17 @@ test("poll requests only named revisions through authenticated REST, without cou
 test("poll rejects omitted/malformed revisions, another user's account, and unauthorized responses", async () => {
   for (const body of [
     {},
-    { account, revisions: { settlement: "1" } },
-    { account, revisions: { settlement: 1, fees: "1" } },
-    { account, revisions: { settlement: "1", fees: " " } },
-    { account: { ...account, user_id: "user-b" }, revisions: { settlement: "1", fees: "1" } },
+    { account, revisions: { finances: "1" } },
+    { account, revisions: { finances: 1, fees: "1" } },
+    { account, revisions: { finances: "1", fees: " " } },
+    { account: { ...account, user_id: "user-b" }, revisions: { finances: "1", fees: "1" } },
     ...[
       { ...account, access_role: "unregistered" },
       { ...account, company_id: null },
       { ...account, access_role: "administrator" },
     ].map((invalidAccount) => ({
       account: invalidAccount,
-      revisions: { settlement: "1", fees: "1" },
+      revisions: { finances: "1", fees: "1" },
     })),
   ]) {
     const client = createApiClient(SETTINGS, async () => json(body));
@@ -80,16 +80,10 @@ test("poll rejects omitted/malformed revisions, another user's account, and unau
 });
 
 test("changed opaque tokens are compared only for requested sources, including newly observed sources", () => {
+  assert.deepEqual(changedRevisionSources({ finances: "old", fees: "same" }, { fees: "same" }), []);
   assert.deepEqual(
-    changedRevisionSources({ settlement: "old", fees: "same" }, { fees: "same" }),
-    [],
-  );
-  assert.deepEqual(
-    changedRevisionSources(
-      { settlement: "zzz", fees: "same" },
-      { settlement: "aaa", fees: "same" },
-    ),
-    ["settlement"],
+    changedRevisionSources({ finances: "zzz", fees: "same" }, { finances: "aaa", fees: "same" }),
+    ["finances"],
   );
   assert.deepEqual(changedRevisionSources({ fees: "same" }, { data_kiosk: "0" }), ["data_kiosk"]);
   assert.equal(sameAccount(account, { ...account }), true);
@@ -103,45 +97,45 @@ test("changed opaque tokens are compared only for requested sources, including n
 test("pages, choices, counts, cards and fees carry the correct source dependencies", () => {
   for (const family of ["dataset", "dataset-count"]) {
     assert.deepEqual(queryRevisionSources([family, "u", "member", "a", "payouts"]), ["payouts"]);
-    assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "settlement"]), [
-      "settlement",
+    assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "finances"]), [
+      "finances",
     ]);
     assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "data_kiosk"]), [
       "data_kiosk",
     ]);
-    assert.deepEqual(queryRevisionSources([family, "u", "member", "a", "settlement"]), [
-      "settlement",
+    assert.deepEqual(queryRevisionSources([family, "u", "member", "a", "finances"]), [
+      "finances",
       "fees",
     ]);
     assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "live"]), [
-      "settlement",
+      "finances",
       "data_kiosk",
       "fees",
     ]);
   }
   assert.deepEqual(
-    queryRevisionSources(["dataset-count", "u", "administrator", null, "settlement"]),
-    ["settlement"],
+    queryRevisionSources(["dataset-count", "u", "administrator", null, "finances"]),
+    ["finances"],
   );
   assert.deepEqual(queryRevisionSources(["sku-configuration", "u", "administrator"]), [
-    "settlement",
+    "finances",
     "data_kiosk",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["transaction-type-totals"]), [
-    "settlement",
+    "finances",
     "data_kiosk",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["transaction-summary-records"]), [
-    "settlement",
+    "finances",
     "data_kiosk",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["unrelated"]), []);
   for (const section of ["months", "totals", "types", "records"])
     assert.deepEqual(queryRevisionSources(["financial-review", section]), [
-      "settlement",
+      "finances",
       "data_kiosk",
     ]);
   assert.deepEqual(queryRevisionSources(["payout-reconciliation-totals", "report"]), []);
@@ -153,14 +147,14 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
   const client = createQueryClient();
   client.setQueryData(["dataset", "u", "administrator", null, "data_kiosk"], {});
   const observer = new QueryObserver(client, {
-    queryKey: ["dataset", "u", "administrator", null, "settlement"],
+    queryKey: ["dataset", "u", "administrator", null, "finances"],
     queryFn: async () => ({}),
     initialData: {},
     staleTime: Infinity,
   });
   const unsubscribe = observer.subscribe(() => {});
   try {
-    assert.deepEqual(activeRevisionSources(client), ["settlement", "fees"]);
+    assert.deepEqual(activeRevisionSources(client), ["finances", "fees"]);
   } finally {
     unsubscribe();
     client.clear();
@@ -170,7 +164,7 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
 test("polling refreshes account lists and eligibility, while payouts follow revision tokens", () => {
   assert.equal(isPolledQuery({ queryKey: ["payout-policy", "u"] }), true);
   assert.equal(isPolledQuery({ queryKey: ["inventory", "u"] }), false);
-  for (const dataset of ["accounts", "payouts", "live", "settlement", "data_kiosk", "fees"]) {
+  for (const dataset of ["accounts", "payouts", "live", "finances", "data_kiosk", "fees"]) {
     const expected = dataset === "accounts";
     assert.equal(isPolledDataset(dataset), expected);
     for (const key of [
@@ -191,7 +185,7 @@ test("revision refresh invalidates matching counts and inactive pages but only f
   const keys = [
     ["dataset", "u", "administrator", null, "live"],
     ["dataset-count", "u", "administrator", null, "live"],
-    ["dataset", "u", "administrator", null, "settlement"],
+    ["dataset", "u", "administrator", null, "finances"],
   ];
   const unsubscribers = keys.map((key) =>
     new QueryObserver(client, {

@@ -61,8 +61,7 @@ export function createWorkspaceApi(transport: ApiTransport) {
       const requested = [...new Set(sources)];
       if (
         requested.some(
-          (source) =>
-            !["settlement", "data_kiosk", "fees", "inventory", "payouts"].includes(source),
+          (source) => !["finances", "data_kiosk", "fees", "inventory", "payouts"].includes(source),
         )
       ) {
         throw new Error("Invalid workspace revision source");

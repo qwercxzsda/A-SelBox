@@ -10,7 +10,6 @@ from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _INLINE_HELPERS = (
-    "private.settlement_fee_applicable(text,text,text)",
     "private.calculate_service_fee(numeric,numeric)",
     "private.reconcile_source_amounts(numeric,numeric,numeric,numeric)",
 )
@@ -29,25 +28,25 @@ _HELPERS = (
 class TransactionReadRulesTests(SourceModelFixture):
     assign = live_fixture.LiveViewEquivalenceTests.assign
 
-    def test_only_order_and_refund_principal_amounts_have_settlement_fees(self) -> None:
-        examples = (
-            (("Order", "ItemPrice", "Principal"), True),
-            (("Refund", "ItemPrice", "Principal"), True),
-            (("Order", "ItemPrice", "Shipping"), False),
-            (("Refund", "ItemFees", "Principal"), False),
-            (("Adjustment", "ItemPrice", "Principal"), False),
-            ((None, "ItemPrice", "Principal"), False),
-            (("Order", None, "Principal"), False),
-            (("Order", "ItemPrice", None), False),
+    def test_only_sale_and_refund_principal_components_have_finances_fee_bases(self) -> None:
+        self.finances(
+            [
+                self.transaction("100"),
+                self.transaction("-20", kind="Refund"),
+                self.transaction("5", description="Shipping"),
+            ]
         )
-        for arguments, expected in examples:
-            with self.subTest(arguments=arguments):
-                self.assertEqual(
-                    self.connection.execute(
-                        "select private.settlement_fee_applicable(%s,%s,%s) is true", arguments
-                    ).fetchone(),
-                    (expected,),
-                )
+        self.assertCountEqual(
+            self.connection.execute(
+                "select component_type,fee_base from public.finances_preprocess_entries "
+                "where version_id in (select current_version_id from private.finances_days)"
+            ).fetchall(),
+            [
+                ("PRODUCT_SALES", Decimal(100)),
+                ("PRODUCT_REFUNDS", Decimal(-20)),
+                ("Shipment/Shipping", None),
+            ],
+        )
 
     def test_service_fee_sign_zero_null_and_precision_examples(self) -> None:
         examples = (
@@ -125,7 +124,7 @@ class TransactionReadRulesTests(SourceModelFixture):
         company, _ = self.owner()
         query = (
             "select private.member_policy_covers_current_version("
-            "'private.settlement_transactions'::regclass),"
+            "'private.finances_transaction_components'::regclass),"
             "private.member_policy_covers_current_version("
             "'private.data_kiosk_transactions'::regclass),"
             "private.member_policy_covers_current_version('public.skus'::regclass)"

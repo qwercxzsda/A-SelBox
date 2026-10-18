@@ -13,7 +13,7 @@ function rows() {
     id: `row-${index}`,
     source_row_id: `row-${index}`,
     activity_date: "2026-06-30",
-    source: "SETTLEMENT",
+    source: "FINANCES",
     component_type: "PRODUCT_SALES",
     source_amount: "1",
     fee_amount: "0",

@@ -10,10 +10,10 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
     def test_sku_selection_excludes_retained_amounts_from_pages_counts_and_totals(self) -> None:
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100"),
-                self.transaction("40", 4, kind="Adjustment", category="SELBOX") | {"family": None},
+                self.transaction("40", 4, kind="Adjustment", category="SELBOX"),
                 self.transaction("-12", 5, kind="ServiceFee", category="DATA_KIOSK")
                 | {"sku": None},
             ]
@@ -37,7 +37,7 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
                         rows = cast(list[dict[str, object]], page["rows"])
                         self.assertEqual(page["total_count"], "2")
                         self.assertEqual(
-                            {row["category"] for row in rows}, {"SETTLEMENT", "DATA_KIOSK"}
+                            {row["category"] for row in rows}, {"FINANCES", "DATA_KIOSK"}
                         )
                         self.assertEqual(
                             sum(Decimal(str(row["source_amount"])) for row in rows), Decimal(90)
@@ -84,7 +84,7 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select public.source_transaction_count('settlement',p_skus=>array['SKU'])",
+                "select public.source_transaction_count('finances',p_skus=>array['SKU'])",
             ),
             [("2",)],
         )

@@ -4,7 +4,7 @@ import { reusableAdministratorSkuOptions } from "../src/identity-catalog.ts";
 
 const session = { user: { id: "administrator-a" }, access_token: "new-access" };
 const account = { user_id: "administrator-a", access_role: "administrator", company_id: null };
-const revisions = { settlement: "1", data_kiosk: "2", fees: "3" };
+const revisions = { finances: "1", data_kiosk: "2", fees: "3" };
 const previous = {
   session: { ...session, access_token: "old-access" },
   account,
@@ -25,7 +25,7 @@ test("renewed credentials may reuse only the same verified administrator catalog
 });
 
 test("every defined revision must match before reuse, including fee-only changes", () => {
-  for (const source of ["settlement", "data_kiosk", "fees"]) {
+  for (const source of ["finances", "data_kiosk", "fees"]) {
     for (const value of [undefined, "changed", "", " ", null]) {
       assert.equal(
         reusableAdministratorSkuOptions(previous, session, {

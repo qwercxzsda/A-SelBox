@@ -27,12 +27,12 @@ def _types(
 DATA_KIOSK_TYPES: tuple[DataKioskType, ...] = (
     *_types(
         "sales",
-        AllocationCategory.SETTLEMENT,
+        AllocationCategory.FINANCES,
         ("NET_PRODUCT_SALES",),
     ),
     *_types(
         "fees",
-        AllocationCategory.SETTLEMENT,
+        AllocationCategory.FINANCES,
         (
             "DIGITAL_SERVICES_FEE_FBA",
             "DIGITAL_SERVICES_FEE_SOA",

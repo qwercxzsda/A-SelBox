@@ -14,11 +14,11 @@ def financial_scope_parameters(
     start_date: date,
     end_date: date,
     preprocess_version: str,
-    settlement_ids: Sequence[str],
+    finances_day_ids: Sequence[str],
     marketplace_names: Sequence[str],
     dataset_key: str,
 ) -> dict[str, object]:
-    """Keep canonical settlements and Data Kiosk day coverage explicit and distinct."""
+    """Keep canonical financess and Data Kiosk day coverage explicit and distinct."""
     required_date(start_date, "start_date")
     required_date(end_date, "end_date")
     if start_date > end_date:
@@ -30,8 +30,8 @@ def financial_scope_parameters(
         "start_date": start_date,
         "end_date": end_date,
         "preprocess_version": required_text(preprocess_version, "preprocess_version"),
-        "settlement_ids": sorted(
-            {normalize_uuid(identifier, "settlement_id") for identifier in settlement_ids}
+        "finances_day_ids": sorted(
+            {normalize_uuid(identifier, "finances_day_id") for identifier in finances_day_ids}
         ),
         "marketplace_names": sorted(
             {validate_marketplace_name(name) for name in marketplace_names}

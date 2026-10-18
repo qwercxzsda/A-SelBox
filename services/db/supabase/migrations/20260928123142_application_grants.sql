@@ -18,23 +18,25 @@ private.delete_administrator_company(uuid), public.delete_company(uuid),
 private.set_administrator_company_membership(uuid, uuid, public.app_access_role, uuid),
 public.set_company_membership(uuid, uuid, public.app_access_role, uuid)
 to authenticated;
-grant select on private.settlement_transactions, private.data_kiosk_transactions to authenticated;
+grant select on private.finances_activity_components,
+private.finances_transaction_components,
+private.data_kiosk_transactions to authenticated;
 -- Members can read current references across companies, never report totals.
-grant select (id, current_version_id) on private.settlements,
+grant select (id, current_version_id) on private.finances_days,
 private.data_kiosk_days to authenticated;
 grant select (
-    id, settlement_id, preprocess_version
-) on private.settlement_preprocess_versions to authenticated;
+    id, day_id, preprocess_version
+) on private.finances_preprocess_versions to authenticated;
 grant select (
     id, day_id, preprocess_version
 ) on private.data_kiosk_preprocess_versions to authenticated;
-grant select on public.settlement_preprocess_results, public.data_kiosk_preprocess_results,
-public.settlement_preprocess_entries, public.data_kiosk_preprocess_entries,
+grant select on public.finances_preprocess_results, public.data_kiosk_preprocess_results,
+public.finances_preprocess_entries, public.data_kiosk_preprocess_entries,
 public.live_company_components, private.live_company_component_inputs to authenticated;
 grant select on public.company_payout_reports, public.company_payout_report_components,
 public.payout_report_marketplace_totals, public.latest_company_payout_reports,
-private.payout_report_settlement_versions, private.payout_report_data_kiosk_versions,
-private.payout_report_terms_versions, public.payout_report_settlement_versions,
+private.payout_report_finances_versions, private.payout_report_data_kiosk_versions,
+private.payout_report_terms_versions, public.payout_report_finances_versions,
 public.payout_report_data_kiosk_versions, public.payout_report_terms_versions,
 private.payout_report_reconciliation, public.payout_report_reconciliation,
 public.financial_review_records,
@@ -46,7 +48,7 @@ private.mature_cutoff_date(), private.financial_account_visible(),
 private.reconciliation_group_id(text, date, text, text),
 private.reconcile_source_amounts(numeric, numeric, numeric, numeric),
 public.payout_report_policy(),
-private.read_settlement_preprocess_results(),
+private.read_finances_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
 private.resolve_source_reconciliation(uuid[], uuid[]) to authenticated;
@@ -58,8 +60,7 @@ to authenticated;
 
 -- Shared financial helpers remain outside the exposed schema.
 grant select on private.current_sku_terms to authenticated;
-grant execute on function private.settlement_fee_applicable(text, text, text),
-private.calculate_service_fee(numeric, numeric) to authenticated;
+grant execute on function private.calculate_service_fee(numeric, numeric) to authenticated;
 
 grant execute on function private.read_workspace_revisions(text[]),
 public.workspace_revisions(text[]) to authenticated;

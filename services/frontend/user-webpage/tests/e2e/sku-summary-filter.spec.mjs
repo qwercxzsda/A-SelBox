@@ -32,7 +32,7 @@ async function skuFixture(page, role = "member") {
     company_id: companyId,
     sku,
     component_type: "PRODUCT_SALES",
-    source: date === "2026-02-28" ? "DATA_KIOSK" : "SETTLEMENT",
+    source: date === "2026-02-28" ? "DATA_KIOSK" : "FINANCES",
     marketplace_name: date === "2026-02-28" ? "Amazon.co.jp" : "Amazon.com",
     source_amount: value,
   });
@@ -140,7 +140,7 @@ test("member SKU selections scope all cards and raw breakdowns while unrelated t
   await applyDates(page, "2026-01-01", "2026-02-28");
   await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
   const summaryRequests = fixture.aggregateRequests.length;
-  await selectValues(page, "Source", ["Settlements"], ["Settlements", "Data Kiosk"]);
+  await selectValues(page, "Source", ["Finances"], ["Finances", "Data Kiosk"]);
   await selectValues(page, "Type", ["Product sales"], ["Product sales"]);
   await page.getByLabel("Search", { exact: true }).fill("NO MATCH");
   await expect(page.getByText("No matching records", { exact: true })).toBeVisible();

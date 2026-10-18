@@ -1,0 +1,43 @@
+erDiagram
+    direction LR
+    private_finances_acquisitions ||..o{ private_finances_summary_checks : "acquisition_id"
+    private_finances_summary_checks ||--o{ private_finances_summary_check_versions : "check_id"
+    private_finances_days ||--o{ private_finances_summary_check_versions : "day_id"
+    private_finances_preprocess_versions ||..o{ private_finances_summary_check_versions : "day_id + version_id"
+    private_finances_preprocess_versions ||..o{ private_finances_summary_check_versions : "version_id"
+
+    private_finances_summary_checks["private.finances_summary_checks"] {
+        local_uuid id PK "NN"
+        nonblank seller_namespace "NN"
+        text marketplace_name "NN"
+        date start_date "NN"
+        date end_date "NN"
+        nonblank account_type "NN"
+        text currency "NN"
+        exact_numeric summary_amount "NN"
+        exact_numeric transaction_amount "NN"
+        boolean matched "NULL"
+        local_uuid acquisition_id FK "NN"
+        integer source_page_number "NN"
+        integer source_summary_index "NN"
+        integer version_count "NN"
+        timestamp_with_time_zone created_at "NN"
+    }
+
+    private_finances_summary_check_versions["private.finances_summary_check_versions"] {
+        local_uuid check_id PK, FK "NN"
+        local_uuid day_id PK, FK "NN"
+        local_uuid version_id FK "NN"
+    }
+
+    private_finances_acquisitions["private.finances_acquisitions (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    private_finances_days["private.finances_days (reference)"] {
+        local_uuid id PK, FK "NN"
+    }
+
+    private_finances_preprocess_versions["private.finances_preprocess_versions (reference)"] {
+        local_uuid id PK "NN"
+    }

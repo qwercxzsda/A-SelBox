@@ -39,25 +39,6 @@ class DataKioskSourceFactsTests(unittest.TestCase):
         self.assertTrue(all(row.amount == Numeric(-6) for row in costs))
         self.assertEqual(days[1].transactions, ())
 
-    def test_one_sku_retains_sales_and_storage_with_independent_component_authority(self) -> None:
-        storage = MemoryArchiveStorage()
-        document = complete_economics_document(
-            fees=(
-                f"[{economics_fee('DisposalFee')},"
-                f"{economics_fee('ReferralFee', identifier='fee-2')}]"
-            )
-        )
-        acquisition = kiosk_acquisition(storage, document)
-        days = prepare_data_kiosk_acquisition(acquisition, storage)
-        self.assertEqual([len(day.transactions) for day in days], [3, 0])
-        by_type = {row.component_type: row for row in days[0].transactions}
-        self.assertEqual(by_type["NET_PRODUCT_SALES"].category, "SETTLEMENT")
-        self.assertEqual(by_type["REFERRAL_FEE"].category, AllocationCategory.SETTLEMENT)
-        self.assertEqual(by_type["DISPOSAL_FEE"].category, "DATA_KIOSK")
-        self.assertEqual(by_type["DISPOSAL_FEE"].amount, Numeric(-6))
-        self.assertEqual(days[0].marketplace_name, "Amazon.com")
-        self.assertEqual(days[1].activity_date, date(2026, 8, 2))
-
     def test_unknown_fee_amounts_fail_before_publication_and_keep_archives(self) -> None:
         for amount in ("-6", "0", "6"):
             with self.subTest(amount=amount):

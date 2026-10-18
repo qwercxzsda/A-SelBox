@@ -1,0 +1,25 @@
+{
+  "scope": "JAPAN",
+  "month": "2026-08",
+  "counts": {
+    "finances_acquisitions": 1,
+    "finances_days": 31,
+    "finances_transactions": 1863,
+    "finances_transaction_components": 13009
+  },
+  "checks": [
+    {
+      "marketplace_name": "Amazon.co.jp",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "JPY",
+      "summary_amount": "-72792.0",
+      "transaction_amount": "-72792.0"
+    }
+  ],
+  "eligible_totals": [
+    [
+      "JPY",
+      "-72792.0"
+    ]
+  ]
+}

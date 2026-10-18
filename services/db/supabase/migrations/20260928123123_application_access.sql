@@ -87,15 +87,15 @@ create policy periods_read on public.sku_fee_periods for select to authenticated
     )
 );
 
-create policy settlement_facts_read on private.settlement_transactions
+create policy finances_facts_read on private.finances_transaction_components
 for select to authenticated using (
     (select private.is_administrator()) or (
-        category = 'SETTLEMENT'
+        category = 'FINANCES' and activity_eligible
         and sku in (
             select o.sku from private.current_owned_sku_terms() as o
         )
         and version_id in (
-            select h.current_version_id from private.settlements as h
+            select h.current_version_id from private.finances_days as h
         )
     )
 );
@@ -112,18 +112,18 @@ for select to authenticated using (
     )
 );
 -- Current metadata needs registration and a selected pointer, never a fact scan.
-create policy settlement_selection_read on private.settlements
+create policy finances_selection_read on private.finances_days
 for select to authenticated using (
     (select private.is_administrator())
     or ((select private.is_member()) and current_version_id is not null)
 );
-create policy settlement_version_reference_read on private.settlement_preprocess_versions
+create policy finances_version_reference_read on private.finances_preprocess_versions
 for select to authenticated using (
     (select private.is_administrator()) or (
         (select private.is_member())
         and exists (
-            select 1 from private.settlements as h
-            where h.current_version_id = settlement_preprocess_versions.id
+            select 1 from private.finances_days as h
+            where h.current_version_id = finances_preprocess_versions.id
         )
     )
 );
@@ -145,28 +145,27 @@ for select to authenticated using (
 
 -- Full source headers contain account-wide amounts and inventories. Column grants
 -- cannot distinguish application roles, so only these gated helpers expose them.
-create function private.read_settlement_preprocess_results() returns table (
-    id uuid, settlement_id uuid, seller_namespace text, amazon_scope text,
-    amazon_settlement_id text, document_sha256 text, acquisition_id uuid,
-    preprocess_version text, row_count integer, settlement_start_at timestamptz,
-    settlement_end_at timestamptz, deposit_at timestamptz, settlement_start_date date,
-    settlement_end_date date, total_amount numeric, currency text, observed_start_date date,
-    observed_end_date date, source_line_number integer, diagnostics jsonb,
-    created_at timestamptz, is_current boolean
-)
-language plpgsql stable security definer set search_path = '' as $$
+create function private.read_finances_preprocess_results() returns table (
+    id uuid,
+    day_id uuid,
+    batch_id uuid,
+    acquisition_id uuid,
+    seller_namespace text,
+    amazon_scope text,
+    marketplace_name text,
+    activity_date date,
+    preprocess_version text,
+    transaction_count integer,
+    row_count integer,
+    content_sha256 text, created_at timestamptz, is_current boolean, is_pruned boolean
+) language plpgsql stable security definer set search_path = '' as $$
 begin
-    if not private.is_administrator() then
-        raise exception 'Administrator access required' using errcode = '42501';
-    end if;
-    return query select v.id::uuid,v.settlement_id::uuid,s.seller_namespace::text,s.amazon_scope::text,
-        s.settlement_id::text,s.document_sha256::text,v.acquisition_id::uuid,
-        v.preprocess_version::text,v.row_count,v.settlement_start_at,v.settlement_end_at,
-        v.deposit_at,v.settlement_start_date,v.settlement_end_date,v.total_amount::numeric,
-        v.currency,v.observed_start_date,v.observed_end_date,v.source_line_number,
-        v.diagnostics,v.created_at,v.id = s.current_version_id
-    from private.settlement_preprocess_versions v
-    join private.settlements s on s.id = v.settlement_id;
+ if not private.is_administrator() then raise exception 'Administrator access required' using errcode='42501'; end if;
+ return query select v.id::uuid,v.day_id::uuid,v.batch_id::uuid,b.acquisition_id::uuid,d.seller_namespace::text,a.amazon_scope::text,
+ d.marketplace_name,d.activity_date,v.preprocess_version::text,v.transaction_count,v.row_count,v.content_sha256::text,
+ v.created_at,v.id=d.current_version_id,exists(select 1 from private.finances_pruned_versions p where p.version_id=v.id)
+ from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id
+ join private.finances_preprocess_batches b on b.id=v.batch_id join private.finances_acquisitions a on a.id=b.acquisition_id;
 end;
 $$;
 create function private.read_data_kiosk_preprocess_results() returns table (
@@ -191,17 +190,17 @@ begin
     join private.data_kiosk_acquisitions a on a.id = b.acquisition_id;
 end;
 $$;
-create view public.settlement_preprocess_results with (security_invoker = true) as
-select * from private.read_settlement_preprocess_results();
+create view public.finances_preprocess_results with (security_invoker = true) as
+select * from private.read_finances_preprocess_results();
 create view public.data_kiosk_preprocess_results with (security_invoker = true) as
 select * from private.read_data_kiosk_preprocess_results();
-create view public.settlement_preprocess_entries with (security_invoker = true) as
+create view public.finances_preprocess_entries with (security_invoker = true) as
 select
     t.*,
     v.preprocess_version,
-    v.settlement_id
-from private.settlement_transactions as t
-inner join private.settlement_preprocess_versions as v on t.version_id = v.id;
+    v.day_id
+from private.finances_transaction_components as t
+inner join private.finances_preprocess_versions as v on t.version_id = v.id;
 create view public.data_kiosk_preprocess_entries with (security_invoker = true) as
 select
     t.*,
@@ -249,7 +248,7 @@ where
     )
 order by r.company_id asc, r.start_date asc, r.currency asc, r.created_at desc, r.id desc;
 
-create policy payout_settlement_versions_read on private.payout_report_settlement_versions
+create policy payout_finances_versions_read on private.payout_report_finances_versions
 for select to authenticated using ((select private.is_administrator()));
 create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
 for select to authenticated using ((select private.is_administrator()));
@@ -265,7 +264,7 @@ select * from private.payout_report_reconciliation;
 -- Administrator gates are necessary because base facts also have member read policies.
 create view public.financial_review_records with (security_invoker = true) as
 select
-    'SETTLEMENT'::text as source, -- noqa: RF04
+    'FINANCES'::text as source, -- noqa: RF04
     t.id as source_row_id,
     t.version_id as source_version_id,
     t.posted_date as activity_date,
@@ -276,10 +275,11 @@ select
     t.category,
     t.currency,
     t.amount
-from private.settlement_transactions as t
-inner join private.settlements as h on t.version_id = h.current_version_id
+from private.finances_transaction_components as t
+inner join private.finances_days as h on t.version_id = h.current_version_id
 where
-    (select private.is_administrator())
+    t.activity_eligible
+    and (select private.is_administrator())
     and t.posted_date < (select private.mature_cutoff_date())
 union all
 select
@@ -299,7 +299,7 @@ inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
 where
     (select private.is_administrator())
     and t.activity_date < (select private.mature_cutoff_date())
-    and t.category in ('SETTLEMENT', 'DATA_KIOSK', 'SELBOX');
+    and t.category in ('FINANCES', 'DATA_KIOSK', 'SELBOX');
 
 -- Direct activity-date bounds are applied before aggregation. Filtering a
 -- date_trunc output in a view cannot use the source date indexes under RLS.
@@ -313,7 +313,7 @@ begin
         or p_month_to <= p_month_from
         or p_month_from <> date_trunc('month',p_month_from::timestamp)::date
         or p_month_to <> date_trunc('month',p_month_to::timestamp)::date
-        or p_category is null or p_category not in ('SETTLEMENT','DATA_KIOSK','SELBOX') then
+        or p_category is null or p_category not in ('FINANCES','DATA_KIOSK','SELBOX') then
         raise exception 'Financial review requires a category and a valid half-open month range'
             using errcode = '22023';
     end if;
@@ -324,19 +324,19 @@ create function public.financial_review_totals(
     p_month_from date, p_month_to date, p_category public.allocation_category
 ) returns table (
     month date, category public.allocation_category, currency text,
-    settlement_amount numeric, data_kiosk_amount numeric, difference numeric,
-    settlement_row_count bigint, data_kiosk_row_count bigint
+    finances_amount numeric, data_kiosk_amount numeric, difference numeric,
+    finances_row_count bigint, data_kiosk_row_count bigint
 )
 language plpgsql stable security invoker set search_path = '' as $$
 begin
     perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category);
     return query
     select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency,
-        coalesce(sum(r.amount) filter (where r.source = 'SETTLEMENT'),0),
+        coalesce(sum(r.amount) filter (where r.source = 'FINANCES'),0),
         coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
-        coalesce(sum(r.amount) filter (where r.source = 'SETTLEMENT'),0)
+        coalesce(sum(r.amount) filter (where r.source = 'FINANCES'),0)
             - coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
-        count(*) filter (where r.source = 'SETTLEMENT'),
+        count(*) filter (where r.source = 'FINANCES'),
         count(*) filter (where r.source = 'DATA_KIOSK')
     from public.financial_review_records r
     where r.activity_date >= p_month_from and r.activity_date < p_month_to
@@ -374,20 +374,20 @@ create view public.payout_reconciliation_totals with (security_invoker = true) a
 select
     report_id,
     currency,
-    sum(settlement_category_amount) as settlement_category_amount,
+    sum(finances_category_amount) as finances_category_amount,
     sum(selbox_category_amount) as selbox_category_amount,
-    sum(data_kiosk_settlement_control) as data_kiosk_settlement_control,
+    sum(data_kiosk_finances_control) as data_kiosk_finances_control,
     sum(data_kiosk_category_amount) as data_kiosk_category_amount,
     sum(difference) as difference,
-    sum(settlement_total) as settlement_total,
+    sum(finances_total) as finances_total,
     sum(accounted_total) as accounted_total,
     count(*) as source_group_count
 from private.payout_report_reconciliation
 where (select private.is_administrator())
 group by report_id, currency;
 
-create view public.payout_report_settlement_versions with (security_invoker = true) as
-select * from private.payout_report_settlement_versions;
+create view public.payout_report_finances_versions with (security_invoker = true) as
+select * from private.payout_report_finances_versions;
 create view public.payout_report_data_kiosk_versions with (security_invoker = true) as
 select * from private.payout_report_data_kiosk_versions;
 create view public.payout_report_terms_versions with (security_invoker = true) as

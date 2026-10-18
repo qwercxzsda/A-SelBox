@@ -51,9 +51,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         company, identity = self.owner()
         terms = self.fee(identity, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, settlement_version = self.settlement(
-            [self.transaction("100")], acquisition_id=acquisition
-        )
+        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk_version = self.kiosk(1, [self.component()])
         report = self.report(company)
         before = payout_snapshot(self, report)
@@ -74,8 +72,8 @@ class CompanyPayoutReportTests(SourceModelFixture):
             ).fetchone(),
             (terms, None, None, Decimal(0)),
         )
-        self.settlement(
-            [self.transaction("200")], acquisition_id=acquisition, expected=settlement_version
+        self.finances(
+            [self.transaction("200")], acquisition_id=acquisition, expected=finances_version
         )
         self.kiosk(2, [self.component("-20")], expected=kiosk_version)
         self.fee(identity, [("2026-01-01", None, "7")])
@@ -88,7 +86,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.reassign(identity, None)
         self.assertEqual(payout_snapshot(self, report), before)
         for relation, column, version in (
-            ("payout_report_settlement_versions", "version_id", settlement_version),
+            ("payout_report_finances_versions", "version_id", finances_version),
             ("payout_report_data_kiosk_versions", "version_id", kiosk_version),
             ("payout_report_terms_versions", "terms_version_id", terms),
         ):
@@ -98,7 +96,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 ),
                 (report,),
             ).fetchall()
-            if relation == "payout_report_data_kiosk_versions":
+            if relation in {"payout_report_data_kiosk_versions", "payout_report_finances_versions"}:
                 self.assertEqual(len(rows), 30)
                 self.assertIn((version,), rows)
             else:
@@ -110,7 +108,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         _, other_identity = self.owner("OTHER")
         own_terms = self.fee(identity, [("2026-01-01", None, "5")])
         other_terms = self.fee(other_identity, [("2026-01-01", None, "10")])
-        self.settlement([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
+        self.finances([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
         report = self.report(company)
         self.assertEqual(
             set(
@@ -140,7 +138,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         old_user, new_user = self.member(company), self.member(other_company)
         administrator = self.administrator()
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         report = self.report(company)
         self.reassign(identity, other_company)
         self.connection.execute("set constraints all immediate")
@@ -169,7 +167,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
             self.as_user(new_user, "select * from public.company_payout_report_components"), []
         )
         self.assertEqual(
-            self.as_user(old_user, "select id from private.settlement_transactions"), []
+            self.as_user(old_user, "select id from private.finances_transaction_components"), []
         )
         self.assertEqual(self.as_user(old_user, "select id from public.sku_terms_versions"), [])
         self.connection.execute(
@@ -181,7 +179,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
 
     def test_incomplete_ownership_fees_and_source_coverage_fail_atomically(self) -> None:
         company, identity = self.owner()
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         for scope in ({}, {"marketplace_names": ["Amazon.com"]}):
             with (
                 self.subTest(scope=scope),
@@ -196,7 +194,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.fee(identity, [("2026-01-01", None, "0")])
         for scope in (
             {"preprocess_version": "another-version"},
-            {"settlement_ids": [new_id()]},
+            {"finances_day_ids": [new_id()]},
             {"marketplace_names": ["Amazon.com", "Amazon.com"]},
         ):
             with (
@@ -224,7 +222,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
     def test_refund_uses_its_posting_date_rate_without_overcredit_adjustment(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", "2026-06-15", "5"), ("2026-06-15", None, "7")])
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100", activity_date="2026-06-14"),
                 self.transaction("-100", 4, kind="Refund"),
@@ -244,7 +242,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
     def test_deferred_validator_rejects_fabricated_component_and_missing_inputs(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         for corrupt in ("component", "inputs"):
             with (
                 self.subTest(corrupt=corrupt),
@@ -265,11 +263,11 @@ class CompanyPayoutReportTests(SourceModelFixture):
                     )
                 else:
                     self.connection.execute(
-                        "alter table private.payout_report_settlement_versions "
+                        "alter table private.payout_report_finances_versions "
                         "disable trigger immutable"
                     )
                     self.connection.execute(
-                        "delete from private.payout_report_settlement_versions where report_id=%s",
+                        "delete from private.payout_report_finances_versions where report_id=%s",
                         (report,),
                     )
                 self.connection.execute("set constraints all immediate")

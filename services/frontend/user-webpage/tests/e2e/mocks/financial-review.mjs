@@ -5,10 +5,10 @@ const COLUMNS = {
     "month",
     "category",
     "currency",
-    "settlement_amount",
+    "finances_amount",
     "data_kiosk_amount",
     "difference",
-    "settlement_row_count",
+    "finances_row_count",
     "data_kiosk_row_count",
   ],
   financial_review_type_totals: [

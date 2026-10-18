@@ -19,14 +19,14 @@ Current transaction reads use PostgreSQL's current UTC date minus the mature cut
 period of two calendar months as the mature cutoff date. Dates before it are mature;
 the mature cutoff date and later are recent.
 Recent dates use Data Kiosk amounts in all three monetary categories. Mature dates use
-Settlement report amounts in the Settlement and SelBox categories, Data Kiosk amounts in the
+Finances activity amounts in the Finances and SelBox categories, Data Kiosk amounts in the
 Data Kiosk category, and administrator-only `RECONCILIATION` rows. Each derived row is the
-Settlement report control minus the Data Kiosk amount in the Data Kiosk category, grouped by
+Finances activity control minus the Data Kiosk amount in the Data Kiosk category, grouped by
 day/marketplace/seller/currency with a nonzero subtotal in at least one source.
 Matching nonzero controls retain a zero difference row; groups with both subtotals zero have no
 derived transaction row. These choices use the unchanged preprocessing categories. For mature dates,
-the complete account total equals the Settlement report total. Members see only their assigned amounts
-in the Settlement and Data Kiosk categories. Rows in the SelBox category and difference rows have
+the complete account total equals the Finances activity total. Members see only their assigned amounts
+in the Finances and Data Kiosk categories. Rows in the SelBox category and difference rows have
 zero company contribution and remain administrator-only. Company/SKU
 filters omit these account controls rather than apportioning them. Comparison and
 analysis rows do not count toward pages, counts, or totals. Strict reads additionally
@@ -117,22 +117,22 @@ The frontend recognizes only that allowlisted error, explains how to narrow the 
 Date ordering. A known exact count above the limit disables amount choices; the server remains
 responsible for enforcing the cap when the count is unknown or stale.
 
-The fee-applicability filter uses source Type codes before paging/counting: Settlement report rows
-in the Settlement category with type
+The fee-applicability filter uses source Type codes before paging/counting: Finances activity components
+in the Finances category with type
 `PRODUCT_SALES` and `PRODUCT_REFUNDS`, and Data Kiosk `NET_PRODUCT_SALES`. The negative filter
 also includes retained account and reconciliation rows. Explicit Type selections intersect this filter; they
 do not replace it. These direct comparisons expose the existing `(component_type, date)` indexes.
 
 Applicability is independent of configuration: a zero base, zero rate, missing ownership, or missing
 configured rate does not change a transaction's Type. Current preprocessing maps these Types to the
-existing fee-base rules. Calculations still use Settlement Order/Refund + ItemPrice + Principal and
-Data Kiosk's stored fee base. The filter treats Type as authoritative if trusted direct SQL supplies
+existing fee-base rules. Calculations use each source's explicit signed `fee_base`; Finances normalizes
+reviewed native product principal paths before publication. The filter treats Type as authoritative if trusted direct SQL supplies
 inconsistent fields; it does not rewrite a base or fabricate a configured rate.
 
 ## Raw source pages
 
 [`public.source_transaction_page`](../services/db/supabase/migrations/20260928123136_source_transaction_page.sql)
-serves the Settlements and Data Kiosk tabs. Its required `p_dataset` is `settlement` or
+serves the Finances and Data Kiosk tabs. Its required `p_dataset` is `finances` or
 `data_kiosk`. Optional parameters are `p_limit` (25), `p_offset` (0), `p_order_by` (`date`),
 `p_direction` (`desc`), `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`, `p_types`,
 `p_search_skus`, `p_search_types`, `p_search_marketplaces` (all null), and `p_include_count` (true). Sort keys, direction, bounds, date and array
@@ -140,10 +140,18 @@ validation follow the transaction page contract.
 
 Response: `{ "rows": [...], "total_count": "123" }`, with a null count when disabled. Rows contain
 the corresponding source-view fields selected by the frontend, including exact numeric strings.
-Settlement orders by `posted_date` or `amount`; Data Kiosk uses `activity_date` or `amount`. Date
+Finances orders by `posted_date` or `amount`; Data Kiosk uses `activity_date` or `amount`. Date
 ordering reverses both date and row ID together, with the same null placement as Transactions.
-Amount ordering keeps ascending row-ID ties and nulls last. Settlement and Data
+Amount ordering keeps ascending row-ID ties and nulls last. Finances and Data
 Kiosk zero amounts remain included in pagination and counting.
+
+Finances rows expose native transaction IDs, account type, lifecycle status,
+original/release references, source page and record ordinals, component key,
+breakdown path and activity eligibility. Numeric fields and the boolean/path
+projections are text in the RPC JSON so the browser retains its exact row-value
+contract. Raw administrator pages include excluded release/transfer components
+and retained historical versions for audit. Their amounts must not be summed as
+an activity ledger. Main Transactions reads only current activity-eligible facts.
 
 This endpoint preserves the raw source views' visibility, including historical versions and every
 source category available to the caller. It does not impose Transactions' current-version or
@@ -187,7 +195,7 @@ remain literal. Currency is not a searchable field on any transaction tab.
 | Dataset | Searchable fields |
 | --- | --- |
 | Transactions | SKU, Type, Source, Marketplace |
-| Settlements / Data Kiosk | SKU, Type, Marketplace |
+| Finances / Data Kiosk | SKU, Type, Marketplace |
 
 The frontend sends matching exact strings in `p_search_skus`, `p_search_types`, and
 `p_search_marketplaces`, plus `p_search_sources` for Transactions. Search matches any supplied field
@@ -281,7 +289,7 @@ during identity bootstrap. Opening a menu makes no database request. Options may
 under the selected dataset and other filters.
 
 Administrators receive every known Type for the dataset's source scope. Administrator Transactions
-also offers source `RECONCILIATION` and type `SETTLEMENT_KIOSK_DIFFERENCE`, computed separately
+also offers source `RECONCILIATION` and type `FINANCES_KIOSK_DIFFERENCE`, computed separately
 from the unchanged preprocessing registry. Members receive
 every known Type except category `SELBOX`. These are local registry choices, not occurrence-based
 database discovery. After selection, page/count RPCs still query matching transaction rows for the
@@ -320,15 +328,15 @@ retains caller RLS, and registered-only SKUs still come from the ordinary regist
 
 The source tables use the following optional read indexes in the
 [read access module](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql).
-Here `date` means Settlement `posted_date` or Data Kiosk `activity_date`.
+Here `date` means Finances `posted_date` or Data Kiosk `activity_date`.
 
-| Key shape                       | Settlement    | Data Kiosk    | Intended access                                              |
+| Key shape                       | Finances    | Data Kiosk    | Intended access                                              |
 | ------------------------------- | ------------- | ------------- | ------------------------------------------------------------ |
 | `(date, id)`                    | Full index    | Full index    | Both date directions, including raw historical/account rows. |
 | `(sku, date)`                   | Compact index | Compact index | Exact SKU selections/date ranges and distinct-SKU index seeks. |
 | `(component_type, date)`        | Compact index | Compact index | Type selections, fee-applicable Types, and date ranges.      |
 | `(marketplace_name, date)`      | Compact index | Compact index | Marketplace filtering and bounded date candidates.           |
-| Compact ownership/version keys | Partial index | —             | Settlement's inexpensive unfiltered and marketplace counts.  |
+| Compact ownership/version keys | Partial index | —             | Finances component unfiltered and marketplace counts.  |
 | Covering count keys             | Date-leading  | Date-leading  | Date-bounded count predicates and authorization without reading full facts when visibility permits. |
 
 The full date/ID indexes have no category or nonzero-amount predicate. Filtering and existing RLS
@@ -347,10 +355,10 @@ No equality wrapper, catalog flag change, or RLS relaxation is involved.
 [PostgreSQL 17 function catalog](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/include/catalog/pg_proc.dat),
 [RLS and leakproof predicates](https://www.postgresql.org/docs/17/sql-createfunction.html)
 
-Settlement retains its compact ownership/version index and has a partial count index on
+Finances retains its compact ownership/version index and has a partial count index on
 `(posted_date, component_type, sku, version_id, category, marketplace_name)`
-where `category = 'SETTLEMENT'`. Its partial predicate does not cover the expanded
-administrator scope for mature dates, which also admits `SELBOX` Settlement rows.
+where `category = 'FINANCES'`. Its partial predicate does not cover the expanded
+administrator scope for mature dates, which also admits `SELBOX` Finances rows.
 The planner can use the existing full Type/date and other indexes for the broader scope.
 Trailing keys support filters and eligibility checks where that partial index applies.
 
@@ -370,7 +378,7 @@ Both count indexes use ordinary key columns, retaining eligibility for B-tree de
 there are no `INCLUDE` columns. They do not cover financial sums or full row projections.
 Index-only reads also depend on the visibility map maintained by vacuum. Broader coverage does
 not guarantee an index-only plan. See the
-[global SKU measurements](evidence/global_sku_identity/README.md).
+[performance guide](database_performance.md).
 [PostgreSQL index-only scans](https://www.postgresql.org/docs/17/indexes-index-only-scans.html)
 
 Ownership/count indexes, current-pointer indexes, primary/unique constraints, and the fee-period
@@ -392,7 +400,8 @@ supports company references. Batch lookups reuse `UNIQUE(batch_id, day_id)`.
 ## Shared rules and API configuration
 
 [Financial read rules](../services/db/supabase/migrations/20260928123106_financial_rules.sql)
-provide `private.settlement_fee_applicable` and `private.calculate_service_fee`. The
+provide `private.calculate_service_fee`; Finances stores fee applicability as an explicit
+`fee_base` after native preprocessing. The
 [application identity module](../services/db/supabase/migrations/20260928123104_application_identity.sql)
 defines the invoker view `private.current_sku_terms`. The exact fee formula remains
 `-(fee_base * fee_rate_percent * 0.01)`; callers retain the missing/non-applicable branches.

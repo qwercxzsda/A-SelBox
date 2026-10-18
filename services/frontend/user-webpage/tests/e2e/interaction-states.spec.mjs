@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { kioskRow, settlementRow, skuAssignments } from "./api-fixtures.mjs";
+import { kioskRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
 import { item } from "./sku-configuration-fixtures.mjs";
@@ -89,7 +89,7 @@ async function setup(page, administrator = true) {
   if (!administrator) fixture.roles["member-a"] = "member";
   fixture.skuConfigurationItems = [item("S1", { company_id: REVIEW_COMPANY })];
   fixture.assignments = skuAssignments(["S1"], REVIEW_COMPANY);
-  fixture.settlementRows = [settlementRow(1)];
+  fixture.financesRows = [financesRow(1)];
   fixture.kioskRows = [kioskRow(1, "10")];
   fixture.aggregateRows = [summaryBucket("2026-09-01", "10")];
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
@@ -156,13 +156,7 @@ test("workspace controls share hover feedback across every administrator tab", a
   await hoverChangesShade(page, button(options, "Close options"));
   await button(options, "Close options").click();
 
-  for (const name of [
-    "Transactions",
-    "Settlements",
-    "Data Kiosk",
-    "Payout reports",
-    "User access",
-  ]) {
+  for (const name of ["Transactions", "Finances", "Data Kiosk", "Payout reports", "User access"]) {
     const tab = page.getByRole("tab", { name, exact: true });
     await hoverChangesShade(page, tab);
     await tab.click();

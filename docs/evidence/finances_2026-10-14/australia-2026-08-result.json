@@ -1,0 +1,25 @@
+{
+  "scope": "AUSTRALIA",
+  "month": "2026-08",
+  "counts": {
+    "finances_acquisitions": 1,
+    "finances_days": 31,
+    "finances_transactions": 1075,
+    "finances_transaction_components": 6467
+  },
+  "checks": [
+    {
+      "marketplace_name": "Amazon.com.au",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "AUD",
+      "summary_amount": "1090.37",
+      "transaction_amount": "1090.37"
+    }
+  ],
+  "eligible_totals": [
+    [
+      "AUD",
+      "1090.37"
+    ]
+  ]
+}

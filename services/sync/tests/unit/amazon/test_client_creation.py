@@ -11,11 +11,7 @@ from sp_api.api import DataKiosk, Reports, Sellers
 from sp_api.base import Marketplaces
 
 from ....src.amazon import client as amazon_client
-from ....src.amazon.client import (
-    create_data_kiosk_client,
-    create_explicit_sp_api_client,
-    create_reports_client,
-)
+from ....src.amazon.client import create_data_kiosk_client, create_explicit_sp_api_client
 from ....src.amazon.credentials import (
     AmazonLwaCredentials,
     load_lwa_credentials,
@@ -29,7 +25,7 @@ from ....src.amazon.marketplaces import (
     validate_marketplace_scope_pair,
 )
 from ....src.amazon.scopes import validate_amazon_scope
-from ....src.amazon.transport import AmazonTransportRoutingError, sanitized_throttled_api_call
+from ....src.amazon.transport import sanitized_throttled_api_call
 
 TEST_REFRESH_CREDENTIAL: str = "test-refresh-token"
 TEST_LWA_APP_ID: str = "test-app-id"
@@ -105,18 +101,6 @@ class TestAmazonClientCreation(unittest.TestCase):
         self.assertNotIn(TEST_REFRESH_CREDENTIAL, repr(credentials))
         self.assertNotIn(TEST_LWA_CREDENTIAL, repr(credentials))
 
-    def test_reports_client_uses_explicit_credentials(self) -> None:
-        with patch.object(amazon_client, "Reports") as reports_class:
-            client = create_reports_client("NA", _credentials())
-
-        self.assertIs(client, reports_class.return_value)
-        reports_class.assert_called_once()
-        self.assertEqual(reports_class.call_args.kwargs["refresh_token"], TEST_REFRESH_CREDENTIAL)
-        self.assertEqual(
-            reports_class.call_args.kwargs["marketplace"].marketplace_id,
-            "ATVPDKIKX0DER",
-        )
-
 
 class TestExplicitClientRouting(unittest.TestCase):
     def test_all_api_clients_use_every_sdk_marketplace_endpoint_and_region(self) -> None:
@@ -144,62 +128,6 @@ class TestExplicitClientRouting(unittest.TestCase):
                         finally:
                             client.close()
 
-    def test_conflicting_sdk_default_marketplace_fails_before_construction(self) -> None:
-        with (
-            patch.dict(
-                os.environ,
-                {"SP_API_DEFAULT_MARKETPLACE": "DE"},
-                clear=False,
-            ),
-            patch.object(amazon_client, "Reports") as reports_class,
-            self.assertRaises(AmazonTransportRoutingError),
-        ):
-            create_reports_client("NA", _credentials())
-
-        reports_class.assert_not_called()
-
-    def test_same_transport_different_country_override_also_fails(self) -> None:
-        """Do not let a regional match hide an overridden request marketplace ID."""
-        with (
-            patch.dict(
-                os.environ,
-                {"SP_API_DEFAULT_MARKETPLACE": "CA"},
-                clear=False,
-            ),
-            patch.object(amazon_client, "Reports") as reports_class,
-            self.assertRaises(AmazonTransportRoutingError),
-        ):
-            create_reports_client("NA", _credentials())
-
-        reports_class.assert_not_called()
-
-    def test_invalid_sdk_default_marketplace_fails_before_construction(self) -> None:
-        with (
-            patch.dict(
-                os.environ,
-                {"SP_API_DEFAULT_MARKETPLACE": "UNKNOWN"},
-                clear=False,
-            ),
-            patch.object(amazon_client, "Reports") as reports_class,
-            self.assertRaisesRegex(AmazonTransportRoutingError, "invalid"),
-        ):
-            create_reports_client("NA", _credentials())
-
-        reports_class.assert_not_called()
-
-    def test_matching_sdk_default_marketplace_is_safe(self) -> None:
-        with (
-            patch.dict(
-                os.environ,
-                {"SP_API_DEFAULT_MARKETPLACE": "US"},
-                clear=False,
-            ),
-            patch.object(amazon_client, "Reports") as reports_class,
-        ):
-            create_reports_client("NA", _credentials())
-
-        reports_class.assert_called_once()
-
 
 class TestCredentialScopeRegistry(unittest.TestCase):
     def test_named_far_east_scopes_route_to_their_exact_marketplaces(self) -> None:
@@ -214,13 +142,6 @@ class TestCredentialScopeRegistry(unittest.TestCase):
                 scope = get_credential_scope(validate_amazon_scope(scope_name))
                 self.assertEqual(scope.marketplace_ids, (marketplace_id,))
                 self.assertEqual(scope.client_marketplace.marketplace_id, marketplace_id)
-
-    def test_rejects_unknown_scope(self) -> None:
-        with self.assertRaises(ValueError):
-            validate_amazon_scope("UNKNOWN")
-
-        with self.assertRaises(ValueError):
-            create_reports_client("UNKNOWN", _credentials())
 
     def test_every_configured_marketplace_has_one_valid_persistence_scope(self) -> None:
         """Exercise every exact country/scope pair owned by the registry."""

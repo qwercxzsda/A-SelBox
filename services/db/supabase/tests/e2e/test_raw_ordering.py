@@ -2,27 +2,22 @@
 
 import csv
 import io
-from dataclasses import replace
 from typing import cast
 
 from services.db.supabase.benchmarks.datasets import DATASETS, Dataset, canonical_rows
 from services.db.supabase.benchmarks.search_cases import SearchCase
 from services.db.supabase.tests.e2e.fixtures import (
     archived_data_kiosk,
-    archived_settlement,
+    archived_finances,
     company_with_fees,
-    fixture_sku,
-    settlement_document,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.amazon.settlement_tabular import SETTLEMENT_V2_COLUMNS
-from services.sync.src.archives.storage import archive_document
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_settlement_acquisition,
+    persist_finances_acquisition,
 )
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 EXACT_AMOUNT = "9007199254740993.123456789012345678901"
 EXACT_QUANTITY = "9007199254740993"
@@ -54,38 +49,16 @@ def reference_parameters(case: SearchCase) -> dict[str, str]:
 
 class RawOrderingTests(LocalWorkflowCase):
     def publish_sources(self, seller: str) -> None:
-        acquisition = archived_settlement(self.storage, seller)
-        rows = list(
-            csv.DictReader(
-                io.StringIO(
-                    settlement_document(str(acquisition.id), sku=fixture_sku(seller)).decode()
-                ),
-                delimiter="\t",
-            )
+        acquisition = archived_finances(
+            self.storage, seller, sale_amount=EXACT_AMOUNT, quantity=int(EXACT_QUANTITY)
         )
-        for row in rows:
-            if row["transaction-type"] in {"Order", "Refund"}:
-                row["amount"] = ("-" if row["transaction-type"] == "Refund" else "") + EXACT_AMOUNT
-                row["quantity-purchased"] = EXACT_QUANTITY
-        text = io.StringIO()
-        writer = csv.DictWriter(
-            text, fieldnames=SETTLEMENT_V2_COLUMNS, delimiter="\t", lineterminator="\r\n"
-        )
-        writer.writeheader()
-        writer.writerows(rows)
-        acquisition = replace(
-            acquisition,
-            document=archive_document(
-                self.storage, text.getvalue().encode(), source_compression=None
-            ),
-        )
-        settlement = persist_settlement_acquisition(self.database, acquisition)
+        finances = persist_finances_acquisition(self.database, acquisition)
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, seller)
         )
         # Administrators retain both versions in raw tabs; members remain current-only.
         for _ in range(2):
-            preprocess_settlement_acquisition(self.database, self.storage, settlement)
+            preprocess_finances_acquisition(self.database, self.storage, finances)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
 
     def assert_equivalent(
@@ -112,7 +85,16 @@ class RawOrderingTests(LocalWorkflowCase):
         )
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(canonical_rows(payload["rows"]), expected)
+        actual = canonical_rows(payload["rows"])
+        self.assertEqual(len(actual), len(expected))
+        for actual_row, expected_row in zip(actual, expected, strict=True):
+            self.assertEqual(actual_row.keys(), expected_row.keys())
+            differences = {
+                key: (expected_row.get(key), actual_row.get(key))
+                for key in actual_row.keys() | expected_row.keys()
+                if expected_row.get(key) != actual_row.get(key)
+            }
+            self.assertFalse(differences, differences)
         self.assertEqual(payload["total_count"], total)
         self.assertGreater(len(expected), 1)
         self.assertEqual({row["seller_namespace"] for row in expected}, sellers)

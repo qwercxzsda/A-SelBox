@@ -28,15 +28,15 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         """
         with facts as (
             select t.currency,t.amount
-            from private.settlement_transactions t
-            join private.settlements h on h.current_version_id=t.version_id
-            where t.posted_date < %s and t.category in ('SETTLEMENT','SELBOX')
+            from private.finances_transaction_components t
+            join private.finances_days h on h.current_version_id=t.version_id
+            where t.posted_date < %s and t.activity_eligible and t.category in ('FINANCES','SELBOX')
             union all
             select t.currency,t.amount
             from private.data_kiosk_transactions t
             join private.data_kiosk_days h on h.current_version_id=t.version_id
             where (t.category='DATA_KIOSK' or
-                (t.activity_date >= %s and t.category in ('SETTLEMENT','SELBOX')))
+                (t.activity_date >= %s and t.category in ('FINANCES','SELBOX')))
         ) select currency,sum(amount),count(*) from facts group by currency
         """,
         (mature_cutoff_date, mature_cutoff_date),
@@ -51,7 +51,7 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         values[1] += 1
         difference_count += 1
     minimum = connection.execute(
-        "select least((select min(posted_date) from private.settlement_transactions),"
+        "select least((select min(posted_date) from private.finances_transaction_components),"
         "(select min(activity_date) from private.data_kiosk_transactions))"
     ).fetchall()[0][0]
     actual = as_user(
@@ -63,12 +63,12 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
             row["currency"]: [Decimal(row["reported_amount"]), int(row["row_count"])]
             for row in actual
         },
-        "Administrator totals differ from mature Settlement/SelBox categories, Data Kiosk costs, "
+        "Administrator totals differ from mature Finances/SelBox categories, Data Kiosk costs, "
         "daily differences, and recent Data Kiosk amounts",
     )
     excluded = connection.execute(
-        "select count(*) from private.settlement_transactions t "
-        "join private.settlements s on s.current_version_id=t.version_id "
+        "select count(*) from private.finances_transaction_components t "
+        "join private.finances_days s on s.current_version_id=t.version_id "
         "where t.posted_date >= %s",
         (mature_cutoff_date,),
     ).fetchall()[0][0]
@@ -78,5 +78,5 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         "exact_currency_totals_match": True,
         "authoritative_row_count": sum(values[1] for values in expected.values()),
         "daily_difference_rows": difference_count,
-        "recent_settlement_rows_excluded": excluded,
+        "recent_finances_rows_excluded": excluded,
     }

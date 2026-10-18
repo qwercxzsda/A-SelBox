@@ -12,14 +12,14 @@ export interface FilterOption {
 }
 
 /** Source names identify the imported dataset, independently of allocation category. */
-const TRANSACTION_SOURCES = ["SETTLEMENT", "DATA_KIOSK"] as const;
-const RECONCILIATION_TYPE = "SETTLEMENT_KIOSK_DIFFERENCE";
+const TRANSACTION_SOURCES = ["FINANCES", "DATA_KIOSK"] as const;
+const RECONCILIATION_TYPE = "FINANCES_KIOSK_DIFFERENCE";
 
 export function transactionTypeValues(dataset: TableDatasetKey, role: AccessRole): string[] {
   const types = transactionTypes
     .filter(({ source, category }) => {
       if (role !== "administrator" && category === "SELBOX") return false;
-      if (dataset === "settlement") return source === "SETTLEMENT";
+      if (dataset === "finances") return source === "FINANCES";
       if (dataset === "data_kiosk") return source === "DATA_KIOSK";
       return dataset === "live";
     })

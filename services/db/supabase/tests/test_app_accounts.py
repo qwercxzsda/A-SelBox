@@ -21,15 +21,15 @@ class AppAccountTests(SourceModelFixture):
     def test_unassigned_cannot_read_populated_financial_sources_or_references(self) -> None:
         company, _ = self.owner()
         self.member(company)
-        self.settlement([self.transaction("20")])
+        self.finances([self.transaction("20")])
         self.kiosk(1, [self.component("-4")])
         user = self.auth_user()
         for query in (
-            "select * from private.settlement_transactions",
+            "select * from private.finances_transaction_components",
             "select * from private.data_kiosk_transactions",
-            "select id from private.settlements",
+            "select id from private.finances_days",
             "select id from private.data_kiosk_days",
-            "select id from private.settlement_preprocess_versions",
+            "select id from private.finances_preprocess_versions",
             "select id from private.data_kiosk_preprocess_versions",
             "select * from public.company_skus",
             "select * from public.current_sku_fee_periods",

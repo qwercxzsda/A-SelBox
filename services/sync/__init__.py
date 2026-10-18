@@ -1,1 +1,1 @@
-"""Amazon Settlement and Data Kiosk archive and preprocessing service."""
+"""Amazon Finances, Data Kiosk, and Inventory archive and preprocessing service."""

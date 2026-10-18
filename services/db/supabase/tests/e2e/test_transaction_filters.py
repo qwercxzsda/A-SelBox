@@ -4,10 +4,10 @@ import unittest
 from collections.abc import Set
 from typing import cast
 
-from services.db.supabase.tests.e2e.fixtures import archived_settlement, company_with_fees
+from services.db.supabase.tests.e2e.fixtures import archived_finances, company_with_fees
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.database.acquisitions import persist_settlement_acquisition
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
+from services.sync.src.database.acquisitions import persist_finances_acquisition
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 
 class TransactionFilterTests(LocalWorkflowCase):
@@ -34,7 +34,7 @@ class TransactionFilterTests(LocalWorkflowCase):
         rows = cast(list[dict[str, object]], payload["rows"])
         self.assertEqual(len(rows), expected_count)
         self.assertEqual({row["company_id"] for row in rows}, companies)
-        self.assertTrue(all(row["marketplace_name"] in {"Amazon.com", None} for row in rows))
+        self.assertTrue(all(row["marketplace_name"] == "Amazon.com" for row in rows))
         for row in rows:
             for field in ("source_amount", "fee_amount", "company_amount"):
                 self.assertIsInstance(row[field], str)
@@ -55,10 +55,10 @@ class TransactionFilterTests(LocalWorkflowCase):
         first = company_with_fees(self.database, self.seller)
         second = company_with_fees(self.database, self.seller + "-second")
         for seller in (self.seller, self.seller + "-second"):
-            acquisition = persist_settlement_acquisition(
-                self.database, archived_settlement(self.storage, seller)
+            acquisition = persist_finances_acquisition(
+                self.database, archived_finances(self.storage, seller)
             )
-            preprocess_settlement_acquisition(self.database, self.storage, acquisition)
+            preprocess_finances_acquisition(self.database, self.storage, acquisition)
         _, member_token = self.create_member(first)
         _, administrator_token = self.create_administrator()
 
@@ -80,9 +80,7 @@ class TransactionFilterTests(LocalWorkflowCase):
             for filters in matching:
                 with self.subTest(role=role, filters=filters):
                     includes_account_rows = (
-                        role == "administrator"
-                        and not filters.get("p_marketplaces")
-                        and filters.get("p_fee_applicable") is not True
+                        role == "administrator" and filters.get("p_fee_applicable") is not True
                     )
                     self.assert_page_and_count(
                         token,

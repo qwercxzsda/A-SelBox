@@ -7,14 +7,14 @@ verify the same rows across the old substring and current exact-array contracts.
 
 from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAMES
 from services.sync.src.transaction_types.data_kiosk import DATA_KIOSK_TYPES
-from services.sync.src.transaction_types.settlement import SETTLEMENT_TYPES
+from services.sync.src.transaction_types.finances import FINANCES_TYPES
 
 from .common import Connection
 
 
 def resolve_search_values(connection: Connection, term: str, dataset: str) -> dict[str, object]:
     """Use the active authenticated actor; never time catalog loading as a table read."""
-    if dataset not in {"live", "settlement", "data_kiosk"}:
+    if dataset not in {"live", "finances", "data_kiosk"}:
         raise ValueError("Search resolution requires a transaction dataset")
     names = ["p_search_skus", "p_search_types", "p_search_marketplaces"]
     if dataset == "live":
@@ -32,13 +32,13 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
     else:
         skus = connection.execute(
             "select sku from public.skus union "
-            "select sku from private.settlement_transactions where sku is not null union "
+            "select sku from private.finances_transaction_components where sku is not null union "
             "select sku from private.data_kiosk_transactions where sku is not null"
         ).fetchall()
     types = [
         item.component_type
         for source, entries in (
-            ("settlement", SETTLEMENT_TYPES),
+            ("finances", FINANCES_TYPES),
             ("data_kiosk", DATA_KIOSK_TYPES),
         )
         if dataset in ("live", source)
@@ -55,7 +55,7 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
     if dataset == "live":
         result["p_search_sources"] = [
             value
-            for value, label in (("SETTLEMENT", "Settlements"), ("DATA_KIOSK", "Data Kiosk"))
+            for value, label in (("FINANCES", "Finances"), ("DATA_KIOSK", "Data Kiosk"))
             if normalized in value.lower() or normalized in label.lower()
         ]
     return result

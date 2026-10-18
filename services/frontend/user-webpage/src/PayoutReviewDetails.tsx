@@ -24,7 +24,7 @@ function SavedAccountReconciliation({
         stateKey={`payout-review:${reportId}:daily`}
         title="Saved daily source details"
         collapsible
-        description="Daily rows separate source accounts and marketplaces. Total after adding difference equals Settlement total by construction; it does not confirm that the sources agree."
+        description="Daily rows separate source accounts and marketplaces. Total after adding difference equals Finances total by construction; it does not confirm that the sources agree."
       >
         <PayoutReconciliation accessToken={accessToken} reportId={reportId} />
       </DetailSection>

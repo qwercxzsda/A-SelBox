@@ -38,7 +38,3 @@ class ReportsListClient(Protocol):
     def get_reports(self, **kwargs: object) -> ReportsPage:
         """List report jobs."""
         ...
-
-
-class SettlementReportsClient(ReportsListClient, ReportDocumentClient, Protocol):
-    """Reports API surface used by complete Settlement acquisition."""

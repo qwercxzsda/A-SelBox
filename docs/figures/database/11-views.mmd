@@ -1,74 +1,99 @@
-flowchart TB
-    T["TABLES: skus + selected sku_terms_versions"]
-    F["TABLE: sku_fee_periods"]
-    S["TABLES: Settlement facts + versions"]
-    D["TABLES: Data Kiosk facts + versions"]
-    P["TABLES: selected source headers"]
-    M["TABLES: source metadata + acquisitions + pruning markers"]
-    C["VIEW private.current_sku_terms"]
-    CS["VIEW public.company_skus"]
-    CF["VIEW public.current_sku_fee_periods"]
-    RI["VIEW private.source_reconciliation_inputs"]
-    LR["VIEW private.live_source_reconciliation"]
-    FR["VIEW public.financial_review_records<br/>Administrator only · selected versions<br/>activity_date &lt; mature_cutoff_date()"]
-    FT["RPC public.financial_review_totals<br/>Bounded months + category<br/>Monthly currency amounts, differences and row counts"]
-    FY["RPC public.financial_review_type_totals<br/>Bounded months + category + currency<br/>Monthly source/Type amounts and row counts"]
-    CI["VIEW private.live_company_component_inputs"]
-    LC["VIEW public.live_company_components"]
-    SE["VIEW public.settlement_preprocess_entries"]
-    DE["VIEW public.data_kiosk_preprocess_entries"]
-    SR["VIEW public.settlement_preprocess_results"]
-    DR["VIEW public.data_kiosk_preprocess_results"]
-    H["Administrator-guarded metadata readers"]
-    PAY["PRIVATE TABLES: payout reconciliation + three version manifests"]
-    PR["VIEW public.payout_report_reconciliation"]
-    PRS["VIEW public.payout_reconciliation_totals"]
-    PS["VIEW public.payout_report_settlement_versions"]
-    PD["VIEW public.payout_report_data_kiosk_versions"]
-    PT["VIEW public.payout_report_terms_versions"]
-    PC["TABLE: company_payout_report_components"]
-    PM["VIEW public.payout_report_marketplace_totals"]
-    PH["TABLE: company_payout_reports"]
-    PL["VIEW public.latest_company_payout_reports"]
-    T --> C --> CS --> CF
-    F --> CF
-    S --> RI
-    D --> RI
-    RI --> LR
-    P --> LR
-    S --> FR
-    D --> FR
-    P --> FR
-    FR --> FT
-    FR --> FY
-    LR --> CI
-    S --> CI
-    D --> CI
-    P --> CI
-    C --> CI
-    CI --> LC
-    F --> LC
-    S --> SE
-    D --> DE
-    M --> H
-    H --> SR
-    H --> DR
-    PAY --> PR
-    PAY --> PRS
-    PAY --> PS
-    PAY --> PD
-    PAY --> PT
-    PC --> PM
-    PH --> PL
-
-    IA["TABLE: inventory_acquisitions"]
-    IC["TABLE: inventory_daily_captures"]
-    II["TABLE: inventory_items"]
-    IH["Caller-checked latest scope metadata helper"]
-    ICV["VIEW public.latest_inventory_captures"]
-    IV["VIEW public.latest_inventory_items"]
-    IA --> IH
-    IC --> IH
-    IH --> ICV --> IV
-    II --> IV
-    CS --> IV
+flowchart LR
+    private_calculate_service_fee__["FUNCTION private.calculate_service_fee()"]
+    private_current_sku_terms["VIEW private.current_sku_terms"]
+    private_data_kiosk_days["TABLE private.data_kiosk_days"]
+    private_data_kiosk_preprocess_versions["TABLE private.data_kiosk_preprocess_versions"]
+    private_data_kiosk_transactions["TABLE private.data_kiosk_transactions"]
+    private_finances_activity_components["VIEW private.finances_activity_components"]
+    private_finances_days["TABLE private.finances_days"]
+    private_finances_preprocess_versions["TABLE private.finances_preprocess_versions"]
+    private_finances_transaction_components["TABLE private.finances_transaction_components"]
+    private_financial_account_visible__["FUNCTION private.financial_account_visible()"]
+    private_inventory_items["TABLE private.inventory_items"]
+    private_is_administrator__["FUNCTION private.is_administrator()"]
+    private_latest_inventory_capture_references__["FUNCTION private.latest_inventory_capture_references()"]
+    private_live_company_component_inputs["VIEW private.live_company_component_inputs"]
+    private_live_source_reconciliation["VIEW private.live_source_reconciliation"]
+    private_mature_cutoff_date__["FUNCTION private.mature_cutoff_date()"]
+    private_payout_report_data_kiosk_versions["TABLE private.payout_report_data_kiosk_versions"]
+    private_payout_report_finances_versions["TABLE private.payout_report_finances_versions"]
+    private_payout_report_reconciliation["TABLE private.payout_report_reconciliation"]
+    private_payout_report_terms_versions["TABLE private.payout_report_terms_versions"]
+    private_read_data_kiosk_preprocess_results__["FUNCTION private.read_data_kiosk_preprocess_results()"]
+    private_read_finances_preprocess_results__["FUNCTION private.read_finances_preprocess_results()"]
+    private_reconcile_source_amounts__["FUNCTION private.reconcile_source_amounts()"]
+    private_reconciliation_group_id__["FUNCTION private.reconciliation_group_id()"]
+    private_source_reconciliation_inputs["VIEW private.source_reconciliation_inputs"]
+    public_company_payout_report_components["TABLE public.company_payout_report_components"]
+    public_company_payout_reports["TABLE public.company_payout_reports"]
+    public_company_skus["VIEW public.company_skus"]
+    public_current_sku_fee_periods["VIEW public.current_sku_fee_periods"]
+    public_data_kiosk_preprocess_entries["VIEW public.data_kiosk_preprocess_entries"]
+    public_data_kiosk_preprocess_results["VIEW public.data_kiosk_preprocess_results"]
+    public_finances_preprocess_entries["VIEW public.finances_preprocess_entries"]
+    public_finances_preprocess_results["VIEW public.finances_preprocess_results"]
+    public_financial_review_records["VIEW public.financial_review_records"]
+    public_latest_company_payout_reports["VIEW public.latest_company_payout_reports"]
+    public_latest_inventory_captures["VIEW public.latest_inventory_captures"]
+    public_latest_inventory_items["VIEW public.latest_inventory_items"]
+    public_live_company_components["VIEW public.live_company_components"]
+    public_payout_reconciliation_totals["VIEW public.payout_reconciliation_totals"]
+    public_payout_report_data_kiosk_versions["VIEW public.payout_report_data_kiosk_versions"]
+    public_payout_report_finances_versions["VIEW public.payout_report_finances_versions"]
+    public_payout_report_marketplace_totals["VIEW public.payout_report_marketplace_totals"]
+    public_payout_report_reconciliation["VIEW public.payout_report_reconciliation"]
+    public_payout_report_terms_versions["VIEW public.payout_report_terms_versions"]
+    public_sku_fee_periods["TABLE public.sku_fee_periods"]
+    public_sku_terms_versions["TABLE public.sku_terms_versions"]
+    public_skus["TABLE public.skus"]
+    public_sku_terms_versions --> private_current_sku_terms
+    public_skus --> private_current_sku_terms
+    private_finances_transaction_components --> private_finances_activity_components
+    private_current_sku_terms --> private_live_company_component_inputs
+    private_data_kiosk_days --> private_live_company_component_inputs
+    private_data_kiosk_preprocess_versions --> private_live_company_component_inputs
+    private_data_kiosk_transactions --> private_live_company_component_inputs
+    private_finances_activity_components --> private_live_company_component_inputs
+    private_finances_days --> private_live_company_component_inputs
+    private_finances_preprocess_versions --> private_live_company_component_inputs
+    private_live_source_reconciliation --> private_live_company_component_inputs
+    private_mature_cutoff_date__ --> private_live_company_component_inputs
+    private_reconciliation_group_id__ --> private_live_company_component_inputs
+    private_data_kiosk_days --> private_live_source_reconciliation
+    private_finances_days --> private_live_source_reconciliation
+    private_reconcile_source_amounts__ --> private_live_source_reconciliation
+    private_source_reconciliation_inputs --> private_live_source_reconciliation
+    private_data_kiosk_transactions --> private_source_reconciliation_inputs
+    private_finances_activity_components --> private_source_reconciliation_inputs
+    private_financial_account_visible__ --> private_source_reconciliation_inputs
+    private_mature_cutoff_date__ --> private_source_reconciliation_inputs
+    private_current_sku_terms --> public_company_skus
+    public_company_skus --> public_current_sku_fee_periods
+    public_sku_fee_periods --> public_current_sku_fee_periods
+    private_data_kiosk_preprocess_versions --> public_data_kiosk_preprocess_entries
+    private_data_kiosk_transactions --> public_data_kiosk_preprocess_entries
+    private_read_data_kiosk_preprocess_results__ --> public_data_kiosk_preprocess_results
+    private_finances_preprocess_versions --> public_finances_preprocess_entries
+    private_finances_transaction_components --> public_finances_preprocess_entries
+    private_read_finances_preprocess_results__ --> public_finances_preprocess_results
+    private_data_kiosk_days --> public_financial_review_records
+    private_data_kiosk_transactions --> public_financial_review_records
+    private_finances_days --> public_financial_review_records
+    private_finances_transaction_components --> public_financial_review_records
+    private_is_administrator__ --> public_financial_review_records
+    private_mature_cutoff_date__ --> public_financial_review_records
+    public_company_payout_reports --> public_latest_company_payout_reports
+    private_latest_inventory_capture_references__ --> public_latest_inventory_captures
+    private_inventory_items --> public_latest_inventory_items
+    public_company_skus --> public_latest_inventory_items
+    public_latest_inventory_captures --> public_latest_inventory_items
+    private_calculate_service_fee__ --> public_live_company_components
+    private_live_company_component_inputs --> public_live_company_components
+    public_sku_fee_periods --> public_live_company_components
+    private_is_administrator__ --> public_payout_reconciliation_totals
+    private_payout_report_reconciliation --> public_payout_reconciliation_totals
+    private_payout_report_data_kiosk_versions --> public_payout_report_data_kiosk_versions
+    private_payout_report_finances_versions --> public_payout_report_finances_versions
+    public_company_payout_report_components --> public_payout_report_marketplace_totals
+    private_payout_report_reconciliation --> public_payout_report_reconciliation
+    private_payout_report_terms_versions --> public_payout_report_terms_versions

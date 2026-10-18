@@ -51,7 +51,7 @@ export function FinancialReviewSourceDetails({
           }}
         />
         <Text size="xs" c="dimmed">
-          Settlement: {selected?.settlement_row_count ?? "0"} records · Data Kiosk:{" "}
+          Finances: {selected?.finances_row_count ?? "0"} records · Data Kiosk:{" "}
           {selected?.data_kiosk_row_count ?? "0"} records
         </Text>
       </Group>

@@ -19,10 +19,8 @@ class GlobalSkuIdentityTests(FinancialFixture):
         for seller, amount, cost in (("N1", "100", "-10"), ("N2", "200", "-20")):
             self.seller = seller
             acquisition = self.acquisition()
-            _, old = self.settlement(
-                [self.transaction("1000", sku="S1")], acquisition_id=acquisition
-            )
-            self.settlement(
+            _, old = self.finances([self.transaction("1000", sku="S1")], acquisition_id=acquisition)
+            self.finances(
                 [
                     self.transaction(amount, sku="S1"),
                     self.transaction("10", 4, sku="s1"),
@@ -50,8 +48,8 @@ class GlobalSkuIdentityTests(FinancialFixture):
         self.assertEqual(
             {(row["source"], row["seller_namespace"]) for row in rows},
             {
-                ("SETTLEMENT", "N1"),
-                ("SETTLEMENT", "N2"),
+                ("FINANCES", "N1"),
+                ("FINANCES", "N2"),
                 ("DATA_KIOSK", "N1"),
                 ("DATA_KIOSK", "N2"),
             },
@@ -133,7 +131,7 @@ class GlobalSkuIdentityTests(FinancialFixture):
     def test_current_member_source_pages_combine_namespaces_without_exposing_history(self) -> None:
         company, other, _, _ = self.shared_sources()
         member, administrator = self.member(company), self.administrator()
-        for dataset in ("settlement", "data_kiosk"):
+        for dataset in ("finances", "data_kiosk"):
             for user, expected in ((member, "2"), (administrator, "4"), (self.member(other), "0")):
                 with self.subTest(dataset=dataset, user=user):
                     page = cast(
@@ -168,7 +166,7 @@ class GlobalSkuIdentityTests(FinancialFixture):
         self.fee(identity, [("2026-01-01", None, "5")])
         for seller, amount, cost in (("N1", "100", "-10"), ("N2", "200", "-20")):
             self.seller = seller
-            self.settlement([self.transaction(amount, sku="S1")])
+            self.finances([self.transaction(amount, sku="S1")])
             self.kiosk(1, [self.component(cost, sku="S1")])
             fill_payout_kiosk_month(self)
         reports = generate_payout_reports(self, company)

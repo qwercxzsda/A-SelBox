@@ -7,7 +7,7 @@ import { TransactionTypeValue } from "./TransactionTypeValue";
 import { transactionTypeLabel } from "./categories";
 import type { FinancialReviewSourceProps } from "./financial-review-source-state";
 const sourceName = (source: string | null | undefined) =>
-  source === "SETTLEMENT" ? "Settlement" : "Data Kiosk";
+  source === "FINANCES" ? "Finances" : "Data Kiosk";
 
 export function FinancialReviewTypes({
   identity,
@@ -84,7 +84,7 @@ export function FinancialReviewTypes({
                 aria-label={`View records for ${sourceName(row.source)} · ${transactionTypeLabel(row.component_type ?? "")}`}
                 onClick={() => {
                   change({
-                    source: row.source === "SETTLEMENT" ? "SETTLEMENT" : "DATA_KIOSK",
+                    source: row.source === "FINANCES" ? "FINANCES" : "DATA_KIOSK",
                     type: row.component_type ?? "",
                     recordPage: 0,
                     recordsOpen: true,

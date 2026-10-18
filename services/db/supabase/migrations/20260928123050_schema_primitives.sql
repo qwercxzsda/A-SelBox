@@ -4,7 +4,7 @@ revoke all on schema private from public, anon, authenticated, service_role;
 create extension if not exists btree_gist with schema extensions;
 
 create type public.allocation_category as enum (
-    'SETTLEMENT', 'SELBOX', 'DATA_KIOSK', 'ANALYSIS_ONLY'
+    'FINANCES', 'SELBOX', 'DATA_KIOSK', 'ANALYSIS_ONLY'
 );
 
 -- PostgreSQL 17 has no uuidv7(). Trusted Python writers normally supply IDs.

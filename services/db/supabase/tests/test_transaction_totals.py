@@ -187,7 +187,7 @@ class TransactionTotalsTests(SourceModelFixture):
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         self.assign("GAP", company)
-        self.settlement(
+        self.finances(
             [
                 self.transaction("0", 3),
                 self.transaction("10", 4),
@@ -211,12 +211,12 @@ class TransactionTotalsTests(SourceModelFixture):
         second, _ = self.owner("OTHER")
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, version = self.settlement([self.transaction("10")], acquisition_id=acquisition)
+        _, version = self.finances([self.transaction("10")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("3")])
         users = (self.administrator(), self.member(first), self.member(second))
         for user in users:
             self.assert_matches_view(user)
-        self.settlement([self.transaction("20")], acquisition_id=acquisition, expected=version)
+        self.finances([self.transaction("20")], acquisition_id=acquisition, expected=version)
         self.kiosk(2, [], expected=kiosk)
         terms = self.assign("SKU", second, rate="7", expected=terms)
         for user in users:
@@ -229,7 +229,7 @@ class TransactionTotalsTests(SourceModelFixture):
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         types = [f"TYPE-{number:04}" for number in range(1000)] + ["Ä", "ä", "가", "😀"]
-        self.settlement(
+        self.finances(
             [
                 self.transaction("1", i + 3) | {"component_type": kind}
                 for i, kind in enumerate(types)

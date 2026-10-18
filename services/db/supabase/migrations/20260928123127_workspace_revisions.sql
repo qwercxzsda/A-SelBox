@@ -4,7 +4,7 @@
 -- Company IDs use public.local_uuid (UUIDv7), which rejects this nil UUID.
 create table private.workspace_revision_tokens (
     source text not null check (source in ( -- noqa: RF04
-        'settlement', 'data_kiosk', 'fees', 'inventory', 'payouts'
+        'finances', 'data_kiosk', 'fees', 'inventory', 'payouts'
     )),
     scope_company_id uuid not null,
     revision uuid not null default gen_random_uuid(),
@@ -34,7 +34,7 @@ $$;
 create function private.track_source_revision() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-    if tg_table_name in ('settlements', 'data_kiosk_days') then
+    if tg_table_name in ('finances_days', 'data_kiosk_days') then
         if tg_op = 'UPDATE' and new.current_version_id is not distinct from old.current_version_id then
             return null;
         end if;
@@ -48,10 +48,10 @@ $$;
 
 -- Delay the tiny shared-row write until the publication has finished inserting
 -- its facts. Multi-day batches rotate each source token at most once per commit.
-create constraint trigger workspace_settlement_revision
-after insert or update or delete on private.settlements
+create constraint trigger workspace_finances_revision
+after insert or update or delete on private.finances_days
 deferrable initially deferred for each row
-execute function private.track_source_revision('settlement');
+execute function private.track_source_revision('finances');
 create constraint trigger workspace_data_kiosk_revision
 after insert or update or delete on private.data_kiosk_days
 deferrable initially deferred for each row
@@ -60,10 +60,10 @@ execute function private.track_source_revision('data_kiosk');
 -- Administrator raw reads include retained history. Publishing an older version
 -- or pruning its payload changes those reads without moving a current pointer.
 -- These small metadata inventories cover both events without fact-row triggers.
-create constraint trigger workspace_settlement_version_revision
-after insert on private.settlement_preprocess_versions
+create constraint trigger workspace_finances_version_revision
+after insert on private.finances_preprocess_versions
 deferrable initially deferred for each row
-execute function private.track_source_revision('settlement');
+execute function private.track_source_revision('finances');
 create constraint trigger workspace_data_kiosk_version_revision
 after insert on private.data_kiosk_preprocess_versions
 deferrable initially deferred for each row
@@ -137,14 +137,14 @@ begin
     if not found then raise exception 'Application access required' using errcode = '42501'; end if;
     if p_sources is null or cardinality(p_sources) > 5 or array_ndims(p_sources) > 1
         or exists (select 1 from unnest(p_sources) as s(source)
-            where source is null or source not in ('settlement', 'data_kiosk', 'fees', 'inventory', 'payouts')) then
+            where source is null or source not in ('finances', 'data_kiosk', 'fees', 'inventory', 'payouts')) then
         raise exception 'Invalid revision sources' using errcode = '22023';
     end if;
     -- The mature cutoff date moves even when no source is imported. Include it
     -- in opaque source tokens so existing clients invalidate cached money/counts.
     select coalesce(jsonb_object_agg(s.source,
         case when account.access_role = 'unassigned' then '0' else coalesce(r.revision::text, '0')
-        || case when s.source in ('settlement', 'data_kiosk')
+        || case when s.source in ('finances', 'data_kiosk')
             then ':' || private.mature_cutoff_date()::text else '' end end), '{}'::jsonb)
     into revisions
     from (select distinct source from unnest(p_sources) as requested(source)) as s
@@ -163,7 +163,7 @@ $$;
 
 create function public.workspace_revisions(
     p_sources text[] default array[
-        'settlement', 'data_kiosk', 'fees', 'inventory', 'payouts'
+        'finances', 'data_kiosk', 'fees', 'inventory', 'payouts'
     ]::text[]
 ) returns jsonb language sql stable security invoker set search_path = '' as $$
     select private.read_workspace_revisions(p_sources);
@@ -176,3 +176,9 @@ from public, anon, authenticated, service_role;
 
 comment on function public.workspace_revisions(text[]) is
 'Opaque change tokens for published sources and authorized fees/ownership/labels/payouts.';
+
+create constraint trigger workspace_finances_pruning_revision
+after insert on private.finances_pruned_versions
+deferrable initially deferred for each row execute function private.track_source_revision(
+    'finances'
+);

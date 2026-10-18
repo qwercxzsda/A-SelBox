@@ -27,7 +27,7 @@ begin
     end if;
     if (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'private' and c.relkind = 'r'
-          and c.relname in ('settlement_transactions','data_kiosk_transactions')) <> 2 then
+          and c.relname in ('finances_transaction_components','data_kiosk_transactions')) <> 2 then
         raise exception 'Both source fact tables are required';
     end if;
     if exists (
@@ -37,23 +37,23 @@ begin
     ) then raise exception 'All financial views must preserve invoker security'; end if;
     if exists (
         select 1 from information_schema.columns where table_schema = 'private'
-          and table_name in ('settlement_transactions','data_kiosk_transactions')
+          and table_name in ('finances_transaction_components','data_kiosk_transactions')
           and column_name in ('company_id','fee_amount','fee_rate_percent','company_amount','elaborated_quantity')
     ) then raise exception 'Ownership or fee amounts must not be stored in source facts'; end if;
     if exists (
         select 1 from information_schema.columns where table_schema = 'private'
-          and table_name in ('settlement_transactions','data_kiosk_transactions')
+          and table_name in ('finances_transaction_components','data_kiosk_transactions')
           and column_name = 'amount' and is_nullable <> 'NO'
     ) then raise exception 'Published source facts require quantified amounts'; end if;
     if (select count(*) from information_schema.columns
         where table_schema = 'private'
-          and table_name in ('settlement_transactions','data_kiosk_transactions')
+          and table_name in ('finances_transaction_components','data_kiosk_transactions')
           and column_name = 'category' and is_nullable = 'NO'
           and udt_schema = 'public' and udt_name = 'allocation_category') <> 2 then
         raise exception 'Both source fact tables require one named enum category';
     end if;
     if enum_range(null::public.allocation_category)::text[] is distinct from
-        array['SETTLEMENT','SELBOX','DATA_KIOSK','ANALYSIS_ONLY'] then
+        array['FINANCES','SELBOX','DATA_KIOSK','ANALYSIS_ONLY'] then
         raise exception 'Exactly four named categories are required';
     end if;
     if has_schema_privilege('anon','private','USAGE')
@@ -65,7 +65,7 @@ begin
         or has_function_privilege('authenticated','private.generate_company_payout_reports(uuid,date)','EXECUTE')
         or has_function_privilege('authenticated','private.refresh_company_payout_reports(integer)','EXECUTE')
         or has_table_privilege('authenticated','private.payout_report_refresh_state','SELECT')
-        or has_table_privilege('authenticated','private.settlement_acquisitions','SELECT') then
+        or has_table_privilege('authenticated','private.finances_acquisitions','SELECT') then
         raise exception 'Private source evidence and administrative writes must not be exposed';
     end if;
     if to_regprocedure('public.generate_company_payout_reports(uuid,date)') is not null then

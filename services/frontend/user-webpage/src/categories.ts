@@ -1,5 +1,5 @@
 const LABELS: Record<string, string> = {
-  SETTLEMENT: "Settlements",
+  FINANCES: "Finances",
   DATA_KIOSK: "Data Kiosk",
   SELBOX: "SelBox",
   RECONCILIATION: "Reconciliation",
@@ -12,6 +12,18 @@ const LABELS: Record<string, string> = {
   member: "Member",
   unassigned: "Unassigned",
   preprocess_version: "Processing version",
+  day_id: "Day ID",
+  version_id: "Daily version ID",
+  native_transaction_id: "Amazon transaction ID",
+  deferred_transaction_id: "Original transaction ID",
+  release_transaction_id: "Release transaction ID",
+  transaction_status: "Amazon transaction status",
+  account_type: "Account type",
+  source_page_number: "Source page",
+  source_record_number: "Source record",
+  DEFERRED: "Deferred",
+  DEFERRED_RELEASED: "Deferred, now released",
+  RELEASED: "Released",
 };
 
 const TYPE_ACRONYMS = new Set([
@@ -47,13 +59,9 @@ const TYPE_WORDS = new Map([
   ["fulfilment", "fulfillment"],
 ]);
 
-export function allocationCategoryLabel(value: string): string {
-  return value === "SETTLEMENT" ? "Settlement" : humanizeCode(value);
-}
-
 /** Display source type codes consistently without changing their filter/group identity. */
 export function transactionTypeLabel(value: string): string {
-  if (value === "SETTLEMENT_KIOSK_DIFFERENCE") return "Settlement / Data Kiosk difference";
+  if (value === "FINANCES_KIOSK_DIFFERENCE") return "Finances / Data Kiosk difference";
   return value
     .split("/")
     .map((segment) => {

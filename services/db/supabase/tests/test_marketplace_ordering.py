@@ -23,32 +23,32 @@ class MarketplaceOrderingTests(SourceModelFixture):
     def publish_marketplaces(
         self,
         version: str,
-        settlement_previous: str | None = None,
+        finances_previous: str | None = None,
         day_previous: dict[tuple[str, str], str] | None = None,
     ) -> tuple[str, dict[tuple[str, str], str]]:
-        settlement_rows: list[dict[str, object]] = []
+        finances_rows: list[dict[str, object]] = []
         days: list[dict[str, object]] = []
         current: dict[tuple[str, str], str] = {}
         for marketplace, day in product(_MARKETS, _DAYS):
             for category, sku in (
-                ("SETTLEMENT", "SKU"),
+                ("FINANCES", "SKU"),
                 ("DATA_KIOSK", "OTHER"),
                 ("SELBOX", None),
             ):
                 row = self.transaction(
-                    "10", len(settlement_rows) + 3, activity_date=day, category=category
+                    "10", len(finances_rows) + 3, activity_date=day, category=category
                 ) | {"marketplace_name": marketplace, "sku": sku}
                 if category == "SELBOX":
-                    row["family"] = None
-                settlement_rows.append(row)
+                    row["accounting_subtype"] = "OPERATING_EXPENSE"
+                finances_rows.append(row)
             components = [
                 self.component("1"),
-                self.component("2", sku="OTHER", category="SETTLEMENT"),
+                self.component("2", sku="OTHER", category="FINANCES"),
                 self.component("3", category="ANALYSIS_ONLY"),
                 self.component("4", category="SELBOX") | {"sku": None},
             ]
             # Equal IDs across sources require the Source tie-breaker as well as date/ID.
-            components[0]["id"] = settlement_rows[-3]["id"]
+            components[0]["id"] = finances_rows[-3]["id"]
             key = marketplace, day
             current[key] = new_id()
             days.append(
@@ -63,9 +63,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
                     "transactions": components,
                 }
             )
-        _, settlement = self.settlement(
-            settlement_rows, version=version, expected=settlement_previous
-        )
+        _, finances = self.finances(finances_rows, version=version, expected=finances_previous)
         for marketplace in _MARKETS:
             self.call(
                 "publish_data_kiosk_preprocess",
@@ -79,14 +77,14 @@ class MarketplaceOrderingTests(SourceModelFixture):
                     "days": [day for day in days if day["marketplace_name"] == marketplace],
                 },
             )
-        return settlement, current
+        return finances, current
 
     def marketplace_fixture(self) -> tuple[str, str]:
         company, sku = self.owner()
         self.owner("OTHER")
         self.fee(sku, [("2026-01-01", None, "5")])
-        settlement, days = self.publish_marketplaces("old")
-        self.publish_marketplaces("current", settlement, days)
+        finances, days = self.publish_marketplaces("old")
+        self.publish_marketplaces("current", finances, days)
         self.connection.execute("set constraints all immediate")
         return self.administrator(), self.member(company)
 
@@ -113,7 +111,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
             list(_MARKETS),
             [*_MARKETS, _MARKETS[0]],
         )
-        for user, dataset in product((administrator, member), ("live", "settlement", "data_kiosk")):
+        for user, dataset in product((administrator, member), ("live", "finances", "data_kiosk")):
             unfiltered = self.expected(user, dataset, p_limit=1000)
             rows = cast(list[dict[str, object]], unfiltered["rows"])
             self.assertEqual({row["marketplace_name"] for row in rows}, set(_MARKETS))
@@ -153,7 +151,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
     ) -> None:
         users = self.marketplace_fixture()
         for user, dataset, direction, lower in product(
-            users, ("live", "settlement", "data_kiosk"), ("asc", "desc"), (-3, 0, 7)
+            users, ("live", "finances", "data_kiosk"), ("asc", "desc"), (-3, 0, 7)
         ):
             arguments: tuple[object, ...] = (_MARKETS[1], lower, direction)
             filters = (
@@ -202,7 +200,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
             ),
             ("amount_ordering", {"p_order_by": "amount", "p_limit": 1}),
         )
-        for user, dataset in product(users, ("live", "settlement", "data_kiosk")):
+        for user, dataset in product(users, ("live", "finances", "data_kiosk")):
             count = self.count(user, dataset, list(_MARKETS))
             self.assertGreater(int(count), 0)
             for direction, (scenario, selection) in product(("asc", "desc"), scenarios):

@@ -1,42 +1,24 @@
-# Source and performance evidence
+# Verification evidence
 
-These records support the current [classification](../settlement_component_categories.md),
-[source allocation](../source_allocation.md), and [workflow](../data_workflows.md) contracts.
-Source observations retain their dates and coverage limits. Performance evidence records the
-current SKU identity model; superseded query and index experiments are not maintained.
-Test counts, UI descriptions, schema counts, and API samples in these records describe their dated
-runs. Use the linked current contracts for maintained behavior; historical evidence is not a setup
-guide or a claim that every observed interface is still public.
+These records identify the source, date and scope of each check. They are evidence for the maintained
+[Finances contract](../finances_transactions.md), [workflow](../data_workflows.md) and
+[inventory contract](../inventory_daily_captures.md), rather than alternative setup instructions.
 
-Historical role labels remain unchanged in dated measurements and captured payloads:
-`operator` means the current Administrator role (`administrator`), and `company_member`
-means Member (`member`). Current code and contracts use Administrator, Member, and
-Unassigned (`unassigned`); see [application access](../access_control.md).
-
-| Record | Purpose |
+| Record | Scope |
 | --- | --- |
-| [Daily inventory](inventory/README.md) | Real US/Japan pipeline, lightweight refresh, and responsive UI verification. |
-| [Global SKU performance](global_sku_identity/README.md) | Shared-SKU authenticated reads across namespaces, index sizes, and query plans. |
-| [Global SKU configuration seed](global_sku_identity/configuration_seed.json) | Full current-schema fixture restore, actual Auth/REST access and atomic configuration writes, and independent source checks. |
-| [Type registry validation](type_registry_2026-09-26/README.md) | Real-seed coverage and complete Settlement replay for the active explicit registry. |
-| [Blank marketplaces](blank_marketplace_investigation_2026-09-06.md) | Source names, Reports API hints, and account-level activity. |
-| [SKU completeness](settlement_sku_completeness_2026-09-07.md) | Observed SKU-bearing families and their coverage. |
-| [Settlement classification](settlement_classification_audit_2026-09-08.md) | Country coverage, retrocharge groups, and out-of-period postings. |
-| [Trailing columns](settlement_trailing_columns_investigation_2026-09-11.md) | Source rows supporting optional trailing-omission parsing. |
-| [Data Kiosk disposal discrepancy](data_kiosk_disposal_discrepancy_2026-09-07.md) | Measured variance, fresh-query controls, and unresolved cause. |
-| [October reconciliation refresh](reconciliation_refresh_2026-10-01.md) | Restored US statements, remaining advertising differences, marketplace grouping, and missing Settlement coverage. |
-| [Non-advertising reconciliation](non_ad_reconciliation_2026-10-01.md) | Real API investigation of storage periods, removal timing, repeated source fees, missing allocations and Japan controls. |
-| [Financial review differences](financial_review_differences_2026-10-02.md) | All three current categories: verified UI sums, missing historical coverage, purchase/posting timing, native Economics fee anomalies and unmatched account movements. |
-| [Data Kiosk category payout impact](data_kiosk_payout_impact_2026-10-02.md) | Complete cost-type inventory, source-grain omissions, saved company report exposure, matched timing and unresolved cost attribution. |
-| [MCF pricing credit](mcf_preferred_pricing_credit_2026-10-01.md) | Exact observed credit type and its explicit allocation. |
-| [Debt adjustment country lists](debt_adjustment_country_lists_2026-10-01.md) | Reviewed exact F5 labels under the existing balance-movement policy. |
-| [Company-cost countries](category3_country_evidence_2026-09-13.md) | Source cost labels, taxes, credits, and observed country coverage. |
-| [EPR and adjustments](data_kiosk_epr_and_adjustment_coverage_2026-09-13.md) | Checked responses and the limits of individual cost mapping. |
+| [Source refresh and review visibility](source_refresh_2026-10-18.md) · [results](source_refresh_2026-10-18.json) | Fresh October captures, complete January 1–October 16 daily coverage, Summary agreement, and maturity/pagination explanations for apparently missing months. |
+| [SKU cost allocation feasibility](sku_cost_allocation_feasibility_2026-10-18.md) · [results](sku_cost_allocation_feasibility_2026-10-18.json) | Independent fee-allocation APIs, live removal/aged-storage/Finances checks, transport formula tests, and limits of reproducing Data Kiosk SKU shares. |
+| [Expanded source comparison](expanded_source_comparison_2026-10-17.md) · [amounts](expanded_source_comparison_2026-10-17.json) | January–October history across all 18 retail markets, native Summary controls, changing Data Kiosk responses, and operation-level explanations of disposal and fee gaps. |
+| [Finances verification](finances_verification_2026-10-14.md) | Newly acquired real API pages through offline preprocessing and the SQL baseline, independent Summary equality, earlier PDF/API controls, and separate Auth/Storage/REST/browser regression checks. |
+| [Finances and Data Kiosk differences](finances_data_kiosk_differences_2026-10-14.md) | Exact July difference decomposition, account movements, purchase/posting timing, native component scope, a fresh Sweden query, and remaining cost discrepancies. |
+| [Data Kiosk cost discrepancies](data_kiosk_payout_impact_2026-10-02.md) | Dated upstream cost/ownership findings that remain independent of Finances Summary agreement. |
+| [Inventory verification](inventory/README.md) | Dated real US/Japan Inventory Planning captures and responsive UI checks; current behavior remains defined by the inventory contract. |
 
-The [performance guide](../database_performance.md) describes current access paths and remaining
-costs. The [benchmark package](../../services/db/supabase/benchmarks/README.md) measures installed
-queries on disposable local clones.
+The Finances aggregate JSON files contain marketplace/account scopes, currencies, amounts and
+counts. They exclude seller/customer identifiers, SKUs, credentials and private document locations.
+Original API responses, PDF extracts and raw archives remain in ignored private output directories.
+Obsolete source-format and removed-schema investigations are not maintained as application contracts.
 
-Historical FBA and Finances comparisons corroborate source findings; those APIs are not application
-inputs. Evidence excludes raw financial documents, seller/customer identifiers, credentials, and
-signed URLs.
+Historical role labels in inventory evidence retain their dated meaning: `operator` is the current
+Administrator (`administrator`) and `company_member` is Member (`member`). Current code and access
+contracts use Administrator, Member and Unassigned.

@@ -97,19 +97,6 @@ interfaces, including the later compact inventory table and detail drawer.
 
 ## Reproduce
 
-From the repository root, using Amazon access in the service dotenv and Docker:
-
-```bash
-conda run --no-capture-output -n A-SelBox python -m services.db.supabase.tests.verification.inventory \
-  --env-file services/sync/.env \
-  --private-output output/real-inventory-review \
-  --output output/real-inventory-review/new-evidence.json
-```
-
-For Japan, add `--scope JAPAN --marketplace-id A1VC38T7YXB528`. To use an already completed report,
-add `--report-reference <private-getReport-response.json>`. Its ID is read in memory; the report and
-document still come from Amazon. Choose a new evidence JSON path for each run.
-
-The verifier supplies ephemeral browser credentials through standard input. It never loads
-application DB/storage endpoints from the service dotenv, and never prints source rows or vendor
-error bodies. Raw documents and screenshots belong in private, gitignored output directories.
+The [database verification guide](../../../services/db/supabase/README.md#live-inventory-verification)
+owns the current command, prerequisites, report-reuse options, and private-output handling. New runs
+produce separate evidence; they do not update the dated measurements above.

@@ -21,7 +21,7 @@ const EXACT_AMOUNT = "12345678901234567890.12345678901234567890";
 const row = (overrides = {}) => ({
   ...Object.fromEntries(DATASET_CONFIG.live.selectColumns.map((column) => [column, column])),
   ...Object.fromEntries(DECIMAL_COLUMNS.map((column) => [column, EXACT_AMOUNT])),
-  source: "SETTLEMENT",
+  source: "FINANCES",
   source_row_id: "row-1",
   ...overrides,
 });
@@ -133,7 +133,7 @@ test("transaction page arrays preserve exact text and inclusive dates without fi
     dateTo: "2024-03-01",
     skus: ["SKU_100%", 'quoted"SKU', "path\\sku", "  spaced  ", "ＳＫＵ－１", "SKU_100%"],
     marketplaces: ["Amazon.com", "Amazon.co.jp"],
-    sources: ["SETTLEMENT", "DATA_KIOSK"],
+    sources: ["FINANCES", "DATA_KIOSK"],
     types: ["PRODUCT_SALES", "FbaStorageFee"],
   });
   const client = createApiClient(SETTINGS, async (_url, init) => {
@@ -157,7 +157,7 @@ test("transaction page arrays preserve exact text and inclusive dates without fi
 });
 
 test("all three transaction tabs send raw amount ordering in both directions and preserve exact decimals", async () => {
-  for (const dataset of ["live", "settlement", "data_kiosk"]) {
+  for (const dataset of ["live", "finances", "data_kiosk"]) {
     for (const direction of ["asc", "desc"]) {
       const amountColumn = dataset === "live" ? "source_amount" : "amount";
       const record =
@@ -215,7 +215,7 @@ test("all three transaction tabs send raw amount ordering in both directions and
 });
 
 test("source tabs use their date columns for date RPCs and reject lossy source amounts", async () => {
-  for (const dataset of ["settlement", "data_kiosk"]) {
+  for (const dataset of ["finances", "data_kiosk"]) {
     for (const direction of ["asc", "desc"]) {
       const client = createApiClient(SETTINGS, async (_url, init) => {
         assert.equal(JSON.parse(init.body).p_order_by, "date");
@@ -251,7 +251,7 @@ test("derived amount ordering is rejected before HTTP on all transaction tabs", 
   const client = createApiClient(SETTINGS, () =>
     assert.fail("Unsupported ordering must not request data"),
   );
-  for (const dataset of ["live", "settlement", "data_kiosk"]) {
+  for (const dataset of ["live", "finances", "data_kiosk"]) {
     for (const column of ["company_amount", "fee_amount", "fee_rate_percent"]) {
       await assert.rejects(
         client.fetchDatasetPage(request({ dataset, sort: { column, direction: "desc" } })),

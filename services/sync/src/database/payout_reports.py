@@ -37,7 +37,7 @@ class CompanyPayoutReport:
     calculation_version: str
     component_count: int
     reconciliation_count: int
-    settlement_version_count: int
+    finances_version_count: int
     data_kiosk_version_count: int
     terms_version_count: int
     source_amount: Decimal
@@ -84,12 +84,12 @@ class CompanyPayoutReconciliation:
     activity_date: date
     marketplace_name: str | None
     currency: str
-    settlement_category_amount: Decimal
+    finances_category_amount: Decimal
     selbox_category_amount: Decimal
-    data_kiosk_settlement_control: Decimal
+    data_kiosk_finances_control: Decimal
     data_kiosk_category_amount: Decimal
     difference: Decimal
-    settlement_total: Decimal
+    finances_total: Decimal
     accounted_total: Decimal
 
 
@@ -149,7 +149,7 @@ def load_company_payout_report(
             select id, company_id, currency, start_date, end_date,
                 dataset_key, marketplace_names, report_name,
                 change_reason, calculation_version, component_count, reconciliation_count,
-                settlement_version_count, data_kiosk_version_count, terms_version_count,
+                finances_version_count, data_kiosk_version_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at
             from public.company_payout_reports where id = %(id)s::uuid
             """,
@@ -187,9 +187,9 @@ def load_company_payout_reconciliation(
         cursor.execute(
             """
             select report_id, row_number, seller_namespace, activity_date, marketplace_name,
-                currency, settlement_category_amount, selbox_category_amount,
-                data_kiosk_settlement_control,
-                data_kiosk_category_amount, difference, settlement_total, accounted_total
+                currency, finances_category_amount, selbox_category_amount,
+                data_kiosk_finances_control,
+                data_kiosk_category_amount, difference, finances_total, accounted_total
             from public.payout_report_reconciliation
             where report_id = %(id)s::uuid order by row_number
             """,
@@ -220,7 +220,7 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
         calculation_version=calculation_version,
         component_count=nonnegative_count(row[10], "component_count"),
         reconciliation_count=nonnegative_count(row[11], "reconciliation_count"),
-        settlement_version_count=nonnegative_count(row[12], "settlement_version_count"),
+        finances_version_count=nonnegative_count(row[12], "finances_version_count"),
         data_kiosk_version_count=nonnegative_count(row[13], "data_kiosk_version_count"),
         terms_version_count=nonnegative_count(row[14], "terms_version_count"),
         source_amount=financial_amount(row[15], "source_amount"),
@@ -247,7 +247,7 @@ def _component(row: Sequence[object]) -> CompanyPayoutComponent:
         raise RuntimeError("The payout component query returned an invalid shape.")
     source = required_text(row[3], "source")
     status = required_text(row[21], "resolution_status")
-    if source not in ("SETTLEMENT", "DATA_KIOSK") or status not in (
+    if source not in ("FINANCES", "DATA_KIOSK") or status not in (
         "APPLIED",
         "NOT_APPLICABLE",
         "MISSING_FEE",
@@ -308,12 +308,12 @@ def _reconciliation(row: Sequence[object]) -> CompanyPayoutReconciliation:
             else validate_marketplace_name(required_text(row[4], "marketplace_name"))
         ),
         currency=financial_currency(row[5]),
-        settlement_category_amount=financial_amount(row[6], "settlement_category_amount"),
+        finances_category_amount=financial_amount(row[6], "finances_category_amount"),
         selbox_category_amount=financial_amount(row[7], "selbox_category_amount"),
-        data_kiosk_settlement_control=financial_amount(row[8], "data_kiosk_settlement_control"),
+        data_kiosk_finances_control=financial_amount(row[8], "data_kiosk_finances_control"),
         data_kiosk_category_amount=financial_amount(row[9], "data_kiosk_category_amount"),
         difference=financial_amount(row[10], "difference"),
-        settlement_total=financial_amount(row[11], "settlement_total"),
+        finances_total=financial_amount(row[11], "finances_total"),
         accounted_total=financial_amount(row[12], "accounted_total"),
     )
 

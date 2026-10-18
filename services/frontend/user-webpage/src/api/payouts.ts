@@ -33,12 +33,12 @@ export const PAYOUT_RECONCILIATION_COLUMNS = [
   "activity_date",
   "marketplace_name",
   "currency",
-  "settlement_category_amount",
+  "finances_category_amount",
   "selbox_category_amount",
-  "data_kiosk_settlement_control",
+  "data_kiosk_finances_control",
   "data_kiosk_category_amount",
   "difference",
-  "settlement_total",
+  "finances_total",
   "accounted_total",
 ] as const;
 

@@ -1,0 +1,9 @@
+{
+  "administrator_rows": 13009,
+  "unassigned_rows": 0,
+  "summary_controls": 1,
+  "summary_matched": true,
+  "source_page_rows": 25,
+  "raw_bytes": "newly captured live Japan August HTTP responses",
+  "transport": "actual local Supabase Storage, Auth, PostgreSQL, PostgREST"
+}

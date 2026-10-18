@@ -11,7 +11,7 @@ SEARCH_COLUMNS = {
         "component_type",
         "marketplace_name",
     ),
-    "settlement": ("sku", "component_type", "marketplace_name"),
+    "finances": ("sku", "component_type", "marketplace_name"),
     "data_kiosk": ("sku", "component_type", "marketplace_name"),
 }
 

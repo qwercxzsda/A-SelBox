@@ -26,7 +26,7 @@ export async function respondWithOptions(fixture, { request, url, user, reply, t
       Array.from({ length: fixture.totalCount }, (_, index) =>
         liveRow(fixture.prefixes[user], index + 1, fixture.companyIds[user]),
       )),
-    ...fixture.settlementRows,
+    ...fixture.financesRows,
     ...fixture.kioskRows,
     ...fixture.assignments,
   ];

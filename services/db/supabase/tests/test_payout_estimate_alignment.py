@@ -71,6 +71,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.seller = "seller-two"
         prepare_payout(self, inputs.company)
         self.seller = "seller-three"
+        self.finances([])
         self.kiosk(
             1,
             [self.component("0.123456789123456789") | {"currency": "EUR"}],
@@ -111,6 +112,13 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.connection.execute("set constraints all immediate")
 
     def publish_market_month(self, marketplace: str, *, version: str = "v0") -> None:
+        capture = self.acquisition(
+            marketplace=marketplace,
+            marketplace_id="A1VC38T7YXB528" if marketplace == "Amazon.co.jp" else "ATVPDKIKX0DER",
+            time_zone="Asia/Tokyo" if marketplace == "Amazon.co.jp" else "America/Los_Angeles",
+            amazon_scope="JAPAN" if marketplace == "Amazon.co.jp" else "NA",
+        )
+        self.finances([], acquisition_id=capture, version=version)
         acquisition = self.kiosk_acquisition(1, start="2026-06-01", end="2026-06-30")
         self.call(
             "publish_data_kiosk_preprocess",
@@ -199,6 +207,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             (0,),
         )
         fill_payout_kiosk_month(self)
+        self.finances([])
         report = generate_payout_reports(self, inputs.company)[0][0]
         self.assert_same_basis(inputs.company, self.member(inputs.company), report, "USD")
         self.assertEqual(
@@ -305,6 +314,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         company, _ = self.owner()
         empty = generate_payout_reports(self, company)[0][0]
         self.kiosk(1, [self.component("0")])
+        self.finances([])
         fill_payout_kiosk_month(self)
         report = generate_payout_reports(self, company)[0][0]
         self.assertNotEqual(empty, report)

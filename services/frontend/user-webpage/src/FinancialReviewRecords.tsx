@@ -49,13 +49,13 @@ export function FinancialReviewRecords({
           value={state.source}
           data={[
             { value: "", label: "All sources" },
-            { value: "SETTLEMENT", label: "Settlement" },
+            { value: "FINANCES", label: "Finances" },
             { value: "DATA_KIOSK", label: "Data Kiosk" },
           ]}
           onChange={(event) => {
             const source = event.currentTarget.value;
             change({
-              source: source === "SETTLEMENT" || source === "DATA_KIOSK" ? source : "",
+              source: source === "FINANCES" || source === "DATA_KIOSK" ? source : "",
               type: "",
               recordPage: 0,
             });
@@ -99,7 +99,7 @@ export function FinancialReviewRecords({
             columns={[
               { key: "activity_date", label: "Date", kind: "date" },
               { key: "source", label: "Source", kind: "source", nowrap: true },
-              { key: "sku", label: "SKU", empty: "Account-level", nowrap: true },
+              { key: "sku", label: "SKU", empty: "No SKU", nowrap: true },
               { key: "marketplace_name", label: "Marketplace", empty: "Not specified" },
               { key: "component_type", label: "Type", kind: "type" },
               { key: "amount", label: `Amount (${currency})`, kind: "number" },

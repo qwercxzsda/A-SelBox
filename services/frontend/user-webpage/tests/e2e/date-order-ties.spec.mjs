@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, settlementRow } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { sortBy } from "./table-actions.mjs";
 
@@ -7,7 +7,7 @@ const uuid = (index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
-  ["settlement", "Settlements"],
+  ["finances", "Finances"],
   ["data_kiosk", "Data Kiosk"],
 ]) {
   test(`${tab} reverses same-date IDs across page boundaries while amount ties stay ascending`, async ({
@@ -17,12 +17,12 @@ for (const [dataset, tab] of [
     fixture.roles["member-a"] = "administrator";
     const records = Array.from({ length: 30 }, (_, index) => {
       const id = index + 1;
-      const source = dataset === "live" && id % 2 === 0 ? "DATA_KIOSK" : "SETTLEMENT";
+      const source = dataset === "live" && id % 2 === 0 ? "DATA_KIOSK" : "FINANCES";
       const row =
         dataset === "live"
           ? liveRow("TIE", id)
-          : dataset === "settlement"
-            ? settlementRow(id)
+          : dataset === "finances"
+            ? financesRow(id)
             : kioskRow(id, "10");
       return {
         ...row,
@@ -42,13 +42,13 @@ for (const [dataset, tab] of [
       ...records.filter((_, i) => i % 3 !== 0).reverse(),
     ];
     if (dataset === "live") fixture.liveRows = scrambled;
-    else if (dataset === "settlement") fixture.settlementRows = scrambled;
+    else if (dataset === "finances") fixture.financesRows = scrambled;
     else fixture.kioskRows = scrambled;
     const ascending =
       dataset === "live"
         ? [
             ...records.filter((row) => row.source === "DATA_KIOSK"),
-            ...records.filter((row) => row.source === "SETTLEMENT"),
+            ...records.filter((row) => row.source === "FINANCES"),
           ]
         : records;
     const skuCells = page

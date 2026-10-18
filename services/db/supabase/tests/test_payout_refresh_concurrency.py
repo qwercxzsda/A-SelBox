@@ -87,10 +87,10 @@ class PayoutRefreshConcurrencyTests(SourceModelFixture):
             source = SourceModelFixture()
             source.connection, source.seller = source_connection, self.seller
             source_connection.execute("set statement_timeout='10s'")
-            source.settlement(
+            source.finances(
                 [source.transaction("200")],
                 acquisition_id=inputs.acquisition,
-                expected=inputs.settlement_version,
+                expected=inputs.finances_version,
             )
 
             def change_fee() -> None:

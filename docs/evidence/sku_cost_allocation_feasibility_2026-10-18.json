@@ -1,0 +1,308 @@
+{
+  "review_date": "2026-10-18",
+  "criterion": "A charge is directly allocatable only when Amazon returns the SKU's own monetary share, or a charge's verified item set contains exactly one SKU. Quantity, weight, volume, sales, flat rates and account totals alone are not an exact multi-SKU allocation. Such reconstruction remains difficult under the user's rule.",
+  "production_changes": false,
+  "transport_hypothesis": "Allocate each financial component by quantity times max(FNSKU weight kg, FNSKU volume cm3 / 5000). Independent rounded measurements; not a verified Amazon transport rule.",
+  "transport_tests": [
+    {
+      "economic_date": "2026-06-08",
+      "financial_posting_date": "2026-06-09",
+      "comparison_grain": "CHILD_ASIN/DAY",
+      "reference_capture_date": "2026-10-02",
+      "currency": "EUR",
+      "financial_total": "114.36",
+      "quote_equals_financial_total_in_this_case": true,
+      "largest_carrier_fee_error_per_product": "0.11385762711864406779661017",
+      "largest_total_fee_error_per_product": "0.13782033898305084745762712",
+      "exact_cent_replication": false
+    },
+    {
+      "economic_date": "2026-06-30",
+      "financial_posting_date": "2026-07-01",
+      "comparison_grain": "CHILD_ASIN/DAY",
+      "reference_capture_date": "2026-10-02",
+      "currency": "EUR",
+      "financial_total": "114.36",
+      "quote_equals_financial_total_in_this_case": true,
+      "largest_carrier_fee_error_per_product": "0.13494708857205657174626571",
+      "largest_total_fee_error_per_product": "0.16330156649138069563964603",
+      "exact_cent_replication": false
+    },
+    {
+      "economic_date": "2026-07-02",
+      "financial_posting_date": "2026-07-03",
+      "comparison_grain": "CHILD_ASIN/DAY",
+      "reference_capture_date": "2026-10-02",
+      "currency": "EUR",
+      "financial_total": "105.56",
+      "quote_equals_financial_total_in_this_case": true,
+      "largest_carrier_fee_error_per_product": "0.11954760220230337526930340",
+      "largest_total_fee_error_per_product": "0.144670619996276298640849002",
+      "exact_cent_replication": false
+    }
+  ],
+  "aged_storage_reports": [
+    {
+      "month": "2026-07",
+      "country": "US",
+      "currency": "USD",
+      "distinct_skus": 1,
+      "reported_amount_charged": "4.83",
+      "finances_signed_amount": "-4.83",
+      "data_kiosk_signed_amount": "-4.83",
+      "report_matches_finances": true,
+      "report_charge_minus_finances_charge": "0.00"
+    },
+    {
+      "month": "2026-07",
+      "country": "CA",
+      "currency": "CAD",
+      "distinct_skus": 1,
+      "reported_amount_charged": "49.52",
+      "finances_signed_amount": "-49.52",
+      "data_kiosk_signed_amount": "-49.52",
+      "report_matches_finances": true,
+      "report_charge_minus_finances_charge": "0.00"
+    },
+    {
+      "month": "2026-01",
+      "country": "US",
+      "currency": "USD",
+      "distinct_skus": 12,
+      "reported_amount_charged": "41.23",
+      "finances_signed_amount": "-41.19",
+      "data_kiosk_signed_amount": "-41.1899",
+      "report_matches_finances": false,
+      "report_charge_minus_finances_charge": "0.04"
+    },
+    {
+      "month": "2026-01",
+      "country": "CA",
+      "currency": "CAD",
+      "distinct_skus": 3,
+      "reported_amount_charged": "60.33",
+      "finances_signed_amount": "-60.33",
+      "data_kiosk_signed_amount": "-60.3300",
+      "report_matches_finances": true,
+      "report_charge_minus_finances_charge": "0.00"
+    }
+  ],
+  "removal_operation_counts": [
+    {
+      "scope": "US",
+      "currency": "USD",
+      "classifications": {
+        "operation_absent_from_removal_report": 132,
+        "exact_completed_single_cost_sku": 24,
+        "exact_operations_with_multiple_native_postings": 12,
+        "exact_completed_multiple_cost_skus": 2,
+        "multi_sku_one_posting_month": 2
+      },
+      "signed_amount_by_class": {
+        "operation_absent_from_removal_report": "-208.78",
+        "exact_completed_single_cost_sku": "-543.74",
+        "exact_completed_multiple_cost_skus": "-160.19"
+      }
+    },
+    {
+      "scope": "JP",
+      "currency": "JPY",
+      "classifications": {
+        "exact_completed_multiple_cost_skus": 1,
+        "multi_sku_one_posting_month": 1,
+        "exact_operations_with_multiple_native_postings": 3,
+        "exact_completed_single_cost_sku": 5,
+        "zero_cost_operation": 1
+      },
+      "signed_amount_by_class": {
+        "exact_completed_multiple_cost_skus": "-190.0",
+        "exact_completed_single_cost_sku": "-4860.0",
+        "zero_cost_operation": "0.0"
+      }
+    },
+    {
+      "scope": "AU",
+      "currency": "AUD",
+      "classifications": {
+        "exact_completed_single_cost_sku": 16,
+        "exact_operations_with_multiple_native_postings": 1
+      },
+      "signed_amount_by_class": {
+        "exact_completed_single_cost_sku": "-133.50"
+      }
+    },
+    {
+      "scope": "UK",
+      "currency": "GBP",
+      "classifications": {
+        "operation_absent_from_removal_report": 33,
+        "exact_completed_single_cost_sku": 26,
+        "exact_completed_multiple_cost_skus": 2,
+        "multi_sku_one_posting_month": 2,
+        "exact_operations_with_multiple_native_postings": 13
+      },
+      "signed_amount_by_class": {
+        "operation_absent_from_removal_report": "-39.02",
+        "exact_completed_single_cost_sku": "-452.44",
+        "exact_completed_multiple_cost_skus": "-6.04"
+      }
+    },
+    {
+      "scope": "CA",
+      "currency": "CAD",
+      "classifications": {
+        "operation_absent_from_removal_report": 2,
+        "exact_completed_single_cost_sku": 4,
+        "exact_operations_with_multiple_native_postings": 1
+      },
+      "signed_amount_by_class": {
+        "operation_absent_from_removal_report": "-56.19",
+        "exact_completed_single_cost_sku": "-7.74"
+      }
+    }
+  ],
+  "removal_count_limit": "Single-cost-bearing-SKU counts alone do not establish a complete single-SKU billed set or identify each partial posting. Full item scope and zero-offset cases require review.",
+  "finances_v0_probes": [
+    {
+      "case": "us-disposal",
+      "pages": 1,
+      "complete": true,
+      "any_service_fee_seller_sku": false,
+      "any_service_fee_fnsku": false,
+      "any_service_fee_asin": false
+    },
+    {
+      "case": "us-multi-disposal",
+      "pages": 1,
+      "complete": true,
+      "any_service_fee_seller_sku": false,
+      "any_service_fee_fnsku": false,
+      "any_service_fee_asin": false
+    },
+    {
+      "case": "jp-labeling",
+      "pages": 1,
+      "complete": true,
+      "any_service_fee_seller_sku": false,
+      "any_service_fee_fnsku": false,
+      "any_service_fee_asin": false
+    },
+    {
+      "case": "de-transport",
+      "pages": 1,
+      "complete": true,
+      "any_service_fee_seller_sku": false,
+      "any_service_fee_fnsku": false,
+      "any_service_fee_asin": false
+    },
+    {
+      "case": "ca-opening-disposal",
+      "pages": 1,
+      "complete": true,
+      "any_service_fee_seller_sku": false,
+      "any_service_fee_fnsku": false,
+      "any_service_fee_asin": false
+    }
+  ],
+  "inventory_ledger": {
+    "report_rows": 3788,
+    "target_operation_amount": "157.67",
+    "currency": "USD",
+    "target_operation_native_postings": 6,
+    "target_operation_product_skus": 3,
+    "target_order_reference_matches": 0,
+    "reference_exact_matches_by_native_identifier_kind": {
+      "transactionId": 0,
+      "FINANCIAL_EVENT_GROUP_ID": 0,
+      "SETTLEMENT_ID": 0,
+      "ORDER_ID": 0
+    }
+  },
+  "additional_fee_routes": [
+    {
+      "family": "STORAGE_FEES",
+      "classification": "DIFFICULT_FOR_EXACT_SKU_CHARGED_SHARE",
+      "candidate": "Reports API: GET_FBA_STORAGE_FEE_CHARGES_DATA",
+      "sources": [
+        "https://developer-docs.amazon/sp-api/docs/report-type-values-fba#fba-storage-fees-report",
+        "https://sellercentral.amazon.se/help/hub/reference/external/GNG95QWKFKSAMYJV?mons_sel_locale=en_GB"
+      ]
+    },
+    {
+      "family": "AGED_STORAGE_FEES",
+      "classification": "DIRECT_CHARGED_SKU_SHARES; CONTROL_RESIDUAL_MUST_BE_RETAINED",
+      "candidate": "Reports API: GET_FBA_FULFILLMENT_LONGTERM_STORAGE_FEE_CHARGES_DATA",
+      "sources": [
+        "https://developer-docs.amazon/sp-api/docs/report-type-values-fba#fba-long-term-storage-fee-charges-report"
+      ]
+    },
+    {
+      "family": "LABELING_FEES / ordinary prep",
+      "classification": "DIFFICULT_FOR_MULTI_SKU_BILLED_SHARE",
+      "candidate": "Fulfillment Inbound v2024-03-20 listInboundPlanItems/listShipmentItems; listPrepDetails",
+      "sources": [
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/fulfillment-inbound-api-model/fulfillmentInbound_2024-03-20.json",
+        "https://developer-docs.amazon/sp-api/reference/listprepdetails",
+        "https://developer-docs.amazon/sp-api/reference/listinboundplanitems"
+      ]
+    },
+    {
+      "family": "Unplanned preparation / inbound noncompliance (adjacent family)",
+      "classification": "DOCS_ONLY_DIRECT_PRODUCT_FEE_CANDIDATE",
+      "candidate": "Reports API: GET_FBA_FULFILLMENT_INBOUND_NONCOMPLIANCE_DATA",
+      "sources": [
+        "https://developer-docs.amazon/sp-api/docs/report-type-values-fba#fba-inbound-performance-report"
+      ]
+    },
+    {
+      "family": "INBOUND_PLACEMENT_FEES",
+      "classification": "DIFFICULT_WITH_CURRENT_DOCUMENTED_SP_API; DIRECT_SELLER_CENTRAL_EXPORT_EXISTS",
+      "candidate": "Fulfillment Inbound listPlacementOptions; Seller Central FBA inbound placement service fee downloadable report",
+      "sources": [
+        "https://developer-docs.amazon/sp-api/reference/listplacementoptions",
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/fulfillment-inbound-api-model/fulfillmentInbound_2024-03-20.json",
+        "https://sellercentral.amazon.com/help/hub/reference/external/GC3Q44PBK8BXQW3Z?itemid=211&locale=en-us",
+        "https://developer-docs.amazon/sp-api/docs/report-type-values"
+      ]
+    },
+    {
+      "family": "COUPON_FEES",
+      "classification": "DIFFICULT_FOR_MULTI_SKU_CHARGED_SHARE",
+      "candidate": "GET_COUPON_PERFORMANCE_REPORT plus Promotions v2025-12-01 getPromotion/getSelection",
+      "sources": [
+        "https://developer-docs.amazon/sp-api/docs/report-type-values-performance#seller-coupons-performance-report",
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/promotions-api-model/promotions_2025-12-01.json",
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/finances-api-model/finances_2024-06-19.json"
+      ]
+    },
+    {
+      "family": "DEAL_FEES",
+      "classification": "DIFFICULT_FOR_MULTI_SKU_CHARGED_SHARE",
+      "candidate": "GET_PROMOTION_PERFORMANCE_REPORT plus Promotions v2025-12-01 getPromotion/getSelection",
+      "sources": [
+        "https://developer-docs.amazon/sp-api/docs/report-type-values-performance#promotions-performance-report",
+        "https://developer-docs.amazon/sp-api/docs/promotions-api",
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/promotions-api-model/promotions_2025-12-01.json",
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/finances-api-model/financesV0.json"
+      ]
+    },
+    {
+      "family": "ADVERTISING",
+      "classification": "DOCS_SUPPORTED_SKU_COST_CANDIDATE; LIVE_ACCESS_UNAVAILABLE",
+      "candidate": "Amazon Ads Reporting API v1, with advertisedProductSku.value and currency/time dimensions",
+      "sources": [
+        "https://advertising.amazon.com/API/docs/en-us/guides/reporting/ads-v1/dimensions/product/advertised-product-sku",
+        "https://advertising.amazon.com/API/docs/en-us/guides/reporting/ads-v1/metrics/costs-and-fees/costs",
+        "https://advertising.amazon.com/API/docs/en-us/guides/reporting/ads-v1/dates",
+        "https://advertising.amazon.com/API/docs/en-us/guides/reporting/ads-v1/overview",
+        "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/finances-api-model/finances_2024-06-19.json"
+      ]
+    }
+  ],
+  "notes": [
+    "Data Kiosk product rows are not universally additive allocations: Amazon documents repeated storage amounts for multiple MSKUs sharing an FNSKU.",
+    "Transport totals match by construction under any tested normalized model; that alone does not establish the correct product or company shares.",
+    "Ads and Promotions API routes are documentation findings, not live account validation.",
+    "Historical amounts, dates, source selection and ownership were not altered."
+  ]
+}

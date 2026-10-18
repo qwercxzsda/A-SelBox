@@ -4,12 +4,12 @@ import copy
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from typing import cast
-from unittest.mock import Mock, patch
 from uuid import uuid7
 
 import psycopg
 from psycopg.types.json import Jsonb
 
+from services.db.supabase.tests.finances_fixtures import finances_capture, native_transaction
 from services.db.supabase.tests.integration_support import (
     DatabaseTestCase,
     TransactionDatabase,
@@ -19,24 +19,20 @@ from services.sync.src.amazon.data_kiosk.query_builder import (
     ECONOMICS_SCHEMA_NAME,
     build_daily_msku_economics_query,
 )
-from services.sync.src.amazon.reports.models import DownloadedReportDocument
-from services.sync.src.amazon.settlement_models import SettlementReportReference
 from services.sync.src.archives.models import (
     ArchivedDataKioskPage,
     DataKioskAcquisition,
-    SettlementAcquisition,
 )
 from services.sync.src.archives.serialization import data_kiosk_payload
 from services.sync.src.archives.storage import archive_document, load_document_archive
 from services.sync.src.database.acquisitions import (
     load_data_kiosk_acquisition,
-    load_settlement_acquisition,
+    load_finances_acquisition,
     persist_data_kiosk_acquisition,
-    persist_settlement_acquisition,
+    persist_finances_acquisition,
 )
-from services.sync.src.settlements.acquisition import download_settlement_acquisition
 from services.sync.src.source_serialization import source_mapping
-from services.sync.tests.support.archives import MemoryArchiveStorage, settlement_reference
+from services.sync.tests.support.archives import MemoryArchiveStorage
 
 
 class TestAcquisitionManifests(DatabaseTestCase):
@@ -87,7 +83,7 @@ class TestAcquisitionManifests(DatabaseTestCase):
             ),
         )
 
-    def test_both_sources_round_trip_and_same_query_retry_retains_observation_id(self) -> None:
+    def test_both_sources_round_trip_and_capture_retry_retains_identity(self) -> None:
         acquisition = self.acquisition()
         identifier = persist_data_kiosk_acquisition(self.database, acquisition)
         self.assertEqual(load_data_kiosk_acquisition(self.database, identifier), acquisition)
@@ -95,70 +91,31 @@ class TestAcquisitionManifests(DatabaseTestCase):
             persist_data_kiosk_acquisition(self.database, replace(acquisition, id=uuid7())),
             identifier,
         )
-        document = acquisition.pages[0].document
-        if document is None:
-            self.fail("Fixture document is absent.")
-        settlement = SettlementAcquisition(
-            id=uuid7(),
-            seller_namespace="seller",
-            amazon_scope="NA",
-            reference=SettlementReportReference(
-                "report",
-                "report-document",
-                acquisition.downloaded_at,
-                ("unknown-hint", "ATVPDKIKX0DER"),
-            ),
-            downloaded_at=acquisition.downloaded_at,
-            document=document,
-        )
-        saved = persist_settlement_acquisition(self.database, settlement)
-        loaded = load_settlement_acquisition(self.database, saved)
-        self.assertEqual(loaded, settlement)
+        finances = finances_capture(self.storage, [native_transaction(100)])
+        saved = persist_finances_acquisition(self.database, finances)
+        loaded = load_finances_acquisition(self.database, saved)
+        self.assertEqual(loaded, finances)
+        self.assertEqual(persist_finances_acquisition(self.database, finances), saved)
         self.assertEqual(
-            load_document_archive(self.storage, loaded.document), b"malformed unparsed JSONL\xff"
+            load_document_archive(self.storage, loaded.documents[0].document),
+            load_document_archive(self.storage, finances.documents[0].document),
         )
 
-    def test_changed_settlement_document_retains_original_manifest_and_both_archives(self) -> None:
-        reference = settlement_reference()
-        with patch(
-            "services.sync.src.settlements.acquisition.download_report_document",
-            side_effect=[
-                DownloadedReportDocument(b"original document", None),
-                DownloadedReportDocument(b"changed document", None),
-            ],
-        ):
-            acquisition_id = download_settlement_acquisition(
-                Mock(),
-                self.database,
-                self.storage,
-                reference,
-                amazon_scope="NA",
-                seller_namespace="seller",
-            )
-            original = load_settlement_acquisition(self.database, acquisition_id)
-            with (
-                self.assertLogs("services.sync.src.archives.acquisition_logging", "ERROR"),
-                self.assertRaisesRegex(psycopg.errors.CheckViolation, "changed decoded bytes"),
-            ):
-                download_settlement_acquisition(
-                    Mock(),
-                    self.database,
-                    self.storage,
-                    reference,
-                    amazon_scope="NA",
-                    seller_namespace="seller",
-                )
-        self.assertEqual(load_settlement_acquisition(self.database, acquisition_id), original)
+    def test_changed_capture_retains_original_manifest_and_raw_archives(self) -> None:
+        original = finances_capture(self.storage, [native_transaction(100)])
+        first = persist_finances_acquisition(self.database, original)
+        changed = finances_capture(self.storage, [native_transaction(101)])
+        second = persist_finances_acquisition(self.database, changed)
+        self.assertNotEqual(first, second)
+        self.assertEqual(load_finances_acquisition(self.database, first), original)
+        self.assertEqual(load_finances_acquisition(self.database, second), changed)
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_acquisitions"
+                "select count(*) from private.finances_acquisitions"
             ).fetchone(),
-            (1,),
+            (2,),
         )
-        self.assertEqual(
-            load_document_archive(self.storage, original.document), b"original document"
-        )
-        self.assertEqual(len(self.storage.objects), 2)
+        self.assertEqual(len(self.storage.objects), 4)
 
     def test_required_archive_values_reject_json_null_and_inexact_lengths(self) -> None:
         acquisition = self.acquisition()

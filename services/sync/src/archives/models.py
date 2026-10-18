@@ -10,7 +10,6 @@ from ..amazon.data_kiosk.models import DataKioskDocumentKind
 from ..amazon.datetimes import as_utc
 from ..amazon.identifiers import validate_marketplace_id
 from ..amazon.scopes import validate_amazon_scope
-from ..amazon.settlement_models import SettlementReportReference
 from ..canonical_values import validate_sha256
 from ..database.seller_namespaces import validate_seller_namespace
 from ..frozen_values import freeze_mapping
@@ -64,29 +63,6 @@ class ArchivedDocument:
             raise ValueError("Source archives must use XZ 2e with CRC64.")
         if self.source_compression not in (None, "GZIP"):
             raise ValueError("Unsupported source compression declaration.")
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class SettlementAcquisition:
-    """One complete archived Reports API document, before any TSV parsing."""
-
-    id: UUID
-    seller_namespace: str
-    amazon_scope: str
-    reference: SettlementReportReference
-    downloaded_at: datetime
-    document: ArchivedDocument
-    api_metadata: Mapping[str, object] = field(default_factory=dict[str, object], repr=False)
-
-    def __post_init__(self) -> None:
-        _validate_identity(self.id, self.amazon_scope, self.downloaded_at)
-        object.__setattr__(
-            self, "seller_namespace", validate_seller_namespace(self.seller_namespace)
-        )
-        as_utc(self.reference.report_created_at)
-        object.__setattr__(
-            self, "api_metadata", freeze_mapping(self.api_metadata, field_name="api_metadata")
-        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, settlementRow, skuAssignments } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
 
@@ -26,11 +26,11 @@ for (const role of ["administrator", "member"]) {
     await sortBy(page, "Date", "Oldest first");
     await applyDates(page, "2026-09-01", "2026-09-30");
     await choose(page, "SKU", ["ALPHA-001", "ALPHA-002"]);
-    await choose(page, "Source", ["Settlements"]);
+    await choose(page, "Source", ["Finances"]);
     const filters = page.getByLabel("Applied table filters", { exact: true });
     await expect(filters).toContainText("3 filters applied");
     await expect(filters).toContainText("SKU: 2 selected");
-    await expect(filters).toContainText("Source: Settlements");
+    await expect(filters).toContainText("Source: Finances");
     await expect(filters).toContainText("Date: 2026-09-01 – 2026-09-30");
     await expect(
       filters.getByRole("button", { name: /^Clear sku filter: ALPHA-001, ALPHA-002$/ }),
@@ -45,7 +45,7 @@ for (const role of ["administrator", "member"]) {
     await expect(
       page.getByRole("table", { name: "Financial records" }).locator("tbody tr"),
     ).toHaveCount(40);
-    await expect(filters).toContainText("Source: Settlements");
+    await expect(filters).toContainText("Source: Finances");
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
     await page.getByLabel("Search", { exact: true }).fill("NO-MATCH");
     await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
@@ -107,10 +107,10 @@ for (const width of [1440, 834, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = "administrator";
-    fixture.settlementRows = [settlementRow(1, "0")];
+    fixture.financesRows = [financesRow(1, "0")];
     fixture.kioskRows = [kioskRow(1, "0")];
     await signIn(page);
-    for (const tab of ["Settlements", "Data Kiosk"]) {
+    for (const tab of ["Finances", "Data Kiosk"]) {
       await page.getByRole("tab", { name: tab, exact: true }).click();
       const table = page.getByRole("table", { name: "Financial records", exact: true });
       await expect(table.locator("tbody tr")).toHaveCount(1);

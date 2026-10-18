@@ -33,7 +33,7 @@ test("cached pages are separated by account access and every server-side query o
       assert.equal(client.getQueryData(datasetQueryOptions(identity, OPTIONS).queryKey), undefined);
     }
     for (const options of [
-      { dataset: "settlement" },
+      { dataset: "finances" },
       { search: "SKU_100" },
       { sort: { ...OPTIONS.sort, column: "sku" } },
       { sort: { ...OPTIONS.sort, direction: OPTIONS.sort.direction === "asc" ? "desc" : "asc" } },
@@ -210,7 +210,7 @@ test("count caches require the exact account, dataset, search, and normalized fi
       [{ ...IDENTITY, session: { ...IDENTITY.session, user: { id: "user-b" } } }, OPTIONS],
       [{ ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } }, OPTIONS],
       [{ ...IDENTITY, account: { ...IDENTITY.account, access_role: "administrator" } }, OPTIONS],
-      [IDENTITY, { ...OPTIONS, dataset: "settlement" }],
+      [IDENTITY, { ...OPTIONS, dataset: "finances" }],
       [IDENTITY, { ...OPTIONS, search: "SKU_100" }],
       ...[
         { dateFrom: "2026-09-01" },
@@ -218,7 +218,7 @@ test("count caches require the exact account, dataset, search, and normalized fi
         { companyIds: ["company-a"] },
         { skus: ["A"] },
         { marketplaces: ["Amazon.com"] },
-        { sources: ["SETTLEMENT"] },
+        { sources: ["FINANCES"] },
         { types: ["PRINCIPAL"] },
         { feeApplicability: ["applicable"] },
         { feeApplicability: ["not_applicable"] },
@@ -266,7 +266,7 @@ test("a changed count invalidates only pages in its exact scope before navigatio
   const second = datasetQueryOptions(IDENTITY, { ...OPTIONS, pageIndex: 1 });
   const unaffected = [
     datasetQueryOptions(IDENTITY, { ...OPTIONS, search: "different-search" }),
-    datasetQueryOptions(IDENTITY, { ...OPTIONS, dataset: "settlement" }),
+    datasetQueryOptions(IDENTITY, { ...OPTIONS, dataset: "finances" }),
     datasetQueryOptions(IDENTITY, { ...OPTIONS, filters: { sources: ["DATA_KIOSK"] } }),
     datasetQueryOptions(
       { ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } },

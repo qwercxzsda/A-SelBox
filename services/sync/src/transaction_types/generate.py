@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ..amazon.marketplace_names import MARKETPLACE_NAMES
 from .data_kiosk import DATA_KIOSK_TYPES
-from .settlement import SETTLEMENT_TYPES
+from .finances import FINANCES_TYPES
 
 OUTPUT_DIRECTORY = (
     Path(__file__).resolve().parents[4] / "services/frontend/user-webpage/src/generated"
@@ -22,7 +22,7 @@ def generated_catalogs() -> dict[str, str]:
     types = [
         {"source": source, "category": item.category.value, "type": item.component_type}
         for source, entries in (
-            ("SETTLEMENT", SETTLEMENT_TYPES),
+            ("FINANCES", FINANCES_TYPES),
             ("DATA_KIOSK", DATA_KIOSK_TYPES),
         )
         for item in entries

@@ -56,7 +56,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
     ) -> None:
         company, _ = self.owner("A")
         self.assign("B", None)
-        self.settlement([self.transaction("100", sku="A"), self.transaction("0", 4, sku="B")])
+        self.finances([self.transaction("100", sku="A"), self.transaction("0", 4, sku="B")])
         administrator = self.administrator()
         self.connection.commit()
         items = self.configuration(administrator)
@@ -91,10 +91,10 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         company, _ = self.owner("OWNED")
         self.assign("REGISTERED-ONLY", None)
         acquisition = self.acquisition()
-        _, previous = self.settlement(
+        _, previous = self.finances(
             [self.transaction("10", sku="HISTORY-ONLY")], acquisition_id=acquisition
         )
-        self.settlement([], acquisition_id=acquisition, expected=previous)
+        self.finances([], acquisition_id=acquisition, expected=previous)
         administrator = self.administrator()
         issues = self.assert_incomplete(administrator, [self.change("OWNED", company)])
         self.assertEqual(
@@ -115,7 +115,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self,
     ) -> None:
         company, _ = self.owner("A")
-        self.settlement(
+        self.finances(
             [
                 self.transaction("0", sku="A", activity_date="2026-06-15"),
                 self.transaction("10", 4, sku="A", activity_date="2026-06-16"),
@@ -160,7 +160,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         company, _ = self.owner("A")
         administrator = self.administrator()
         self.save(administrator, [self.change("A", company, [self.period()])])
-        self.settlement([self.transaction("10", sku="NEW")])
+        self.finances([self.transaction("10", sku="NEW")])
         self.assertTrue(
             next(item for item in self.configuration(administrator) if item["sku"] == "NEW")[
                 "issues"

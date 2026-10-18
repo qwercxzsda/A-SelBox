@@ -5,37 +5,25 @@ returns boolean language sql stable security invoker set search_path = '' as $$
     select exists (
         select 1 from unnest(p_skus) source_skus(sku)
         where source_skus.sku is not null
-            and not exists (select 1 from private.settlement_transactions t
+            and not exists (select 1 from private.finances_activity_components t
                 where t.seller_namespace = p_seller and t.sku = source_skus.sku)
             and not exists (select 1 from private.data_kiosk_transactions t
                 where t.seller_namespace = p_seller and t.sku = source_skus.sku)
     );
 $$;
 
-create function private.payout_settlement_months(p_versions uuid[])
-returns date[] language sql stable security invoker set search_path = '' as $$
-    select coalesce(array_agg(distinct source_month order by source_month),'{}'::date[])
-    from (
-        select date_trunc('month',t.posted_date)::date as source_month
-        from private.settlement_transactions t
-        where t.version_id = any(p_versions) and isfinite(t.posted_date)
-        union
-        select m.source_month::date
-        from private.settlement_preprocess_versions v
-        cross join lateral generate_series(
-            date_trunc('month',case when isfinite(v.settlement_start_date)
-                then v.settlement_start_date end),
-            date_trunc('month',case when isfinite(v.settlement_end_date)
-                then v.settlement_end_date end),interval '1 month'
-        ) m(source_month)
-        where v.id = any(p_versions)
-    ) months;
+create function private.payout_finances_months(
+    p_versions uuid[]
+) returns date[] language sql stable set search_path
+= '' as $$
+ select coalesce(array_agg(distinct date_trunc('month',d.activity_date)::date),'{}'::date[])
+ from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id where v.id=any(p_versions);
 $$;
 
 create index payout_terms_sku_idx
 on private.payout_report_terms_versions (sku_id, report_id);
-create index payout_settlement_version_idx
-on private.payout_report_settlement_versions (version_id, report_id);
+create index payout_finances_version_idx
+on private.payout_report_finances_versions (version_id, report_id);
 
 -- Empty reports capture historically owned terms even without monthly rows.
 -- Other companies can also depend on these terms to exclude another owner's
@@ -52,7 +40,7 @@ begin
     select coalesce(array_agg(distinct source_month),'{}'::date[]) into affected_months
     from (
         select date_trunc('month',t.posted_date)::date as source_month
-        from public.skus s join private.settlement_transactions t on t.sku = s.sku
+        from public.skus s join private.finances_activity_components t on t.sku = s.sku
         where s.id = any(p_sku_ids) and isfinite(t.posted_date)
         union
         select date_trunc('month',t.activity_date)::date
@@ -68,8 +56,8 @@ begin
             where v.sku_id = any(p_sku_ids)
             union
             select p.report_id from public.skus s
-            join private.settlement_transactions t on t.sku = s.sku
-            join private.payout_report_settlement_versions p on p.version_id = t.version_id
+            join private.finances_activity_components t on t.sku = s.sku
+            join private.payout_report_finances_versions p on p.version_id = t.version_id
             where s.id = any(p_sku_ids)
             union
             select p.report_id from public.skus s

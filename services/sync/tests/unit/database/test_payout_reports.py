@@ -218,12 +218,12 @@ class TestPayoutReports(unittest.TestCase):
         )
         result = load_company_payout_reconciliation(database, report)[0]
         self.assertIsNone(result.marketplace_name)
-        self.assertEqual(result.settlement_category_amount, Decimal(100))
+        self.assertEqual(result.finances_category_amount, Decimal(100))
         self.assertEqual(result.selbox_category_amount, Decimal(-3))
-        self.assertEqual(result.data_kiosk_settlement_control, Decimal(-12))
+        self.assertEqual(result.data_kiosk_finances_control, Decimal(-12))
         self.assertEqual(result.data_kiosk_category_amount, Decimal(-10))
         self.assertEqual(result.difference, Decimal(-2))
-        self.assertEqual(result.accounted_total, result.settlement_total)
+        self.assertEqual(result.accounted_total, result.finances_total)
         self.assertIn("public.payout_report_reconciliation", database.execute_calls[0][0])
 
     def test_missing_report_is_not_synthesized(self) -> None:

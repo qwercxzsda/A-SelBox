@@ -9,17 +9,17 @@ from services.db.supabase.tests.configuration_fixtures import ConfigurationItem
 from services.db.supabase.tests.e2e.fixtures import (
     START,
     archived_data_kiosk,
-    archived_settlement,
+    archived_finances,
     fixture_sku,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_settlement_acquisition,
+    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import create_company
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 
 class SkuConfigurationRestTests(LocalWorkflowCase):
@@ -40,10 +40,10 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         )
 
     def import_source(self, seller: str, sku: str, *, kiosk: bool = False) -> None:
-        acquisition = persist_settlement_acquisition(
-            self.database, archived_settlement(self.storage, seller, sku=sku)
+        acquisition = persist_finances_acquisition(
+            self.database, archived_finances(self.storage, seller, sku=sku)
         )
-        preprocess_settlement_acquisition(self.database, self.storage, acquisition)
+        preprocess_finances_acquisition(self.database, self.storage, acquisition)
         if kiosk:
             acquisition = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)

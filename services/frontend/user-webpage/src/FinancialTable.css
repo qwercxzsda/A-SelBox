@@ -24,42 +24,13 @@
 }
 
 .table-card .transaction-type {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
+  display: block;
   max-width: var(--type-column-width);
   overflow: hidden;
   font-size: var(--ui-font-data);
-  white-space: nowrap;
-}
-
-.table-card .transaction-type-prefix,
-.table-card .transaction-type-leaf {
-  min-width: 0;
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.table-card .transaction-type-prefix {
-  flex: 0 1 auto;
-  color: var(--ui-text-muted);
-  font-size: var(--ui-font-caption);
-}
-
-.table-card .transaction-type-separator {
-  flex: 0 0 auto;
-  color: var(--ui-text-muted);
-}
-
-.table-card .transaction-type-leaf {
-  flex: 0 0 auto;
-  max-width: 100%;
   font-weight: 500;
-}
-
-.table-card .transaction-type[data-hierarchical] .transaction-type-leaf {
-  max-width: calc(100% - 4rem);
 }
 
 .table-card .numeric {

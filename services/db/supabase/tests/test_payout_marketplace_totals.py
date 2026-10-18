@@ -26,16 +26,16 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         inputs = prepare_payout(self)
         other_company, other_sku = self.owner("OTHER")
         self.fee(other_sku, [("2026-01-01", None, "5")])
-        _, settlement_version = self.settlement(
+        _, finances_version = self.finances(
             [self.transaction("0.10", line) for line in range(3, 58)]
             + [
                 self.transaction("0.123456789123456789", 58, kind="Adjustment")
                 | {"marketplace_name": "Amazon.ca"},
-                self.transaction("-0.03", 59, kind="Adjustment") | {"marketplace_name": None},
+                self.transaction("-0.03", 59, kind="Adjustment")
+                | {"marketplace_name": "Amazon.ca"},
                 self.transaction("99", 60, sku="OTHER"),
             ],
-            acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         _, kiosk_version = self.kiosk(
             2,
@@ -55,13 +55,12 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
             self.member(other_company),
         )
         expected = [
-            (report, None, Decimal("-0.03"), Decimal(0), Decimal("-0.03")),
             (
                 report,
                 "Amazon.ca",
-                Decimal("0.123456789123456789"),
+                Decimal("0.093456789123456789"),
                 Decimal(0),
-                Decimal("0.123456789123456789"),
+                Decimal("0.093456789123456789"),
             ),
             (report, "Amazon.com", Decimal("5.27"), Decimal("-0.275"), Decimal("4.995")),
         ]
@@ -96,10 +95,10 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
             (True, True, True),
         )
         self.fee(inputs.sku_identity, [("2026-01-01", None, "15")])
-        self.settlement(
+        self.finances(
             [self.transaction("1000")],
             acquisition_id=inputs.acquisition,
-            expected=settlement_version,
+            expected=finances_version,
         )
         self.kiosk(3, [self.component("-500")], expected=kiosk_version)
         self.assertEqual(self.marketplace_totals(member, report), expected)

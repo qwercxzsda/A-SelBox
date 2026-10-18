@@ -155,7 +155,7 @@ test("refreshing the latest date to month end updates both bounded periods", asy
   await expect(amount(month, "Reported amount")).toHaveText("10 USD");
   const discoveries = fixture.latestRequests.length;
   fixture.aggregateRows.push(summaryBucket("2026-03-31", "7"));
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   await expect(amount(day, "Reported amount")).toHaveText("7 USD");
   await expect(amount(month, "Reported amount")).toHaveText("57 USD");

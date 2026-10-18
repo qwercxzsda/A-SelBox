@@ -13,16 +13,16 @@ begin
         raise exception 'Administrator access required' using errcode = '42501';
     end if;
     return (
-        with recursive settlement_skus(sku) as (
+        with recursive finances_skus(sku) as (
             (
-                select t.sku from private.settlement_transactions as t
+                select t.sku from private.finances_activity_components as t
                 where t.sku is not null order by t.sku limit 1
             )
             union all
             select next_sku.sku
-            from settlement_skus as previous_sku
+            from finances_skus as previous_sku
             cross join lateral (
-                select t.sku from private.settlement_transactions as t
+                select t.sku from private.finances_activity_components as t
                 where t.sku > previous_sku.sku order by t.sku limit 1
             ) as next_sku
         ),
@@ -40,7 +40,7 @@ begin
             ) as next_sku
         ),
         sku_values as (
-            select s.sku from settlement_skus as s
+            select s.sku from finances_skus as s
             union all
             select k.sku from kiosk_skus as k
             union all
@@ -68,11 +68,11 @@ create function private.sku_configuration_required_dates(p_skus text[])
 returns table (sku text, marketplace_name text, activity_date date)
 language sql stable security invoker set search_path = '' as $$
     select t.sku, t.marketplace_name, t.posted_date
-    from private.settlement_transactions as t
-    where t.sku = any(p_skus) and t.category = 'SETTLEMENT'
-        and private.settlement_fee_applicable(t.transaction_type, t.amount_type, t.amount_description)
+    from private.finances_activity_components as t
+    where t.sku = any(p_skus) and t.category = 'FINANCES'
+        and t.fee_base is not null
         and exists (
-            select 1 from private.settlements as s where s.current_version_id = t.version_id
+            select 1 from private.finances_days as s where s.current_version_id = t.version_id
         )
     union
     select t.sku, t.marketplace_name, t.activity_date

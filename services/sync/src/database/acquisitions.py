@@ -6,12 +6,15 @@ from uuid import UUID
 
 from psycopg.rows import dict_row
 
-from ..archives.models import DataKioskAcquisition, SettlementAcquisition
+from ..archives.models import DataKioskAcquisition
 from ..archives.serialization import (
     data_kiosk_from_payload,
     data_kiosk_payload,
-    settlement_from_payload,
-    settlement_payload,
+)
+from ..finances.acquisition_models import FinancesAcquisition
+from ..finances.acquisition_serialization import (
+    finances_acquisition_from_payload,
+    finances_acquisition_payload,
 )
 from ..inventory.models import InventoryAcquisition
 from ..inventory.serialization import inventory_from_payload, inventory_payload
@@ -20,13 +23,13 @@ from .publication import publish_json
 from .values import normalize_uuid
 
 
-def persist_settlement_acquisition(
-    database: DatabaseConnection, acquisition: SettlementAcquisition
+def persist_finances_acquisition(
+    database: DatabaseConnection, acquisition: FinancesAcquisition
 ) -> str:
     return publish_json(
         database,
-        "SELECT private.publish_settlement_acquisition(%(payload)s)",
-        settlement_payload(acquisition),
+        "SELECT private.publish_finances_acquisition(%(payload)s)",
+        finances_acquisition_payload(acquisition),
     )
 
 
@@ -50,10 +53,10 @@ def persist_inventory_acquisition(
     )
 
 
-def load_settlement_acquisition(
+def load_finances_acquisition(
     database: DatabaseConnection, acquisition_id: str | UUID
-) -> SettlementAcquisition:
-    return settlement_from_payload(_load(database, "settlement", acquisition_id))
+) -> FinancesAcquisition:
+    return finances_acquisition_from_payload(_load(database, "finances", acquisition_id))
 
 
 def load_data_kiosk_acquisition(
@@ -70,12 +73,12 @@ def load_inventory_acquisition(
 
 def _load(
     database: DatabaseConnection,
-    source: Literal["settlement", "data_kiosk", "inventory"],
+    source: Literal["finances", "data_kiosk", "inventory"],
     acquisition_id: str | UUID,
 ) -> Mapping[str, object]:
     identifier = normalize_uuid(acquisition_id, "acquisition_id")
     statement = {
-        "settlement": "SELECT * FROM private.settlement_acquisitions WHERE id = %s",
+        "finances": "SELECT * FROM private.finances_acquisitions WHERE id = %s",
         "data_kiosk": "SELECT * FROM private.data_kiosk_acquisitions WHERE id = %s",
         "inventory": "SELECT * FROM private.inventory_acquisitions WHERE id = %s",
     }[source]

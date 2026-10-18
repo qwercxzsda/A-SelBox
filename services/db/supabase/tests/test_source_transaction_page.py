@@ -56,10 +56,19 @@ class SourceTransactionPageTests(SourceModelFixture):
         )
 
     def expected(self, user: str, dataset: str, **options: object) -> dict[str, object]:
-        date_column = "posted_date" if dataset == "settlement" else "activity_date"
-        numeric_columns = ["amount", "quantity", "source_line_number"]
-        if dataset == "data_kiosk":
-            numeric_columns.append("fee_base")
+        date_column = "posted_date" if dataset == "finances" else "activity_date"
+        numeric_columns = ["amount", "quantity", "fee_base"]
+        if dataset == "finances":
+            numeric_columns.extend(
+                (
+                    "breakdown_path",
+                    "activity_eligible",
+                    "source_page_number",
+                    "source_record_number",
+                )
+            )
+        else:
+            numeric_columns.append("source_line_number")
         predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
@@ -98,9 +107,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             view=sql.Identifier(dataset + "_preprocess_entries"),
             predicates=sql.SQL(" and ").join(predicates),
             ordering=ordering,
-            excluded=sql.Literal(
-                "source_fields" if dataset == "settlement" else "native_dimensions"
-            ),
+            excluded=sql.Literal("source_fields" if dataset == "finances" else "native_dimensions"),
             numeric_strings=sql.SQL(", ").join(
                 sql.SQL("{}, p.{}::text").format(sql.Literal(column), sql.Identifier(column))
                 for column in numeric_columns
@@ -140,7 +147,7 @@ class SourceTransactionPageTests(SourceModelFixture):
         )
         for user, dataset, order, direction, offset, include_count in product(
             users,
-            ("settlement", "data_kiosk"),
+            ("finances", "data_kiosk"),
             ("date", "amount"),
             ("asc", "desc"),
             (0, 3, 100, 9007199254740991),
@@ -175,7 +182,7 @@ class SourceTransactionPageTests(SourceModelFixture):
         )
         for user, dataset, order, selection in product(
             (self.administrator(), self.member(company_a), self.member(company_b)),
-            ("settlement", "data_kiosk"),
+            ("finances", "data_kiosk"),
             ("date", "amount"),
             filters,
         ):
@@ -187,21 +194,21 @@ class SourceTransactionPageTests(SourceModelFixture):
         member, administrator = self.member(company), self.administrator()
         old_terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, old_settlement = self.settlement([self.transaction("999")], acquisition_id=acquisition)
+        _, old_finances = self.finances([self.transaction("999")], acquisition_id=acquisition)
         _, old_kiosk = self.kiosk(1, [self.component("999"), self.component("0")])
-        account_settlement = self.transaction("1000", 4, category="SELBOX")
-        account_settlement["sku"] = None
+        account_finances = self.transaction("1000", 4, category="SELBOX")
+        account_finances["sku"] = None
         account_kiosk = self.component("1000", category="SELBOX")
         account_kiosk["sku"] = None
-        self.settlement(
-            [self.transaction("10"), account_settlement],
+        self.finances(
+            [self.transaction("10"), account_finances],
             acquisition_id=acquisition,
-            expected=old_settlement,
+            expected=old_finances,
         )
         self.kiosk(
             2, [self.component("10"), self.component("0"), account_kiosk], expected=old_kiosk
         )
-        for dataset in ("settlement", "data_kiosk"):
+        for dataset in ("finances", "data_kiosk"):
             administrator_page = self.assert_matches_view(
                 administrator, dataset, p_order_by="amount"
             )
@@ -216,7 +223,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             )
             self.assertEqual(rows[0]["category"], "SELBOX")
         self.assign("SKU", None, expected=old_terms)
-        for dataset in ("settlement", "data_kiosk"):
+        for dataset in ("finances", "data_kiosk"):
             self.assertEqual(
                 self.assert_matches_view(member, dataset), {"rows": [], "total_count": "0"}
             )
@@ -229,11 +236,11 @@ class SourceTransactionPageTests(SourceModelFixture):
         transactions[0]["quantity"] = 9007199254740993
         components[0]["quantity"] = "0.123456789012345678901"
         components[0]["fee_base"] = "100.123456789012345678902"
-        self.settlement(transactions)
+        self.finances(transactions)
         self.kiosk(1, components)
         for user, dataset, direction in product(
             (self.administrator(), self.member(company)),
-            ("settlement", "data_kiosk"),
+            ("finances", "data_kiosk"),
             ("asc", "desc"),
         ):
             rows: list[object] = []
@@ -260,11 +267,11 @@ class SourceTransactionPageTests(SourceModelFixture):
         assert_rpc_contract(self, "source_transaction_page", _PARAMETER_TYPES)
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
-            self.connection.execute("select public.source_transaction_page('settlement')")
+            self.connection.execute("select public.source_transaction_page('finances')")
 
     def test_invalid_requests_are_rejected(self) -> None:
         administrator = self.administrator()
-        for dataset in (None, "live", "settlement; select 1", ""):
+        for dataset in (None, "live", "finances; select 1", ""):
             with (
                 self.subTest(dataset=dataset),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
@@ -293,6 +300,6 @@ class SourceTransactionPageTests(SourceModelFixture):
                 self.subTest(options=options),
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
-                self.page(administrator, "settlement", **options)
+                self.page(administrator, "finances", **options)
         with self.assertRaises(psycopg.errors.InvalidParameterValue):
             self.page(administrator, "data_kiosk", p_marketplaces=["Unknown marketplace"])

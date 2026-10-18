@@ -1,6 +1,6 @@
 # A-SelBox
 
-A-SelBox archives Amazon Settlement Reports and Data Kiosk documents, preprocesses
+A-SelBox archives Amazon Finances transactions, Summary controls, and Data Kiosk documents, preprocesses
 those saved inputs into complete source versions, and calculates company amounts
 and fees through live PostgreSQL views. Monthly payout reports are generated
 automatically for companies with currently assigned SKUs as dates mature and source or
@@ -27,8 +27,8 @@ up by the scheduled payout worker; previously saved reports remain unchanged. Pa
 summaries identify missing fees; complete totals and payout reports require resolved configuration
 and source coverage.
 
-One named enum category selects the allocation: `SETTLEMENT`, `SELBOX`,
-`DATA_KIOSK`, or `ANALYSIS_ONLY`. Settlement supplies direct company facts and
+One named enum category selects the allocation: `FINANCES`, `SELBOX`,
+`DATA_KIOSK`, or `ANALYSIS_ONLY`. Finances supplies direct company facts and
 account controls; selected Data Kiosk components supply company costs.
 Analysis-only components stay outside strict financial totals. Dashboard estimates
 combine all eligible transaction sources, as described in the query contract. Complete day
@@ -37,7 +37,7 @@ Application accounts use three roles: Administrator (`administrator`), Member (`
 and Unassigned (`unassigned`). New signups are Unassigned until an administrator assigns a
 company. Members read current own-company facts and terms; administrators also read retained
 history and all payout reports. Only the DB manager can grant or revoke Administrator access.
-Raw documents remain private. Data Kiosk retention preserves
+Raw documents remain private. Finances and Data Kiosk retention preserve
 current versions, the latest three Amazon observations, and all payout
 dependencies. Approval, rounding, and payment execution remain deferred.
 
@@ -91,7 +91,9 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
   filter, and summary APIs.
 - [Database performance](docs/database_performance.md): current read design,
   measurements, and remaining scaling limits.
-- [Settlement family rules](docs/settlement_component_categories.md): classification,
+- [Finances transactions](docs/finances_transactions.md): complete daily snapshots,
+  lifecycle links, activity totals, and Summary reconciliation.
+- [Transaction type registry](docs/transaction_type_registry.md): classification,
   SKU requirements, and validation boundaries.
 - [Known issues](docs/known_issues.md): operational assumptions, unresolved source
   rules, upstream uncertainty, and deferred payout decisions.

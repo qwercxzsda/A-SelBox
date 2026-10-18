@@ -49,7 +49,7 @@ test("period shortcuts reset pagination and preserve refinements after a tab rou
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("TARGET");
   await page.getByRole("button", { name: "Source", exact: true }).click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
-  await source.getByRole("checkbox", { name: "Settlements", exact: true }).check();
+  await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
   await page.getByRole("button", { name: "Reported amount", exact: true }).click();
   await page
@@ -87,7 +87,7 @@ test("period shortcuts reset pagination and preserve refinements after a tab rou
   const request = fixture.requests.at(-1).params;
   expect(request.getAll("activity_date")).toEqual(["gte.2026-03-15", "lte.2026-03-15"]);
   expect(request.get("offset")).toBe("0");
-  expect(request.get("source")).toBe('in.("SETTLEMENT")');
+  expect(request.get("source")).toBe('in.("FINANCES")');
   expect(request.get("or")).toContain("TARGET");
   expect(request.get("order")).toBe(ordering);
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("TARGET");

@@ -42,7 +42,7 @@ class FinancialFixture(SourceModelFixture):
         self.fee(other, [("2026-01-01", None, "7")])
         self.assign("GAP", company_a)
         self.assign("UNASSIGNED", None, rate="9")
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100.123456789012345678901"),
                 self.transaction("-2.5", 4, kind="Refund", activity_date="2026-07-01"),
@@ -54,14 +54,14 @@ class FinancialFixture(SourceModelFixture):
                 self.transaction("13", 10, sku="UNASSIGNED", description="Shipping"),
                 self.transaction("20", 11, sku="OTHER"),
                 self.transaction("999", 12, category="DATA_KIOSK"),
-                self.transaction("999", 13, category="SELBOX") | {"family": None},
+                self.transaction("999", 13, category="SELBOX"),
             ]
         )
         self.kiosk(
             1,
             [
                 self.component("-10"),
-                self.component("3", category="SETTLEMENT"),
+                self.component("3", category="FINANCES"),
                 self.component("2", category="ANALYSIS_ONLY"),
                 self.component("0"),
                 self.component("4", sku="OTHER"),
@@ -72,7 +72,7 @@ class FinancialFixture(SourceModelFixture):
             ],
         )
         self.seller = "seller-two"
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.kiosk(1, [self.component("-7")])
         self.seller = "seller-one"
         return company_a, company_b

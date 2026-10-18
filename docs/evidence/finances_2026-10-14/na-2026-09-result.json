@@ -1,0 +1,54 @@
+{
+  "scope": "NA",
+  "month": "2026-09",
+  "counts": {
+    "finances_acquisitions": 1,
+    "finances_days": 120,
+    "finances_transactions": 2541,
+    "finances_transaction_components": 13939
+  },
+  "checks": [
+    {
+      "marketplace_name": "Amazon.com",
+      "account_type": "INVOICED_ORDERS",
+      "currency": "USD",
+      "summary_amount": "12.43",
+      "transaction_amount": "12.43"
+    },
+    {
+      "marketplace_name": "Amazon.ca",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "CAD",
+      "summary_amount": "37.32",
+      "transaction_amount": "37.32"
+    },
+    {
+      "marketplace_name": "Amazon.com",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "USD",
+      "summary_amount": "891.89",
+      "transaction_amount": "891.89"
+    },
+    {
+      "marketplace_name": "Amazon.com.mx",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "MXN",
+      "summary_amount": "0.0",
+      "transaction_amount": "0.00"
+    }
+  ],
+  "eligible_totals": [
+    [
+      "CAD",
+      "37.32"
+    ],
+    [
+      "MXN",
+      "0.00"
+    ],
+    [
+      "USD",
+      "904.32"
+    ]
+  ]
+}

@@ -16,7 +16,7 @@ class AllocationCategoryTests(SourceModelFixture):
             1,
             [
                 self.component("-10"),
-                self.component("100", category="SETTLEMENT"),
+                self.component("100", category="FINANCES"),
                 self.component("-90", category="ANALYSIS_ONLY"),
                 self.component("-80", category="SELBOX") | {"sku": None},
             ],
@@ -28,7 +28,7 @@ class AllocationCategoryTests(SourceModelFixture):
                 "from public.live_company_components order by category"
             ).fetchall(),
             [
-                ("SETTLEMENT", True),
+                ("FINANCES", True),
                 ("SELBOX", True),
                 ("DATA_KIOSK", True),
                 ("ANALYSIS_ONLY", False),
@@ -40,7 +40,7 @@ class AllocationCategoryTests(SourceModelFixture):
                 "where source='DATA_KIOSK' and authoritative order by category"
             ).fetchall(),
             [
-                ("SETTLEMENT", Decimal("100")),
+                ("FINANCES", Decimal("100")),
                 ("SELBOX", Decimal("-80")),
                 ("DATA_KIOSK", Decimal("-10")),
             ],
@@ -56,20 +56,24 @@ class AllocationCategoryTests(SourceModelFixture):
         )
 
     def test_publication_rejects_missing_category_atomically(self) -> None:
-        for source in ("SETTLEMENT", "DATA_KIOSK"):
-            row = self.transaction("-1") if source == "SETTLEMENT" else self.component()
+        for source in ("FINANCES", "DATA_KIOSK"):
+            row = self.transaction("-1") if source == "FINANCES" else self.component()
             row.pop("category")
             with (
                 self.subTest(source=source),
-                self.assertRaisesRegex(psycopg.errors.CheckViolation, "require category"),
+                self.assertRaises(
+                    psycopg.errors.NotNullViolation
+                    if source == "FINANCES"
+                    else psycopg.errors.CheckViolation
+                ),
                 self.connection.transaction(),
             ):
-                if source == "SETTLEMENT":
-                    self.settlement([row])
+                if source == "FINANCES":
+                    self.finances([row])
                 else:
                     self.kiosk(1, [row])
         for table in (
-            "settlement_preprocess_versions",
+            "finances_preprocess_versions",
             "data_kiosk_preprocess_batches",
             "data_kiosk_preprocess_versions",
         ):
@@ -80,30 +84,30 @@ class AllocationCategoryTests(SourceModelFixture):
                 (0,),
             )
 
-    def test_settlement_cannot_use_the_analysis_category(self) -> None:
+    def test_finances_cannot_use_the_analysis_category(self) -> None:
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.settlement([self.transaction("-1", category="ANALYSIS_ONLY")])
+            self.finances([self.transaction("-1", category="ANALYSIS_ONLY")])
 
     def test_no_category_can_be_null(self) -> None:
-        for source in ("SETTLEMENT", "DATA_KIOSK"):
+        for source in ("FINANCES", "DATA_KIOSK"):
             with (
                 self.subTest(source=source),
                 self.assertRaises(psycopg.errors.NotNullViolation),
                 self.connection.transaction(),
             ):
-                if source == "SETTLEMENT":
-                    self.settlement([self.transaction("-1") | {"category": None}])
+                if source == "FINANCES":
+                    self.finances([self.transaction("-1") | {"category": None}])
                 else:
                     self.kiosk(1, [self.component() | {"category": None}])
 
     def test_unknown_and_numeric_categories_cannot_enter_source_tables(self) -> None:
         for category in ("UNKNOWN", "1"):
             with (
-                self.subTest(source="SETTLEMENT", category=category),
+                self.subTest(source="FINANCES", category=category),
                 self.assertRaises(psycopg.errors.InvalidTextRepresentation),
                 self.connection.transaction(),
             ):
-                self.settlement([self.transaction("-1", category=category)])
+                self.finances([self.transaction("-1", category=category)])
             with (
                 self.subTest(source="DATA_KIOSK", category=category),
                 self.assertRaises(psycopg.errors.InvalidTextRepresentation),

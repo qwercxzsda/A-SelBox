@@ -166,7 +166,7 @@ def verify(seed: Path) -> dict[str, object]:
                 row[0]
                 for row in connection.execute(
                     "select sku from public.skus union "
-                    "select sku from private.settlement_transactions "
+                    "select sku from private.finances_transaction_components "
                     "where sku is not null union select sku from private.data_kiosk_transactions "
                     "where sku is not null"
                 )
@@ -188,14 +188,14 @@ def verify(seed: Path) -> dict[str, object]:
                 member_counts.append(len(visible))
             cutoff, authority = verify_authority(connection, administrator_id)
             reconciliation = verify_live_reconciliation(connection, cutoff)
-            settlement_count, kiosk_count = require_row(
+            finances_count, kiosk_count = require_row(
                 connection.execute(
-                    "select (select count(*) from private.settlement_transactions),"
+                    "select (select count(*) from private.finances_transaction_components),"
                     "(select count(*) from private.data_kiosk_transactions)"
                 ).fetchone()
             )
             source_counts = {
-                "settlement_transactions": int(settlement_count),
+                "finances_transaction_components": int(finances_count),
                 "data_kiosk_transactions": int(kiosk_count),
             }
             publication = _verify_writes(stack, connection, administrator, members, items)

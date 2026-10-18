@@ -15,7 +15,7 @@ _SNAPSHOT: LiteralString = """
 select jsonb_build_object(
     'owned', (select coalesce(jsonb_agg(sku
         order by sku),'[]'::jsonb) from private.current_owned_sku_terms()),
-    'settlement', (select count(*) from private.settlement_transactions),
+    'finances', (select count(*) from private.finances_transaction_components),
     'kiosk', (select count(*) from private.data_kiosk_transactions),
     'periods', (select count(*) from public.sku_fee_periods)
 )
@@ -44,14 +44,12 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
 
     def seed_source_history(self) -> None:
         acquisition = self.acquisition()
-        _, old = self.settlement(
-            [self.transaction("100", sku="SHARED")], acquisition_id=acquisition
-        )
-        self.settlement(
+        _, old = self.finances([self.transaction("100", sku="SHARED")], acquisition_id=acquisition)
+        self.finances(
             [
                 self.transaction("200", sku="SHARED"),
                 self.transaction("300", 4, sku="SHARED", category="DATA_KIOSK"),
-                self.transaction("400", 5, sku="SHARED", category="SELBOX") | {"family": None},
+                self.transaction("400", 5, sku="SHARED", category="SELBOX"),
                 self.transaction("500", 6, sku="UNASSIGNED"),
                 self.transaction("600", 7, sku="IMPORT-ONLY"),
             ],
@@ -63,7 +61,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             2,
             [
                 self.component("-2", sku="SHARED"),
-                self.component("-3", sku="SHARED", category="SETTLEMENT"),
+                self.component("-3", sku="SHARED", category="FINANCES"),
                 self.component("-4", sku="SHARED", category="ANALYSIS_ONLY"),
                 self.component("-5", category="SELBOX") | {"sku": None},
                 self.component("-6", sku="UNASSIGNED"),
@@ -72,7 +70,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             expected=old_day,
         )
         self.seller = "seller-two"
-        self.settlement([self.transaction("700", sku="SHARED")])
+        self.finances([self.transaction("700", sku="SHARED")])
         self.kiosk(1, [self.component("-8", sku="SHARED")])
         self.seller = "seller-one"
 
@@ -84,7 +82,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
     ) -> None:
         self.assertEqual(
             actual,
-            dict(zip(("owned", "settlement", "kiosk", "periods"), (owned, *counts), strict=True)),
+            dict(zip(("owned", "finances", "kiosk", "periods"), (owned, *counts), strict=True)),
         )
 
     def test_helper_and_all_rls_surfaces_keep_exact_current_ownership(self) -> None:
@@ -99,11 +97,15 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
         for user in (self.admin, self.outsider, self.deleted, ""):
             self.assertEqual(self.as_user(user, _HELPER), [])
         self.assertEqual(
-            self.as_user(self.member_a, "select amount::text from private.settlement_transactions"),
+            self.as_user(
+                self.member_a, "select amount::text from private.finances_transaction_components"
+            ),
             [("200",), ("700",)],
         )
         self.assertEqual(
-            self.as_user(self.member_b, "select amount::text from private.settlement_transactions"),
+            self.as_user(
+                self.member_b, "select amount::text from private.finances_transaction_components"
+            ),
             [],
         )
         self.assertEqual(
@@ -124,8 +126,8 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             ("select count(*) from public.company_skus", (2, 1, 3)),
             ("select count(*) from public.current_sku_fee_periods", (2, 1, 3)),
             ("select count(*) from private.current_sku_terms", (2, 1, 4)),
-            ("select count(*) from private.settlement_transactions", (2, 0, 7)),
-            ("select count(*) from public.settlement_preprocess_entries", (2, 0, 7)),
+            ("select count(*) from private.finances_transaction_components", (2, 0, 7)),
+            ("select count(*) from public.finances_preprocess_entries", (2, 0, 7)),
             ("select count(*) from private.data_kiosk_transactions", (4, 0, 8)),
             ("select count(*) from public.data_kiosk_preprocess_entries", (4, 0, 8)),
         )
@@ -215,7 +217,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             "alter table public.skus force row level security",
             "alter table public.sku_terms_versions force row level security",
             "alter table public.sku_fee_periods force row level security",
-            "alter table private.settlement_transactions force row level security",
+            "alter table private.finances_transaction_components force row level security",
             "alter table private.data_kiosk_transactions force row level security",
         )
         for query in tables:
@@ -227,7 +229,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
         self.assertEqual(
             self.connection.execute(
                 "select private.member_policy_covers_current_version("
-                "'private.settlement_transactions'::regclass)"
+                "'private.finances_transaction_components'::regclass)"
             ).fetchone(),
             (False,),
         )

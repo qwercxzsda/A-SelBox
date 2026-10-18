@@ -7,7 +7,7 @@ import { filterOptions, localFilterValues, transactionTypeValues } from "../src/
 test("source and marketplace menus are complete even without facts or assignments", () => {
   for (const role of ["member", "administrator"]) {
     assert.deepEqual(localFilterValues("source", "live", role, []), [
-      "SETTLEMENT",
+      "FINANCES",
       "DATA_KIOSK",
       ...(role === "administrator" ? ["RECONCILIATION"] : []),
     ]);
@@ -27,18 +27,15 @@ test("Transactions types include all known categories except SELBOX for members"
       "FBA_STORAGE_FEE",
       "NET_PRODUCT_SALES",
       "COST_OF_GOODS_SOLD",
-      "FBAFees/FBA Inventory Storage Fee/Base fee",
+      "STORAGE_FEES",
     ])
       assert.ok(values.includes(type), `${role} should see ${type}`);
-    assert.equal(
-      values.includes("other-transaction/other-transaction/Subscription Fee"),
-      role === "administrator",
-    );
+    assert.equal(values.includes("SUBSCRIPTION_FEES"), role === "administrator");
     assert.equal(values.includes("SUBSCRIPTION_FEE"), role === "administrator");
   }
   assert.deepEqual(
     new Set(transactionTypeValues("live", "administrator")),
-    new Set([...registry.map(({ type }) => type), "SETTLEMENT_KIOSK_DIFFERENCE"]),
+    new Set([...registry.map(({ type }) => type), "FINANCES_KIOSK_DIFFERENCE"]),
   );
   assert.deepEqual(
     new Set(transactionTypeValues("live", "member")),
@@ -48,7 +45,7 @@ test("Transactions types include all known categories except SELBOX for members"
 
 test("raw administrator tabs retain every known type in their respective source", () => {
   for (const [dataset, source] of [
-    ["settlement", "SETTLEMENT"],
+    ["finances", "FINANCES"],
     ["data_kiosk", "DATA_KIOSK"],
   ]) {
     assert.deepEqual(

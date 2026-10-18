@@ -23,7 +23,7 @@ interface DatasetPresentation extends WorkspacePresentation {
 
 export const DATASET_ORDER: readonly DatasetKey[] = [
   "live",
-  "settlement",
+  "finances",
   "data_kiosk",
   "fees",
   "payouts",
@@ -39,15 +39,16 @@ export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description:
-      "Mature dates use Settlement totals with Data Kiosk detail; recent dates use Data Kiosk estimates. Maturity uses an assumed two-calendar-month cutoff.",
+      "Mature dates use Finances totals with Data Kiosk detail; recent dates use Data Kiosk estimates. Maturity uses an assumed two-calendar-month cutoff.",
     searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
-  settlement: {
-    label: "Settlements",
-    description: "Sales, refunds, and charges from Amazon settlement reports.",
+  finances: {
+    label: "Finances",
+    description:
+      "Source records from retained daily versions. Activity eligibility applies within each version; Transactions uses the current version.",
     searchPlaceholder: "SKU, type, or marketplace",
-    emptyMessage: "No settlement transactions match this view.",
+    emptyMessage: "No Finances transactions match this view.",
   },
   data_kiosk: {
     label: "Data Kiosk",
@@ -62,7 +63,7 @@ export const DATASET_PRESENTATION = {
   payouts: {
     label: "Payout reports",
     description:
-      "Monthly payouts preserve company amounts in the Settlement and Data Kiosk categories, plus service fees. The SelBox category and reconciliation difference stay with SelBox.",
+      "Monthly payouts preserve company amounts in the Finances and Data Kiosk categories, plus service fees. The SelBox category and reconciliation difference stay with SelBox.",
     searchPlaceholder: "Report name or currency",
     emptyMessage: "No payout reports match this view.",
   },
@@ -102,8 +103,9 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("fee_amount", "Service fee", "money"),
     column("company_amount", "Company amount", "money"),
   ],
-  settlement: [
+  finances: [
     column("posted_date", "Date", "date"),
+    column("activity_eligible", "Activity eligibility", "code"),
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
     column("category", "Category", "code"),
@@ -152,7 +154,7 @@ export function displayColumns(
         isAdministrator ||
         (column.kind !== "company" &&
           column.key !== "preprocess_version" &&
-          !(dataset === "settlement" && column.key === "category")),
+          !(dataset === "finances" && column.key === "category")),
     )
     .map((column) => ({
       ...column,

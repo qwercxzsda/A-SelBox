@@ -72,10 +72,10 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         original = self.latest_report(inputs.company)
         snapshot = payout_snapshot(self, original)
         self.assertEqual(refresh_payout_reports(self), (0, 0, 0, 0))
-        self.settlement(
+        self.finances(
             [self.transaction("200")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
         self.kiosk(2, [self.component("-20")], expected=inputs.kiosk_version)
@@ -135,7 +135,7 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         self.set_mature_cutoff_date(date(2026, 7, 1))
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.kiosk(1, [self.component("-10")])
         other, _ = self.owner("OTHER")
         self.assertEqual(refresh_payout_reports(self), (2, 1, 0, 1))
@@ -229,7 +229,7 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
     def test_bounded_sweeps_visit_unattempted_work_before_retrying_failures(self) -> None:
         self.set_mature_cutoff_date(date(2026, 7, 1))
         failing, _ = self.owner()
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.owner("OTHER-A")
         self.owner("OTHER-B")
         self.assertEqual(refresh_payout_reports(self, 1), (1, 0, 0, 1))

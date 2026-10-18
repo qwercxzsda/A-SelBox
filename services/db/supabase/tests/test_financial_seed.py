@@ -33,18 +33,18 @@ class FinancialSeedTests(SourceModelFixture):
             str(row[0])
             for row in self.connection.execute(
                 "select column_name from information_schema.columns "
-                "where table_schema='private' and table_name='settlement_acquisitions' "
+                "where table_schema='private' and table_name='finances_acquisitions' "
                 "order by ordinal_position"
             ).fetchall()
         ]
-        statement = sql.SQL("copy private.settlement_acquisitions ({}) to stdout").format(
+        statement = sql.SQL("copy private.finances_acquisitions ({}) to stdout").format(
             sql.SQL(", ").join(sql.Identifier(column) for column in columns)
         )
         with self.connection.cursor().copy(statement) as copier:
             body = b"".join(bytes(chunk) for chunk in copier).decode()
         self.connection.rollback()
         return (
-            f"COPY private.settlement_acquisitions ({', '.join(columns)}) FROM stdin;\n"
+            f"COPY private.finances_acquisitions ({', '.join(columns)}) FROM stdin;\n"
             + body
             + "\\.\n",
             identity,
@@ -93,7 +93,7 @@ class FinancialSeedTests(SourceModelFixture):
             "COPY public.companies (id,name) FROM stdin;\n",
             "COPY public.companies (id,name,created_at,unexpected) FROM stdin;\n",
             "COPY public.companies (id,name,created_at,id) FROM stdin;\n",
-            "COPY private.settlements (id) FROM stdin;\n",
+            "COPY private.finances_days (id) FROM stdin;\n",
         ):
             with self.subTest(header=header):
                 self.assert_preflight_rejection(
@@ -126,7 +126,7 @@ class FinancialSeedTests(SourceModelFixture):
         )
         result = load_financial_seed(self.connection, seed)
         self.assertEqual(
-            result["source_rows"], {"public.companies": 1, "private.settlement_acquisitions": 1}
+            result["source_rows"], {"public.companies": 1, "private.finances_acquisitions": 1}
         )
         self.assertEqual(result["seed_sha256"], hashlib.sha256(seed.read_bytes()).hexdigest())
         self.assertEqual(
@@ -138,7 +138,7 @@ class FinancialSeedTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select id::text from private.settlement_acquisitions"
+                "select id::text from private.finances_acquisitions"
             ).fetchall(),
             [(acquisition,)],
         )
@@ -180,7 +180,7 @@ class FinancialSeedTests(SourceModelFixture):
                 )
                 self.assertEqual(
                     self.connection.execute(
-                        "select count(*) from private.settlement_acquisitions"
+                        "select count(*) from private.finances_acquisitions"
                     ).fetchone(),
                     (0,),
                 )

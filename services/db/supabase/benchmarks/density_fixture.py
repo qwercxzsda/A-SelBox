@@ -49,11 +49,11 @@ def build_density(factor: int = 10) -> dict[str, object]:
         raise ValueError("Density factor must be between 2 and 20")
     original = psql(
         DATABASE,
-        "select (select count(*) from private.settlement_transactions),"
+        "select (select count(*) from private.finances_transaction_components),"
         "(select count(*) from private.data_kiosk_transactions);",
     )
-    settlement_count, kiosk_count = (int(value) for value in original.split("|"))
-    if not settlement_count or not kiosk_count:
+    finances_count, kiosk_count = (int(value) for value in original.split("|"))
+    if not finances_count or not kiosk_count:
         raise ValueError("Density setup requires source facts in both datasets")
     if (
         psql(
@@ -68,33 +68,32 @@ def build_density(factor: int = 10) -> dict[str, object]:
     statements = [
         "begin; set local statement_timeout='5min'; set local session_replication_role=replica;"
     ]
-    for table, versions in (
-        ("settlement_transactions", "settlement_preprocess_versions"),
-        ("data_kiosk_transactions", "data_kiosk_preprocess_versions"),
-    ):
-        statements.append(_copy_statement(table, versions, factor))
+    statements.append(_copy_finances(factor))
+    statements.append(
+        _copy_statement("data_kiosk_transactions", "data_kiosk_preprocess_versions", factor)
+    )
     statements.append("set local session_replication_role=origin; commit; analyze;")
     psql(DATABASE, "\n".join(statements), role="supabase_admin")
     counts = json.loads(
         psql(
             DATABASE,
-            "select json_build_object('settlement_facts',"
-            "(select count(*) from private.settlement_transactions), 'data_kiosk_facts',"
+            "select json_build_object('finances_facts',"
+            "(select count(*) from private.finances_transaction_components), 'data_kiosk_facts',"
             "(select count(*) from private.data_kiosk_transactions), 'fact_relations_with_rls',"
             "(select count(*) from pg_class where oid in "
-            "('private.settlement_transactions'::regclass,"
+            "('private.finances_transaction_components'::regclass,"
             "'private.data_kiosk_transactions'::regclass) and relrowsecurity));",
         )
     )
     if (
-        counts["settlement_facts"] != settlement_count * factor
+        counts["finances_facts"] != finances_count * factor
         or counts["data_kiosk_facts"] != kiosk_count * factor
     ):
         raise RuntimeError("Density fixture row counts are inconsistent")
     return {
         "database": DATABASE,
         "factor": factor,
-        "seed_settlement_facts": settlement_count,
+        "seed_finances_facts": finances_count,
         "seed_data_kiosk_facts": kiosk_count,
         **counts,
         "setup_seconds": round(time.perf_counter() - started, 3),
@@ -104,3 +103,51 @@ def build_density(factor: int = 10) -> dict[str, object]:
             "Roles, grants and RLS unchanged; setup trigger suppression ends before reads."
         ),
     }
+
+
+def _copy_finances(factor: int) -> str:
+    """Expand native parents and their components together, preserving monetary partitions."""
+    statements = [
+        f"""
+create temporary table benchmark_finances_ids on commit drop as
+select t.id old_id,n copy,private.uuid7() new_id from private.finances_transactions t
+cross join generate_series(1,{factor - 1}) copies(n);
+"""
+    ]
+    for table in ("finances_transactions", "finances_transaction_components"):
+        columns = psql(
+            DATABASE,
+            "select string_agg(quote_ident(attname),',' order by attnum) "
+            f"from pg_attribute where attrelid='private.{table}'::regclass "
+            "and attnum>0 and not attisdropped;",
+        ).split(",")
+        expressions: list[str] = []
+        for column in columns:
+            if column == "id":
+                expression = "m.new_id" if table == "finances_transactions" else "private.uuid7()"
+            elif column == "transaction_id":
+                expression = "m.new_id"
+            elif column in {
+                "native_transaction_id",
+                "deferred_transaction_id",
+                "release_transaction_id",
+                "component_key",
+            }:
+                expression = "t." + column + " || ':benchmark-copy:' || m.copy"
+            else:
+                expression = "t." + column
+            expressions.append(expression)
+        key = "id" if table == "finances_transactions" else "transaction_id"
+        statements.append(
+            f"insert into private.{table} ({','.join(columns)}) "
+            f"select {','.join(expressions)} from private.{table} t "
+            f"join pg_temp.benchmark_finances_ids m on m.old_id=t.{key};"
+        )
+    statements.append(f"""
+update private.finances_preprocess_versions v
+set row_count = row_count * {factor}, transaction_count = transaction_count * {factor}
+where not exists (select 1 from private.finances_pruned_versions p where p.version_id=v.id);
+update private.finances_summary_checks
+set summary_amount=summary_amount * {factor}, transaction_amount=transaction_amount * {factor};
+""")
+    return "\n".join(statements)

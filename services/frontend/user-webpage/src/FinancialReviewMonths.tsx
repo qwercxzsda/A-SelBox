@@ -14,6 +14,7 @@ import {
 } from "./financial-review-view";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { usePayoutPolicy } from "./use-payout-policy";
+import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { WorkspaceIntro } from "./WorkspaceIntro";
 import { REVIEW_CATEGORIES, type ReviewCategory } from "./financial-review-categories";
 import { RowsSelect } from "./RowsSelect";
@@ -38,6 +39,10 @@ export function FinancialReviewMonths({
     decodeMonthlyReviewView,
   );
   const listRef = useRef<HTMLDivElement>(null);
+  const { rememberOpener, restoreFocus } = useDrawerFocusReturn({
+    opened: view.selectedMonth !== null,
+    fallbackRef: listRef,
+  });
   const cursor = view.cursors[view.pageIndex] ?? null;
   const query = useQuery({
     queryKey: [
@@ -68,6 +73,7 @@ export function FinancialReviewMonths({
   const firstRow = rows.length ? view.pageIndex * view.pageSize + 1 : 0;
   const lastRow = rows.length ? view.pageIndex * view.pageSize + rows.length : 0;
   function selectMonth(month: string | null) {
+    if (month) rememberOpener();
     setView((current) => ({ ...current, selectedMonth: month }));
   }
   function filterMonth(month: string) {
@@ -114,14 +120,14 @@ export function FinancialReviewMonths({
     );
   }
   return (
-    <div ref={listRef} className="financial-review-months">
+    <div ref={listRef} className="financial-review-months" tabIndex={-1}>
       <WorkspaceIntro
         description={
           <>
             {REVIEW_CATEGORIES.find(({ value }) => value === category)?.description} Across all
             source accounts and companies; currencies remain separate.{" "}
             {matureCutoff
-              ? `Includes mature dates before ${matureCutoff} (UTC).`
+              ? `Includes mature dates before ${matureCutoff} (UTC) only. Later dates appear automatically as they mature.`
               : "Checking available months…"}
           </>
         }
@@ -202,7 +208,7 @@ export function FinancialReviewMonths({
                 ? "Loading monthly summaries…"
                 : query.isError
                   ? "Monthly summaries are unavailable."
-                  : `No source data available for ${view.filterMonth ? formatRecordMonth(view.filterMonth) : "these months"}.`
+                  : `No mature source records available for ${view.filterMonth ? formatRecordMonth(view.filterMonth) : "these months"}.`
             }
           />
           {rows.length > 10 ? pagination(true) : null}
@@ -216,6 +222,7 @@ export function FinancialReviewMonths({
         matureCutoff={matureCutoff}
         months={months}
         onSelect={selectMonth}
+        onExitTransitionEnd={restoreFocus}
         onClose={() => {
           selectMonth(null);
         }}

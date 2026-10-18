@@ -191,7 +191,7 @@ test("a shrinking publication refreshes rows before its delayed count clamps and
   };
   fixture.totalCount = 5;
   fixture.prefixes["member-a"] = "UPDATED";
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   try {
     await page.clock.fastForward(60_000);
     await started.promise;
@@ -227,7 +227,7 @@ test("a newer publication replaces a pending count instead of accepting its olde
     await started.promise;
     fixture.totalCount = 5;
     fixture.prefixes["member-a"] = "UPDATED";
-    fixture.revisions.settlement = "1";
+    fixture.revisions.finances = "1";
     await page.clock.fastForward(60_000);
     await expect(rowWithSku(page, "UPDATED-001")).toBeVisible();
     await expect(pagination(page, 1, 1)).toBeVisible();
@@ -377,7 +377,7 @@ test("an immediate revision row response still refreshes the count once", async 
   await signIn(page);
   await expect(pagination(page, 1, 2)).toBeVisible();
   fixture.totalCount = 60;
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   await expect(pagination(page, 1, 3)).toBeVisible();
   expect(fixture.countRequests.map(({ count }) => count)).toEqual([30, 60]);

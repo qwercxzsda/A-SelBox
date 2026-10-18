@@ -25,7 +25,7 @@ language plpgsql stable security invoker
 set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 declare
-    settlement_policy_is_sufficient boolean;
+    finances_policy_is_sufficient boolean;
     kiosk_policy_is_sufficient boolean;
 begin
     if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
@@ -44,8 +44,8 @@ begin
     -- Bind the actor checks as known custom-plan parameters. This lets the
     -- planner remove the redundant member check or expose the administrator EXISTS
     -- as a semi-join instead of retaining a per-row subplan behind an OR.
-    settlement_policy_is_sufficient := private.member_policy_covers_current_version(
-        'private.settlement_transactions'::regclass
+    finances_policy_is_sufficient := private.member_policy_covers_current_version(
+        'private.finances_transaction_components'::regclass
     );
     kiosk_policy_is_sufficient := private.member_policy_covers_current_version(
         'private.data_kiosk_transactions'::regclass
@@ -56,13 +56,13 @@ begin
         select sum(source_counts.row_count)::text
         from (
             select count(*) as row_count
-            from private.settlement_transactions as t
-            where t.category in ('SETTLEMENT', 'SELBOX')
+            from private.finances_activity_components as t
+            where t.category in ('FINANCES', 'SELBOX')
                 and t.posted_date < (select private.mature_cutoff_date())
                 and (
-                    settlement_policy_is_sufficient
+                    finances_policy_is_sufficient
                     or exists (
-                        select 1 from private.settlements as h
+                        select 1 from private.finances_days as h
                         where h.current_version_id = t.version_id
                     )
                 )
@@ -84,24 +84,24 @@ begin
                 )
                 and (
                     coalesce(cardinality(p_sources), 0) = 0
-                    or 'SETTLEMENT'::text = any(p_sources)
+                    or 'FINANCES'::text = any(p_sources)
                 )
                 and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
                 and (
                     p_fee_applicable is null
-                    or (t.category = 'SETTLEMENT' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = p_fee_applicable
+                    or (t.category = 'FINANCES' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = p_fee_applicable
                 )
                 and (
                     (p_search_skus is null and p_search_types is null
                         and p_search_marketplaces is null and p_search_sources is null)
                     or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
-                    or t.marketplace_name = any(p_search_marketplaces) or 'SETTLEMENT'::text = any(p_search_sources)
+                    or t.marketplace_name = any(p_search_marketplaces) or 'FINANCES'::text = any(p_search_sources)
                 )
             union all
             select count(*) as row_count
             from private.data_kiosk_transactions as t
             where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-                    and t.category in ('SETTLEMENT', 'SELBOX')))
+                    and t.category in ('FINANCES', 'SELBOX')))
                 and (
                     kiosk_policy_is_sufficient
                     or exists (
@@ -140,7 +140,7 @@ begin
             union all
             select count(*) as row_count
             from private.live_source_reconciliation t
-            where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
+            where (t.data_kiosk_finances_control <> 0 or t.data_kiosk_category_amount <> 0)
                 and (p_date_from is null or t.activity_date >= p_date_from)
                 and (p_date_to is null or t.activity_date <= p_date_to)
                 and (p_currency is null or t.currency = p_currency)
@@ -150,11 +150,11 @@ begin
                     or t.marketplace_name = any(p_marketplaces))
                 and (coalesce(cardinality(p_sources),0) = 0 or 'RECONCILIATION' = any(p_sources))
                 and (coalesce(cardinality(p_types),0) = 0
-                    or 'SETTLEMENT_KIOSK_DIFFERENCE' = any(p_types))
+                    or 'FINANCES_KIOSK_DIFFERENCE' = any(p_types))
                 and (p_fee_applicable is null or not p_fee_applicable)
                 and ((p_search_skus is null and p_search_types is null
                         and p_search_marketplaces is null and p_search_sources is null)
-                    or 'SETTLEMENT_KIOSK_DIFFERENCE' = any(p_search_types)
+                    or 'FINANCES_KIOSK_DIFFERENCE' = any(p_search_types)
                     or t.marketplace_name = any(p_search_marketplaces)
                     or 'RECONCILIATION' = any(p_search_sources))
         ) as source_counts
@@ -185,8 +185,8 @@ language plpgsql stable security invoker
 set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 begin
-    if p_dataset is null or p_dataset not in ('settlement', 'data_kiosk') then
-        raise exception 'Dataset must be settlement or data_kiosk' using errcode = '22023';
+    if p_dataset is null or p_dataset not in ('finances', 'data_kiosk') then
+        raise exception 'Dataset must be finances or data_kiosk' using errcode = '22023';
     end if;
     perform private.validate_transaction_filters(
         p_date_from, p_date_to, null, p_skus, p_marketplaces, null, p_types
@@ -197,9 +197,9 @@ begin
         null, null, null, p_search_skus, p_search_marketplaces,
         null, p_search_types
     );
-    if p_dataset = 'settlement' then
+    if p_dataset = 'finances' then
         return (
-            select count(*)::text from private.settlement_transactions as t
+            select count(*)::text from private.finances_transaction_components as t
             where (p_date_from is null or t.posted_date >= p_date_from)
                 and (p_date_to is null or t.posted_date <= p_date_to)
                 and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))

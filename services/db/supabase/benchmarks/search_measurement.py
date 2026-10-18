@@ -86,7 +86,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         before = catalog_fingerprint(connection)
         subjects = identities(connection)
         facts = connection.execute(
-            "select (select count(*) from private.settlement_transactions),"
+            "select (select count(*) from private.finances_transaction_components),"
             "(select count(*) from private.data_kiosk_transactions)"
         ).fetchone()
         actor_cases = {role: discover_cases(connection, user) for role, user in subjects.items()}
@@ -101,7 +101,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         "database": database,
         "repeat": repeat,
         "warmups": 1,
-        "settlement_facts": facts[0],
+        "finances_facts": facts[0],
         "data_kiosk_facts": facts[1],
         "catalog_before": before,
         "records": [],

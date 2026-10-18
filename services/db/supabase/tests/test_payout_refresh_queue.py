@@ -116,10 +116,10 @@ class PayoutRefreshQueueTests(SourceModelFixture):
         counters = (
             "select schemaname,relname,seq_scan,seq_tup_read,idx_scan,idx_tup_fetch "
             "from pg_stat_xact_user_tables where relname in "
-            "('settlement_transactions','settlement_preprocess_versions','settlements',"
+            "('finances_transaction_components','finances_preprocess_versions','finances_days',"
             "'data_kiosk_transactions','data_kiosk_preprocess_versions','data_kiosk_days',"
             "'company_payout_reports','company_payout_report_components',"
-            "'payout_report_settlement_versions','payout_report_data_kiosk_versions',"
+            "'payout_report_finances_versions','payout_report_data_kiosk_versions',"
             "'payout_report_terms_versions','payout_report_reconciliation') "
             "order by schemaname,relname"
         )
@@ -180,10 +180,10 @@ class PayoutRefreshQueueTests(SourceModelFixture):
             ).fetchall(),
             [(inputs.company,)],
         )
-        self.settlement(
+        self.finances(
             [self.transaction("200")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self, 1), (1, 1, 0, 0))
         self.assertEqual(

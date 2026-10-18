@@ -13,7 +13,7 @@ from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAMES, valida
 
 _SCALAR_COLUMNS = {
     "public.sku_fee_periods": True,
-    "private.settlement_transactions": False,
+    "private.finances_transaction_components": True,
     "private.data_kiosk_days": True,
     "private.data_kiosk_transactions": True,
     "public.company_payout_report_components": False,
@@ -66,15 +66,17 @@ class MarketplaceContractTests(SourceModelFixture):
             company,
             [terms_fixture.CompanyTermsTests.period(name) for name in MARKETPLACE_NAMES],
         )
-        self.settlement(
+        self.finances(
             [
                 self.transaction("1", line) | {"marketplace_name": name}
                 for line, name in enumerate(sorted(MARKETPLACE_NAMES), 3)
+                if name != "Non-Amazon US"
             ]
-            + [self.transaction("2", 100, kind="Adjustment") | {"marketplace_name": None}]
         )
         self.kiosk(1, [self.component()])
         for marketplace in MARKETPLACE_NAMES:
+            if marketplace == "Non-Amazon US":
+                continue
             fill_payout_kiosk_month(self, marketplace=marketplace)
         payload: dict[str, object] = {
             "id": new_id(),
@@ -84,7 +86,7 @@ class MarketplaceContractTests(SourceModelFixture):
             "end_date": "2026-06-30",
             "dataset_key": "economics",
             "report_name": "Marketplace constraints",
-            "change_reason": "Exercise nullable source and saved component marketplaces",
+            "change_reason": "Exercise native source and saved component marketplaces",
         }
         self.call("publish_company_payout_report", payload)
         return payload
@@ -131,7 +133,7 @@ class MarketplaceContractTests(SourceModelFixture):
     def test_publication_and_direct_storage_preserve_marketplace_boundaries(self) -> None:
         payload = self.publish_marketplace_report()
         for relation in (
-            "private.settlement_transactions",
+            "private.finances_transaction_components",
             "public.company_payout_report_components",
         ):
             self.assertEqual(
@@ -140,7 +142,7 @@ class MarketplaceContractTests(SourceModelFixture):
                         sql.Identifier(*relation.split("."))
                     )
                 ).fetchone(),
-                (1,),
+                (0,),
             )
         for relation in (*_SCALAR_COLUMNS, _REPORTS):
             self.assert_stored_marketplace_constraints(relation)

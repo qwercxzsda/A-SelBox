@@ -14,13 +14,14 @@ def raw_reconciliation(
     """Sum original categories; never infer categories from SKU presence or another source."""
     rows = connection.execute(
         """
-        select 'SETTLEMENT',t.seller_namespace,t.posted_date,t.marketplace_name,t.currency,
+        select 'FINANCES',t.seller_namespace,t.posted_date,t.marketplace_name,t.currency,
             t.category,sum(t.amount)
-        from private.settlement_transactions t
-        where t.posted_date < %s and t.category in ('SETTLEMENT','SELBOX','DATA_KIOSK')
+        from private.finances_transaction_components t
+        where t.posted_date < %s and t.activity_eligible
+          and t.category in ('FINANCES','SELBOX','DATA_KIOSK')
           and ((%s::uuid is null and exists (
-              select 1 from private.settlements s where s.current_version_id=t.version_id))
-            or exists (select 1 from private.payout_report_settlement_versions p
+              select 1 from private.finances_days s where s.current_version_id=t.version_id))
+            or exists (select 1 from private.payout_report_finances_versions p
                 join public.company_payout_reports r on r.id=p.report_id
                 where p.report_id=%s and p.version_id=t.version_id
                     and t.posted_date between r.start_date and r.end_date))
@@ -43,25 +44,23 @@ def raw_reconciliation(
     groups: dict[tuple[Any, ...], list[Decimal]] = defaultdict(lambda: [Decimal(0)] * 4)
     for source, seller, day, marketplace, currency, category, amount in rows:
         index = (
-            3
-            if source == "DATA_KIOSK"
-            else {"SETTLEMENT": 0, "SELBOX": 1, "DATA_KIOSK": 2}[category]
+            3 if source == "DATA_KIOSK" else {"FINANCES": 0, "SELBOX": 1, "DATA_KIOSK": 2}[category]
         )
         groups[(seller, day, marketplace, currency)][index] += amount
     result: list[tuple[Any, ...]] = []
     for group, values in groups.items():
         (
-            settlement_category_amount,
+            finances_category_amount,
             selbox_category_amount,
-            data_kiosk_settlement_control,
+            data_kiosk_finances_control,
             data_kiosk_category_amount,
         ) = values
-        difference = data_kiosk_settlement_control - data_kiosk_category_amount
-        settlement_total = (
-            settlement_category_amount + selbox_category_amount + data_kiosk_settlement_control
+        difference = data_kiosk_finances_control - data_kiosk_category_amount
+        finances_total = (
+            finances_category_amount + selbox_category_amount + data_kiosk_finances_control
         )
         accounted_total = (
-            settlement_category_amount
+            finances_category_amount
             + selbox_category_amount
             + data_kiosk_category_amount
             + difference
@@ -69,12 +68,12 @@ def raw_reconciliation(
         result.append(
             (
                 *group,
-                settlement_category_amount,
+                finances_category_amount,
                 selbox_category_amount,
-                data_kiosk_settlement_control,
+                data_kiosk_finances_control,
                 data_kiosk_category_amount,
                 difference,
-                settlement_total,
+                finances_total,
                 accounted_total,
             )
         )
@@ -87,18 +86,18 @@ def verify_live_reconciliation(
     expected = raw_reconciliation(connection, mature_cutoff_date)
     actual = connection.execute(
         "select seller_namespace,activity_date,marketplace_name,currency,"
-        "settlement_category_amount,selbox_category_amount,"
-        "data_kiosk_settlement_control,data_kiosk_category_amount,"
-        "difference,settlement_total,accounted_total from private.live_source_reconciliation"
+        "finances_category_amount,selbox_category_amount,"
+        "data_kiosk_finances_control,data_kiosk_category_amount,"
+        "difference,finances_total,accounted_total from private.live_source_reconciliation"
     ).fetchall()
     require(
         set(actual) == set(expected), "Daily reconciliation differs from original category sums"
     )
-    require(all(row[-2] == row[-1] for row in actual), "Daily settlement equation does not balance")
+    require(all(row[-2] == row[-1] for row in actual), "Daily finances equation does not balance")
     return {
         "daily_groups": len(actual),
         "null_marketplace_groups": sum(row[2] is None for row in expected),
-        "settlement_only_cost_groups": sum(row[6] != 0 and row[7] == 0 for row in expected),
+        "finances_only_cost_groups": sum(row[6] != 0 and row[7] == 0 for row in expected),
         "kiosk_only_cost_groups": sum(row[6] == 0 and row[7] != 0 for row in expected),
         "independent_category_sums_match": True,
         "daily_equation_exact": True,
@@ -118,9 +117,9 @@ def verify_frozen_reconciliation(
             connection,
             administrator,
             "select seller_namespace,activity_date,marketplace_name,currency,"
-            "settlement_category_amount,selbox_category_amount,"
-            "data_kiosk_settlement_control,data_kiosk_category_amount,"
-            "difference,settlement_total,accounted_total from public.payout_report_reconciliation "
+            "finances_category_amount,selbox_category_amount,"
+            "data_kiosk_finances_control,data_kiosk_category_amount,"
+            "difference,finances_total,accounted_total from public.payout_report_reconciliation "
             "where report_id=%s",
             (report[0],),
         )
@@ -128,7 +127,7 @@ def verify_frozen_reconciliation(
             set(actual) == set(expected), "Frozen daily reconciliation differs from pinned inputs"
         )
         require(
-            all(row[-2] == row[-1] for row in actual), "Frozen settlement equation does not balance"
+            all(row[-2] == row[-1] for row in actual), "Frozen finances equation does not balance"
         )
         count += len(actual)
     return count

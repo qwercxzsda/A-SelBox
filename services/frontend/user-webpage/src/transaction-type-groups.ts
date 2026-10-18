@@ -54,7 +54,7 @@ const FILTER_GROUPS: Record<BreakdownGroupId, GroupId> = {
 
 const KNOWN_TYPES = new Set([
   ...transactionTypes.map(({ type }) => type),
-  "SETTLEMENT_KIOSK_DIFFERENCE",
+  "FINANCES_KIOSK_DIFFERENCE",
 ]);
 
 export function transactionTypeGroups(options: readonly FilterOption[]): TransactionTypeGroup[] {

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { feeRow, kioskRow, settlementRow, skuAssignment } from "./api-fixtures.mjs";
+import { feeRow, kioskRow, financesRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { summaryAmount, summaryBucket, summaryCards, typeBucket } from "./summary-fixtures.mjs";
 
@@ -22,7 +22,7 @@ async function setup(page, role = "member") {
   fixture.breakdownRows = [typeBucket("PRINCIPAL", "10")];
   fixture.assignments = [skuAssignment(1)];
   fixture.feeRows = [feeRow(0)];
-  fixture.settlementRows = [settlementRow(1)];
+  fixture.financesRows = [financesRow(1)];
   fixture.kioskRows = [kioskRow(1, "10")];
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
@@ -89,7 +89,7 @@ test("unchanged periodic revisions perform one small request and retain every fi
   expect(fixture.revisionRequests.at(-1).sources.sort()).toEqual([
     "data_kiosk",
     "fees",
-    "settlement",
+    "finances",
   ]);
   expect(financialRequests(fixture)).toEqual(financial);
   expect(fixture.identityRequests).toHaveLength(identity);
@@ -97,7 +97,7 @@ test("unchanged periodic revisions perform one small request and retain every fi
   await expect(page.getByRole("dialog", { name: "Amounts by type", exact: true })).toBeVisible();
 });
 
-for (const source of ["settlement", "data_kiosk"]) {
+for (const source of ["finances", "data_kiosk"]) {
   test(`${source} changes reload the live table, summaries, open details and administrator SKU options after refreshing identity catalogs`, async ({
     page,
   }) => {
@@ -139,15 +139,15 @@ for (const source of ["settlement", "data_kiosk"]) {
 }
 
 for (const [source, tab, other] of [
-  ["settlement", "Settlements", "data_kiosk"],
-  ["data_kiosk", "Data Kiosk", "settlement"],
+  ["finances", "Finances", "data_kiosk"],
+  ["data_kiosk", "Data Kiosk", "finances"],
 ]) {
   test(`an administrator's ${tab} table reloads only for its own source, while inactive totals catch up on return`, async ({
     page,
   }) => {
     const fixture = await setup(page, "administrator");
     await page.getByRole("tab", { name: tab, exact: true }).click();
-    const sku = source === "settlement" ? "SETTLEMENT-1" : "KIOSK-1";
+    const sku = source === "finances" ? "FINANCES-1" : "KIOSK-1";
     await expect(rowWithSku(page, sku)).toBeVisible();
     const rows = () => fixture.requests.filter(({ dataset }) => dataset === source).length;
     const initialRows = rows();
@@ -179,12 +179,12 @@ for (const [source, tab, other] of [
 
     pollCount = completedPolls(fixture).length;
     fixture.revisions[source] = "1";
-    if (source === "settlement") fixture.settlementRows = [settlementRow("UPDATED", "40")];
+    if (source === "finances") fixture.financesRows = [financesRow("UPDATED", "40")];
     else fixture.kioskRows = [kioskRow("UPDATED", "40")];
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, pollCount);
     await expect(
-      rowWithSku(page, source === "settlement" ? "SETTLEMENT-UPDATED" : "KIOSK-UPDATED"),
+      rowWithSku(page, source === "finances" ? "FINANCES-UPDATED" : "KIOSK-UPDATED"),
     ).toBeVisible();
     expect(rows()).toBeGreaterThan(initialRows);
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();
@@ -205,7 +205,7 @@ test("source and fee revisions refresh current configuration and its coverage re
   const fees = fixture.configurationRequests.length;
   const identity = fixture.identityRequests.length;
   let initial = completedPolls(fixture).length;
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   await finishPoll(page, fixture, initial);
   expect(fixture.configurationRequests.length).toBeGreaterThan(fees);
@@ -282,7 +282,7 @@ test("a timed-out revision check keeps displayed data and the next scheduled che
     started.resolve();
     await release.promise;
   };
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   fixture.prefixes["member-a"] = "RECOVERED";
   try {
     await page.clock.fastForward(60_000);
@@ -311,7 +311,7 @@ test("a failed revision check keeps displayed data and the next successful check
 }) => {
   const fixture = await setup(page);
   const financial = financialRequests(fixture);
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   fixture.prefixes["member-a"] = "RECOVERED";
   fixture.revisionStatus = 503;
   await page.clock.fastForward(60_000);
@@ -349,7 +349,7 @@ test("a failed changed-data refresh is retried by the next poll even when the re
 }) => {
   const fixture = await setup(page);
   const rows = fixture.requests.length;
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   fixture.prefixes["member-a"] = "RECOVERED";
   fixture.status = 503;
   await page.clock.fastForward(60_000);
@@ -366,20 +366,20 @@ test("a failed changed-data refresh is retried by the next poll even when the re
   await finishPoll(page, fixture, polls);
   await expect(rowWithSku(page, "RECOVERED-001")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
-  expect(fixture.revisions.settlement).toBe("1");
+  expect(fixture.revisions.finances).toBe("1");
 });
 
 test("an account role change rebuilds the workspace with the current permissions", async ({
   page,
 }) => {
   const fixture = await setup(page, "administrator");
-  await page.getByRole("tab", { name: "Settlements", exact: true }).click();
-  await expect(rowWithSku(page, "SETTLEMENT-1")).toBeVisible();
+  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await expect(rowWithSku(page, "FINANCES-1")).toBeVisible();
   fixture.roles["member-a"] = "member";
   fixture.prefixes["member-a"] = "MEMBER";
   await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "MEMBER-001")).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Settlements", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Finances", exact: true })).toHaveCount(0);
   await expect(page.getByText("Administrator", { exact: true })).toHaveCount(0);
   expect(fixture.authRequests).toBe(1);
 });
@@ -396,7 +396,7 @@ test("a late revision response from a signed-out account cannot refresh another 
       await release.promise;
     }
   };
-  fixture.revisionsByUser["member-a"] = { settlement: "1", data_kiosk: "0", fees: "1" };
+  fixture.revisionsByUser["member-a"] = { finances: "1", data_kiosk: "0", fees: "1" };
   try {
     await page.clock.fastForward(60_000);
     await started.promise;
@@ -499,8 +499,8 @@ test("a manual retry requested during an unrelated selective refresh runs when t
   page,
 }) => {
   const fixture = await setup(page, "administrator");
-  fixture.datasetStatusForRequest = ({ dataset }) => (dataset === "settlement" ? 403 : 200);
-  await page.getByRole("tab", { name: "Settlements", exact: true }).click();
+  fixture.datasetStatusForRequest = ({ dataset }) => (dataset === "finances" ? 403 : 200);
+  await page.getByRole("tab", { name: "Finances", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("HTTP 403");
   fixture.revisionStatus = 503;
   await page.clock.fastForward(60_000);
@@ -519,7 +519,7 @@ test("a manual retry requested during an unrelated selective refresh runs when t
     fixture.datasetStatusForRequest = null;
     await page.getByRole("button", { name: "Retry update", exact: true }).click();
     release.resolve();
-    await expect(rowWithSku(page, "SETTLEMENT-1")).toBeVisible();
+    await expect(rowWithSku(page, "FINANCES-1")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
   } finally {

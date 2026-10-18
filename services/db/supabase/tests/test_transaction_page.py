@@ -38,7 +38,7 @@ class TransactionPageTests(TransactionPageFixture):
                 Decimal("100.123456789012345678901") + expected_fee,
             )
         self.assertTrue(
-            any(row["source"] == "SETTLEMENT" and row["source_amount"] == "0" for row in rows)
+            any(row["source"] == "FINANCES" and row["source_amount"] == "0" for row in rows)
         )
         self.assertTrue(
             any(row["source"] == "DATA_KIOSK" and row["source_amount"] == "0" for row in rows)
@@ -77,7 +77,7 @@ class TransactionPageTests(TransactionPageFixture):
                 p_company_ids=[company_a, company_b, company_a],
                 p_skus=["SKU", "OTHER", "GAP", "SKU"],
                 p_marketplaces=["Amazon.com", "Amazon.co.uk"],
-                p_sources=["DATA_KIOSK", "SETTLEMENT"],
+                p_sources=["DATA_KIOSK", "FINANCES"],
                 p_types=["FbaStorageFee", "PRODUCT_SALES", "PRODUCT_REFUNDS"],
             )
             for filters in ({"p_skus": ["unknown SKU"]}, {"p_marketplaces": ["Amazon.co.uk"]}):
@@ -109,11 +109,11 @@ class TransactionPageTests(TransactionPageFixture):
     def test_page_boundaries_preserve_every_tied_row_once(self) -> None:
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
-        settlement_rows = [self.transaction("10", line) for line in range(3, 13)]
+        finances_rows = [self.transaction("10", line) for line in range(3, 13)]
         kiosk_rows = [self.component("10") for _ in range(10)]
         # Fact IDs are unique within a source, not across both source tables.
-        kiosk_rows[0]["id"] = settlement_rows[0]["id"]
-        self.settlement(settlement_rows)
+        kiosk_rows[0]["id"] = finances_rows[0]["id"]
+        self.finances(finances_rows)
         self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
         user = self.member(company)
         for ordering, direction in product(("date", "amount"), ("asc", "desc")):
@@ -165,7 +165,7 @@ class TransactionPageTests(TransactionPageFixture):
         company, sku = self.owner()
         other_company, _ = self.owner("OTHER")
         self.fee(sku, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("200")])
+        self.finances([self.transaction("200")])
         _, previous = self.kiosk(1, [self.component("999"), self.component("-999")])
         historical = previous
         users = (
@@ -211,7 +211,7 @@ class TransactionPageTests(TransactionPageFixture):
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         self.assign("GAP", company)
-        self.settlement(
+        self.finances(
             [
                 self.transaction("0", 3),
                 self.transaction("0", 4, sku="GAP"),
@@ -263,7 +263,7 @@ class TransactionPageTests(TransactionPageFixture):
         self.assign("GAP", company)
         self.assign("UNASSIGNED", None)
         self.assign("ZERO-RATE", company, rate="0")
-        self.settlement(
+        self.finances(
             [
                 self.transaction("0", 3),
                 self.transaction("0", 4, sku="GAP"),
@@ -313,7 +313,7 @@ class TransactionPageTests(TransactionPageFixture):
     def test_fee_type_filter_is_source_specific_without_changing_financial_values(self) -> None:
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
-        settlement_rows = [
+        finances_rows = [
             self.transaction("10") | {"component_type": "NET_PRODUCT_SALES"},
             self.transaction("20", 4, description="Shipping") | {"component_type": "PRODUCT_SALES"},
             self.transaction("-30", 5, kind="Refund"),
@@ -323,12 +323,12 @@ class TransactionPageTests(TransactionPageFixture):
             self.component("50") | {"component_type": "NET_PRODUCT_SALES"},
             self.component("60") | {"fee_base": "60"},
         ]
-        self.settlement(settlement_rows)
+        self.finances(finances_rows)
         self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
         # These deliberate inconsistencies are accepted by the storage schema.
         # Filtering uses TYPE; returned financial values still use source fields.
-        applicable_ids = {row["id"] for row in [*settlement_rows[1:], kiosk_rows[1]]}
-        all_ids = {row["id"] for row in [*settlement_rows, *kiosk_rows]}
+        applicable_ids = {row["id"] for row in [*finances_rows[1:], kiosk_rows[1]]}
+        all_ids = {row["id"] for row in [*finances_rows, *kiosk_rows]}
         for user in (self.administrator(), self.member(company), self.auth_user()):
             for direction in ("asc", "desc"):
                 unfiltered = self.assert_matches_view(user, p_direction=direction, p_limit=1000)
@@ -360,9 +360,9 @@ class TransactionPageTests(TransactionPageFixture):
 
         member = self.member(company)
         for applicable, source, type_name in (
-            (True, "SETTLEMENT", "NET_PRODUCT_SALES"),
+            (True, "FINANCES", "NET_PRODUCT_SALES"),
             (True, "DATA_KIOSK", "PRODUCT_SALES"),
-            (False, "SETTLEMENT", "PRODUCT_SALES"),
+            (False, "FINANCES", "PRODUCT_SALES"),
             (False, "DATA_KIOSK", "NET_PRODUCT_SALES"),
         ):
             page = self.page(
@@ -383,7 +383,7 @@ class TransactionPageTests(TransactionPageFixture):
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "50")])
         self.assign("OTHER", company, rate="0")
-        self.settlement([self.transaction("100", 3), self.transaction("90", 4, sku="OTHER")])
+        self.finances([self.transaction("100", 3), self.transaction("90", 4, sku="OTHER")])
         member = self.member(company)
         page = self.assert_matches_view(member, p_order_by="amount", p_limit=1)
         rows = cast(list[dict[str, object]], page["rows"])
@@ -401,11 +401,11 @@ class TransactionPageTests(TransactionPageFixture):
         )
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        _, finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
         for user in (administrator, member_a, member_b):
             self.assert_matches_view(user)
-        self.settlement([self.transaction("200")], acquisition_id=acquisition, expected=settlement)
+        self.finances([self.transaction("200")], acquisition_id=acquisition, expected=finances)
         self.kiosk(2, [self.component("-20")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
         for user, count in ((administrator, "3"), (member_a, "0"), (member_b, "2")):

@@ -45,8 +45,8 @@ declare
     result jsonb;
 begin
     perform private.validate_page_bounds(p_limit, p_offset);
-    if p_dataset is null or p_dataset not in ('settlement', 'data_kiosk') then
-        raise exception 'Dataset must be settlement or data_kiosk' using errcode = '22023';
+    if p_dataset is null or p_dataset not in ('finances', 'data_kiosk') then
+        raise exception 'Dataset must be finances or data_kiosk' using errcode = '22023';
     end if;
     if p_order_by is null or p_order_by not in ('date', 'amount') then
         raise exception 'Order must be date or amount' using errcode = '22023';
@@ -68,22 +68,24 @@ begin
     );
     -- SQL identifiers and fragments are chosen only from internal constants.
     -- All filter/pagination values stay parameters. No caller SQL is executed.
-    if p_dataset = 'settlement' then
-        fact_relation := 'settlement_transactions';
-        version_relation := 'settlement_preprocess_versions';
+    if p_dataset = 'finances' then
+        fact_relation := 'finances_transaction_components';
+        version_relation := 'finances_preprocess_versions';
         date_column := 'posted_date';
-        identity_column := 'settlement_id';
-        candidate_projection := 't.family, t.accounting_subtype, t.posted_date, t.posted_at,
-            t.transaction_type, t.amount_type, t.amount_description';
-        projection := 'p.family, p.accounting_subtype, p.posted_date, p.posted_at,
-            p.transaction_type, p.amount_type, p.amount_description';
+        identity_column := 'day_id';
+        candidate_projection := 't.transaction_id,t.native_transaction_id,t.deferred_transaction_id,t.release_transaction_id,
+            t.source_page_number,t.source_record_number,t.accounting_subtype,t.posted_date,t.posted_at,t.component_key,t.fee_base,
+            t.transaction_type,t.transaction_status,t.account_type,t.activity_eligible,t.breakdown_path';
+        projection := 'p.transaction_id,p.native_transaction_id,p.deferred_transaction_id,p.release_transaction_id,
+            p.source_page_number::text,p.source_record_number::text,p.accounting_subtype,p.posted_date,p.posted_at,p.component_key,p.fee_base::text,
+            p.transaction_type,p.transaction_status,p.account_type,p.activity_eligible::text,p.breakdown_path::text';
     else
         fact_relation := 'data_kiosk_transactions';
         version_relation := 'data_kiosk_preprocess_versions';
         date_column := 'activity_date';
         identity_column := 'day_id';
-        candidate_projection := 't.activity_date, t.component_key, t.fee_base, t.source_document_id';
-        projection := 'p.activity_date, p.component_key, p.fee_base::text,
+        candidate_projection := 't.source_line_number,t.activity_date, t.component_key, t.fee_base, t.source_document_id';
+        projection := 'p.source_line_number::text,p.activity_date, p.component_key, p.fee_base::text,
             p.source_document_id';
     end if;
     sort_column := case p_order_by when 'amount' then 'amount' else date_column end;
@@ -118,7 +120,7 @@ begin
 
     execute format($query$
         with matching as not materialized (
-            select t.id, t.version_id, t.seller_namespace, t.source_line_number,
+            select t.id, t.version_id, t.seller_namespace,
                 t.category, t.component_type, t.sku, t.marketplace_name, t.amount,
                 t.currency, t.quantity, t.created_at, %11$s
             from private.%1$I as t
@@ -150,7 +152,7 @@ begin
         ),
         result_rows as (
             select p.id, p.version_id, v.%5$I, v.preprocess_version,
-                p.seller_namespace, p.source_line_number::text,
+                p.seller_namespace,
                 p.category, p.component_type, p.sku, p.marketplace_name,
                 p.amount::text, p.currency, p.quantity::text, p.created_at,
                 %6$s

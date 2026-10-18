@@ -4,7 +4,7 @@ import {
   feeRow,
   kioskRow,
   liveRow,
-  settlementRow,
+  financesRow,
   skuAssignments,
 } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
@@ -13,7 +13,7 @@ import { openColumn } from "./table-actions.mjs";
 const SCOPES = [
   ["member", "live", "Transactions"],
   ["administrator", "live", "Transactions"],
-  ["administrator", "settlement", "Settlements"],
+  ["administrator", "finances", "Finances"],
   ["administrator", "data_kiosk", "Data Kiosk"],
 ];
 
@@ -28,8 +28,8 @@ for (const [role, dataset, tab] of SCOPES) {
     const rows = [1, 2, 3].map((index) => ({
       ...(dataset === "live"
         ? liveRow("SOURCE", index)
-        : dataset === "settlement"
-          ? settlementRow(index)
+        : dataset === "finances"
+          ? financesRow(index)
           : kioskRow(index, String(index * 10))),
       seller_namespace: index === 1 ? "N1" : "N2",
       sku: index <= 2 ? "S1" : "S2",
@@ -39,7 +39,7 @@ for (const [role, dataset, tab] of SCOPES) {
       component_type: dataset === "data_kiosk" ? "NET_PRODUCT_SALES" : "PRODUCT_SALES",
     }));
     fixture[
-      dataset === "live" ? "liveRows" : dataset === "settlement" ? "settlementRows" : "kioskRows"
+      dataset === "live" ? "liveRows" : dataset === "finances" ? "financesRows" : "kioskRows"
     ] = rows;
     await signIn(page);
     if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();

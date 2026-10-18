@@ -68,6 +68,12 @@ def publish_report(
     end_date: str = "2026-06-30",
 ) -> str:
     fill_payout_kiosk_month(fixture, start_date=start_date, end_date=end_date)
+    if not fixture.connection.execute(
+        "select 1 from private.finances_days where seller_namespace=%s "
+        "and activity_date between %s and %s limit 1",
+        (fixture.seller, start_date, end_date),
+    ).fetchone():
+        fixture.finances([], acquisition_id=fixture.acquisition(start=start_date, end=end_date))
     return fixture.call(
         "publish_company_payout_report",
         {
@@ -88,8 +94,8 @@ class PayoutInputs:
     company: str
     sku_identity: str
     acquisition: str
-    settlement: str
-    settlement_version: str
+    finances: str
+    finances_version: str
     kiosk_version: str
 
 
@@ -108,12 +114,10 @@ def prepare_payout(fixture: SourceModelFixture, company: str | None = None) -> P
             raise AssertionError("Expected the company's shared global SKU.")
         identity = str(row[0])
     acquisition = fixture.acquisition()
-    settlement, version = fixture.settlement(
-        [fixture.transaction("100")], acquisition_id=acquisition
-    )
+    finances, version = fixture.finances([fixture.transaction("100")], acquisition_id=acquisition)
     _, kiosk = fixture.kiosk(1, [fixture.component("-10")])
     fill_payout_kiosk_month(fixture)
-    return PayoutInputs(company, identity, acquisition, settlement, version, kiosk)
+    return PayoutInputs(company, identity, acquisition, finances, version, kiosk)
 
 
 def generate_payout_reports(
@@ -149,8 +153,10 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
             'header',to_jsonb(r),
             'components',(select jsonb_agg(to_jsonb(c) order by c.row_number)
                 from public.company_payout_report_components c where c.report_id=r.id),
-            'settlements',(select jsonb_agg(to_jsonb(p) order by p.settlement_id)
-                from private.payout_report_settlement_versions p where p.report_id=r.id),
+            'finances_days',(select jsonb_agg(to_jsonb(p) order by p.day_id)
+                from private.payout_report_finances_versions p where p.report_id=r.id),
+            'summary_checks',(select jsonb_agg(to_jsonb(p) order by p.check_id)
+                from private.payout_report_finances_summary_checks p where p.report_id=r.id),
             'kiosk',(select jsonb_agg(to_jsonb(p) order by p.day_id)
                 from private.payout_report_data_kiosk_versions p where p.report_id=r.id),
             'terms',(select jsonb_agg(to_jsonb(p) order by p.sku_id)

@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, settlementRow } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
-  ["settlement", "Settlements"],
+  ["finances", "Finances"],
   ["data_kiosk", "Data Kiosk"],
 ]) {
   test(`${tab} resolves literal case-insensitive search into exact sets without currency or metadata matches`, async ({
@@ -18,7 +18,7 @@ for (const [dataset, tab] of [
       ["sku", 'Needle_%*.\\"(sample)', "p_search_skus"],
       ["component_type", type, "p_search_types"],
       ["marketplace_name", "Amazon.co.jp", "p_search_marketplaces"],
-      ...(dataset === "live" ? [["source", "SETTLEMENT", "p_search_sources"]] : []),
+      ...(dataset === "live" ? [["source", "FINANCES", "p_search_sources"]] : []),
     ];
     const cases = fields.map(([field, term, argument], index) => ({
       term,
@@ -26,8 +26,8 @@ for (const [dataset, tab] of [
       row: {
         ...(dataset === "live"
           ? liveRow("SEARCH", index + 1)
-          : dataset === "settlement"
-            ? settlementRow(index + 1)
+          : dataset === "finances"
+            ? financesRow(index + 1)
             : kioskRow(index + 1, "10")),
         source: "DATA_KIOSK",
         currency: "USD",
@@ -35,13 +35,13 @@ for (const [dataset, tab] of [
         sku: `SEARCH-${index}`,
         component_type: dataset === "data_kiosk" ? "COST_OF_GOODS_SOLD" : "PRODUCT_REFUNDS",
         resolution_status: "MISSING_FEE",
-        family: "family-only",
+        native_transaction_id: "native-only",
         accounting_subtype: "OPERATING_EXPENSE",
         [field]: term,
       },
     }));
     if (dataset === "live") fixture.liveRows = cases.map(({ row }) => row);
-    else if (dataset === "settlement") fixture.settlementRows = cases.map(({ row }) => row);
+    else if (dataset === "finances") fixture.financesRows = cases.map(({ row }) => row);
     else fixture.kioskRows = cases.map(({ row }) => row);
     await signIn(page);
     if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
@@ -67,9 +67,9 @@ for (const [dataset, tab] of [
       "v0",
       "missing_fee",
       "document-1",
-      "family-only",
+      "native-only",
       "OPERATING_EXPENSE",
-      ...(dataset === "live" ? [] : ["DATA_KIOSK", "Data Kiosk", "Settlements"]),
+      ...(dataset === "live" ? [] : ["DATA_KIOSK", "Data Kiosk", "Finances"]),
     ]) {
       const previous = fixture.requests.length;
       await page.getByLabel("Search", { exact: true }).fill(hidden);

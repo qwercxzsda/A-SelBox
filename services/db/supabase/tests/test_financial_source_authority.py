@@ -26,17 +26,15 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
         before = mature_cutoff_date - timedelta(days=1)
         company, sku = self.owner()
         terms = self.fee(sku, [(date(before.year, 1, 1).isoformat(), None, "10")])
-        settlement, version = self.settlement(
+        finances, version = self.finances(
             [
                 self.transaction("100", 3, activity_date=before.isoformat()),
-                self.transaction("-5", 4, activity_date=before.isoformat(), category="SELBOX")
-                | {"family": None},
+                self.transaction("-5", 4, activity_date=before.isoformat(), category="SELBOX"),
                 self.transaction("-8", 5, activity_date=before.isoformat(), category="DATA_KIOSK"),
                 self.transaction("1000", 6, activity_date=mature_cutoff_date.isoformat()),
                 self.transaction(
                     "-999", 7, activity_date=mature_cutoff_date.isoformat(), category="SELBOX"
-                )
-                | {"family": None},
+                ),
                 self.transaction(
                     "-100", 8, activity_date=mature_cutoff_date.isoformat(), category="DATA_KIOSK"
                 )
@@ -51,7 +49,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             _, kiosk_version = self.kiosk(
                 number,
                 [
-                    self.component(sales, category="SETTLEMENT")
+                    self.component(sales, category="FINANCES")
                     | {"component_type": "NET_PRODUCT_SALES", "fee_base": sales},
                     self.component(retained, category="SELBOX") | {"sku": None},
                     self.component(costs),
@@ -93,14 +91,14 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
         details = self.connection.execute(
             "select source_amount,authoritative,fee_amount,company_amount "
             "from private.resolve_company_components(%s::uuid[],%s::uuid[],%s::uuid[]) "
-            "where source='DATA_KIOSK' and activity_date=%s and category='SETTLEMENT'",
+            "where source='DATA_KIOSK' and activity_date=%s and category='FINANCES'",
             ([version], kiosk_versions, [terms], before),
         ).fetchall()
         self.assertEqual(details, [(Decimal(900), False, None, None)])
         strict = self.connection.execute(
             "select source_amount,fee_amount,company_amount from private.company_financial_totals("
             "%s,%s,%s,'v0',%s::uuid[],array['Amazon.com'])",
-            (self.seller, before, mature_cutoff_date, [settlement]),
+            (self.seller, before, mature_cutoff_date, [finances]),
         ).fetchall()
         self.assertEqual(strict, [(Decimal(270), Decimal(-30), Decimal(240))])
 
@@ -110,10 +108,10 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
         mature_cutoff_date = self.mature_cutoff_date()
         before = mature_cutoff_date - timedelta(days=1)
         self.owner()
-        settlement, _ = self.settlement(
+        finances, _ = self.finances(
             [
                 self.transaction("-8", activity_date=before.isoformat(), category="DATA_KIOSK")
-                | {"sku": None, "family": "C3_STORAGE"}
+                | {"sku": None}
             ]
         )
         with (
@@ -123,14 +121,14 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             self.connection.execute(
                 "select private.assert_company_source_scope("
                 "%s,%s,%s,'v0',%s::uuid[],array['Amazon.com'])",
-                (self.seller, before, before, [settlement]),
+                (self.seller, before, before, [finances]),
             )
         self.kiosk(1, [self.component("-10")], activity_date=before.isoformat())
         self.assertEqual(
             self.connection.execute(
                 "select source_amount from private.company_financial_totals("
                 "%s,%s,%s,'v0',%s::uuid[],array['Amazon.com'])",
-                (self.seller, before, before, [settlement]),
+                (self.seller, before, before, [finances]),
             ).fetchall(),
             [(Decimal(-10),)],
         )
@@ -149,14 +147,17 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
         day = self.mature_cutoff_date() - timedelta(days=1)
         earlier = day - timedelta(days=1)
         self.owner()
-        _, settlement_version = self.settlement(
+        self.finances(
             [
                 self.transaction("100", 3, activity_date=day.isoformat()),
-                self.transaction("-5", 4, activity_date=day.isoformat(), category="SELBOX")
-                | {"family": None},
+                self.transaction("-5", 4, activity_date=day.isoformat(), category="SELBOX"),
                 self.transaction("-8", 5, activity_date=day.isoformat(), category="DATA_KIOSK"),
                 self.transaction("-3", 6, activity_date=day.isoformat(), category="DATA_KIOSK")
-                | {"sku": None, "marketplace_name": None, "transaction_type": "FBAFees"},
+                | {
+                    "sku": None,
+                    "marketplace_name": "Non-Amazon US",
+                    "transaction_type": "ServiceFee",
+                },
                 self.transaction("-4", 7, activity_date=day.isoformat(), category="DATA_KIOSK")
                 | {"marketplace_name": "Amazon.ca"},
             ]
@@ -164,7 +165,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
         _, kiosk_version = self.kiosk(
             1,
             [
-                self.component("900", category="SETTLEMENT"),
+                self.component("900", category="FINANCES"),
                 self.component("-99", category="SELBOX") | {"sku": None},
                 self.component("-10"),
                 self.component("-1") | {"currency": "EUR"},
@@ -175,27 +176,37 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             2, [self.component("-11")], activity_date=earlier.isoformat()
         )
         rows = self.connection.execute(
-            "select activity_date,marketplace_name,currency,data_kiosk_settlement_control,"
+            "select activity_date,marketplace_name,currency,data_kiosk_finances_control,"
             "data_kiosk_category_amount,"
-            "difference,settlement_total,accounted_total "
+            "difference,finances_total,accounted_total "
             "from private.resolve_source_reconciliation(%s::uuid[],%s::uuid[]) "
             "order by activity_date,marketplace_name nulls first,currency",
-            ([settlement_version], [kiosk_version, earlier_version]),
+            (
+                [
+                    str(row[0])
+                    for row in self.connection.execute(
+                        "select current_version_id from private.finances_days "
+                        "where activity_date=%s",
+                        (day,),
+                    ).fetchall()
+                ],
+                [kiosk_version, earlier_version],
+            ),
         ).fetchall()
         expected = [
             (earlier, "Amazon.com", "USD", 0, -11, 11, 0, 0),
-            (day, None, "USD", -3, 0, -3, -3, -3),
+            (day, "Non-Amazon US", "USD", -3, 0, -3, -3, -3),
             (day, "Amazon.ca", "USD", -4, 0, -4, -4, -4),
             (day, "Amazon.com", "EUR", 0, -1, 1, 0, 0),
             (day, "Amazon.com", "USD", -8, -10, 2, 87, 87),
         ]
-        self.assertEqual(rows, expected)
+        self.assertEqual(rows, sorted(expected, key=lambda row: (row[0], row[1], row[2])))
         administrator = self.administrator()
         selection = {
             "p_sources": ["RECONCILIATION"],
             "p_date_from": day.isoformat(),
             "p_marketplaces": ["Amazon.com"],
-            "p_types": ["SETTLEMENT_KIOSK_DIFFERENCE"],
+            "p_types": ["FINANCES_KIOSK_DIFFERENCE"],
         }
         original = self.assert_matches_view(administrator, **selection)
         self.assertEqual(original["total_count"], "2")
@@ -219,13 +230,13 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             ids,
         )
 
-    def test_mature_kiosk_authority_excludes_settlement_but_includes_costs(self) -> None:
+    def test_mature_kiosk_authority_excludes_finances_but_includes_costs(self) -> None:
         before = self.mature_cutoff_date() - timedelta(days=1)
         company, _ = self.owner()
         self.kiosk(
             1,
             [
-                self.component("100", category="SETTLEMENT")
+                self.component("100", category="FINANCES")
                 | {"component_type": "NET_PRODUCT_SALES", "fee_base": "100"},
                 self.component("-10"),
             ],

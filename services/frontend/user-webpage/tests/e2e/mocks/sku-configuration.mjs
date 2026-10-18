@@ -5,7 +5,7 @@ function configurationItems(fixture) {
       [
         ...fixture.assignments.map((item) => item.sku),
         ...(fixture.liveRows ?? []).map((row) => row.sku),
-        ...fixture.settlementRows.map((row) => row.sku),
+        ...fixture.financesRows.map((row) => row.sku),
         ...fixture.kioskRows.map((row) => row.sku),
       ].filter(Boolean),
     ),

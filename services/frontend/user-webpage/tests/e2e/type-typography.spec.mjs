@@ -1,27 +1,23 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, settlementRow } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
-const SETTLEMENT_TYPES = [
+const FINANCES_TYPES = [
   {
-    code: "Order/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal",
-    label: "Order · Item withheld tax · Marketplace facilitator VAT principal",
-    leaf: "Marketplace facilitator VAT principal",
+    code: "TAX_WITHHELD",
+    label: "Tax withheld",
   },
   {
-    code: "Order/ItemWithheldTax/MarketplaceFacilitatorVAT-Shipping",
-    label: "Order · Item withheld tax · Marketplace facilitator VAT shipping",
-    leaf: "Marketplace facilitator VAT shipping",
+    code: "FULFILLMENT_FEE_CORRECTIONS",
+    label: "Fulfillment fee corrections",
   },
   {
-    code: "FBAFees/FBA Amazon-Partnered Carrier Shipment Fee/Base fee",
-    label: "FBA fees · FBA Amazon partnered carrier shipment fee · Base fee",
-    leaf: "Base fee",
+    code: "INBOUND_TRANSPORTATION_FEES",
+    label: "Inbound transportation fees",
   },
   {
     code: "LONG_UNRECOGNIZED_CUSTOM_TRANSACTION_TYPE_".repeat(5),
     label: `Long ${"unrecognized custom transaction type long ".repeat(4)}unrecognized custom transaction type`,
-    leaf: null,
   },
 ];
 
@@ -29,19 +25,16 @@ const DATA_KIOSK_TYPES = [
   {
     code: "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
     label: "FBA inbound placement service fee",
-    leaf: null,
   },
   {
     code: "MONTHLY_INVENTORY_STORAGE_FEE",
     label: "Monthly inventory storage fee",
-    leaf: null,
   },
   {
     code: "FBA_INVENTORY_REIMBURSEMENT",
     label: "FBA inventory reimbursement",
-    leaf: null,
   },
-  SETTLEMENT_TYPES.at(-1),
+  FINANCES_TYPES.at(-1),
 ];
 
 const DATASETS = [
@@ -50,14 +43,14 @@ const DATASETS = [
     label: "Transactions",
     rows: "liveRows",
     makeRow: (index) => liveRow("TYPE", index),
-    types: SETTLEMENT_TYPES,
+    types: FINANCES_TYPES,
   },
   {
-    key: "settlement",
-    label: "Settlements",
-    rows: "settlementRows",
-    makeRow: settlementRow,
-    types: SETTLEMENT_TYPES,
+    key: "finances",
+    label: "Finances",
+    rows: "financesRows",
+    makeRow: financesRow,
+    types: FINANCES_TYPES,
   },
   {
     key: "data_kiosk",
@@ -105,36 +98,13 @@ for (const dataset of DATASETS) {
         });
         expect(metrics.width).toBeLessThanOrEqual(320);
         expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight + 1);
-        const leaf = value.locator(".transaction-type-leaf");
-        await expect(leaf).toHaveCSS("white-space", "nowrap");
-        await expect(leaf).toHaveCSS("text-overflow", "ellipsis");
-        if (type.leaf) {
-          await expect(value).toHaveAttribute("data-hierarchical", "true");
-          await expect(leaf).toHaveText(type.leaf);
-          const typography = await value.evaluate((element) => {
-            const prefix = element.querySelector(".transaction-type-prefix");
-            const leaf = element.querySelector(".transaction-type-leaf");
-            const prefixStyle = globalThis.getComputedStyle(prefix);
-            const leafStyle = globalThis.getComputedStyle(leaf);
-            return {
-              prefixSize: Number.parseFloat(prefixStyle.fontSize),
-              leafSize: Number.parseFloat(leafStyle.fontSize),
-              prefixColor: prefixStyle.color,
-              leafColor: leafStyle.color,
-              leafOverflow: leaf.scrollWidth - leaf.clientWidth,
-            };
-          });
-          expect(typography.prefixSize).toBeLessThan(typography.leafSize);
-          expect(typography.prefixColor).not.toBe(typography.leafColor);
-          expect(typography.leafOverflow).toBeLessThanOrEqual(1);
-        } else {
-          await expect(value.locator(".transaction-type-prefix")).toHaveCount(0);
-          const overflow = await leaf.evaluate(
-            (element) => element.scrollWidth - element.clientWidth,
-          );
-          if (type.code.startsWith("LONG_UNRECOGNIZED")) expect(overflow).toBeGreaterThan(0);
-          else expect(overflow).toBeLessThanOrEqual(1);
-        }
+        await expect(value).toHaveCSS("white-space", "nowrap");
+        await expect(value).toHaveCSS("text-overflow", "ellipsis");
+        const overflow = await value.evaluate(
+          (element) => element.scrollWidth - element.clientWidth,
+        );
+        if (type.code.startsWith("LONG_UNRECOGNIZED")) expect(overflow).toBeGreaterThan(0);
+        else expect(overflow).toBeLessThanOrEqual(1);
       }
       await expect
         .poll(() =>
@@ -143,7 +113,7 @@ for (const dataset of DATASETS) {
           ),
         )
         .toBe(true);
-      const detailIndex = dataset.types[0].leaf ? 0 : dataset.types.length - 1;
+      const detailIndex = dataset.types.length - 1;
       const detailType = dataset.types[detailIndex];
       const first = rowWithSku(page, `TYPE-${String(detailIndex + 1).padStart(3, "0")}`).locator(
         ".transaction-type",
@@ -181,9 +151,7 @@ for (const dataset of DATASETS) {
       await page.getByRole("button", { name: "Type", exact: true }).click();
       const menu = page.getByRole("dialog", { name: "Type options", exact: true });
       const filteredType = dataset.types[0];
-      await menu
-        .getByLabel("Search type", { exact: true })
-        .fill(filteredType.leaf ?? filteredType.label);
+      await menu.getByLabel("Search type", { exact: true }).fill(filteredType.label);
       await menu.getByRole("checkbox", { name: filteredType.label, exact: true }).check();
       await menu.getByRole("button", { name: "Done", exact: true }).click();
       await expect(table.locator("tbody tr")).toHaveCount(1);

@@ -6,33 +6,8 @@ from typing import cast
 from uuid import UUID
 
 from ..amazon.data_kiosk.models import DataKioskDocumentKind
-from ..amazon.reports.discovery import SETTLEMENT_REPORT_TYPE
-from ..amazon.settlement_models import SettlementReportReference
-from ..source_serialization import source_json, source_mapping
-from .models import (
-    ArchivedDataKioskPage,
-    ArchivedDocument,
-    DataKioskAcquisition,
-    SettlementAcquisition,
-)
-
-
-def settlement_payload(acquisition: SettlementAcquisition) -> dict[str, object]:
-    reference = acquisition.reference
-    return {
-        "id": str(acquisition.id),
-        "seller_namespace": acquisition.seller_namespace,
-        "amazon_scope": acquisition.amazon_scope,
-        "report_id": reference.report_id,
-        "report_document_id": reference.report_document_id,
-        "report_type": SETTLEMENT_REPORT_TYPE,
-        "report_created_at": reference.report_created_at.isoformat(),
-        "marketplace_ids": list(reference.marketplace_ids),
-        "document_sha256": acquisition.document.document_sha256,
-        "downloaded_at": acquisition.downloaded_at.isoformat(),
-        "api_metadata": source_json(acquisition.api_metadata),
-        "document": source_json(acquisition.document),
-    }
+from ..source_serialization import source_mapping
+from .models import ArchivedDataKioskPage, ArchivedDocument, DataKioskAcquisition
 
 
 def data_kiosk_payload(acquisition: DataKioskAcquisition) -> dict[str, object]:
@@ -40,27 +15,6 @@ def data_kiosk_payload(acquisition: DataKioskAcquisition) -> dict[str, object]:
     payload["marketplace_ids"] = [payload.pop("marketplace_id")]
     payload["documents"] = payload.pop("pages")
     return payload
-
-
-def settlement_from_payload(payload: Mapping[str, object]) -> SettlementAcquisition:
-    metadata = _mapping(payload["api_metadata"])
-    return SettlementAcquisition(
-        id=_identifier(payload["id"]),
-        seller_namespace=_string(payload["seller_namespace"]),
-        amazon_scope=_string(payload["amazon_scope"]),
-        downloaded_at=_timestamp(payload["downloaded_at"]),
-        document=document_from_payload(_mapping(payload["document"])),
-        api_metadata=metadata,
-        reference=SettlementReportReference(
-            report_id=_string(payload["report_id"]),
-            report_document_id=_string(payload["report_document_id"]),
-            report_created_at=_timestamp(payload["report_created_at"]),
-            marketplace_ids=tuple(_string(item) for item in _sequence(payload["marketplace_ids"])),
-            report_data_start_at=_optional_timestamp(metadata.get("dataStartTime")),
-            report_data_end_at=_optional_timestamp(metadata.get("dataEndTime")),
-            api_metadata=metadata,
-        ),
-    )
 
 
 def data_kiosk_from_payload(payload: Mapping[str, object]) -> DataKioskAcquisition:
@@ -132,10 +86,6 @@ def _sequence(value: object) -> tuple[object, ...] | list[object]:
 
 def _timestamp(value: object) -> datetime:
     return value if isinstance(value, datetime) else datetime.fromisoformat(_string(value))
-
-
-def _optional_timestamp(value: object) -> datetime | None:
-    return None if value is None else _timestamp(value)
 
 
 def _calendar_date(value: object) -> date:

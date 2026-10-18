@@ -20,7 +20,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
     def prepared_company(self) -> str:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.kiosk(1, [self.component("-10")])
         fill_payout_kiosk_month(self)
         return company
@@ -50,7 +50,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             ).fetchall(),
             [
                 ("DATA_KIOSK", True, Decimal(-10), Decimal(0), Decimal(-10)),
-                ("SETTLEMENT", True, Decimal(100), Decimal(-5), Decimal(95)),
+                ("FINANCES", True, Decimal(100), Decimal(-5), Decimal(95)),
             ],
         )
         self.connection.execute("set constraints all immediate")
@@ -128,7 +128,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         company, identity = self.owner()
         self.owner("OTHER")
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
+        self.finances([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
         fill_payout_kiosk_month(self)
         report = self.generate(company)
         self.assertEqual(
@@ -142,18 +142,19 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
     def test_controls_reconcile_without_allocating_selbox_or_difference_to_company(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100"),
-                self.transaction("-3", 4, category="SELBOX") | {"sku": None, "family": None},
+                self.transaction("-3", 4, category="SELBOX") | {"sku": None},
                 self.transaction("-12", 5, kind="ServiceFee", category="DATA_KIOSK")
                 | {"sku": None},
                 self.transaction("-2", 6, kind="ServiceFee", category="DATA_KIOSK")
-                | {"sku": None, "marketplace_name": None},
+                | {"sku": None, "marketplace_name": "Amazon.ca"},
             ]
         )
-        self.kiosk(1, [self.component("-10"), self.component("100", category="SETTLEMENT")])
+        self.kiosk(1, [self.component("-10"), self.component("100", category="FINANCES")])
         fill_payout_kiosk_month(self)
+        fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         administrator, member = self.administrator(), self.member(company)
         report = self.generate(company)
         self.assertEqual(
@@ -167,16 +168,16 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select marketplace_name,settlement_category_amount,selbox_category_amount,"
-                "data_kiosk_settlement_control,"
-                "data_kiosk_category_amount,difference,settlement_total,accounted_total "
+                "select marketplace_name,finances_category_amount,selbox_category_amount,"
+                "data_kiosk_finances_control,"
+                "data_kiosk_category_amount,difference,finances_total,accounted_total "
                 "from public.payout_report_reconciliation where report_id=%s "
                 "order by marketplace_name nulls first",
                 (report,),
             ),
             [
                 (
-                    None,
+                    "Amazon.ca",
                     Decimal(0),
                     Decimal(0),
                     Decimal(-2),
@@ -217,8 +218,8 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             )
             self.connection.execute(
                 "update private.payout_report_reconciliation "
-                "set settlement_category_amount=settlement_category_amount+1,"
-                "settlement_total=settlement_total+1,accounted_total=accounted_total+1 "
+                "set finances_category_amount=finances_category_amount+1,"
+                "finances_total=finances_total+1,accounted_total=accounted_total+1 "
                 "where report_id=%s",
                 (report,),
             )
@@ -238,6 +239,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
     def test_company_with_only_data_kiosk_costs_can_generate(self) -> None:
         company, _ = self.owner()
         self.kiosk(1, [self.component("-10")])
+        self.finances([])
         fill_payout_kiosk_month(self)
         report = self.generate(company)
         self.assertEqual(
@@ -250,7 +252,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select settlement_total,data_kiosk_category_amount,difference,accounted_total "
+                "select finances_total,data_kiosk_category_amount,difference,accounted_total "
                 "from private.payout_report_reconciliation where report_id=%s",
                 (report,),
             ).fetchone(),

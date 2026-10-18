@@ -242,7 +242,7 @@ test("phone fee details keep rates within the screen and offer collapse and sear
 test("Transactions retains zero Data Kiosk rows in pagination and counting", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = [
-    { ...liveRow("SETTLEMENT-ZERO", 1), source_amount: "0" },
+    { ...liveRow("FINANCES-ZERO", 1), source_amount: "0" },
     ...Array.from({ length: 24 }, (_, index) => ({
       ...liveRow("KIOSK-NONZERO", index + 1),
       source: "DATA_KIOSK",
@@ -255,7 +255,7 @@ test("Transactions retains zero Data Kiosk rows in pagination and counting", asy
     })),
   ];
   await signIn(page);
-  await expect(rowWithSku(page, "SETTLEMENT-ZERO-001")).toBeVisible();
+  await expect(rowWithSku(page, "FINANCES-ZERO-001")).toBeVisible();
   await expect(rowWithSku(page, "KIOSK-ZERO-001")).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     26,
@@ -283,7 +283,7 @@ for (const role of ["member", "administrator"]) {
     ).toHaveCount(role === "administrator" ? 9 : 4);
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
-    for (const sourceTab of ["Settlements", "Data Kiosk", "Financial review"]) {
+    for (const sourceTab of ["Finances", "Data Kiosk", "Financial review"]) {
       await expect(page.getByRole("tab", { name: sourceTab, exact: true })).toHaveCount(
         role === "administrator" ? 1 : 0,
       );

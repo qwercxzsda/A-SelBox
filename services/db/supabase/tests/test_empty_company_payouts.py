@@ -37,7 +37,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select currency,source_amount,fee_amount,"
-                "company_amount,component_count,reconciliation_count,settlement_version_count,"
+                "company_amount,component_count,reconciliation_count,finances_version_count,"
                 "data_kiosk_version_count,terms_version_count "
                 "from public.company_payout_reports where id=%s",
                 (report,),
@@ -50,7 +50,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
     ) -> None:
         company = self.company_without_skus()
         self.seller = "unrelated-seller"
-        self.settlement([self.transaction("100", sku="UNASSIGNED")])
+        self.finances([self.transaction("100", sku="UNASSIGNED")])
         member = self.member(company)
         self.assertEqual(self.report_count(), 0)
         self.assertEqual(generate_payout_reports(self, company), [])
@@ -72,23 +72,21 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
     ) -> None:
         company, identity = self.owner()
         acquisition = self.acquisition()
-        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
-        _, settlement_version = self.settlement(
-            [], acquisition_id=acquisition, expected=old_settlement
-        )
+        _, old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        _, finances_version = self.finances([], acquisition_id=acquisition, expected=old_finances)
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
         _, kiosk_version = self.kiosk(2, [], expected=old_kiosk)
         report, created = generate_payout_reports(self, company)[0]
         self.assertTrue(created)
-        self.assert_empty_scope(report, (1, 1, 1))
+        self.assert_empty_scope(report, (30, 1, 1))
         before = payout_snapshot(self, report)
         self.assertEqual(
             self.connection.execute(
-                "select version_id::text from private.payout_report_settlement_versions "
-                "where report_id=%s",
-                (report,),
+                "select version_id::text from private.payout_report_finances_versions "
+                "where report_id=%s and version_id=%s",
+                (report, finances_version),
             ).fetchall(),
-            [(settlement_version,)],
+            [(finances_version,)],
         )
         self.assertEqual(generate_payout_reports(self, company), [(report, False)])
         _, replacement = self.kiosk(3, [], expected=kiosk_version)
@@ -97,7 +95,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         next_report, created = generate_payout_reports(self, company)[0]
         self.assertTrue(created)
         self.assertNotEqual(next_report, report)
-        self.assert_empty_scope(next_report, (1, 1, 1))
+        self.assert_empty_scope(next_report, (30, 1, 1))
         self.assertEqual(
             self.connection.execute(
                 "select version_id::text from private.payout_report_data_kiosk_versions "
@@ -126,7 +124,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
 
     def test_registered_sku_cannot_associate_unrelated_empty_source_metadata(self) -> None:
         company, _ = self.owner()
-        self.settlement([])
+        self.finances([])
         self.kiosk(1, [])
         report, created = generate_payout_reports(self, company)[0]
         self.assertTrue(created)
@@ -148,8 +146,8 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
     def test_unassigned_amounts_for_related_seller_cannot_be_mislabeled_as_empty(self) -> None:
         company, _ = self.owner()
         acquisition = self.acquisition()
-        _, previous = self.settlement([self.transaction("100")], acquisition_id=acquisition)
-        self.settlement(
+        _, previous = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        self.finances(
             [self.transaction("100", sku="UNASSIGNED")],
             acquisition_id=acquisition,
             expected=previous,
@@ -167,9 +165,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         empty_snapshot = payout_snapshot(self, empty)
         self.fee(identity, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, settlement_version = self.settlement(
-            [self.transaction("100")], acquisition_id=acquisition
-        )
+        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk_version = self.kiosk(
             1, [self.component("-10"), self.component("-7.25") | {"currency": "EUR"}]
         )
@@ -199,7 +195,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             ).fetchall(),
             [("EUR", Decimal(0), 0), ("USD", Decimal(85), 2)],
         )
-        self.settlement([], acquisition_id=acquisition, expected=settlement_version)
+        self.finances([], acquisition_id=acquisition, expected=finances_version)
         self.kiosk(3, [], expected=remaining_version)
         self.connection.commit()
         self.assertEqual(self.report_count(), 5)

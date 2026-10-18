@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from decimal import Decimal
 from typing import Literal, LiteralString
 from uuid import uuid7
 
@@ -11,6 +10,7 @@ from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests.integration_support import DatabaseTestCase
 from services.db.supabase.tests.local_database import require_row
+from services.db.supabase.tests.source_finances import acquisition, finances
 
 
 def new_id() -> str:
@@ -33,6 +33,9 @@ def archive_document(digest: str = "a") -> dict[str, object]:
 
 
 class SourceModelFixture(DatabaseTestCase):
+    acquisition = acquisition
+    finances = finances
+
     def setUp(self) -> None:
         super().setUp()
         self.seller = "seller-one"
@@ -144,66 +147,6 @@ class SourceModelFixture(DatabaseTestCase):
             },
         )
 
-    def acquisition(self, *, document_id: str = "document", digest: str = "a") -> str:
-        return self.call(
-            "publish_settlement_acquisition",
-            {
-                "id": new_id(),
-                "seller_namespace": self.seller,
-                "amazon_scope": "NA",
-                "report_id": new_id(),
-                "report_document_id": document_id,
-                "report_type": "GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2",
-                "report_created_at": "2026-09-01T00:00:00Z",
-                "marketplace_ids": ["unmapped-hint-is-allowed"],
-                "api_metadata": {},
-                "downloaded_at": "2026-09-01T00:00:00Z",
-                "document_sha256": digest * 64,
-                "document": archive_document(digest),
-            },
-        )
-
-    def settlement(
-        self,
-        rows: list[dict[str, object]],
-        *,
-        acquisition_id: str | None = None,
-        expected: str | None = None,
-        version: str = "v0",
-        identity: str = "settlement",
-    ) -> tuple[str, str]:
-        total = sum((Decimal(str(row["amount"])) for row in rows), Decimal(0))
-        version_id = self.call(
-            "publish_settlement_preprocess",
-            {
-                "id": new_id(),
-                "acquisition_id": acquisition_id or self.acquisition(),
-                "expected_current_version_id": expected,
-                "preprocess_version": version,
-                "settlement_id": identity,
-                "diagnostics": [],
-                "metadata": {
-                    "settlement_start_at": "2026-06-01T00:00:00Z",
-                    "settlement_end_at": "2026-08-31T23:59:59Z",
-                    "deposit_at": None,
-                    "settlement_start_date": "2026-06-01",
-                    "settlement_end_date": "2026-08-31",
-                    "total_amount": str(total),
-                    "currency": "USD",
-                    "source_line_number": 2,
-                },
-                "transactions": rows,
-            },
-        )
-        row = require_row(
-            self.connection.execute(
-                "select id from private.settlements where seller_namespace=%s "
-                "and amazon_scope='NA' and settlement_id=%s",
-                (self.seller, identity),
-            ).fetchone()
-        )
-        return str(row[0]), version_id
-
     @staticmethod
     def transaction(
         amount: str,
@@ -211,30 +154,30 @@ class SourceModelFixture(DatabaseTestCase):
         *,
         sku: str = "SKU",
         activity_date: str = "2026-06-15",
-        kind: str = "Order",
-        category: str = "SETTLEMENT",
+        kind: str = "Shipment",
+        category: str = "FINANCES",
         description: str = "Principal",
     ) -> dict[str, object]:
-        component_type = f"{kind}/ItemPrice/{description}"
-        if kind in {"Order", "Refund"} and description == "Principal":
+        component_type = f"{kind}/{description}"
+        fee_base = None
+        if kind in {"Shipment", "Refund"} and description == "Principal":
             component_type = "PRODUCT_REFUNDS" if kind == "Refund" else "PRODUCT_SALES"
+            fee_base = amount if category == "FINANCES" else None
         return {
             "id": new_id(),
-            "source_line_number": line,
+            "source_record_number": line,
             "category": category,
-            "family": "F1",
             "component_type": component_type,
             "sku": sku,
             "marketplace_name": "Amazon.com",
             "amount": amount,
             "currency": "USD",
             "quantity": 1,
+            "fee_base": fee_base,
             "posted_date": activity_date,
             "posted_at": activity_date + "T12:00:00Z",
             "transaction_type": kind,
-            "amount_type": "ItemPrice",
-            "amount_description": description,
-            "source_fields": {},
+            "source_fields": {"breakdown_path": [description]},
         }
 
     def kiosk_acquisition(
@@ -342,12 +285,23 @@ class SourceModelFixture(DatabaseTestCase):
 
     def totals(
         self,
-        settlements: list[str],
+        finances_days: list[str],
         marketplaces: list[str] | None = None,
         version: str = "v0",
     ) -> list[tuple[object, ...]]:
+        if finances_days:
+            finances_days = [
+                str(row[0])
+                for row in self.connection.execute(
+                    "select id from private.finances_days where seller_namespace=%s "
+                    "and marketplace_name in (select marketplace_name from private.finances_days "
+                    "where id=any(%s::uuid[])) "
+                    "and activity_date between '2026-06-01' and '2026-08-31'",
+                    (self.seller, finances_days),
+                ).fetchall()
+            ]
         return self.connection.execute(
             "select * from private.company_financial_totals("
             "%s,'2026-06-01','2026-08-31',%s,%s::uuid[],%s::text[])",
-            (self.seller, version, settlements, marketplaces or []),
+            (self.seller, version, finances_days, marketplaces or []),
         ).fetchall()

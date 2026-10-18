@@ -45,7 +45,7 @@ test("unchanged administrator renewal reuses catalog but renews credentials and 
 }) => {
   const fixture = await setup(page);
   const source = await openColumn(page, "Source");
-  await source.getByRole("checkbox", { name: "Settlements", exact: true }).check();
+  await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
   await sortBy(page, "Date", "Oldest first");
   await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -67,7 +67,7 @@ test("unchanged administrator renewal reuses catalog but renews credentials and 
   expect(fixture.requests).toHaveLength(rows);
   expect(fixture.countRequests).toHaveLength(counts);
   const restored = await openColumn(page, "Source");
-  await expect(restored.getByRole("checkbox", { name: "Settlements", exact: true })).toBeChecked();
+  await expect(restored.getByRole("checkbox", { name: "Finances", exact: true })).toBeChecked();
 });
 
 test("a changed revision forces one catalog download during token renewal", async ({ page }) => {
@@ -88,7 +88,7 @@ test("renewal uses the latest identity catalog after an earlier revision refresh
   page,
 }) => {
   const fixture = await setup(page, { expiresIn: 180 });
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   fixture.skuOptions.push("FROM-REVISION");
   fixture.companyNames["company-member-a"] = "Revision company label";
   await page.clock.fastForward(60_000);
@@ -111,12 +111,12 @@ test("administrator demotion during renewal removes administrator catalogs and r
   page,
 }) => {
   const fixture = await setup(page);
-  await page.getByRole("tab", { name: "Settlements", exact: true }).click();
+  await page.getByRole("tab", { name: "Finances", exact: true }).click();
   fixture.roles["member-a"] = "member";
   fixture.assignments = skuAssignments(["MEMBER-ONLY"]);
   await page.clock.fastForward(30_000);
   await expectRenewedLookups(fixture);
-  await expect(page.getByRole("tab", { name: "Settlements", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Finances", exact: true })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -166,13 +166,13 @@ test("a late identity refresh cannot replace a newer renewed catalog", async ({ 
       await release.promise;
     }
   };
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   fixture.skuOptions = ["ALPHA-001", "STALE-CATALOG"];
   try {
     await page.clock.fastForward(60_000);
     await started.promise;
     await expect.poll(() => fixture.optionRequests.length).toBe(2);
-    fixture.revisions.settlement = "2";
+    fixture.revisions.finances = "2";
     fixture.skuOptions = ["ALPHA-001", "NEWEST-CATALOG"];
     fixture.companyNames["company-member-a"] = "Renewed company label";
     await page.clock.fastForward(60_000);

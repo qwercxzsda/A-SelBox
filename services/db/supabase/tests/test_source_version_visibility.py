@@ -9,21 +9,21 @@ from services.db.supabase.tests import test_live_view_equivalence as live_fixtur
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 _FACTS: LiteralString = """
-select 'SETTLEMENT', id::text, version_id::text, category::text
-from private.settlement_transactions
+select 'FINANCES', id::text, version_id::text, category::text
+from private.finances_transaction_components
 union all
 select 'DATA_KIOSK', id::text, version_id::text, category::text
 from private.data_kiosk_transactions
 """
 _REFERENCES: LiteralString = """
-select 'SETTLEMENT', 'header', id::text, current_version_id::text, null
-from private.settlements
+select 'FINANCES', 'header', id::text, current_version_id::text, null
+from private.finances_days
 union all
 select 'DATA_KIOSK', 'header', id::text, current_version_id::text, null
 from private.data_kiosk_days
 union all
-select 'SETTLEMENT', 'version', id::text, settlement_id::text, preprocess_version::text
-from private.settlement_preprocess_versions
+select 'FINANCES', 'version', id::text, day_id::text, preprocess_version::text
+from private.finances_preprocess_versions
 union all
 select 'DATA_KIOSK', 'version', id::text, day_id::text, preprocess_version::text
 from private.data_kiosk_preprocess_versions
@@ -56,14 +56,12 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         cost_only: bool = False,
         empty: bool = False,
     ) -> tuple[SourceVersion, ...]:
-        settlement_rows = (
+        finances_rows = (
             []
             if empty
             else [
-                self.transaction(
-                    "10", sku=sku, category="DATA_KIOSK" if cost_only else "SETTLEMENT"
-                ),
-                self.transaction("20", 4, category="SELBOX") | {"family": None},
+                self.transaction("10", sku=sku, category="DATA_KIOSK" if cost_only else "FINANCES"),
+                self.transaction("20", 4, category="SELBOX"),
             ]
         )
         kiosk_rows = [] if empty else [self.component("-20", category="SELBOX") | {"sku": None}]
@@ -71,12 +69,14 @@ class SourceVersionVisibilityTests(SourceModelFixture):
             kiosk_rows.extend(
                 [
                     self.component("-1", sku=sku),
-                    self.component("2", sku=sku, category="SETTLEMENT"),
+                    self.component("2", sku=sku, category="FINANCES"),
                     self.component("3", sku=sku, category="ANALYSIS_ONLY"),
                 ]
             )
-        settlement = self.settlement(
-            settlement_rows, expected=None if previous is None else previous[0].version
+        finances = self.finances(
+            finances_rows,
+            expected=None if previous is None else previous[0].version,
+            acquisition_id=self.acquisition(start="2026-06-15", end="2026-06-15"),
         )
         kiosk = self.kiosk(
             1 if previous is None else 2,
@@ -91,7 +91,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
                 tuple((str(row["id"]), str(row["category"])) for row in rows),
             )
             for source, (header, version), rows in (
-                ("SETTLEMENT", settlement, settlement_rows),
+                ("FINANCES", finances, finances_rows),
                 ("DATA_KIOSK", kiosk, kiosk_rows),
             )
         )
@@ -104,7 +104,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
             for row_id, category in item.facts:
                 if (
                     administrator
-                    or (item.source == "SETTLEMENT" and category == "SETTLEMENT")
+                    or (item.source == "FINANCES" and category == "FINANCES")
                     or (item.source == "DATA_KIOSK" and category != "SELBOX")
                 ):
                     expected.append((item.source, row_id, item.version, category))
@@ -208,12 +208,12 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         self.assert_facts(administrator, old, administrator=True)
 
         with self.connection.transaction(force_rollback=True):
-            settlement, day = new_id(), new_id()
+            finances, day = new_id(), new_id()
             self.connection.execute(
-                "insert into private.settlements "
-                "(id,seller_namespace,amazon_scope,settlement_id,document_sha256) "
-                "values (%s,'unselected-seller','NA','unselected',%s)",
-                (settlement, "f" * 64),
+                "insert into private.finances_days "
+                "(id,seller_namespace,marketplace_name,activity_date) "
+                "values (%s,'unselected-seller','Amazon.com','2026-06-15')",
+                (finances,),
             )
             self.connection.execute(
                 "insert into private.data_kiosk_days "
@@ -226,7 +226,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
                 administrator,
                 current,
                 historical=old,
-                unselected_headers=(("SETTLEMENT", settlement), ("DATA_KIOSK", day)),
+                unselected_headers=(("FINANCES", finances), ("DATA_KIOSK", day)),
             )
         self.connection.execute("set constraints all immediate")
 
@@ -240,10 +240,10 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         )
         for user in (member, no_skus, administrator):
             for statement in (
-                "select seller_namespace from private.settlements",
+                "select seller_namespace from private.finances_days",
                 "select seller_namespace from private.data_kiosk_days",
-                "select total_amount from private.settlement_preprocess_versions",
-                "select row_count from private.settlement_preprocess_versions",
+                "select total_amount from private.finances_transactions",
+                "select row_count from private.finances_preprocess_versions",
                 "select row_count from private.data_kiosk_preprocess_versions",
                 "select content_sha256 from private.data_kiosk_preprocess_versions",
             ):
@@ -253,7 +253,7 @@ class SourceVersionVisibilityTests(SourceModelFixture):
                 ):
                     self.as_user(user, statement)
         for statement in (
-            "select * from public.settlement_preprocess_results",
+            "select * from public.finances_preprocess_results",
             "select * from public.data_kiosk_preprocess_results",
         ):
             for user in (member, no_skus, self.auth_user()):

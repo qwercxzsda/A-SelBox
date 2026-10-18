@@ -26,7 +26,7 @@ class LocalWorkflowCase(unittest.TestCase):
         self.database = self.enterContext(PostgresDatabaseConnection(self.stack.database_url))
         self.storage = SupabaseArchiveStorage(self.stack.api_url, self.stack.service_key)
         self.seller = f"local-e2e-{uuid7()}"
-        # The synthetic August reports exercise mature Settlement authority.
+        # The synthetic August reports exercise mature Finances authority.
         # Fix the disposable database clock boundary so calendar time cannot
         # silently switch these transport tests to the recent Data Kiosk policy.
         with self.database.connection() as connection, connection.transaction():

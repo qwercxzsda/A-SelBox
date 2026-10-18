@@ -41,14 +41,14 @@ for (const role of ["member", "administrator"]) {
     await type.getByLabel("Search type", { exact: true }).fill("subscription");
     await expect(
       type.getByRole("checkbox", {
-        name: "Other transaction · Other transaction · Subscription fee",
+        name: "Subscription fees",
         exact: true,
       }),
     ).toHaveCount(role === "administrator" ? 1 : 0);
-    await type.getByLabel("Search type", { exact: true }).fill("inventory storage");
+    await type.getByLabel("Search type", { exact: true }).fill("storage fees");
     await expect(
       type.getByRole("checkbox", {
-        name: "FBA fees · FBA inventory storage fee · Base fee",
+        name: "Storage fees",
         exact: true,
       }),
     ).toBeVisible();
@@ -67,7 +67,7 @@ for (const role of ["member", "administrator"]) {
     expect(fixture.requests.at(-1).args.p_sources).toEqual(["DATA_KIOSK"]);
 
     if (role === "administrator") {
-      for (const tab of ["Settlements", "Data Kiosk"]) {
+      for (const tab of ["Finances", "Data Kiosk"]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
         const rawType = await openColumn(page, "Type");
         await expect(rawType.getByLabel("Search type", { exact: true })).toBeVisible();

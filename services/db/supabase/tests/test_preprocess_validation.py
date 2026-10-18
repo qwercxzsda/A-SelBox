@@ -16,22 +16,22 @@ HISTORY_TABLES = (
 
 
 class PreprocessValidationTests(SourceModelFixture):
-    def test_fee_bearing_settlement_rows_require_marketplace_and_posting_date(self) -> None:
+    def test_fee_bearing_finances_rows_require_marketplace_and_posting_date(self) -> None:
         for field, error in (
-            ("marketplace_name", psycopg.errors.CheckViolation),
-            ("posted_date", psycopg.errors.NotNullViolation),
+            ("marketplace_name", ValueError),
+            ("posted_date", ValueError),
         ):
             with self.subTest(field=field), self.assertRaises(error), self.connection.transaction():
-                self.settlement([self.transaction("100") | {field: None}])
+                self.finances([self.transaction("100") | {field: None}])
         self.assertEqual(
-            self.connection.execute("select count(*) from private.settlements").fetchone(),
+            self.connection.execute("select count(*) from private.finances_days").fetchone(),
             (0,),
         )
 
     def test_publication_rejects_null_amount_without_replacing_current_day(self) -> None:
         _, current = self.kiosk(1, [self.component()])
         before = self.snapshot()
-        for treatment in ("SETTLEMENT", "SELBOX", "DATA_KIOSK", "ANALYSIS_ONLY"):
+        for treatment in ("FINANCES", "SELBOX", "DATA_KIOSK", "ANALYSIS_ONLY"):
             row = self.component(None, category=treatment)
             if treatment == "SELBOX":
                 row["sku"] = None

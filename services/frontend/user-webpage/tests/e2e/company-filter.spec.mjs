@@ -172,7 +172,7 @@ test("company selection resets only the page and clearing it preserves other ref
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   await page.getByRole("button", { name: "Source", exact: true }).click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
-  await source.getByRole("checkbox", { name: "Settlements", exact: true }).check();
+  await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
   await page.getByRole("button", { name: "Reported amount", exact: true }).click();
   await page
@@ -188,7 +188,7 @@ test("company selection resets only the page and clearing it preserves other ref
   const scoped = fixture.requests.at(-1).params;
   expect(scoped.get("company_id")).toBe(companyScope(COMPANY_A));
   expect(scoped.get("offset")).toBe("0");
-  expect(scoped.get("source")).toBe('in.("SETTLEMENT")');
+  expect(scoped.get("source")).toBe('in.("FINANCES")');
   expect(scoped.get("or")).toContain("Amazon");
   expect(scoped.get("order")).toBe(order);
   expect(scoped.getAll("activity_date")).toEqual(["gte.2026-01-01", "lte.2026-04-30"]);
@@ -209,7 +209,7 @@ test("company selection resets only the page and clearing it preserves other ref
   await expect(table.getByRole("cell", { name: "Company A", exact: true })).toHaveCount(25);
   await chooseCompanies(page, []);
   await expect(page.getByRole("form", { name: "Page 1 of 3", exact: true })).toBeVisible();
-  expect(fixture.requests.at(-1).params.get("source")).toBe('in.("SETTLEMENT")');
+  expect(fixture.requests.at(-1).params.get("source")).toBe('in.("FINANCES")');
   expect(fixture.requests.at(-1).params.getAll("activity_date")).toEqual([
     "gte.2026-01-01",
     "lte.2026-04-30",

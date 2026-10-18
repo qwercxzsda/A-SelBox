@@ -29,7 +29,7 @@ class DateOrderingTests(SourceModelFixture):
         company_b, sku_b = self.owner("OTHER")
         self.fee(sku_a, [("2026-01-01", None, "5")])
         self.fee(sku_b, [("2026-01-01", None, "7")])
-        settlement = [
+        finances = [
             self.transaction(
                 "10",
                 index + 3,
@@ -41,8 +41,8 @@ class DateOrderingTests(SourceModelFixture):
         kiosk = [self.component("10", sku="SKU" if index % 2 else "OTHER") for index in range(10)]
         # A source row ID may occur in both tables. The source key must reverse
         # together with the ID and date, rather than treating IDs as global.
-        kiosk[1]["id"] = settlement[1]["id"]
-        self.settlement(settlement)
+        kiosk[1]["id"] = finances[1]["id"]
+        self.finances(finances)
         self.kiosk(1, kiosk)
         return company_a, company_b
 
@@ -55,7 +55,7 @@ class DateOrderingTests(SourceModelFixture):
                 self.member(company_b),
                 self.auth_user(),
             ),
-            ("live", "settlement", "data_kiosk"),
+            ("live", "finances", "data_kiosk"),
         ):
             with self.subTest(user=user, dataset=dataset):
                 ascending = self.page(user, dataset, p_direction="asc", p_limit=1000)
@@ -87,7 +87,7 @@ class DateOrderingTests(SourceModelFixture):
     def test_search_and_filters_keep_reverse_order_but_amount_ties_stay_ascending(self) -> None:
         company_a, _ = self.tied_rows()
         for user, dataset in product(
-            (self.administrator(), self.member(company_a)), ("live", "settlement", "data_kiosk")
+            (self.administrator(), self.member(company_a)), ("live", "finances", "data_kiosk")
         ):
             with self.subTest(user=user, dataset=dataset):
                 filters = {
@@ -114,7 +114,7 @@ class DateOrderingTests(SourceModelFixture):
                 # Every fixture amount is 10. Changing the amount direction
                 # must therefore preserve the original ascending source/ID ties.
                 source_filter = (
-                    {"p_sources": ["SETTLEMENT", "DATA_KIOSK"]} if dataset == "live" else {}
+                    {"p_sources": ["FINANCES", "DATA_KIOSK"]} if dataset == "live" else {}
                 )
                 amounts_asc = self.page(
                     user, dataset, p_order_by="amount", p_direction="asc", **source_filter
@@ -137,7 +137,7 @@ class DateOrderingTests(SourceModelFixture):
             "pg_get_expr(i.indpred,i.indrelid) "
             "from pg_index i join pg_class c on c.oid=i.indexrelid "
             "where c.relnamespace='private'::regnamespace and c.relname in "
-            "('settlement_transactions_date_id_idx','data_kiosk_transactions_date_id_idx') "
+            "('finances_transaction_components_date_id_idx','data_kiosk_transactions_date_id_idx') "
             "order by c.relname"
         ).fetchall()
         self.assertEqual(len(indexes), 2)
@@ -145,12 +145,14 @@ class DateOrderingTests(SourceModelFixture):
             indexes[0], ("data_kiosk_transactions_date_id_idx", "activity_date", "id", "0 0", None)
         )
         self.assertEqual(
-            indexes[1], ("settlement_transactions_date_id_idx", "posted_date", "id", "0 0", None)
+            indexes[1],
+            ("finances_transaction_components_date_id_idx", "posted_date", "id", "0 0", None),
         )
         self.assertEqual(
             self.connection.execute(
                 "select bool_and(attnotnull) from pg_attribute where "
-                "(attrelid='private.settlement_transactions'::regclass and attname='posted_date') "
+                "(attrelid='private.finances_transaction_components'::regclass "
+                "and attname='posted_date') "
                 "or (attrelid='private.data_kiosk_transactions'::regclass "
                 "and attname='activity_date')"
             ).fetchone(),

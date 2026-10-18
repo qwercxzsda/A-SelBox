@@ -20,7 +20,7 @@ test("financial counts use typed filters without ordering, pagination, or lossy 
     companyIds: ["11111111-1111-4111-8111-111111111111"],
     skus: ['sku,"quoted"\\한글'],
     marketplaces: ["Amazon.com"],
-    sources: ["SETTLEMENT"],
+    sources: ["FINANCES"],
     types: ["PRINCIPAL"],
   });
   assert.equal(
@@ -48,7 +48,7 @@ test("financial counts use typed filters without ordering, pagination, or lossy 
 });
 
 test("all transaction counts use the same literal search RPC arguments as their pages", async () => {
-  for (const dataset of ["live", "settlement", "data_kiosk"]) {
+  for (const dataset of ["live", "finances", "data_kiosk"]) {
     const requests = [];
     const client = createApiClient(SETTINGS, async (url, init) => {
       const args = JSON.parse(init.body);

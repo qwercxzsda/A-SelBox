@@ -19,7 +19,7 @@ export function createReviewSourceState(): ReviewSourceState {
 
 export function decodeReviewSourceState(value: unknown): ReviewSourceState {
   if (!isJsonObject(value)) return createReviewSourceState();
-  const source = value.source === "SETTLEMENT" || value.source === "DATA_KIOSK" ? value.source : "";
+  const source = value.source === "FINANCES" || value.source === "DATA_KIOSK" ? value.source : "";
   return {
     currency:
       typeof value.currency === "string" && /^[A-Z]{3}$/.test(value.currency) ? value.currency : "",

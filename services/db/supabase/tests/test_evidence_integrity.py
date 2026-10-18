@@ -27,7 +27,7 @@ class EvidenceIntegrityTests(SourceModelFixture):
                 ).fetchone()
             )[0]
         )
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         report = self.report(company)
         self.connection.execute("set constraints all immediate")
         return report, other_identity, other_terms, other_period
@@ -35,8 +35,8 @@ class EvidenceIntegrityTests(SourceModelFixture):
     def test_source_and_terms_parent_mutations_are_rejected_before_fk_checks(self) -> None:
         self.published_evidence()
         for schema, table in (
-            ("private", "settlement_acquisitions"),
-            ("private", "settlement_preprocess_versions"),
+            ("private", "finances_acquisitions"),
+            ("private", "finances_preprocess_versions"),
             ("public", "sku_terms_versions"),
             ("public", "sku_fee_periods"),
         ):

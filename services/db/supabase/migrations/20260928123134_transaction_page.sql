@@ -119,7 +119,7 @@ begin
             (
                 %8$s
                 select
-                    'SETTLEMENT'::text as source,
+                    'FINANCES'::text as source,
                     t.id as source_row_id,
                     t.version_id as source_version_id,
                     t.seller_namespace,
@@ -130,21 +130,17 @@ begin
                     t.currency,
                     t.amount as source_amount,
                     t.quantity::numeric as quantity,
-                    case
-                        when t.category = 'SETTLEMENT' and private.settlement_fee_applicable(
-                            t.transaction_type, t.amount_type, t.amount_description
-                        ) then t.amount
-                    end as fee_base,
+                    t.fee_base as fee_base,
                     t.category
-                from private.settlement_transactions as t
-                where t.category in ('SETTLEMENT', 'SELBOX')
+                from private.finances_activity_components as t
+                where t.category in ('FINANCES', 'SELBOX')
                     and t.posted_date < (select private.mature_cutoff_date())
                     and (
                         (select private.member_policy_covers_current_version(
-                            'private.settlement_transactions'::regclass
+                            'private.finances_transaction_components'::regclass
                         ))
                         or exists (
-                            select 1 from private.settlements as h
+                            select 1 from private.finances_days as h
                             where h.current_version_id = t.version_id
                         )
                     )
@@ -162,18 +158,18 @@ begin
                         or (t.category <> 'SELBOX' and t.sku = any($4)))
                     and %9$s
                     and (coalesce(cardinality($6::text[]), 0) = 0
-                        or 'SETTLEMENT'::text = any($6))
+                        or 'FINANCES'::text = any($6))
                     and (coalesce(cardinality($7::text[]), 0) = 0
                         or t.component_type = any($7))
                     and (
                         $12::boolean is null
-                        or (t.category = 'SETTLEMENT' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = $12
+                        or (t.category = 'FINANCES' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = $12
                     )
                     and (
                         ($13::text[] is null and $14::text[] is null
                             and $15::text[] is null and $16::text[] is null)
                         or t.sku = any($13) or t.component_type = any($14)
-                        or t.marketplace_name = any($15) or 'SETTLEMENT'::text = any($16)
+                        or t.marketplace_name = any($15) or 'FINANCES'::text = any($16)
                     )
                 %3$s
                 limit $8::bigint
@@ -198,7 +194,7 @@ begin
                     t.category
                 from private.data_kiosk_transactions as t
                 where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-                        and t.category in ('SETTLEMENT', 'SELBOX')))
+                        and t.category in ('FINANCES', 'SELBOX')))
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.data_kiosk_transactions'::regclass
@@ -243,11 +239,11 @@ begin
                     private.reconciliation_group_id(t.seller_namespace, t.activity_date, t.marketplace_name, t.currency) as source_row_id,
                     private.reconciliation_group_id(t.seller_namespace, t.activity_date, t.marketplace_name, t.currency) as source_version_id,
                     t.seller_namespace, t.marketplace_name, t.activity_date,
-                    null::text as sku, 'SETTLEMENT_KIOSK_DIFFERENCE'::text as component_type,
+                    null::text as sku, 'FINANCES_KIOSK_DIFFERENCE'::text as component_type,
                     t.currency, t.difference as source_amount, null::numeric as quantity,
                     null::numeric as fee_base, 'SELBOX'::public.allocation_category as category
                 from private.live_source_reconciliation t
-                where (t.data_kiosk_settlement_control <> 0 or t.data_kiosk_category_amount <> 0)
+                where (t.data_kiosk_finances_control <> 0 or t.data_kiosk_category_amount <> 0)
                     and ($1::date is null or t.activity_date >= $1)
                     and ($2::date is null or t.activity_date <= $2)
                     and ($18::text is null or t.currency = $18)
@@ -256,11 +252,11 @@ begin
                     and %9$s
                     and (coalesce(cardinality($6::text[]),0) = 0 or 'RECONCILIATION' = any($6))
                     and (coalesce(cardinality($7::text[]),0) = 0
-                        or 'SETTLEMENT_KIOSK_DIFFERENCE' = any($7))
+                        or 'FINANCES_KIOSK_DIFFERENCE' = any($7))
                     and ($12::boolean is null or not $12)
                     and (($13::text[] is null and $14::text[] is null
                             and $15::text[] is null and $16::text[] is null)
-                        or 'SETTLEMENT_KIOSK_DIFFERENCE' = any($14)
+                        or 'FINANCES_KIOSK_DIFFERENCE' = any($14)
                         or t.marketplace_name = any($15) or 'RECONCILIATION' = any($16))
                 %3$s
                 limit $8::bigint
@@ -290,11 +286,11 @@ begin
                 case when r.source = 'RECONCILIATION' then 'reconciliation-v1'
                     else coalesce(s.preprocess_version, k.preprocess_version) end as preprocess_version,
                 case when r.source = 'RECONCILIATION' then r.source_row_id
-                    else coalesce(s.settlement_id, k.day_id) end as source_identity_id,
+                    else coalesce(s.day_id, k.day_id) end as source_identity_id,
                 o.sku_id, o.terms_version_id, o.company_id
             from raw_page as r
-            left join private.settlement_preprocess_versions as s
-                on r.source = 'SETTLEMENT' and s.id = r.source_version_id
+            left join private.finances_preprocess_versions as s
+                on r.source = 'FINANCES' and s.id = r.source_version_id
             left join private.data_kiosk_preprocess_versions as k
                 on r.source = 'DATA_KIOSK' and k.id = r.source_version_id
             left join selected_terms as o

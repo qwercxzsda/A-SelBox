@@ -16,14 +16,13 @@ class SchemaContractTests(SourceModelFixture):
             tuple(category.value for category in AllocationCategory),
         )
 
-    def test_default_settlement_account_retains_sku_without_company_access(self) -> None:
+    def test_default_finances_account_retains_sku_without_company_access(self) -> None:
         source_sku = " SKU "
         company, _ = self.owner(source_sku)
-        self.settlement(
+        self.finances(
             [
                 self.transaction("-11", sku=source_sku, category="SELBOX", kind="NewFee")
                 | {
-                    "family": None,
                     "component_type": "UNMATCHED",
                     "source_fields": {"sku": source_sku},
                 }
@@ -31,10 +30,10 @@ class SchemaContractTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select category,family,sku,source_fields->>'sku' "
-                "from private.settlement_transactions"
+                "select category,sku,source_fields->>'sku' "
+                "from private.finances_transaction_components"
             ).fetchone(),
-            ("SELBOX", None, source_sku, source_sku),
+            ("SELBOX", source_sku, source_sku),
         )
         self.assertEqual(
             self.connection.execute(
@@ -48,29 +47,21 @@ class SchemaContractTests(SourceModelFixture):
         self.connection.execute("set local role authenticated")
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_transactions"
+                "select count(*) from private.finances_transaction_components"
             ).fetchone(),
             (0,),
         )
         self.connection.execute("reset role")
 
-    def test_known_settlement_account_families_reject_a_source_sku(self) -> None:
-        for family in ("F5", "F6", "F7"):
-            with (
-                self.subTest(family=family),
-                self.assertRaises(psycopg.errors.CheckViolation) as raised,
-                self.connection.transaction(),
-            ):
-                self.settlement(
-                    [
-                        self.transaction("-1", category="SELBOX", kind="AccountFee")
-                        | {"family": family}
-                    ]
-                )
-            self.assertEqual(
-                raised.exception.diag.constraint_name,
-                "settlement_account_family_requires_blank_sku",
-            )
+    def test_allocated_finances_components_require_a_source_sku(self) -> None:
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+            self.finances([self.transaction("100") | {"sku": None}])
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.finances_transaction_components"
+            ).fetchone(),
+            (0,),
+        )
 
     def test_data_kiosk_publication_rejects_account_category_with_sku(self) -> None:
         with (

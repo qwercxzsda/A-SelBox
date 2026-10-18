@@ -14,19 +14,18 @@ class AdministratorSourceAccessTests(SourceModelFixture):
         self.owner("OTHER")
         member, administrator = self.member(company), self.administrator()
         acquisition = self.acquisition()
-        _, settlement_version = self.settlement(
+        _, finances_version = self.finances(
             [
                 self.transaction("100"),
                 self.transaction("500", 4, sku="OTHER"),
-                self.transaction("-10", 5, category="SELBOX", kind="AccountFee")
-                | {"family": "F5", "sku": None},
+                self.transaction("-10", 5, category="SELBOX", kind="AccountFee") | {"sku": None},
             ],
             acquisition_id=acquisition,
         )
-        self.settlement(
+        self.finances(
             [self.transaction("200"), self.transaction("600", 4, sku="OTHER")],
             acquisition_id=acquisition,
-            expected=settlement_version,
+            expected=finances_version,
         )
         _, kiosk_version = self.kiosk(1, [self.component("-1")])
         self.kiosk(
@@ -41,12 +40,12 @@ class AdministratorSourceAccessTests(SourceModelFixture):
         self.connection.execute("set constraints all immediate")
         queries: tuple[tuple[LiteralString, list[int], list[int]], ...] = (
             (
-                "select amount from private.settlement_transactions order by amount",
+                "select amount from private.finances_transaction_components order by amount",
                 [200],
                 [-10, 100, 200, 500, 600],
             ),
             (
-                "select amount from public.settlement_preprocess_entries order by amount",
+                "select amount from public.finances_preprocess_entries order by amount",
                 [200],
                 [-10, 100, 200, 500, 600],
             ),
@@ -71,17 +70,19 @@ class AdministratorSourceAccessTests(SourceModelFixture):
                     [(Decimal(x),) for x in administrator_amounts],
                 )
         for query in (
-            "select * from public.settlement_preprocess_results",
+            "select * from public.finances_preprocess_results",
             "select * from public.data_kiosk_preprocess_results",
         ):
             with self.subTest(query=query):
                 with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                     self.as_user(member, query)
-                self.assertEqual(len(self.as_user(administrator, query)), 2)
+                self.assertEqual(
+                    len(self.as_user(administrator, query)), 60 if "finances" in query else 2
+                )
         historical_queries: tuple[tuple[LiteralString, str], ...] = (
             (
-                "select id from public.settlement_preprocess_entries where version_id=%s",
-                settlement_version,
+                "select id from public.finances_preprocess_entries where version_id=%s",
+                finances_version,
             ),
             (
                 "select id from public.data_kiosk_preprocess_entries where version_id=%s",

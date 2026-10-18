@@ -73,9 +73,9 @@ test("breakdowns load lazily for the card dates and all types, independently of 
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("TARGET");
   await page.getByRole("button", { name: "Source", exact: true }).click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
-  await source.getByRole("checkbox", { name: "Settlements", exact: true }).check();
+  await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
-  await expect.poll(() => fixture.requests.at(-1).params.get("source")).toBe('in.("SETTLEMENT")');
+  await expect.poll(() => fixture.requests.at(-1).params.get("source")).toBe('in.("FINANCES")');
   const tableRequestCount = fixture.requests.length;
   const summaryRequestCount = fixture.aggregateRequests.length;
 

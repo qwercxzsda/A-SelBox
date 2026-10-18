@@ -111,12 +111,12 @@ class TransactionCountTests(SourceModelFixture):
                 p_company_ids=[company_a, company_b, company_a],
                 p_skus=["SKU", "OTHER", "GAP", "SKU"],
                 p_marketplaces=["Amazon.com", "Amazon.co.uk"],
-                p_sources=["DATA_KIOSK", "SETTLEMENT"],
+                p_sources=["DATA_KIOSK", "FINANCES"],
                 p_types=["FbaStorageFee", "PRODUCT_SALES", "PRODUCT_REFUNDS"],
             )
             self.assertEqual(self.assert_matches_view(user, p_skus=["not present"]), "0")
             self.assertEqual(
-                self.assert_matches_view(user, p_sources=["SETTLEMENT'); select 1; --"]), "0"
+                self.assert_matches_view(user, p_sources=["FINANCES'); select 1; --"]), "0"
             )
         self.assertEqual(self.assert_matches_view(member, p_company_ids=[company_b]), "0")
 
@@ -130,14 +130,14 @@ class TransactionCountTests(SourceModelFixture):
         )
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        _, finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
         for user, expected in ((administrator, "3"), (member_a, "2"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
-        self.settlement(
+        self.finances(
             [self.transaction("200", 3), self.transaction("300", 4)],
             acquisition_id=acquisition,
-            expected=settlement,
+            expected=finances,
         )
         self.kiosk(2, [self.component("0")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)

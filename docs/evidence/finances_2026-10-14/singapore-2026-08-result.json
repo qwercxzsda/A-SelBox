@@ -1,0 +1,25 @@
+{
+  "scope": "SINGAPORE",
+  "month": "2026-08",
+  "counts": {
+    "finances_acquisitions": 1,
+    "finances_days": 31,
+    "finances_transactions": 1,
+    "finances_transaction_components": 1
+  },
+  "checks": [
+    {
+      "marketplace_name": "Amazon.sg",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "SGD",
+      "summary_amount": "-0.01",
+      "transaction_amount": "-0.01"
+    }
+  ],
+  "eligible_totals": [
+    [
+      "SGD",
+      "-0.01"
+    ]
+  ]
+}

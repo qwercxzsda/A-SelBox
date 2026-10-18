@@ -1,6 +1,6 @@
 # Supabase database
 
-PostgreSQL 17 schema for immutable archived Settlement/Data Kiosk inputs, versioned company/SKU
+PostgreSQL 17 schema for immutable archived Finances/Data Kiosk inputs, versioned company/SKU
 terms, live financial reads, and frozen payout reports. The migrations form a fresh-install baseline
 with one current definition per object.
 
@@ -46,9 +46,9 @@ New split modules must fit around those stable anchors. The table below follows 
 | --- | --- |
 | [schema_primitives](migrations/20260928123050_schema_primitives.sql) | Private schema, UUIDs, constrained types, and the common immutability guard. |
 | [identity_schema](migrations/20260928123051_identity_schema.sql) | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms. |
-| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql) | Settlement and Data Kiosk acquisitions, version pointers, complete child inventories, and facts. |
+| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql) | Finances and Data Kiosk acquisitions, daily version pointers, native transactions, components, Summary controls, and facts. |
 | [inventory_schema](migrations/20260928123055_inventory_schema.sql) | Daily inventory acquisitions, captures, items, constraints, and indexes. |
-| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive validation and acquisition publication for Settlement, Data Kiosk, and Inventory. |
+| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive validation and acquisition publication for Finances, Data Kiosk, and Inventory. |
 | [source_publications](migrations/20260928123102_source_publications.sql) | Atomic financial preprocessing and same-day inventory capture replacement. |
 | [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views. |
 | [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs. |
@@ -119,7 +119,7 @@ comparison and analysis facts.
 `workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial
 source and inventory revisions are global; fee, ownership, company-name, and payout revisions are
 company-scoped for members and global for administrators. Source-version publication, current-pointer
-changes, and historical Data Kiosk pruning update financial source tokens atomically at commit.
+changes, and historical Finances/Data Kiosk pruning update financial source tokens atomically at commit.
 This covers administrator history reads as well as current Transactions. Changed daily inventory
 captures rotate the separate `inventory` token in the publication transaction; raw acquisitions,
 idempotent replays, and rolled-back publications do not. New payout headers rotate `payouts` tokens
@@ -141,10 +141,10 @@ upload for reconciliation.
 The trusted Python repositories publish complete JSON payloads through these private functions:
 
 ```text
-private.publish_settlement_acquisition(jsonb)
+private.publish_finances_acquisition(jsonb)
 private.publish_data_kiosk_acquisition(jsonb)
 private.publish_inventory_acquisition(jsonb)
-private.publish_settlement_preprocess(jsonb)
+private.publish_finances_preprocess(jsonb)
 private.publish_data_kiosk_preprocess(jsonb)
 private.publish_inventory_capture(jsonb)
 private.publish_sku_terms(jsonb)
@@ -189,6 +189,14 @@ The [permission matrix](../../../docs/access_control.md#permission-matrix) defin
 ## Observation comparison and retention
 
 ```sql
+select private.compare_finances_observations(d.id, v.preprocess_version)
+from private.finances_days as d
+join private.finances_preprocess_versions as v on v.id = d.current_version_id
+where d.seller_namespace = 'seller-na'
+    and d.marketplace_name = 'Amazon.com'
+    and d.activity_date = date '2026-08-01';
+select private.prune_finances_preprocess(3);
+
 select private.compare_data_kiosk_observations(d.id, v.preprocess_version)
 from private.data_kiosk_days as d
 join private.data_kiosk_preprocess_versions as v on v.id = d.current_version_id
@@ -198,6 +206,14 @@ where d.seller_namespace = 'seller-na'
     and d.dataset_key = 'economics';
 select private.prune_data_kiosk_preprocess(3);
 ```
+
+Both financial sources select one complete version per local day, including empty days.
+Finances stores each native transaction once within a version and keeps its monetary components
+separate from the parent control total. Linked releases stay in source history but are exclusive
+of activity totals; status alone never determines inclusion. Summary checks pin the exact day
+versions and must match before mature payout publication. The native Non-Amazon US channel retains
+its own source identity and joins Amazon.com only for Summary comparison. See the
+[Finances contract](../../../docs/finances_transactions.md).
 
 Comparison uses the latest three independent observations with compatible preprocessing and
 normalized-content digests. Missing or pruned comparable results are unavailable; equal observations
@@ -249,13 +265,15 @@ publication, preprocessing, Auth-issued user tokens, and company reads through P
 transport remains synthetic, so this suite does not establish live SP-API or production deployment
 readiness.
 
-### Full seed configuration verification
+### Source verification commands
 
 Opt-in source verification commands live under `services.db.supabase.tests.verification`:
 `configuration`, `payouts`, and `inventory`. Each exposes `--help` without contacting services.
 They share output-file validation and exclusive creation, so a seed, symlink, or existing evidence
 file cannot be overwritten. Financial seed/replay helpers and inventory pipeline helpers stay
 separate because they exercise different source contracts.
+
+#### Full seed configuration verification
 
 To verify a trusted seed matching the current global-SKU schema, run:
 
@@ -278,8 +296,30 @@ report to a new output file; it refuses to overwrite the seed or existing eviden
 Existing development databases are untouched. It does not load the service `.env`, call
 SP-API, or replay archives. The local seed's company assignments and fees are synthetic fixture
 data; this check does not establish real business ownership or approved payout rates.
-The [recorded fixture verification](../../../docs/evidence/global_sku_identity/configuration_seed.json)
-covers 63 global SKUs, 192 fee periods, and all 103,244 retained source facts.
+Use a newly generated Finances seed for this baseline. Dumps from an earlier schema are not
+compatible inputs. The [verification evidence index](../../../docs/evidence/README.md) identifies
+the dates and scope of the recorded checks.
+
+#### Live inventory verification
+
+From the repository root, using Amazon access in the service dotenv and Docker:
+
+```sh
+conda run --no-capture-output -n A-SelBox python -m services.db.supabase.tests.verification.inventory \
+  --env-file services/sync/.env \
+  --private-output output/real-inventory-review \
+  --output output/real-inventory-review/new-evidence.json
+```
+
+For Japan, add `--scope JAPAN --marketplace-id A1VC38T7YXB528`. To use an already completed report,
+add `--report-reference <private-getReport-response.json>`. Its ID is read in memory; the report and
+document still come from Amazon. Choose a new evidence JSON path for each run.
+
+The verifier uses a disposable database and supplies ephemeral browser credentials through standard
+input. It never loads application DB/storage endpoints from the service dotenv and never prints
+source rows or vendor error bodies. Raw documents and screenshots belong in private, gitignored
+output directories. [Recorded inventory checks](../../../docs/evidence/inventory/README.md) describe
+the source observations and UI results from their stated dates.
 
 See the [workflow contract](../../../docs/data_workflows.md),
 [live-fee contract](../../../docs/company_fees.md), and [sync commands](../../sync/README.md) for

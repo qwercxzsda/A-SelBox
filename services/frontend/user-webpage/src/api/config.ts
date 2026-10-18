@@ -41,15 +41,20 @@ const LIVE_COLUMNS = [
   "company_amount",
 ] as const;
 
-const SETTLEMENT_COLUMNS = [
+const FINANCES_COLUMNS = [
   "id",
   "version_id",
-  "settlement_id",
+  "day_id",
   "preprocess_version",
   "seller_namespace",
-  "source_line_number",
+  "transaction_id",
+  "native_transaction_id",
+  "deferred_transaction_id",
+  "release_transaction_id",
+  "source_page_number",
+  "source_record_number",
+  "component_key",
   "category",
-  "family",
   "component_type",
   "accounting_subtype",
   "sku",
@@ -57,11 +62,14 @@ const SETTLEMENT_COLUMNS = [
   "amount",
   "currency",
   "quantity",
+  "fee_base",
   "posted_date",
   "posted_at",
   "transaction_type",
-  "amount_type",
-  "amount_description",
+  "transaction_status",
+  "account_type",
+  "activity_eligible",
+  "breakdown_path",
   "created_at",
 ] as const;
 
@@ -98,7 +106,7 @@ const PAYOUT_COLUMNS = [
   "calculation_version",
   "component_count",
   "reconciliation_count",
-  "settlement_version_count",
+  "finances_version_count",
   "data_kiosk_version_count",
   "terms_version_count",
   "source_amount",
@@ -130,9 +138,9 @@ export const DATASET_CONFIG = {
     dateColumn: "activity_date",
     filterColumns: ["sku", "marketplace_name", "source", "component_type"],
   },
-  settlement: {
-    label: "Settlements",
-    selectColumns: SETTLEMENT_COLUMNS,
+  finances: {
+    label: "Finances",
+    selectColumns: FINANCES_COLUMNS,
     searchColumns: ["sku", "component_type", "marketplace_name"],
     sortColumns: ["posted_date", "amount"],
     defaultSort: { column: "posted_date", direction: "desc" },

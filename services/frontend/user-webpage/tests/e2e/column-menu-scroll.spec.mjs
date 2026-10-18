@@ -77,7 +77,7 @@ async function expandTypes(menu) {
   expect(count).toBeGreaterThanOrEqual(8);
   for (let index = 0; index < count; index++) await expanders.first().click();
   await expect(expanders).toHaveCount(0);
-  expect(await menu.getByRole("checkbox").count()).toBeGreaterThan(100);
+  expect(await menu.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
 }
 
 async function assertHoverScrolling(page, menu, column) {

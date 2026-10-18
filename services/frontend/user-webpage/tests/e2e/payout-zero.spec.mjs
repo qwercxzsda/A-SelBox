@@ -26,7 +26,7 @@ test("a saved zero report displays without a currency and remains readable durin
       company_amount: "0",
       component_count: "0",
       reconciliation_count: "0",
-      settlement_version_count: "2",
+      finances_version_count: "2",
       data_kiosk_version_count: "1",
       terms_version_count: "1",
     },
@@ -53,7 +53,7 @@ test("a saved zero report displays without a currency and remains readable durin
   await page.getByRole("button", { name: "Close row details" }).click();
   const completedPolls = () => fixture.revisionRequests.filter(({ completed }) => completed).length;
   const pollsBefore = completedPolls();
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   fixture.revisions.data_kiosk = "1";
   fixture.revisions.fees = "1";
   await page.clock.fastForward(60_000);

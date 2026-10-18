@@ -8,61 +8,9 @@ from ...src.amazon.data_kiosk.query_builder import (
     ECONOMICS_SCHEMA_NAME,
     build_daily_msku_economics_query,
 )
-from ...src.amazon.settlement_models import SettlementReportReference
-from ...src.amazon.settlement_tabular import SETTLEMENT_V2_COLUMNS
-from ...src.archives.models import (
-    ArchivedDataKioskPage,
-    DataKioskAcquisition,
-    SettlementAcquisition,
-)
+from ...src.archives.models import ArchivedDataKioskPage, DataKioskAcquisition
 from ...src.archives.storage import archive_document
-from ...src.numeric import Numeric
 from .archives import MemoryArchiveStorage
-
-
-def settlement_document(
-    *rows: dict[str, str], columns: tuple[str, ...] = SETTLEMENT_V2_COLUMNS
-) -> bytes:
-    metadata = {
-        "settlement-id": "settlement-1",
-        "settlement-start-date": "2026-08-01T00:00:00Z",
-        "settlement-end-date": "2026-08-31T23:59:59Z",
-        "deposit-date": "2026-09-02T12:00:00Z",
-        "currency": "USD",
-        "total-amount": str(sum((Numeric(row.get("amount", "10")) for row in rows), Numeric(0))),
-    }
-    defaults = {
-        "settlement-id": "settlement-1",
-        "transaction-type": "Order",
-        "amount-type": "ItemPrice",
-        "amount-description": "Principal",
-        "amount": "10",
-        "sku": "SKU-1",
-        "marketplace-name": "Amazon.com",
-        "posted-date": "2026-08-02",
-        "posted-date-time": "2026-08-02T12:00:00Z",
-        "quantity-purchased": "1",
-    }
-    records = [metadata, *({**defaults, **row} for row in rows)]
-    return (
-        "\t".join(columns)
-        + "\n"
-        + "\n".join("\t".join(row.get(column, "") for column in columns) for row in records)
-        + "\n"
-    ).encode()
-
-
-def settlement_acquisition(document: bytes, storage: MemoryArchiveStorage) -> SettlementAcquisition:
-    return SettlementAcquisition(
-        id=uuid7(),
-        seller_namespace="seller-one",
-        amazon_scope="NA",
-        reference=SettlementReportReference(
-            "report-one", "document-one", datetime(2026, 9, 2, tzinfo=UTC), ("ATVPDKIKX0DER",)
-        ),
-        downloaded_at=datetime(2026, 9, 3, tzinfo=UTC),
-        document=archive_document(storage, document, source_compression=None),
-    )
 
 
 def kiosk_acquisition(

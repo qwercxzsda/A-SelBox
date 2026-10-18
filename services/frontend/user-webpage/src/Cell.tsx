@@ -1,13 +1,13 @@
 import "./Cell.css";
 import type { CanonicalRow } from "./api";
-import { allocationCategoryLabel, humanizeCode } from "./categories";
+import { humanizeCode } from "./categories";
 import { TransactionTypeValue } from "./TransactionTypeValue";
 import { formatExactDecimal, formatExactMoney } from "./decimal";
 import { formatRecordDate, formatRecordMonth } from "./date-display";
 import { companyLabel, type ColumnDefinition } from "./view-model";
 
 function codeLabel(key: string, value: string): string {
-  if (key === "category") return allocationCategoryLabel(value);
+  if (key === "activity_eligible") return value === "true" ? "Included" : "Exclusive";
   return humanizeCode(value);
 }
 

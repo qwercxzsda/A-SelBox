@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { AMOUNT_ORDER_LIMIT_MESSAGE } from "../../src/api/amount-ordering.ts";
-import { kioskRow, liveRow, settlementRow } from "./api-fixtures.mjs";
+import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn, sortBy } from "./table-actions.mjs";
 
@@ -10,13 +10,13 @@ async function prepare(page, dataset, tab) {
   const rows = Array.from({ length: 30 }, (_, index) => ({
     ...(dataset === "live"
       ? liveRow("CAP", index + 1)
-      : dataset === "settlement"
-        ? settlementRow(index + 1)
+      : dataset === "finances"
+        ? financesRow(index + 1)
         : kioskRow(index + 1, "10")),
     sku: `CAP-${String(index).padStart(3, "0")}`,
   }));
   if (dataset === "live") fixture.liveRows = rows;
-  else if (dataset === "settlement") fixture.settlementRows = rows;
+  else if (dataset === "finances") fixture.financesRows = rows;
   else fixture.kioskRows = rows;
   return {
     fixture,
@@ -32,7 +32,7 @@ async function prepare(page, dataset, tab) {
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
-  ["settlement", "Settlements"],
+  ["finances", "Finances"],
   ["data_kiosk", "Data Kiosk"],
 ]) {
   test(`${tab} explains disabled amount ordering above the known limit and enables it after narrowing`, async ({

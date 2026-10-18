@@ -22,7 +22,7 @@ test("column filters and resolved search share typed page and count arguments", 
     dateTo: "2024-03-01",
     skus: ["SKU_100%", 'quoted"value', "path\\value", "ＳＫＵ－１", "SKU_100%"],
     marketplaces: ["Amazon.com", "Amazon.co.jp"],
-    sources: ["SETTLEMENT", "DATA_KIOSK"],
+    sources: ["FINANCES", "DATA_KIOSK"],
     types: ["PRODUCT_SALES", "FbaStorageFee"],
   });
   const client = createApiClient(SETTINGS, async (url, init) => {
@@ -71,14 +71,14 @@ test("column filters and resolved search share typed page and count arguments", 
     [25, 50, "desc", "date", true],
   );
   await client.fetchDatasetPage(
-    pageRequest("settlement", {
+    pageRequest("finances", {
       search: "SKU",
       searchValues: searchValues({ skus: ["SKU"] }),
       filters: datasetFilters({ dateTo: "2026-09-18", skus: ["SKU"] }),
     }),
   );
   assert.equal(requests[2].p_date_to, "2026-09-18");
-  assert.equal(requests[2].p_dataset, "settlement");
+  assert.equal(requests[2].p_dataset, "finances");
 });
 
 test("empty selections preserve the unfiltered request", async () => {
@@ -358,7 +358,7 @@ test("invalid calendar periods and unsupported column filters fail before sendin
     /start date/,
   );
   for (const [dataset, filters] of [
-    ["settlement", datasetFilters({ sources: ["SETTLEMENT"] })],
+    ["finances", datasetFilters({ sources: ["FINANCES"] })],
     ["accounts", datasetFilters({ marketplaces: ["Amazon.com"] })],
     ["accounts", datasetFilters({ dateFrom: "2026-09-01" })],
     ["live", datasetFilters({ skus: ["invalid\0value"] })],

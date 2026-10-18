@@ -25,10 +25,10 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
         other, other_identity = self.owner("OTHER")
         unrelated, _ = self.owner("UNRELATED")
         self.fee(other_identity, [("2026-01-01", None, "5")])
-        self.settlement(
+        self.finances(
             [self.transaction("100"), self.transaction("40", 4, sku="OTHER")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self), (3, 3, 0, 0))
         before = {
@@ -59,14 +59,13 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
         self,
     ) -> None:
         inputs = prepare_payout(self)
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100"),
-                self.transaction("-3", 4, sku="UNREGISTERED", category="SELBOX", kind="NewFee")
-                | {"family": None},
+                self.transaction("-3", 4, sku="UNREGISTERED", category="SELBOX", kind="NewFee"),
             ],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
         before = self.requested_revision(inputs.company)

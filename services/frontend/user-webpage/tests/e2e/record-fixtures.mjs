@@ -41,7 +41,7 @@ export function filterRecordRows(rows, params) {
     const feeSelection = params.get("fee_applicable");
     if (feeSelection !== null) {
       const applicable =
-        (row.source === "SETTLEMENT" &&
+        (row.source === "FINANCES" &&
           ["PRODUCT_SALES", "PRODUCT_REFUNDS"].includes(row.component_type)) ||
         (row.source === "DATA_KIOSK" && row.component_type === "NET_PRODUCT_SALES");
       if (applicable !== (feeSelection === "true")) return false;

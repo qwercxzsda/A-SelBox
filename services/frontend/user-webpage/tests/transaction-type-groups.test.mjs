@@ -62,46 +62,36 @@ test("the real type catalog is a complete, stable partition preserving exact opt
 test("both sources' related types are easy to select together without merging their keys", () => {
   const cases = {
     sales: ["PRODUCT_SALES", "PRODUCT_REFUNDS", "NET_PRODUCT_SALES"],
-    selling: ["REFERRAL_FEE", "Order/ItemFees/Commission", "REFUNDED_REFERRAL_FEE"],
+    selling: ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"],
     fulfillment: [
       "FBA_FULFILMENT_FEE",
       "FBA_FULFILLMENT_FEE",
-      "Order/ItemFees/FBAPerUnitFulfillmentFee",
+      "FBA_FULFILLMENT_FEES",
       "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
-      "FBAFees/FBA Inbound Placement Service Fee/Base fee",
+      "INBOUND_PLACEMENT_FEES",
       "LABELING_FEE",
-      "Order/ItemPrice/Shipping",
-      "Refund/ItemFees/ShippingChargeback",
+      "SHIPPING_CREDITS",
+      "SHIPPING_CHARGEBACKS",
     ],
     inventory: [
       "FBA_STORAGE_FEE",
-      "FBAFees/FBA Inventory Storage Fee/Base fee",
-      "FBAFees/FBA Inventory Storage Fee/Tax on fee",
-      "FBAFees/FBA Long Term Storage Fee/Tax on fee",
-      "FBAFees/FBA Removal Order: Disposal Fee/Tax on fee",
+      "STORAGE_FEES",
+      "AGED_STORAGE_FEES",
+      "DISPOSAL_FEES",
       "FBA_INVENTORY_REIMBURSEMENT",
-      "Liquidations/ItemPrice/Principal",
+      "LIQUIDATION_PROCEEDS",
     ],
     advertising: [
       "SPONSORED_PRODUCT_FEE",
-      "ServiceFee/Cost of Advertising/TransactionTotalAmount",
+      "ADVERTISING",
       "COUPON_PARTICIPATION_FEE",
-      "AmazonFees/Coupon Participation Fee/Base fee",
-      "Order/Promotion/Principal",
+      "COUPON_FEES",
+      "PROMOTIONAL_REBATES",
     ],
-    taxes: [
-      "Order/ItemWithheldTax/MarketplaceFacilitatorVAT-Principal",
-      "Refund/ItemPrice/ShippingTax",
-      "Order/Promotion/TaxDiscount",
-    ],
-    other: [
-      "SUBSCRIPTION_FEE",
-      "other-transaction/other-transaction/Subscription Fee",
-      "Debt Adjustment/Debt Adjustment/Cross-Account Debt Adjustment against BE, ES",
-      "AmazonFees/Eco-contribution for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)/Base fee",
-    ],
+    taxes: ["TAX_WITHHELD", "SHIPPING_TAX", "PRODUCT_TAX"],
+    other: ["SUBSCRIPTION_FEES", "CROSS_ACCOUNT_ADJUSTMENTS", "EPR_FEES"],
     "seller-costs": ["MFN_STORAGE_COST", "MFN_FULFILLMENT_COST", "COST_OF_GOODS_SOLD"],
-    reconciliation: ["SETTLEMENT_KIOSK_DIFFERENCE"],
+    reconciliation: ["FINANCES_KIOSK_DIFFERENCE"],
   };
   for (const [id, values] of Object.entries(cases))
     for (const value of values) assert.equal(groupFor(value), id, value);
@@ -109,7 +99,7 @@ test("both sources' related types are easy to select together without merging th
 
 test("role and source scopes are preserved and unfamiliar selected keys stay in Other", () => {
   for (const role of ["member", "administrator"])
-    for (const dataset of ["live", "settlement", "data_kiosk"]) {
+    for (const dataset of ["live", "finances", "data_kiosk"]) {
       const values = transactionTypeValues(dataset, role);
       const options = filterOptions("component_type", values, ["UNKNOWN_STORAGE_TAX_FEE"]);
       const scoped = transactionTypeGroups(options);

@@ -11,10 +11,10 @@ import type {
 import { isJsonObject } from "./validation.ts";
 import { validateTransactionSearch } from "./transaction-search.ts";
 
-type TransactionDataset = Extract<TableDatasetKey, "live" | "settlement" | "data_kiosk">;
+type TransactionDataset = Extract<TableDatasetKey, "live" | "finances" | "data_kiosk">;
 
 export function isTransactionDataset(dataset: TableDatasetKey): dataset is TransactionDataset {
-  return dataset === "live" || dataset === "settlement" || dataset === "data_kiosk";
+  return dataset === "live" || dataset === "finances" || dataset === "data_kiosk";
 }
 
 /** Pages and counts share validated filters and the same exact search sets. */

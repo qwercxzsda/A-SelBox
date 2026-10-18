@@ -49,10 +49,10 @@ class PayoutIdempotencyTests(SourceModelFixture):
         inputs = prepare_payout(self)
         first = generate_payout_reports(self, inputs.company)[0][0]
         before = payout_snapshot(self, first)
-        self.settlement(
+        self.finances(
             [self.transaction("100")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         second, created = generate_payout_reports(self, inputs.company)[0]
         self.assertTrue(created)
@@ -87,14 +87,14 @@ class PayoutIdempotencyTests(SourceModelFixture):
     def test_control_only_source_revision_changes_reconciliation_not_company_totals(self) -> None:
         inputs = prepare_payout(self)
         first = generate_payout_reports(self, inputs.company)[0][0]
-        self.settlement(
+        self.finances(
             [
                 self.transaction("100"),
                 self.transaction("-12", 4, kind="ServiceFee", category="DATA_KIOSK")
                 | {"sku": None},
             ],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         second, created = generate_payout_reports(self, inputs.company)[0]
         self.assertTrue(created)
@@ -102,7 +102,7 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assertEqual(self.report_totals(first), self.report_totals(second))
         self.assertEqual(
             self.connection.execute(
-                "select data_kiosk_settlement_control from private.payout_report_reconciliation "
+                "select data_kiosk_finances_control from private.payout_report_reconciliation "
                 "where report_id=%s",
                 (second,),
             ).fetchone(),
@@ -134,10 +134,10 @@ class PayoutIdempotencyTests(SourceModelFixture):
     def test_other_company_terms_used_for_exclusion_are_part_of_the_snapshot(self) -> None:
         inputs = prepare_payout(self)
         _, other = self.owner("OTHER")
-        self.settlement(
+        self.finances(
             [self.transaction("100"), self.transaction("200", 4, sku="OTHER")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.settlement_version,
+            expected=inputs.finances_version,
         )
         first = generate_payout_reports(self, inputs.company)[0][0]
         self.fee(other, [("2026-01-01", None, "10")])
@@ -160,10 +160,10 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assert_report_count(1)
         self.connection.execute("set constraints all immediate")
 
-    def test_new_empty_source_pin_distinguishes_equal_total_reports(self) -> None:
+    def test_new_equal_capture_pins_distinguish_equal_total_reports(self) -> None:
         inputs = prepare_payout(self)
         first = publish_payout(self, inputs)
-        self.settlement([], identity="empty-settlement")
+        self.finances([self.transaction("100")])
         second = publish_payout(self, inputs)
         self.assertNotEqual(first, second)
         self.assertEqual(self.report_totals(first), self.report_totals(second))
@@ -194,10 +194,10 @@ class PayoutIdempotencyTests(SourceModelFixture):
         prepare_payout(self, first_scope.company)
         self.seller = "seller-z-invalid"
         invalid = prepare_payout(self, first_scope.company)
-        self.settlement(
+        self.finances(
             [self.transaction("100"), self.transaction("20", 4, sku="UNREGISTERED")],
             acquisition_id=invalid.acquisition,
-            expected=invalid.settlement_version,
+            expected=invalid.finances_version,
         )
         with self.assertRaises(psycopg.errors.CheckViolation):
             generate_payout_reports(self, first_scope.company)

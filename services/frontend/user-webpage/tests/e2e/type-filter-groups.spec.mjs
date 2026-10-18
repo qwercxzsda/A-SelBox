@@ -4,9 +4,7 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 
 const STORAGE = "Storage & inventory";
-const EPR_TYPES = registry
-  .filter(({ type }) => type.includes("EPR Pay on Behalf"))
-  .map(({ type }) => type);
+const EPR_TYPES = registry.filter(({ type }) => type === "EPR_FEES").map(({ type }) => type);
 const sorted = (values) => [...values].sort();
 const typesSent = (fixture) => fixture.requests.at(-1)?.args?.p_types ?? [];
 const search = (menu) => menu.getByLabel("Search type", { exact: true });
@@ -35,7 +33,7 @@ for (const role of ["member", "administrator"]) {
     await expect(checkbox(menu, "FBA storage fee")).toHaveCount(0);
     await checkbox(menu, STORAGE).check();
     await expect.poll(() => typesSent(fixture)).toContain("FBA_STORAGE_FEE");
-    expect(typesSent(fixture)).toContain("FBAFees/FBA Inventory Storage Fee/Base fee");
+    expect(typesSent(fixture)).toContain("STORAGE_FEES");
     const allowed = new Set(
       registry
         .filter(({ category }) => role === "administrator" || category !== "SELBOX")
@@ -44,25 +42,22 @@ for (const role of ["member", "administrator"]) {
     expect(typesSent(fixture).every((value) => allowed.has(value))).toBe(true);
 
     await search(menu).fill("subscription");
-    await expect(checkbox(menu, "Subscription fee")).toHaveCount(role === "administrator" ? 1 : 0);
-    await search(menu).fill("SETTLEMENT_KIOSK_DIFFERENCE");
-    await expect(checkbox(menu, "Settlement / Data Kiosk difference")).toHaveCount(
+    await expect(checkbox(menu, "Subscription fees")).toHaveCount(role === "administrator" ? 1 : 0);
+    await search(menu).fill("FINANCES_KIOSK_DIFFERENCE");
+    await expect(checkbox(menu, "Finances / Data Kiosk difference")).toHaveCount(
       role === "administrator" ? 1 : 0,
     );
     await menu.getByRole("button", { name: "Done", exact: true }).click();
 
     if (role === "administrator") {
       for (const [tab, source] of [
-        ["Settlements", "SETTLEMENT"],
+        ["Finances", "FINANCES"],
         ["Data Kiosk", "DATA_KIOSK"],
       ]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
         const sourceMenu = await openColumn(page, "Type");
         await checkbox(sourceMenu, STORAGE).check();
-        const expectedType =
-          source === "SETTLEMENT"
-            ? "FBAFees/FBA Inventory Storage Fee/Base fee"
-            : "FBA_STORAGE_FEE";
+        const expectedType = source === "FINANCES" ? "STORAGE_FEES" : "FBA_STORAGE_FEE";
         await expect.poll(() => typesSent(fixture)).toContain(expectedType);
         const allowedSource = new Set(
           registry.filter((entry) => entry.source === source).map(({ type }) => type),
@@ -122,39 +117,30 @@ test("search and batch actions select only matching exact types and preserve unr
   await checkbox(menu, "Product sales").check();
   await expectTypes(fixture, ["PRODUCT_SALES"]);
 
-  await search(menu).fill("EPR GB");
+  await search(menu).fill("EPR");
   await menu.getByRole("button", { name: "Select matches", exact: true }).click();
   await expectTypes(fixture, ["PRODUCT_SALES", ...EPR_TYPES]);
-  await search(menu).fill("packaging EPR");
+  await search(menu).fill("EPR");
   await menu.getByRole("button", { name: "Deselect matches", exact: true }).click();
-  await expectTypes(fixture, [
-    "PRODUCT_SALES",
-    ...EPR_TYPES.filter((type) => !type.includes("Packaging")),
-  ]);
+  await expect(checkbox(menu, "EPR fees")).not.toBeChecked();
+  await expect(menu.getByText("1 type selected", { exact: true })).toBeVisible();
 
   await search(menu).fill("storage fee");
   await expect(checkbox(menu, "FBA storage fee")).toBeVisible();
   await expect(checkbox(menu, "Disposal fee")).toHaveCount(0);
   await search(menu).fill("FBA_STORAGE_FEE");
   await checkbox(menu, STORAGE).check();
-  await expectTypes(fixture, [
-    "PRODUCT_SALES",
-    "FBA_STORAGE_FEE",
-    ...EPR_TYPES.filter((type) => !type.includes("Packaging")),
-  ]);
+  await expectTypes(fixture, ["PRODUCT_SALES", "FBA_STORAGE_FEE"]);
   await checkbox(menu, STORAGE).uncheck();
   await expect(checkbox(menu, "FBA storage fee")).not.toBeChecked();
-  await expect(menu.getByText("2 types selected", { exact: true })).toBeVisible();
+  await expect(menu.getByText("1 type selected", { exact: true })).toBeVisible();
   await search(menu).fill("NO SUCH TYPE");
   await expect(menu.getByText("No matching types.", { exact: true })).toBeVisible();
   await expect(menu.getByRole("button", { name: "Select matches", exact: true })).toHaveCount(0);
   await menu.getByRole("button", { name: "Done", exact: true }).click();
   await page.reload();
   await expect(typeChip(page)).toBeVisible();
-  await expectTypes(fixture, [
-    "PRODUCT_SALES",
-    ...EPR_TYPES.filter((type) => !type.includes("Packaging")),
-  ]);
+  await expectTypes(fixture, ["PRODUCT_SALES"]);
 });
 
 test("type groups support keyboard selection, disclosure, and escape focus return", async ({
@@ -201,7 +187,7 @@ test("an open type filter stays entirely visible while resizing after restored g
 
   for (const [state, query] of [
     ["restored-group", ""],
-    ["long-raw-types", "AmazonFees/ Packaging"],
+    ["transportation-types", "transportation"],
   ]) {
     await search(menu).fill(query);
     for (const width of [834, 390, 834, 1440]) {

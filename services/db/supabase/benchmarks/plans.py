@@ -189,29 +189,36 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
         ]
     else:
         dataset = args.get("p_dataset")
-        if dataset not in ("settlement", "data_kiosk"):
-            raise ValueError("Raw dataset must be settlement or data_kiosk")
-        settlement = dataset == "settlement"
-        date = "posted_date" if settlement else "activity_date"
+        if dataset not in ("finances", "data_kiosk"):
+            raise ValueError("Raw dataset must be finances or data_kiosk")
+        finances = dataset == "finances"
+        date = "posted_date" if finances else "activity_date"
         projection = (
-            "p.family, p.accounting_subtype, p.posted_date, p.posted_at, "
-            "p.transaction_type, p.amount_type, p.amount_description"
-            if settlement
-            else "p.activity_date, p.component_key, p.fee_base::text, p.source_document_id"
+            "p.transaction_id,p.native_transaction_id,p.deferred_transaction_id,"
+            "p.release_transaction_id,p.source_page_number::text,p.source_record_number::text,"
+            "p.accounting_subtype,p.posted_date,p.posted_at,p.component_key,p.fee_base::text,"
+            "p.transaction_type,p.transaction_status,p.account_type,p.activity_eligible::text,"
+            "p.breakdown_path::text"
+            if finances
+            else "p.source_line_number::text,p.activity_date,p.component_key,"
+            "p.fee_base::text,p.source_document_id"
         )
         candidate_projection = (
-            "t.family, t.accounting_subtype, t.posted_date, t.posted_at, "
-            "t.transaction_type, t.amount_type, t.amount_description"
-            if settlement
-            else "t.activity_date, t.component_key, t.fee_base, t.source_document_id"
+            "t.transaction_id,t.native_transaction_id,t.deferred_transaction_id,"
+            "t.release_transaction_id,t.source_page_number,t.source_record_number,"
+            "t.accounting_subtype,t.posted_date,t.posted_at,t.component_key,t.fee_base,"
+            "t.transaction_type,t.transaction_status,t.account_type,t.activity_eligible,"
+            "t.breakdown_path"
+            if finances
+            else "t.source_line_number,t.activity_date,t.component_key,t.fee_base,"
+            "t.source_document_id"
         )
         replacements = (
-            dataset + "_transactions",
-            "true",
+            "finances_transaction_components" if finances else "data_kiosk_transactions",
             date,
             "amount" if amount else date,
             direction,
-            "settlement_id" if settlement else "day_id",
+            "day_id",
             projection,
             dataset + "_preprocess_versions",
             "r.amount::numeric" if amount else "r." + date,
@@ -272,19 +279,19 @@ def _read_query(
     if function != "source_transaction_count":
         policy = connection.execute(
             "select private.member_policy_covers_current_version("
-            "'private.settlement_transactions'::regclass),"
+            "'private.finances_transaction_components'::regclass),"
             "private.member_policy_covers_current_version('private.data_kiosk_transactions'::regclass)"
         ).fetchone()
         if policy is None:
             raise RuntimeError("Policy lookup returned no row")
-        values["settlement_policy_is_sufficient"] = ("boolean", policy[0])
+        values["finances_policy_is_sufficient"] = ("boolean", policy[0])
         values["kiosk_policy_is_sufficient"] = ("boolean", policy[1])
         body = bodies[0]
     else:
         dataset = args.get("p_dataset")
-        if dataset not in ("settlement", "data_kiosk") or len(bodies) != 2:
+        if dataset not in ("finances", "data_kiosk") or len(bodies) != 2:
             raise ValueError("Unrecognized raw count branch")
-        body = bodies[0 if dataset == "settlement" else 1]
+        body = bodies[0 if dataset == "finances" else 1]
     return _bind_names(body, values)
 
 

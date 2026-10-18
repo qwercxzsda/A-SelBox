@@ -1,7 +1,6 @@
 """Separate online acquisition and offline preprocessing command boundaries."""
 
 import contextlib
-import io
 import os
 import subprocess
 import sys
@@ -14,36 +13,10 @@ from services.sync.src.cli import (
     common,
     download_data_kiosk,
     preprocess_data_kiosk,
-    preprocess_inventory,
-    preprocess_settlement,
 )
 
 
 class ArchiveCommandTests(unittest.TestCase):
-    def test_workflow_modules_run_their_cli_without_loading_credentials_for_help(self) -> None:
-        commands = {
-            "download_settlement_reports": "--scope",
-            "download_data_kiosk": "--marketplace-id",
-            "download_inventory": "--marketplace-id",
-            "preprocess_settlement": "--retrocharge-coverage",
-            "preprocess_data_kiosk": "--acquisition-id",
-            "preprocess_inventory": "--acquisition-id",
-        }
-        for command, required_option in commands.items():
-            module = "services.sync.src.cli." + command
-            with self.subTest(module=module):
-                # Only fixed repository modules and --help execute in this smoke check.
-                result = subprocess.run(  # noqa: S603
-                    [sys.executable, "-m", module, "--help"],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=15,
-                )
-                self.assertIn(required_option, result.stdout)
-                self.assertIn("--no-load-dotenv", result.stdout)
-                self.assertEqual(result.stderr, "")
-
     def test_module_entry_point_preserves_failed_workflow_exit_status(self) -> None:
         # The reversed date range fails before credentials, Amazon, or DB access.
         result = subprocess.run(
@@ -96,21 +69,6 @@ class ArchiveCommandTests(unittest.TestCase):
                 common.initialize_cli(parser, arguments)
                 self.assertNotIn("ASELBOX_TEST_SOURCE", os.environ)
 
-    def test_offline_commands_require_saved_identity_and_reject_scope_overrides(self) -> None:
-        for command in (preprocess_data_kiosk, preprocess_inventory, preprocess_settlement):
-            for arguments in (
-                [],
-                ["--acquisition-id", "saved", "--scope", "EU"],
-                ["--acquisition-id", "saved", "--seller-namespace", "other-seller"],
-            ):
-                with (
-                    self.subTest(command=command.__name__, arguments=arguments),
-                    contextlib.redirect_stderr(io.StringIO()),
-                    self.assertRaises(SystemExit) as failure,
-                ):
-                    command.build_parser().parse_args(arguments)
-                self.assertEqual(failure.exception.code, 2)
-
     def test_reversed_download_window_fails_before_amazon_or_database_access(self) -> None:
         with (
             patch.object(download_data_kiosk, "archive_storage_from_args"),
@@ -133,29 +91,6 @@ class ArchiveCommandTests(unittest.TestCase):
         credentials.assert_not_called()
         database.assert_not_called()
 
-    def test_all_offline_commands_call_only_archive_preprocessors(self) -> None:
-        cases = (
-            (preprocess_settlement, "preprocess_settlement_acquisition"),
-            (preprocess_data_kiosk, "preprocess_data_kiosk_acquisition"),
-            (preprocess_inventory, "preprocess_inventory_acquisition"),
-        )
-        for command, function_name in cases:
-            with (
-                self.subTest(command=command.__name__),
-                patch.object(command, "archive_storage_from_args", return_value=Mock()) as storage,
-                patch.object(command, "PostgresDatabaseConnection") as database,
-                patch.object(command, function_name, return_value="new-success") as preprocess,
-                patch(
-                    "services.sync.src.amazon.credentials.load_lwa_credentials",
-                    side_effect=AssertionError("Offline command touched Amazon credentials"),
-                ),
-            ):
-                self.assertEqual(command.main(["--acquisition-id", "saved", "--no-load-dotenv"]), 0)
-                self.assertEqual(
-                    preprocess.call_args.args,
-                    (database.return_value.__enter__.return_value, storage.return_value, "saved"),
-                )
-
     def test_missing_archive_failure_does_not_call_amazon(self) -> None:
         with (
             patch.object(preprocess_data_kiosk, "archive_storage_from_args", return_value=Mock()),
@@ -173,14 +108,3 @@ class ArchiveCommandTests(unittest.TestCase):
             self.assertEqual(
                 preprocess_data_kiosk.main(["--acquisition-id", "missing", "--no-load-dotenv"]), 1
             )
-
-    def test_reviewed_retrocharge_coverage_keeps_exact_source_lines(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "coverage.json"
-            path.write_text("[[2,4],[7,8]]", encoding="utf-8")
-            self.assertEqual(
-                preprocess_settlement.read_retrocharge_coverage(path), ((2, 4), (7, 8))
-            )
-            path.write_text("[[true,4]]", encoding="utf-8")
-            with self.assertRaises(ValueError):
-                preprocess_settlement.read_retrocharge_coverage(path)

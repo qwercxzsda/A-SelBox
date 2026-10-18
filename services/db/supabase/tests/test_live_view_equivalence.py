@@ -11,7 +11,7 @@ from services.db.supabase.tests.local_database import require_row
 _COMPARISON: LiteralString = """
 with reference as materialized (
     select * from private.resolve_company_components(
-        array(select current_version_id::uuid from private.settlements
+        array(select current_version_id::uuid from private.finances_days
             where current_version_id is not null),
         array(select current_version_id::uuid from private.data_kiosk_days
             where current_version_id is not null),
@@ -111,7 +111,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount "
                 "from public.live_company_components "
-                "where source='SETTLEMENT' and seller_namespace='seller-one' "
+                "where source='FINANCES' and seller_namespace='seller-one' "
                 "and sku='SKU' and source_amount > 100 and source_amount < 101"
             ).fetchone(),
             (exact, expected_fee, expected_company),
@@ -134,12 +134,12 @@ class LiveViewEquivalenceTests(FinancialFixture):
         administrator = self.administrator()
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, old_settlement = self.settlement([self.transaction("100")], acquisition_id=acquisition)
+        _, old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
-        _, new_settlement = self.settlement(
+        _, new_finances = self.finances(
             [self.transaction("200")],
             acquisition_id=acquisition,
-            expected=old_settlement,
+            expected=old_finances,
         )
         _, new_kiosk = self.kiosk(2, [self.component("-20")], expected=old_kiosk)
         revised_terms = self.assign("SKU", company_b, rate="7", expected=terms)
@@ -153,7 +153,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                     "where source<>'RECONCILIATION'"
                 ).fetchall()
             },
-            {new_settlement, new_kiosk},
+            {new_finances, new_kiosk},
         )
         self.assertEqual(
             self.as_user(
@@ -166,7 +166,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 self.connection.execute(
                     "select sum(company_amount) from private.resolve_company_components("
                     "%s::uuid[],%s::uuid[],%s::uuid[])",
-                    ([old_settlement], [old_kiosk], [terms]),
+                    ([old_finances], [old_kiosk], [terms]),
                 ).fetchone()
             )[0],
             Decimal(85),
@@ -179,7 +179,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
     def test_date_and_sku_filters_reach_fact_scans_without_materializing_the_resolver(self) -> None:
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.kiosk(1, [self.component("-10")])
         result = self.as_user(
             self.member(company),
@@ -203,7 +203,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             "The live view must allow filtering before the full-history resolver materializes rows",
         )
         for relation, date_column in (
-            ("settlement_transactions", "posted_date"),
+            ("finances_transaction_components", "posted_date"),
             ("data_kiosk_transactions", "activity_date"),
         ):
             with self.subTest(relation=relation):

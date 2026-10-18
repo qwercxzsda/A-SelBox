@@ -1,75 +1,87 @@
 # Transaction type registry
 
-The [Python registry](../services/sync/src/transaction_types/) defines every accepted
-Settlement source triple and Data Kiosk component type. It is the source of truth for
-preprocessing and the generated frontend Type menus. Unknown source types reject the complete
-report or acquisition before publication. There is no default allocation category.
+The [Python registry](../services/sync/src/transaction_types/) defines the accepted
+native Finances monetary paths and Data Kiosk components. It drives preprocessing
+and generated frontend Type menus. Unknown monetary paths reject the complete
+preprocessing publication; the archived capture remains available for investigation.
+There is no fallback category based on a missing SKU or a familiar label.
 
-## Settlement admission
+## Native Finances admission
 
-Each exact, case-sensitive tuple of `transaction-type`, `amount-type`, and
-`amount-description` maps to a stored component Type, category, validation family, and optional
-accounting subtype. Matching trims surrounding whitespace. Membership in a broad
-family such as `Order` does not permit new descriptions automatically.
+A Finances key is the exact native `transactionType` plus the ordered
+`breakdownType` path within its selected item partition. For example:
 
-Known retained charges explicitly use `SELBOX`. Their classification does not establish a
-company cost or prove a corresponding Data Kiosk charge. Stored Type values include
-`PRODUCT_SALES`, `PRODUCT_REFUNDS`, and the remaining
-slash-separated source keys. Variable account descriptions are individually registered; new
-country combinations or transfer explanations require review rather than creating arbitrary
-menu entries.
+| Native type and path | Stored component | Category |
+| --- | --- | --- |
+| `Shipment / ProductCharges / OurPricePrincipal` | `PRODUCT_SALES` | `FINANCES` |
+| `Refund / ProductCharges / OurPricePrincipal` | `PRODUCT_REFUNDS` | `FINANCES` |
+| `Shipment / AmazonFees / Commission / Base` | `REFERRAL_FEES` | `FINANCES` |
+| `ProductAdsPayment / Base` | `ADVERTISING` | `DATA_KIOSK` |
+| `ServiceFee / AmazonFees / Subscription / Base` | `SUBSCRIPTION_FEES` | `SELBOX` |
+| `DebtRecovery / DebtPayment` | `DEBT_RECOVERY` | `SELBOX` |
 
-Every accepted type still passes the existing SKU, marketplace, amount, report reconciliation,
-and retrocharge checks. Unknown types are reported with their source lines. The saved acquisition
-and prior current version remain available; no successful partial version is published. The
-preprocessor definition comes from [`PREPROCESS_VERSION`](../services/sync/src/preprocess_version.py).
-Source rows are immutable; reruns publish new complete versions.
+The complete accepted paths are in
+[finances.py](../services/sync/src/transaction_types/finances.py). A registered leaf
+under one wrapper does not authorize a different wrapper or transaction type.
+Semantic Type names remain stable across the explicitly reviewed native paths.
+The registry is an application contract, not a claim that Amazon's vocabulary is closed.
+
+## Component categories
+
+| Category | Accepted purpose | SKU treatment |
+| --- | --- | --- |
+| `FINANCES` | Product/shipping amounts, taxes, rebates, transaction fees, reimbursements, liquidations and reviewed corrections. | Requires a native product SKU for allocation. |
+| `DATA_KIOSK` | Advertising, storage, disposal, removal, inbound placement/transportation, labeling, coupon and deal controls. | Preserve any native SKU; company allocation still comes from Data Kiosk. |
+| `SELBOX` | Reviewed account charges, adjustments, debt/reserve movements and tax reclassification. | Preserve native SKU without assigning these amounts to a company. |
+
+`accounting_subtype` distinguishes `OPERATING_EXPENSE`, `BALANCE_MOVEMENT` and
+`TAX_RECLASSIFICATION` where the explicit mapping supplies one. These labels do
+not decide lifecycle inclusion. A bank transfer is retained as a native record
+and its reviewed component, but excluded from activity totals. Debt recovery
+and cross-account adjustments remain included when they are ordinary activity.
+
+Finances `items` and top-level breakdowns describe alternative partitions.
+Preprocessing selects the item partition when present, recursively validates
+child sums, and sums each terminal monetary component once. Every item must
+match its amount; items must match the native transaction total. Nonzero amounts
+without monetary detail fail rather than receiving invented balancing components.
+Reviewed zero items remain explicit, including the evidenced missing-currency
+zero-item representation whose currency comes from the native parent.
+
+Only `PRODUCT_SALES` and `PRODUCT_REFUNDS` carry a signed `fee_base`. Other
+components have no sales commission. Python stores this decision explicitly;
+SQL does not reconstruct it from obsolete report descriptions.
+
+Native IDs, account type, status, links, page/record ordinals, item position and
+breakdown path preserve provenance. Components have deterministic keys that retain
+legitimate repeated amounts. Source position is not a financial identity.
 
 ## Shared menus
 
-Generate the frontend artifacts from the repository root:
+Generate catalogs from the repository root:
 
 ```sh
 conda run -n A-SelBox python -m services.sync.src.transaction_types.generate
 conda run -n A-SelBox python -m services.sync.src.transaction_types.generate --check
 ```
 
-The check fails if committed artifacts no longer match Python definitions. Do not edit the
-generated JSON or maintain a second hand-written Type list. Marketplace choices are generated
-from the existing canonical marketplace registry, including `Non-Amazon US`.
+Do not edit generated JSON or maintain another source Type registry. Marketplace
+choices come from the canonical registry, including the native `Non-Amazon US`
+channel. Its Summary control grouping does not rename its stored marketplace.
 
-Type menus use source and category to reflect their dataset. Company Transactions includes
-all known types except category `SELBOX`, including `ANALYSIS_ONLY`.
-Administrator Transactions includes all registered types and the derived
-`SETTLEMENT_KIOSK_DIFFERENCE` type. Its raw source tabs include only registered types for that
-source. The difference is calculated in SQL; it does not change the Python registry or generated
-source catalog. Supported values may produce zero rows; option discovery does not inspect transactions to establish occurrence.
-
-The frontend organizes these choices into expandable, selectable browsing groups. Other fees &
-adjustments contains EPR, subscription, debt, and other unmatched entries. The groups reuse the
-existing amount-breakdown classification; they do not change allocation categories or stored
-types. Selecting a group sends its available exact keys through the existing Type filter. Search
-also finds individual labels and raw keys, with batch selection limited to the matching options.
-
-Source offers Settlement and Data Kiosk, plus Reconciliation in administrator Transactions.
-The derived source is absent from member menus and raw source tabs. Marketplace offers all
-supported names. Members reuse the exact SKU strings in their already-loaded current assignments. Administrators
-preload the complete SKU catalog in one administrator-only RPC before showing the workspace because imported facts
-can contain unassigned or unregistered SKUs absent from assignments. Source and fee revisions
-refresh that list before dependent search queries. Table search resolves matching catalog values
-to exact OR sets; Currency is excluded. Menu values do not grant access; the backend authorizes every row.
+Company menus omit SelBox account types. Administrator Transactions also offers
+the derived `FINANCES_KIOSK_DIFFERENCE`; raw source menus offer only their source's
+registered types. Static options can legitimately match zero rows. Search resolves
+catalog labels and exact keys, while database permissions authorize each result.
 
 ## Adding a type
 
-1. Inspect the retained source evidence and decide its category, matching fields, and validation
-   requirements. A similar label alone does not establish accounting treatment.
-2. Add the explicit registry entry and a meaningful preprocessing test. Include approved spelling
-   aliases and preserved stored keys where needed; never add a catch-all entry.
-3. Regenerate both frontend catalogs and run the drift check, Python tests, and frontend checks.
-4. Make the updated catalog available to the frontend before publishing reports with new Type
-   values. Rerun the rejected acquisition from its retained archive.
+1. Inspect retained native evidence and determine its exact path and economic role.
+2. Add an explicit registry entry and a test for complete amount partitioning,
+   source identity and category treatment. Add no catch-all entry.
+3. Regenerate catalogs and run Python, database and frontend checks.
+4. Reprocess the retained capture with the current shared preprocessing definition.
 
-The initial registry was reviewed against `seed.real` and the retained
-[Settlement classification evidence](evidence/settlement_classification_audit_2026-09-08.md),
-plus explicitly approved source-cost and retrocharge rules. This is a reviewed application
-contract, not a claim that Amazon's future vocabulary is closed.
+Refer to [source allocation](source_allocation.md) for authority and
+[Finances transactions](finances_transactions.md) for complete daily observations,
+release exclusion and Amazon Summary reconciliation.

@@ -19,10 +19,10 @@ class SkuConfigurationTests(ConfigurationFixture):
         previous = self.fee(identity, [("2026-01-01", None, "9")])
         selected = self.fee(identity, [("2026-01-01", None, "5.123456")])
         acquisition = self.acquisition()
-        _, old = self.settlement(
+        _, old = self.finances(
             [self.transaction("1", sku="HISTORY-ONLY")], acquisition_id=acquisition
         )
-        self.settlement(
+        self.finances(
             [self.transaction("2", sku="IMPORT-ONLY")],
             acquisition_id=acquisition,
             expected=old,
@@ -67,11 +67,11 @@ class SkuConfigurationTests(ConfigurationFixture):
     ) -> None:
         self.owner("S1")
         acquisition = self.acquisition()
-        _, previous = self.settlement(
+        _, previous = self.finances(
             [self.transaction("100", sku="S1", activity_date="2026-06-01")],
             acquisition_id=acquisition,
         )
-        self.settlement(
+        self.finances(
             [
                 self.transaction("0", sku="S1", activity_date="2026-06-15"),
                 self.transaction(
@@ -80,15 +80,14 @@ class SkuConfigurationTests(ConfigurationFixture):
                 self.transaction("-5", 5, sku="S1", activity_date="2026-06-20", kind="Refund")
                 | {"marketplace_name": "Amazon.ca"},
             ],
-            acquisition_id=acquisition,
             expected=previous,
         )
         self.seller = "seller-two"
-        self.settlement([self.transaction("1", sku="S1", activity_date="2026-06-16")])
+        self.finances([self.transaction("1", sku="S1", activity_date="2026-06-16")])
         self.kiosk(
             1,
             [
-                self.component("0", sku="S1", category="SETTLEMENT")
+                self.component("0", sku="S1", category="FINANCES")
                 | {"component_type": "NET_PRODUCT_SALES", "fee_base": "0"}
             ],
             activity_date="2026-06-17",
@@ -131,7 +130,7 @@ class SkuConfigurationTests(ConfigurationFixture):
     def test_noncommission_sources_need_ownership_without_inventing_fee_requirements(self) -> None:
         self.owner("STORAGE")
         self.kiosk(1, [self.component("-10", sku="STORAGE")])
-        self.settlement([self.transaction("5", sku="STORAGE", description="Shipping")])
+        self.finances([self.transaction("5", sku="STORAGE", description="Shipping")])
         item = self.configuration(self.administrator())[0]
         self.assertEqual(item["requirements"], [])
         self.assertEqual(item["periods"], [])

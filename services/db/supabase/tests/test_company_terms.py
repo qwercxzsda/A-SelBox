@@ -51,7 +51,7 @@ class CompanyTermsTests(SourceModelFixture):
         original = self.publish_terms(
             identity, company, [self.period(), self.period("Amazon.ca", "6")]
         )
-        _, settlement_version = self.settlement([self.transaction("100")])
+        _, finances_version = self.finances([self.transaction("100")])
         second_company, _ = self.owner("OTHER")
         revised = self.publish_terms(identity, second_company, [self.period(rate="7")])
         self.assertEqual(
@@ -65,7 +65,7 @@ class CompanyTermsTests(SourceModelFixture):
             self.connection.execute(
                 "select company_id::text,terms_version_id::text,fee_amount,company_amount "
                 "from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
-                ([settlement_version], [original]),
+                ([finances_version], [original]),
             ).fetchall(),
             [(company, original, Decimal(-5), Decimal(95))],
         )
@@ -80,7 +80,7 @@ class CompanyTermsTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
                 "select * from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
-                ([settlement_version], [original, revised]),
+                ([finances_version], [original, revised]),
             )
         self.connection.execute("set constraints all immediate")
 
@@ -88,7 +88,7 @@ class CompanyTermsTests(SourceModelFixture):
         company, identity = self.owner()
         user = self.member(company)
         original = self.publish_terms(identity, company, [self.period()])
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         revised = self.publish_terms(identity, company, [self.period(rate="7")])
         self.assertEqual(
             self.as_user(user, "select id::text from public.sku_terms_versions"), [(revised,)]
@@ -105,7 +105,9 @@ class CompanyTermsTests(SourceModelFixture):
         unassigned = self.publish_terms(identity, None, [self.period(rate="9")])
         self.assertEqual(self.as_user(user, "select id from public.skus"), [])
         self.assertEqual(self.as_user(user, "select id from public.sku_terms_versions"), [])
-        self.assertEqual(self.as_user(user, "select id from private.settlement_transactions"), [])
+        self.assertEqual(
+            self.as_user(user, "select id from private.finances_transaction_components"), []
+        )
         self.assertEqual(
             self.connection.execute(
                 "select terms_version_id::text,resolution_status,fee_amount,company_amount "
@@ -119,12 +121,10 @@ class CompanyTermsTests(SourceModelFixture):
         company, identity = self.owner()
         terms = self.publish_terms(identity, company, [self.period()])
         acquisition = self.acquisition()
-        _, settlement_version = self.settlement(
-            [self.transaction("100")], acquisition_id=acquisition
-        )
+        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, day_version = self.kiosk(1, [self.component("-10")])
-        self.settlement(
-            [self.transaction("200")], acquisition_id=acquisition, expected=settlement_version
+        self.finances(
+            [self.transaction("200")], acquisition_id=acquisition, expected=finances_version
         )
         self.kiosk(2, [self.component("-20")], expected=day_version)
         self.assertEqual(
@@ -137,7 +137,7 @@ class CompanyTermsTests(SourceModelFixture):
             self.connection.execute(
                 "select sum(company_amount) from private.resolve_company_components("
                 "%s::uuid[],%s::uuid[],%s::uuid[]) where authoritative",
-                ([settlement_version], [day_version], [terms]),
+                ([finances_version], [day_version], [terms]),
             ).fetchone(),
             (Decimal(85),),
         )
@@ -148,10 +148,10 @@ class CompanyTermsTests(SourceModelFixture):
         old_user = self.member(first_company)
         second_company, _ = self.owner("OTHER")
         new_user = self.member(second_company)
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         self.publish_terms(identity, second_company, [self.period()])
         self.assertEqual(
-            self.as_user(old_user, "select id from private.settlement_transactions"), []
+            self.as_user(old_user, "select id from private.finances_transaction_components"), []
         )
         self.assertEqual(
             self.as_user(new_user, "select company_amount from public.live_company_components"),
@@ -163,11 +163,11 @@ class CompanyTermsTests(SourceModelFixture):
 
     def test_partial_summary_preserves_null_sums_and_exact_missing_fee_details(self) -> None:
         _, identity = self.owner()
-        settlement, _ = self.settlement([self.transaction("0.123456789012345678901")])
+        finances, _ = self.finances([self.transaction("0.123456789012345678901")])
         progress = self.connection.execute(
             "select * from private.company_financial_progress("
             "%s,'2026-06-15','2026-06-15','v0',%s::uuid[],'{}')",
-            (self.seller, [settlement]),
+            (self.seller, [finances]),
         ).fetchone()
         if progress is None:
             raise AssertionError("Expected partial summary.")
@@ -176,7 +176,7 @@ class CompanyTermsTests(SourceModelFixture):
         self.assertEqual(progress[6][0]["fee_base"], "0.123456789012345678901")
         self.assertEqual(progress[6][0]["sku_id"], identity)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.totals([settlement])
+            self.totals([finances])
         self.connection.execute("set constraints all immediate")
 
     def test_publication_rejects_stale_incomplete_and_ambiguous_payloads(self) -> None:

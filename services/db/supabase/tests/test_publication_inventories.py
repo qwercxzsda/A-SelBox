@@ -13,14 +13,17 @@ class PublicationInventoryTests(SourceModelFixture):
         # Exact results are asserted; machine-specific timing belongs in benchmarks.
         self.connection.execute("set statement_timeout='20s'")
         for count in (1000, 4000):
-            _, version = self.settlement(
+            _, version = self.finances(
                 [self.transaction("1", index + 3) for index in range(count)],
-                identity=f"settlement-{count}",
+                identity=f"finances-{count}",
             )
             self.assertEqual(
                 self.connection.execute(
-                    "select count(*),sum(amount),min(source_line_number),max(source_line_number) "
-                    "from private.settlement_transactions where version_id=%s",
+                    "select count(*),sum(c.amount),min(t.source_record_number),"
+                    "max(t.source_record_number) "
+                    "from private.finances_transaction_components c "
+                    "join private.finances_transactions t on t.id=c.transaction_id "
+                    "where c.version_id=%s",
                     (version,),
                 ).fetchone(),
                 (count, Decimal(count), 3, count + 2),
@@ -39,7 +42,7 @@ class PublicationInventoryTests(SourceModelFixture):
     def test_published_inventories_reject_additional_children(self) -> None:
         _, owner = self.owner()
         fee = self.fee(owner, [("2026-01-01", "2027-01-01", "5")])
-        _, settlement = self.settlement([self.transaction("1")])
+        _, finances = self.finances([self.transaction("1")])
         _, kiosk = self.kiosk(1, [self.component()])
         self.connection.commit()
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
@@ -51,11 +54,12 @@ class PublicationInventoryTests(SourceModelFixture):
             )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "insert into private.settlement_transactions select "
-                "(jsonb_populate_record(null::private.settlement_transactions, "
-                "to_jsonb(t)||jsonb_build_object('id',%s::text,'source_line_number',999))).* "
-                "from private.settlement_transactions t where version_id=%s",
-                (new_id(), settlement),
+                "insert into private.finances_transaction_components select "
+                "(jsonb_populate_record(null::private.finances_transaction_components, "
+                "to_jsonb(t)||jsonb_build_object('id',%s::text,"
+                "'component_key','additional'))).* "
+                "from private.finances_transaction_components t where version_id=%s",
+                (new_id(), finances),
             )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
@@ -112,12 +116,12 @@ class PublicationInventoryTests(SourceModelFixture):
             )
 
     def test_invalid_bulk_source_controls_roll_back_whole_publication(self) -> None:
-        mismatched_currency = self.transaction("1", 4) | {"currency": "CAD"}
+        invalid_amount = self.transaction("NaN", 4)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.settlement([self.transaction("1"), mismatched_currency])
+            self.finances([self.transaction("1"), invalid_amount])
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_preprocess_versions"
+                "select count(*) from private.finances_preprocess_versions"
             ).fetchone(),
             (0,),
         )

@@ -75,6 +75,12 @@ export function RowDetail({
               ? `${companies.get(row.company_id ?? "") ?? "Company"} · ${row.start_date ?? ""} – ${row.end_date ?? ""}${row.currency ? ` · ${row.currency}` : ""}`
               : "Exact values for this record."}
           </Text>
+          {dataset === "finances" && row.activity_eligible === "false" ? (
+            <Text size="sm" c="dimmed" mb="lg">
+              This record is exclusive of activity totals. Linked releases track when existing funds
+              become available; transfers track movement to or from a bank account.
+            </Text>
+          ) : null}
           {dataset === "payouts" && row.created_at ? (
             <Text size="xs" c="dimmed" mt={-12} mb="lg">
               Saved report · Created {formatRecordDate(row.created_at)}

@@ -3,8 +3,8 @@ import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagina
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
 
-export type FinancialReviewCategory = "SETTLEMENT" | "DATA_KIOSK" | "SELBOX";
-export type FinancialReviewSource = "SETTLEMENT" | "DATA_KIOSK";
+export type FinancialReviewCategory = "FINANCES" | "DATA_KIOSK" | "SELBOX";
+export type FinancialReviewSource = "FINANCES" | "DATA_KIOSK";
 
 export interface FinancialReviewRecordFilters {
   source?: FinancialReviewSource;
@@ -25,10 +25,10 @@ export const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
   "month",
   "category",
   "currency",
-  "settlement_amount",
+  "finances_amount",
   "data_kiosk_amount",
   "difference",
-  "settlement_row_count",
+  "finances_row_count",
   "data_kiosk_row_count",
 ] as const;
 
@@ -53,7 +53,7 @@ function rpcProjection(columns: readonly string[]): string {
 }
 
 export function requireFinancialReviewCategory(category: FinancialReviewCategory): void {
-  if (!["SETTLEMENT", "DATA_KIOSK", "SELBOX"].includes(category))
+  if (!["FINANCES", "DATA_KIOSK", "SELBOX"].includes(category))
     throw new Error("Choose a valid financial review category");
 }
 
@@ -283,7 +283,7 @@ export function createFinancialReviewApi(transport: ApiTransport) {
         filters.type === undefined ? [] : [filters.type],
       );
       if (filters.source !== undefined) {
-        if (!["SETTLEMENT", "DATA_KIOSK"].includes(filters.source))
+        if (!["FINANCES", "DATA_KIOSK"].includes(filters.source))
           throw new Error("Choose a valid financial review source");
         params.set("source", `eq.${filters.source}`);
       }

@@ -30,7 +30,7 @@ async function openReport(page, role) {
     activity_date: "2026-06-30",
     sku: `SKU-${String(index).padStart(3, "0")}`,
     marketplace_name: "Amazon.com",
-    source: "SETTLEMENT",
+    source: "FINANCES",
     component_type: "PRODUCT_SALES",
     quantity: "1",
     source_amount: "1",

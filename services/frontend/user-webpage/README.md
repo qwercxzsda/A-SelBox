@@ -11,7 +11,7 @@ Database row-level security enforces access. UI copy and browser review fixtures
 | Transactions     | `transaction_page`, `transaction_count`                                     | Current company assignments and fees                                           |
 | Current fees     | `sku_configuration`, `publish_sku_configuration`                            | Administrators edit complete configuration; members read their own             |
 | Inventory        | `latest_inventory_items`                                                    | All source inventory for administrators; current company ownership for members |
-| Settlements      | `source_transaction_page`, `source_transaction_count`                       | Administrators                                                                 |
+| Finances         | `source_transaction_page`, `source_transaction_count`                       | Administrators                                                                 |
 | Data Kiosk       | `source_transaction_page`, `source_transaction_count`                       | Administrators                                                                 |
 | Payout reports   | `latest_company_payout_reports`, report history, maturity policy            | All companies for administrators; own company for members                      |
 | Financial review | `financial_review_records`, category summary RPCs, saved report diagnostics | Administrators                                                                 |
@@ -133,17 +133,16 @@ allows. Each tab has its own associated panel for keyboard and assistive-technol
   fees remain zero, including non-applicable fees; a non-applicable fee rate displays as a dash.
   Timestamp cells use readable UTC dates and times while their title preserves the exact original
   value.
-- Transactions, Settlements, and Data Kiosk allow ordering by Date or Reported amount. Transactions
+- Transactions, Finances, and Data Kiosk allow ordering by Date or Reported amount. Transactions
   includes derived reconciliation amounts; raw tabs use the stored source amount. Amount ordering is
   available only when at most 10,000 rows match every active filter and search. Larger scopes
   explain the limit and offer date ordering; an unknown or stale count is checked by the database.
   Date descending is the default. Company amount remains visible without a sort control.
   Transactions also shows Quantity. The Fee rate menu filters Applicable or Not applicable by source
-  Type: Settlement product sales/refunds and Data Kiosk net product sales are applicable, including
+  Type: Finances product sales/refunds and Data Kiosk net product sales are applicable, including
   zero bases/rates and missing fee configuration. Selecting both or neither shows all applicability
-  states. Type cells use one line within 320px: context before the final separator is smaller, and
-  the final description stays prominent. The full value remains accessible in the cell title and
-  details.
+  states. Type cells show readable component names on one line within 320px. The complete name and
+  exact source code remain accessible in the cell title and details.
 
 ## Design conventions
 
@@ -155,13 +154,12 @@ introductions use [WorkspaceIntro](src/WorkspaceIntro.tsx) for consistent titles
 
 Views keep layouts suited to their tasks: fee editing uses SKU cards and period forms, inventory
 keeps its descriptive metrics and urgency colors, and financial reports use grouped tables and
-detail drawers. Transactions, Settlements, and Data Kiosk share the 320px, single-line Type column
-with smaller, muted prefixes and a more prominent final label. Complete labels remain available in
-the cell title and row details. Desktop density and local scrolling on smaller screens remain part
-of the shared conventions. Use Previous/Next for pagination, Rows for page size, and sentence case
-for labels. Use **exclusive** for amounts outside a payout or the end boundary of a fee period, with
-the scope explicit. Use **Settlement** for the source/category and **Settlements** only for the
-source tab.
+detail drawers. Transactions, Finances, and Data Kiosk share the 320px, single-line Type column with
+one readable canonical label. The complete label and exact source code remain available in the
+cell title and row details. Desktop density and local scrolling on smaller screens remain part of
+the shared conventions. Use Previous/Next for pagination, Rows for page size, and sentence case for
+labels. Use **exclusive** for amounts outside a payout or the end boundary of a fee period, with the
+scope explicit. Use **Finances** consistently for the API source, category, and source tab.
 
 Interactive controls visibly change shade on hover, including buttons, tabs, column menus,
 expandable headings, and rows that open details. Neutral controls use a subtle 3% accent tint;
@@ -214,6 +212,20 @@ absolute, historical sales are not a forecast, and stock supports approximate da
 the [inventory contract](../../../docs/inventory_daily_captures.md) for fields, capture identity,
 access, and pipeline verification.
 
+## Finances source records
+
+The administrator-only Finances tab reads retained daily versions, matching the Data Kiosk source
+tab. Original activity, linked releases, and transfers remain available for inspection. **Activity
+eligibility** distinguishes included components from records exclusive of the activity calculation
+within each version; this is independent of the Finances/Data Kiosk/SelBox allocation category. Raw
+row amounts do not form a monthly net by simple summation. Company calculations and Financial review
+use eligible activity components from current daily versions only.
+
+Row details retain the daily version and day IDs, original Amazon transaction ID, transaction
+status, account type, and original/release links. A new capture replaces the current daily version
+atomically. Lightweight `finances` revision checks refresh visible reads, using the same workflow as
+Data Kiosk and Transactions. There is no manual refresh button.
+
 ## Payout reports and Financial review
 
 Payout reports group the latest saved company/month/currency reports by month, across source
@@ -236,13 +248,12 @@ and list. Marketplace breakdown is an expandable saved-report section. The
 reports, immutability, and when estimates match the latest saved report.
 
 Administrator-only **Financial review** uses the same month grouping, column filters, drawers, and
-pagination, with **Rows: 25 / 50 / 100**. Its Settlement, Data Kiosk, and SelBox category tabs
-compare current mature source facts. Opening a month shows totals, amounts by source/type, and exact
-source records. The month's expandable **Saved report snapshots** section contains historical
-comparison rows and account controls. Their account scope stays separate from company payout
-amounts. The [Financial review guide](../../../docs/financial_review.md) defines these scopes,
-labels, read interfaces, and the distinction between source differences and the accounting
-reconciliation.
+pagination, with **Rows: 25 / 50 / 100**. Its Finances, Data Kiosk, and SelBox category tabs compare
+current mature source facts. Opening a month shows totals, amounts by source/type, and exact source
+records. The month's expandable **Saved report snapshots** section contains historical comparison
+rows and account controls. Their account scope stays separate from company payout amounts. The
+[Financial review guide](../../../docs/financial_review.md) defines these scopes, labels, read
+interfaces, and the distinction between source differences and the accounting reconciliation.
 
 ## Totals
 
@@ -263,21 +274,21 @@ types. Date ordering, exact decimals, and financial authority match the main Tra
 Source and ownership revisions refresh both the open summary and its record pages.
 
 Totals use Data Kiosk for all monetary categories on recent dates (the mature cutoff date and
-later). For mature dates (before the mature cutoff date), Settlement reports supply the Settlement
-and SelBox categories, while Data Kiosk supplies the Data Kiosk category. An administrator-only
-daily marketplace difference compares the Data Kiosk category amounts reported by Settlement and
-Data Kiosk. Members see their own Settlement and Data Kiosk category amounts; SelBox retains the
-SelBox category and the difference. Comparison/analysis rows are excluded and currencies stay
-separate. Requests aggregate only the needed periods. Latest-date discovery, each period, and each
-opened breakdown have independent cache and error states. Totals and Type breakdowns call
+later). For mature dates (before the mature cutoff date), Finances activity components supply the
+Finances and SelBox categories, while Data Kiosk supplies the Data Kiosk category. An
+administrator-only daily marketplace difference compares the Data Kiosk category amounts reported by
+Finances and Data Kiosk. Members see their own Finances and Data Kiosk category amounts; SelBox
+retains the SelBox category and the difference. Comparison/analysis rows are excluded and currencies
+stay separate. Requests aggregate only the needed periods. Latest-date discovery, each period, and
+each opened breakdown have independent cache and error states. Totals and Type breakdowns call
 `transaction_totals`; compatible source facts are summed before their fee lookup. The response keeps
 exact decimal strings and counts needed to identify missing company amounts.
 
-Source menus offer Settlement and Data Kiosk; administrator Transactions also offers Reconciliation.
+Source menus offer Finances and Data Kiosk; administrator Transactions also offers Reconciliation.
 Marketplace menus include all 24 canonical marketplace names. Type menus use the generated
 preprocessing registry: company Transactions includes every known type except category `SELBOX`
 (including `ANALYSIS_ONLY`). Administrator Transactions offers every known type from both sources
-and the derived Settlement / Data Kiosk difference; raw source tabs offer only registered types for
+and the derived Finances / Data Kiosk difference; raw source tabs offer only registered types for
 that source. Options remain available with no matching rows, and actual rows keep their existing
 access and category rules. The JSON files in `src/generated/` are generated from the Python
 registries; do not edit them manually.
@@ -298,7 +309,7 @@ their existing single retry for transient failures. Sign-in, signup, and writes 
 automatically repeated. Session-restore timeouts preserve the stored session for Retry.
 
 Financial pages use `transaction_page` for Transactions and `source_transaction_page` for
-Settlements/Data Kiosk, followed by independent exact count RPCs. The browser resolves literal,
+Finances/Data Kiosk, followed by independent exact count RPCs. The browser resolves literal,
 case-insensitive search against complete SKU, Type, Marketplace, and Source catalogs before
 requesting rows. Search alternatives combine with OR and intersect with column filters. All filters,
 including fee applicability, apply before server pagination/counting and belong in the query key.
@@ -315,7 +326,7 @@ search reads; members reload assigned SKUs on fee revisions. Refreshed catalogs 
 before queries refetch, including when a previously unmatched search gains a newly imported SKU.
 
 Identity refreshes reuse an in-memory administrator SKU catalog only after fetching the current
-account and the `settlement`, `data_kiosk`, and `fees` revision tokens and confirming they match its
+account and the `finances`, `data_kiosk`, and `fees` revision tokens and confirming they match its
 existing scope and revisions. An explicit workspace retry forces catalog reload. Reuse does not
 cross sign-out, account/role/company changes, or page reloads. Missing revision tokens never
 authorize reuse. Company names and assignments still reload on identity refresh; members derive SKU
@@ -329,7 +340,7 @@ summaries, and fee lookups. Financial source revisions cover current pointers, h
 publications, and Data Kiosk pruning; inventory revisions cover changed daily capture publications.
 Payout revisions change only when a new report is published; unchanged reports keep their token.
 Fee/ownership and payout revisions are company-scoped for members; source revisions are global.
-Active financial summaries require the `settlement`, `data_kiosk`, and `fees` revisions. Summaries
+Active financial summaries require the `finances`, `data_kiosk`, and `fees` revisions. Summaries
 unmount outside Transactions. Financial source tokens also include the mature cutoff date, so the
 daily authority change invalidates cached money and counts. Inventory tokens have no date suffix and
 checks read only the small revision table. Payout pages and counts refresh when their publication

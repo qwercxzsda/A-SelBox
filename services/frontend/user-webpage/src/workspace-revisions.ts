@@ -2,7 +2,7 @@ import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
 import type { AppAccount, RevisionSource, WorkspaceRevisions } from "./api/types.ts";
 
 export const FINANCIAL_REVISION_SOURCES: readonly RevisionSource[] = [
-  "settlement",
+  "finances",
   "data_kiosk",
   "fees",
 ];
@@ -26,8 +26,8 @@ function datasetDependencies(dataset: unknown, administrator: boolean): readonly
       return ["payouts"];
     case "live":
       return FINANCIAL_REVISION_SOURCES;
-    case "settlement":
-      return administrator ? ["settlement"] : ["settlement", "fees"];
+    case "finances":
+      return administrator ? ["finances"] : ["finances", "fees"];
     case "data_kiosk":
       return administrator ? ["data_kiosk"] : ["data_kiosk", "fees"];
     default:
@@ -42,7 +42,7 @@ export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   }
   if (family === "sku-configuration") return FINANCIAL_REVISION_SOURCES;
   if (family === "payout-history") return ["payouts"];
-  if (family === "financial-review") return ["settlement", "data_kiosk"];
+  if (family === "financial-review") return ["finances", "data_kiosk"];
   if (family === "inventory") return ["inventory", "fees"];
   if (
     typeof family === "string" &&

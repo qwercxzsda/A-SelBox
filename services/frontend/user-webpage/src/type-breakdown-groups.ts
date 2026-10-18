@@ -13,7 +13,7 @@ export interface TransactionTypeGroup {
 const GROUPS = {
   "sales-and-refunds": [
     "Sales and refunds",
-    ["PRODUCT_SALES", "PRODUCT_REFUNDS", "NET_PRODUCT_SALES"],
+    ["PRODUCT_SALES", "PRODUCT_REFUNDS", "NET_PRODUCT_SALES", "RESTOCKING"],
   ],
   "sponsored-products": [
     "Sponsored Products charge",
@@ -26,23 +26,40 @@ const GROUPS = {
   ],
   "fba-fulfillment": [
     "FBA fulfillment fees",
-    ["FBA_FULFILMENT_FEE", "FBA_FULFILLMENT_FEE", "FBA_FULFILLMENT_FEES"],
+    [
+      "FBA_FULFILMENT_FEE",
+      "FBA_FULFILLMENT_FEE",
+      "FBA_FULFILLMENT_FEES",
+      "FULFILLMENT_FEE_CORRECTIONS",
+      "FULFILLMENT_FEE_REVERSALS",
+    ],
   ],
-  referral: ["Referral fee", ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"]],
-  "inbound-placement": ["FBA inbound placement service fee", ["FBA_INBOUND_PLACEMENT_SERVICE_FEE"]],
+  referral: [
+    "Referral fee",
+    ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE", "REFUNDED_REFERRAL_FEES"],
+  ],
+  "inbound-placement": [
+    "FBA inbound placement service fee",
+    ["FBA_INBOUND_PLACEMENT_SERVICE_FEE", "INBOUND_PLACEMENT_FEES"],
+  ],
   "inbound-transportation": [
     "Inbound transportation charge",
     [
       "FBA_INBOUND_CONVENIENCE_FEE",
       "FBA_INBOUND_TRANSPORTATION_FEE",
       "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE",
+      "INBOUND_TRANSPORTATION_FEES",
+      "INBOUND_TRANSPORTATION_PROGRAM_FEES",
     ],
   ],
-  disposal: ["FBA disposal order fee", ["DISPOSAL_FEE"]],
-  "refund-administration": ["Refund administration fee", ["REFUND_COMMISSION_FEE"]],
+  disposal: ["FBA disposal order fee", ["DISPOSAL_FEE", "DISPOSAL_FEES"]],
+  "refund-administration": [
+    "Refund administration fee",
+    ["REFUND_COMMISSION_FEE", "REFUND_COMMISSION"],
+  ],
   "monthly-storage": [
     "Monthly inventory storage fee",
-    ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
+    ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE", "STORAGE_FEES"],
   ],
   "sponsored-brands": [
     "Sponsored Brands charge",
@@ -52,18 +69,27 @@ const GROUPS = {
     "Sponsored Display charge",
     ["SPONSORED_DISPLAY", "SPONSORED_DISPLAY_CHARGE", "SPONSORED_DISPLAY_CHARGES"],
   ],
-  advertising: ["Advertising", []],
+  advertising: ["Advertising", ["ADVERTISING"]],
   "digital-services": [
     "Digital services fees",
-    ["DIGITAL_SERVICES_FEE_FBA", "DIGITAL_SERVICES_FEE_SOA"],
+    ["DIGITAL_SERVICES_FEE_FBA", "DIGITAL_SERVICES_FEE_SOA", "DIGITAL_SERVICES_FEES"],
   ],
-  removal: ["FBA removal order fee", ["REMOVAL_FEE"]],
+  removal: ["FBA removal order fee", ["REMOVAL_FEE", "REMOVAL_FEES"]],
   "long-term-storage": [
     "Long-term inventory storage fee",
-    ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE"],
+    ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE", "AGED_STORAGE_FEES"],
   ],
-  labeling: ["FBA labeling fee", ["LABELING_FEE"]],
-  "shipping-gift-wrap": ["Shipping and gift wrap", []],
+  labeling: ["FBA labeling fee", ["LABELING_FEE", "LABELING_FEES"]],
+  "shipping-gift-wrap": [
+    "Shipping and gift wrap",
+    [
+      "SHIPPING_CREDITS",
+      "SHIPPING_REFUNDS",
+      "SHIPPING_CHARGEBACKS",
+      "GIFT_WRAP_CREDITS",
+      "GIFT_WRAP_CHARGEBACKS",
+    ],
+  ],
   promotions: [
     "Promotions",
     [
@@ -71,11 +97,34 @@ const GROUPS = {
       "COUPON_PERFORMANCE_FEE",
       "DEAL_PARTICIPATION_FEE",
       "DEAL_PERFORMANCE_FEE",
+      "COUPON_FEES",
+      "DEAL_FEES",
+      "PROMOTIONAL_REBATES",
+      "PROMOTIONAL_REFUNDS",
+      "POINTS",
     ],
   ],
-  taxes: ["Taxes", []],
-  reimbursements: ["Reimbursements", ["FBA_INVENTORY_REIMBURSEMENT"]],
-  liquidations: ["Liquidations", ["LIQUIDATION_PROCESSING_FEE", "LIQUIDATION_REFERRAL_FEE"]],
+  taxes: [
+    "Taxes",
+    ["PRODUCT_TAX", "SHIPPING_TAX", "GIFT_WRAP_TAX", "TAX_WITHHELD", "TAX_RECLASSIFICATION"],
+  ],
+  reimbursements: [
+    "Reimbursements",
+    [
+      "FBA_INVENTORY_REIMBURSEMENT",
+      "INVENTORY_REIMBURSEMENTS",
+      "INVENTORY_REIMBURSEMENT_REVERSALS",
+    ],
+  ],
+  liquidations: [
+    "Liquidations",
+    [
+      "LIQUIDATION_PROCESSING_FEE",
+      "LIQUIDATION_REFERRAL_FEE",
+      "LIQUIDATION_PROCEEDS",
+      "LIQUIDATION_FEES",
+    ],
+  ],
   "off-amazon-costs": [
     "Off-Amazon costs",
     [
@@ -86,7 +135,7 @@ const GROUPS = {
       "MISCELLANEOUS_COST",
     ],
   ],
-  reconciliation: ["Settlement / Data Kiosk difference", ["SETTLEMENT_KIOSK_DIFFERENCE"]],
+  reconciliation: ["Finances / Data Kiosk difference", ["FINANCES_KIOSK_DIFFERENCE"]],
   other: ["Other", []],
 } as const;
 
@@ -98,106 +147,14 @@ const DIRECT_TYPES = new Map<string, GroupId>(
   ),
 );
 
-const ITEM_FEES: Readonly<Partial<Record<string, GroupId>>> = {
-  COMMISSION: "referral",
-  REFUND_COMMISSION: "refund-administration",
-  FBA_PER_UNIT_FULFILLMENT_FEE: "fba-fulfillment",
-  DIGITAL_SERVICES_FEE: "digital-services",
-  LIQUIDATIONS_BROKERAGE_FEE: "liquidations",
-  SHIPPING_CHARGEBACK: "shipping-gift-wrap",
-  GIFTWRAP_CHARGEBACK: "shipping-gift-wrap",
-  GIFT_WRAP_CHARGEBACK: "shipping-gift-wrap",
-};
-
-const NAMED_FEES: Readonly<Partial<Record<string, GroupId>>> = {
-  "AMAZON_FEES/FBA_FULFILMENT_FEE_PER_UNIT_CORRECTION": "fba-fulfillment",
-  "AMAZON_FEES/FBA_FULFILMENT_FEE_PER_UNIT_REVERSAL": "fba-fulfillment",
-  "AMAZON_FEES/COUPON_PARTICIPATION_FEE": "promotions",
-  "AMAZON_FEES/COUPON_PERFORMANCE_BASED_FEE": "promotions",
-  "AMAZON_FEES/DEAL_PARTICIPATION_FEE": "promotions",
-  "AMAZON_FEES/DEAL_PERFORMANCE_BASED_FEE": "promotions",
-  "FBA_FEES/FBA_AMAZON_PARTNERED_CARRIER_SHIPMENT_FEE": "inbound-transportation",
-  "FBA_FEES/FBA_INBOUND_PLACEMENT_SERVICE_FEE": "inbound-placement",
-  "FBA_FEES/INBOUND_TRANSPORTATION_PROGRAM_FEE": "inbound-transportation",
-  "FBA_FEES/FBA_INVENTORY_STORAGE_FEE": "monthly-storage",
-  "FBA_FEES/FBA_LONG_TERM_STORAGE_FEE": "long-term-storage",
-  "FBA_FEES/FBA_REMOVAL_ORDER_DISPOSAL_FEE": "disposal",
-  "FBA_FEES/FBA_REMOVAL_ORDER_RETURN_FEE": "removal",
-};
-
-const OTHER_TRANSACTIONS: Readonly<Partial<Record<string, GroupId>>> = {
-  DISPOSAL_COMPLETE: "disposal",
-  FBA_INBOUND_PLACEMENT_SERVICE_FEE: "inbound-placement",
-  FBA_INBOUND_TRANSPORTATION_FEE: "inbound-transportation",
-  FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE: "inbound-transportation",
-  INBOUND_TRANSPORTATION_FEE: "inbound-transportation",
-  REMOVAL_COMPLETE: "removal",
-  STORAGE_FEE: "monthly-storage",
-  STORAGE_RENEWAL_BILLING: "long-term-storage",
-};
-
-const PRICE_COMPONENTS = new Set(["PRINCIPAL", "RESTOCKING_FEE"]);
-const SHIPPING_COMPONENTS = new Set(["SHIPPING", "GIFT_WRAP", "GIFTWRAP"]);
-const TAX_COMPONENTS = new Set(["TAX", "SHIPPING_TAX", "TAX_DISCOUNT"]);
-const TAXABLE_FEE_GROUPS = new Set<GroupId>(["monthly-storage", "long-term-storage", "disposal"]);
-
-function normalizePart(value: string): string {
-  return value
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
-    .replace(/([a-z\d])([A-Z])/g, "$1_$2")
-    .replace(/[^A-Za-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "")
-    .toUpperCase();
-}
-
 export function transactionTypeBreakdownGroupId(type: string): GroupId {
-  const parts = type.split("/").map(normalizePart);
-  if (parts.length === 1) return DIRECT_TYPES.get(parts[0]) ?? "other";
-  if (parts.length !== 3) return "other";
-  const [transaction, amountType, description] = parts;
-  const ordinary = transaction === "ORDER" || transaction === "REFUND";
-  const retrocharge = transaction === "ORDER_RETROCHARGE" || transaction === "REFUND_RETROCHARGE";
-  if (ordinary || retrocharge) {
-    if (amountType === "ITEM_WITHHELD_TAX") return "taxes";
-    // Explicit tax components, including Promotion/TaxDiscount, stay together.
-    if (["ITEM_PRICE", "PROMOTION"].includes(amountType) && TAX_COMPONENTS.has(description))
-      return "taxes";
-  }
-  if (ordinary) {
-    if (amountType === "ITEM_PRICE" && PRICE_COMPONENTS.has(description))
-      return "sales-and-refunds";
-    if (amountType === "ITEM_PRICE" && SHIPPING_COMPONENTS.has(description))
-      return "shipping-gift-wrap";
-    if (amountType === "PROMOTION") return "promotions";
-    if (amountType === "ITEM_FEES") return ITEM_FEES[description] ?? "other";
-  }
-  if (
-    (transaction === "LIQUIDATIONS" || transaction === "LIQUIDATIONS_ADJUSTMENTS") &&
-    (amountType === "ITEM_PRICE" || amountType === "ITEM_FEES")
-  )
-    return "liquidations";
-  if (transaction === "OTHER_TRANSACTION" && amountType === "FBA_INVENTORY_REIMBURSEMENT")
-    return "reimbursements";
-  if (transaction === "OTHER_TRANSACTION" && amountType === "OTHER_TRANSACTION")
-    return OTHER_TRANSACTIONS[description] ?? "other";
-  if (
-    transaction === "SERVICE_FEE" &&
-    amountType === "COST_OF_ADVERTISING" &&
-    description === "TRANSACTION_TOTAL_AMOUNT"
-  )
-    return "advertising";
-  const named = NAMED_FEES[`${transaction}/${amountType}`];
-  if (named && description === "BASE_FEE") return named;
-  // Keep a fee's base and tax together, just as Data Kiosk's fee total does.
-  if (named && description === "TAX_ON_FEE" && TAXABLE_FEE_GROUPS.has(named)) return named;
-  return "other";
+  return DIRECT_TYPES.get(type) ?? "other";
 }
 
 function salesOrder(type: string): number {
-  const normalized = type.split("/").map(normalizePart).join("/");
-  if (normalized === "PRODUCT_SALES" || normalized === "ORDER/ITEM_PRICE/PRINCIPAL") return 0;
-  if (normalized === "PRODUCT_REFUNDS" || normalized === "REFUND/ITEM_PRICE/PRINCIPAL") return 1;
-  return normalized === "NET_PRODUCT_SALES" ? 2 : 3;
+  if (type === "PRODUCT_SALES") return 0;
+  if (type === "PRODUCT_REFUNDS") return 1;
+  return type === "NET_PRODUCT_SALES" ? 2 : 3;
 }
 
 function compareTypes(left: TransactionTypeTotal, right: TransactionTypeTotal): number {

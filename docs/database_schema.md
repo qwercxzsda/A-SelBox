@@ -1,348 +1,212 @@
 # Database schema
 
-The canonical fresh-install migrations define **26 application tables, 258 columns, 31 foreign keys,
-and 21 ordinary views**. Each object has one maintained definition. Supabase-managed Auth/Storage
-internals are shown only at their application boundaries.
+The fresh-install migrations define **32 application tables, 303 table columns, 42 foreign keys and 22 ordinary views**. These figures and keys are generated from an isolated installation of the actual migrations, without reading existing financial data.
 
-The three inventory tables implement the
-[daily-capture workflow](inventory_daily_captures.md): one preprocessed capture per source
-scope/day, with immutable raw archives and no dependency on financial calculations.
+Finances and Data Kiosk use complete daily versions. Native Finances parent totals control their component partitions; Summary checks pin the exact day versions used. Payout manifests retain those versions, matching Summary checks and company terms. Inventory keeps its separate one-capture-per-day model.
 
-This is the schema reference, including every application column and key. See
-[data workflows](data_workflows.md) for publication and retention,
-[source allocation](source_allocation.md) for financial authority, [company terms](company_fees.md)
-for ownership/fees, [payouts](company_payout_reports.md) for frozen reports, and
-[application access](access_control.md) for RLS and permissions. The
-[database guide](../services/db/supabase/README.md#schema-modules) lists current migration files in
-dependency order and the fresh-install verification commands.
-
-## Figure index
-
-- [Complete database relationship map](figures/database/01-overview.svg)
-- [Ownership, fees, and access](figures/database/02-ownership.svg)
-- [Settlement archives, versions, and facts](figures/database/03-settlements.svg)
-- [Data Kiosk acquisitions and complete-day versions](figures/database/04-data-kiosk-observations.svg)
-- [Data Kiosk facts and retention](figures/database/05-data-kiosk-facts.svg)
-- [Payout results, reconciliation, and refresh state](figures/database/06-payout-results.svg)
-- [Payout manifests and exact-version references](figures/database/07-payout-manifests.svg)
-- [Workspace revision tokens](figures/database/08-revisions.svg)
-- [Daily inventory: all columns](figures/database/09-daily-inventory.svg)
-- [Daily acquisition and preprocessing](figures/database/10-inventory-workflow.svg)
-- [Derived views and read dependencies](figures/database/11-views.svg)
-
-Each figure has one editable `.mmd` source next to its SVG export.
+See [data workflows](data_workflows.md), [Finances transactions](finances_transactions.md), [source allocation](source_allocation.md), [company terms](company_fees.md), [payouts](company_payout_reports.md), and [access](access_control.md) for behavioral contracts.
 
 ## Reading the figures
 
-`NN` means NOT NULL, `NULL` means nullable, and repeated PK markers form a composite primary key. FK
-markers can be members of a composite FK; exact tuples are listed below. In the overview, solid
-arrows run from child to referenced table and dotted arrows are non-FK dependencies. In ER figures,
-solid/dotted edges mean identifying/non-identifying FKs; circles mean optional and crow's feet mean
-many. A `(reference)` box shows only its primary key; all its columns appear in its own full figure.
-Domain names are shortened inside boxes.
+Every application table column appears in its group's full figure. `NN` means NOT NULL; `NULL` means nullable. Repeated PK markers identify a composite primary key. FK markers can be members of a composite constraint; exact tuples are listed below. A reference box includes only the referenced primary key. Managed Auth/Storage internals appear only at their application boundaries. Overview arrows point from child to parent; dotted archive links are manifest references, not SQL foreign keys.
 
-## 1. Complete database relationship map
+## Complete relationship map
 
-[Full-size SVG](figures/database/01-overview.svg)
+![Complete relationship map](figures/database/01-overview.svg)
 
-![Overview](figures/database/01-overview.svg)
+[Full SVG](figures/database/01-overview.svg) · [Mermaid source](figures/database/01-overview.mmd)
 
-[Editable Mermaid source](figures/database/01-overview.mmd)
+## Ownership fees and access
 
-## 2. Ownership, fees, and access
+![Ownership fees and access](figures/database/02-ownership.svg)
 
-[Full-size SVG](figures/database/02-ownership.svg)
+[Full SVG](figures/database/02-ownership.svg) · [Mermaid source](figures/database/02-ownership.mmd)
 
-![Ownership](figures/database/02-ownership.svg)
+## Finances acquisitions and daily versions
 
-[Editable Mermaid source](figures/database/02-ownership.mmd)
+![Finances acquisitions and daily versions](figures/database/03-finances-observations.svg)
 
-## 3. Settlement archives, versions, and facts
+[Full SVG](figures/database/03-finances-observations.svg) · [Mermaid source](figures/database/03-finances-observations.mmd)
 
-[Full-size SVG](figures/database/03-settlements.svg)
+## Finances native transactions and components
 
-![Settlements](figures/database/03-settlements.svg)
+![Finances native transactions and components](figures/database/03b-finances-facts.svg)
 
-[Editable Mermaid source](figures/database/03-settlements.mmd)
+[Full SVG](figures/database/03b-finances-facts.svg) · [Mermaid source](figures/database/03b-finances-facts.mmd)
 
-## 4. Data Kiosk acquisitions and complete-day versions
+## Finances Summary controls and version manifests
 
-[Full-size SVG](figures/database/04-data-kiosk-observations.svg)
+![Finances Summary controls and version manifests](figures/database/03c-finances-summary-checks.svg)
 
-![Data kiosk observations](figures/database/04-data-kiosk-observations.svg)
+[Full SVG](figures/database/03c-finances-summary-checks.svg) · [Mermaid source](figures/database/03c-finances-summary-checks.mmd)
 
-[Editable Mermaid source](figures/database/04-data-kiosk-observations.mmd)
+## Data Kiosk acquisitions and daily versions
 
-## 5. Data Kiosk facts and retention
+![Data Kiosk acquisitions and daily versions](figures/database/04-data-kiosk-observations.svg)
 
-[Full-size SVG](figures/database/05-data-kiosk-facts.svg)
+[Full SVG](figures/database/04-data-kiosk-observations.svg) · [Mermaid source](figures/database/04-data-kiosk-observations.mmd)
 
-![Data kiosk facts](figures/database/05-data-kiosk-facts.svg)
+## Data Kiosk components and retention
 
-[Editable Mermaid source](figures/database/05-data-kiosk-facts.mmd)
+![Data Kiosk components and retention](figures/database/05-data-kiosk-facts.svg)
 
-## 6. Payout results, reconciliation, and refresh state
+[Full SVG](figures/database/05-data-kiosk-facts.svg) · [Mermaid source](figures/database/05-data-kiosk-facts.mmd)
 
-[Full-size SVG](figures/database/06-payout-results.svg)
+## Payout results reconciliation and refresh state
 
-![Payout results](figures/database/06-payout-results.svg)
+![Payout results reconciliation and refresh state](figures/database/06-payout-results.svg)
 
-[Editable Mermaid source](figures/database/06-payout-results.mmd)
+[Full SVG](figures/database/06-payout-results.svg) · [Mermaid source](figures/database/06-payout-results.mmd)
 
-`private.payout_report_refresh_state` is mutable operational state for the scheduled worker,
-keyed by company and calendar month. Requested/completed revisions identify pending work;
-a partial index selects due requests without revisiting completed reports. A pending future
-month per company lets the worker discover newly mature work. Retry time and failure count
-control backoff, alongside the latest attempt, success, and error SQLSTATE/message. It is
-protected by RLS and has no application-role grants. Frozen reports, components, and their
-source/terms manifests remain immutable. Headers aggregate all source namespaces
-for one company/month/currency; pinned source manifests retain namespace and
-preprocessing provenance. The [payout contract](company_payout_reports.md)
-describes invalidation and scheduler operations.
+## Payout source Summary and terms manifests
 
-## 7. Payout manifests and exact-version references
+![Payout source Summary and terms manifests](figures/database/07-payout-manifests.svg)
 
-[Full-size SVG](figures/database/07-payout-manifests.svg)
+[Full SVG](figures/database/07-payout-manifests.svg) · [Mermaid source](figures/database/07-payout-manifests.mmd)
 
-![Payout manifests](figures/database/07-payout-manifests.svg)
+## Workspace revision tokens
 
-[Editable Mermaid source](figures/database/07-payout-manifests.mmd)
+![Workspace revision tokens](figures/database/08-revisions.svg)
 
-## 8. Workspace revision tokens
+[Full SVG](figures/database/08-revisions.svg) · [Mermaid source](figures/database/08-revisions.mmd)
 
-[Full-size SVG](figures/database/08-revisions.svg)
+## Daily inventory captures
 
-![Revisions](figures/database/08-revisions.svg)
+![Daily inventory captures](figures/database/09-daily-inventory.svg)
 
-[Editable Mermaid source](figures/database/08-revisions.mmd)
+[Full SVG](figures/database/09-daily-inventory.svg) · [Mermaid source](figures/database/09-daily-inventory.mmd)
 
-`private.workspace_revision_tokens` stores opaque tokens for `settlement`, `data_kiosk`, `fees`,
-`inventory`, and `payouts`. Inventory reuses this table without adding columns: a changed daily capture
-publication rotates its global token in the same transaction. Raw acquisitions, idempotent replays,
-and rolled-back publications leave the token unchanged. Ownership uses the existing `fees` token,
-company-scoped for members and global for administrators. New payout reports rotate the separate
-`payouts` token for their company and the global scope; unchanged report reuse does not.
-
-The authenticated `workspace_revisions` RPC reads requested tokens without scanning source facts or
-inventory captures. The browser checks inventory and ownership tokens before reloading active
-inventory rows; unchanged tokens retain successful cached reads. Inventory revision checks have no
-financial mature-cutoff suffix. Payout reads likewise check their own token before reloading
-saved results, without scanning report components during unchanged checks.
-
-## 9. Daily inventory: all columns
-
-[Full-size SVG](figures/database/09-daily-inventory.svg)
-
-![Daily inventory](figures/database/09-daily-inventory.svg)
-
-[Editable Mermaid source](figures/database/09-daily-inventory.mmd)
-
-## 10. Daily acquisition and preprocessing
-
-[Full-size SVG](figures/database/10-inventory-workflow.svg)
+## Inventory workflow
 
 ![Inventory workflow](figures/database/10-inventory-workflow.svg)
 
-[Editable Mermaid source](figures/database/10-inventory-workflow.mmd)
+[Full SVG](figures/database/10-inventory-workflow.svg) · [Mermaid source](figures/database/10-inventory-workflow.mmd)
 
-## 11. Derived views and read dependencies
+## Views and direct catalog dependencies
 
-[Full-size SVG](figures/database/11-views.svg)
+![Views and direct catalog dependencies](figures/database/11-views.svg)
 
-![Views](figures/database/11-views.svg)
+[Full SVG](figures/database/11-views.svg) · [Mermaid source](figures/database/11-views.mmd)
 
-[Editable Mermaid source](figures/database/11-views.mmd)
+View dependencies show direct references tracked by PostgreSQL. Function nodes are boundaries; quoted SQL or procedural function bodies can read additional objects without creating a catalog dependency edge.
 
 ## Primary and unique keys
 
-| Table                                       | Primary key                  | Additional unique constraints                                                                       |
-| ------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| `public.companies`                          | `(id)`                       | None                                                                                                |
-| `public.app_accounts`                       | `(user_id)`                  | None                                                                                                |
-| `public.skus`                               | `(id)`                       | (sku)                                                                                               |
-| `public.sku_terms_versions`                 | `(id)`                       | (sku_id, version_number); (sku_id, id)                                                              |
-| `public.sku_fee_periods`                    | `(id)`                       | (terms_version_id, id)                                                                              |
-| `private.settlement_acquisitions`           | `(id)`                       | None                                                                                                |
-| `private.data_kiosk_acquisitions`           | `(id)`                       | (seller_namespace, amazon_scope, root_query_id)                                                     |
-| `private.settlements`                       | `(id)`                       | (seller_namespace, amazon_scope, settlement_id)                                                     |
-| `private.settlement_preprocess_versions`    | `(id)`                       | (settlement_id, id)                                                                                 |
-| `private.settlement_transactions`           | `(id)`                       | (version_id, source_line_number)                                                                    |
-| `private.data_kiosk_days`                   | `(id)`                       | (seller_namespace, marketplace_name, activity_date, dataset_key)                                    |
-| `private.data_kiosk_preprocess_batches`     | `(id)`                       | None                                                                                                |
-| `private.data_kiosk_preprocess_versions`    | `(id)`                       | (day_id, id); (batch_id, day_id)                                                                    |
-| `private.data_kiosk_transactions`           | `(id)`                       | (version_id, component_key)                                                                         |
-| `private.data_kiosk_pruned_versions`        | `(version_id)`               | None                                                                                                |
-| `public.company_payout_reports`             | `(id)`                       | None                                                                                                |
-| `private.payout_report_refresh_state`       | `(company_id, month)`         | None                                                                                                |
-| `private.payout_report_settlement_versions` | `(report_id, settlement_id)` | (report_id, version_id)                                                                             |
-| `private.payout_report_data_kiosk_versions` | `(report_id, day_id)`        | (report_id, version_id)                                                                             |
-| `private.payout_report_terms_versions`      | `(report_id, sku_id)`        | (report_id, terms_version_id)                                                                       |
-| `public.company_payout_report_components`   | `(id)`                       | (report_id, row_number); (report_id, source, source_row_id)                                         |
-| `private.payout_report_reconciliation`      | `(report_id, row_number)`    | (report_id, activity_date, marketplace_name, currency) NULLS NOT DISTINCT                           |
-| `private.workspace_revision_tokens`         | `(source, scope_company_id)` | None                                                                                                |
-| `private.inventory_acquisitions`            | `(id)`                       | (seller_namespace, amazon_scope, report_id); (seller_namespace, marketplace_name, capture_date, id) |
-| `private.inventory_daily_captures`          | `(id)`                       | (seller_namespace, marketplace_name, capture_date)                                                  |
-| `private.inventory_items`                   | `(capture_id, sku)`          | (capture_id, source_line_number)                                                                    |
-
-`sku_fee_periods` also excludes overlapping validity ranges within a terms version/marketplace.
+| Table | Primary key | Additional unique keys |
+| --- | --- | --- |
+| `private.data_kiosk_acquisitions` | `(id)` | `(seller_namespace, amazon_scope, root_query_id)` |
+| `private.data_kiosk_days` | `(id)` | `(seller_namespace, marketplace_name, activity_date, dataset_key)` |
+| `private.data_kiosk_preprocess_batches` | `(id)` | None |
+| `private.data_kiosk_preprocess_versions` | `(id)` | `(batch_id, day_id)`; `(day_id, id)` |
+| `private.data_kiosk_pruned_versions` | `(version_id)` | None |
+| `private.data_kiosk_transactions` | `(id)` | `(version_id, component_key)` |
+| `private.finances_acquisitions` | `(id)` | None |
+| `private.finances_days` | `(id)` | `(seller_namespace, marketplace_name, activity_date)` |
+| `private.finances_preprocess_batches` | `(id)` | None |
+| `private.finances_preprocess_versions` | `(id)` | `(batch_id, day_id)`; `(day_id, id)` |
+| `private.finances_pruned_versions` | `(version_id)` | None |
+| `private.finances_summary_check_versions` | `(check_id, day_id)` | None |
+| `private.finances_summary_checks` | `(id)` | None |
+| `private.finances_transaction_components` | `(id)` | `(version_id, component_key)` |
+| `private.finances_transactions` | `(id)` | `(version_id, id)`; `(version_id, native_transaction_id)` |
+| `private.inventory_acquisitions` | `(id)` | `(seller_namespace, amazon_scope, report_id)`; `(seller_namespace, marketplace_name, capture_date, id)` |
+| `private.inventory_daily_captures` | `(id)` | `(seller_namespace, marketplace_name, capture_date)` |
+| `private.inventory_items` | `(capture_id, sku)` | `(capture_id, source_line_number)` |
+| `private.payout_report_data_kiosk_versions` | `(report_id, day_id)` | `(report_id, version_id)` |
+| `private.payout_report_finances_summary_checks` | `(report_id, check_id)` | None |
+| `private.payout_report_finances_versions` | `(report_id, day_id)` | `(report_id, version_id)` |
+| `private.payout_report_reconciliation` | `(report_id, row_number)` | `(report_id, seller_namespace, activity_date, marketplace_name, currency)` |
+| `private.payout_report_refresh_state` | `(company_id, month)` | None |
+| `private.payout_report_terms_versions` | `(report_id, sku_id)` | `(report_id, terms_version_id)` |
+| `private.workspace_revision_tokens` | `(source, scope_company_id)` | None |
+| `public.app_accounts` | `(user_id)` | None |
+| `public.companies` | `(id)` | None |
+| `public.company_payout_report_components` | `(id)` | `(report_id, source, source_row_id)`; `(report_id, row_number)` |
+| `public.company_payout_reports` | `(id)` | None |
+| `public.sku_fee_periods` | `(id)` | `(terms_version_id, id)` |
+| `public.sku_terms_versions` | `(id)` | `(sku_id, id)`; `(sku_id, version_number)` |
+| `public.skus` | `(id)` | `(sku)` |
 
 ## Foreign keys
 
-| Referencing table / columns                                                                           | Referenced table / columns                                                              |
-| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `public.app_accounts (user_id)`                                                                       | `auth.users (id)`                                                                       |
-| `public.app_accounts (company_id)`                                                                    | `public.companies (id)`                                                                 |
-| `public.sku_terms_versions (sku_id)`                                                                  | `public.skus (id)`                                                                      |
-| `public.sku_terms_versions (company_id)`                                                              | `public.companies (id)`                                                                 |
-| `public.sku_fee_periods (terms_version_id)`                                                           | `public.sku_terms_versions (id)`                                                        |
-| `private.settlement_preprocess_versions (settlement_id)`                                              | `private.settlements (id)`                                                              |
-| `private.settlement_preprocess_versions (acquisition_id)`                                             | `private.settlement_acquisitions (id)`                                                  |
-| `private.settlement_transactions (version_id)`                                                        | `private.settlement_preprocess_versions (id)`                                           |
-| `private.data_kiosk_preprocess_batches (acquisition_id)`                                              | `private.data_kiosk_acquisitions (id)`                                                  |
-| `private.data_kiosk_preprocess_versions (day_id)`                                                     | `private.data_kiosk_days (id)`                                                          |
-| `private.data_kiosk_preprocess_versions (batch_id)`                                                   | `private.data_kiosk_preprocess_batches (id)`                                            |
-| `private.data_kiosk_transactions (version_id)`                                                        | `private.data_kiosk_preprocess_versions (id)`                                           |
-| `private.data_kiosk_pruned_versions (version_id)`                                                     | `private.data_kiosk_preprocess_versions (id)`                                           |
-| `public.company_payout_reports (company_id)`                                                          | `public.companies (id)`                                                                 |
-| `private.payout_report_refresh_state (company_id)`                                                    | `public.companies (id)`                                                                 |
-| `private.payout_report_settlement_versions (report_id)`                                               | `public.company_payout_reports (id)`                                                    |
-| `private.payout_report_settlement_versions (settlement_id, version_id)`                               | `private.settlement_preprocess_versions (settlement_id, id)`                            |
-| `private.payout_report_data_kiosk_versions (report_id)`                                               | `public.company_payout_reports (id)`                                                    |
-| `private.payout_report_data_kiosk_versions (day_id, version_id)`                                      | `private.data_kiosk_preprocess_versions (day_id, id)`                                   |
-| `private.payout_report_terms_versions (report_id)`                                                    | `public.company_payout_reports (id)`                                                    |
-| `private.payout_report_terms_versions (sku_id, terms_version_id)`                                     | `public.sku_terms_versions (sku_id, id)`                                                |
-| `public.company_payout_report_components (report_id)`                                                 | `public.company_payout_reports (id)`                                                    |
-| `public.company_payout_report_components (report_id, terms_version_id)`                               | `private.payout_report_terms_versions (report_id, terms_version_id)`                    |
-| `public.company_payout_report_components (sku_id, terms_version_id)`                                  | `public.sku_terms_versions (sku_id, id)`                                                |
-| `public.company_payout_report_components (terms_version_id, fee_period_id)`                           | `public.sku_fee_periods (terms_version_id, id)`                                         |
-| `private.payout_report_reconciliation (report_id)`                                                    | `public.company_payout_reports (id)`                                                    |
-| `public.skus (id, current_terms_version_id)`                                                          | `public.sku_terms_versions (sku_id, id)`                                                |
-| `private.settlements (id, current_version_id)`                                                        | `private.settlement_preprocess_versions (settlement_id, id)`                            |
-| `private.data_kiosk_days (id, current_version_id)`                                                    | `private.data_kiosk_preprocess_versions (day_id, id)`                                   |
-| `private.inventory_daily_captures (seller_namespace, marketplace_name, capture_date, acquisition_id)` | `private.inventory_acquisitions (seller_namespace, marketplace_name, capture_date, id)` |
-| `private.inventory_items (capture_id)`                                                                | `private.inventory_daily_captures (id)`                                                 |
+| Child table | Constraint |
+| --- | --- |
+| `private.data_kiosk_days` | `FOREIGN KEY (id, current_version_id) REFERENCES private.data_kiosk_preprocess_versions(day_id, id)` |
+| `private.data_kiosk_preprocess_batches` | `FOREIGN KEY (acquisition_id) REFERENCES private.data_kiosk_acquisitions(id)` |
+| `private.data_kiosk_preprocess_versions` | `FOREIGN KEY (batch_id) REFERENCES private.data_kiosk_preprocess_batches(id)` |
+| `private.data_kiosk_preprocess_versions` | `FOREIGN KEY (day_id) REFERENCES private.data_kiosk_days(id)` |
+| `private.data_kiosk_pruned_versions` | `FOREIGN KEY (version_id) REFERENCES private.data_kiosk_preprocess_versions(id)` |
+| `private.data_kiosk_transactions` | `FOREIGN KEY (version_id) REFERENCES private.data_kiosk_preprocess_versions(id)` |
+| `private.finances_days` | `FOREIGN KEY (id, current_version_id) REFERENCES private.finances_preprocess_versions(day_id, id)` |
+| `private.finances_preprocess_batches` | `FOREIGN KEY (acquisition_id) REFERENCES private.finances_acquisitions(id)` |
+| `private.finances_preprocess_versions` | `FOREIGN KEY (batch_id) REFERENCES private.finances_preprocess_batches(id)` |
+| `private.finances_preprocess_versions` | `FOREIGN KEY (day_id) REFERENCES private.finances_days(id)` |
+| `private.finances_pruned_versions` | `FOREIGN KEY (version_id) REFERENCES private.finances_preprocess_versions(id)` |
+| `private.finances_summary_check_versions` | `FOREIGN KEY (check_id) REFERENCES private.finances_summary_checks(id)` |
+| `private.finances_summary_check_versions` | `FOREIGN KEY (day_id) REFERENCES private.finances_days(id)` |
+| `private.finances_summary_check_versions` | `FOREIGN KEY (day_id, version_id) REFERENCES private.finances_preprocess_versions(day_id, id)` |
+| `private.finances_summary_check_versions` | `FOREIGN KEY (version_id) REFERENCES private.finances_preprocess_versions(id)` |
+| `private.finances_summary_checks` | `FOREIGN KEY (acquisition_id) REFERENCES private.finances_acquisitions(id)` |
+| `private.finances_transaction_components` | `FOREIGN KEY (version_id) REFERENCES private.finances_preprocess_versions(id)` |
+| `private.finances_transaction_components` | `FOREIGN KEY (version_id, transaction_id) REFERENCES private.finances_transactions(version_id, id)` |
+| `private.finances_transactions` | `FOREIGN KEY (version_id) REFERENCES private.finances_preprocess_versions(id)` |
+| `private.inventory_daily_captures` | `FOREIGN KEY (seller_namespace, marketplace_name, capture_date, acquisition_id) REFERENCES private.inventory_acquisitions(seller_namespace, marketplace_name, capture_date, id)` |
+| `private.inventory_items` | `FOREIGN KEY (capture_id) REFERENCES private.inventory_daily_captures(id) ON DELETE CASCADE` |
+| `private.payout_report_data_kiosk_versions` | `FOREIGN KEY (day_id, version_id) REFERENCES private.data_kiosk_preprocess_versions(day_id, id)` |
+| `private.payout_report_data_kiosk_versions` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_finances_summary_checks` | `FOREIGN KEY (check_id) REFERENCES private.finances_summary_checks(id)` |
+| `private.payout_report_finances_summary_checks` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_finances_versions` | `FOREIGN KEY (day_id, version_id) REFERENCES private.finances_preprocess_versions(day_id, id)` |
+| `private.payout_report_finances_versions` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_reconciliation` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_refresh_state` | `FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE` |
+| `private.payout_report_terms_versions` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_terms_versions` | `FOREIGN KEY (sku_id, terms_version_id) REFERENCES sku_terms_versions(sku_id, id)` |
+| `public.app_accounts` | `FOREIGN KEY (company_id) REFERENCES companies(id)` |
+| `public.app_accounts` | `FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE` |
+| `public.company_payout_report_components` | `FOREIGN KEY (terms_version_id, fee_period_id) REFERENCES sku_fee_periods(terms_version_id, id)` |
+| `public.company_payout_report_components` | `FOREIGN KEY (report_id, terms_version_id) REFERENCES private.payout_report_terms_versions(report_id, terms_version_id)` |
+| `public.company_payout_report_components` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `public.company_payout_report_components` | `FOREIGN KEY (sku_id, terms_version_id) REFERENCES sku_terms_versions(sku_id, id)` |
+| `public.company_payout_reports` | `FOREIGN KEY (company_id) REFERENCES companies(id)` |
+| `public.sku_fee_periods` | `FOREIGN KEY (terms_version_id) REFERENCES sku_terms_versions(id)` |
+| `public.sku_terms_versions` | `FOREIGN KEY (company_id) REFERENCES companies(id)` |
+| `public.sku_terms_versions` | `FOREIGN KEY (sku_id) REFERENCES skus(id)` |
+| `public.skus` | `FOREIGN KEY (id, current_terms_version_id) REFERENCES sku_terms_versions(sku_id, id)` |
 
-Inventory has no FK to SKU ownership or payout inputs. Its daily capture references the
-matching acquisition scope/date, and deleting a replaced capture cascades to its item rows.
-Deleting a company also removes its operational payout refresh state; saved financial reports
-retain their ordinary restrictive company reference.
+## Read views
 
-## Integrity and access boundaries
+| View | Columns |
+| --- | --- |
+| `private.current_sku_terms` | `sku_id`, `sku`, `terms_version_id`, `company_id` |
+| `private.finances_activity_components` | `id`, `version_id`, `transaction_id`, `native_transaction_id`, `deferred_transaction_id`, `release_transaction_id`, `seller_namespace`, `source_page_number`, `source_record_number`, `component_key`, `category`, `component_type`, `accounting_subtype`, `sku`, `marketplace_name`, `amount`, `currency`, `quantity`, `fee_base`, `posted_date`, `posted_at`, `transaction_type`, `transaction_status`, `account_type`, `activity_eligible`, `breakdown_path`, `source_fields`, `created_at` |
+| `private.live_company_component_inputs` | `source`, `source_row_id`, `source_version_id`, `preprocess_version`, `source_identity_id`, `seller_namespace`, `marketplace_name`, `activity_date`, `sku`, `component_type`, `currency`, `source_amount`, `quantity`, `fee_base`, `category`, `authoritative`, `sku_id`, `terms_version_id`, `company_id` |
+| `private.live_source_reconciliation` | `seller_namespace`, `activity_date`, `marketplace_name`, `currency`, `finances_category_amount`, `selbox_category_amount`, `data_kiosk_finances_control`, `data_kiosk_category_amount`, `difference`, `finances_total`, `accounted_total` |
+| `private.source_reconciliation_inputs` | `source`, `source_version_id`, `seller_namespace`, `activity_date`, `marketplace_name`, `currency`, `category`, `amount` |
+| `public.company_skus` | `id`, `sku`, `company_id`, `terms_version_id` |
+| `public.current_sku_fee_periods` | `sku_id`, `company_id`, `terms_version_id`, `marketplace_name`, `fee_period_id`, `valid_period`, `fee_rate_percent` |
+| `public.data_kiosk_preprocess_entries` | `id`, `version_id`, `seller_namespace`, `marketplace_name`, `activity_date`, `component_key`, `sku`, `category`, `component_type`, `amount`, `currency`, `quantity`, `fee_base`, `native_dimensions`, `source_document_id`, `source_line_number`, `created_at`, `preprocess_version`, `day_id` |
+| `public.data_kiosk_preprocess_results` | `id`, `day_id`, `batch_id`, `acquisition_id`, `seller_namespace`, `amazon_scope`, `marketplace_name`, `activity_date`, `dataset_key`, `preprocess_version`, `row_count`, `content_sha256`, `created_at`, `is_current`, `is_pruned` |
+| `public.finances_preprocess_entries` | `id`, `version_id`, `transaction_id`, `native_transaction_id`, `deferred_transaction_id`, `release_transaction_id`, `seller_namespace`, `source_page_number`, `source_record_number`, `component_key`, `category`, `component_type`, `accounting_subtype`, `sku`, `marketplace_name`, `amount`, `currency`, `quantity`, `fee_base`, `posted_date`, `posted_at`, `transaction_type`, `transaction_status`, `account_type`, `activity_eligible`, `breakdown_path`, `source_fields`, `created_at`, `preprocess_version`, `day_id` |
+| `public.finances_preprocess_results` | `id`, `day_id`, `batch_id`, `acquisition_id`, `seller_namespace`, `amazon_scope`, `marketplace_name`, `activity_date`, `preprocess_version`, `transaction_count`, `row_count`, `content_sha256`, `created_at`, `is_current`, `is_pruned` |
+| `public.financial_review_records` | `source`, `source_row_id`, `source_version_id`, `activity_date`, `seller_namespace`, `marketplace_name`, `sku`, `component_type`, `category`, `currency`, `amount` |
+| `public.latest_company_payout_reports` | `id`, `company_id`, `currency`, `start_date`, `end_date`, `dataset_key`, `marketplace_names`, `report_name`, `change_reason`, `calculation_version`, `component_count`, `reconciliation_count`, `finances_version_count`, `data_kiosk_version_count`, `terms_version_count`, `source_amount`, `fee_amount`, `company_amount`, `created_at` |
+| `public.latest_inventory_captures` | `capture_id`, `seller_namespace`, `marketplace_name`, `capture_date`, `report_created_at`, `preprocessed_at` |
+| `public.latest_inventory_items` | `capture_id`, `seller_namespace`, `capture_date`, `marketplace_name`, `sku`, `company_id`, `report_created_at`, `preprocessed_at`, `snapshot_date`, `available_quantity`, `fba_supply_quantity`, `inbound_quantity`, `inbound_working_quantity`, `inbound_shipped_quantity`, `inbound_received_quantity`, `reserved_quantity`, `reserved_transfer_quantity`, `reserved_processing_quantity`, `reserved_customer_order_quantity`, `unfulfillable_quantity`, `sales_amount_90d`, `units_shipped_90d`, `currency`, `health_status`, `minimum_inventory_units`, `days_of_supply`, `total_days_of_supply`, `recommended_ship_in_units`, `recommended_ship_in_date`, `recommended_action`, `health_status_urgency`, `recommended_action_urgency` |
+| `public.live_company_components` | `source`, `source_row_id`, `source_version_id`, `preprocess_version`, `source_identity_id`, `seller_namespace`, `marketplace_name`, `activity_date`, `sku`, `component_type`, `currency`, `source_amount`, `quantity`, `fee_base`, `category`, `authoritative`, `sku_id`, `terms_version_id`, `company_id`, `fee_period_id`, `fee_rate_percent`, `resolution_status`, `fee_amount`, `company_amount` |
+| `public.payout_reconciliation_totals` | `report_id`, `currency`, `finances_category_amount`, `selbox_category_amount`, `data_kiosk_finances_control`, `data_kiosk_category_amount`, `difference`, `finances_total`, `accounted_total`, `source_group_count` |
+| `public.payout_report_data_kiosk_versions` | `report_id`, `day_id`, `version_id` |
+| `public.payout_report_finances_versions` | `report_id`, `day_id`, `version_id` |
+| `public.payout_report_marketplace_totals` | `report_id`, `marketplace_name`, `source_amount`, `fee_amount`, `company_amount` |
+| `public.payout_report_reconciliation` | `report_id`, `row_number`, `seller_namespace`, `activity_date`, `marketplace_name`, `currency`, `finances_category_amount`, `selbox_category_amount`, `data_kiosk_finances_control`, `data_kiosk_category_amount`, `difference`, `finances_total`, `accounted_total` |
+| `public.payout_report_terms_versions` | `report_id`, `sku_id`, `terms_version_id` |
 
-Source records resolve ownership through exact `sku`, not seller-qualified SKU. There is no
-source-item FK to `public.skus` and no source company ID. Selected terms use an own-SKU composite FK
-and are required at commit, although the pointer is nullable during publication. Source identities
-may have no selected version.
+## Regenerate
 
-Original bytes remain in private Storage through JSON manifests, with no SQL FK to Storage objects.
-Financial versions and payout evidence retain their existing immutability/retention policies.
-Inventory instead permits trusted atomic daily replacement: delete the old normalized capture/items
-while retaining raw evidence.
+From the repository root with the local test PostgreSQL server and Docker running:
 
-Payout component source IDs are polymorphic provenance validated by publication, not direct SQL FKs
-to either financial source. Typed payout manifests do have composite version FKs and protect
-financial evidence. No inventory pin or monetary reconciliation is introduced.
+```sh
+conda run --no-capture-output -n A-SelBox python -m docs.generate_schema_figures --render
+```
 
-Members read current owned live data and their own frozen reports; administrator access includes
-additional history and control manifests. Inventory uses RLS, administrator-only acquisition/capture tables, and
-a caller-checked private helper for minimal latest-capture metadata. Members see NULL seller namespaces;
-item ownership is enforced independently, after selecting the latest source scopes. Public schema does not mean public access. Revision-token company scope is
-not a company FK: ordinary UUID permits the global nil UUID.
-
-## Views
-
-The schema defines 21 invoker-security views, not additional tables:
-
-- `private.current_sku_terms`
-- `public.company_skus`
-- `public.current_sku_fee_periods`
-- `private.source_reconciliation_inputs`
-- `private.live_source_reconciliation`
-- `private.live_company_component_inputs`
-- `public.live_company_components`
-- `public.settlement_preprocess_results`
-- `public.data_kiosk_preprocess_results`
-- `public.settlement_preprocess_entries`
-- `public.data_kiosk_preprocess_entries`
-- `public.payout_report_marketplace_totals`
-- `public.latest_company_payout_reports`
-- `public.payout_report_reconciliation`
-- `public.financial_review_records`
-- `public.payout_reconciliation_totals`
-- `public.payout_report_settlement_versions`
-- `public.payout_report_data_kiosk_versions`
-- `public.payout_report_terms_versions`
-- `public.latest_inventory_captures`
-- `public.latest_inventory_items`
-
-`public.latest_company_payout_reports` selects the newest immutable report for
-each company, month, and currency. Source namespaces remain in its pinned inputs;
-they do not create separate report groups. The full report table retains history.
-New payout publication and queued refresh work require at least one currently assigned
-SKU. Losing the last assignment removes mutable refresh work but preserves all saved
-reports and their evidence; assigning a SKU again resumes automatic generation.
-
-`public.financial_review_records` retains current mature rows from both sources in each of the three
-monetary categories, without ownership or fee joins. It is explicitly administrator-gated. The stable
-invoker RPCs `financial_review_totals(date,date,allocation_category)` and
-`financial_review_type_totals(date,date,allocation_category,text)` apply direct activity-date bounds
-before aggregation. Their half-open month ranges preserve existing date indexes under RLS; neither
-RPC changes accounting classifications, maturity, or saved payout data.
-
-The [Financial review](financial_review.md) interfaces are administrator-only. Current
-comparisons aggregate mature source facts by category, month, and currency across
-namespaces and marketplaces. Exact source records preserve provenance. The saved
-reconciliation views aggregate one frozen report's account controls by currency or
-expose its daily controls; they do not add repeated controls across company reports.
-Members can read only authoritative frozen payout components, while administrators
-retain access to saved comparison rows.
-
-`public.latest_inventory_items` selects the latest successful capture per
-seller/marketplace before joining its SKU rows. It joins ownership by exact SKU alone. Missing rows
-do not inherit older per-SKU observations. This read model has no dependency on financial totals or
-payout RPCs. Its nullable integer `health_status_urgency` and `recommended_action_urgency` columns
-derive application ordering priorities from recognized source labels; they are not stored in the
-inventory tables or supplied by Amazon. Higher values are more urgent, and unknown labels remain
-unranked. The [inventory read contract](inventory_daily_captures.md#dates-latest-reads-and-access)
-defines the ordering and aliases.
-
-## Domains, enums, and important checks
-
-| Type                         | Meaning                                                   |
-| ---------------------------- | --------------------------------------------------------- |
-| `public.local_uuid`          | UUIDv7 domain used for local application identities       |
-| `private.nonblank`           | Nonblank text                                             |
-| `private.sha256`             | 64 lowercase hexadecimal characters                       |
-| `private.exact_numeric`      | Finite source numeric bounded to 1,000 fixed-point digits |
-| `private.calculated_amount`  | Finite calculated numeric without the source-value bound  |
-| `public.allocation_category` | `SETTLEMENT`, `SELBOX`, `DATA_KIOSK`, `ANALYSIS_ONLY`     |
-| `public.app_access_role`     | `administrator`, `member`, `unassigned`                              |
-
-Marketplace names use checked text. Inventory metrics use nullable ordinary finite numerics/unit
-counts, not financial amount domains or allocation categories. Payout headers may have
-NULL currency only for a valid empty company-month report. Nonempty reports keep
-their currencies separate and combine all contributing source namespaces.
-
-New Auth users automatically receive an Unassigned application account. Administrator
-and Unassigned rows require NULL `company_id`; Member rows require a company.
-The default role is `unassigned`. Administrator-only account-directory and membership
-RPCs expose a minimal current Auth email roster and guarded company assignment;
-trusted Python DB administration exclusively grants/revokes Administrator access.
-See [application access](access_control.md) for lifecycle, privileges, and commands.
-
-`public.create_company(text)` provides guarded Administrator company creation and
-reuses an existing case-insensitive, outer-whitespace-trimmed name. Equivalent
-application requests serialize with an advisory transaction lock, while trusted
-Python imports retain their existing company-name semantics. The RPC adds no
-table, column, or global uniqueness constraint; new rows use the existing UUIDv7
-default and company-change revision trigger.
-
-`public.delete_company(uuid)` removes only an unused company through the guarded
-`private.delete_administrator_company(uuid)` helper. It locks the company row and
-checks all four company-referencing tables: `app_accounts`, `sku_terms_versions`,
-`company_payout_reports`, and `private.payout_report_refresh_state`. Current SKU
-assignments are also reported separately. Historical terms and zero-period terms
-remain blockers; even operational refresh rows are protected rather than cascaded.
-Linked records produce HTTP 409 with structured reason counts. Missing companies
-return `deleted: false` for safe retries. No new storage or table write permissions
-are introduced; successful removal uses the existing company revision trigger.
+The generator installs migrations in a disposable database, derives columns/constraints/views from PostgreSQL catalogs, and removes that database. SVG rendering uses the pinned Mermaid CLI Docker image; no native Node/npm installation is required. `--check` verifies Markdown/Mermaid sources without changing files. The inventory workflow is a maintained behavioral diagram; all relational figures are generated.

@@ -39,31 +39,94 @@ begin
 end;
 $$;
 
-create function private.publish_settlement_acquisition(p_payload jsonb) returns uuid
+create function private.publish_finances_acquisition(p_payload jsonb) returns uuid
 language plpgsql set search_path = '' as $$
-declare acquisition_payload private.settlement_acquisitions;
+declare acquisition private.finances_acquisitions; page jsonb; coverage jsonb;
+    previous_operation text; previous_terminal boolean := true;
+    page_number integer := 0; existing private.finances_acquisitions;
 begin
-    acquisition_payload := jsonb_populate_record(null::private.settlement_acquisitions, p_payload);
-    perform private.assert_archive_document(acquisition_payload.document);
-    if acquisition_payload.document_sha256 is distinct from acquisition_payload.document->>'document_sha256' then
-        raise exception 'Acquisition document digest mismatch' using errcode = '23514';
+    acquisition := jsonb_populate_record(null::private.finances_acquisitions,p_payload);
+    if jsonb_typeof(acquisition.documents) is distinct from 'array'
+        or jsonb_array_length(acquisition.documents) = 0
+        or jsonb_typeof(acquisition.api_metadata->'coverage_marketplaces') is distinct from 'array'
+        or jsonb_array_length(acquisition.api_metadata->'coverage_marketplaces') <> cardinality(acquisition.marketplace_ids)
+        or cardinality(acquisition.marketplace_ids) <> (select count(distinct m) from unnest(acquisition.marketplace_ids) m)
+        or array_position(acquisition.marketplace_ids,null) is not null then
+        raise exception 'Complete Finances pages and marketplace coverage required' using errcode='23514';
     end if;
-    perform pg_advisory_xact_lock(hashtextextended(
-        jsonb_build_array('settlement-download', acquisition_payload.seller_namespace,
-            acquisition_payload.amazon_scope, acquisition_payload.report_document_id)::text, 0));
-    if exists (select 1 from private.settlement_acquisitions a
-        where (a.seller_namespace, a.amazon_scope, a.report_document_id) =
-              (acquisition_payload.seller_namespace, acquisition_payload.amazon_scope, acquisition_payload.report_document_id)
-          and a.document_sha256 <> acquisition_payload.document_sha256) then
-        raise exception 'Known settlement document changed decoded bytes' using errcode = '23514';
+    for coverage in select value from jsonb_array_elements(acquisition.api_metadata->'coverage_marketplaces') loop
+        if not (coverage->>'marketplace_id' = any(acquisition.marketplace_ids))
+            or nullif(coverage->>'marketplace_name','') is null
+            or not exists(select 1 from pg_timezone_names z where z.name=coverage->>'time_zone')
+            or acquisition.query_end_date >= (acquisition.capture_started_at at time zone (coverage->>'time_zone'))::date then
+            raise exception 'Finances publication requires completed local days and known time zones' using errcode='23514';
+        end if;
+    end loop;
+    if (select count(distinct value->>'marketplace_name') from jsonb_array_elements(acquisition.api_metadata->'coverage_marketplaces')) <> cardinality(acquisition.marketplace_ids)
+        or (select count(distinct value->>'marketplace_id') from jsonb_array_elements(acquisition.api_metadata->'coverage_marketplaces')) <> cardinality(acquisition.marketplace_ids) then
+        raise exception 'Finances marketplace coverage must be unique' using errcode='23514';
     end if;
-    insert into private.settlement_acquisitions (
-        id, seller_namespace, amazon_scope, report_id, report_document_id, report_type,
-        report_created_at, marketplace_ids, api_metadata, downloaded_at, document_sha256, document
-    ) values (acquisition_payload.id, acquisition_payload.seller_namespace, acquisition_payload.amazon_scope, acquisition_payload.report_id, acquisition_payload.report_document_id,
-        acquisition_payload.report_type, acquisition_payload.report_created_at, acquisition_payload.marketplace_ids, acquisition_payload.api_metadata, acquisition_payload.downloaded_at,
-        acquisition_payload.document_sha256, acquisition_payload.document);
-    return acquisition_payload.id;
+    for page in select value from jsonb_array_elements(acquisition.documents) loop
+        if page->>'operation' not in ('transactions','summary')
+            or not page ?& array['operation','page_number','marketplace_id','is_terminal','request_parameters','requested_at','received_at','document','api_metadata']
+            or jsonb_typeof(page->'request_parameters') is distinct from 'object'
+            or jsonb_typeof(page->'is_terminal') is distinct from 'boolean'
+            or page->>'marketplace_id' is not null
+            or (page->>'requested_at')::timestamptz < acquisition.capture_started_at
+            or (page->>'received_at')::timestamptz > acquisition.downloaded_at
+            or (page->>'received_at')::timestamptz < (page->>'requested_at')::timestamptz then
+            raise exception 'Invalid Finances response page' using errcode='23514';
+        end if;
+        if page->>'operation' is distinct from previous_operation then
+            if not previous_terminal then raise exception 'Incomplete Finances pagination' using errcode='23514'; end if;
+            page_number := 0;
+        elsif previous_terminal then
+            raise exception 'Finances page follows terminal response' using errcode='23514';
+        end if;
+        page_number := page_number + 1;
+        if (page->>'page_number')::integer <> page_number then
+            raise exception 'Finances page sequence is incomplete' using errcode='23514';
+        end if;
+        if page->>'operation' = 'transactions' and (page->'request_parameters') ?| array['marketplaceId','accountType','transactionStatus','relatedIdentifierName','relatedIdentifierValue'] then
+            raise exception 'Filtered diagnostic transactions cannot replace complete days' using errcode='23514';
+        end if;
+        if page->>'operation'='transactions' then
+            if not (page->'request_parameters') ?& array['postedAfter','postedBefore'] then
+                raise exception 'Complete Finances capture requires unfiltered regional date bounds' using errcode='23514';
+            end if;
+            for coverage in select value from jsonb_array_elements(acquisition.api_metadata->'coverage_marketplaces') loop
+                if (page->'request_parameters'->>'postedAfter')::timestamptz > (acquisition.query_start_date::timestamp at time zone (coverage->>'time_zone'))
+                    or (page->'request_parameters'->>'postedBefore')::timestamptz < ((acquisition.query_end_date+1)::timestamp at time zone (coverage->>'time_zone')) then
+                    raise exception 'Finances UTC request does not cover declared complete local days' using errcode='23514';
+                end if;
+            end loop;
+        elsif page->'request_parameters' ? 'accountType' then
+            raise exception 'Summary controls require all account types' using errcode='23514';
+        end if;
+        perform private.assert_archive_document(page->'document');
+        previous_operation := page->>'operation';
+        previous_terminal := (page->>'is_terminal')::boolean;
+    end loop;
+    if jsonb_typeof(acquisition.api_metadata->'summary_available') is distinct from 'boolean'
+        or (acquisition.api_metadata->>'summary_available')::boolean is distinct from exists(select 1 from jsonb_array_elements(acquisition.documents) p where p->>'operation'='summary') then
+        raise exception 'Finances Summary availability must match archived page inventory' using errcode='23514';
+    end if;
+    if not previous_terminal or not exists(select 1 from jsonb_array_elements(acquisition.documents) p where p->>'operation'='transactions') then
+        raise exception 'A complete terminal Transactions traversal is required' using errcode='23514';
+    end if;
+    select * into existing from private.finances_acquisitions where id=acquisition.id;
+    if found then
+        if (to_jsonb(existing)-'created_at') is distinct from (to_jsonb(acquisition)-'created_at') then
+            raise exception 'Finances acquisition identity has conflicting contents' using errcode='23514';
+        end if;
+        return existing.id;
+    end if;
+    insert into private.finances_acquisitions(id,seller_namespace,amazon_scope,api_version,capture_started_at,downloaded_at,
+        query_start_date,query_end_date,marketplace_ids,api_metadata,documents)
+    values(acquisition.id,acquisition.seller_namespace,acquisition.amazon_scope,acquisition.api_version,
+        acquisition.capture_started_at,acquisition.downloaded_at,acquisition.query_start_date,acquisition.query_end_date,
+        acquisition.marketplace_ids,acquisition.api_metadata,acquisition.documents);
+    return acquisition.id;
 end;
 $$;
 

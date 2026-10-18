@@ -1,5 +1,7 @@
 """Synthetic source documents retained through real archive and database clients."""
 
+import json
+import re
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid7
 
@@ -8,13 +10,10 @@ from services.sync.src.amazon.data_kiosk.query_builder import (
     ECONOMICS_SCHEMA_NAME,
     build_daily_msku_economics_query,
 )
-from services.sync.src.amazon.reports.discovery import SETTLEMENT_REPORT_TYPE
-from services.sync.src.amazon.settlement_models import SettlementReportReference
-from services.sync.src.amazon.settlement_tabular import SETTLEMENT_V2_COLUMNS
+from services.sync.src.amazon.finances.client import FINANCES_API_VERSION, FinancesOperation
 from services.sync.src.archives.models import (
     ArchivedDataKioskPage,
     DataKioskAcquisition,
-    SettlementAcquisition,
 )
 from services.sync.src.archives.storage import ArchiveStorage, archive_document
 from services.sync.src.database.company_terms import (
@@ -23,6 +22,7 @@ from services.sync.src.database.company_terms import (
     publish_sku_terms,
 )
 from services.sync.src.database.connection import DatabaseConnection
+from services.sync.src.finances.acquisition_models import ArchivedFinancesPage, FinancesAcquisition
 from services.sync.src.numeric import Numeric
 from services.sync.tests.support.economics import complete_economics_document, economics_fee
 
@@ -38,81 +38,164 @@ def fixture_sku(identity: str) -> str:
     return f"{SKU}-{identity}"
 
 
-def settlement_document(identity: str, *, sku: str = SKU) -> bytes:
-    """A 100 USD sale, full refund, and account-level disposal reconciliation."""
-    rows = [
-        {
-            "settlement-id": identity,
-            "settlement-start-date": "2026-08-01T00:00:00Z",
-            "settlement-end-date": "2026-08-02T23:59:59Z",
-            "deposit-date": "2026-08-03T00:00:00Z",
-            "total-amount": "-10",
-            "currency": "USD",
+def finances_document(
+    identity: str, *, sku: str = SKU, sale_amount: str = "100", quantity: int = 1
+) -> bytes:
+    """Native Shipment, Refund and SKU-less disposal records, with exact JSON numbers."""
+    records: list[dict[str, object]] = []
+    amount = Numeric(sale_amount)
+    for kind, value, day in (("Shipment", amount, START), ("Refund", -amount, END)):
+        money = {"currencyCode": "USD", "currencyAmount": str(value)}
+        item = {
+            "totalAmount": money,
+            "contexts": [
+                {"contextType": "ProductContext", "sku": sku, "quantityShipped": quantity}
+            ],
+            "breakdowns": [
+                {
+                    "breakdownType": "ProductCharges",
+                    "breakdownAmount": money,
+                    "breakdowns": [
+                        {"breakdownType": "OurPricePrincipal", "breakdownAmount": money}
+                    ],
+                }
+            ],
         }
-    ]
-    for transaction, amount, day in (("Order", "100", START), ("Refund", "-100", END)):
-        rows.append(
+        records.append(
             {
-                "settlement-id": identity,
-                "transaction-type": transaction,
-                "order-id": f"order-{identity}",
-                "marketplace-name": "Amazon.com",
-                "amount-type": "ItemPrice",
-                "amount-description": "Principal",
-                "amount": amount,
-                "posted-date": day.isoformat(),
-                "posted-date-time": f"{day.isoformat()}T12:00:00Z",
-                "sku": sku,
-                "quantity-purchased": "1",
+                "transactionId": f"{identity}-{kind}",
+                "transactionType": kind,
+                "transactionStatus": "DEFERRED",
+                "postedDate": f"{day.isoformat()}T12:00:00Z",
+                "sellingPartnerMetadata": {
+                    "sellingPartnerId": "synthetic-seller",
+                    "marketplaceId": MARKETPLACE_ID,
+                    "accountType": "Standard Orders",
+                },
+                "relatedIdentifiers": [],
+                "totalAmount": money,
+                "items": [item],
             }
         )
-    rows.append(
+    charge = {"currencyCode": "USD", "currencyAmount": "-10"}
+    records.append(
         {
-            "settlement-id": identity,
-            "transaction-type": "FBAFees",
-            "amount-type": "FBA Removal Order: Disposal Fee",
-            "amount-description": "Base fee",
-            "amount": "-10",
-            "posted-date": END.isoformat(),
-            "posted-date-time": f"{END.isoformat()}T12:00:00Z",
-            "sku": "",
+            "transactionId": f"{identity}-disposal",
+            "transactionType": "ServiceFee",
+            "transactionStatus": "RELEASED",
+            "postedDate": f"{END.isoformat()}T12:00:00Z",
+            "sellingPartnerMetadata": {
+                "sellingPartnerId": "synthetic-seller",
+                "marketplaceId": MARKETPLACE_ID,
+                "accountType": "Standard Orders",
+            },
+            "relatedIdentifiers": [],
+            "totalAmount": charge,
+            "items": [
+                {
+                    "totalAmount": charge,
+                    "breakdowns": [
+                        {
+                            "breakdownType": "FBAFees",
+                            "breakdownAmount": charge,
+                            "breakdowns": [
+                                {
+                                    "breakdownType": "FBADisposalFee",
+                                    "breakdownAmount": charge,
+                                    "breakdowns": [
+                                        {"breakdownType": "Base", "breakdownAmount": charge}
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
         }
     )
-    lines = ["\t".join(SETTLEMENT_V2_COLUMNS)]
-    lines.extend("\t".join(row.get(column, "") for column in SETTLEMENT_V2_COLUMNS) for row in rows)
-    return ("\r\n".join(lines) + "\r\n").encode()
+    # json.dumps cannot emit Decimal numbers. Only the known money member is
+    # unquoted, retaining exact native numeric literals without float conversion.
+    body = json.dumps({"payload": {"transactions": records}, "statusCode": 200})
+    return re.sub(r'("currencyAmount": )"(-?\d+(?:\.\d+)?)"', r"\1\2", body).encode()
 
 
-def archived_settlement(
-    storage: ArchiveStorage, seller: str, *, sku: str | None = None
-) -> SettlementAcquisition:
-    """Upload a real immutable archive and retain complete Reports provenance."""
+def archived_finances(
+    storage: ArchiveStorage,
+    seller: str,
+    *,
+    sku: str | None = None,
+    end_date: date = END,
+    sale_amount: str = "100",
+    quantity: int = 1,
+) -> FinancesAcquisition:
+    """Archive complete local days and an independent matching Summary response."""
     sku = sku if sku is not None else fixture_sku(seller)
     identifier = uuid7()
-    report_id = f"report-{identifier}"
-    document_id = f"document-{identifier}"
-    metadata: dict[str, object] = {
-        "reportId": report_id,
-        "reportDocumentId": document_id,
-        "reportType": SETTLEMENT_REPORT_TYPE,
-        "processingStatus": "DONE",
-        "createdTime": CREATED.isoformat(),
-        "marketplaceIds": [MARKETPLACE_ID],
-    }
-    return SettlementAcquisition(
+    observed = max(CREATED, datetime.combine(end_date, CREATED.timetz()) + timedelta(days=1))
+    documents: list[ArchivedFinancesPage] = []
+    summary = json.dumps(
+        {
+            "payload": {
+                "summaries": [
+                    {
+                        "partnerMetadata": {
+                            "marketplaceId": MARKETPLACE_ID,
+                            "accountType": "Standard Orders",
+                        },
+                        "periodStart": START.isoformat(),
+                        "periodEnd": end_date.isoformat(),
+                        "netProceeds": {"currencyCode": "USD", "currencyAmount": -10},
+                    }
+                ]
+            },
+            "statusCode": 200,
+        }
+    ).encode()
+    pages: tuple[tuple[FinancesOperation, dict[str, str], bytes], ...] = (
+        (
+            "transactions",
+            {
+                "postedAfter": f"{START.isoformat()}T07:00:00+00:00",
+                "postedBefore": f"{(end_date + timedelta(days=1)).isoformat()}T07:00:00+00:00",
+            },
+            finances_document(str(identifier), sku=sku, sale_amount=sale_amount, quantity=quantity),
+        ),
+        ("summary", {"periodStart": START.isoformat(), "periodEnd": end_date.isoformat()}, summary),
+    )
+    for operation, parameters, content in pages:
+        documents.append(
+            ArchivedFinancesPage(
+                operation=operation,
+                page_number=1,
+                marketplace_id=None,
+                is_terminal=True,
+                request_parameters=parameters,
+                requested_at=observed,
+                received_at=observed,
+                document=archive_document(storage, content, source_compression=None),
+            )
+        )
+    return FinancesAcquisition(
         id=identifier,
         seller_namespace=seller,
         amazon_scope="NA",
-        reference=SettlementReportReference(
-            report_id, document_id, CREATED, (MARKETPLACE_ID,), api_metadata=metadata
-        ),
-        downloaded_at=datetime.now(UTC),
-        document=archive_document(
-            storage,
-            settlement_document(str(identifier), sku=sku),
-            source_compression=None,
-        ),
-        api_metadata=metadata,
+        api_version=FINANCES_API_VERSION,
+        capture_started_at=observed,
+        downloaded_at=observed,
+        query_start_date=START,
+        query_end_date=end_date,
+        marketplace_ids=(MARKETPLACE_ID,),
+        documents=tuple(documents),
+        api_metadata={
+            "summary_available": True,
+            "coverage_marketplaces": [
+                {
+                    "marketplace_id": MARKETPLACE_ID,
+                    "marketplace_name": "Amazon.com",
+                    "time_zone": "America/Los_Angeles",
+                }
+            ],
+        },
     )
 
 

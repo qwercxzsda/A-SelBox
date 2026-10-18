@@ -1,475 +1,210 @@
 # Data workflows
 
-The separate [daily inventory workflow](inventory_daily_captures.md) reuses acquisition,
-private archives, and offline preprocessing for replenishment estimates. It retains one preprocessed
-capture per day, with no financial or payout dependency. The financial workflows below retain their
-separate publication and retention rules.
+Finances and Data Kiosk provide the financial inputs. Download and archive Amazon responses first;
+preprocess successful acquisitions offline; publish complete daily versions atomically; calculate
+company ownership and fees from selected source versions and current SKU terms. The scheduled payout
+worker saves exact input versions and amounts when a company month becomes ready.
 
-Settlement Reports and Data Kiosk are the two Amazon financial sources. Download
-and archive exact documents first; preprocess successful acquisitions offline in
-Python; resolve current company ownership and calculate live company fees in SQL;
-freeze exact inputs and amounts when publishing company payout reports.
+The separate [inventory workflow](inventory_daily_captures.md) retains one preprocessed capture per
+seller, marketplace and day for approximate replenishment. Inventory never enters financial totals.
 
-Strict financial reads, payouts, and dashboard estimates apply the same
-[source-allocation policy](source_allocation.md). Dashboard estimates select authoritative
-imported rows but do not certify complete source coverage. Their request scope is defined by
-the [transaction query contract](transaction_query_contracts.md).
+The [Finances contract](finances_transactions.md), [source allocation](source_allocation.md),
+[company fees](company_fees.md), [payout contract](company_payout_reports.md), and
+[query contract](transaction_query_contracts.md) define their respective calculations. The
+[sync guide](../services/sync/README.md) owns executable commands; the
+[database guide](../services/db/supabase/README.md) owns installation and verification.
 
-The [sync guide](../services/sync/README.md) owns commands and retry settings, the
-[database guide](../services/db/supabase/README.md) owns setup and schema operations,
-the [company-fee contract](company_fees.md) owns fee publication and
-reads, and the [source-allocation contract](source_allocation.md) owns economic
-source authority. The [payout report contract](company_payout_reports.md) describes
-report capture and retention. Approval and payment execution remain
-deferred.
+## Persistence and naming
 
-## Lifecycle summary
+| Object | Meaning and policy |
+| --- | --- |
+| Acquisition | One successfully archived Amazon retrieval and its complete request/page inventory. Immutable and retained indefinitely. |
+| Preprocess batch | One complete offline publication from an acquisition. Owns all covered day versions. |
+| Day | Stable seller/marketplace/local-date identity with a selected `current_version_id`. Data Kiosk additionally identifies its dataset. |
+| Preprocess version | Immutable complete contents of one day, including an explicit empty result. |
+| Native Finances transaction | Original API identity, signed control amount, status and lifecycle links within one version. |
+| Component | One member of the transaction's complete monetary partition, preserving source SKU evidence and native provenance. |
+| SKU terms version | Immutable company assignment and the complete marketplace fee inventory for an exact SKU. |
+| Payout report | Immutable company/month/currency amounts plus exact source, Summary-control and terms manifests. |
 
-| Data                                                    | Persistence and mutation policy                                                                                       |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Original documents and successful acquisition manifests | Immutable, retained indefinitely; documents in private Supabase Storage and identities/hashes/locations in PostgreSQL |
-| Settlement results                                      | Complete immutable versions per financial settlement, with immutable transactions                                     |
-| Data Kiosk results                                      | Complete seller/marketplace/local-day versions, including empty days; controlled history retention                    |
-| SKU identities                                   | Stable SKU keys with an atomically selected current terms version                                              |
-| Company and fee configuration                           | Immutable terms versions: nullable company assignment plus complete fee periods for all marketplaces                  |
-| Current source references                               | Updated only through validated atomic publication                                                                     |
-| Company payout reports                                  | Immutable saved amounts, components, and exact source/terms manifests; approval and payment execution are deferred    |
+Successful acquisitions and preprocessing results are the only persisted acquisition/publication
+states. Running and failed attempts use logs. Imports do not create SKU configuration, assign
+companies, or invent missing rates. Derived service fees and company amounts are calculated from
+source facts and terms; they are not copied into source transaction tables.
 
-Acquisition and preprocessing tables contain successful completed results only.
-Source imports do not create SKU configuration, assign companies, or create
-fee coverage. Running/failed attempts produce Python logs. There are no
-intermediate parsed-row tables or persisted derived company, commission, rate, or
-payable copies in the source facts. Original Amazon fees remain source facts.
+Both financial sources use `version_id` on children, `batch_id` on day versions, and
+`current_version_id` on day identities. Finances components also have a composite
+`(version_id, transaction_id)` foreign key to their native parent. Different daily versions may
+contain the same Amazon transaction ID; a calculation selects one complete version per day.
 
-Each source has one transaction/component table. Metadata, versions, ownership,
-and fee configuration have separate tables. Financial queries select the categories
-required by their contract.
-The required `category` uses Python `AllocationCategory` and PostgreSQL
-`public.allocation_category`:
+The current shared processor definition is `PREPROCESS_VERSION = "v3"`. Source headers retain the
+actual definition used. Changing parsing, classification, local-date interpretation or activity
+selection requires explicit offline reprocessing. Compatibility requires the same definition on all
+required financial inputs; filtering incompatible inputs out does not establish complete coverage.
 
-| Category | Settlement | Data Kiosk |
-| --- | --- | --- |
-| `SETTLEMENT` | Company amounts for mature dates through exact SKU ownership | Company amounts for recent dates; comparisons for mature dates |
-| `SELBOX` | Amounts retained by SelBox for mature dates | Amounts retained by SelBox for recent dates; account components cannot carry an MSKU |
-| `DATA_KIOSK` | Controls for mature dates regardless of SKU; discarded for recent dates | Company costs at every age through exact SKU ownership |
-| `ANALYSIS_ONLY` | Not allowed | Diagnostic facts outside monetary totals |
+Local objects use UUIDv7 identities. Financial observation order is separate: Finances uses capture
+start time and acquisition ID; Data Kiosk uses root query creation time and acquisition ID. Replaying
+an old acquisition never makes its Amazon observation newer. SKU terms use their own revision number.
 
-Unknown source types in either preprocessor fail before publication. There is no stored
-unresolved category. The [family rules](settlement_component_categories.md) and
-[source authority policy](source_allocation.md)
-define classification; category selection alone does not establish complete source coverage.
+## Download and archive
 
-### Naming conventions
+Finances retrieves `listTransactions` and date-range `listSummary` using API `2024-06-19`. Requests
+span complete marketplace-local dates and are split at calendar-month boundaries. Transaction calls
+remain regional and unfiltered by marketplace, account, status, order or SKU. The archived coverage
+roster records every included financial marketplace and named time zone. Follow every continuation
+token, including tokens on an empty page. A complete traversal is not an Amazon snapshot guarantee.
 
-A **version** is one complete immutable snapshot for a logical identity, including
-its children. An **acquisition** is successfully archived Amazon input. An
-**attempt** is a Python execution and has no database status/log table.
+The Finances transport retains decoded HTTP response bytes before JSON parsing, avoiding floating
+point conversion. Each transaction and Summary page stores its operation, page number, exact request
+parameters, timestamps, terminal flag and safe API provenance. Failed transaction pagination cannot
+publish a successful acquisition. A failed Summary retrieval leaves the completed transaction
+capture available with an explicit unavailable control; it cannot establish payout readiness.
 
-| Version table                    | Identity covered                                  | Children                |
-| -------------------------------- | ------------------------------------------------- | ----------------------- |
-| `settlement_preprocess_versions` | One financial settlement                          | Transactions            |
-| `data_kiosk_preprocess_versions` | One seller/marketplace/local day                  | Transactions/components |
-| `sku_terms_versions`             | One SKU's company and all marketplace fees | Fee periods             |
-
-Source children use `version_id`, and source selections use `current_version_id`.
-`skus.current_terms_version_id` selects one `sku_terms_versions` row;
-`sku_fee_periods.terms_version_id` attaches its complete fee inventory. Terms have
-a SKU-local `version_number`. Data Kiosk groups one successful
-publication in `data_kiosk_preprocess_batches`; day versions reference `batch_id`,
-and the batch references its acquisition. Settlement versions reference their
-acquisition directly. Days can later select different batches, but children
-within one selected day stay together. Fee periods have no separate current selection.
-
-### Marketplace names
-
-Preprocessed facts and fee periods store marketplace names as `text`, with database `CHECK`
-constraints for the same supported-name list used by Python. Values remain readable canonical
-names such as `Amazon.com`. Each fee period requires a
-name; source facts keep their category-specific requirements. Optional absent
-names remain null. Python's fixed API-ID mapping is part of the preprocessor definition.
-Settlement validates its explicit row name; Data Kiosk validates the returned ID
-against archived query scope before mapping it. Preprocessing never calls Sellers.
-
-`Non-Amazon US` is a separate allowed settlement literal. It is not an alias for
-`Amazon.com` and has no API ID mapping. Required unknown
-marketplaces fail. Keep the Python mapping, SQL constraints, and RPC validators consistent when
-names change; the database tests check the supported-name sets agree.
-See the [marketplace evidence](evidence/settlement_classification_audit_2026-09-08.md#marketplace-evidence)
-for the observed row names and the limits of Reports API hints.
-
-Original API IDs remain in acquisition/query provenance. Reports marketplace IDs
-are unmodified hints, unconstrained by the canonical-name checks; never use them,
-currency, endpoint, or another row to fill a missing required settlement name.
-
-### Shared preprocessor version
-
-One Python `PREPROCESS_VERSION = "v2"` applies to both sources. Successful result
-headers store the actual nonblank `preprocess_version`; children reference their
-result UUID. The UUID identifies an execution's result, while the version string
-identifies its parsing, normalization, marketplace mapping, classification, and
-source-selection definition. There is no release registry table or version-name enum.
-
-Retained results keep their processor names immutable: a changed interpretation
-requires a new definition and explicit offline reprocessing, not retagging
-historical rows. Ownership and fee configuration are live business data
-and do not change the processor definition.
-
-Authoritative combined calculations require one exact version name across every
-required selected source result. Missing coverage or mixed versions fail; filtering
-incompatible inputs out cannot produce a complete total. Version names establish
-compatibility, not ordering. Three-observation comparisons also require the same
-processor definition; missing comparable results mean unavailable comparison.
-
-### Identifiers and result ordering
-
-Trusted write paths generate UUIDv7 IDs at publication. PostgreSQL 17 administrator
-inserts use `private.uuid7()`; Python uses `uuid.uuid7()`. Audit `created_at` is not
-the local result ordering key. Compare UUID values descending only among eligible
-results with the same source identity and processor definition.
-
-UUID order describes ID generation, not commit order or chronology across independent
-generators. Publication still needs complete-result validation, locking,
-expected-current checks, and atomic references. Reject a backward ordered local
-source selection. SKU terms instead advance a per-SKU revision number under the
-identity lock; UUID or timestamp order does not select those terms.
-
-Data Kiosk source freshness is separately ordered by
-`root_query_created_at DESC, acquisition_id DESC`. Retrying/paginating/reprocessing
-one root query preserves that observation identity. A later processing UUID cannot
-make an older observation newer. The latest three means independent source
-observations, not result UUIDs. Amazon exposes query creation time, not an internal
-economics snapshot version; this is SelBox's selection policy, not a finality guarantee.
-
-## A. Download and archive
-
-Download performs Amazon discovery, submission, polling, pagination, metadata
-validation, and document transfer. Document-body work is limited to lossless
-compression/decompression and integrity checks. It does not parse TSV/JSONL,
-rewrite text, split days, classify money, resolve companies, or look up fees.
-Download success establishes a complete acquisition, not valid financial contents.
-There are no FBA-report or Finances dependencies.
+Data Kiosk retains the root query identity, definition, schema, marketplace, requested dates,
+ordered page/query/document inventory and terminal status. Restricted queries and incomplete page
+inventories cannot establish complete daily coverage.
 
 ### Compression and integrity
 
-For each document/page:
+For each response document or page:
 
-1. Remove Amazon compression and verify integrity; preserve the resulting encoding,
-   BOM, line endings, whitespace, and row order exactly.
-1. Record decoded byte length and SHA-256 before text decoding.
-1. Compress with `lzma.FORMAT_XZ`, preset `2 | lzma.PRESET_EXTREME` (2e), and
-   `lzma.CHECK_CRC64`. Verify an exact round trip and record archive SHA-256 and length.
-1. Upload the complete private Storage object before publishing its successful
-   acquisition and full document inventory in one PostgreSQL transaction.
+1. Preserve decoded bytes, encoding, whitespace and source order exactly. Remove declared transport
+   compression before calculating the document digest.
+2. Record byte length and SHA-256; compress as XZ using preset 2e and CRC64.
+3. Verify the byte-for-byte round trip and record the archive digest and length.
+4. Upload to private Storage before atomically publishing the successful acquisition manifest.
 
-Keep Amazon's compression declaration separate from the archive codec. Archive
-original decoded document bytes, not parsed serialization or a second gzip copy.
-CRC64 checks corruption; independent document/archive hashes establish byte identity.
-See Python's [XZ documentation](https://docs.python.org/3.14/library/lzma.html).
+Storage and PostgreSQL have no shared transaction. A failed manifest publication can leave an
+uploaded archive. Keep it for retry or investigation; no successful acquisition may reference an
+unavailable object. Logs record safe identifiers, stages and exception types, without credentials or
+response bodies. Raw archives and acquisition manifests are retained indefinitely.
 
-Acquisitions retain seller/scope, source IDs, acquisition time, and stable object
-locations. Data Kiosk additionally retains root/page query and document IDs,
-query/schema definition, marketplace/date request scope, successful terminal API
-provenance, and complete ordered inventory. Do not retain credentials or temporary
-signed URLs as object locations. Actual day coverage is validated offline.
+## Finances preprocessing
 
-Archive whole Data Kiosk pages, including overlapping windows, indefinitely with
-their successful manifests. Latest-three retention applies only to preprocessed
-results. A fresh query is a new observation even when bytes are unchanged.
+Load and verify every archived page without contacting Amazon. Validate complete local-day coverage,
+page continuation, declared markets and account types. Deduplicate identical repeated native IDs
+within the acquisition; conflicting records with one ID fail the batch. Reject unknown monetary
+paths and invalid amount partitions rather than guessing a category or inserting a balancing row.
 
-A changed decoded digest for a known settlement document fails integrity review.
-Identical bytes may share an object while retaining acquisition identities.
-Offline preprocessing resolves financial settlement identity as
-`(seller_namespace, amazon_scope, TSV settlement-id)`: identical decoded bodies
-under different API IDs are acquisition aliases counted once. Different bodies
-for that identity fail; preserve both archives for investigation. Object
-deduplication does not replace financial-settlement identity checks.
-The [classification audit](evidence/settlement_classification_audit_2026-09-08.md)
-records identical Australian reports returned under different API references.
+For monthly activity:
 
-Storage and PostgreSQL have no shared transaction. A metadata failure can leave
-an uploaded orphan; log it and retain it for retry/reconciliation. Never publish
-a successful acquisition with missing pages or files.
+- Include original `DEFERRED` and `DEFERRED_RELEASED` records.
+- Include directly released financial events with no original/release relationship.
+- Exclude linked release representations and `Transfer` records from activity amounts.
+- Preserve every source record, including excluded records, zero values and source-native absent
+  SKUs, for authorized inspection.
 
-### Parse and preprocess from archives
+Use explicit `DEFERRED_TRANSACTION_ID` and reverse `RELEASE_TRANSACTION_ID` links. Equal SKU, order,
+amount or timestamp is not a duplicate rule. A missing older original does not turn its release into
+a new sale. Eligibility is stored with the immutable version and revalidated by publication.
 
-Both preprocessors accept a successful acquisition ID and read its PostgreSQL
-manifest and private Storage objects. Verify archive hash/length, XZ CRC64, and
-decoded hash/length before parsing in memory. Publish only a complete validated
-result. No SP-API calls, refreshes, marketplace lookups, or download fallbacks
-occur here. Missing/corrupt input fails locally. Failed preprocessing retains
-its acquisition and logs diagnostics without publishing partial children.
+Each native transaction has a signed parent total. Normalize a complete set of item breakdown
+leaves and verify nested sums, item totals, currency and the transaction total. The parent is a
+control, not another amount to add. Preserve SKU text exactly; only source-known product attribution
+may support a company component. Unknown required SKU evidence blocks publication.
 
-### Why retain the originals
+Partition by native marketplace and its IANA time zone into finished local dates. Publish headers for
+every covered date, including empty days. Keep all account types and currencies in each day version;
+filtering a diagnostic API response cannot replace a complete day. The
+[Finances contract](finances_transactions.md) defines Summary reconciliation and native provenance.
 
-Hashes cannot recover contents. Amazon's [report-type guide](https://developer-docs.amazon.com/sp-api/docs/report-type-values)
-states a default 90-day retention, and [Settlement reports](https://developer-docs.amazon.com/sp-api/docs/report-type-values-settlement)
-cannot be requested or scheduled. These rules do not prove that every known
-document ID expires on day 91, but indefinite retrieval is not an established
-recovery mechanism. Data Kiosk's [Economics schema](https://github.com/amzn/selling-partner-api-models/blob/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql)
-permits a two-year historical query window; a new query can return revised data
-and does not reproduce an earlier observation on demand.
+## Data Kiosk preprocessing
 
-### Metadata and transaction rows
+Read complete archived acquisitions into daily versions, preserving native SKU, currency, fee
+subperiod, quantities, component dimensions and source references. `(SKU, marketplace, day)` alone
+is not a component key. Preserve sales, refunds, taxes, promotions, fees and credits without adding
+parent and child representations of the same money. Missing amounts and quantities are not zero.
 
-The TSV column header, first metadata data row, and monetary transaction rows
-have distinct roles:
+Validate signed sales equations, including `netProductSales = orderedProductSales -
+refundedProductSales` and `netUnitsSold = unitsOrdered - unitsRefunded`. Negative refund values retain
+their signs. Nonblank MSKU text remains verbatim. Unknown fees, missing required collections and
+invalid equations fail before publication; acquisitions remain available for investigation.
 
-| Source fields                                            | Authority                                                                    |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Reports `marketplaceIds`, `dataStartTime`, `dataEndTime` | Discovery/planning hints, never row-level financial authority                |
-| Reports `reportId`, `reportDocumentId`, seller           | Required retrieval/provenance identity                                       |
-| TSV metadata `settlement-id`, `currency`, `total-amount` | Matching row identity and exact signed control-total reconciliation          |
-| TSV metadata start/end dates                             | Valid ordered declared period; row containment is diagnostic                 |
-| TSV metadata `deposit-date`                              | Separate source date, not the company fee-period selector                    |
-| TSV transaction fields                                   | Classification and live-calculation facts, with row-specific required fields |
+Only dates preceding the root query's local creation date are complete. A verified empty day selects
+zero children and removes previous current amounts. A SKU absent from the new complete observation
+stays absent; it never falls back to an older row.
 
-Keep hint order/duplicates and raw `api_metadata`. Absent/null/empty marketplace
-hints normalize to an empty typed tuple while raw metadata retains the distinction.
-Present hints must have valid types and ordered dates. Hint differences, including
-lack of overlap with a requested marketplace chunk, do not invalidate identity.
-Repeated identity retains the first original summary; conflicting required identity
-quarantines that report. Different report IDs may share a document ID.
+Classification is per component. Data Kiosk category components supply company costs at all ages.
+Finances category components supply recent estimates and become comparisons on mature dates.
+`ANALYSIS_ONLY` components remain diagnostic. Current DAY/MSKU queries require an MSKU; an account
+component with an MSKU cannot silently become a SelBox charge. See
+[known issues](known_issues.md) for source completeness and allocation limits.
 
-Settlement membership comes from the document and matching settlement ID, not
-reconstructed date filters. For valid postings outside the declared timestamp or
-calendar period, retain rows and record source reference, original dates, direction,
-difference, and signed amount as nonblocking diagnostics. Keep observed posting
-bounds separate from the declared period. Date analysis and fees use validated
-row posting dates; complete-settlement reads include all its current-version rows.
+## Atomic daily publication
 
-Do not clamp dates, invent tolerances, or add reserve-only exceptions. Malformed or
-inconsistent posting dates, reversed metadata endpoints, identity conflicts, failed
-family rules, and unreconciled amounts still fail. The [Reports model](https://github.com/amzn/selling-partner-api-models/blob/main/models/reports-api-model/reports_2021-06-30.json)
-and [Settlement reference](https://developer-docs.amazon/sp-api/docs/report-type-values-settlement)
-provide no row-containment guarantee. Accepting validated outliers with diagnostics
-is SelBox policy, not Amazon assurance that every outlier is correct.
+Lock day identities in a consistent natural order, verify expected current selections, validate
+complete child inventories and publish the whole batch in one database transaction. Failure leaves
+all previous selections intact. Current totals read selected complete versions, not the newest
+individual rows from a mixture of captures. Conflicting current locations for one seller-scoped
+native Finances transaction ID are rejected.
 
-## B. Settlement preprocessing
+A changed selected version rotates its source revision token and requests affected payout work.
+The browser performs lightweight revision checks; unchanged checks do not reload financial facts.
+Raw administrator source tabs show retained versions for inspection. Company Transactions and
+Financial review use their current selected inputs and the source-allocation policy.
 
-Parse one complete archived report, validate its structure and financial controls,
-and retain typed source facts with document/physical-line provenance, raw SKU,
-marketplace, component labels, signs, and references. The archive preserves every
-original cell; successful tables store the facts needed for analysis and fees.
+`postedAfter` selects posting dates, not modification dates. Discovering changes to an older day
+requires another acquisition covering that day. The acquisition commands require explicit date
+ranges. The payout scheduler uses published data; it does not download revised Amazon transactions.
+Use complete calendar months for payout-eligible refreshes: a partial-month replacement makes the
+previous whole-month Summary manifest stale until a complete month is captured again. The CLI
+does not expand partial ranges implicitly.
 
-### Trailing empty fields
+## Retention and comparisons
 
-Require the complete supported column-name header and map cells using its actual
-order. A short data row supplies a prefix; pad only its missing suffix with empty
-values and convert them to null only where allowed. This also applies to the first
-metadata row. Required identity, amount, date, SKU, and ordinary Order/Refund
-marketplace checks still apply. Optional quantity remains unknown, never zero.
-Reject excess cells; never shift cells or guess an interior omission.
+Finances and Data Kiosk retain the latest three independent successful observations per day, current
+versions, and every version pinned by a payout. Multiple preprocessing results from one acquisition
+are one observation. Raw archives and manifests are independent of this payload-retention limit.
 
-Record physical line, original width, and omitted column names. Padding is in memory
-and leaves archive hashes unchanged. Accepting an omitted optional suffix is a
-SelBox parsing convention, not a documented Amazon format guarantee. Width and
-semantic checks cannot detect every upstream delimiter loss, including an interior
-omission that leaves plausible values in the remaining columns.
-The [trailing-column evidence](evidence/settlement_trailing_columns_investigation_2026-09-11.md)
-records the observed shortened rows and acquisition controls behind this convention.
+Compare complete normalized contents under one processor definition. Equal totals can conceal
+changes. Finances comparison ignores incidental status and source-page metadata while retaining
+activity eligibility and financial component contents. Agreement is diagnostic, not permanent
+finality or proof that Amazon refreshed its internal data between captures.
 
-### Classification and publication
+Cleanup is explicit and reference-aware. Lock the day, recheck current and payout references, mark
+the version pruned, then remove eligible parent/component payloads. Retain immutable version IDs and
+original counts so a pruned version cannot look like a verified empty day. Report capture cannot
+pin already pruned contents. Reprocessing retained archives creates a new result; it does not undo a
+pruning marker on an old identity.
 
-Apply the [family rules](settlement_component_categories.md) before validation:
-`SETTLEMENT` requires its known SKU family, explicit cost families use `DATA_KIOSK`,
-and registered account or retained types use `SELBOX`. Exact source types must
-appear in the shared registry; a recognized broad family does not admit a new
-description. Unknown types and failed known checks abort the complete report.
-Registered retained types preserve raw SKU without an invented accounting subtype.
+## Company terms and payout reports
 
-Every F1 `Order`/`Refund` row requires an explicit usable marketplace, including
-noncommission and zero-valued rows. Other families may retain null where permitted.
-Every nonblank SKU remains verbatim, including surrounding whitespace. Preprocessing
-does not resolve ownership or require fee configuration.
+An administrator publishes complete SKU assignments and marketplace fee periods atomically through
+`publish_sku_configuration`. Validation covers unchanged and edited SKUs: each known SKU needs an
+owner and every applicable fee date needs coverage. A known 0% rate is valid. New source imports can
+expose new configuration gaps without preventing valid source publication. Reassignment restates
+live history; saved reports preserve the original terms versions.
 
-Publish the successful version, typed metadata, and complete category partition
-atomically after all child inventories and control totals pass. Published versions
-cannot acquire children later. Select one complete version per financial settlement
-across acquisition aliases. Reruns preserve older results and record the actual
-processor definition; expected-current and UUID ordering checks prevent stale
-publication from silently replacing an accepted selection.
+Maturity keeps the existing two-calendar-month assumption. The private payout worker processes
+pending mature company months on its five-minute schedule. A small indexed revision queue and a
+maturity frontier avoid repeatedly scanning all saved reports. Source and terms changes request work;
+companies with no current SKU assignments retain history but receive no new reports.
 
-## C. Data Kiosk preprocessing
+Generation validates exact Finances day coverage, matching Summary controls for the selected
+versions, compatible Data Kiosk coverage and resolved company terms. It aggregates across source
+namespaces, separately by currency. Matching inputs reuse an existing result; changed inputs produce
+an immutable report. Incomplete months retry with backoff. The browser does not generate reports.
 
-Process the complete archived acquisition into seller/marketplace/local-day versions
-using validated request scope and returned rows. A batch publishes every covered day
-and all its children atomically; any invalid row/component aborts the entire batch.
-The frontend supplies database date predicates; views have no fixed 30-day window.
+Company cost authority stays with Data Kiosk for its category. Equality between Finances activity
+and Amazon Summary does not certify Data Kiosk cost allocation. Approval, payment execution and
+currency rounding remain separate work. See the [payout contract](company_payout_reports.md).
 
-Coverage includes every required SKU and component. A restricted query, missing page,
-error, or unqueried day cannot replace a complete day. Empty successful days have
-headers and zero children: selecting one removes prior amounts. A SKU absent from a
-new complete observation remains absent, rather than surviving from an older row.
-Establish empty coverage from archived query provenance and complete documents.
-Only days before the root query's marketplace-local creation date qualify as complete;
-an observation cannot establish a finished current or future local day.
+## Exact values and failure boundaries
 
-Keep native fee subperiods, SKU, currency, component dimensions, quantities, and
-source references. `(SKU, marketplace, day)` alone is not a component key. Preserve
-sales/refunds, bases, taxes, promotions, and credits separately; never sum a parent
-and its children. Missing monetary values and unknown quantities are not zero.
+Python `Numeric` uses exact finite decimal arithmetic with a 1,000-digit source bound. PostgreSQL
+source numeric domains have no fixed scale. Over-bound source values fail without rounding. Fee
+rates are 0–100 inclusive with at most six fractional digits; calculated fees and totals preserve
+exact arithmetic. Finances quantities use exact numeric values. Missing quantities remain unknown.
+Frontend financial responses use decimal text and apply server-side filtering and pagination.
 
-Unknown fee/advertising types and missing required amounts/collections fail before
-publication. Preserve acquisition, archives, diagnostics, and prior selections for
-review and rerun. Null list-element handling is a documented
-[contract limitation](known_issues.md#nullable-data-kiosk-list-entries).
-Validate exact signed sales equations, including
-`netProductSales = orderedProductSales - refundedProductSales` and
-`netUnitsSold = unitsOrdered - unitsRefunded`. Negative refunds remain signed;
-do not take their absolute values before validating or calculating net sales.
-Nonblank MSKU text remains verbatim.
-The [signed-refund observation](evidence/category3_country_evidence_2026-09-13.md#germany-signed-refund-observation)
-documents a valid negative refund in retained source data.
+| Failure | Outcome |
+| --- | --- |
+| Incomplete transaction retrieval | No successful acquisition; uploaded evidence remains available. |
+| Summary unavailable or unmatched | Explicit unresolved control; no invented zero or balancing amount; affected payouts remain unready. |
+| Invalid source parsing or component sums | No partial day publication; preserve archives and prior current selections. |
+| Stale concurrent publication | Reject the stale selection and retry against explicitly read current versions. |
+| Missing ownership, fees or required coverage | Show the gap; reject complete financial publication for the affected scope. |
+| Retention cleanup | Keep raw archives, current/payout-pinned versions and the distinction between pruned and empty contents. |
 
-Publication changes only covered days and checks expected prior selections. An old
-acquisition processed later cannot displace a fresher observation. Never combine
-newest individual component rows from different complete versions.
-
-### Data Kiosk component selection
-
-Classify each component, not its entire SKU row. Data Kiosk components in the Data Kiosk category
-supply company costs at all ages. Its components in the Settlement category
-supply recent amounts and become comparisons once dates become mature. Current DAY/MSKU
-rows require MSKU, so their account view is empty: a known account component with
-MSKU fails rather than becoming `SELBOX`. Explicitly understood `ANALYSIS_ONLY`
-facts remain diagnostic and do not block totals; unknown components cannot use
-that category as a fallback.
-
-Apply the [source policy](source_allocation.md) by activity date, independently of frontend
-filters or same-day counterpart presence. Preprocessing determines categories; SQL selects the
-authoritative source and calculates daily reconciliation.
-
-### Retention and comparison
-
-Retain complete day results for the latest three independent successful source
-observations, including empty days, plus required referenced history. Different
-preprocess results of one observation count once. Raw archives/manifests remain
-indefinite regardless of result retention.
-
-Compare complete normalized component contents and coverage under one processor
-definition, excluding query IDs, processing timestamps, and row order. Equal net
-totals can hide changes. Divergence is diagnostic; agreement does not establish
-finality or prove separate Amazon refreshes.
-
-Cleanup is explicit and reference-aware. Never prune current versions or versions
-in `private.payout_report_data_kiosk_versions`. A report pins every required complete day,
-including verified empty days, and protects its entire payload. Missing imports cannot substitute
-for empty days. Report dependencies are the only historical retention pins.
-
-Preserve version identity and original counts when deleting eligible children so
-pruning cannot appear as successful empty coverage. Report capture and pruning
-require READ COMMITTED transactions and lock days in the same natural order before
-rechecking selections and references. Already-pruned evidence cannot be attached
-to a report. Increasing a limit does not restore rows automatically; retained
-archives support explicit reprocessing into a new result.
-
-## D. Company terms and payout reports
-
-Source imports never register or assign SKUs. An administrator publishes changed assignments
-and complete marketplace fee inventories through `public.publish_sku_configuration()`.
-Each stable SKU identity selects its immutable revision. The whole batch is rejected unless
-every known SKU has an owner and every required fee date is covered, including unchanged SKUs.
-Existing incomplete settings remain readable; new imports may add gaps after publication.
-`private.publish_sku_terms()` publishes
-one immutable revision for the trusted internal callers, including the complete administrator batch
-publisher. Global assignment/coverage validation belongs to that batch entry point.
-An explicit 0% rate means known coverage; noncommission activity needs no rate.
-Reassignment restates all live history. See the [company-fee contract](company_fees.md)
-for exact rates, fee eligibility, current-only access, and partial summaries.
-
-Only companies with currently assigned SKUs receive payout work. Assigning the first
-SKU activates generation; removing the last clears queued work while retaining saved
-reports. An assigned SKU with no activity remains eligible for zero reports.
-The scheduled payout worker processes up to 10 pending, mature company/months every
-five minutes. Source and terms publications request affected months transactionally;
-a metadata frontier discovers newly mature work. An indexed pending revision skips
-completed months until another change occurs. Generation captures current processed
-inputs and SKU terms, validates them, and aggregates company amounts into immutable
-reports per currency across all source namespaces. Empty inputs sum to zero through
-the same calculation. Coverage is validated for each actual seller/marketplace
-pair, and manifests retain the namespace and preprocessing version of every input.
-Matching scope and exact input versions reuse the latest report. Incomplete inputs
-block only that company/month and retry with backoff; changed inputs reset the delay.
-No browser or manual generation request is needed. Five minutes is the worker
-cadence; a backlog can need several runs.
-
-Saved components, source/terms manifests, marketplace totals, and administrator-only
-account reconciliation remain tied to those captured versions. Read saved values with
-`load_company_payout_report()` and `load_company_payout_report_components()`.
-The [payout contract](company_payout_reports.md) owns eligibility, scope discovery,
-empty aggregates, reuse, access, locking, and integrity checks.
-
-The [refund commission over-credit policy](known_issues.md#deferred-refund-commission-over-credit-risk)
-remains deferred. Reports use the same posting-date fee formula as live reads;
-approval, payment execution, and currency rounding remain separate work.
-
-## Financial values
-
-Python `Numeric` stores finite `Decimal` with `NUMERIC_PRECISION_BOUND = 1000`
-fixed-point digits, including implied and trailing zeros. Addition, subtraction,
-and multiplication are exact independently of decimal context. Over-bound source
-results raise `NumericBoundError`; never round to fit. PostgreSQL source `numeric`
-uses an exact-value domain without a fixed scale.
-
-Fee percentages remain 0–100 inclusive with at most six fractional digits,
-including trailing zeros; reject excess precision. Live fees and aggregates use
-exact decimal arithmetic without reapplying the per-source bound. Payout currency
-rounding remains a separate future decision.
-
-### Quantities and readers
-
-Settlement quantities use the nonnegative `bigint` range. Aggregates use exact
-decimal arithmetic; a required unknown component quantity leaves its aggregate
-unknown. Keep sales, refund, and fee quantities distinct instead of counting the
-same units across principal/tax/fee components. Select complete current versions
-and keep currencies/economic components separate.
-
-Drivers return `Decimal`; serialization must preserve precision, such as decimal
-strings. Display approximations are not source truth. Apply date filters in database
-queries rather than fetching all history for client filtering.
-
-## Access and query behavior
-
-Application accounts and current SKU assignment determine live company
-visibility without repeating company IDs on source transactions. Public views
-use `security_invoker = true`, underlying grants, and RLS. Members see
-only permitted current source facts and selected terms for their own company. Narrow current
-report/day/version references are shared across registered members; full metadata is
-administrator-only.
-Administrators manage member access, publish complete terms, and read all retained
-source/terms history and all payout reports, components, and input references.
-Members read only their own company's saved reports and components. Neither
-application role generates reports; the private scheduler handles eligible months.
-Original archives, source publication, and pruning remain
-direct-database/archive-service operations.
-See the [application-access contract](access_control.md).
-
-Index and measure representative authenticated account, ownership,
-marketplace/date, and fee-period reads before adding caches. A materialized view is
-a performance cache, not payout history. The [database guide](../services/db/supabase/README.md)
-owns the concrete grants and views.
-
-## Installation and verification
-
-The migrations install acquisitions, complete source versions, current selections,
-company terms, saved payout reports, publication functions, and access policies
-into a fresh database. The [database guide](../services/db/supabase/README.md)
-documents installation and verification commands.
-
-Implementation checks belong alongside the behavior they exercise: archive integrity
-and offline replay; complete/stale publication; ownership/rate coverage and exact
-calculations; fresh schema and authenticated access; and reference-aware retention.
-The [live-fee acceptance cases](company_fees.md#implementation-and-acceptance)
-and service test commands provide executable checks. Documented invariants alone
-are not proof of live Amazon or database verification.
-
-## Failure boundaries
-
-| Failure                                              | Required outcome                                                                                                          |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Download/inventory failure                           | Log; publish no incomplete acquisition; keep independently completed acquisitions and uploaded evidence                   |
-| Preprocessing failure                                | Retain archives/diagnostics; publish no partial successful result; preserve current selection                             |
-| Stale or failed publication                          | Preserve prior complete selection and retry with explicit source/local ordering                                           |
-| Missing business ownership/rate or required coverage | Expose the gap and reject authoritative totals; valid source preprocessing remains possible                               |
-| Payout report publication | Validate required inputs; atomically reuse the latest matching report or save exact aggregates and input manifests |
-| Retention cleanup                                    | Preserve archives/manifests, current and payout-referenced versions, and the distinction between pruned and empty results |
+[Verification evidence](evidence/README.md) distinguishes native
+Amazon checks, the implemented database pipeline and synthetic Auth/REST/browser regression tests.

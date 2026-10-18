@@ -3,12 +3,12 @@ export const REVIEW_REPORT = "0198b50b-701a-7000-8000-000000000042";
 
 function reconciliationAmounts(overrides = {}) {
   return {
-    settlement_category_amount: "500",
+    finances_category_amount: "500",
     selbox_category_amount: "-20",
-    data_kiosk_settlement_control: "-100.25",
+    data_kiosk_finances_control: "-100.25",
     data_kiosk_category_amount: "-101.5",
     difference: "1.25",
-    settlement_total: "379.75",
+    finances_total: "379.75",
     accounted_total: "379.75",
     ...overrides,
   };
@@ -17,10 +17,10 @@ function reconciliationAmounts(overrides = {}) {
 export function reviewAmounts(overrides = {}) {
   return {
     category: "DATA_KIOSK",
-    settlement_amount: "-100.25",
+    finances_amount: "-100.25",
     data_kiosk_amount: "-101.5",
     difference: "1.25",
-    settlement_row_count: "25",
+    finances_row_count: "25",
     data_kiosk_row_count: "26",
     ...overrides,
   };
@@ -82,11 +82,11 @@ export function setupManyFinancialReviewRows(fixture) {
 
 const REVIEW_TYPES = {
   DATA_KIOSK: {
-    SETTLEMENT: "FBAFees/FBA Inventory Storage Fee/Base fee",
+    FINANCES: "STORAGE_FEES",
     DATA_KIOSK: "FBA_STORAGE_FEE",
   },
-  SETTLEMENT: { SETTLEMENT: "PRODUCT_SALES", DATA_KIOSK: "NET_PRODUCT_SALES" },
-  SELBOX: { SETTLEMENT: "ServiceFee/Subscription/Subscription Fee" },
+  FINANCES: { FINANCES: "PRODUCT_SALES", DATA_KIOSK: "NET_PRODUCT_SALES" },
+  SELBOX: { FINANCES: "SUBSCRIPTION_FEES" },
 };
 
 function setupCurrentReview(fixture) {
@@ -96,10 +96,10 @@ function setupCurrentReview(fixture) {
       month: "2026-07-01",
       currency: "EUR",
       ...reviewAmounts({
-        settlement_amount: "-10",
+        finances_amount: "-10",
         data_kiosk_amount: "-10",
         difference: "0",
-        settlement_row_count: "1",
+        finances_row_count: "1",
         data_kiosk_row_count: "1",
       }),
     },
@@ -109,7 +109,7 @@ function setupCurrentReview(fixture) {
       ...reviewAmounts({
         data_kiosk_amount: "-112.75",
         difference: "12.5",
-        settlement_row_count: "1",
+        finances_row_count: "1",
         data_kiosk_row_count: "1",
       }),
     },
@@ -117,11 +117,11 @@ function setupCurrentReview(fixture) {
       month: "2026-07-01",
       currency: "USD",
       ...reviewAmounts({
-        category: "SETTLEMENT",
-        settlement_amount: "500",
+        category: "FINANCES",
+        finances_amount: "500",
         data_kiosk_amount: "490",
         difference: "10",
-        settlement_row_count: "1",
+        finances_row_count: "1",
         data_kiosk_row_count: "1",
       }),
     },
@@ -129,11 +129,11 @@ function setupCurrentReview(fixture) {
       month: "2026-07-01",
       currency: "EUR",
       ...reviewAmounts({
-        category: "SETTLEMENT",
-        settlement_amount: "70",
+        category: "FINANCES",
+        finances_amount: "70",
         data_kiosk_amount: "70",
         difference: "0",
-        settlement_row_count: "1",
+        finances_row_count: "1",
         data_kiosk_row_count: "1",
       }),
     },
@@ -142,10 +142,10 @@ function setupCurrentReview(fixture) {
       currency: "USD",
       ...reviewAmounts({
         category: "SELBOX",
-        settlement_amount: "-20",
+        finances_amount: "-20",
         data_kiosk_amount: "0",
         difference: "-20",
-        settlement_row_count: "1",
+        finances_row_count: "1",
         data_kiosk_row_count: "0",
       }),
     },
@@ -153,7 +153,7 @@ function setupCurrentReview(fixture) {
   fixture.financialReviewTypeTotals = [];
   fixture.financialReviewRecords = [];
   for (const total of fixture.financialReviewTotals) {
-    for (const source of ["SETTLEMENT", "DATA_KIOSK"]) {
+    for (const source of ["FINANCES", "DATA_KIOSK"]) {
       const key = source.toLowerCase();
       const count = Number(total[`${key}_row_count`]);
       if (!count) continue;
@@ -196,10 +196,10 @@ export function setupFinancialReview(fixture) {
       month: "2026-07-01",
       currency: "EUR",
       ...reconciliationAmounts({
-        data_kiosk_settlement_control: "-10",
+        data_kiosk_finances_control: "-10",
         data_kiosk_category_amount: "-10",
         difference: "0",
-        settlement_total: "470",
+        finances_total: "470",
         accounted_total: "470",
       }),
       source_group_count: "1",
@@ -217,12 +217,12 @@ export function setupFinancialReview(fixture) {
     marketplace_name: index % 2 ? "Amazon.com" : null,
     currency: "USD",
     ...reconciliationAmounts({
-      settlement_category_amount: index === 0 ? "500" : "0",
+      finances_category_amount: index === 0 ? "500" : "0",
       selbox_category_amount: index === 0 ? "-20" : "0",
-      data_kiosk_settlement_control: index === 0 ? "-100.25" : "0",
+      data_kiosk_finances_control: index === 0 ? "-100.25" : "0",
       data_kiosk_category_amount: index === 1 ? "-101.5" : "0",
       difference: index === 0 ? "-100.25" : index === 1 ? "101.5" : "0",
-      settlement_total: index === 0 ? "379.75" : "0",
+      finances_total: index === 0 ? "379.75" : "0",
       accounted_total: index === 0 ? "379.75" : "0",
     }),
   }));
@@ -251,7 +251,7 @@ export function setupFinancialReview(fixture) {
       id: "payout-record",
       report_id: REVIEW_REPORT,
       authoritative: "true",
-      source: "SETTLEMENT",
+      source: "FINANCES",
       source_amount: "100",
       fee_amount: "-5",
       company_amount: "95",

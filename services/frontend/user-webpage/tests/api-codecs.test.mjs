@@ -10,12 +10,12 @@ import { datasetRecord } from "./api-fixtures.mjs";
 test("datasets use current source, payout, and application-account APIs", () => {
   assert.deepEqual(Object.keys(DATASET_CONFIG), [
     "live",
-    "settlement",
+    "finances",
     "data_kiosk",
     "payouts",
     "accounts",
   ]);
-  for (const dataset of ["live", "settlement", "data_kiosk"])
+  for (const dataset of ["live", "finances", "data_kiosk"])
     assert.equal(Object.hasOwn(DATASET_CONFIG[dataset], "endpoint"), false);
   assert.equal(DATASET_CONFIG.payouts.endpoint, "latest_company_payout_reports");
   assert.equal(DATASET_CONFIG.accounts.endpoint, "rpc/account_directory");
@@ -49,7 +49,7 @@ test("search uses visible transaction text and excludes hidden or computed field
     "source",
     "marketplace_name",
   ]);
-  for (const dataset of ["settlement", "data_kiosk"])
+  for (const dataset of ["finances", "data_kiosk"])
     assert.deepEqual(DATASET_CONFIG[dataset].searchColumns, [
       "sku",
       "component_type",
@@ -104,7 +104,7 @@ test("empty CSV and nullable fees remain distinct from explicitly zero fees", ()
 
 test("current row decoding preserves decimal text and nullable configuration", () => {
   const record = datasetRecord("live", {
-    source: "SETTLEMENT",
+    source: "FINANCES",
     source_row_id: "row-1",
     source_amount: "12345678901234567890.123456789012345678901",
     company_id: null,

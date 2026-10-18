@@ -1,22 +1,12 @@
 erDiagram
     direction LR
     public_companies ||..o{ public_company_payout_reports : "company_id"
-    public_companies ||--o{ private_payout_report_refresh_state : "company_id"
+    public_sku_fee_periods o|..o{ public_company_payout_report_components : "terms_version_id + fee_period_id"
+    private_payout_report_terms_versions ||..o{ public_company_payout_report_components : "report_id + terms_version_id"
     public_company_payout_reports ||..o{ public_company_payout_report_components : "report_id"
+    public_sku_terms_versions ||..o{ public_company_payout_report_components : "sku_id + terms_version_id"
     public_company_payout_reports ||--o{ private_payout_report_reconciliation : "report_id"
-
-    private_payout_report_refresh_state["private.payout_report_refresh_state"] {
-        local_uuid company_id PK, FK "NN"
-        date month PK "NN first day"
-        bigint requested_revision "NN default 1"
-        bigint completed_revision "NN default 0"
-        timestamptz next_attempt_at "NN"
-        integer failure_count "NN default 0"
-        timestamptz last_attempt_at "NULL"
-        timestamptz last_success_at "NULL"
-        text last_error_sqlstate "NULL"
-        text last_error_message "NULL"
-    }
+    public_companies ||--o{ private_payout_report_refresh_state : "company_id"
 
     public_company_payout_reports["public.company_payout_reports"] {
         local_uuid id PK "NN"
@@ -31,13 +21,13 @@ erDiagram
         text calculation_version "NN"
         integer component_count "NN"
         integer reconciliation_count "NN"
-        integer settlement_version_count "NN"
+        integer finances_version_count "NN"
         integer data_kiosk_version_count "NN"
         integer terms_version_count "NN"
         calculated_amount source_amount "NN"
         calculated_amount fee_amount "NN"
         calculated_amount company_amount "NN"
-        timestamptz created_at "NN"
+        timestamp_with_time_zone created_at "NN"
     }
 
     public_company_payout_report_components["public.company_payout_report_components"] {
@@ -72,15 +62,41 @@ erDiagram
         date activity_date "NN"
         text marketplace_name "NULL"
         text currency "NN"
-        calculated_amount settlement_category_amount "NN"
+        calculated_amount finances_category_amount "NN"
         calculated_amount selbox_category_amount "NN"
-        calculated_amount data_kiosk_settlement_control "NN"
+        calculated_amount data_kiosk_finances_control "NN"
         calculated_amount data_kiosk_category_amount "NN"
         calculated_amount difference "NN"
-        calculated_amount settlement_total "NN"
+        calculated_amount finances_total "NN"
         calculated_amount accounted_total "NN"
     }
 
+    private_payout_report_refresh_state["private.payout_report_refresh_state"] {
+        local_uuid company_id PK, FK "NN"
+        date month PK "NN"
+        bigint requested_revision "NN"
+        bigint completed_revision "NN"
+        timestamp_with_time_zone next_attempt_at "NN"
+        integer failure_count "NN"
+        timestamp_with_time_zone last_attempt_at "NULL"
+        timestamp_with_time_zone last_success_at "NULL"
+        text last_error_sqlstate "NULL"
+        text last_error_message "NULL"
+    }
+
+    private_payout_report_terms_versions["private.payout_report_terms_versions (reference)"] {
+        local_uuid report_id PK, FK "NN"
+        local_uuid sku_id PK, FK "NN"
+    }
+
     public_companies["public.companies (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    public_sku_fee_periods["public.sku_fee_periods (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    public_sku_terms_versions["public.sku_terms_versions (reference)"] {
         local_uuid id PK "NN"
     }

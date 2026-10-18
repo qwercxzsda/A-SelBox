@@ -1,0 +1,679 @@
+{
+  "date": "2026-10-18",
+  "database_port": 55622,
+  "api_port": 55621,
+  "period_start": "2026-01-01",
+  "period_end": "2026-10-16",
+  "fresh_capture_start": "2026-10-01",
+  "fresh_capture_end": "2026-10-16",
+  "maturity_cutoff_exclusive": "2026-08-18",
+  "finances": {
+    "observed_at": "2026-10-18T04:12:23.149624+00:00",
+    "coverage": {
+      "selected_days": 5491,
+      "native_marketplace_scopes": 19,
+      "first_day": "2026-01-01",
+      "last_day": "2026-10-16",
+      "native_transactions": 127549,
+      "components": 811558,
+      "incompatible_versions": 0
+    },
+    "summary_controls": {
+      "current_summary_controls": 190,
+      "matched": 190,
+      "mismatched": 0,
+      "first_day": "2026-01-01",
+      "last_day": "2026-10-16",
+      "october_1_16_controls": 19
+    },
+    "missing_dates": {
+      "missing_complete_days": 0
+    },
+    "refresh": {
+      "period_start": "2026-10-01",
+      "period_end": "2026-10-16",
+      "credential_scopes": 5,
+      "selected_october_day_versions": 304,
+      "native_october_transactions": 9441,
+      "october_components": 60804,
+      "new_summary_controls": 19,
+      "matched_new_summary_controls": 19,
+      "mismatched_new_summary_controls": 0,
+      "missing_summary_activity_groups": 0,
+      "january_september_selection_unchanged": true,
+      "historical_days_verified": 5187
+    }
+  },
+  "data_kiosk": {
+    "observed_at": "2026-10-18 04:12:15.607845+00:00",
+    "markets": 18,
+    "current_complete_days": 5202,
+    "current_start": "2026-01-01",
+    "current_end": "2026-10-16",
+    "new_current_days": 18,
+    "new_acquisitions": 18,
+    "new_preprocess_versions": 288,
+    "refreshed_october_days": 288,
+    "jan_september_versions_unchanged": 4914,
+    "current_components": 81621,
+    "october_components": 3782,
+    "row_count_mismatches": 0,
+    "complete_empty_markets_in_october": [
+      "Amazon.ae",
+      "Amazon.com.mx",
+      "Amazon.sa",
+      "Amazon.sg"
+    ],
+    "marketplace_coverage": [
+      {
+        "marketplace_name": "Amazon.ae",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 0,
+        "empty_days": 289,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.ca",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 2582,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.co.jp",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 8141,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.co.uk",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 15454,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.com",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 15048,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.com.au",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 8583,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.com.be",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 2317,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.com.mx",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 0,
+        "empty_days": 289,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.de",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 5951,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.es",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 4556,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.fr",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 6332,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.ie",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 1838,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.it",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 5511,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.nl",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 2039,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.pl",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 737,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.sa",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 0,
+        "empty_days": 289,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.se",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 1548,
+        "empty_days": 0,
+        "valid_versions": true
+      },
+      {
+        "marketplace_name": "Amazon.sg",
+        "first_day": "2026-01-01",
+        "last_day": "2026-10-16",
+        "selected_days": 289,
+        "components": 984,
+        "empty_days": 16,
+        "valid_versions": true
+      }
+    ],
+    "october_response_differences": {
+      "comparison": "Old selected October1\u201315 versus fresh selected October1\u201315, with October16 reported separately; currencies never combined. Monetary totals exclude ANALYSIS_ONLY per-unit inputs.",
+      "rows": {
+        "old_oct1_15": 4301,
+        "fresh_oct1_15": 3570,
+        "added_oct16": 212,
+        "fresh_oct1_16": 3782,
+        "net_change": -519,
+        "removed_identity_rows": 755,
+        "removed_zero_rows": 739,
+        "removed_nonzero_rows": 16,
+        "new_identity_rows_on_existing_days": 24,
+        "new_zero_rows_on_existing_days": 0,
+        "new_nonzero_rows_on_existing_days": 24,
+        "same_identity_amount_changes": 14
+      },
+      "market_currency_amounts": [
+        {
+          "marketplace": "Amazon.ca",
+          "currency": "CAD",
+          "old_oct1_15": "-30.80",
+          "fresh_oct1_15": "0.0",
+          "same_date_revision": "30.80",
+          "added_oct16": "0.0",
+          "fresh_oct1_16": "0.0"
+        },
+        {
+          "marketplace": "Amazon.co.jp",
+          "currency": "JPY",
+          "old_oct1_15": "7600.31",
+          "fresh_oct1_15": "7600.31",
+          "same_date_revision": "0.00",
+          "added_oct16": "10724.92",
+          "fresh_oct1_16": "18325.23"
+        },
+        {
+          "marketplace": "Amazon.co.uk",
+          "currency": "GBP",
+          "old_oct1_15": "142.92",
+          "fresh_oct1_15": "138.51",
+          "same_date_revision": "-4.41",
+          "added_oct16": "115.25",
+          "fresh_oct1_16": "253.76"
+        },
+        {
+          "marketplace": "Amazon.com",
+          "currency": "USD",
+          "old_oct1_15": "61.69",
+          "fresh_oct1_15": "92.43",
+          "same_date_revision": "30.74",
+          "added_oct16": "103.31",
+          "fresh_oct1_16": "195.74"
+        },
+        {
+          "marketplace": "Amazon.com.au",
+          "currency": "AUD",
+          "old_oct1_15": "57.71",
+          "fresh_oct1_15": "56.85",
+          "same_date_revision": "-0.86",
+          "added_oct16": "-11.31",
+          "fresh_oct1_16": "45.54"
+        },
+        {
+          "marketplace": "Amazon.com.be",
+          "currency": "EUR",
+          "old_oct1_15": "-95.95",
+          "fresh_oct1_15": "-98.05",
+          "same_date_revision": "-2.10",
+          "added_oct16": "-0.17",
+          "fresh_oct1_16": "-98.22"
+        },
+        {
+          "marketplace": "Amazon.de",
+          "currency": "EUR",
+          "old_oct1_15": "-124.3434",
+          "fresh_oct1_15": "-125.0834",
+          "same_date_revision": "-0.7400",
+          "added_oct16": "11.92",
+          "fresh_oct1_16": "-113.1634"
+        },
+        {
+          "marketplace": "Amazon.es",
+          "currency": "EUR",
+          "old_oct1_15": "-76.4599",
+          "fresh_oct1_15": "-78.8799",
+          "same_date_revision": "-2.4200",
+          "added_oct16": "-5.46",
+          "fresh_oct1_16": "-84.3399"
+        },
+        {
+          "marketplace": "Amazon.fr",
+          "currency": "EUR",
+          "old_oct1_15": "199.2686",
+          "fresh_oct1_15": "196.3886",
+          "same_date_revision": "-2.8800",
+          "added_oct16": "46.02",
+          "fresh_oct1_16": "242.4086"
+        },
+        {
+          "marketplace": "Amazon.ie",
+          "currency": "EUR",
+          "old_oct1_15": "-3.57",
+          "fresh_oct1_15": "-3.57",
+          "same_date_revision": "0.00",
+          "added_oct16": "-0.12",
+          "fresh_oct1_16": "-3.69"
+        },
+        {
+          "marketplace": "Amazon.it",
+          "currency": "EUR",
+          "old_oct1_15": "-156.13",
+          "fresh_oct1_15": "-158.20",
+          "same_date_revision": "-2.07",
+          "added_oct16": "-28.00",
+          "fresh_oct1_16": "-186.20"
+        },
+        {
+          "marketplace": "Amazon.nl",
+          "currency": "EUR",
+          "old_oct1_15": "25.14",
+          "fresh_oct1_15": "26.72",
+          "same_date_revision": "1.58",
+          "added_oct16": "5.96",
+          "fresh_oct1_16": "32.68"
+        },
+        {
+          "marketplace": "Amazon.pl",
+          "currency": "PLN",
+          "old_oct1_15": "5.91",
+          "fresh_oct1_15": "5.91",
+          "same_date_revision": "0.00",
+          "added_oct16": "24.37",
+          "fresh_oct1_16": "30.28"
+        },
+        {
+          "marketplace": "Amazon.se",
+          "currency": "SEK",
+          "old_oct1_15": "276.66",
+          "fresh_oct1_15": "270.34",
+          "same_date_revision": "-6.32",
+          "added_oct16": "-29.14",
+          "fresh_oct1_16": "241.20"
+        },
+        {
+          "marketplace": "Amazon.sg",
+          "currency": "SGD",
+          "old_oct1_15": "0.0",
+          "fresh_oct1_15": "0",
+          "same_date_revision": "0.0",
+          "added_oct16": "0",
+          "fresh_oct1_16": "0"
+        }
+      ],
+      "same_date_component_revisions": [
+        {
+          "marketplace_name": "Amazon.ca",
+          "currency": "CAD",
+          "category": "FINANCES",
+          "component_type": "NET_PRODUCT_SALES",
+          "old": "-35.0",
+          "fresh": "0.0",
+          "revision": "35.0"
+        },
+        {
+          "marketplace_name": "Amazon.ca",
+          "currency": "CAD",
+          "category": "FINANCES",
+          "component_type": "REFUNDED_REFERRAL_FEE",
+          "old": "5.25",
+          "fresh": "0",
+          "revision": "-5.25"
+        },
+        {
+          "marketplace_name": "Amazon.ca",
+          "currency": "CAD",
+          "category": "FINANCES",
+          "component_type": "REFUND_COMMISSION_FEE",
+          "old": "-1.05",
+          "fresh": "0",
+          "revision": "1.05"
+        },
+        {
+          "marketplace_name": "Amazon.co.uk",
+          "currency": "GBP",
+          "category": "FINANCES",
+          "component_type": "DIGITAL_SERVICES_FEE_FBA",
+          "old": "-49.40",
+          "fresh": "-52.75",
+          "revision": "-3.35"
+        },
+        {
+          "marketplace_name": "Amazon.co.uk",
+          "currency": "GBP",
+          "category": "FINANCES",
+          "component_type": "DIGITAL_SERVICES_FEE_SOA",
+          "old": "-15.25",
+          "fresh": "-16.31",
+          "revision": "-1.06"
+        },
+        {
+          "marketplace_name": "Amazon.com",
+          "currency": "USD",
+          "category": "DATA_KIOSK",
+          "component_type": "DISPOSAL_FEE",
+          "old": "-10.76",
+          "fresh": "-6.22",
+          "revision": "4.54"
+        },
+        {
+          "marketplace_name": "Amazon.com",
+          "currency": "USD",
+          "category": "DATA_KIOSK",
+          "component_type": "SPONSORED_PRODUCT_FEE",
+          "old": "-4880.70",
+          "fresh": "-4854.50",
+          "revision": "26.20"
+        },
+        {
+          "marketplace_name": "Amazon.com.au",
+          "currency": "AUD",
+          "category": "FINANCES",
+          "component_type": "REFERRAL_FEE",
+          "old": "-273.26",
+          "fresh": "-274.12",
+          "revision": "-0.86"
+        },
+        {
+          "marketplace_name": "Amazon.com.be",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFERRAL_FEE",
+          "old": "-33.30",
+          "fresh": "-35.40",
+          "revision": "-2.10"
+        },
+        {
+          "marketplace_name": "Amazon.de",
+          "currency": "EUR",
+          "category": "DATA_KIOSK",
+          "component_type": "DISPOSAL_FEE",
+          "old": "-5.92",
+          "fresh": "-6.66",
+          "revision": "-0.74"
+        },
+        {
+          "marketplace_name": "Amazon.es",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "DIGITAL_SERVICES_FEE_SOA",
+          "old": "-1.43",
+          "fresh": "-1.45",
+          "revision": "-0.02"
+        },
+        {
+          "marketplace_name": "Amazon.es",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFERRAL_FEE",
+          "old": "-50.06",
+          "fresh": "-52.46",
+          "revision": "-2.40"
+        },
+        {
+          "marketplace_name": "Amazon.fr",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "DIGITAL_SERVICES_FEE_FBA",
+          "old": "-27.67",
+          "fresh": "-30.31",
+          "revision": "-2.64"
+        },
+        {
+          "marketplace_name": "Amazon.fr",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "DIGITAL_SERVICES_FEE_SOA",
+          "old": "-6.47",
+          "fresh": "-7.05",
+          "revision": "-0.58"
+        },
+        {
+          "marketplace_name": "Amazon.fr",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFUNDED_REFERRAL_FEE",
+          "old": "3.66",
+          "fresh": "4.09",
+          "revision": "0.43"
+        },
+        {
+          "marketplace_name": "Amazon.fr",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFUND_COMMISSION_FEE",
+          "old": "-0.72",
+          "fresh": "-0.81",
+          "revision": "-0.09"
+        },
+        {
+          "marketplace_name": "Amazon.it",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "DIGITAL_SERVICES_FEE_SOA",
+          "old": "-2.27",
+          "fresh": "-2.36",
+          "revision": "-0.09"
+        },
+        {
+          "marketplace_name": "Amazon.it",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFERRAL_FEE",
+          "old": "-85.95",
+          "fresh": "-88.35",
+          "revision": "-2.40"
+        },
+        {
+          "marketplace_name": "Amazon.it",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFUNDED_REFERRAL_FEE",
+          "old": "0",
+          "fresh": "0.53",
+          "revision": "0.53"
+        },
+        {
+          "marketplace_name": "Amazon.it",
+          "currency": "EUR",
+          "category": "FINANCES",
+          "component_type": "REFUND_COMMISSION_FEE",
+          "old": "0",
+          "fresh": "-0.11",
+          "revision": "-0.11"
+        },
+        {
+          "marketplace_name": "Amazon.nl",
+          "currency": "EUR",
+          "category": "DATA_KIOSK",
+          "component_type": "SPONSORED_PRODUCT_FEE",
+          "old": "-9.64",
+          "fresh": "-8.06",
+          "revision": "1.58"
+        },
+        {
+          "marketplace_name": "Amazon.se",
+          "currency": "SEK",
+          "category": "FINANCES",
+          "component_type": "REFERRAL_FEE",
+          "old": "-31.60",
+          "fresh": "-37.92",
+          "revision": "-6.32"
+        }
+      ],
+      "limitation": "Capture timing and query-window effects have not been isolated; returned data was published without local monetary corrections."
+    }
+  },
+  "payout_cron": [
+    {
+      "jobname": "company-payout-reports",
+      "schedule": "*/5 * * * *",
+      "active": true
+    }
+  ],
+  "latest_payout_cron_run": {
+    "status": "succeeded",
+    "start_time": "2026-10-18 04:10:00.018438+00:00",
+    "end_time": "2026-10-18 04:10:00.021931+00:00"
+  },
+  "public_api": {
+    "checked_at": "2026-10-18T04:07:18.724Z",
+    "request_count": 38,
+    "all_successful": true,
+    "category_rows": {
+      "DATA_KIOSK": {
+        "rows": 72,
+        "complete": true
+      },
+      "FINANCES": {
+        "rows": 72,
+        "complete": true
+      },
+      "SELBOX": {
+        "rows": 68,
+        "complete": true
+      }
+    }
+  },
+  "browser": {
+    "viewport": "1440x1100",
+    "months": {
+      "August 2026": 9,
+      "July 2026": 9,
+      "June 2026": 9,
+      "May 2026": 9,
+      "April 2026": 9,
+      "March 2026": 9,
+      "February 2026": 9,
+      "January 2026": 9
+    },
+    "totalRows": 72,
+    "errors": [],
+    "failedRequests": [],
+    "horizontalOverflow": false
+  },
+  "limitations": [
+    "Completed daily query coverage does not prove monetary completeness in Amazon responses.",
+    "Finances Summary agreement does not prove Data Kiosk SKU allocations are correct.",
+    "September and October are excluded from Financial review by the unchanged maturity policy.",
+    "April saved company payouts remain blocked by three SKU identities missing ownership."
+  ],
+  "october16_public_source_api": {
+    "checkedAt": "2026-10-18T04:14:48.081Z",
+    "date": "2026-10-16",
+    "datasets": {
+      "finances": {
+        "totalRows": 4275,
+        "fetchedRows": 25,
+        "returnedDates": [
+          "2026-10-16"
+        ],
+        "dateAndDatasetFiltersPreserved": true
+      },
+      "data_kiosk": {
+        "totalRows": 212,
+        "fetchedRows": 25,
+        "returnedDates": [
+          "2026-10-16"
+        ],
+        "dateAndDatasetFiltersPreserved": true
+      }
+    },
+    "requests": [
+      {
+        "path": "/rest/v1/rpc/source_transaction_page",
+        "dataset": "finances",
+        "dateFrom": "2026-10-16",
+        "dateTo": "2026-10-16",
+        "status": 200
+      },
+      {
+        "path": "/rest/v1/rpc/source_transaction_page",
+        "dataset": "data_kiosk",
+        "dateFrom": "2026-10-16",
+        "dateTo": "2026-10-16",
+        "status": 200
+      }
+    ]
+  }
+}

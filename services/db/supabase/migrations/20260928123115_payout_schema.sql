@@ -29,7 +29,7 @@ create table public.company_payout_reports (
     calculation_version text not null check (calculation_version = 'v1'),
     component_count integer not null check (component_count >= 0),
     reconciliation_count integer not null check (reconciliation_count >= 0),
-    settlement_version_count integer not null check (settlement_version_count >= 0),
+    finances_version_count integer not null check (finances_version_count >= 0),
     data_kiosk_version_count integer not null check (data_kiosk_version_count >= 0),
     terms_version_count integer not null check (terms_version_count >= 0),
     source_amount private.calculated_amount not null,
@@ -78,14 +78,14 @@ where requested_revision > completed_revision;
 
 -- These complete manifests are also the retention pins. They include empty
 -- source versions and ownership inputs used to exclude other companies' rows.
-create table private.payout_report_settlement_versions (
+create table private.payout_report_finances_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
-    settlement_id public.local_uuid not null,
+    day_id public.local_uuid not null,
     version_id public.local_uuid not null,
-    primary key (report_id, settlement_id),
+    primary key (report_id, day_id),
     unique (report_id, version_id),
-    foreign key (settlement_id, version_id)
-    references private.settlement_preprocess_versions (settlement_id, id)
+    foreign key (day_id, version_id)
+    references private.finances_preprocess_versions (day_id, id)
 );
 
 create table private.payout_report_data_kiosk_versions (
@@ -114,7 +114,7 @@ create table public.company_payout_report_components (
     id public.local_uuid primary key default private.uuid7(),
     report_id public.local_uuid not null references public.company_payout_reports (id),
     row_number integer not null check (row_number > 0),
-    source text not null check (source in ('SETTLEMENT', 'DATA_KIOSK')), -- noqa: RF04
+    source text not null check (source in ('FINANCES', 'DATA_KIOSK')), -- noqa: RF04
     authoritative boolean not null,
     source_row_id public.local_uuid not null,
     source_version_id public.local_uuid not null,
@@ -178,28 +178,34 @@ create table private.payout_report_reconciliation (
     activity_date date not null,
     marketplace_name text,
     currency text not null check (currency ~ '^[A-Z]{3}$'),
-    settlement_category_amount private.calculated_amount not null,
+    finances_category_amount private.calculated_amount not null,
     selbox_category_amount private.calculated_amount not null,
-    data_kiosk_settlement_control private.calculated_amount not null,
+    data_kiosk_finances_control private.calculated_amount not null,
     data_kiosk_category_amount private.calculated_amount not null,
     difference private.calculated_amount not null,
-    settlement_total private.calculated_amount not null,
+    finances_total private.calculated_amount not null,
     accounted_total private.calculated_amount not null,
     primary key (report_id, row_number),
     unique nulls not distinct (
         report_id, seller_namespace, activity_date, marketplace_name, currency
     ),
-    check (difference = data_kiosk_settlement_control - data_kiosk_category_amount),
+    check (difference = data_kiosk_finances_control - data_kiosk_category_amount),
     check (
-        settlement_total
-        = settlement_category_amount + selbox_category_amount + data_kiosk_settlement_control
+        finances_total
+        = finances_category_amount + selbox_category_amount + data_kiosk_finances_control
     ),
     check (
         accounted_total
-        = settlement_category_amount
+        = finances_category_amount
         + selbox_category_amount
         + data_kiosk_category_amount
         + difference
     ),
-    check (accounted_total = settlement_total)
+    check (accounted_total = finances_total)
+);
+
+create table private.payout_report_finances_summary_checks (
+    report_id public.local_uuid not null references public.company_payout_reports (id),
+    check_id public.local_uuid not null references private.finances_summary_checks (id),
+    primary key (report_id, check_id)
 );

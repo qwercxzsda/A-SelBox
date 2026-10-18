@@ -1,0 +1,114 @@
+{
+  "scope": "EU",
+  "month": "2026-08",
+  "counts": {
+    "finances_acquisitions": 1,
+    "finances_days": 372,
+    "finances_transactions": 10171,
+    "finances_transaction_components": 68012
+  },
+  "checks": [
+    {
+      "marketplace_name": "Amazon.de",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "-153.29",
+      "transaction_amount": "-153.29"
+    },
+    {
+      "marketplace_name": "Amazon.ae",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "AED",
+      "summary_amount": "0.0",
+      "transaction_amount": "0"
+    },
+    {
+      "marketplace_name": "Amazon.nl",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "79.76",
+      "transaction_amount": "79.76"
+    },
+    {
+      "marketplace_name": "Amazon.com.be",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "13.56",
+      "transaction_amount": "13.56"
+    },
+    {
+      "marketplace_name": "Amazon.sa",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "SAR",
+      "summary_amount": "0.0",
+      "transaction_amount": "0"
+    },
+    {
+      "marketplace_name": "Amazon.es",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "128.4",
+      "transaction_amount": "128.40"
+    },
+    {
+      "marketplace_name": "Amazon.pl",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "PLN",
+      "summary_amount": "168.95",
+      "transaction_amount": "168.95"
+    },
+    {
+      "marketplace_name": "Amazon.it",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "-310.38",
+      "transaction_amount": "-310.38"
+    },
+    {
+      "marketplace_name": "Amazon.co.uk",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "GBP",
+      "summary_amount": "-551.09",
+      "transaction_amount": "-551.09"
+    },
+    {
+      "marketplace_name": "Amazon.ie",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "44.78",
+      "transaction_amount": "44.78"
+    },
+    {
+      "marketplace_name": "Amazon.se",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "SEK",
+      "summary_amount": "93.56",
+      "transaction_amount": "93.56"
+    },
+    {
+      "marketplace_name": "Amazon.fr",
+      "account_type": "STANDARD_ORDERS",
+      "currency": "EUR",
+      "summary_amount": "14.57",
+      "transaction_amount": "14.57"
+    }
+  ],
+  "eligible_totals": [
+    [
+      "EUR",
+      "-182.60"
+    ],
+    [
+      "GBP",
+      "-551.09"
+    ],
+    [
+      "PLN",
+      "168.95"
+    ],
+    [
+      "SEK",
+      "93.56"
+    ]
+  ]
+}

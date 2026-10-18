@@ -194,7 +194,7 @@ test("view decoders whitelist table controls and preserve exact SKU text", () =>
       pagination: { pageIndex: -1, pageSize: 5000 },
       sorting: [{ id: "unsafe", desc: true }],
       filters: { skus: [" padded SKU ", 12], reportHistory: true },
-      selectedRowId: "settlement:one",
+      selectedRowId: "finances:one",
       access_token: "discarded",
     },
     invented: {},
@@ -203,7 +203,7 @@ test("view decoders whitelist table controls and preserve exact SKU text", () =>
   assert.equal(value.live.pagination.pageSize, 25);
   assert.deepEqual(value.live.sorting, [{ id: "activity_date", desc: true }]);
   assert.deepEqual(value.live.filters.skus, [" padded SKU "]);
-  assert.equal(value.live.selectedRowId, "settlement:one");
+  assert.equal(value.live.selectedRowId, "finances:one");
   assert.equal("access_token" in value.live, false);
   assert.equal("invented" in value, false);
   assert.equal(decodeWorkspaceTab("accounts", { ...account, access_role: "member" }), "live");

@@ -54,7 +54,7 @@ class FinancialRepositoryTests(SourceModelFixture):
                 periods=periods,
                 change_reason="Initial terms",
             )
-        settlement, _ = self.settlement(
+        finances, _ = self.finances(
             [
                 self.transaction("100"),
                 self.transaction("200", 4, sku="MISSING"),
@@ -67,7 +67,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             start_date=date(2026, 6, 1),
             end_date=date(2026, 6, 30),
             preprocess_version="v0",
-            settlement_ids=[settlement],
+            finances_day_ids=[finances],
             marketplace_names=[],
         )[0]
         self.assertEqual(
@@ -89,7 +89,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             periods=[FeePeriod("Amazon.com", date(2026, 1, 1), None, Numeric("5.123456"))],
             change_reason="Initial terms",
         )
-        self.settlement([self.transaction("100")])
+        self.finances([self.transaction("100")])
         fill_payout_kiosk_month(self)
         report_id = publish_company_payout_report(
             database,

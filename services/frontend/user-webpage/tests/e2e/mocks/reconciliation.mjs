@@ -3,12 +3,12 @@ import { sortRecordRows } from "../record-fixtures.mjs";
 const COLUMNS = [
   "report_id",
   "currency",
-  "settlement_category_amount",
+  "finances_category_amount",
   "selbox_category_amount",
-  "data_kiosk_settlement_control",
+  "data_kiosk_finances_control",
   "data_kiosk_category_amount",
   "difference",
-  "settlement_total",
+  "finances_total",
   "accounted_total",
   "source_group_count",
 ];

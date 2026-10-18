@@ -73,11 +73,11 @@ def load_company_financial_totals(
     start_date: date,
     end_date: date,
     preprocess_version: str,
-    settlement_ids: Sequence[str],
+    finances_day_ids: Sequence[str],
     marketplace_names: Sequence[str],
     dataset_key: str = "economics",
 ) -> tuple[CompanyFinancialTotal, ...]:
-    """Validate declared settlement inputs and inclusive Data Kiosk day coverage.
+    """Validate declared finances inputs and inclusive Data Kiosk day coverage.
 
     This administrator read sees unmapped SKUs as well as mapped companies.
     Missing/mixed source versions, ownership and required fees raise in SQL;
@@ -88,7 +88,7 @@ def load_company_financial_totals(
         start_date=start_date,
         end_date=end_date,
         preprocess_version=preprocess_version,
-        settlement_ids=settlement_ids,
+        finances_day_ids=finances_day_ids,
         marketplace_names=marketplace_names,
         dataset_key=dataset_key,
     )
@@ -98,7 +98,7 @@ def load_company_financial_totals(
             select company_id, currency, source_amount, fee_amount, company_amount
             from private.company_financial_totals(
                 %(seller_namespace)s, %(start_date)s::date, %(end_date)s::date,
-                %(preprocess_version)s, %(settlement_ids)s::uuid[],
+                %(preprocess_version)s, %(finances_day_ids)s::uuid[],
                 %(marketplace_names)s::text[], %(dataset_key)s
             ) order by company_id, currency
             """,
@@ -126,7 +126,7 @@ def load_company_financial_progress(
     start_date: date,
     end_date: date,
     preprocess_version: str,
-    settlement_ids: Sequence[str],
+    finances_day_ids: Sequence[str],
     marketplace_names: Sequence[str],
     dataset_key: str = "economics",
 ) -> tuple[CompanyFinancialProgress, ...]:
@@ -140,7 +140,7 @@ def load_company_financial_progress(
         start_date=start_date,
         end_date=end_date,
         preprocess_version=preprocess_version,
-        settlement_ids=settlement_ids,
+        finances_day_ids=finances_day_ids,
         marketplace_names=marketplace_names,
         dataset_key=dataset_key,
     )
@@ -151,7 +151,7 @@ def load_company_financial_progress(
                 known_company_amount, missing_fee_count, missing_fee_components
             from private.company_financial_progress(
                 %(seller_namespace)s, %(start_date)s::date, %(end_date)s::date,
-                %(preprocess_version)s, %(settlement_ids)s::uuid[],
+                %(preprocess_version)s, %(finances_day_ids)s::uuid[],
                 %(marketplace_names)s::text[], %(dataset_key)s
             ) order by company_id, currency
             """,
@@ -185,7 +185,7 @@ def _missing_fee_component(value: object) -> MissingFeeComponent:
     status = required_text(fields.get("resolution_status"), "resolution_status")
     source = required_text(fields.get("source"), "source")
     sku = fields.get("sku")
-    if status != "MISSING_FEE" or source not in ("SETTLEMENT", "DATA_KIOSK"):
+    if status != "MISSING_FEE" or source not in ("FINANCES", "DATA_KIOSK"):
         raise RuntimeError("Missing-fee detail has an invalid status or source.")
     if not isinstance(sku, str) or not sku.strip():
         raise RuntimeError("sku must be nonblank source text.")

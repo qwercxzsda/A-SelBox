@@ -43,16 +43,16 @@ _READS: dict[str, LiteralString] = {
 }
 _INDEX_COMPARISONS: tuple[tuple[str, str, tuple[str, ...], LiteralString | None], ...] = (
     (
-        "settlement_owner",
-        "settlement_transactions",
+        "finances_owner",
+        "finances_transaction_components",
         ("sku", "version_id", "category", "marketplace_name"),
-        "category = 'SETTLEMENT'",
+        "category = 'FINANCES'",
     ),
     (
-        "settlement_date_count",
-        "settlement_transactions",
+        "finances_date_count",
+        "finances_transaction_components",
         ("posted_date", "component_type", "sku", "version_id", "category", "marketplace_name"),
-        "category = 'SETTLEMENT'",
+        "category = 'FINANCES'",
     ),
     (
         "kiosk_date_count",
@@ -75,17 +75,17 @@ def _seed(
     for namespace in range(namespaces):
         fixture.seller = f"synthetic-source-namespace-{namespace:02d}"
         skus = [_SKU] * matching + [f"UNOWNED-{index:05d}" for index in range(irrelevant)]
-        settlement_rows = [
+        finances_rows = [
             fixture.transaction("10", index + 3, sku=sku) for index, sku in enumerate(skus)
         ]
         kiosk_rows = [fixture.component("-1", sku=sku) for sku in skus]
-        expected_ids.update(str(row["id"]) for row in settlement_rows[:matching])
+        expected_ids.update(str(row["id"]) for row in finances_rows[:matching])
         expected_ids.update(str(row["id"]) for row in kiosk_rows[:matching])
-        fixture.settlement(settlement_rows)
+        fixture.finances(finances_rows)
         fixture.kiosk(1, kiosk_rows)
     fixture.connection.commit()
     fixture.connection.autocommit = True
-    fixture.connection.execute("vacuum (analyze) private.settlement_transactions")
+    fixture.connection.execute("vacuum (analyze) private.finances_transaction_components")
     fixture.connection.execute("vacuum (analyze) private.data_kiosk_transactions")
     fixture.connection.execute("analyze")
     return member, expected_ids
@@ -209,7 +209,7 @@ def _verify_plans(
     """Check indexed fact access without forcing one cost-dependent index choice."""
     fact_indexes: set[str] = set()
     for plan in plans:
-        for relation in ("settlement_transactions", "data_kiosk_transactions"):
+        for relation in ("finances_transaction_components", "data_kiosk_transactions"):
             used = {
                 node["Index Name"]
                 for node in plan["index_nodes"]

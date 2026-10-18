@@ -147,7 +147,7 @@ def publish_while_pruning() -> tuple[str, str]:
 
 
 def report_while_pruning() -> tuple[str, str]:
-    """Prune day one while report capture waits before taking day two's lock."""
+    """Prune while report capture waits on the shared payout-input guard."""
     with isolated_database() as database_url:
         _prepare(database_url)
         with psycopg.connect(database_url) as connection:
@@ -156,6 +156,7 @@ def report_while_pruning() -> tuple[str, str]:
             fixture.seller = "retention-deadlock-seller"
             company, _ = fixture.owner()
             fill_payout_kiosk_month(fixture)
+            fixture.finances([])
             connection.execute("""
                 create function private.pause_test_retention() returns trigger
                 language plpgsql as $$ begin
@@ -201,7 +202,7 @@ def report_while_pruning() -> tuple[str, str]:
                 try:
                     wait_for_block(controller, "retention-before-report", wait_event="advisory")
                     capture = workers.submit(report)
-                    wait_for_block(controller, "report-after-first-day", wait_event="transactionid")
+                    wait_for_block(controller, "report-after-first-day", wait_event="advisory")
                 finally:
                     controller.execute("select pg_advisory_unlock(%s)", (_REPORT_BARRIER,))
                 outcomes = (retention.result(timeout=12), capture.result(timeout=12))

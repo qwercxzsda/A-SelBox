@@ -40,7 +40,7 @@ export function FinancialReviewMonthTable({
       <Group justify="space-between" gap="xs" mb="xs">
         <Text size="xs" c="dimmed">
           Filter by month in the column heading. Open a month for amounts by type and source
-          records.
+          records. Pages count currency rows; a month can continue on the next page.
         </Text>
         <Group gap="xs">
           <UpdateStatus active={isBusy}>Updating monthly summaries…</UpdateStatus>
@@ -96,7 +96,7 @@ export function FinancialReviewMonthTable({
                         <MonthGroupCell
                           month={month}
                           rowSpan={currencies.length}
-                          description={`${String(currencies.length)} ${currencies.length === 1 ? "currency" : "currencies"}`}
+                          description={`${String(currencies.length)} ${currencies.length === 1 ? "currency" : "currencies"} on this page`}
                         >
                           {month === matureCutoff.slice(0, 7) ? (
                             <Badge
@@ -104,9 +104,9 @@ export function FinancialReviewMonthTable({
                               size="xs"
                               color="gray"
                               variant="light"
-                              title={`Includes mature dates before ${matureCutoff} only.`}
+                              title={`Includes dates before ${matureCutoff} (UTC) only. Later dates appear as they mature.`}
                             >
-                              Partial month
+                              Mature dates only
                             </Badge>
                           ) : null}
                           <Button
@@ -116,6 +116,7 @@ export function FinancialReviewMonthTable({
                             aria-label={`Open review for ${label}`}
                             onClick={(event) => {
                               event.stopPropagation();
+                              event.currentTarget.focus({ preventScroll: true });
                               onSelect(month);
                             }}
                           >
@@ -125,8 +126,8 @@ export function FinancialReviewMonthTable({
                       ) : null}
                       <Table.Td>{row.currency ?? "—"}</Table.Td>
                       <Table.Td className="numeric">
-                        {formatExactDecimal(row.settlement_amount)}
-                        {row.settlement_row_count === "0" ? (
+                        {formatExactDecimal(row.finances_amount)}
+                        {row.finances_row_count === "0" ? (
                           <Text size="xs" c="dimmed">
                             No source rows
                           </Text>

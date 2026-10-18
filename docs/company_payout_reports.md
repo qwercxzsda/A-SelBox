@@ -49,7 +49,7 @@ The worker also advances a small maturity frontier in the same table: each eligi
 keeps a pending future month, and newly mature months are added without rechecking
 completed historical months. Failed older work does not stop the frontier advancing.
 An eligible company with no refresh state is initialized from known financial history once;
-historical backfills extend that range. The start includes Settlement posting dates
+historical backfills extend that range. The start includes Finances posting dates
 and processed coverage, processed Data Kiosk days, saved reports, and existing
 refresh state. It can precede company creation and produce zero reports for companies
 that have assigned SKUs but no activity. With no financial history or refresh state,
@@ -83,7 +83,7 @@ their amounts disappear; with no known currency, the company/month itself is the
 through lightweight company-scoped `payouts` revision checks; unchanged report reuse does
 not rotate the token. There is no public generation RPC. The private worker and
 internal publisher use calculation version `v1`, independently of the source
-`preprocess_version`. The publisher discovers source namespaces, settlements, and
+`preprocess_version`. The publisher discovers source namespaces, Finances days, and
 required seller/marketplace pairs; callers cannot restrict a report to a namespace
 or choose its source versions. Preprocessing must be compatible within each
 namespace. Separate namespaces can use different preprocessing versions, retained
@@ -143,18 +143,23 @@ complete upstream acquisition/preprocessing. A zero total can also result from
 amounts that cancel each other or from authoritative zero-amount rows; those
 reports retain their component rows and ordinary coverage requirements.
 
-A scope containing authoritative company rows requires every day in each declared
-Data Kiosk marketplace, including when its total is zero. A scope without those rows
-uses available processed inputs without requiring complete day coverage. Missing
-ownership, applicable fees, or invalid available inputs still block publication.
-SKU-less Settlement controls in the Data Kiosk category do not. Validation applies
-before both reuse and creation.
+A scope containing authoritative company rows requires complete compatible
+Finances and Data Kiosk days, including when its total is zero. Every selected
+Finances control group also requires matched Amazon Summary evidence for its
+exact month, account/currency scopes and day-version manifest. Empty available
+Finances observations require their own verified Summary controls; missing
+Finances inputs are not invented as zero.
+
+A company with no identifiable source scope can still have an explicit empty
+input inventory. Missing ownership, applicable fees, invalid available inputs,
+pruned payloads or stale Summary controls block publication before both reuse
+and creation. SKU-less account controls never create company ownership.
 
 The declared coverage pairs use the company's discovered source namespaces. For
 each namespace, they include marketplaces known from Data Kiosk days at any date
-and named marketplaces on selected Settlement rows in the requested month. Each pair requires the
+and named marketplaces on selected Finances rows in the requested month. Each pair requires the
 entire month's days, even if that namespace has no available inputs in the month.
-A marketplace known only from historical Settlement rows outside the requested
+A marketplace known only from historical Finances rows outside the requested
 month does not by itself add a required coverage pair. This preserves the existing
 declared-scope policy without inventing seller/marketplace combinations.
 
@@ -171,11 +176,35 @@ A known currency remains in the header even when its aggregate is zero.
 While the company remains eligible, later refreshes can save zero totals for a
 previous currency scope whose amounts disappeared. Existing snapshots remain immutable.
 
+## Amazon Summary controls
+
+`finances_summary_checks` records independently acquired `listSummary` values,
+the sum of eligible native transaction totals, exact scope and source-page
+provenance. `finances_summary_check_versions` pins every day used in that sum.
+The publisher validates complete local days and excludes linked releases and
+transfers before comparing exact decimals. It never inserts a balancing amount.
+
+The verified control grouping maps native `Non-Amazon US` to Amazon.com because
+Amazon combines those amounts in its Summary response. The check includes both
+native marketplace-day inventories when present; company components retain their
+original marketplace. Currency does not infer a channel or ownership.
+
+Every returned Summary account/currency must match, including a Summary scope
+with no native transaction rows. A matching account cannot conceal an unmatched
+second account. A matched check for older versions does not certify newer selected days.
+Structurally valid current observations can exist without successful Summary
+reconciliation. Missing or mismatched controls keep the company/month pending
+and preserve its previous successful payout. A report stores both its exact
+Finances version pins and `payout_report_finances_summary_checks` references.
+
+This control validates Amazon account totals. It does not replace Data Kiosk's
+cost-allocation policy or certify its SKU amounts.
+
 ## Reuse unchanged reports
 
 Both publication paths compare only the latest report by save time for the same
 company, currency, and calendar month. Reuse requires the same calculation version,
-derived marketplace scope, and exact sets of selected Settlement, Data Kiosk, and
+derived marketplace scope, and exact sets of selected Finances, Data Kiosk, and
 SKU terms versions across all namespaces. The pinned source versions retain their
 individual preprocessing labels. The dataset is `economics`.
 
@@ -189,11 +218,11 @@ report matches. Concurrent matching requests serialize and return the same repor
 
 ## Company components
 
-Preprocessing already assigns every monetary transaction to the Settlement
-(`SETTLEMENT`), SelBox (`SELBOX`), or Data Kiosk (`DATA_KIOSK`) category. Publication
+Preprocessing already assigns every monetary transaction to the Finances
+(`FINANCES`), SelBox (`SELBOX`), or Data Kiosk (`DATA_KIOSK`) category. Publication
 does not reclassify them. Saved company amounts combine:
 
-- Settlement report amounts in the Settlement category, assigned through exact SKU ownership.
+- Finances activity amounts in the Finances category, assigned through exact SKU ownership.
 - Data Kiosk amounts in the Data Kiosk category, assigned through exact SKU ownership.
 - Applicable signed service fees.
 
@@ -231,7 +260,7 @@ reconciliation. The view derives its totals from saved components.
 ## Administrator financial review
 
 [Financial review](financial_review.md) compares current mature source facts in the
-Settlement, Data Kiosk, and SelBox categories. Each category groups months and currencies
+Finances, Data Kiosk, and SelBox categories. Each category groups months and currencies
 across the entire account. Its source records explain the current type subtotals without
 repeated company-report snapshots. Only the Data Kiosk difference is the accounting
 reconciliation amount; the other category differences are diagnostic.
@@ -248,21 +277,23 @@ For each seller, currency, day, and marketplace, save these exact amounts:
 
 | Field | Meaning |
 | --- | --- |
-| `settlement_category_amount` | Settlement report amounts in the Settlement category |
-| `selbox_category_amount` | Settlement report amounts in the SelBox category |
-| `data_kiosk_settlement_control` | Settlement report amounts in the Data Kiosk category |
+| `finances_category_amount` | Finances activity amounts in the Finances category |
+| `selbox_category_amount` | Finances activity amounts in the SelBox category |
+| `data_kiosk_finances_control` | Finances activity amounts in the Data Kiosk category |
 | `data_kiosk_category_amount` | Data Kiosk amounts in the Data Kiosk category |
 
 The named fields keep the source and category distinct. Their relationship is:
 
 ```text
-difference = data_kiosk_settlement_control - data_kiosk_category_amount
-accounted_total = settlement_category_amount + selbox_category_amount
+difference = data_kiosk_finances_control - data_kiosk_category_amount
+accounted_total = finances_category_amount + selbox_category_amount
                 + data_kiosk_category_amount + difference
-                = settlement_total
+                = finances_total
 ```
 
-One-sided groups are retained; a null marketplace is its own explicit group.
+One-sided groups are retained under their native marketplace identity.
+These daily Data Kiosk controls are distinct from the grouped monthly Amazon
+Summary check; only that separate check combines the Non-Amazon US channel.
 Amounts in the SelBox category and the difference remain with SelBox. The
 administrator-only `public.payout_report_reconciliation` view exposes the frozen controls in
 Financial review, labelled as account-wide context. The same account controls may
@@ -282,7 +313,7 @@ direct publication waits. Source and terms publishers acquire the shared guard b
 publication. Publications that arrive during generation wait for it to finish, then
 commit their changes and pending revisions together. This lock order protects current
 assignment eligibility and prevents publication/generation deadlocks. Capture and pruning use
-`READ COMMITTED` and pin all referenced days, including empty ones. Privileged publication recreates its temporary work table
+`READ COMMITTED` and pin all referenced Finances and Data Kiosk days, including empty ones. Privileged publication recreates its temporary work table
 to prevent caller-owned temporary tables or triggers from running with its role.
 
 Reassignment corrects mistaken ownership retroactively in live calculations and
@@ -351,3 +382,13 @@ disposable database without deleting account-level charges or changing their cat
 ```sh
 conda run -n A-SelBox python -m services.db.supabase.tests.verification.payouts --help
 ```
+
+## Data Kiosk coverage for native channels
+
+Finances retains `Non-Amazon US` activity under its native channel. Data Kiosk
+has no separately queryable channel for it, so required Data Kiosk coverage uses
+Amazon.com. The explicit `finances_data_kiosk_marketplace` rule affects coverage
+expectations and strict source selection only; it does not rename financial
+facts, change their fee marketplace, or distribute Data Kiosk amounts to MCF
+transactions. A company report can therefore pin both native Finances channels
+and the retail store's complete Data Kiosk month.

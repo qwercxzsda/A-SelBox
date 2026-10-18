@@ -126,7 +126,7 @@ test("automatic refresh clamps a removed last page after its updated count arriv
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   fixture.totalCount = 5;
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("row")).toHaveCount(6);

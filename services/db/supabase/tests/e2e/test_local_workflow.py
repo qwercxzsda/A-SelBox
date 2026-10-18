@@ -4,23 +4,26 @@ import hashlib
 import json
 import lzma
 import unittest
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import cast
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import uuid7
 
 import psycopg
+from psycopg import sql
 
 from services.db.supabase.tests.e2e.fixtures import (
+    END,
     START,
     archived_data_kiosk,
-    archived_settlement,
+    archived_finances,
     company_with_fees,
+    finances_document,
     fixture_sku,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.amazon.reports.models import DownloadedReportDocument
+from services.sync.src.amazon.finances.client import FinancesResponse
 from services.sync.src.archives.storage import (
     SOURCE_ARCHIVE_BUCKET,
     ArchiveIntegrityError,
@@ -30,17 +33,17 @@ from services.sync.src.archives.storage import (
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     load_data_kiosk_acquisition,
-    load_settlement_acquisition,
+    load_finances_acquisition,
     persist_data_kiosk_acquisition,
-    persist_settlement_acquisition,
+    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import create_company, publish_sku_terms
 from services.sync.src.database.payout_reports import publish_company_payout_report
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
-from services.sync.src.settlements.acquisition import download_settlement_acquisition
+from services.sync.src.finances.acquisition import download_finances_acquisition
+from services.sync.src.finances.acquisition_models import FinancesCoverageMarketplace
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 ACQUISITION_LOG = "services.sync.src.archives.acquisition_logging"
-SETTLEMENT_LOG = "services.sync.src.settlement_preprocess.workflow"
 
 
 class LocalWorkflowTests(LocalWorkflowCase):
@@ -51,17 +54,17 @@ class LocalWorkflowTests(LocalWorkflowCase):
         company = company_with_fees(self.database, self.seller)
         _, original_token = self.create_member(company)
         _, administrator_token = self.create_administrator()
-        settlement = persist_settlement_acquisition(
-            self.database, archived_settlement(self.storage, self.seller)
+        finances = persist_finances_acquisition(
+            self.database, archived_finances(self.storage, self.seller, end_date=month_end)
         )
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, self.seller, end_date=month_end)
         )
-        preprocess_settlement_acquisition(self.database, self.storage, settlement)
+        preprocess_finances_acquisition(self.database, self.storage, finances)
         preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         with self.database.connection() as connection:
             canonical = connection.execute(
-                "select id from private.settlements where seller_namespace=%s", (self.seller,)
+                "select id from private.finances_days where seller_namespace=%s", (self.seller,)
             ).fetchone()
             selected = connection.execute(
                 "select current_terms_version_id from public.skus where sku=%s",
@@ -97,10 +100,10 @@ class LocalWorkflowTests(LocalWorkflowCase):
         member_components = [row for row in components if row["authoritative"]]
         self.assertEqual(sum(Decimal(str(row["company_amount"])) for row in member_components), -10)
         self.assertEqual({row["terms_version_id"] for row in components}, {str(selected[0])})
-        self.assertEqual(header[0]["settlement_version_count"], 1)
+        self.assertEqual(header[0]["finances_version_count"], 31)
         self.assertEqual(header[0]["data_kiosk_version_count"], 31)
         self.assertEqual(header[0]["terms_version_count"], 1)
-        for source, count in (("settlement", 1), ("data_kiosk", 31), ("terms", 1)):
+        for source, count in (("finances", 31), ("data_kiosk", 31), ("terms", 1)):
             relation = "payout_report_" + source + "_versions"
             self.assertEqual(
                 len(self.read_rows(relation, administrator_token, report_id="eq." + report_id)),
@@ -151,7 +154,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                 visible_components,
             )
         self.assertEqual(self.read_rows("live_company_components", original_token), [])
-        self.assertEqual(len(self.read_rows("settlement_preprocess_entries", next_token)), 2)
+        self.assertEqual(len(self.read_rows("finances_preprocess_entries", next_token)), 2)
         self.assertEqual(
             self.read_rows(
                 "company_payout_reports",
@@ -178,13 +181,13 @@ class LocalWorkflowTests(LocalWorkflowCase):
         for seller in (self.seller, self.seller + "-other"):
             company = company_with_fees(self.database, seller)
             _, token = self.create_member(company)
-            settlement = archived_settlement(self.storage, seller)
+            finances = archived_finances(self.storage, seller)
             kiosk = archived_data_kiosk(self.storage, seller)
-            settlement_id = persist_settlement_acquisition(self.database, settlement)
+            finances_id = persist_finances_acquisition(self.database, finances)
             kiosk_id = persist_data_kiosk_acquisition(self.database, kiosk)
-            self.assertEqual(load_settlement_acquisition(self.database, settlement_id), settlement)
+            self.assertEqual(load_finances_acquisition(self.database, finances_id), finances)
             self.assertEqual(load_data_kiosk_acquisition(self.database, kiosk_id), kiosk)
-            preprocess_settlement_acquisition(self.database, self.storage, settlement_id)
+            preprocess_finances_acquisition(self.database, self.storage, finances_id)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk_id)
             members.append((seller, company, token))
 
@@ -218,8 +221,8 @@ class LocalWorkflowTests(LocalWorkflowCase):
                     [
                         ("DATA_KIOSK", Decimal(-7), Decimal(0), Decimal(-7), "NOT_APPLICABLE"),
                         ("DATA_KIOSK", Decimal(-5), Decimal(0), Decimal(-5), "NOT_APPLICABLE"),
-                        ("SETTLEMENT", Decimal(100), Decimal(-5), Decimal(95), "APPLIED"),
-                        ("SETTLEMENT", Decimal(-100), Decimal(7), Decimal(-93), "APPLIED"),
+                        ("FINANCES", Decimal(100), Decimal(-5), Decimal(95), "APPLIED"),
+                        ("FINANCES", Decimal(-100), Decimal(7), Decimal(-93), "APPLIED"),
                     ],
                 )
                 self.assertEqual(
@@ -227,7 +230,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                     Decimal(-10),
                 )
                 for relation, category, expected in (
-                    ("settlement_preprocess_entries", "SETTLEMENT", [100, -100]),
+                    ("finances_preprocess_entries", "FINANCES", [100, -100]),
                     ("data_kiosk_preprocess_entries", "DATA_KIOSK", [-7, -5]),
                 ):
                     values = self.read_rows(
@@ -246,16 +249,16 @@ class LocalWorkflowTests(LocalWorkflowCase):
     def test_private_schema_and_acquisition_rpc_stay_outside_authenticated_api(self) -> None:
         company = company_with_fees(self.database, self.seller)
         _, token = self.create_member(company)
-        acquisition = archived_settlement(self.storage, self.seller)
-        identifier = persist_settlement_acquisition(self.database, acquisition)
-        preprocess_settlement_acquisition(self.database, self.storage, identifier)
-        self.assertEqual(len(self.read_rows("settlement_preprocess_entries", token)), 2)
+        acquisition = archived_finances(self.storage, self.seller)
+        identifier = persist_finances_acquisition(self.database, acquisition)
+        preprocess_finances_acquisition(self.database, self.storage, identifier)
+        self.assertEqual(len(self.read_rows("finances_preprocess_entries", token)), 2)
 
         anonymous = self.stack.request("GET", "/rest/v1/live_company_components")
         self.assertEqual(anonymous.status_code, 401)
         for relation, category in (
-            ("settlement_preprocess_entries", "SELBOX"),
-            ("settlement_preprocess_entries", "DATA_KIOSK"),
+            ("finances_preprocess_entries", "SELBOX"),
+            ("finances_preprocess_entries", "DATA_KIOSK"),
             ("data_kiosk_preprocess_entries", "SELBOX"),
         ):
             with self.subTest(relation=relation):
@@ -267,7 +270,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                 )
                 self.assertEqual(denied.status_code, 200)
                 self.assertEqual(denied.json(), [])
-        for relation in ("settlement_acquisitions", "data_kiosk_acquisitions"):
+        for relation in ("finances_acquisitions", "data_kiosk_acquisitions"):
             with self.subTest(private_relation=relation):
                 self.assertEqual(
                     self.stack.request("GET", "/rest/v1/" + relation, token=token).status_code,
@@ -275,7 +278,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
                 )
         private_profile = self.stack.request(
             "GET",
-            "/rest/v1/settlement_acquisitions",
+            "/rest/v1/finances_acquisitions",
             token=token,
             headers={"Accept-Profile": "private"},
         )
@@ -283,7 +286,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         self.assertEqual(private_profile.json()["code"], "PGRST106")
         denied_rpc = self.stack.request(
             "POST",
-            "/rest/v1/rpc/publish_settlement_acquisition",
+            "/rest/v1/rpc/publish_finances_acquisition",
             token=token,
             json={"p_payload": {}},
         )
@@ -315,9 +318,9 @@ class LocalWorkflowTests(LocalWorkflowCase):
     def test_app_roles_and_anonymous_clients_cannot_read_or_write_source_archives(self) -> None:
         company = company_with_fees(self.database, self.seller)
         _, token = self.create_member(company)
-        acquisition = archived_settlement(self.storage, self.seller)
-        persist_settlement_acquisition(self.database, acquisition)
-        manifest = acquisition.document
+        acquisition = archived_finances(self.storage, self.seller)
+        persist_finances_acquisition(self.database, acquisition)
+        manifest = acquisition.documents[0].document
         location = manifest.bucket + "/" + manifest.object_path
         before = self.storage.get(manifest.bucket, manifest.object_path)
         _, administrator_token = self.create_administrator()
@@ -355,40 +358,76 @@ class LocalWorkflowTests(LocalWorkflowCase):
         self.assertEqual(self.storage.get(manifest.bucket, manifest.object_path), before)
 
     def test_failed_database_publication_retains_upload_and_previous_manifest(self) -> None:
-        original = archived_settlement(self.storage, self.seller)
-        original_id = persist_settlement_acquisition(self.database, original)
-        changed_content = f"changed document {uuid7()}".encode()
-        with (
-            patch(
-                "services.sync.src.settlements.acquisition.download_report_document",
-                return_value=DownloadedReportDocument(changed_content, None),
-            ),
-            self.assertLogs(ACQUISITION_LOG, level="INFO") as captured,
-            self.assertRaises(psycopg.errors.CheckViolation),
-        ):
-            download_settlement_acquisition(
-                Mock(),
-                self.database,
-                self.storage,
-                original.reference,
-                amazon_scope="NA",
-                seller_namespace=self.seller,
+        original = archived_finances(self.storage, self.seller)
+        original_id = persist_finances_acquisition(self.database, original)
+        changed_content = finances_document(str(uuid7()), sku=fixture_sku(self.seller))
+        summary_content = load_document_archive(self.storage, original.documents[1].document)
+        client = Mock()
+
+        def page(operation: str, _parameters: object) -> FinancesResponse:
+            now = datetime.now(UTC)
+            return FinancesResponse(
+                changed_content if operation == "transactions" else summary_content, now, now
             )
+
+        client.get_page.side_effect = page
+        # Reject the new manifest in PostgreSQL after both immutable pages upload.
+        # The trigger is local to this disposable stack and removed even on failure.
+        with self.database.connection() as connection, connection.transaction():
+            connection.execute(
+                sql.SQL("""
+                create function private.e2e_reject_finances_acquisition() returns trigger
+                language plpgsql as $$ begin
+                    if new.seller_namespace = {} then
+                        raise exception 'Synthetic acquisition publication failure'
+                            using errcode = '23514';
+                    end if;
+                    return new;
+                end $$;
+                create trigger e2e_reject_finances_acquisition
+                before insert on private.finances_acquisitions for each row
+                execute function private.e2e_reject_finances_acquisition();
+            """).format(sql.Literal(self.seller))
+            )
+        try:
+            with (
+                self.assertLogs(ACQUISITION_LOG, level="INFO") as captured,
+                self.assertRaises(psycopg.errors.CheckViolation),
+            ):
+                download_finances_acquisition(
+                    client,
+                    self.database,
+                    self.storage,
+                    amazon_scope="NA",
+                    seller_namespace=self.seller,
+                    query_start_date=START,
+                    query_end_date=END,
+                    marketplaces=(
+                        FinancesCoverageMarketplace(
+                            "ATVPDKIKX0DER", "Amazon.com", "America/Los_Angeles"
+                        ),
+                    ),
+                )
+        finally:
+            with self.database.connection() as connection, connection.transaction():
+                connection.execute(
+                    "drop trigger e2e_reject_finances_acquisition on private.finances_acquisitions"
+                )
+                connection.execute("drop function private.e2e_reject_finances_acquisition()")
         events = [
             cast(dict[str, object], json.loads(record.getMessage())) for record in captured.records
         ]
         failed = [event for event in events if event["event"] == "acquisition_failed"]
         retained = [event for event in events if event["event"] == "archive_retained"]
         self.assertEqual(len(failed), 1)
-        self.assertEqual(len(retained), 1)
+        self.assertEqual(len(retained), 2)
         self.assertEqual({event["attempt_id"] for event in events}, {failed[0]["attempt_id"]})
         self.assertNotIn("acquisition_published", [event["event"] for event in events])
         self.assertEqual(failed[0]["stage"], "publication")
         self.assertEqual(failed[0]["sqlstate"], "23514")
         self.assertEqual(failed[0]["publication_status"], "unconfirmed")
-        self.assertEqual(failed[0]["verified_archive_count"], 1)
+        self.assertEqual(failed[0]["verified_archive_count"], 2)
         self.assertEqual(failed[0]["seller_namespace"], self.seller)
-        self.assertEqual(failed[0]["report_document_id"], original.reference.report_document_id)
         candidate_id = cast(str, failed[0]["candidate_acquisition_id"])
         self.assertEqual(
             retained[0]["document_sha256"], hashlib.sha256(changed_content).hexdigest()
@@ -398,9 +437,9 @@ class LocalWorkflowTests(LocalWorkflowCase):
             self.assertTrue(
                 credential not in "\n".join(captured.output), "Acquisition logs exposed an API key."
             )
-        self.assertEqual(load_settlement_acquisition(self.database, original_id), original)
+        self.assertEqual(load_finances_acquisition(self.database, original_id), original)
         with self.assertRaises(LookupError):
-            load_settlement_acquisition(self.database, candidate_id)
+            load_finances_acquisition(self.database, candidate_id)
         self.assertEqual(
             lzma.decompress(
                 self.storage.get(
@@ -412,7 +451,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         with self.database.connection() as connection:
             self.assertEqual(
                 connection.execute(
-                    "select count(*) from private.settlement_acquisitions "
+                    "select count(*) from private.finances_acquisitions "
                     "where seller_namespace = %s",
                     (self.seller,),
                 ).fetchone(),
@@ -420,7 +459,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             )
             self.assertEqual(
                 connection.execute(
-                    "select count(*) from private.settlement_preprocess_versions "
+                    "select count(*) from private.finances_preprocess_batches "
                     "where acquisition_id in (%s, %s)",
                     (original.id, candidate_id),
                 ).fetchone(),
@@ -428,53 +467,37 @@ class LocalWorkflowTests(LocalWorkflowCase):
             )
 
     def test_missing_archive_blocks_preprocessing_and_preserves_saved_acquisition(self) -> None:
-        acquisition = archived_settlement(self.storage, self.seller)
-        identifier = persist_settlement_acquisition(self.database, acquisition)
-        manifest = acquisition.document
+        acquisition = archived_finances(self.storage, self.seller)
+        identifier = persist_finances_acquisition(self.database, acquisition)
+        manifest = acquisition.documents[0].document
         saved_archive = self.storage.get(manifest.bucket, manifest.object_path)
         response = self.stack.request(
             "DELETE",
-            "/storage/v1/object/" + acquisition.document.bucket,
+            "/storage/v1/object/" + manifest.bucket,
             admin=True,
-            json={"prefixes": [acquisition.document.object_path]},
+            json={"prefixes": [manifest.object_path]},
         )
         self.assertEqual(response.status_code, 200)
-        with (
-            self.assertLogs(SETTLEMENT_LOG, level="ERROR") as failure_log,
-            self.assertRaisesRegex(RuntimeError, "missing or inaccessible"),
-        ):
-            preprocess_settlement_acquisition(self.database, self.storage, identifier)
-        self.assertEqual(len(failure_log.records), 1)
-        self.assertEqual(
-            failure_log.records[0].getMessage(),
-            "Offline settlement preprocessing failed; "
-            f"acquisition_id={identifier} remains retained.",
-        )
-        self.assertEqual(load_settlement_acquisition(self.database, identifier), acquisition)
+        with self.assertRaisesRegex(RuntimeError, "missing or inaccessible"):
+            preprocess_finances_acquisition(self.database, self.storage, identifier)
+        self.assertEqual(load_finances_acquisition(self.database, identifier), acquisition)
         with self.database.connection() as connection:
             self.assertEqual(
                 connection.execute(
-                    "select count(*) from private.settlement_preprocess_versions "
+                    "select count(*) from private.finances_preprocess_batches "
                     "where acquisition_id = %s",
                     (identifier,),
                 ).fetchone(),
                 (0,),
             )
         self.storage.put(manifest.bucket, manifest.object_path, saved_archive)
-        with self.assertLogs(SETTLEMENT_LOG, level="INFO") as recovery_log:
-            version_id = preprocess_settlement_acquisition(self.database, self.storage, identifier)
-        self.assertEqual(len(recovery_log.records), 1)
-        self.assertIn(
-            f"Published settlement source version {version_id}",
-            recovery_log.records[0].getMessage(),
-        )
-        self.assertEqual(recovery_log.records[0].levelname, "INFO")
+        batch_id = preprocess_finances_acquisition(self.database, self.storage, identifier)
         with self.database.connection() as connection:
             self.assertEqual(
                 connection.execute(
-                    "select acquisition_id::text from private.settlement_preprocess_versions "
+                    "select acquisition_id::text from private.finances_preprocess_batches "
                     "where id = %s",
-                    (version_id,),
+                    (batch_id,),
                 ).fetchone(),
                 (identifier,),
             )

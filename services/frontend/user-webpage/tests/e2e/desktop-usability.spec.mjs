@@ -55,7 +55,7 @@ for (const width of [1440, 1920, 834, 390]) {
     await expect(pagination.getByRole("textbox", { name: "Page number" })).toHaveValue("2");
 
     for (const name of [
-      "Settlements",
+      "Finances",
       "Data Kiosk",
       "Current fees",
       "User access",
@@ -79,7 +79,7 @@ for (const width of [1440, 1920, 834, 390]) {
     await expect(currency).toHaveValue("EUR");
     await page.getByRole("tab", { name: "Transactions", exact: true }).focus();
     await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tabpanel", { name: "Settlements", exact: true })).toBeVisible();
+    await expect(page.getByRole("tabpanel", { name: "Finances", exact: true })).toBeVisible();
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByRole("tabpanel", { name: "Transactions", exact: true })).toBeVisible();
     await expect(currency).toHaveValue("EUR");

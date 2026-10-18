@@ -18,7 +18,7 @@ class DataKioskAccessTests(SourceModelFixture):
             2,
             [
                 self.component("-3"),
-                self.component("100", category="SETTLEMENT"),
+                self.component("100", category="FINANCES"),
                 self.component("-6", category="ANALYSIS_ONLY"),
                 self.component("-8", sku="OTHER"),
                 self.component("-9", category="SELBOX") | {"sku": None},
@@ -45,8 +45,7 @@ class DataKioskAccessTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select amount from public.data_kiosk_preprocess_entries "
-                "where category='SETTLEMENT'"
+                "select amount from public.data_kiosk_preprocess_entries where category='FINANCES'"
             ).fetchall(),
             [(Decimal("100"),)],
         )

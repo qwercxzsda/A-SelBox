@@ -28,7 +28,7 @@ function applicabilityRows() {
   ].map((row) => ({
     ...row,
     component_type:
-      row.resolution_status === "NOT_APPLICABLE" ? "Order/ItemPrice/Shipping" : "PRODUCT_SALES",
+      row.resolution_status === "NOT_APPLICABLE" ? "SHIPPING_CREDITS" : "PRODUCT_SALES",
   }));
 }
 

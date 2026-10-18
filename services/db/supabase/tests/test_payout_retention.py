@@ -127,10 +127,10 @@ class PayoutRetentionTests(SourceModelFixture):
             )
 
     def test_source_payloads_cannot_be_truncated(self) -> None:
-        self.settlement([self.transaction("1")])
+        self.finances([self.transaction("1")])
         self.kiosk(1, [self.component()])
         self.connection.commit()
-        for table in ("settlement_transactions", "data_kiosk_transactions"):
+        for table in ("finances_transaction_components", "data_kiosk_transactions"):
             with (
                 self.subTest(table=table),
                 self.assertRaises(psycopg.errors.CheckViolation),
@@ -141,7 +141,7 @@ class PayoutRetentionTests(SourceModelFixture):
                 )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.settlement_transactions"
+                "select count(*) from private.finances_transaction_components"
             ).fetchone(),
             (1,),
         )

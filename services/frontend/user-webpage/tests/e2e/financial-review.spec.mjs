@@ -77,11 +77,7 @@ test("three category summaries preserve currency and zero amounts and defer sour
   page,
 }) => {
   const fixture = await openReview(page);
-  await expect(categories(page).getByRole("tab")).toHaveText([
-    "Settlement",
-    "Data Kiosk",
-    "SelBox",
-  ]);
+  await expect(categories(page).getByRole("tab")).toHaveText(["Finances", "Data Kiosk", "SelBox"]);
   await expect(
     categories(page).getByRole("tab", { name: "Data Kiosk", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
@@ -130,7 +126,7 @@ test("each category has its own month filter and cursor, including source gaps",
   const fixture = await openReview(page, addOlderMonths);
   await applyReportMonth(page, "2024-09");
   await expect(monthGroup(page, "September 2024")).toBeVisible();
-  await categories(page).getByRole("tab", { name: "Settlement", exact: true }).click();
+  await categories(page).getByRole("tab", { name: "Finances", exact: true }).click();
   await expect(monthGroup(page, "July 2026")).toBeVisible();
   await expect(
     currencyRow(monthGroup(page, "July 2026"), page, "USD").getByRole("cell"),
@@ -146,7 +142,7 @@ test("each category has its own month filter and cursor, including source gaps",
   await selectMonth(page);
   await expect(typesTable(page).locator("tbody tr")).toHaveCount(1);
   await expect(
-    drawer(page).getByText("Settlement: 1 records · Data Kiosk: 0 records", { exact: true }),
+    drawer(page).getByText("Finances: 1 records · Data Kiosk: 0 records", { exact: true }),
   ).toBeVisible();
   await openRecords(page);
   await expect(recordsTable(page).locator("tbody tr")).toHaveCount(1);
@@ -160,7 +156,7 @@ test("each category has its own month filter and cursor, including source gaps",
   await categories(page).getByRole("tab", { name: "Data Kiosk", exact: true }).click();
   await expect(monthGroup(page, "September 2024")).toBeVisible();
   const categoriesRead = new Set(currentReads(fixture).map(({ params }) => categoryFilter(params)));
-  expect(categoriesRead).toEqual(new Set(["DATA_KIOSK", "SETTLEMENT", "SELBOX"]));
+  expect(categoriesRead).toEqual(new Set(["DATA_KIOSK", "FINANCES", "SELBOX"]));
 });
 
 test("selecting a type filters source records by exact source and type and F5 retains that context", async ({
@@ -254,12 +250,11 @@ test("long type lists page independently of source records and retain position a
   expect(currentReads(fixture, "financial_review_records").at(-1).params.get("offset")).toBe("0");
 });
 
-test("a long EPR type stays clearable on a phone and keyboard selection reaches its source records", async ({
+test("a long unfamiliar type stays clearable on a phone and keyboard selection reaches its source records", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const type =
-    "AmazonFees/Eco-contribution for EPR Pay on Behalf - GB - Packaging - (Period 01.07.2024 - 31.12.2024)/Base fee";
+  const type = "UNRECOGNIZED_FINANCIAL_ADJUSTMENT_".repeat(8);
   await openReview(page, (fixture) => {
     for (const row of [...fixture.financialReviewTypeTotals, ...fixture.financialReviewRecords])
       if (row.category === "SELBOX") row.component_type = type;
@@ -270,6 +265,7 @@ test("a long EPR type stays clearable on a phone and keyboard selection reaches 
   await action.focus();
   await action.press("Enter");
   await expect(recordsTable(page).locator("tbody tr")).toHaveCount(1);
+  await expect(recordsTable(page).getByRole("cell", { name: "No SKU", exact: true })).toBeVisible();
   await expect(
     drawer(page).getByRole("region", { name: "Source records", exact: true }),
   ).toBeFocused();
@@ -319,7 +315,7 @@ test("F5 restores selected month, currency, and source page without persisting f
       .map(([, value]) => value)
       .join("\n"),
   );
-  expect(snapshots).not.toContain("settlement_amount");
+  expect(snapshots).not.toContain("finances_amount");
   expect(snapshots).not.toContain("source_version_id");
   await closeReview(page);
   await page.reload();
@@ -415,7 +411,7 @@ test("Rows sizes and positions persist per category, reset paging, and retain th
   await expect(selector).toHaveValue("50");
   await expect(pages(page).getByRole("form")).toHaveAttribute("aria-label", /^Page 2 of /);
   await expect(monthTable(page).locator("tbody tr")).toHaveCount(50);
-  await categories(page).getByRole("tab", { name: "Settlement", exact: true }).click();
+  await categories(page).getByRole("tab", { name: "Finances", exact: true }).click();
   await expect(selector).toHaveValue("25");
   await expect(monthTable(page).locator("tbody tr")).toHaveCount(2);
   await selector.selectOption("100");
@@ -505,7 +501,7 @@ test("an empty month keeps its filter reachable and another month remains select
 }) => {
   const fixture = await openReview(page, addOlderMonths);
   await applyReportMonth(page, "2025-02");
-  await expect(page.getByText(/No source data.*February 2025/)).toBeVisible();
+  await expect(page.getByText(/No mature source records.*February 2025/)).toBeVisible();
   await expect(monthTable(page).getByRole("button", { name: "Month", exact: true })).toBeVisible();
   await expect(monthTable(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
   for (const direction of ["Previous", "Next"])
@@ -523,7 +519,7 @@ test("negative and high precision differences retain exact values without combin
       month: "2026-07-01",
       currency: "GBP",
       ...reviewAmounts({
-        settlement_amount: "-9007199254740993.123456789",
+        finances_amount: "-9007199254740993.123456789",
         data_kiosk_amount: "-9007199254740993",
         difference: "-0.123456789",
       }),
@@ -557,7 +553,7 @@ test("source and maturity revisions refresh visible review data while unchanged 
   fixture.financialReviewRecords.find(
     (row) => row.activity_date === "2026-07-25" && row.currency === "USD",
   ).amount = "-97.25";
-  fixture.revisions.settlement = "new-source";
+  fixture.revisions.finances = "new-source";
   await checkForUpdates(page, fixture);
   await expect(totalsTable(page).getByRole("cell", { name: "2.25", exact: true })).toBeVisible();
   await expect(recordsTable(page).getByRole("cell", { name: "-97.25", exact: true })).toBeVisible();
@@ -608,7 +604,7 @@ test("empty categories have no enabled pagination and members never fetch review
     state.financialReviewTotals = [];
   });
   await expect(
-    page.getByText(/No source data available|No monthly source summaries/),
+    page.getByText(/No mature source records available|No monthly source summaries/),
   ).toBeVisible();
   await expect(monthTable(page).getByRole("button", { name: "Month", exact: true })).toBeVisible();
   for (const direction of ["Previous", "Next"])

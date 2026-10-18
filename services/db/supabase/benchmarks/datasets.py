@@ -28,15 +28,18 @@ LIVE_COLUMNS = (
     "fee_amount",
     "company_amount",
 )
-SETTLEMENT_COLUMNS = (
+FINANCES_COLUMNS = (
     "id",
     "version_id",
-    "settlement_id",
-    "preprocess_version",
+    "transaction_id",
+    "native_transaction_id",
+    "deferred_transaction_id",
+    "release_transaction_id",
     "seller_namespace",
-    "source_line_number",
+    "source_page_number",
+    "source_record_number",
+    "component_key",
     "category",
-    "family",
     "component_type",
     "accounting_subtype",
     "sku",
@@ -44,13 +47,19 @@ SETTLEMENT_COLUMNS = (
     "amount",
     "currency",
     "quantity",
+    "fee_base",
     "posted_date",
     "posted_at",
     "transaction_type",
-    "amount_type",
-    "amount_description",
+    "transaction_status",
+    "account_type",
+    "activity_eligible",
+    "breakdown_path",
     "created_at",
+    "preprocess_version",
+    "day_id",
 )
+
 KIOSK_COLUMNS = (
     "id",
     "version_id",
@@ -97,11 +106,11 @@ DATASETS = (
         ("source", "source_row_id"),
     ),
     Dataset(
-        "settlement",
-        "settlement_preprocess_entries",
+        "finances",
+        "finances_preprocess_entries",
         "posted_date",
         "amount",
-        SETTLEMENT_COLUMNS,
+        FINANCES_COLUMNS,
         ("id",),
     ),
     Dataset(
@@ -116,11 +125,13 @@ DATASETS = (
 
 
 def canonical_rows(rows: list[dict[str, str | None]]) -> list[dict[str, str | None]]:
-    """CSV and JSON spell timestamptz differently; keep every other value exact."""
+    """Normalize timestamp/boolean representations; keep monetary values exact."""
     return [
         {
             field: datetime.fromisoformat(value).isoformat()
             if field in {"posted_at", "created_at"} and value is not None
+            else {"t": "true", "f": "false"}.get(value, value)
+            if field == "activity_eligible" and value is not None
             else value
             for field, value in row.items()
         }

@@ -8,18 +8,18 @@ test("financial review RPC projections align alphabetized CSV headers with exact
     month: "2026-07-01",
     category: "DATA_KIOSK",
     currency: "AUD",
-    settlement_amount: "9007199254740993.123456789",
+    finances_amount: "9007199254740993.123456789",
     data_kiosk_amount: "9007199254740993.123456790",
     difference: "-0.000000001",
-    settlement_row_count: "55",
+    finances_row_count: "55",
     data_kiosk_row_count: "31",
   };
   const type = {
     month: "2026-07-01",
     category: "DATA_KIOSK",
     currency: "AUD",
-    source: "SETTLEMENT",
-    component_type: "AmazonFees/Cost of Advertising/TransactionTotalAmount",
+    source: "FINANCES",
+    component_type: "ADVERTISING",
     amount: "-9007199254740993.123456789",
     row_count: "55",
   };
@@ -66,10 +66,10 @@ test("financial review keeps category and month scope while aggregating every na
     return new Response(
       csvRecord({
         currency: "USD",
-        settlement_amount: "9007199254740993.123456789",
+        finances_amount: "9007199254740993.123456789",
         data_kiosk_amount: "9007199254740993.123456790",
         difference: "-0.000000001",
-        settlement_row_count: "0",
+        finances_row_count: "0",
         data_kiosk_row_count: "123456",
       }),
     );
@@ -80,10 +80,10 @@ test("financial review keeps category and month scope while aggregating every na
     "2026-07",
     controller.signal,
   );
-  assert.equal(row.settlement_amount, "9007199254740993.123456789");
+  assert.equal(row.finances_amount, "9007199254740993.123456789");
   assert.equal(row.data_kiosk_amount, "9007199254740993.123456790");
   assert.equal(row.difference, "-0.000000001");
-  assert.equal(row.settlement_row_count, "0");
+  assert.equal(row.finances_row_count, "0");
   assert.equal(row.data_kiosk_row_count, "123456");
 });
 
@@ -104,7 +104,7 @@ function monthlyPageFixture(rows) {
     assert.equal(init.headers.Prefer, undefined);
     if (params.get("select") === "activity_date") {
       assert.equal(parsed.pathname, "/rest/v1/financial_review_records");
-      assert.equal(params.get("category"), "eq.SETTLEMENT");
+      assert.equal(params.get("category"), "eq.FINANCES");
       assert.equal(params.get("limit"), "1");
       assert.equal(params.get("order"), "activity_date.desc");
       assert.equal(params.has("offset"), false);
@@ -113,7 +113,7 @@ function monthlyPageFixture(rows) {
       return new Response(`activity_date\n${latest ? latest.month.replace(/01$/, "14") : ""}`);
     }
     assert.equal(parsed.pathname, "/rest/v1/rpc/financial_review_totals");
-    assert.equal(params.get("p_category"), "SETTLEMENT");
+    assert.equal(params.get("p_category"), "FINANCES");
     assert.equal(params.has("and"), false);
     assert.equal(params.get("order"), "month.desc,currency.asc");
     assert.ok(Number(params.get("limit")) <= 101);
@@ -144,19 +144,13 @@ test("financial review row pages resume within a six-month window and fill acros
     ),
     ...monthCurrencies("2024-01", 3),
   ]);
-  const first = await fixture.client.fetchFinancialReviewMonths(
-    "access",
-    "SETTLEMENT",
-    null,
-    25,
-    "",
-  );
+  const first = await fixture.client.fetchFinancialReviewMonths("access", "FINANCES", null, 25, "");
   assert.equal(first.rows.length, 25);
   assert.deepEqual(first.nextCursor, { month: "2026-10", offset: 25 });
   assert.equal(fixture.requests.length, 2, "a window with more rows needs no older-month probe");
   const second = await fixture.client.fetchFinancialReviewMonths(
     "access",
-    "SETTLEMENT",
+    "FINANCES",
     first.nextCursor,
     25,
     "",
@@ -186,13 +180,7 @@ test("financial review full pages start the next older window without fetching u
     ),
     ...monthCurrencies("2024-01", 4),
   ]);
-  const first = await fixture.client.fetchFinancialReviewMonths(
-    "access",
-    "SETTLEMENT",
-    null,
-    25,
-    "",
-  );
+  const first = await fixture.client.fetchFinancialReviewMonths("access", "FINANCES", null, 25, "");
   assert.deepEqual(first.nextCursor, { month: "2024-01", offset: 0 });
   assert.equal(
     fixture.requests.filter((request) => request.path.endsWith("financial_review_totals")).length,
@@ -200,7 +188,7 @@ test("financial review full pages start the next older window without fetching u
   );
   const second = await fixture.client.fetchFinancialReviewMonths(
     "access",
-    "SETTLEMENT",
+    "FINANCES",
     first.nextCursor,
     25,
     "",
@@ -222,7 +210,7 @@ test("financial review month filtering paginates currency rows without probing o
   ]);
   const first = await fixture.client.fetchFinancialReviewMonths(
     "access",
-    "SETTLEMENT",
+    "FINANCES",
     null,
     25,
     "2026-07",
@@ -232,7 +220,7 @@ test("financial review month filtering paginates currency rows without probing o
   assert.deepEqual(first.nextCursor, { month: "2026-07", offset: 25 });
   const second = await fixture.client.fetchFinancialReviewMonths(
     "access",
-    "SETTLEMENT",
+    "FINANCES",
     first.nextCursor,
     25,
     "2026-07",
@@ -254,7 +242,7 @@ test("financial review 25, 50, and 100 row pages end without an empty trailing p
     const fixture = monthlyPageFixture(monthCurrencies("2026-10", pageSize));
     const page = await fixture.client.fetchFinancialReviewMonths(
       "access",
-      "SETTLEMENT",
+      "FINANCES",
       null,
       pageSize,
       "",
@@ -282,8 +270,8 @@ test("financial review type breakdown paginates both sources without merging raw
     assert.equal(init.headers.Prefer, "count=exact");
     return new Response(
       csvRecord({
-        source: "SETTLEMENT",
-        component_type: "AmazonFees/EPR/Base fee",
+        source: "FINANCES",
+        component_type: "EPR_FEES",
         amount: "-0.0000000001",
         row_count: "71",
       }),
@@ -297,7 +285,7 @@ test("financial review type breakdown paginates both sources without merging raw
 });
 
 test("financial review records preserve matching source/type filters, provenance, and leap-month scope", async () => {
-  const type = 'AmazonFees/EPR - GB, Packaging (2028)/Base "fee"';
+  const type = 'UNRECOGNIZED_FEE, (2028)/Base "fee"';
   const controller = new AbortController();
   const client = createApiClient(SETTINGS, async (url, init) => {
     const parsed = new URL(url);
@@ -307,7 +295,7 @@ test("financial review records preserve matching source/type filters, provenance
     assert.equal(params.get("currency"), "eq.GBP");
     assert.equal(params.get("and"), "(activity_date.gte.2028-02-01,activity_date.lte.2028-02-29)");
     assert.equal(params.has("month"), false);
-    assert.equal(params.get("source"), "eq.SETTLEMENT");
+    assert.equal(params.get("source"), "eq.FINANCES");
     assert.equal(params.get("component_type"), `eq.${type}`);
     assert.equal(params.get("order"), "activity_date.desc,source.asc,source_row_id.asc");
     assert.equal(params.get("limit"), "50");
@@ -334,7 +322,7 @@ test("financial review records preserve matching source/type filters, provenance
     "2028-02",
     "GBP",
     2,
-    { source: "SETTLEMENT", type },
+    { source: "FINANCES", type },
     controller.signal,
   );
   assert.equal(page.totalCount, 101);
@@ -358,11 +346,11 @@ test("financial review record filters can show all contributing rows without exc
       "marketplace_name",
     ])
       assert.equal(params.has(key), false);
-    assert.equal(params.get("category"), "eq.SETTLEMENT");
+    assert.equal(params.get("category"), "eq.FINANCES");
     return new Response("amount\n0\n", { headers: { "Content-Range": "0-0/1" } });
   });
   assert.equal(
-    (await client.fetchFinancialReviewRecords("access", "SETTLEMENT", "2026-07", "USD", 0)).rows[0]
+    (await client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "USD", 0)).rows[0]
       .amount,
     "0",
   );
@@ -374,16 +362,16 @@ test("financial review validates category, month, currency, source, type and pag
     requests++;
     return new Response("month\n");
   });
-  for (const category of ["ANALYSIS_ONLY", "", "SETTLEMENT,category.eq.SELBOX", null]) {
+  for (const category of ["ANALYSIS_ONLY", "", "FINANCES,category.eq.SELBOX", null]) {
     await assert.rejects(client.fetchFinancialReviewMonths("access", category, null, 25, ""));
     await assert.rejects(client.fetchFinancialReviewTotals("access", category, "2026-07"));
     assert.throws(() => client.fetchFinancialReviewTypes("access", category, "2026-07", "USD"));
   }
   for (const month of ["2026-13", "2026-7", "2026-07-01", "0000-01", "2026-07,or=(id)"])
-    await assert.rejects(client.fetchFinancialReviewTotals("access", "SETTLEMENT", month));
+    await assert.rejects(client.fetchFinancialReviewTotals("access", "FINANCES", month));
   for (const filterMonth of ["2026-13", "2026-7", "2026-07-01", "0000-01", null, undefined])
     await assert.rejects(
-      client.fetchFinancialReviewMonths("access", "SETTLEMENT", null, 25, filterMonth),
+      client.fetchFinancialReviewMonths("access", "FINANCES", null, 25, filterMonth),
     );
   for (const cursor of [
     undefined,
@@ -396,11 +384,11 @@ test("financial review validates category, month, currency, source, type and pag
     { month: "2026-07", offset: null },
     { month: "2026-07", offset: Number.MAX_SAFE_INTEGER },
   ])
-    await assert.rejects(client.fetchFinancialReviewMonths("access", "SETTLEMENT", cursor, 25, ""));
+    await assert.rejects(client.fetchFinancialReviewMonths("access", "FINANCES", cursor, 25, ""));
   await assert.rejects(
     client.fetchFinancialReviewMonths(
       "access",
-      "SETTLEMENT",
+      "FINANCES",
       { month: "2026-06", offset: 0 },
       25,
       "2026-07",
@@ -408,19 +396,19 @@ test("financial review validates category, month, currency, source, type and pag
   );
   for (const pageSize of [-1, 0, 0.5, 1000, Number.MAX_SAFE_INTEGER, undefined])
     await assert.rejects(
-      client.fetchFinancialReviewMonths("access", "SETTLEMENT", null, pageSize, ""),
+      client.fetchFinancialReviewMonths("access", "FINANCES", null, pageSize, ""),
     );
   for (const currency of ["usd", "", "US", "USD,EUR"])
     assert.throws(() =>
-      client.fetchFinancialReviewTypes("access", "SETTLEMENT", "2026-07", currency),
+      client.fetchFinancialReviewTypes("access", "FINANCES", "2026-07", currency),
     );
   for (const page of [-1, 0.5, Number.MAX_SAFE_INTEGER])
     assert.throws(() =>
-      client.fetchFinancialReviewRecords("access", "SETTLEMENT", "2026-07", "USD", page),
+      client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "USD", page),
     );
   for (const filters of [{ source: "SELBOX" }, { type: "" }, { type: "hello\0world" }])
     assert.throws(() =>
-      client.fetchFinancialReviewRecords("access", "SETTLEMENT", "2026-07", "USD", 0, filters),
+      client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "USD", 0, filters),
     );
   assert.equal(requests, 0);
 });
@@ -444,7 +432,7 @@ test("financial review empty categories end cleanly and malformed month cursors 
     await assert.rejects(
       invalid.fetchFinancialReviewMonths(
         "access",
-        "SETTLEMENT",
+        "FINANCES",
         { month: "2026-10", offset: 0 },
         25,
         "",
@@ -464,7 +452,7 @@ test("financial review empty categories end cleanly and malformed month cursors 
     await assert.rejects(
       invalid.fetchFinancialReviewMonths(
         "access",
-        "SETTLEMENT",
+        "FINANCES",
         { month: "2026-10", offset: 0 },
         25,
         "",
@@ -486,7 +474,7 @@ test("financial review refuses truncated monthly groups and preserves permission
   await assert.rejects(
     capped.fetchFinancialReviewMonths(
       "access",
-      "SETTLEMENT",
+      "FINANCES",
       { month: "2026-10", offset: 0 },
       25,
       "",
@@ -498,7 +486,7 @@ test("financial review refuses truncated monthly groups and preserves permission
     async () => new Response("private server details", { status: 403 }),
   );
   await assert.rejects(
-    denied.fetchFinancialReviewTotals("access", "SETTLEMENT", "2026-07"),
+    denied.fetchFinancialReviewTotals("access", "FINANCES", "2026-07"),
     (error) => error.status === 403 && !error.message.includes("private server details"),
   );
   const controller = new AbortController();
@@ -507,7 +495,7 @@ test("financial review refuses truncated monthly groups and preserves permission
     init.signal.throwIfAborted();
   });
   await assert.rejects(
-    cancelled.fetchFinancialReviewTotals("access", "SETTLEMENT", "2026-07", controller.signal),
+    cancelled.fetchFinancialReviewTotals("access", "FINANCES", "2026-07", controller.signal),
     (error) => error.name === "AbortError",
   );
 });

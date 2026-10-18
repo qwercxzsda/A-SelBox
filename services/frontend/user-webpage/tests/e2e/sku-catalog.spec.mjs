@@ -46,7 +46,7 @@ test("administrator identity preloads the complete SKU catalog in one request in
 });
 
 for (const [role, revision] of [
-  ["administrator", "settlement"],
+  ["administrator", "finances"],
   ["administrator", "data_kiosk"],
   ["administrator", "fees"],
   ["member", "fees"],
@@ -93,9 +93,9 @@ for (const [role, revision] of [
       expect(fixture.revisionRequests.at(-1).sources.sort()).toEqual([
         "data_kiosk",
         "fees",
+        "finances",
         "inventory",
         "payouts",
-        "settlement",
       ]);
     else expect(fixture.optionRequests).toHaveLength(0);
   });

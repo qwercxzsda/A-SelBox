@@ -4,13 +4,13 @@ from decimal import Decimal
 from typing import cast
 
 from services.db.supabase.tests.e2e.fixtures import (
-    archived_settlement,
+    archived_finances,
     company_with_fees,
     fixture_sku,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.database.acquisitions import persist_settlement_acquisition
-from services.sync.src.settlement_preprocess.workflow import preprocess_settlement_acquisition
+from services.sync.src.database.acquisitions import persist_finances_acquisition
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 
 class SummaryRpcTests(LocalWorkflowCase):
@@ -21,10 +21,10 @@ class SummaryRpcTests(LocalWorkflowCase):
             (self.seller, fixture_sku(self.seller)),
             (self.seller + "-second", "OTHER"),
         ):
-            acquisition = persist_settlement_acquisition(
-                self.database, archived_settlement(self.storage, seller, sku=sku)
+            acquisition = persist_finances_acquisition(
+                self.database, archived_finances(self.storage, seller, sku=sku)
             )
-            preprocess_settlement_acquisition(self.database, self.storage, acquisition)
+            preprocess_finances_acquisition(self.database, self.storage, acquisition)
         member_id, member_token = self.create_member(first)
         _, administrator_token = self.create_administrator()
         _, outsider_token = self.create_auth_user()

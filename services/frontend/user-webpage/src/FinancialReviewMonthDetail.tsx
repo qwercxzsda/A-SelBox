@@ -14,6 +14,7 @@ export function FinancialReviewMonthDetail({
   months,
   onSelect,
   onClose,
+  onExitTransitionEnd,
 }: {
   identity: Identity;
   category: ReviewCategory;
@@ -23,6 +24,7 @@ export function FinancialReviewMonthDetail({
   months: string[];
   onSelect: (month: string) => void;
   onClose: () => void;
+  onExitTransitionEnd: () => void;
 }) {
   const index = month ? months.indexOf(month) : -1;
   const newerMonth = index > 0 ? months[index - 1] : null;
@@ -33,6 +35,7 @@ export function FinancialReviewMonthDetail({
         stackId="monthly-financial-review"
         opened={month !== null && matureCutoff !== ""}
         onClose={onClose}
+        onExitTransitionEnd={onExitTransitionEnd}
         position="right"
         size="min(1440px, 100vw)"
         padding="lg"
@@ -55,7 +58,7 @@ export function FinancialReviewMonthDetail({
                   </Badge>
                   {month === matureCutoff.slice(0, 7) ? (
                     <Badge color="gray" variant="light">
-                      Partial month
+                      Mature dates only
                     </Badge>
                   ) : null}
                 </Group>
@@ -90,8 +93,8 @@ export function FinancialReviewMonthDetail({
             </Group>
             {matureCutoff ? (
               <Text size="xs" c="dimmed" mb="lg">
-                Includes mature dates before {matureCutoff} (UTC) only. Source coverage may be
-                incomplete.
+                Includes mature dates before {matureCutoff} (UTC) only. Later dates appear
+                automatically as they mature.
               </Text>
             ) : null}
             {matureCutoff ? (

@@ -85,7 +85,7 @@ test("visible periodic updates wait for the revision check before reloading chan
     await release.promise;
   };
   fixture.prefixes["member-a"] = "UPDATED";
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   await checking.promise;
   expect(fixture.requests).toHaveLength(before);
@@ -110,7 +110,7 @@ test("background tabs pause periodic updates and returning to visibility refresh
     body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.Event("visibilitychange"));
   });
   fixture.prefixes["member-a"] = "VISIBLE";
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   expect(fixture.requests).toHaveLength(before);
   await page.locator("body").evaluate((body) => {
@@ -131,12 +131,12 @@ test("window focus and reconnect refresh the current account without signing in 
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   fixture.prefixes["member-a"] = "FOCUSED";
-  fixture.revisions.settlement = "1";
+  fixture.revisions.finances = "1";
   await page.clock.fastForward(31_000);
   await page.evaluate(() => globalThis.dispatchEvent(new globalThis.Event("focus")));
   await expect(rowWithSku(page, "FOCUSED-001")).toBeVisible();
   fixture.prefixes["member-a"] = "RECONNECTED";
-  fixture.revisions.settlement = "2";
+  fixture.revisions.finances = "2";
   await page.context().setOffline(true);
   await page.context().setOffline(false);
   await expect(rowWithSku(page, "RECONNECTED-001")).toBeVisible();
