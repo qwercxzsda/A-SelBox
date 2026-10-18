@@ -3,6 +3,8 @@ import { readBuildConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
+import type { FinancialSourceSelection } from "./api/financial-source.ts";
+export type { FinancialSourceSelection } from "./api/financial-source.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
 import type {
   FinancialReviewCategory,
@@ -76,6 +78,10 @@ export const fetchSessionUser = (accessToken: string): Promise<SessionUser> =>
   getDefaultClient().fetchSessionUser(accessToken);
 export const signOut = (accessToken: string): Promise<void> =>
   getDefaultClient().signOut(accessToken);
+export const requestPasswordRecovery = (email: string, redirectTo: string): Promise<void> =>
+  getDefaultClient().requestPasswordRecovery(email, redirectTo);
+export const updatePassword = (accessToken: string, password: string): Promise<SessionUser> =>
+  getDefaultClient().updatePassword(accessToken, password);
 export const fetchWorkspaceRevisions = (
   options: FetchWorkspaceRevisionsOptions,
 ): Promise<WorkspaceRevisionSnapshot> => getDefaultClient().fetchWorkspaceRevisions(options);
@@ -93,6 +99,57 @@ export const fetchInventoryPage = (options: FetchInventoryPageOptions) =>
   getDefaultClient().fetchInventoryPage(options);
 export const fetchInventoryFilterOptions = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchInventoryFilterOptions(accessToken, signal);
+export const fetchInventoryCaptures = (accessToken: string, signal?: AbortSignal) =>
+  getDefaultClient().fetchInventoryCaptures(accessToken, signal);
+export const hasInventoryItems = (accessToken: string, marketplace: string, signal?: AbortSignal) =>
+  getDefaultClient().hasInventoryItems(accessToken, marketplace, signal);
+
+export const fetchFinancialSourceRecord = (
+  accessToken: string,
+  selection: FinancialSourceSelection,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchFinancialSourceRecord(accessToken, selection, signal);
+export const fetchFinancialSourceTransactions = (
+  accessToken: string,
+  transactionId: string,
+  pageIndex = 0,
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchFinancialSourceTransactions(
+    accessToken,
+    transactionId,
+    pageIndex,
+    signal,
+  );
+
+export const fetchPayoutReadiness = (
+  accessToken: string,
+  month: string,
+  companyIds: string[] = [],
+  pageIndex = 0,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchPayoutReadiness(accessToken, month, companyIds, pageIndex, signal);
+export const fetchFinancialReviewFamilyTypes = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  month: string,
+  currency: string,
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchFinancialReviewFamilyTypes(
+    accessToken,
+    category,
+    month,
+    currency,
+    signal,
+  );
+export const fetchPayoutSetupBlockers = (
+  accessToken: string,
+  companyId: string,
+  month: string,
+  pageIndex = 0,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchPayoutSetupBlockers(accessToken, companyId, month, pageIndex, signal);
 export const fetchSkuConfiguration = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchSkuConfiguration(accessToken, signal);
 export const publishSkuConfiguration = (options: PublishSkuConfigurationOptions) =>

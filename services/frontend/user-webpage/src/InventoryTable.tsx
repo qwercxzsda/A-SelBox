@@ -13,6 +13,7 @@ import {
 } from "./InventoryMetrics";
 import { inventoryRowId } from "./inventory-row";
 import { inspectableRowProps } from "./inspectable-row";
+import { InventorySourceDate } from "./InventorySourceDate";
 
 const OVERVIEW = INVENTORY_METRICS.overview.filter(
   ([key]) => key === "available_quantity" || key === "inbound_quantity",
@@ -29,6 +30,7 @@ export function InventoryTable({
   filterOptions,
   onSelect,
   onShowTransactions,
+  now,
 }: {
   rows: InventoryRow[];
   viewState: InventoryViewState;
@@ -36,6 +38,7 @@ export function InventoryTable({
   filterOptions?: InventoryFilterOptions;
   onSelect: (id: string) => void;
   onShowTransactions: (sku: string) => void;
+  now: number;
 }) {
   const sort = (column: InventorySortColumn) => ({
     direction: viewState.sortColumn === column ? viewState.sortDirection : (false as const),
@@ -85,6 +88,12 @@ export function InventoryTable({
       <Text size="xs" c="dimmed">
         Select a row for inventory details. Select a SKU to view its transactions.
       </Text>
+      {viewState.sortColumn === "sales_amount_90d" ? (
+        <Text size="sm" role="note" className="inventory-sales-note">
+          Sales ordering compares original currency amounts without conversion. Select one
+          marketplace before comparing sales across items.
+        </Text>
+      ) : null}
       <Text size="sm" c="dimmed" className="inventory-scroll-hint" id="inventory-scroll-hint">
         Scroll horizontally to see all columns. You can focus the table and use the arrow keys.
       </Text>
@@ -98,9 +107,9 @@ export function InventoryTable({
       >
         <Table className="inventory-table" highlightOnHover>
           <Table.Caption>
-            Latest daily capture for each seller and marketplace. Quantities are reported estimates.
-            Sales ordering compares reported amounts without currency conversion; unavailable values
-            appear last. Health and recommendations sort by urgency, with unknown values last.
+            Latest imported snapshot for each seller and marketplace. Quantities are reported
+            estimates. Unavailable values appear last. Health and recommendations sort by urgency,
+            with unknown values last.
           </Table.Caption>
           <Table.Thead>
             <Table.Tr>
@@ -113,6 +122,9 @@ export function InventoryTable({
               </Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("sales_amount_90d")}>
                 <ColumnMenu label="Sales · last 90 days" sort={sort("sales_amount_90d")} />
+                <Text size="xs" fw={400} c="dimmed">
+                  Original currencies · no conversion
+                </Text>
               </Table.Th>
               <Table.Th scope="col">Inventory overview</Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("health_status")}>
@@ -146,6 +158,12 @@ export function InventoryTable({
                     onShowTransactions={onShowTransactions}
                   />
                   <Text inherit>{row.marketplace_name}</Text>
+                  <InventorySourceDate
+                    snapshotDate={row.snapshot_date}
+                    reportCreatedAt={row.report_created_at}
+                    now={now}
+                    compact
+                  />
                 </Table.Td>
                 <Table.Td>
                   <InventoryMetrics row={row} fields={INVENTORY_METRICS.sales} />

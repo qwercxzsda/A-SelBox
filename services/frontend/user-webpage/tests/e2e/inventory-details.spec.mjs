@@ -198,12 +198,16 @@ test("inventory F5 restores the selected capture using fresh data and revisions 
     row(page, "CURRENT").getByText("Available", { exact: true }).locator(".."),
   ).toHaveText("Available90");
   await row(page, "CURRENT").getByText("Amazon.com", { exact: true }).click();
+  fixture.captures = [fixture.rows[0]];
   fixture.rows = [];
   workspace.revisions.inventory = "item-removed";
   await checkRevision(page, workspace);
   await expect(details(page)).toHaveCount(0);
   await expect(
-    page.getByText("No inventory items are available for your account.", { exact: true }),
+    page.getByText(
+      "The latest imported snapshots contain no inventory items in this marketplace scope.",
+      { exact: true },
+    ),
   ).toBeVisible();
 });
 

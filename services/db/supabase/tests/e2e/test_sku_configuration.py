@@ -66,7 +66,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
             ],
         }
 
-    def test_global_validation_atomic_repair_future_import_and_conflicts_cross_real_rest(
+    def test_changed_sku_validation_atomic_repair_and_conflicts_cross_real_rest(
         self,
     ) -> None:
         company = create_company(self.database, "Configuration company")
@@ -108,7 +108,9 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
                 "POST", "/rest/v1/rpc/sku_configuration", token=token, json={}
             )
             self.assertIn(denied.status_code, (401, 403))
-        incomplete = self.publish(administrator, changes)
+        invalid = self.change(second, other)
+        invalid["company_id"] = None
+        incomplete = self.publish(administrator, [*changes, invalid])
         self.assertEqual(incomplete.status_code, 400)
         self.assertEqual(incomplete.json()["code"], "23514")
         self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
@@ -117,7 +119,18 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
             any(issue["sku"] == second and issue["kind"] == "missing_company" for issue in issues)
         )
         self.assertEqual(self.configuration(administrator), original)
+        partial = self.publish(administrator, changes)
+        self.assertEqual(partial.status_code, 200)
+        self.assertEqual(partial.json()["changed_count"], 1)
+        self.assertTrue(
+            next(item for item in self.configuration(administrator) if item["sku"] == second)[
+                "issues"
+            ]
+        )
         changes = [self.change(shared, company), self.change(second, other)]
+        changes[0]["expected_current_version_id"] = partial.json()["published"][0][
+            "terms_version_id"
+        ]
         saved = self.publish(administrator, changes)
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json()["changed_count"], 2)
@@ -138,9 +151,13 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         )
         updated = self.change(shared, company)
         updated["expected_current_version_id"] = self.configuration(member)[0]["terms_version_id"]
-        incomplete = self.publish(administrator, [updated])
-        self.assertEqual(incomplete.status_code, 400)
-        self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
+        corrected = self.publish(administrator, [updated])
+        self.assertEqual(corrected.status_code, 200)
+        self.assertTrue(
+            next(item for item in self.configuration(administrator) if item["sku"] == future)[
+                "issues"
+            ]
+        )
         self.assertEqual([item["sku"] for item in self.configuration(member)], [shared])
         repaired = self.publish(administrator, [self.change(future, company)])
         self.assertEqual(repaired.status_code, 200)

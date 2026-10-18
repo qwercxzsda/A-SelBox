@@ -6,6 +6,7 @@ import { PAGE_SIZES } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import type { SkuConfigurationChange } from "./api/sku-configuration-types.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
+import type { FeeRateChangeDraft } from "./sku-rate-change.ts";
 
 export type InventoryViewState = Omit<
   FetchInventoryPageOptions,
@@ -25,6 +26,7 @@ export interface FeeEditorState {
   isNew: boolean;
   form: SkuConfigurationChange;
   submitError: string | null;
+  rateChange: FeeRateChangeDraft | null;
 }
 
 export interface FeeViewState {
@@ -40,6 +42,7 @@ export interface FeeViewState {
   savedNotice: string | null;
   refreshFailed: boolean;
   editing: FeeEditorState | null;
+  editorDrafts: FeeEditorState[];
   reviewing: boolean;
   savePending: boolean;
 }
@@ -89,6 +92,7 @@ export function createFeeViewState(): FeeViewState {
     savedNotice: null,
     refreshFailed: false,
     editing: null,
+    editorDrafts: [],
     reviewing: false,
     savePending: false,
   };

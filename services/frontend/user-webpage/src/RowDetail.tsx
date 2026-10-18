@@ -1,15 +1,15 @@
 import "./RowDetail.css";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Drawer, Text, Title } from "@mantine/core";
 import type { CanonicalRow, TableDatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
 import { humanizeCode } from "./categories";
 import { PayoutReviewDetails } from "./PayoutReviewDetails";
-import { PayoutMarketplaceTotals } from "./PayoutMarketplaceTotals";
 import { PayoutAmounts } from "./PayoutAmounts";
 import { DetailSection } from "./DetailSection";
 import { DetailTable } from "./DetailTable";
-import { formatRecordDate } from "./date-display";
+import { formatRecordDate, formatRecordMonth } from "./date-display";
+import { DrawerHeading } from "./DrawerHeading";
 import { formatAmount } from "./decimal";
 import {
   DATASET_PRESENTATION,
@@ -63,7 +63,16 @@ export function RowDetail({
       position="right"
       size={dataset === "payouts" ? "min(1440px, 100vw)" : "lg"}
       padding="lg"
-      title={isReview ? "Saved source details" : "Selected row details"}
+      title={
+        dataset === "payouts" && row ? (
+          <DrawerHeading
+            title={isReview ? "Saved source details" : "Selected row details"}
+            context={`${companies.get(row.company_id ?? "") ?? "Company"} · ${formatRecordMonth(row.start_date ?? "")}${row.currency ? ` · ${row.currency}` : ""}`}
+          />
+        ) : (
+          "Selected row details"
+        )
+      }
       closeButtonProps={{ "aria-label": "Close row details" }}
     >
       {row ? (
@@ -79,7 +88,9 @@ export function RowDetail({
           {dataset === "finances" && row.activity_eligible === "false" ? (
             <Text size="sm" c="dimmed" mb="lg">
               This record is exclusive of activity totals. Linked releases track when existing funds
-              become available; transfers track movement to or from a bank account.
+              become available; transfers track movement to or from a bank account. The original
+              economic activity is counted once. A released status alone does not exclude a directly
+              posted fee.
             </Text>
           ) : null}
           {dataset === "payouts" && row.created_at ? (
@@ -103,21 +114,7 @@ export function RowDetail({
           {dataset === "payouts" && row.id && isReview ? (
             <PayoutReviewDetails key={`review-${row.id}`} row={row} accessToken={accessToken} />
           ) : dataset === "payouts" && row.id ? (
-            <Fragment key={`payout-${row.id}`}>
-              <PayoutAmounts row={row} accessToken={accessToken} />
-              <DetailSection
-                stateKey={`payout:${row.id}:marketplaces`}
-                title="Marketplace breakdown"
-                collapsible
-                description="Reported amount, service fee, and company amount by marketplace."
-              >
-                <PayoutMarketplaceTotals
-                  reportId={row.id}
-                  currency={row.currency ?? ""}
-                  accessToken={accessToken}
-                />
-              </DetailSection>
-            </Fragment>
+            <PayoutAmounts key={`payout-${row.id}`} row={row} accessToken={accessToken} />
           ) : null}
           {isAdministrator && remaining.length > 0 && (dataset !== "payouts" || isReview) ? (
             <DetailSection

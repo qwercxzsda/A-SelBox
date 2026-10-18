@@ -132,8 +132,9 @@ exception
 end;
 $$;
 
--- CAS is checked for every changed SKU; global validation sees one resulting
--- configuration snapshot after all writes. Later source publications may expose
+-- CAS and completeness are checked for every changed SKU against one resulting
+-- configuration snapshot after all writes. Unrelated gaps remain visible to
+-- global readiness diagnostics. Later source publications may expose
 -- new gaps and do not invalidate this immutable publication retroactively.
 create function private.publish_administrator_sku_configuration(
     p_changes jsonb, p_change_reason text
@@ -174,10 +175,13 @@ begin
             'sku', change->>'sku', 'terms_version_id', version_id
         ));
     end loop;
-    -- Validation must never switch to the member-only read branch if an account
-    -- changes while a batch waits. The catalog repeats the administrator gate.
+    -- Recheck access after waiting for locks, independently of the selected SKU
+    -- list. Validation must never fall back to a member-only configuration read.
+    if not private.is_administrator() then
+        raise exception 'Administrator access required' using errcode = '42501';
+    end if;
     configuration := private.sku_configuration_items(array(
-        select value from jsonb_array_elements_text(public.sku_filter_options()->'values')
+        select value->>'sku' from jsonb_array_elements(p_changes)
     ));
     select coalesce(jsonb_agg(issue order by issue->>'sku' collate "C", issue->>'kind',
         issue->>'marketplace_name' collate "C", issue->>'valid_from'), '[]'::jsonb)

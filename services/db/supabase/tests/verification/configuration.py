@@ -89,7 +89,7 @@ def _verify_writes(
     incomplete["company_id"] = None
     before = _state(connection)
     error = _publish(stack, administrator, [change, incomplete], 400)
-    require(error.get("message") == "SKU configuration is incomplete", "Missing global rejection")
+    require(error.get("message") == "SKU configuration is incomplete", "Missing batch rejection")
     require(_state(connection) == before, "Rejected batch changed immutable terms or revisions")
     _publish(stack, next(iter(members.values())), [change], 403)
     require(_state(connection) == before, "Member publication changed configuration")
@@ -112,7 +112,7 @@ def _verify_writes(
     _publish(stack, administrator, [missing_fees], 400)
     require(_state(connection) == after, "Rejected fee/stale save changed saved state")
     return {
-        "atomic_global_rejection": True,
+        "atomic_batch_rejection": True,
         "member_writes_denied": True,
         "assignment_and_exact_fee_update": True,
         "member_scope_follows_assignment": True,

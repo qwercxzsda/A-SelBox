@@ -8,6 +8,7 @@ import { useWorkspaceRefresh } from "./use-workspace-refresh";
 import { WorkspacePreferences } from "./WorkspacePreferences";
 import { CompanyDirectoryProvider } from "./CompanyDirectoryProvider";
 import { useCompanyDirectory } from "./company-directory-context";
+import { ConnectionStatus } from "./ConnectionStatus";
 
 interface AuthenticatedProps {
   identity: Identity;
@@ -62,6 +63,7 @@ export default function AuthenticatedWorkspace(props: AuthenticatedProps) {
     <QueryClientProvider client={client}>
       <WorkspacePreferences identity={props.identity}>
         <CompanyDirectoryProvider identity={props.identity}>
+          <ConnectionStatus />
           <WorkspaceContent {...props} />
         </CompanyDirectoryProvider>
       </WorkspacePreferences>

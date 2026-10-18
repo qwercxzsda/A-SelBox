@@ -38,7 +38,7 @@ test("Add SKU suggests literal case-insensitive prefixes and opens existing draf
   ).toBeDisabled();
   await editor(page).getByRole("button", { name: "Edit existing SKU", exact: true }).click();
   await expect(editor(page)).toHaveAccessibleName("Edit literal SKU");
-  await editor(page).getByRole("button", { name: "Cancel", exact: true }).click();
+  await editor(page).getByRole("button", { name: "Discard edits", exact: true }).click();
   await page.getByRole("button", { name: "Add SKU", exact: true }).click();
   await editor(page).getByRole("combobox", { name: "SKU", exact: true }).fill("s");
   await page.getByRole("listbox").getByRole("option", { name: "S1", exact: true }).click();

@@ -148,7 +148,9 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
     drawer(page).getByRole("row", { name: "USD only amounts", exact: true }),
   ).toBeVisible();
   await closeBreakdown(page);
-  await summaryCards(page).summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
+  await summaryCards(page)
+    .summaries.getByLabel("Summary currency", { exact: true })
+    .selectOption("EUR");
   await view(page, "Latest day").click();
   await expandGroups(page);
   await expect(
@@ -160,7 +162,9 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
     "eq.USD",
     "eq.EUR",
   ]);
-  await summaryCards(page).summaries.getByLabel("Currency", { exact: true }).selectOption("USD");
+  await summaryCards(page)
+    .summaries.getByLabel("Summary currency", { exact: true })
+    .selectOption("USD");
   await view(page, "Latest day").click();
   await expandGroups(page);
   await expect(

@@ -49,6 +49,45 @@ export function createAuthApi({
   }
 
   return {
+    async requestPasswordRecovery(email: string, redirectTo: string): Promise<void> {
+      const redirect = new URL(redirectTo);
+      if (
+        !["https:", "http:"].includes(redirect.protocol) ||
+        redirect.username ||
+        redirect.password ||
+        redirect.hash
+      )
+        throw new Error("Password recovery requires a valid application URL");
+      if (!email.trim()) throw new Error("An email address is required");
+      await request(
+        `/auth/v1/recover?${new URLSearchParams({ redirect_to: redirect.toString() })}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: publishableKey },
+          body: JSON.stringify({ email: email.trim() }),
+        },
+        "Password recovery request",
+        (response) => {
+          if (!response.ok) throw new ApiError("Password recovery request", response.status);
+        },
+      );
+    },
+
+    async updatePassword(accessToken: string, password: string): Promise<SessionUser> {
+      if (password.length < 8) throw new Error("Use at least 8 characters for your new password");
+      const value = await requestJson(
+        "/auth/v1/user",
+        {
+          method: "PUT",
+          headers: { ...authenticatedHeaders(accessToken), "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        },
+        "Password update",
+      );
+      if (!isJsonObject(value)) throw new Error("Password update returned an invalid user");
+      return { id: requiredJsonString(value, "id"), email: optionalJsonString(value, "email") };
+    },
+
     signIn(email: string, password: string): Promise<Session> {
       return requestSession("password", { email, password }, "Sign in");
     },

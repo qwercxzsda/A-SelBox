@@ -2,6 +2,7 @@ import { Badge, Button, Drawer, Group, Text, Title } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { formatRecordMonth } from "./date-display";
 import { FinancialReviewMonthContent } from "./FinancialReviewMonthContent";
+import { DrawerHeading } from "./DrawerHeading";
 import { reviewCategoryLabel, type ReviewCategory } from "./financial-review-categories";
 import "./FinancialReviewMonthDetail.css";
 
@@ -44,7 +45,12 @@ export function FinancialReviewMonthDetail({
         position="right"
         size="min(1440px, 100vw)"
         padding="lg"
-        title="Monthly financial review"
+        title={
+          <DrawerHeading
+            title="Monthly financial review"
+            context={`${formatRecordMonth(month ?? "")} · ${currency} · ${reviewCategoryLabel(category)} category · All companies`}
+          />
+        }
         closeButtonProps={{ "aria-label": "Close monthly financial review" }}
       >
         {opened ? (

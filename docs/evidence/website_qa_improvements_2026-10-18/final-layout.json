@@ -1,0 +1,34 @@
+{
+  "browser": "desktop-webkit",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "assets": [
+    "AuthenticatedWorkspace-CUf9sbcu.js"
+  ],
+  "errors": [],
+  "businessMutationRequests": [],
+  "stickyHeader": {
+    "drawerHeaderHeight": 76.1875,
+    "drawerHeaderBottom": 76.1875,
+    "tableHeaderTop": 76.1875,
+    "tableHeaderHeight": 36.796875,
+    "measuredOffset": "76.1875px",
+    "fitting": "true"
+  },
+  "nestedXCloseWheel": {
+    "before": {
+      "scrollY": 302,
+      "maximum": 302,
+      "focusOnOpener": true,
+      "hasFocus": true
+    },
+    "after": {
+      "scrollY": 86,
+      "overflow": "visible"
+    },
+    "changedWithoutExtraClickOrPointerMove": true
+  },
+  "completed": true
+}

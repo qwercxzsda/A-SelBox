@@ -22,9 +22,11 @@ export function useWorkspacePreference<T>(
       const resolved =
         typeof next === "function" ? (next as (previous: T) => T)(current.current) : next;
       current.current = resolved;
+      // Schedule rendering before the navigation store's URL microtask so a newly
+      // opened tab can restore its saved scope before that scope is serialized.
+      setValue(resolved);
       // Persist before sending writes or yielding control to a page reload.
       store.write(name, resolved);
-      setValue(resolved);
     },
     [name, store],
   );

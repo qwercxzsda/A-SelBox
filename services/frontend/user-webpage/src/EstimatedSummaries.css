@@ -43,6 +43,19 @@
   overflow-wrap: anywhere;
 }
 
+.estimated-summary-open-label {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--ui-accent);
+  font-size: var(--ui-font-caption);
+  text-decoration: underline;
+}
+
+.estimated-summary-card h3 {
+  padding-right: 100px;
+}
+
 .estimated-summary-amounts {
   margin: 8px 0 6px;
   font-variant-numeric: tabular-nums;

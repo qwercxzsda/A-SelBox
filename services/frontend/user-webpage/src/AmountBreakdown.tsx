@@ -7,6 +7,7 @@ import { TypeBreakdownAmounts } from "./TypeBreakdownAmounts";
 import { FinancialAmounts } from "./FinancialAmounts";
 import { UpdateStatus } from "./UpdateStatus";
 import { DetailSection } from "./DetailSection";
+import { AmountPrecisionNote } from "./AmountPrecisionNote";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeRecordSelection } from "./detail-view-state";
 import "./TypeBreakdown.css";
@@ -27,6 +28,7 @@ export function AmountBreakdown({
   onRetry,
   renderRecords,
   stateKey,
+  additionalBreakdown,
 }: {
   currency: string;
   totals: TransactionTypeTotal[] | undefined;
@@ -36,6 +38,7 @@ export function AmountBreakdown({
   onRetry: () => void;
   renderRecords: (selection: RecordSelection) => ReactNode;
   stateKey: string;
+  additionalBreakdown?: ReactNode;
 }) {
   const [selection, setSelection] = useWorkspacePreference<RecordSelection>(
     `${stateKey}:record-selection`,
@@ -83,6 +86,7 @@ export function AmountBreakdown({
             ) : null}
           </Group>
           <FinancialAmounts total={total} />
+          <AmountPrecisionNote />
           {total.missingFeeCount > 0 ? (
             <Text size="sm" c="orange.9" role="note" mt="sm">
               {total.missingFeeCount.toLocaleString("en-US")}{" "}
@@ -132,6 +136,7 @@ export function AmountBreakdown({
           <Text c="dimmed">No amounts for this period{currency ? ` in ${currency}` : ""}.</Text>
         ) : null}
       </DetailSection>
+      {additionalBreakdown}
       <DetailSection
         ref={recordsRef}
         title="Records"

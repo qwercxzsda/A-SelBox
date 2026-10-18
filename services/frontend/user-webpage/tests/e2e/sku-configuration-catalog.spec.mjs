@@ -9,7 +9,7 @@ import {
   editor,
 } from "./sku-configuration-fixtures.mjs";
 
-test("large catalogs keep review bounded while every off-page SKU still blocks publication", async ({
+test("large catalogs preserve global setup diagnostics without blocking unrelated valid changes", async ({
   page,
 }) => {
   const missing = Array.from({ length: 1205 }, (_, index) =>
@@ -27,13 +27,12 @@ test("large catalogs keep review bounded while every off-page SKU still blocks p
   );
   await stageRate(page);
   await openReview(page);
-  await expect(review(page).getByRole("button", { name: /^Complete / })).toHaveCount(5);
+  await expect(review(page).getByRole("button", { name: /^Complete / })).toHaveCount(0);
   await expect(
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
-  ).toBeDisabled();
-  await review(page)
-    .getByRole("button", { name: "View all 1205 SKUs needing setup", exact: true })
-    .click();
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await page.getByRole("checkbox", { name: "Needs setup only", exact: true }).check();
   await expect(page.getByRole("checkbox", { name: "Needs setup only", exact: true })).toBeChecked();
   await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
     "of 1,205 SKUs",
@@ -47,10 +46,13 @@ test("large catalogs keep review bounded while every off-page SKU still blocks p
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
   await expect(
-    review(page).getByRole("button", { name: "View all 1204 SKUs needing setup", exact: true }),
-  ).toBeVisible();
-  await expect(
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
-  ).toBeDisabled();
-  expect(fixture.configurationSaves).toHaveLength(0);
+  ).toBeEnabled();
+  await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
+  await expect.poll(() => fixture.configurationSaves.length).toBe(1);
+  expect(fixture.configurationSaves[0].p_changes.map(({ sku }) => sku).sort()).toEqual([
+    "S1",
+    "UNASSIGNED-1204",
+  ]);
+  await expect(page.getByText("1204 SKUs need setup", { exact: true })).toBeVisible();
 });

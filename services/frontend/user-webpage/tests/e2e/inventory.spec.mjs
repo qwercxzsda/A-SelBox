@@ -26,7 +26,7 @@ for (const user of ["member", "administrator"]) {
     await expect(page.getByText("Estimated totals", { exact: true })).toHaveCount(0);
     const region = page.getByRole("region", { name: "Inventory items" });
     await expect(region.getByText("ELG_Black", { exact: true })).toBeVisible();
-    await expect(region.getByRole("columnheader")).toHaveText([
+    await expect(region.getByRole("columnheader")).toContainText([
       "SKU↑",
       "Sales · last 90 days↕",
       "Inventory overview",

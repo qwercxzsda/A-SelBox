@@ -4,6 +4,8 @@ import { lazy, Suspense, useEffect } from "react";
 import { Alert, Button, Stack, Text } from "@mantine/core";
 import { companyLabel } from "./view-model";
 import { useAuth } from "./use-auth";
+import { RecoveryRequestPanel } from "./RecoveryRequestPanel";
+import { PasswordRecoveryPanel } from "./PasswordRecoveryPanel";
 import "./App.css";
 
 const AuthenticatedWorkspace = lazy(async () => {
@@ -41,6 +43,8 @@ function App() {
     authMode,
     changeAuthMode,
     authStatus,
+    authStatusTitle,
+    recoverySession,
     identity,
     isSubmitting,
     isSigningOut,
@@ -52,6 +56,8 @@ function App() {
     refreshIdentity,
     retryRestore,
     discardStoredSession,
+    handlePasswordUpdate,
+    requestNewRecoveryLink,
   } = useAuth();
   const session = identity?.session;
   const account = identity?.account;
@@ -62,7 +68,7 @@ function App() {
       ? "Administrator"
       : companyLabel(account.company_id, companyNames);
   useEffect(() => {
-    document.title = accountLabel ? `${accountLabel} · A-SelBox` : "A-SelBox";
+    if (!accountLabel) document.title = "A-SelBox";
   }, [accountLabel]);
   return (
     <main className="app-shell">
@@ -94,12 +100,34 @@ function App() {
             onRetry={() => void retryRestore()}
             onSignIn={discardStoredSession}
           />
+        ) : recoverySession ? (
+          <PasswordRecoveryPanel
+            email={recoverySession.user.email}
+            pending={isSubmitting}
+            error={authError}
+            onSubmit={handlePasswordUpdate}
+            onRequestLink={requestNewRecoveryLink}
+            onCancel={discardStoredSession}
+          />
+        ) : !identity && authMode === "recover" ? (
+          <RecoveryRequestPanel
+            email={email}
+            onEmailChange={setEmail}
+            onSubmit={(event) => void handleAuthenticate(event)}
+            onSignIn={() => {
+              changeAuthMode("sign-in");
+            }}
+            pending={isSubmitting}
+            error={authError}
+            status={authStatus}
+          />
         ) : !identity ? (
           <LoginPanel
-            mode={authMode}
+            mode={authMode === "sign-up" ? "sign-up" : "sign-in"}
             email={email}
             errorMessage={authError}
             statusMessage={authStatus}
+            statusTitle={authStatusTitle}
             isSubmitting={isSubmitting || isSigningOut}
             onModeChange={changeAuthMode}
             onEmailChange={setEmail}

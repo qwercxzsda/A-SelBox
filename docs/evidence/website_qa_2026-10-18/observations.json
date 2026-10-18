@@ -1,0 +1,328 @@
+{
+  "audited_commit": "38352890",
+  "audit_date": "2026-10-18",
+  "primary_viewport_widths": [
+    1440,
+    1920
+  ],
+  "secondary_viewport_widths": [
+    834,
+    390
+  ],
+  "pending_payouts": {
+    "checked_at": "2026-10-18T12:22:22.572460+00:00",
+    "target_port": 55622,
+    "read_only": true,
+    "refresh": [
+      {
+        "month": "2026-04-01",
+        "company_months": 2,
+        "pending_company_months": 2,
+        "failed_company_months": 2,
+        "oldest_last_attempt": "2026-10-18 11:50:00.631570+00:00",
+        "newest_last_attempt": "2026-10-18 11:50:01.012082+00:00",
+        "next_attempt": "2026-10-18 17:50:00.631566+00:00",
+        "minimum_failure_count": 11,
+        "maximum_failure_count": 11,
+        "sqlstates": [
+          "23514"
+        ],
+        "ownership_or_fee_message": true
+      }
+    ],
+    "latest_reports_near_april": [
+      {
+        "start_date": "2026-03-01",
+        "latest_reports": 17
+      },
+      {
+        "start_date": "2026-05-01",
+        "latest_reports": 16
+      }
+    ],
+    "unresolved": [
+      {
+        "resolution_status": "MISSING_OWNERSHIP",
+        "component_count": 244,
+        "distinct_skus": 3,
+        "fee_applicable_components": 0
+      }
+    ]
+  },
+  "rounding": {
+    "scope": "Data Kiosk category / July 2026 / USD",
+    "displayed_type_rows": 10,
+    "displayed_type_amounts": [
+      "-5.00",
+      "-1.53",
+      "-100.00",
+      "-74.60",
+      "-219.12",
+      "-747.92",
+      "-478.95",
+      "-48.34",
+      "-4.83",
+      "-6875.46"
+    ],
+    "sum_of_displayed_type_amounts": "-8555.75",
+    "displayed_source_total": "-8555.76",
+    "displayed_variance": "-0.01",
+    "interpretation": "Expected consequence of rounding display only; not a calculation defect."
+  },
+  "fee_focus": {
+    "checkedAt": "2026-10-18T12:25:35.382Z",
+    "method": "Explicitly focus Edit, press Enter, close X, wait for hidden plus1000ms",
+    "results": [
+      {
+        "browser": "chromium",
+        "businessWriteAttempts": 0,
+        "openerFocusedBeforeEnter": true,
+        "afterHiddenAndOneSecond": {
+          "openerConnected": true,
+          "openerFocused": false,
+          "activeTag": "BODY",
+          "activeLabel": null,
+          "bodyFocused": true,
+          "documentHasFocus": true,
+          "dialogsRemaining": 0,
+          "documentOverflow": "visible"
+        },
+        "afterNextTab": {
+          "tag": "BUTTON",
+          "label": null,
+          "text": "Sign out"
+        }
+      },
+      {
+        "browser": "webkit",
+        "businessWriteAttempts": 0,
+        "openerFocusedBeforeEnter": true,
+        "afterHiddenAndOneSecond": {
+          "openerConnected": true,
+          "openerFocused": false,
+          "activeTag": "BODY",
+          "activeLabel": null,
+          "bodyFocused": true,
+          "documentHasFocus": true,
+          "dialogsRemaining": 0,
+          "documentOverflow": "visible"
+        },
+        "afterNextTab": {
+          "tag": "BUTTON",
+          "label": null,
+          "text": "Sign out"
+        }
+      }
+    ]
+  },
+  "offline": [
+    {
+      "browser": "chromium",
+      "cached_rows": 25,
+      "cached_offline_notice": false,
+      "uncached_loading": true,
+      "uncached_offline_notice": false,
+      "reconnected": true,
+      "navigation": {
+        "start": {
+          "path": "/",
+          "historyLength": 2,
+          "selected": "Finances"
+        },
+        "end": {
+          "path": "/",
+          "historyLength": 2,
+          "selected": "Inventory"
+        }
+      },
+      "page_errors": []
+    },
+    {
+      "browser": "webkit",
+      "cached_rows": 25,
+      "cached_offline_notice": false,
+      "uncached_loading": true,
+      "uncached_offline_notice": false,
+      "reconnected": true,
+      "navigation": {
+        "start": {
+          "path": "/",
+          "historyLength": 2,
+          "selected": "Finances"
+        },
+        "end": {
+          "path": "/",
+          "historyLength": 2,
+          "selected": "Inventory"
+        }
+      },
+      "page_errors": []
+    }
+  ],
+  "summary_unchanged_by_no_match_search": true,
+  "desktop_table": [
+    {
+      "width": 1367,
+      "contentWidth": 1507
+    }
+  ],
+  "wide_desktop_table": [
+    {
+      "width": 1798,
+      "contentWidth": 1798
+    }
+  ],
+  "inventory": {
+    "capture_date": "2026-10-03",
+    "snapshot_date": "2026-10-03",
+    "report_created": "2026-10-03T14:54:38Z",
+    "preprocessed": "2026-10-17T04:01:01Z",
+    "age_days_on_audit_date": 15
+  },
+  "screenshots": {
+    "inventory-source-date.png": "member-inventory/clean-inventory-source-date.png",
+    "fee-save-blocked.png": "admin-operations/fee-review-local-draft-1440.png",
+    "payout-april-blocked.png": "financial-views/payout-april-empty-1440.png",
+    "summary-jpy.png": "member-inventory/member-1-summary-jpy-before-marketplace.png",
+    "summary-usd-after-filter.png": "member-inventory/member-1-summary-after-amazon-com.png",
+    "offline-loading.png": "general/chromium-offline-uncached.png",
+    "desktop-transactions.png": "general/transactions-desktop.png",
+    "payout-marketplace-position.png": "financial-views/payout-marketplace-bottom-1440.png"
+  },
+  "inventory_sales_order": {
+    "reproduction": [
+      "Open Inventory with All marketplaces.",
+      "Open Sales \u00b7 last 90 days and choose Highest first.",
+      "Review the first screen of ranked items."
+    ],
+    "actual": "JPY and USD amounts are sorted by their unconverted numeric values. In this sample 148,916.00 JPY appears above 39,464.78 USD. There are 10 non-null JPY sales values and 13 non-null USD values. The explanation about no currency conversion is in the table caption at y=2675px, below the initial 1000px-high desktop viewport.",
+    "impact": "The order can look like a comparable sales-performance ranking before the reader reaches the qualification. The arithmetic follows the documented no-FX policy; the problem is discoverability of the comparison meaning."
+  },
+  "member_verification": {
+    "member_tabs": [
+      "Transactions",
+      "Current fees",
+      "Payout reports",
+      "Inventory"
+    ],
+    "administrator_tabs": [
+      "Transactions",
+      "Finances",
+      "Data Kiosk",
+      "Current fees",
+      "Payout reports",
+      "User access",
+      "Companies",
+      "Inventory",
+      "Financial review"
+    ],
+    "live_member_checks": [
+      {
+        "role": "member-1",
+        "checks": {
+          "inventoryDrawerSurvivesReload": true,
+          "inventorySkuScope": true,
+          "feeEditButtons": 0,
+          "feeSkuOpensTransactions": true,
+          "recommendationFilterApplied": true,
+          "emptySearchHasClearAction": true,
+          "inventoryApiStatus": 200,
+          "inventoryCount": 27,
+          "allInventoryWithinAssignedCompany": true,
+          "accountDirectoryStatus": 403,
+          "reviewApiStatus": 200,
+          "reviewRows": 0
+        },
+        "snapshot_dates": [
+          "2026-10-03"
+        ]
+      },
+      {
+        "role": "member-2",
+        "checks": {
+          "inventoryDrawerSurvivesReload": true,
+          "inventorySkuScope": true,
+          "feeEditButtons": 0,
+          "feeSkuOpensTransactions": true,
+          "recommendationFilterApplied": true,
+          "emptySearchHasClearAction": true,
+          "inventoryApiStatus": 200,
+          "inventoryCount": 16,
+          "allInventoryWithinAssignedCompany": true,
+          "accountDirectoryStatus": 403,
+          "reviewApiStatus": 200,
+          "reviewRows": 0
+        },
+        "snapshot_dates": [
+          "2026-10-03"
+        ]
+      }
+    ],
+    "inventory_urgency": "Health and recommendation menus offer Most urgent first / Least urgent first, apply urgency order fields rather than alphabetical labels, and return focus to the header after a sort.",
+    "inventory_empty_search": "No inventory matches these filters is explicit and Clear inventory filters remains available.",
+    "viewport_checks": "No document horizontal overflow observed at 1920, 834 or 390px for admin and both members; desktop1440 screenshots also inspected. Narrow inventory keeps local horizontal scrolling and explains it.",
+    "unassigned": {
+      "mode": "mock-only",
+      "live_account_unavailable": true,
+      "test": "company-membership.spec.mjs: unassigned users load no company data, retain their session on reload, and receive membership automatically",
+      "result": "1 passed in 7.6s",
+      "behavior": "Awaiting company access, no company-data reads/tabs, session retained after reload, automatic assignment transition. No real users were created or changed."
+    }
+  },
+  "fee_edit": {
+    "reproduce": [
+      "Edit 10mm_ELLIE and change Fee rate 1 from 5.2 to 1.234567 without choosing Keep draft.",
+      "Reload: the editor and the changed rate are restored.",
+      "Click Close SKU editor (X), then reopen Edit 10mm_ELLIE."
+    ],
+    "actual": "X closes without discard confirmation; reopening shows 5.2 instead of 1.234567. This differs from F5, which preserves the same unfinished input. Staging with Keep draft is a separate explicit action and was not performed before this close.",
+    "impact": "An accidental X dismisses entered work and the persistent-draft behavior on reload makes this loss surprising."
+  },
+  "membership_draft": {
+    "reproduce": [
+      "Open a member assigned to Frontend Company A in User access.",
+      "Select Frontend Company B without saving.",
+      "Reload and reopen/view the persisted membership editor."
+    ],
+    "actual": "The pending Company B selection survives reload while the header still shows the saved Company A assignment. There is no explicit Unsaved change label; the enabled Save membership action is the main clue.",
+    "impact": "An administrator returning later must infer which company is current and which is only a draft."
+  },
+  "financial_review_categories": {
+    "categories": [
+      {
+        "category": "Finances",
+        "currency": "USD",
+        "months": 7,
+        "detailRows": 1
+      },
+      {
+        "category": "Finances",
+        "currency": "JPY",
+        "months": 7
+      },
+      {
+        "category": "Data Kiosk",
+        "currency": "USD",
+        "months": 7,
+        "detailRows": 1
+      },
+      {
+        "category": "Data Kiosk",
+        "currency": "JPY",
+        "months": 7
+      },
+      {
+        "category": "SelBox",
+        "currency": "USD",
+        "months": 7,
+        "detailRows": 1
+      },
+      {
+        "category": "SelBox",
+        "currency": "JPY",
+        "months": 7
+      }
+    ],
+    "errors": []
+  }
+}

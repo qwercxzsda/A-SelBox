@@ -8,16 +8,20 @@ import {
 } from "./InventoryMetrics";
 import { INVENTORY_METRICS } from "./inventory-metrics";
 import { SkuTransactionLink } from "./SkuTransactionLink";
+import { InventorySourceDate } from "./InventorySourceDate";
+import { formatRecordDate } from "./date-display";
 import "./InventoryDetail.css";
 
 export function InventoryDetail({
   row,
   onClose,
   onShowTransactions,
+  now,
 }: {
   row: InventoryRow | null;
   onClose: () => void;
   onShowTransactions: (sku: string) => void;
+  now: number;
 }) {
   return (
     <Drawer
@@ -38,8 +42,18 @@ export function InventoryDetail({
           <Text size="sm" c="dimmed" mt={4}>
             {row.marketplace_name}
           </Text>
+          <InventorySourceDate
+            snapshotDate={row.snapshot_date}
+            reportCreatedAt={row.report_created_at}
+            now={now}
+          />
+          <Text size="xs" c="dimmed" mt={4}>
+            Amazon report created {formatRecordDate(row.report_created_at)}. Processed{" "}
+            {formatRecordDate(row.preprocessed_at)}; processing does not refresh the source stock.
+          </Text>
           <Text size="sm" c="dimmed" mt="xs" mb="lg">
-            Latest daily capture. Quantities are reported estimates; unavailable values appear as —.
+            Latest imported snapshot. Quantities are reported estimates; unavailable values appear
+            as —.
           </Text>
           <div className="inventory-detail-grid">
             <DetailSection title="Sales · last 90 days">

@@ -48,6 +48,10 @@ private.mature_cutoff_date(), private.financial_account_visible(),
 private.reconciliation_group_id(text, date, text, text),
 private.reconcile_source_amounts(numeric, numeric, numeric, numeric),
 public.payout_report_policy(),
+public.payout_readiness(date, uuid[], integer, bigint),
+private.read_payout_readiness(date, uuid[], integer, bigint),
+public.payout_setup_blockers(uuid, date, integer, bigint),
+private.read_payout_setup_blockers(uuid, date, integer, bigint),
 private.read_finances_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
@@ -57,6 +61,8 @@ grant execute on function private.validate_financial_review_scope(
 ), public.financial_review_totals(date, date, public.allocation_category),
 public.financial_review_type_totals(date, date, public.allocation_category, text)
 to authenticated;
+grant execute on function public.financial_source_record(text, uuid, uuid),
+public.financial_source_transaction_lookup(text, integer, bigint) to authenticated;
 
 -- Shared financial helpers remain outside the exposed schema.
 grant select on private.current_sku_terms to authenticated;

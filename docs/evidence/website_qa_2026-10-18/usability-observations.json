@@ -1,0 +1,374 @@
+{
+  "audited_commit": "38352890",
+  "review_date": "2026-10-18",
+  "method": "Expert task walkthrough; not a participant usability study",
+  "general": {
+    "summary_card": {
+      "visibleText": "Latest month\nSeptember 2026\nReported amount\n1,294.69 USD\nService fee\n-735.68 USD\nCompany amount\n559.01 USD\n\n1,645 records",
+      "buttons": [
+        {
+          "text": "",
+          "ariaLabel": "View Latest month by type",
+          "rect": {
+            "width": 443.671875,
+            "height": 196.21875
+          }
+        },
+        {
+          "text": "September 2026",
+          "ariaLabel": "Filter transactions to September 2026",
+          "rect": {
+            "width": 97.125,
+            "height": 24
+          }
+        }
+      ]
+    },
+    "date_click_open_dialog_count": 0,
+    "card_click_opened_type_breakdown": true,
+    "long_table": {
+      "scrollY": 3562,
+      "innerHeight": 900,
+      "documentHeight": 4462,
+      "tableRows": 100,
+      "header": {
+        "top": -2911.125,
+        "bottom": -2858.625,
+        "position": "static"
+      },
+      "search": {
+        "top": -3020.125,
+        "bottom": -2984.125,
+        "position": "static"
+      },
+      "visibleButtons": [],
+      "paginationText": [
+        {
+          "label": "Pagination",
+          "visible": false
+        }
+      ]
+    },
+    "page_errors": []
+  },
+  "admin": {
+    "scope": "Second-pass usability review; isolated live administrator Chromium at 1440 \u00d7 1000; code/screenshots support the observations. No novice study or task-time/error-rate measurement was performed.",
+    "businessWriteAttempts": 0,
+    "draftCleanup": "The added period/rate change was kept only locally for the navigation check, then discarded through the local review controls. No Save all changes, Create company, Save membership, or deletion was submitted.",
+    "findings": [
+      {
+        "id": "UA-01",
+        "priority": "P2",
+        "classification": "Confirmed task-effort inconvenience; improvement proposal",
+        "title": "The next review action is off-screen after keeping a lower-list draft",
+        "task": "Edit a SKU farther down the list, keep its draft, and continue to review.",
+        "reproduce": [
+          "At 1440 \u00d7 1000, open Current fees with the default page of 25 SKUs and edit BUTYL TAPE near the bottom.",
+          "Make a local-only change and choose Keep draft.",
+          "Without scrolling, locate Review changes (1)."
+        ],
+        "observed": {
+          "documentScrollY": 1755,
+          "reviewButtonTop": -1357.953125,
+          "reviewButtonInViewport": false,
+          "visibleCue": "The edited card shows a Draft badge and a Discard draft action, but the main not-saved summary and Review changes action are above the viewport."
+        },
+        "effort": "The user must navigate back to the top before proceeding from draft to review. This is distinct from the global validation blocker or losing unstaged input.",
+        "improvement": "Keep a compact unsaved-draft summary and Review changes action reachable while drafts exist, or offer a clear Keep draft and review continuation. Preserve the separate review/save step; do not auto-publish. The editor footer itself already remains visible and should be kept.",
+        "evidence": [
+          "after-keep-draft-review-offscreen.png",
+          "task-effort.json:reviewAfterKeep"
+        ],
+        "sourceRefs": [
+          {
+            "path": "services/frontend/user-webpage/src/CurrentFees.tsx",
+            "line": 68
+          },
+          {
+            "path": "services/frontend/user-webpage/src/CurrentFees.tsx",
+            "line": 176
+          },
+          {
+            "path": "services/frontend/user-webpage/src/SkuConfigurationList.css",
+            "line": 5
+          }
+        ]
+      },
+      {
+        "id": "UA-02",
+        "priority": "P2",
+        "classification": "Confirmed form-effort inconvenience; improvement proposal",
+        "title": "A rate change from a date requires manually splitting two distant periods",
+        "task": "Change the Amazon.com rate from November 1 while preserving historical rates.",
+        "reproduce": [
+          "Edit BUTYL TAPE, which currently has 11 marketplace periods. Its Amazon.com entry is period 4 with no end date.",
+          "Add fee period; a blank period 12 is appended at the bottom.",
+          "Select Amazon.com, enter the new rate and start date 2026-11-01, then return to period 4 and enter the same date as its exclusive end."
+        ],
+        "observed": {
+          "existingPeriods": 11,
+          "scrollHeight": 1755,
+          "visibleEditorHeight": 848,
+          "newPeriodDefaults": {
+            "marketplace": "",
+            "rate": "",
+            "start": "",
+            "end": ""
+          },
+          "inlineOverlapWarning": [
+            "These dates overlap another fee period for this marketplace."
+          ],
+          "resolvedAfterMatchingOldEnd": true
+        },
+        "effort": "The task requires four field edits across two cards, including entering the same date twice and reselecting a known marketplace. A user must maintain the inclusive/exclusive boundary manually. Existing validation correctly catches the overlap; this is not a fee-calculation defect.",
+        "improvement": "Offer Change rate from date on a specific marketplace/period. Ask for the effective date and new rate, then preview ending the prior period and starting the new one. Keep the full editor for advanced history changes and retain current overlap/coverage validation. Group or jump by marketplace when many periods exist.",
+        "evidence": [
+          "multi-market-fee-editor.png",
+          "new-fee-period-blank.png",
+          "new-rate-before-closing-old-period.png",
+          "task-effort.json:periods"
+        ],
+        "sourceRefs": [
+          {
+            "path": "services/frontend/user-webpage/src/SkuConfigurationEditor.tsx",
+            "line": 83
+          },
+          {
+            "path": "services/frontend/user-webpage/src/SkuConfigurationEditor.tsx",
+            "line": 207
+          },
+          {
+            "path": "services/frontend/user-webpage/src/SkuConfigurationEditor.tsx",
+            "line": 217
+          }
+        ]
+      },
+      {
+        "id": "UA-03",
+        "priority": "P3",
+        "classification": "Confirmed navigation friction; lower-priority suggestion",
+        "title": "Company details provide a member shortcut but no equivalent SKU-settings shortcut",
+        "task": "While reviewing a company, change one of its SKU assignments or fees.",
+        "reproduce": [
+          "Open Companies and expand Frontend Company A.",
+          "Inspect the available actions and its 41 assigned-SKU links."
+        ],
+        "observed": "View members provides a scoped jump to User access. Every assigned-SKU link instead opens Transactions; there is no direct Manage assignments/fees action. The creation form already explains that assignments live in Current fees, so the guidance is present.",
+        "effort": "Continuing from company review to an assignment/fee edit requires switching to Current fees and searching for the company or SKU again.",
+        "improvement": "Add a context-preserving Manage assignments and fees action or an Edit fees action beside the appropriate SKU. Keep the existing transaction links and View members shortcut.",
+        "evidence": [
+          "company-management-actions.png",
+          "task-effort.json:companyActions"
+        ],
+        "sourceRefs": [
+          {
+            "path": "services/frontend/user-webpage/src/CompanyDetails.tsx",
+            "line": 28
+          },
+          {
+            "path": "services/frontend/user-webpage/src/CompanyDetails.tsx",
+            "line": 41
+          }
+        ]
+      }
+    ],
+    "journeyAssessment": {
+      "feeStages": "Draft\u2192review\u2192save is explicitly explained and the primary actions are distinguishable. The high-effort points are reaching review after a lower-list edit and constructing an effective-date rate change manually.",
+      "calendarTerminology": "Inclusive start/exclusive end labels and inline overlap validation are already present and work. The suggested helper reduces duplicate date entry instead of replacing or hiding these rules.",
+      "companies": "Search, expandable assigned-SKU lists, and View members are usable. Existing create-company guidance points to Current fees/User access. A contextual assignment/fee shortcut would reduce repeated navigation.",
+      "userAccess": "The searchable company selector, explicit Save membership, and separate revocation confirmation make the core assignment flow legible. No additional strong finding beyond the existing Q17 pending-draft label was established."
+    }
+  },
+  "financial": {
+    "scope": "Focused second-pass usability review; live Chromium at 1440 \u00d7 900; no application, documentation, or business-data writes.",
+    "findings": [
+      {
+        "id": "UF-01",
+        "priority": "P2",
+        "type": "Usability / context retention",
+        "title": "Long report drawers lose their specific report identity while reading records",
+        "reproduce": [
+          "At 1440 \u00d7 900, open Payout reports, select July 2026, and open the first USD company report.",
+          "Wait for its 50-row Amount records page, then scroll to its last row.",
+          "Repeat in Financial review \u2192 Data Kiosk \u2192 2026 \u2192 USD \u2192 July: expand Source records and scroll to the last row."
+        ],
+        "measured": "In the payout drawer, the company/date/currency scope line starts at y=118.8, then moves to y=-2630.2; the fixed title remains at y=20.3 and says only Selected row details. In Financial Review, July 2026 and Previous/Next month navigation move to y=-3692; the fixed title says only Monthly financial review. Currency remains visible in monetary column headers, and row dates remain visible.",
+        "judgment": "The operator must remember the company/report or scroll thousands of pixels back to verify it while comparing records. This is especially awkward when inspecting the same month/currency for multiple companies. It is context loss, not incorrect arithmetic or missing records.",
+        "recommendation": "Use the sticky drawer title to retain report identity: company, month and currency for payouts; category, month and currency for Financial Review. Keep month navigation reachable beside that context where appropriate. Preserve compact table headers and scrolling.",
+        "not_duplicate": "Q11 concerns reaching the marketplace summary. This concerns knowing which report is currently being inspected after reaching any long section; it can be a separate finding or an additional acceptance criterion under report orientation.",
+        "evidence": [
+          "payout-scope-at-top-1440.png",
+          "payout-context-lost-in-records-1440.png",
+          "review-context-lost-in-records-1440.png",
+          "observations.json"
+        ],
+        "source_refs": [
+          "services/frontend/user-webpage/src/RowDetail.tsx:66",
+          "services/frontend/user-webpage/src/RowDetail.tsx:74",
+          "services/frontend/user-webpage/src/FinancialReviewMonthDetail.tsx:47",
+          "services/frontend/user-webpage/src/FinancialReviewMonthDetail.tsx:58"
+        ]
+      },
+      {
+        "id": "UF-02",
+        "priority": "P3",
+        "type": "Usability / search discoverability",
+        "title": "Payout search expects a hidden report name rather than the visible month label",
+        "reproduce": [
+          "Open Payout reports with July 2026 selected in the Month filter.",
+          "Enter July in Search.",
+          "Replace it with 2026-07."
+        ],
+        "measured": "July returns 0 reports; 2026-07 returns 15. The visible group label is July 2026, and the input placeholder says Report name or currency. The queried report_name is generated as YYYY-MM payout report and is not displayed in the normal report table or payout drawer.",
+        "judgment": "A user searching the month they can see receives a false impression that no report matches, unless they infer the hidden naming format. The Month filter itself works; this is a label/search mismatch, not a backend filtering defect.",
+        "recommendation": "Either accept the month labels visible in the UI as search aliases or label the supported syntax clearly, such as YYYY-MM or currency (USD), with a direct month-filter affordance. Avoid asking users to search for a report name that the page never presents.",
+        "not_duplicate": "Q01 concerns blocked report generation being shown as empty. This is independently reproducible for an existing month with 15 reports and concerns discovery/search behavior.",
+        "evidence": [
+          "search-july-no-results-1440.png",
+          "search-numeric-month-results-1440.png",
+          "observations.json"
+        ],
+        "source_refs": [
+          "services/frontend/user-webpage/src/view-model.ts:67",
+          "services/frontend/user-webpage/src/api/config.ts:165",
+          "services/db/supabase/migrations/20260928123125_payout_generation.sql:81"
+        ]
+      }
+    ],
+    "journeys": [
+      {
+        "task": "Find a company payout for one month/currency",
+        "current_path": [
+          "Payout reports",
+          "Month heading \u2192 choose month",
+          "Company heading \u2192 choose company",
+          "Search currency or scan rows",
+          "Open report"
+        ],
+        "assessment": "Month/company filters work and remain visible as chips. The search wording assumes a hidden report name; retain report identity once details are scrolled."
+      },
+      {
+        "task": "Explain a monthly source difference",
+        "current_path": [
+          "Financial review",
+          "Choose accounting category, year and currency",
+          "Open month",
+          "Choose source/type View records",
+          "Inspect source rows"
+        ],
+        "assessment": "The selected scope is clear at the top, exact calculations and two-decimal display are consistent, and type drilldown scrolls to records. Existing Q09/Q10 cover comparison matching and traceability; this pass adds persistent report orientation."
+      },
+      {
+        "task": "Choose the correct financial tab",
+        "current_path": [
+          "Transactions for company allocations and estimates",
+          "Payout reports for saved company-month results",
+          "Finances / Data Kiosk for administrator source audit",
+          "Financial review for account-wide source comparisons"
+        ],
+        "assessment": "These are distinct valid workflows. A short task-oriented description or grouped navigation could help new administrators learn the model, but this remains a design suggestion without a separately demonstrated failure; not promoted to another finding."
+      }
+    ],
+    "page_errors": 0
+  },
+  "member": {
+    "review_date": "2026-10-18",
+    "commit": "38352890",
+    "mode": "Read-only live member walkthrough in isolated Docker Chromium at 1440 \u00d7 1000; existing desktop/mobile captures also reviewed. No app, docs or business-data edits.",
+    "new_findings": [
+      {
+        "id": "UM-01",
+        "priority": "P2",
+        "classification": "Coverage/empty-state clarity",
+        "title": "A marketplace with no imported inventory looks like an ordinary empty filtered result",
+        "task": "Check whether there is inventory available for Germany.",
+        "reproduction": [
+          "As a member, open Inventory.",
+          "Select Amazon.de in Marketplace.",
+          "Read the count and empty-state message."
+        ],
+        "observed": "Marketplace offers all 24 canonical marketplace choices. Amazon.de displays 0 inventory items and No inventory matches these filters, with only a general Clear inventory filters action. There is no indication that no inventory capture exists for Germany. The read-only latest_inventory_captures check, including completed-empty capture references, contains only Amazon.co.jp and Amazon.com.",
+        "impact": "A reader cannot distinguish missing marketplace coverage from a genuine zero/empty stock result or an overly narrow filter, so changing filters appears to be the remedy when it cannot supply the missing data.",
+        "recommendation": "Identify coverage in the marketplace choices and empty state. State No inventory snapshot has been imported for this marketplace when appropriate, and distinguish that from a completed empty capture and from no matches within an available capture. Keep zero stock rows and automatic refresh; no shipment actions or reload button are required.",
+        "acceptance": "Selecting an uncaptured marketplace explicitly reports unavailable inventory coverage. A completed empty capture and a filtered-out result retain distinct wording. A member receives a suitable informational next step without administrator-only controls.",
+        "evidence": [
+          "marketplace-empty-1440.png",
+          "proof.json",
+          "../usability-general/inventory-coverage.json"
+        ]
+      },
+      {
+        "id": "UM-02",
+        "priority": "P2",
+        "classification": "Filter visibility/accessibility",
+        "title": "Active inventory filter values disappear after closing the column menus",
+        "task": "Find out-of-stock items that need listing attention, then recover when the combination has no matches.",
+        "reproduction": [
+          "Set Inventory health status to Out of stock.",
+          "Set Recommendation to Edit listing and close both menus.",
+          "Observe the empty result, then reload with F5."
+        ],
+        "observed": "The active words Out of stock and Edit listing are absent from the visible page. Only a small 1 beside each header and Clear inventory filters indicate filtering; F5 preserves this state. The header accessible names remain Inventory health status and Recommendation, without an active-value description. The count indicators are inside aria-hidden=true, so even the count is absent from their accessible names.",
+        "impact": "To understand or adjust the empty result, the user must reopen both menus and reconstruct the saved filter combination. This is especially weak for returning users and keyboard/screen-reader users; clearing all filters discards useful criteria.",
+        "recommendation": "Show named applied-filter chips above the table, such as Health: Out of stock and Recommendation: Edit listing, with individual removal. Include active filter state in each header control\u2019s accessible description. Keep the existing search, urgency ordering and persistence behavior.",
+        "acceptance": "After closing menus and after F5, active criteria are readable without reopening a menu, can be removed one at a time, and are available to assistive technology.",
+        "evidence": [
+          "hidden-filter-values-1440.png",
+          "hidden-filter-values-after-reload.png",
+          "proof.json"
+        ]
+      }
+    ],
+    "journey_map": [
+      {
+        "goal": "Check a SKU\u2019s stock in a marketplace",
+        "path": "Inventory \u2192 Marketplace \u2192 item list",
+        "result": "Covered US/JP items are visible; an uncaptured marketplace has an indistinguishable empty state (UM-01)."
+      },
+      {
+        "goal": "Prioritize replenishment/listing review",
+        "path": "Health/Recommendation header \u2192 choose urgency or filters \u2192 inspect results",
+        "result": "Urgency sorting and filter application work. The selected criteria are not named after menus close (UM-02)."
+      },
+      {
+        "goal": "Inspect more inventory metrics",
+        "path": "Click a row area \u2192 Inventory details",
+        "result": "Works; small explanatory text explicitly distinguishes row details from SKU navigation. No new finding raised."
+      },
+      {
+        "goal": "Investigate SKU transactions",
+        "path": "Click underlined SKU \u2192 Transactions with exact SKU scope \u2192 return to Inventory",
+        "result": "Works as intended. Do not replace the informational inventory with shipment/listing action buttons."
+      }
+    ],
+    "scope_notes": [
+      "Only two new findings are proposed; prior freshness, currency fallback, mixed-currency sorting and summary-scope findings are not repeated.",
+      "The marketplace capture-header proof is a read-only root-agent check; the member walkthrough independently confirms the displayed empty state and only two nonempty inventory marketplaces.",
+      "This is an expert task walkthrough, not a measured usability study with novice participants. The effects on novice interpretation are usability assessments supported by the observed UI.",
+      "Row-click versus SKU-link navigation was evaluated but not promoted to a finding because an explanatory hint exists and both intended paths work."
+    ]
+  },
+  "inventory_capture_coverage": {
+    "read_only": true,
+    "captures": [
+      {
+        "marketplace_name": "Amazon.co.jp",
+        "capture_date": "2026-10-03"
+      },
+      {
+        "marketplace_name": "Amazon.com",
+        "capture_date": "2026-10-03"
+      }
+    ],
+    "includes_empty_capture_references": true
+  },
+  "screenshots": {
+    "transactions-long-page.png": "usability-general/transactions-100-bottom.png",
+    "summary-actions.png": "usability-general/summary-card-affordance.png",
+    "inventory-hidden-filters.png": "usability-member/hidden-filter-values-after-reload.png"
+  },
+  "general_probe_viewport": {
+    "width": 1440,
+    "height": 900
+  }
+}

@@ -38,6 +38,44 @@ function storage() {
 const text = (value) => (typeof value === "string" ? value : "default");
 const prefix = workspaceStoragePrefix("https://project.example/");
 
+test("closed unfinished fee editors retain incomplete inputs and a pending rate preview separately from staged changes", () => {
+  const unfinished = {
+    sku: "",
+    isNew: true,
+    submitError: null,
+    form: {
+      sku: "",
+      company_id: "company-a",
+      expected_current_version_id: null,
+      periods: [
+        {
+          marketplace_name: "Amazon.com",
+          valid_from: "2026-01-01",
+          valid_to: null,
+          fee_rate_percent: "5.123456",
+        },
+      ],
+    },
+    rateChange: {
+      periodIndex: 0,
+      effectiveDate: "2026-03-01",
+      feeRatePercent: "0.000001",
+      previewRequested: true,
+    },
+  };
+  const decoded = decodeFeeView({ ...createFeeViewState(), editorDrafts: [unfinished] });
+  assert.equal(decoded.editing, null);
+  assert.deepEqual(decoded.drafts, []);
+  assert.deepEqual(decoded.editorDrafts, [unfinished]);
+  assert.equal(
+    decodeFeeView({
+      ...decoded,
+      editorDrafts: [{ ...unfinished, rateChange: { ...unfinished.rateChange, periodIndex: 5 } }],
+    }).editorDrafts[0].rateChange,
+    null,
+  );
+});
+
 test("current role scopes retain drafts on reload and discard them after identity changes", () => {
   const member = { ...account, access_role: "member", company_id: "company-a" };
   for (const [original, next] of [

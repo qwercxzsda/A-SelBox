@@ -49,6 +49,10 @@
   background: var(--ui-surface-subtle);
 }
 
+.sku-configuration-drawer-scroll > * {
+  flex-shrink: 0;
+}
+
 .sku-configuration-card {
   border-color: var(--ui-border);
   border-radius: var(--ui-radius);
@@ -67,6 +71,11 @@
 
 .sku-configuration-proposed-periods {
   margin-top: var(--mantine-spacing-sm);
+}
+
+.sku-rate-change {
+  border-color: var(--ui-accent);
+  background: var(--ui-surface);
 }
 
 .sku-configuration-drawer-actions {

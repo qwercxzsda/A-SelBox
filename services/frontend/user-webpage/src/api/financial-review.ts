@@ -241,6 +241,46 @@ export function createFinancialReviewApi(transport: ApiTransport) {
         signal,
       );
     },
+    async fetchFinancialReviewFamilyTypes(
+      accessToken: string,
+      category: FinancialReviewCategory,
+      month: string,
+      currency: string,
+      signal?: AbortSignal,
+    ): Promise<CanonicalRow[]> {
+      const params = totalParams(category, month);
+      requireCurrency(currency);
+      params.set("p_currency", currency);
+      params.set(
+        "select",
+        rpcProjection([
+          "month",
+          "category",
+          "currency",
+          "source",
+          "component_type",
+          "amount",
+          "row_count",
+        ]),
+      );
+      params.set("order", "source.asc,component_type.asc");
+      params.set("limit", String(LOOKUP_PAGE_SIZE));
+      const result = await transport.readCsvPage(
+        accessToken,
+        "rpc/financial_review_type_totals",
+        params,
+        "Financial review fee families",
+        signal,
+        false,
+      );
+      if (result.rows.length >= LOOKUP_PAGE_SIZE)
+        throw new Error("Too many types for a complete family comparison");
+      for (const row of result.rows) {
+        if (row.month !== `${month}-01` || row.category !== category || row.currency !== currency)
+          throw new Error("Fee family comparison returned a different scope");
+      }
+      return result.rows;
+    },
     fetchFinancialReviewRecords(
       accessToken: string,
       category: FinancialReviewCategory,

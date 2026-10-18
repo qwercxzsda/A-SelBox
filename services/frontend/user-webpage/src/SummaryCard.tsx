@@ -36,6 +36,7 @@ export function SummaryCard({
   emptyMessage,
   onPeriodSelect,
   onOpenBreakdown,
+  onChooseDates,
 }: {
   title: string;
   period: SummaryPeriod | null;
@@ -45,6 +46,7 @@ export function SummaryCard({
   emptyMessage: string;
   onPeriodSelect?: (range: DateRange) => void;
   onOpenBreakdown: (period: SummaryPeriod, title: string, currency: string) => void;
+  onChooseDates?: () => void;
 }) {
   const total = period?.totals.find((item) => item.currency === currency);
   const initialLoading = loading && period === null;
@@ -66,11 +68,22 @@ export function SummaryCard({
           onClick={() => {
             onOpenBreakdown(period, title, currency);
           }}
-        />
+        >
+          <span className="estimated-summary-open-label">View by type →</span>
+        </UnstyledButton>
       ) : null}
       <Text component="h3" m={0} fw={600} size="sm">
         {title}
       </Text>
+      {onChooseDates ? (
+        <UnstyledButton
+          className="estimated-summary-period ui-text-action"
+          type="button"
+          onClick={onChooseDates}
+        >
+          {period ? "Change dates" : "Choose dates"}
+        </UnstyledButton>
+      ) : null}
       {initialLoading ? (
         <Stack gap="sm" mt="sm" role="status" aria-label={`Loading ${title.toLowerCase()} totals`}>
           <Skeleton height={14} width="40%" />

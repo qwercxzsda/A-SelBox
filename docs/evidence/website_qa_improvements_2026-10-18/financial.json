@@ -1,0 +1,238 @@
+{
+  "mode": "deployed-preview",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "roles": [
+    {
+      "role": "administrator",
+      "checks": [
+        {
+          "name": "April automatic readiness and role-appropriate setup",
+          "ok": true,
+          "statusCounts": {
+            "BLOCKED": 2
+          },
+          "requirements": 3,
+          "uniqueSkus": 3,
+          "configureNavigation": true
+        },
+        {
+          "name": "Fee families and exact source-version drilldown",
+          "ok": true,
+          "families": 6,
+          "unpairedTypes": 4,
+          "advertisingUnpaired": true,
+          "sourceDetails": [
+            {
+              "source": "DATA_KIOSK",
+              "matchedRowAndVersion": true,
+              "decimalTextPreserved": true,
+              "displayMatchesRoundedSource": true,
+              "restoredAfterReload": true,
+              "nativeIdPresent": false
+            },
+            {
+              "source": "FINANCES",
+              "matchedRowAndVersion": true,
+              "decimalTextPreserved": true,
+              "displayMatchesRoundedSource": true,
+              "restoredAfterReload": true,
+              "nativeIdPresent": true
+            }
+          ]
+        },
+        {
+          "name": "Exact native Amazon transaction ID lookup",
+          "ok": true,
+          "matches": 6,
+          "captures": [
+            "Current"
+          ],
+          "exactNativeIdConfirmed": true
+        },
+        {
+          "name": "Human month search, marketplace-first payout details and rounded display",
+          "ok": true,
+          "matchingMonths": 1,
+          "marketplaceBeforeRecords": true,
+          "marketplaceRows": 1,
+          "moneyNote": true,
+          "responsiveOverflow": false
+        }
+      ],
+      "errors": [],
+      "failedReads": [],
+      "tabs": [
+        "Transactions",
+        "Finances",
+        "Data Kiosk",
+        "Current fees",
+        "Payout reports",
+        "User access",
+        "Companies",
+        "Inventory",
+        "Financial review"
+      ]
+    },
+    {
+      "role": "member-1",
+      "checks": [
+        {
+          "name": "April automatic readiness and role-appropriate setup",
+          "ok": true,
+          "statusCounts": {
+            "BLOCKED": 1
+          },
+          "ownCompanyOnly": true,
+          "noBlockerDetails": true
+        },
+        {
+          "name": "Human month search, marketplace-first payout details and rounded display",
+          "ok": true,
+          "matchingMonths": 1,
+          "marketplaceBeforeRecords": true,
+          "marketplaceRows": 1,
+          "moneyNote": true,
+          "responsiveOverflow": false
+        },
+        {
+          "name": "Member API source and cross-company boundaries",
+          "ok": true,
+          "adminTabsAbsent": true,
+          "responses": [
+            {
+              "name": "financial_source_record",
+              "status": 403
+            },
+            {
+              "name": "financial_source_transaction_lookup",
+              "status": 403
+            },
+            {
+              "name": "payout_setup_blockers",
+              "status": 403
+            },
+            {
+              "name": "payout_readiness",
+              "status": 403
+            },
+            {
+              "name": "financial_review_records",
+              "status": 200,
+              "rows": 0
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "failedReads": [
+        {
+          "path": "/rest/v1/rpc/financial_source_record",
+          "status": 403
+        },
+        {
+          "path": "/rest/v1/rpc/financial_source_transaction_lookup",
+          "status": 403
+        },
+        {
+          "path": "/rest/v1/rpc/payout_setup_blockers",
+          "status": 403
+        },
+        {
+          "path": "/rest/v1/rpc/payout_readiness",
+          "status": 403
+        }
+      ],
+      "tabs": [
+        "Transactions",
+        "Current fees",
+        "Payout reports",
+        "Inventory"
+      ]
+    },
+    {
+      "role": "member-2",
+      "checks": [
+        {
+          "name": "April automatic readiness and role-appropriate setup",
+          "ok": true,
+          "statusCounts": {
+            "BLOCKED": 1
+          },
+          "ownCompanyOnly": true,
+          "noBlockerDetails": true
+        },
+        {
+          "name": "Human month search, marketplace-first payout details and rounded display",
+          "ok": true,
+          "matchingMonths": 1,
+          "marketplaceBeforeRecords": true,
+          "marketplaceRows": 1,
+          "moneyNote": true,
+          "responsiveOverflow": false
+        },
+        {
+          "name": "Member API source and cross-company boundaries",
+          "ok": true,
+          "adminTabsAbsent": true,
+          "responses": [
+            {
+              "name": "financial_source_record",
+              "status": 403
+            },
+            {
+              "name": "financial_source_transaction_lookup",
+              "status": 403
+            },
+            {
+              "name": "payout_setup_blockers",
+              "status": 403
+            },
+            {
+              "name": "payout_readiness",
+              "status": 403
+            },
+            {
+              "name": "financial_review_records",
+              "status": 200,
+              "rows": 0
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "failedReads": [
+        {
+          "path": "/rest/v1/rpc/financial_source_record",
+          "status": 403
+        },
+        {
+          "path": "/rest/v1/rpc/financial_source_transaction_lookup",
+          "status": 403
+        },
+        {
+          "path": "/rest/v1/rpc/payout_setup_blockers",
+          "status": 403
+        },
+        {
+          "path": "/rest/v1/rpc/payout_readiness",
+          "status": 403
+        }
+      ],
+      "tabs": [
+        "Transactions",
+        "Current fees",
+        "Payout reports",
+        "Inventory"
+      ]
+    }
+  ],
+  "businessMutationRequests": [],
+  "audit_notes": [
+    "Member HTTP403 responses are intentional permission probes, not failed normal UI reads.",
+    "Live retained-version presence was not forced: the tested native transaction has6 current components. Retained/current separation is covered by database and browser fixture tests.",
+    "The first administrator company exposed3 missing-ownership SKU blockers. Both company statuses and both own-company member statuses were verified."
+  ]
+}

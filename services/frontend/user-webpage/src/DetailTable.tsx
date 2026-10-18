@@ -57,7 +57,7 @@ export function DetailTable({
         className={["detail-table", className].filter(Boolean).join(" ")}
         style={{ minWidth }}
         stickyHeader={fits}
-        stickyHeaderOffset="var(--ui-drawer-header-height)"
+        stickyHeaderOffset="var(--ui-drawer-content-header-height, var(--ui-drawer-header-height))"
         highlightOnHover={selectedRowKey !== undefined}
       >
         <Table.Thead>

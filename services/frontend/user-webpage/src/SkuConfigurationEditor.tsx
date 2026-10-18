@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { Fragment, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import {
   Alert,
   Autocomplete,
@@ -21,6 +21,7 @@ import { SkuFeePeriodEditor } from "./SkuFeePeriodEditor";
 import { createSkuDraft, validateSkuItem } from "./sku-configuration-form";
 import type { FeeEditorState } from "./workspace-view-state";
 import "./SkuConfigurationDrawer.css";
+import { SkuRateChange } from "./SkuRateChange";
 
 export function SkuConfigurationEditor({
   item,
@@ -30,6 +31,7 @@ export function SkuConfigurationEditor({
   knownSkus,
   isNew,
   onClose,
+  onDiscard,
   onStage,
   onEditExisting,
   onAddCompany,
@@ -41,6 +43,7 @@ export function SkuConfigurationEditor({
   knownSkus: string[];
   isNew: boolean;
   onClose: () => void;
+  onDiscard: () => void;
   onStage: (change: SkuConfigurationChange) => void;
   onEditExisting: (sku: string) => void;
   onAddCompany: () => void;
@@ -59,10 +62,14 @@ export function SkuConfigurationEditor({
     periodFocus.current = null;
   }, [form.periods.length]);
   const setForm = (update: SetStateAction<SkuConfigurationChange>) => {
-    onEditingChange((current) => ({
-      ...current,
-      form: typeof update === "function" ? update(current.form) : update,
-    }));
+    onEditingChange((current) => {
+      const form = typeof update === "function" ? update(current.form) : update;
+      return {
+        ...current,
+        form,
+        rateChange: form.periods === current.form.periods ? current.rateChange : null,
+      };
+    });
   };
   const setSubmitError = (submitError: string | null) => {
     onEditingChange((current) => ({ ...current, submitError }));
@@ -115,6 +122,7 @@ export function SkuConfigurationEditor({
         className="sku-configuration-drawer-layout"
         onSubmit={(event) => {
           event.preventDefault();
+          if (editing.rateChange !== null) return;
           if (!form.sku.trim() || form.sku.includes("\0")) {
             setSubmitError("Enter a SKU.");
             return;
@@ -128,7 +136,8 @@ export function SkuConfigurationEditor({
       >
         <Stack gap="md" className="sku-configuration-drawer-scroll">
           <Text size="sm" c="dimmed">
-            Changes stay in a draft until you review and save all changes.
+            Closing keeps unfinished edits here. Choose Keep draft when ready to review, then save
+            all changes.
           </Text>
           {stale ? (
             <Alert color="orange" role="alert">
@@ -215,22 +224,54 @@ export function SkuConfigurationEditor({
             </Text>
           ) : null}
           {form.periods.map((period, index) => (
-            <SkuFeePeriodEditor
-              key={index}
-              period={period}
-              index={index}
-              issues={issues}
-              marketplaceRef={(element) => {
-                if (element) marketplaceInputs.current.set(index, element);
-                else marketplaceInputs.current.delete(index);
-              }}
-              onUpdate={(field, value) => {
-                updatePeriod(index, field, value);
-              }}
-              onRemove={() => {
-                removePeriod(index);
-              }}
-            />
+            <Fragment key={index}>
+              <SkuFeePeriodEditor
+                period={period}
+                index={index}
+                issues={issues}
+                marketplaceRef={(element) => {
+                  if (element) marketplaceInputs.current.set(index, element);
+                  else marketplaceInputs.current.delete(index);
+                }}
+                onUpdate={(field, value) => {
+                  updatePeriod(index, field, value);
+                }}
+                onRemove={() => {
+                  removePeriod(index);
+                }}
+                onChangeRate={() => {
+                  onEditingChange((current) => ({
+                    ...current,
+                    rateChange: {
+                      periodIndex: index,
+                      effectiveDate: "",
+                      feeRatePercent: "",
+                      previewRequested: false,
+                    },
+                  }));
+                }}
+              />
+              {editing.rateChange?.periodIndex === index ? (
+                <SkuRateChange
+                  sku={form.sku}
+                  periods={form.periods}
+                  draft={editing.rateChange}
+                  onChange={(rateChange) => {
+                    onEditingChange((current) => ({ ...current, rateChange }));
+                  }}
+                  onApply={(periods) => {
+                    const target =
+                      editing.rateChange?.effectiveDate === period.valid_from ? index : index + 1;
+                    setForm({ ...form, periods });
+                    requestAnimationFrame(() => marketplaceInputs.current.get(target)?.focus());
+                  }}
+                  onCancel={() => {
+                    onEditingChange((current) => ({ ...current, rateChange: null }));
+                    requestAnimationFrame(() => marketplaceInputs.current.get(index)?.focus());
+                  }}
+                />
+              ) : null}
+            </Fragment>
           ))}
           {issues.some((issue) => !issue.field) ? (
             <Alert color="orange" title="Fee coverage still needed">
@@ -260,10 +301,10 @@ export function SkuConfigurationEditor({
               Add fee period
             </Button>
             <Group gap="xs">
-              <Button variant="default" onClick={onClose}>
-                Cancel
+              <Button variant="default" onClick={onDiscard}>
+                Discard edits
               </Button>
-              <Button type="submit" disabled={existingSku}>
+              <Button type="submit" disabled={existingSku || editing.rateChange !== null}>
                 Keep draft
               </Button>
             </Group>

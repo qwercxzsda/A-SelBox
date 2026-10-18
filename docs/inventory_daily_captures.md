@@ -121,6 +121,19 @@ ownership by exact SKU alone. An absent SKU or empty latest capture never falls 
 per-SKU stock. Namespaces describe source provenance, not ownership; quantities across marketplaces
 or namespaces are not an assumed physical total.
 
+The browser uses those minimal capture references to display marketplace coverage independently of
+item filters. A missing capture, a completed empty capture, and a member with no authorized items
+have distinct empty states; a member is never told that another company's stock is empty. For an
+empty filtered result, a one-row authorized item probe distinguishes no available items from no
+matches. Capture discovery is paged and contains no financial amounts or item data.
+
+Report dates are visible by marketplace, and each item shows its actual snapshot date when supplied.
+A missing snapshot date is labelled explicitly, with the report date as a fallback. Source dates
+more than two UTC calendar days old are marked overdue for daily replenishment review. Local age
+updates do not request new data. Reprocessing time is shown separately and does not reset source age.
+Visible filter chips name and individually clear persisted criteria. Sales ordering remains in the
+original currencies; the heading and active-sort note explain that limitation beside the table.
+
 `public.inventory_filter_options()` returns complete distinct `skus`, `health_statuses`, and
 `recommendations` arrays from the same current, authorized rows. Text uses deterministic C ordering;
 nullable status/recommendation arrays retain one null option last. The authenticated invoker RPC

@@ -61,7 +61,8 @@ revoke all on function public.sku_filter_options()
 from public, anon, authenticated, service_role;
 
 -- Configuration reads include unregistered imports and incomplete current settings.
--- New administrator batches must cover every known SKU at validation time.
+-- Administrator batches validate changed SKUs; these reads still diagnose all
+-- known SKUs so unrelated ownership and fee gaps remain visible for payouts.
 -- Source publication remains independent: later imports may create new gaps.
 
 create function private.sku_configuration_required_dates(p_skus text[])

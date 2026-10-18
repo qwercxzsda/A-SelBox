@@ -111,14 +111,14 @@ test("sign-in and sign-up actions visibly respond without moving and retain keyb
   await hoverChangesShade(page, button(page, "Already have an account? Sign in"));
 });
 
-test("summary cards and date links keep distinct keyboard and click actions without the visible hint", async ({
+test("summary cards and date links keep distinct keyboard and click actions with a visible type link", async ({
   page,
 }) => {
   await setup(page, false);
   const card = page.getByRole("article", { name: "Latest day estimated totals", exact: true });
   const open = button(card, "View Latest day by type");
   const date = card.getByRole("button", { name: /^Filter transactions to / });
-  await expect(card.getByText("View by type", { exact: false })).toHaveCount(0);
+  await expect(card.getByText("View by type →", { exact: true })).toBeVisible();
   await hoverChangesShade(page, open);
   await expect
     .poll(async () => {

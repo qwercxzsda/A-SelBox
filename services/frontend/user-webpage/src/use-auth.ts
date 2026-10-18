@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
-import { ApiError, fetchSessionUser, signIn, signUp, signOut, type Session } from "./api";
+import {
+  ApiError,
+  requestPasswordRecovery,
+  updatePassword,
+  signIn,
+  signUp,
+  signOut,
+  type Session,
+} from "./api";
 import {
   browserSessionStore,
   isTemporaryAuthError,
   loadIdentity,
   renewIdentity,
-  restoreIdentity,
   type Identity,
   type IdentityRefreshOptions,
 } from "./auth-session";
@@ -14,16 +21,27 @@ import { sessionRefreshDelayMs } from "./session";
 import { getErrorMessage } from "./view-model";
 import { sameAccount } from "./workspace-revisions";
 import { clearBrowserWorkspace } from "./workspace-browser-storage";
-import { takeEmailConfirmation } from "./email-confirmation";
+import { AuthCallbackError, takeAuthCallback } from "./auth-callback";
+import { bootstrapAuthCallback } from "./auth-callback-storage";
+import { verifyRecoverySession } from "./auth-recovery";
+import { restoreAuthentication } from "./auth-restoration";
+import { clearWorkspaceLocation } from "./workspace-location-cleanup";
 
 type SessionTask = (save: (session: Session) => Session) => Promise<Identity | null>;
+type AuthMode = "sign-in" | "sign-up" | "recover";
+const callbackBootstrap = bootstrapAuthCallback();
+const callbackStore = callbackBootstrap.store;
 
 export function useAuth() {
   const [store] = useState(browserSessionStore);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [authMode, setAuthMode] = useState<AuthMode>(() =>
+    callbackStore.read().recovery?.stage === "request" ? "recover" : "sign-in",
+  );
   const [authStatus, setAuthStatus] = useState<string | null>(null);
+  const [authStatusTitle, setAuthStatusTitle] = useState("Check your email");
+  const [recoverySession, setRecoverySession] = useState<Session | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const latestIdentity = useRef<Identity | null>(null);
   const identityLoad = useRef(0);
@@ -39,7 +57,7 @@ export function useAuth() {
   const operation = useRef(0);
   const mounted = useRef(false);
   const pendingAuth = useRef<Promise<void> | null>(null);
-  const pendingConfirmation = useRef<ReturnType<typeof takeEmailConfirmation>>(null);
+  const callbackError = useRef(callbackBootstrap.error);
   const session = identity?.session;
 
   // StrictMode may replay effects. Share one task so a refresh token is exchanged only once.
@@ -65,11 +83,25 @@ export function useAuth() {
           if (isTemporaryAuthError(error)) {
             setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
           } else {
-            pendingConfirmation.current = null;
+            const flow = callbackStore.read();
+            const recovery =
+              flow.pending?.kind === "recovery" ||
+              flow.recovery?.stage === "password" ||
+              (error instanceof AuthCallbackError && error.recovery);
+            callbackStore.clear();
+            setRecoverySession(null);
             store.clear();
             clearBrowserWorkspace();
             setRestoreError(null);
-            setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
+            if (recovery) {
+              callbackStore.write({ pending: null, recovery: { stage: "request" } });
+              setAuthMode("recover");
+              setAuthError(
+                "This recovery link is invalid or has expired. Request a new link below.",
+              );
+            } else {
+              setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
+            }
           }
         })
         .finally(() => {
@@ -85,19 +117,19 @@ export function useAuth() {
   const restoreSavedSession = useCallback(
     () =>
       runSessionTask(async (save) => {
-        const confirmation = pendingConfirmation.current ?? takeEmailConfirmation();
-        if (confirmation) {
-          pendingConfirmation.current = confirmation;
-          clearBrowserWorkspace();
-          store.clear();
-          const user = await fetchSessionUser(confirmation.access_token);
-          const saved = save({ ...confirmation, user });
-          pendingConfirmation.current = null;
-          return loadIdentity(saved);
+        if (callbackError.current) {
+          const error = callbackError.current;
+          callbackError.current = null;
+          throw error instanceof Error
+            ? error
+            : new Error("This account link could not be verified.");
         }
-        const saved = store.read();
-        if (!saved) clearBrowserWorkspace();
-        return saved ? restoreIdentity(saved, save) : null;
+        const restored = await restoreAuthentication(store, callbackStore, save);
+        if (restored.kind === "recovery") {
+          setRecoverySession(restored.session);
+          return null;
+        }
+        return restored.identity;
       }),
     [runSessionTask, store],
   );
@@ -105,10 +137,35 @@ export function useAuth() {
   useEffect(() => {
     mounted.current = true;
     void restoreSavedSession();
+    const onAuthCallback = () => {
+      try {
+        const callback = takeAuthCallback();
+        if (!callback) return;
+        callbackStore.write({ pending: callback, recovery: null });
+      } catch (error) {
+        callbackStore.clear();
+        callbackError.current = error;
+      }
+      ++operation.current;
+      pendingAuth.current = null;
+      store.clear();
+      clearBrowserWorkspace();
+      flushSync(() => {
+        updateIdentity(null);
+        setRecoverySession(null);
+        setIsSubmitting(false);
+        setAuthError(null);
+        setRestoreError(null);
+        setIsRestoring(true);
+      });
+      void restoreSavedSession();
+    };
+    window.addEventListener("hashchange", onAuthCallback);
     return () => {
       mounted.current = false;
+      window.removeEventListener("hashchange", onAuthCallback);
     };
-  }, [restoreSavedSession]);
+  }, [restoreSavedSession, store, updateIdentity]);
 
   useEffect(() => {
     if (!session || isSigningOut) return;
@@ -131,24 +188,30 @@ export function useAuth() {
   function discardStoredSession() {
     ++operation.current;
     pendingAuth.current = null;
-    pendingConfirmation.current = null;
+    callbackError.current = null;
+    setRecoverySession(null);
     store.clear();
     clearBrowserWorkspace();
     updateIdentity(null);
-    setPassword("");
+    setIsSubmitting(false);
     setIsRestoring(false);
     setRestoreError(null);
-    setAuthError(null);
-    setAuthStatus(null);
-    setAuthMode("sign-in");
+    resetAuthForm("sign-in");
   }
 
-  function changeAuthMode(mode: "sign-in" | "sign-up") {
-    if (isSubmitting) return;
+  function resetAuthForm(mode: AuthMode) {
     setAuthMode(mode);
     setPassword("");
     setAuthError(null);
     setAuthStatus(null);
+    setAuthStatusTitle("Check your email");
+    if (mode === "recover") callbackStore.write({ pending: null, recovery: { stage: "request" } });
+    else callbackStore.clear();
+  }
+
+  function changeAuthMode(mode: AuthMode) {
+    if (isSubmitting) return;
+    resetAuthForm(mode);
   }
 
   async function handleAuthenticate(event: SubmitEvent<HTMLFormElement>) {
@@ -163,8 +226,20 @@ export function useAuth() {
     updateIdentity(null);
     store.clear();
     clearBrowserWorkspace();
+    if (authMode !== "recover") callbackStore.clear();
     let saved: Session | null = null;
     try {
+      if (authMode === "recover") {
+        await requestPasswordRecovery(
+          email.trim(),
+          `${window.location.origin}${window.location.pathname}`,
+        );
+        if (current())
+          setAuthStatus(
+            "If an account exists for this email address, you’ll receive a password recovery link. Check your inbox and spam folder.",
+          );
+        return;
+      }
       const received =
         authMode === "sign-up"
           ? await signUp(
@@ -207,6 +282,7 @@ export function useAuth() {
   async function handleSignOut() {
     if (!session || isSigningOut) return;
     const accessToken = session.access_token;
+    clearWorkspaceLocation();
     discardStoredSession();
     const generation = operation.current;
     const current = () => mounted.current && generation === operation.current;
@@ -217,6 +293,56 @@ export function useAuth() {
       if (current()) setAuthError(`Could not complete sign out: ${getErrorMessage(error)}`);
     } finally {
       if (current()) setIsSigningOut(false);
+    }
+  }
+
+  function requestNewRecoveryLink() {
+    const address = recoverySession?.user.email ?? email;
+    discardStoredSession();
+    setEmail(address);
+    resetAuthForm("recover");
+  }
+
+  async function handlePasswordUpdate(nextPassword: string): Promise<void> {
+    if (!recoverySession || isSubmitting || isRestoring) return;
+    const generation = ++operation.current;
+    const current = () => mounted.current && generation === operation.current;
+    setIsSubmitting(true);
+    setAuthError(null);
+    try {
+      const verified = await verifyRecoverySession(
+        recoverySession,
+        (value) => {
+          if (!current()) throw new DOMException("Password recovery was replaced", "AbortError");
+          return store.write(value);
+        },
+        recoverySession.user.id,
+      );
+      if (!current()) return;
+      const updated = await updatePassword(verified.access_token, nextPassword);
+      if (!current()) return;
+      if (updated.id !== verified.user.id)
+        throw new AuthCallbackError("The recovery session changed. Request a new link.", true);
+      // Clear recovery state before another await or reload can replay the completed operation.
+      discardStoredSession();
+      setAuthStatusTitle("Password updated");
+      setAuthStatus("Your password has been updated. Sign in with your new password.");
+      void signOut(verified.access_token).catch(() => {
+        /* Local credentials are already cleared. */
+      });
+    } catch (error) {
+      if (!current()) return;
+      if (
+        error instanceof AuthCallbackError ||
+        (error instanceof ApiError && [401, 403].includes(error.status ?? 0))
+      ) {
+        requestNewRecoveryLink();
+        setAuthError("This recovery session is no longer valid. Request a new link below.");
+      } else {
+        setAuthError(`Could not update your password: ${getErrorMessage(error)}`);
+      }
+    } finally {
+      if (current()) setIsSubmitting(false);
     }
   }
 
@@ -258,6 +384,8 @@ export function useAuth() {
     authMode,
     changeAuthMode,
     authStatus,
+    authStatusTitle,
+    recoverySession,
     identity,
     isSubmitting,
     isSigningOut,
@@ -269,5 +397,7 @@ export function useAuth() {
     refreshIdentity,
     retryRestore,
     discardStoredSession,
+    handlePasswordUpdate,
+    requestNewRecoveryLink,
   };
 }

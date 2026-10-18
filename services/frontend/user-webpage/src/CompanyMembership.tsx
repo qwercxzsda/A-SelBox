@@ -90,7 +90,7 @@ function MembershipEditor({
           </Badge>
           {account.access_role !== "unassigned" ? (
             <Text size="sm" c="dimmed">
-              {administrator ? "All companies" : label}
+              {administrator ? "All companies" : `Current company: ${label}`}
             </Text>
           ) : null}
         </Group>
@@ -135,6 +135,11 @@ function MembershipEditor({
                   : undefined
               }
             />
+            {companyId !== account.company_id ? (
+              <Text size="sm" c="orange.9" role="status">
+                Unsaved change. Current access stays the same until you save membership.
+              </Text>
+            ) : null}
           </Stack>
           {companies.length === 0 ? (
             <Text size="sm" c="dimmed">

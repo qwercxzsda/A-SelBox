@@ -1,0 +1,12 @@
+.detail-drawer-heading {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.detail-drawer-context {
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}

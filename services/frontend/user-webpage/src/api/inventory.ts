@@ -1,5 +1,6 @@
 import { requireAccessToken, type ApiTransport } from "./transport.ts";
-import { validatePagination } from "./pagination.ts";
+import { LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
+import { requireCalendarDate } from "./filters.ts";
 import type { CanonicalRow } from "./types.ts";
 import marketplaces from "../generated/marketplaces.json" with { type: "json" };
 import { isJsonObject } from "./validation.ts";
@@ -25,6 +26,15 @@ export interface InventoryFilterOptions {
 export interface InventorySearchValues extends InventoryFilterOptions {
   marketplaces: string[];
 }
+
+export const INVENTORY_CAPTURE_COLUMNS = [
+  "capture_id",
+  "marketplace_name",
+  "capture_date",
+  "report_created_at",
+  "preprocessed_at",
+] as const;
+export type InventoryCapture = Record<(typeof INVENTORY_CAPTURE_COLUMNS)[number], string>;
 
 export const INVENTORY_COLUMNS = [
   "capture_id",
@@ -156,8 +166,78 @@ function decodeInventoryRow(row: CanonicalRow): InventoryRow {
   return row as InventoryRow;
 }
 
+function requireMarketplace(marketplace: string): void {
+  if (marketplace !== "" && !marketplaces.includes(marketplace))
+    throw new Error("Inventory marketplace is invalid");
+}
+
+function decodeInventoryCapture(row: CanonicalRow): InventoryCapture {
+  if (
+    INVENTORY_CAPTURE_COLUMNS.some(
+      (column) => typeof row[column] !== "string" || !row[column].trim(),
+    )
+  )
+    throw new Error("Inventory returned an incomplete capture reference");
+  const capture = row as InventoryCapture;
+  requireCalendarDate(capture.capture_date);
+  requireMarketplace(capture.marketplace_name);
+  return capture;
+}
+
 export function createInventoryApi(transport: ApiTransport) {
   return {
+    async fetchInventoryCaptures(
+      accessToken: string,
+      signal?: AbortSignal,
+    ): Promise<InventoryCapture[]> {
+      const captures: InventoryCapture[] = [];
+      const seen = new Set<string>();
+      for (;;) {
+        const result = await transport.readCsvPage(
+          accessToken,
+          "latest_inventory_captures",
+          new URLSearchParams({
+            select: INVENTORY_CAPTURE_COLUMNS.join(","),
+            order: "marketplace_name.asc,capture_id.asc",
+            limit: String(LOOKUP_PAGE_SIZE),
+            offset: String(captures.length),
+          }),
+          "Inventory snapshot coverage",
+          signal,
+          false,
+        );
+        if (result.rows.length === 0) return captures;
+        if (result.rows.length > LOOKUP_PAGE_SIZE)
+          throw new Error("Inventory returned too many capture references");
+        for (const row of result.rows) {
+          const capture = decodeInventoryCapture(row);
+          if (seen.has(capture.capture_id))
+            throw new Error("Inventory capture references did not advance to the next page");
+          seen.add(capture.capture_id);
+          captures.push(capture);
+        }
+      }
+    },
+    async hasInventoryItems(
+      accessToken: string,
+      marketplace: string,
+      signal?: AbortSignal,
+    ): Promise<boolean> {
+      requireMarketplace(marketplace);
+      const params = new URLSearchParams({ select: "capture_id", limit: "1" });
+      if (marketplace) params.set("marketplace_name", `eq.${marketplace}`);
+      const result = await transport.readCsvPage(
+        accessToken,
+        "latest_inventory_items",
+        params,
+        "Inventory availability",
+        signal,
+        false,
+      );
+      if (result.rows.length > 1 || result.rows.some((row) => !row.capture_id))
+        throw new Error("Inventory returned invalid availability");
+      return result.rows.length === 1;
+    },
     async fetchInventoryFilterOptions(
       accessToken: string,
       signal?: AbortSignal,
@@ -180,8 +260,7 @@ export function createInventoryApi(transport: ApiTransport) {
       requireAccessToken(options.accessToken);
       const { marketplace, pageIndex, pageSize, sortColumn, sortDirection } = options;
       validatePagination(pageIndex, pageSize);
-      if (marketplace !== "" && !marketplaces.includes(marketplace))
-        throw new Error("Inventory marketplace is invalid");
+      requireMarketplace(marketplace);
       if (!INVENTORY_SORT_COLUMNS.includes(sortColumn) || !["asc", "desc"].includes(sortDirection))
         throw new Error("Inventory sort is invalid");
       const params = inventoryFilterParams(options);

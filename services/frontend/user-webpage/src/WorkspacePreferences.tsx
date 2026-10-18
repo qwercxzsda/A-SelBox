@@ -1,9 +1,10 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Fragment, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Portal } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { createWorkspaceStore } from "./workspace-storage";
 import { browserWorkspaceStorage } from "./workspace-browser-storage";
 import { WorkspaceContext } from "./workspace-preferences-context";
+import { createWorkspaceNavigation } from "./workspace-navigation";
 
 export function WorkspacePreferences({
   identity,
@@ -14,16 +15,26 @@ export function WorkspacePreferences({
 }) {
   const [store] = useState(() => {
     const { storage, prefix } = browserWorkspaceStorage();
-    return createWorkspaceStore(storage, prefix, identity.account);
+    return createWorkspaceNavigation(
+      createWorkspaceStore(storage, prefix, identity.account),
+      identity.account,
+    );
   });
-  const persistenceFailed = useSyncExternalStore(store.subscribe, store.getPersistenceFailed);
+  const navigation = store;
+  const routedStore = navigation.store;
+  const revision = useSyncExternalStore(navigation.subscribe, navigation.getRevision);
+  const persistenceFailed = useSyncExternalStore(
+    routedStore.subscribe,
+    routedStore.getPersistenceFailed,
+  );
+  useEffect(() => navigation.initialize(), [navigation]);
   const [warningDismissed, setWarningDismissed] = useState(false);
   useEffect(() => {
     const suspend = () => {
-      store.setSuspended(true);
+      routedStore.setSuspended(true);
     };
     const resume = () => {
-      store.setSuspended(false);
+      routedStore.setSuspended(false);
     };
     // Cancelled requests during navigation must not overwrite the last visible editing state.
     window.addEventListener("beforeunload", suspend);
@@ -34,10 +45,10 @@ export function WorkspacePreferences({
       window.removeEventListener("pagehide", suspend);
       window.removeEventListener("pageshow", resume);
     };
-  }, [store]);
+  }, [routedStore]);
   return (
-    <WorkspaceContext value={store}>
-      {children}
+    <WorkspaceContext value={routedStore}>
+      <Fragment key={revision}>{children}</Fragment>
       {persistenceFailed && !warningDismissed ? (
         <Portal>
           <Alert

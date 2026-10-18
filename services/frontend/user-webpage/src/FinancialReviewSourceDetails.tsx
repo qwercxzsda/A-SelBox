@@ -10,6 +10,8 @@ import {
   type FinancialReviewSourceProps,
 } from "./financial-review-source-state";
 import { useWorkspacePreference } from "./use-workspace-preference";
+import { FinancialReviewFamilies } from "./FinancialReviewFamilies";
+import { DetailSection } from "./DetailSection";
 
 export function FinancialReviewSourceDetails({
   identity,
@@ -36,6 +38,19 @@ export function FinancialReviewSourceDetails({
         {currency} · Finances: {total.finances_row_count ?? "0"} records · Data Kiosk:{" "}
         {total.data_kiosk_row_count ?? "0"} records
       </Text>
+      <DetailSection
+        stateKey={`financial-review:families:${category}:${month}:${currency}`}
+        title="Fee family comparison"
+        collapsible
+      >
+        <FinancialReviewFamilies
+          identity={identity}
+          category={category}
+          month={month}
+          matureCutoff={matureCutoff}
+          currency={currency}
+        />
+      </DetailSection>
       <section className="detail-section" aria-label="Amounts by type">
         <Title order={4} className="detail-section-title" mb="sm">
           Amounts by type

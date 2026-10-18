@@ -184,7 +184,16 @@ test("marketplace breakdown loads independently and retries an error into an emp
   const fixture = await mockSupabase(page);
   fixture.companyIds["member-a"] = company;
   fixture.companyNames[company] = "Monthly Company";
-  fixture.payoutRows = [{ id: report, company_id: company, currency: "USD", company_amount: "85" }];
+  fixture.payoutRows = [
+    {
+      id: report,
+      company_id: company,
+      currency: "USD",
+      company_amount: "85",
+      start_date: "2026-06-01",
+      end_date: "2026-06-30",
+    },
+  ];
   const pending = deferred();
   fixture.beforePayoutMarketplaceTotals = () => pending.promise;
   fixture.payoutMarketplaceTotalsStatus = 400;

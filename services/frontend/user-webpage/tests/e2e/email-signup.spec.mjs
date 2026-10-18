@@ -110,7 +110,6 @@ test("email confirmation verifies Auth identity and removes tokens from the URL 
     user_id: "administrator",
   });
   await page.goto(`/#${params}`);
-  await page.reload();
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
   await expect(page.locator("header")).toContainText(email);
   await expect(page.locator("header")).toContainText("Unassigned");
@@ -126,7 +125,6 @@ test("expired confirmation displays a safe recovery message and removes error pa
 }) => {
   await mockSupabase(page);
   await page.goto("/#error=access_denied&error_description=private-details");
-  await page.reload();
   await expect(page.getByRole("alert")).toContainText("invalid or has expired");
   await expect(page.getByRole("alert")).not.toContainText("private-details");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();

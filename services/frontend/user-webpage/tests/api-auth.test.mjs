@@ -3,6 +3,70 @@ import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { SETTINGS, SESSION, responseJson } from "./api-fixtures.mjs";
 
+test("password recovery requests use a public endpoint and ignore success payload account hints", async () => {
+  let requested;
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requested = { url: new URL(url), init };
+    return responseJson({ account_exists: false });
+  });
+  assert.equal(
+    await client.requestPasswordRecovery(
+      " member@example.invalid ",
+      "https://app.example.invalid/",
+    ),
+    undefined,
+  );
+  assert.equal(requested.url.pathname, "/auth/v1/recover");
+  assert.equal(requested.url.searchParams.get("redirect_to"), "https://app.example.invalid/");
+  assert.equal(requested.init.method, "POST");
+  assert.equal(requested.init.headers.Authorization, undefined);
+  assert.deepEqual(JSON.parse(requested.init.body), { email: "member@example.invalid" });
+  const noRead = createApiClient(SETTINGS, () => assert.fail("Invalid request reached Auth"));
+  await assert.rejects(noRead.requestPasswordRecovery("", "https://app.example.invalid/"), /email/);
+  await assert.rejects(
+    noRead.requestPasswordRecovery("member@example.invalid", "javascript:alert(1)"),
+    /application URL/,
+  );
+});
+
+test("password updates authenticate the verified session and send only the new password", async () => {
+  let requested;
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requested = { url, init };
+    return responseJson({
+      id: "verified-user",
+      email: "member@example.invalid",
+      user_metadata: { role: "administrator" },
+    });
+  });
+  assert.deepEqual(await client.updatePassword("verified-token", " new password "), {
+    id: "verified-user",
+    email: "member@example.invalid",
+  });
+  assert.equal(requested.url, "https://api.example.invalid/auth/v1/user");
+  assert.equal(requested.init.method, "PUT");
+  assert.equal(requested.init.headers.Authorization, "Bearer verified-token");
+  assert.deepEqual(JSON.parse(requested.init.body), { password: " new password " });
+  await assert.rejects(client.updatePassword("verified-token", "short"), /at least 8/);
+});
+
+test("recovery and password update errors keep provider details private", async () => {
+  for (const status of [400, 401, 422, 429, 503]) {
+    const client = createApiClient(SETTINGS, async () =>
+      responseJson({ message: "private account details" }, status),
+    );
+    for (const operation of [
+      () =>
+        client.requestPasswordRecovery("member@example.invalid", "https://app.example.invalid/"),
+      () => client.updatePassword("token", "new-password"),
+    ])
+      await assert.rejects(
+        operation(),
+        (error) => error.status === status && !error.message.includes("private account details"),
+      );
+  }
+});
+
 test("email signup sends only credentials and an optional confirmation redirect", async () => {
   let requested;
   const client = createApiClient(SETTINGS, async (url, init) => {

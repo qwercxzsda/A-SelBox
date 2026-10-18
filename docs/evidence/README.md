@@ -6,6 +6,8 @@ These records identify the source, date and scope of each check. They are eviden
 
 | Record | Scope |
 | --- | --- |
+| [QA improvements and verification](../website_qa_improvements_2026-10-18.md) | Resolution of Q01–Q24, regression checks and live UI walkthrough evidence. |
+| [Website QA review](../website_qa_2026-10-18.md) · [observations](website_qa_2026-10-18/observations.json) | Desktop-first administrator/member usability review, responsive layouts, offline and keyboard behavior, and prioritized improvements. |
 | [Source refresh and review visibility](source_refresh_2026-10-18.md) · [results](source_refresh_2026-10-18.json) | Fresh October captures, complete January 1–October 16 daily coverage, Summary agreement, and maturity/pagination explanations for apparently missing months. |
 | [SKU cost allocation feasibility](sku_cost_allocation_feasibility_2026-10-18.md) · [results](sku_cost_allocation_feasibility_2026-10-18.json) | Independent fee-allocation APIs, live removal/aged-storage/Finances checks, transport formula tests, and limits of reproducing Data Kiosk SKU shares. |
 | [Expanded source comparison](expanded_source_comparison_2026-10-17.md) · [amounts](expanded_source_comparison_2026-10-17.json) | January–October history across all 18 retail markets, native Summary controls, changing Data Kiosk responses, and operation-level explanations of disposal and fee gaps. |

@@ -1,16 +1,19 @@
-import { useRef, type RefObject } from "react";
+import { useEffect, useEffectEvent, useRef, type RefObject } from "react";
 
 /** Restore a stacked drawer's opener after its exit transition finishes. */
 export function useDrawerFocusReturn({
   opened,
   enabled = true,
   fallbackRef,
+  restoreOnClose = false,
 }: {
   opened: boolean;
   enabled?: boolean;
   fallbackRef?: RefObject<HTMLElement | null>;
+  restoreOnClose?: boolean;
 }) {
   const opener = useRef<HTMLElement | null>(null);
+  const wasOpened = useRef(opened);
 
   function rememberOpener() {
     if (enabled && !opened && document.activeElement instanceof HTMLElement)
@@ -32,6 +35,12 @@ export function useDrawerFocusReturn({
       return;
     target?.focus({ preventScroll: true });
   }
+
+  const restoreAfterClose = useEffectEvent(restoreFocus);
+  useEffect(() => {
+    if (restoreOnClose && wasOpened.current && !opened) restoreAfterClose();
+    wasOpened.current = opened;
+  }, [opened, restoreOnClose]);
 
   return { rememberOpener, restoreFocus };
 }

@@ -42,6 +42,9 @@ export function SkuConfigurationList({
 } & ViewStateProps<FeeViewState>) {
   const { search, pageSize, expanded, drafts } = viewState;
   const draftSkus = new Set(drafts.map((draft) => draft.sku));
+  const unfinishedSkus = new Set(
+    viewState.editorDrafts.filter((editor) => !editor.isNew).map((editor) => editor.sku),
+  );
   const filtered = filterFeeSkus(items, search, administrator ? companies : undefined).filter(
     (item) => !viewState.onlyIncomplete || issuesBySku.has(item.sku),
   );
@@ -155,6 +158,11 @@ export function SkuConfigurationList({
                     <SkuTransactionLink sku={item.sku} onShowTransactions={onShowTransactions} />
                     {issuesBySku.has(item.sku) ? <Badge color="orange">Needs setup</Badge> : null}
                     {draftSkus.has(item.sku) ? <Badge variant="light">Draft</Badge> : null}
+                    {unfinishedSkus.has(item.sku) ? (
+                      <Badge variant="light" color="orange">
+                        Unfinished edit
+                      </Badge>
+                    ) : null}
                   </Group>
                   <Text size="sm" c="dimmed">
                     {companyLabel(item.company_id, companies)}
@@ -166,7 +174,8 @@ export function SkuConfigurationList({
                       variant="light"
                       aria-label={`Edit ${item.sku}`}
                       disabled={isSaving}
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.currentTarget.focus({ preventScroll: true });
                         onEdit(item.sku);
                       }}
                     >

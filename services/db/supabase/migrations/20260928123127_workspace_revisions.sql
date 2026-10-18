@@ -121,12 +121,21 @@ deferrable initially deferred for each row execute function private.track_fee_re
 create function private.track_payout_revision() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-    perform private.bump_workspace_revision('payouts',array[new.company_id::uuid]);
+    if tg_op='UPDATE' and new is not distinct from old then return null; end if;
+    perform private.bump_workspace_revision('payouts',
+        case when tg_op='DELETE' then array[old.company_id::uuid]
+            else array[new.company_id::uuid] end);
     return null;
 end;
 $$;
 create constraint trigger workspace_payout_revision
 after insert on public.company_payout_reports
+deferrable initially deferred for each row execute function private.track_payout_revision();
+
+-- Readiness changes (including a blocked attempt without a report) use the same
+-- small, company-scoped token. Multiple changed rows rotate it once per commit.
+create constraint trigger workspace_payout_readiness_revision
+after insert or update or delete on private.payout_report_refresh_state
 deferrable initially deferred for each row execute function private.track_payout_revision();
 
 create function private.read_workspace_revisions(p_sources text[]) returns jsonb

@@ -45,6 +45,33 @@ async function setup(page, role) {
   return fixture;
 }
 
+for (const role of ["administrator", "member"]) {
+  test(`${role} finds payout months by their visible labels without depending on report names`, async ({
+    page,
+  }) => {
+    const fixture = await setup(page, role);
+    const search = page.getByRole("searchbox", { name: "Search", exact: true });
+    const table = page.getByRole("table", { name: "Financial records", exact: true });
+    for (const text of ["June", "june 2026"]) {
+      await search.fill(text);
+      await expect(table.getByRole("heading", { name: "June 2026", exact: true })).toBeVisible();
+      await expect(table.getByRole("heading", { name: "May 2026", exact: true })).toHaveCount(0);
+    }
+    await page.reload();
+    await expect(search).toHaveValue("june 2026");
+    await expect(table.getByRole("heading", { name: "June 2026", exact: true })).toBeVisible();
+    await search.fill("May");
+    await expect(table.getByRole("heading", { name: "May 2026", exact: true })).toBeVisible();
+    await expect(table.getByRole("heading", { name: "June 2026", exact: true })).toHaveCount(0);
+    expect(
+      fixture.requests
+        .filter((entry) => entry.dataset === "payouts")
+        .at(-1)
+        .params.get("or"),
+    ).toContain("month_label.imatch");
+  });
+}
+
 for (const [role, width] of [
   ["administrator", 1440],
   ["administrator", 1920],

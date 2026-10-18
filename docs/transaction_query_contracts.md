@@ -214,7 +214,9 @@ SKU catalog before the workspace is shown, including historical, unassigned, unr
 registered-only values. Source/fee revision changes reload that catalog before dependent search
 queries refresh. Resolved sets are part of page/count cache keys. Catalogs are not authorization:
 the backend enforces the same RLS even if a caller sends arbitrary values. Non-transaction account
-and payout searches retain their existing REST query behavior.
+and payout searches use literal REST text filters. Payout Search includes the latest-report view's
+derived `month_label`, so a displayed month such as July 2026 matches independently of the report
+name. ISO month text in generated report names and currency search remain available.
 
 ## Period totals and Type breakdowns
 

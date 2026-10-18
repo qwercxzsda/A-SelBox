@@ -237,7 +237,9 @@ group by report_id, marketplace_name;
 -- One latest immutable report per company, month and currency; source namespaces
 -- are provenance only. Invoker security keeps the underlying company RLS.
 create view public.latest_company_payout_reports with (security_invoker = true) as
-select distinct on (r.company_id, r.start_date, r.currency) r.*
+select distinct on (r.company_id, r.start_date, r.currency)
+    r.*,
+    to_char(r.start_date, 'FMMonth YYYY') as month_label
 from public.company_payout_reports as r
 where
     r.currency is not null or not exists (
@@ -299,7 +301,9 @@ from private.data_kiosk_transactions as t
 inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
 where
     (select private.is_administrator())
-    and t.activity_date < (select date_trunc('month', private.mature_cutoff_date()::timestamp)::date)
+    and t.activity_date < (
+        select date_trunc('month', private.mature_cutoff_date()::timestamp)::date
+    )
     and t.category in ('FINANCES', 'DATA_KIOSK', 'SELBOX');
 
 -- Direct activity-date bounds are applied before aggregation. Filtering a

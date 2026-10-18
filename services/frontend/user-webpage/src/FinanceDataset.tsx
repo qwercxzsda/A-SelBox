@@ -19,6 +19,10 @@ import { filterOptions, transactionTypeValues } from "./filter-options";
 import { transactionTypeSelectionLabels } from "./transaction-type-groups";
 import { RowsSelect } from "./RowsSelect";
 import { CompanyMembership } from "./CompanyMembership";
+import { useBrowserOnline } from "./use-browser-online";
+import { useRef } from "react";
+import { FinancialSourceLookup } from "./FinancialSourceLookup";
+import { ActivityEligibilityHelp } from "./ActivityEligibilityHelp";
 
 interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   identity: Identity;
@@ -26,6 +30,7 @@ interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   onRetry: () => Promise<void>;
   reviewMode?: boolean;
   onAddCompany?: () => void;
+  onConfigureSku?: (sku: string) => void;
 }
 
 export function FinanceDataset(props: FinanceDatasetProps) {
@@ -44,6 +49,8 @@ function StandardFinanceDataset({
   onViewStateChange,
   onAddCompany,
 }: FinanceDatasetProps) {
+  const online = useBrowserOnline();
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, dataset, viewState, onViewStateChange);
   const { pageIndex, pageSize } = table.state.pagination;
@@ -70,6 +77,12 @@ function StandardFinanceDataset({
           ) : undefined
         }
       />
+      {dataset === "finances" ? (
+        <>
+          <ActivityEligibilityHelp />
+          <FinancialSourceLookup identity={identity} />
+        </>
+      ) : null}
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -90,12 +103,13 @@ function StandardFinanceDataset({
           )}
         </Alert>
       ) : null}
-      <Group className="table-toolbar" justify="space-between" align="end">
+      <Group ref={toolbarRef} className="table-toolbar" justify="space-between" align="end">
         <Group align="end" className="table-toolbar-fields">
           {DATASET_CONFIG[dataset].searchColumns.length > 0 ? (
             <TextInput
               className="search-field"
               label="Search"
+              description={dataset === "live" ? "Search records only" : undefined}
               type="search"
               value={search}
               placeholder={presentation.searchPlaceholder}
@@ -202,7 +216,7 @@ function StandardFinanceDataset({
       >
         {query.isPending ? (
           <div className="loading-state" role="status">
-            Loading rows…
+            {online ? "Loading rows…" : "Waiting for a connection to load rows…"}
           </div>
         ) : null}
         {!query.isPending && !query.isError && rows.length === 0 ? (
@@ -239,6 +253,53 @@ function StandardFinanceDataset({
           </div>
         ) : null}
       </FinancialTable>
+      {rows.length > 10 ? (
+        <Group
+          component="nav"
+          aria-label="Record navigation at bottom"
+          justify="space-between"
+          mt="md"
+        >
+          <Button
+            variant="subtle"
+            onClick={() => {
+              toolbarRef.current?.scrollIntoView({ block: "start" });
+            }}
+          >
+            Back to filters
+          </Button>
+          <Group>
+            <Button
+              variant="default"
+              aria-label="Previous records"
+              disabled={!table.getCanPreviousPage() || isBusy}
+              onClick={() => {
+                table.previousPage();
+                toolbarRef.current?.scrollIntoView({ block: "start" });
+              }}
+            >
+              Previous
+            </Button>
+            <Text size="sm">
+              Page {pageIndex + 1}
+              {pageCount === null ? "" : ` of ${String(pageCount)}`}
+            </Text>
+            <Button
+              variant="default"
+              aria-label="Next records"
+              disabled={
+                isBusy || !(totalCount === null ? rows.length === pageSize : table.getCanNextPage())
+              }
+              onClick={() => {
+                table.nextPage();
+                toolbarRef.current?.scrollIntoView({ block: "start" });
+              }}
+            >
+              Next
+            </Button>
+          </Group>
+        </Group>
+      ) : null}
       {dataset === "accounts" ? (
         <CompanyMembership
           accessToken={identity.session.access_token}

@@ -7,6 +7,7 @@ import { DetailSection } from "./DetailSection";
 import { DetailTable } from "./DetailTable";
 import { FinancialReviewSourceDetails } from "./FinancialReviewSourceDetails";
 import { FinancialReviewSnapshots } from "./FinancialReviewSnapshots";
+import { AmountPrecisionNote } from "./AmountPrecisionNote";
 import {
   reviewAmountColumns,
   reviewCategoryLabel,
@@ -83,6 +84,7 @@ export function FinancialReviewMonthContent({
           {category === "DATA_KIOSK" ? "costs" : "amount"}. A source with no rows contributes zero
           to this comparison.
         </Text>
+        <AmountPrecisionNote />
       </Paper>
       <Text className="monthly-review-context" size="sm" c="dimmed">
         {category === "DATA_KIOSK"

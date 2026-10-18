@@ -1,3 +1,7 @@
+-- Exact native-ID lookup has a dedicated index; it does not scan SKU/type search.
+create index finances_component_native_lookup_idx
+on private.finances_transaction_components (native_transaction_id, id);
+
 -- Raw source pages retain the public source views' RLS, including administrator
 -- access to historical versions and account-level categories. Unlike live
 -- Transactions, these pages must not add a current-version/category predicate.
@@ -194,3 +198,72 @@ revoke all on function public.source_transaction_page(
     text, integer, bigint, text, text, date, date, text[],
     text[], text[], boolean, text[], text[], text[]
 ) from public, anon, authenticated, service_role;
+
+-- Detail links are exact row/version identities, including retained observations.
+-- Convert every scalar to text inside PostgreSQL before JSON reaches JavaScript.
+create function public.financial_source_record(
+    p_source text, p_row_id uuid, p_version_id uuid
+) returns jsonb
+language plpgsql stable security invoker
+set search_path = '' as $$
+declare
+    source_record jsonb;
+begin
+    if not private.is_administrator() then
+        raise exception 'Administrator access is required' using errcode = '42501';
+    end if;
+    if p_source is null or p_source not in ('FINANCES', 'DATA_KIOSK')
+        or p_row_id is null or p_version_id is null then
+        raise exception 'A valid source row and version are required' using errcode = '22023';
+    end if;
+    if p_source = 'FINANCES' then
+        select to_jsonb(t) into source_record
+        from public.finances_preprocess_entries t
+        where t.id = p_row_id and t.version_id = p_version_id;
+    else
+        select to_jsonb(t) into source_record
+        from public.data_kiosk_preprocess_entries t
+        where t.id = p_row_id and t.version_id = p_version_id;
+    end if;
+    return (select jsonb_object_agg(key, value) from jsonb_each_text(source_record));
+end;
+$$;
+
+-- Exact ID search covers all retained captures and labels their current status.
+-- Never add observations together: multiple components and captures are distinct.
+create function public.financial_source_transaction_lookup(
+    p_native_transaction_id text, p_limit integer default 25, p_offset bigint default 0
+) returns jsonb
+language plpgsql stable security invoker
+set search_path = '' as $$
+declare
+    result jsonb;
+begin
+    if not private.is_administrator() then
+        raise exception 'Administrator access is required' using errcode = '42501';
+    end if;
+    perform private.validate_page_bounds(p_limit, p_offset);
+    if p_limit > 100 or p_native_transaction_id is null
+        or length(btrim(p_native_transaction_id)) = 0
+        or length(p_native_transaction_id) > 512 then
+        raise exception 'A valid exact Amazon transaction ID is required' using errcode = '22023';
+    end if;
+    with records as materialized (
+        select t.*, case when d.current_version_id = t.version_id
+            then 'Current' else 'Retained' end as capture_status
+        from public.finances_preprocess_entries t
+        join private.finances_days d on d.id = t.day_id
+        where t.native_transaction_id = p_native_transaction_id
+        order by t.id
+        limit p_limit offset p_offset
+    )
+    select coalesce(jsonb_agg(
+        (select jsonb_object_agg(key, value) from jsonb_each_text(to_jsonb(r)))
+        order by r.id
+    ), '[]'::jsonb) into result from records r;
+    return result;
+end;
+$$;
+revoke all on function public.financial_source_record(text, uuid, uuid),
+public.financial_source_transaction_lookup(text, integer, bigint)
+from public, anon, authenticated, service_role;

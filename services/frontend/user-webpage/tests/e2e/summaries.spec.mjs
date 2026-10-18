@@ -136,7 +136,7 @@ test("daily and previous-month estimates include both sources, stay exact, and i
   await expect(amount(day, "Reported amount")).toHaveText("150.12 USD");
   await expect(amount(month, "Reported amount")).toHaveText("0.12 USD");
   expect(fixture.aggregateRequests).toHaveLength(summaryRequestCount);
-  await summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
+  await summaries.getByLabel("Summary currency", { exact: true }).selectOption("EUR");
   await expect(amount(day, "Reported amount")).toHaveText("20.00 EUR");
   await expect(amount(month, "Reported amount")).toHaveText("10.00 EUR");
   await expect(day).not.toContainText("150.12 USD");
@@ -158,7 +158,7 @@ test("a leap-year month-end latest date selects that same month despite gaps in 
   await expect(amount(month, "Reported amount")).toHaveText("30.00 USD");
   await expect(amount(month, "Company amount")).toHaveText("29.00 USD");
   await expect(month.getByText("2 records", { exact: true })).toBeVisible();
-  await expect(summaries.getByLabel("Currency", { exact: true })).toHaveCount(0);
+  await expect(summaries.getByLabel("Summary currency", { exact: true })).toHaveValue("USD");
 });
 
 test("a selected previous month without activity is empty rather than falling back to an older month", async ({
@@ -214,7 +214,7 @@ test("changing account and role clears estimates and the selected currency befor
   await signIn(page);
   const { summaries, day, selected } = cards(page);
   await expect(amount(day, "Reported amount")).toHaveText("42.00 USD");
-  await summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
+  await summaries.getByLabel("Summary currency", { exact: true }).selectOption("EUR");
   await expect(amount(day, "Reported amount")).toHaveText("7.00 EUR");
   await applyDates(page, "2026-03-15", "2026-03-15");
   await expect(amount(selected, "Reported amount")).toHaveText("7.00 EUR");
@@ -233,7 +233,7 @@ test("changing account and role clears estimates and the selected currency befor
   await expect(summaries).not.toContainText("42.00 USD");
   release.resolve();
   await expect(amount(day, "Reported amount")).toHaveText("907.00 USD");
-  await expect(summaries.getByLabel("Currency", { exact: true })).toHaveCount(0);
+  await expect(summaries.getByLabel("Summary currency", { exact: true })).toHaveValue("USD");
   await expect(selected).toContainText("Select a date range to see totals.");
   await expect(amount(selected, "Reported amount")).toHaveCount(0);
 });

@@ -17,7 +17,10 @@ account reconciliation, and input manifests remain administrator-only in the mon
 **Saved report snapshots** section of [Financial review](financial_review.md).
 
 The default list uses `public.latest_company_payout_reports`, which selects the
-newest saved report per company, month, and currency. The complete
+newest saved report per company, month, and currency. Its derived `month_label` is the English
+month/year of `start_date`, allowing Search to match the displayed month independently of a report
+name. Search also retains report-name and currency matching; company access stays enforced by the
+security-invoker view and underlying RLS. The complete
 `public.company_payout_reports` table retains earlier versions for history.
 
 ## Automatic generation
@@ -115,12 +118,15 @@ has not yet reached maturity. The two views use the same amount-by-type and reco
 layout so their monetary results can be inspected in the same way.
 
 Both drawers start with **Total** (Reported amount, Service fee, Company amount),
-then **Amounts by type**, then **Records**. Selecting a category or Type's record
+then **Amounts by type**, then **Records**. Saved reports place the expandable **Marketplace
+breakdown** between types and records, so it is reachable before the long record list. Selecting a category or Type's record
 count narrows the records below; **Show all records** clears that selection.
 Records share date, SKU, marketplace, source, Type, quantity, and amount columns,
-with 50-row pages. The report's marketplace breakdown is a secondary expandable
-section. The Total and Amounts by type use the same amount columns; the breakdown's
+with 50-row pages. Payout drawer headings retain company, month, and currency while scrolling.
+The Total and Amounts by type use the same amount columns; the breakdown's
 total row repeats the complete sum so category subtotals can be compared with it.
+Displayed amounts are independently rounded to two decimals; totals use original precision, so
+adding displayed rows may not reproduce the displayed total exactly.
 Saved comparisons, account reconciliation, and processing metadata are available
 in the administrator's [Financial review](financial_review.md#saved-report-snapshots).
 
@@ -394,3 +400,25 @@ expectations and strict source selection only; it does not rename financial
 facts, change their fee marketplace, or distribute Data Kiosk amounts to MCF
 transactions. A company report can therefore pin both native Finances channels
 and the retail store's complete Data Kiosk month.
+
+## Automatic report readiness
+
+The payout list and Financial review's saved snapshots show readiness for one selected mature month
+(or the latest mature month by default), scoped to selected companies. Statuses distinguish Pending,
+Updating (new inputs pending while a previous report exists), Blocked, Complete, No activity,
+Not scheduled (no current SKU assignment and no report), and Not mature. A zero-valued record still
+counts as activity; No activity means the saved report contains no components.
+
+`public.payout_readiness(p_month, p_company_ids, p_limit, p_offset)` reads only bounded company,
+refresh-state and report-header metadata. It does not scan financial history. Members can read only
+their own company's status and receive generic setup/source/processing reasons without raw worker
+errors or SKU identities. Administrators may expand a setup block using
+`public.payout_setup_blockers(p_company_id, p_month, p_limit, p_offset)`. This on-demand query reuses
+the generator's authoritative month/source/ownership/fee rules and preserves zero-value components.
+It lists missing owner mappings or fee periods with affected dates and marketplaces. Selecting a SKU
+opens its configuration; it does not publish ownership or fee changes.
+
+The existing lightweight company-scoped payouts revision changes when refresh state changes, including
+failed attempts with no report publication. Successful status reads stay cached until that token or
+fee metadata changes; failed operational reads retry on automatic checks. The normal payout worker
+remains responsible for creation/retry. No manual generation or routine reload button is introduced.

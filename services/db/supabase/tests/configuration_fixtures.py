@@ -79,7 +79,7 @@ class ConfigurationFixture(FinancialFixture):
 
     def assert_incomplete(self, user: str, changes: object) -> list[ConfigurationIssue]:
         error = self._assert_rejected(
-            user, changes, "SKU configuration is incomplete", "Global completeness regression"
+            user, changes, "SKU configuration is incomplete", "Changed SKU completeness regression"
         )
         detail = json.loads(error.diag.message_detail or "{}")
         self.assertEqual(set(detail), {"issues"})

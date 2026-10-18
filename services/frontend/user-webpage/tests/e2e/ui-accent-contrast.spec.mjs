@@ -74,7 +74,14 @@ for (const width of [1440, 390]) {
     const period = page.locator(".estimated-summary-period").first();
     await expect(period).toBeVisible();
     expect(await contrast(period)).toBeGreaterThanOrEqual(4.5);
-    await expect(page.getByText("View by type →", { exact: true })).toHaveCount(0);
+    const breakdownLinks = page.getByText("View by type →", { exact: true });
+    await expect(breakdownLinks).toHaveCount(2);
+    for (const link of await breakdownLinks.all()) {
+      await expect(link).toBeVisible();
+      expect(await contrast(link)).toBeGreaterThanOrEqual(4.5);
+      await link.hover();
+      expect(await contrast(link)).toBeGreaterThanOrEqual(4.5);
+    }
     for (const name of ["Current fees", "Inventory"]) {
       const tab = page.getByRole("tab", { name, exact: true });
       await tab.click();

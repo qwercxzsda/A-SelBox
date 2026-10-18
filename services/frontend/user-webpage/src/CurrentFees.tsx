@@ -1,15 +1,17 @@
 import { useMemo } from "react";
 import { Alert, Button, Group, Stack, Text } from "@mantine/core";
-import type { SkuConfigurationChange, SkuConfigurationItem } from "./api";
+import type { SkuConfigurationItem } from "./api";
 import { SkuConfigurationEditor } from "./SkuConfigurationEditor";
 import { SkuConfigurationReview } from "./SkuConfigurationReview";
 import { SkuConfigurationList } from "./SkuConfigurationList";
 import type { useSkuConfiguration } from "./use-sku-configuration";
-import { createSkuDraft, newSkuItem, resolveSkuConfiguration } from "./sku-configuration-form";
+import { newSkuItem, resolveSkuConfiguration } from "./sku-configuration-form";
 import type { Identity } from "./auth-session";
 import { DATASET_PRESENTATION, getErrorMessage } from "./view-model";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import { WorkspaceIntro } from "./WorkspaceIntro";
+import { useFeeEditor } from "./use-fee-editor";
+import { FeeDraftStatus } from "./FeeDraftStatus";
 
 const EMPTY_ITEMS: SkuConfigurationItem[] = [];
 
@@ -28,14 +30,7 @@ export function CurrentFees({
 } & ViewStateProps<FeeViewState>) {
   const administrator = identity.account.access_role === "administrator";
   const { drafts, editing, reviewing } = viewState;
-  const setEditing = (editing: FeeViewState["editing"]) => {
-    onViewStateChange((current) => ({ ...current, editing }));
-  };
-  const setReviewing = (reviewing: boolean) => {
-    onViewStateChange((current) => ({ ...current, reviewing }));
-  };
-  const { configuration, save, isSaving, reloadSaved, savedNotice, refreshFailed, clearNotice } =
-    controller;
+  const { configuration, save, isSaving, reloadSaved, savedNotice, refreshFailed } = controller;
   const companies = useMemo(
     () => new Map(identity.companies.map((company) => [company.id, company.name])),
     [identity.companies],
@@ -43,42 +38,28 @@ export function CurrentFees({
   const savedItems = configuration.data?.items ?? EMPTY_ITEMS;
   const {
     items: effectiveItems,
-    issues,
+    draftIssues,
     issuesBySku,
   } = useMemo(
     () => resolveSkuConfiguration(savedItems, drafts, new Set(companies.keys())),
     [savedItems, drafts, companies],
   );
   const incompleteSkus = new Set(issuesBySku.keys());
-  function editSku(sku: string) {
-    const saved = savedItems.find((item) => item.sku === sku) ?? newSkuItem(sku);
-    onViewStateChange((current) => ({
-      ...current,
-      reviewing: false,
-      editing: {
-        sku,
-        isNew: false,
-        form: structuredClone(
-          current.drafts.find((draft) => draft.sku === sku) ?? createSkuDraft(saved),
-        ),
-        submitError: null,
-      },
-    }));
-  }
-  function stage(change: SkuConfigurationChange) {
-    onViewStateChange((current) => ({
-      ...current,
-      drafts: [...current.drafts.filter((draft) => draft.sku !== change.sku), change],
-      expanded: [...new Set([...current.expanded, change.sku])],
-    }));
-    setEditing(null);
-    clearNotice();
-  }
+  const {
+    panelRef,
+    editSku,
+    addSku,
+    updateEditor,
+    resumeEditor,
+    closeEditor,
+    stage,
+    setReviewing,
+  } = useFeeEditor(savedItems, viewState, onViewStateChange);
   const editorItem = editing
     ? (savedItems.find((item) => item.sku === editing.sku) ?? newSkuItem(editing.sku))
     : null;
   return (
-    <Stack gap="md" className="fee-panel">
+    <Stack ref={panelRef} tabIndex={-1} gap="md" className="fee-panel">
       <WorkspaceIntro
         title="Assignments and fees"
         description={DATASET_PRESENTATION.fees.description}
@@ -91,13 +72,9 @@ export function CurrentFees({
               <Button
                 variant="light"
                 disabled={!configuration.data || configuration.isError || isSaving}
-                onClick={() => {
-                  setEditing({
-                    sku: "",
-                    isNew: true,
-                    form: createSkuDraft(newSkuItem("")),
-                    submitError: null,
-                  });
+                onClick={(event) => {
+                  event.currentTarget.focus({ preventScroll: true });
+                  addSku();
                 }}
               >
                 Add SKU
@@ -155,7 +132,7 @@ export function CurrentFees({
             >
               <Text size="sm">
                 {administrator
-                  ? "Every known SKU needs a company and fee coverage for all applicable transactions before changes can be saved."
+                  ? "These SKUs need a company or required fee periods. Complete changes to other SKUs can still be saved."
                   : "Some applicable transactions are missing fee settings. Contact your administrator."}
               </Text>
               {administrator ? (
@@ -163,7 +140,8 @@ export function CurrentFees({
                   mt="sm"
                   variant="light"
                   disabled={isSaving}
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.currentTarget.focus({ preventScroll: true });
                     editSku([...incompleteSkus][0]);
                   }}
                 >
@@ -173,21 +151,15 @@ export function CurrentFees({
             </Alert>
           ) : null}
           {administrator ? (
-            <Group justify="space-between" className="fee-draft-status">
-              <Text size="sm">
-                {drafts.length
-                  ? `${String(drafts.length)} SKU ${drafts.length === 1 ? "draft" : "drafts"} · not saved yet`
-                  : "No unsaved changes."}
-              </Text>
-              <Button
-                disabled={drafts.length === 0 || configuration.isError || isSaving}
-                onClick={() => {
-                  setReviewing(true);
-                }}
-              >
-                Review changes{drafts.length ? ` (${String(drafts.length)})` : ""}
-              </Button>
-            </Group>
+            <FeeDraftStatus
+              draftCount={drafts.length}
+              unfinishedCount={viewState.editorDrafts.length}
+              reviewDisabled={configuration.isError || isSaving}
+              onResume={resumeEditor}
+              onReview={() => {
+                setReviewing(true);
+              }}
+            />
           ) : null}
           <SkuConfigurationList
             items={effectiveItems}
@@ -207,22 +179,14 @@ export function CurrentFees({
           key={editing.sku}
           item={editorItem}
           editing={editing}
-          onEditingChange={(update) => {
-            onViewStateChange((current) => ({
-              ...current,
-              editing: current.editing
-                ? typeof update === "function"
-                  ? update(current.editing)
-                  : update
-                : null,
-            }));
-          }}
+          onEditingChange={updateEditor}
           companies={identity.companies}
           knownSkus={effectiveItems.map((item) => item.sku)}
           onEditExisting={editSku}
           isNew={editing.isNew}
-          onClose={() => {
-            setEditing(null);
+          onClose={closeEditor}
+          onDiscard={() => {
+            closeEditor(true);
           }}
           onStage={stage}
           onAddCompany={onAddCompany}
@@ -231,9 +195,10 @@ export function CurrentFees({
       {administrator && configuration.data && reviewing ? (
         <SkuConfigurationReview
           drafts={drafts}
+          unfinishedCount={viewState.editorDrafts.length}
           savedItems={savedItems}
           companies={companies}
-          issues={issues}
+          issues={draftIssues}
           changeReason={viewState.changeReason}
           onReasonChange={(value) => {
             onViewStateChange((current) => ({ ...current, changeReason: value }));

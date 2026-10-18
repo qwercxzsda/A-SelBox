@@ -115,13 +115,13 @@ test("manual dates include endpoints, support open ranges, and expose currencies
   const { summaries, day, month, selected } = cards(page);
   await expect(amount(day, "Reported amount")).toHaveText("40.00 USD");
   await expect(amount(month, "Reported amount")).toHaveText("20.00 USD");
-  await expect(summaries.getByLabel("Currency", { exact: true })).toHaveCount(0);
+  await expect(summaries.getByLabel("Summary currency", { exact: true })).toHaveValue("USD");
   const aggregateRequests = fixture.aggregateRequests.length;
 
   await applyDates(page, "2026-01-10", "2026-01-11");
   await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
   expect(fixture.aggregateRequests).toHaveLength(aggregateRequests + 1);
-  const currency = summaries.getByLabel("Currency", { exact: true });
+  const currency = summaries.getByLabel("Summary currency", { exact: true });
   await expect(currency.locator("option")).toHaveText(["JPY", "USD"]);
   await currency.selectOption("JPY");
   await expect(amount(selected, "Reported amount")).toHaveText("100.12 JPY");
@@ -144,7 +144,7 @@ test("manual dates include endpoints, support open ranges, and expose currencies
     .poll(() => fixture.requests.at(-1).params.getAll("activity_date"))
     .toEqual(["lte.2026-01-10"]);
   await applyDates(page, "2026-01-20", "2026-01-25");
-  await expect(selected).toContainText("No transactions in USD.");
+  await expect(selected).toContainText("No transactions in JPY.");
   await expect(selected.locator("dl")).toHaveCount(0);
   const periodRequestCount = fixture.aggregateRequests.length;
   expect(periodRequestCount).toBe(aggregateRequests + 4);
@@ -156,6 +156,8 @@ test("manual dates include endpoints, support open ranges, and expose currencies
     .click();
   await expect(selected).toContainText("Select a date range to see totals.");
   await expect(selected.locator("dl")).toHaveCount(0);
+  await expect(day).toContainText("No transactions in JPY.");
+  await currency.selectOption("USD");
   await expect(amount(day, "Reported amount")).toHaveText("40.00 USD");
   expect(fixture.aggregateRequests).toHaveLength(periodRequestCount);
 });

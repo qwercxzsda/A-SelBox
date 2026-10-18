@@ -5,6 +5,7 @@ import type { TableDatasetKey } from "./api";
 import type { useFinanceTable } from "./use-finance-table";
 import { TableScrollControls } from "./TableScrollControls";
 import { inspectableRowProps } from "./inspectable-row";
+import { FloatingTableHeader } from "./FloatingTableHeader";
 
 /** Presentation and keyboard selection for the server-paginated table. */
 export function FinancialTable({
@@ -26,6 +27,7 @@ export function FinancialTable({
   const scrollId = useId();
   return (
     <>
+      <FloatingTableHeader target={scrollTarget} />
       <Group gap="xs" justify="space-between" mb="xs" mih={22}>
         <Text size="xs" c="dimmed">
           Column headings offer filters and ordering. Select a row or press Enter for details.

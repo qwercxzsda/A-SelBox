@@ -26,12 +26,14 @@ export function PayoutReports({
   reviewMode = false,
   fixedMonth = false,
   currency,
+  onConfigureSku,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
   reviewMode?: boolean;
   fixedMonth?: boolean;
   currency?: string;
+  onConfigureSku?: (sku: string) => void;
 } & ViewStateProps<DatasetViewState>) {
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, "payouts", viewState, onViewStateChange, currency);
@@ -77,7 +79,12 @@ export function PayoutReports({
           exclusive to administrators and are excluded from the company payout amount.
         </Text>
       ) : null}
-      {!fixedMonth ? <PayoutStatus identity={identity} filters={filters} /> : null}
+      <PayoutStatus
+        identity={identity}
+        filters={filters}
+        compact={fixedMonth}
+        onConfigureSku={onConfigureSku}
+      />
       {query.error ? (
         <Alert color="red" role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -224,7 +231,7 @@ export function PayoutReports({
             <Text fw={600}>{hasRefinements ? "No matching reports" : "No payout reports yet"}</Text>
             <Text c="dimmed" size="sm">
               {hasRefinements
-                ? "Adjust the column filters or search to find a report."
+                ? "Check readiness above for pending or blocked months, or adjust the column filters and search."
                 : "Reports will appear automatically once a month is mature and its required data is available."}
             </Text>
             {hasRefinements ? (

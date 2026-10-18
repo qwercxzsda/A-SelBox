@@ -91,6 +91,7 @@ export function TransactionSummaries({
     <>
       <EstimatedSummaries
         {...summaries}
+        dateRange={dateRange}
         selectedCurrency={selectedCurrency}
         onCurrencyChange={onCurrencyChange}
         appliedFilters={appliedFilters}
@@ -106,8 +107,8 @@ export function TransactionSummaries({
         onRetry={onRetry}
         coverageNote={
           account.access_role === "administrator"
-            ? "Company, SKU, and Marketplace filters apply to all three totals. DATE applies only to Selected dates. Select a day or month to filter Transactions."
-            : "SKU and Marketplace filters apply to all three totals. DATE applies only to Selected dates. Select a day or month to filter Transactions."
+            ? "Totals use Company, SKU and Marketplace filters. Dates apply only to Selected dates. Search, Type, Source and Fee rate filters affect records only. Summary currency applies to the cards and their details; records include all currencies."
+            : "Totals use SKU and Marketplace filters. Dates apply only to Selected dates. Search, Type, Source and Fee rate filters affect records only. Summary currency applies to the cards and their details; records include all currencies."
         }
       />
       <TypeBreakdown

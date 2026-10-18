@@ -1,8 +1,9 @@
 import { Alert, Button, Group, Tabs } from "@mantine/core";
+import { useEffect } from "react";
 import { UpdateStatus } from "./UpdateStatus";
 import type { DatasetKey, TableDatasetKey } from "./api";
 import { FinanceDataset } from "./FinanceDataset";
-import { visibleDatasets, DATASET_PRESENTATION } from "./view-model";
+import { visibleDatasets, DATASET_PRESENTATION, companyLabel } from "./view-model";
 import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
 import { Inventory } from "./Inventory";
@@ -38,8 +39,8 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     string | null
   >(
     "summary-currency",
-    () => null,
-    (value) => (typeof value === "string" && /^[A-Z]{3}$/.test(value) ? value : null),
+    () => "USD",
+    (value) => (typeof value === "string" && /^[A-Z]{3}$/.test(value) ? value : "USD"),
   );
   const [dataset, setDataset] = useWorkspacePreference<
     DatasetKey | "inventory" | "financial-review" | "companies"
@@ -75,6 +76,24 @@ export function FinanceWorkspace(props: WorkspaceProps) {
   );
   const datasets = visibleDatasets(props.identity.account);
   const transactions = datasetViews.live ?? createDatasetViewState("live");
+  const workspaceTitle =
+    dataset === "financial-review"
+      ? "Financial review"
+      : dataset === "inventory"
+        ? "Inventory"
+        : dataset === "companies"
+          ? "Companies"
+          : DATASET_PRESENTATION[dataset].label;
+  const accountTitle =
+    props.identity.account.access_role === "administrator"
+      ? "Administrator"
+      : companyLabel(
+          props.identity.account.company_id,
+          new Map(props.identity.companies.map(({ id, name }) => [id, name])),
+        );
+  useEffect(() => {
+    document.title = `${workspaceTitle} · ${accountTitle} · A-SelBox`;
+  }, [workspaceTitle, accountTitle]);
 
   function addCompany(from: "fees" | "accounts") {
     setCompanyReturnTo(from);
@@ -129,6 +148,16 @@ export function FinanceWorkspace(props: WorkspaceProps) {
       };
     });
     setDataset("live");
+  }
+  function configureSku(sku: string) {
+    setFeeViewState((current) => ({
+      ...current,
+      search: sku,
+      onlyIncomplete: false,
+      pageIndex: 0,
+      expanded: [...new Set([...current.expanded, sku])],
+    }));
+    setDataset("fees");
   }
   return (
     <>
@@ -232,6 +261,9 @@ export function FinanceWorkspace(props: WorkspaceProps) {
             <FinanceDataset
               key={dataset}
               dataset={dataset}
+              onConfigureSku={
+                props.identity.account.access_role === "administrator" ? configureSku : undefined
+              }
               onAddCompany={() => {
                 addCompany("accounts");
               }}

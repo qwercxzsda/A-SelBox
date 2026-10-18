@@ -55,6 +55,13 @@ class PayoutReportAccessTests(SourceModelFixture):
         )
         queries: tuple[tuple[LiteralString, int, int], ...] = (
             ("select * from public.company_payout_reports", 1, 1),
+            ("select * from public.latest_company_payout_reports", 1, 1),
+            (
+                "select * from public.latest_company_payout_reports "
+                "where month_label ~* 'June 2026'",
+                1,
+                1,
+            ),
             ("select * from public.company_payout_report_components", 5, 2),
             (
                 "select * from public.company_payout_report_components where not authoritative",
@@ -77,6 +84,10 @@ class PayoutReportAccessTests(SourceModelFixture):
                 self.assertEqual(len(self.as_user(owner, query)), member_count)
                 for user in denied_users:
                     self.assertEqual(self.as_user(user, query), [])
+        self.assertEqual(
+            self.as_user(owner, "select month_label from public.latest_company_payout_reports"),
+            [("June 2026",)],
+        )
         self.assertEqual(
             self.as_user(
                 owner,

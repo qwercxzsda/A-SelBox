@@ -136,10 +136,38 @@ function decodeDraft(value: unknown): SkuConfigurationChange | null {
   };
 }
 
+function decodeFeeEditor(value: unknown): FeeViewState["editing"] {
+  const editor = isJsonObject(value) ? value : null;
+  const form = editor ? decodeDraft(editor.form) : null;
+  return editor &&
+    form &&
+    isText(editor.sku) &&
+    typeof editor.isNew === "boolean" &&
+    (editor.isNew || form.sku === editor.sku)
+    ? {
+        sku: editor.sku,
+        isNew: editor.isNew,
+        form,
+        submitError: nullableText(editor.submitError),
+        rateChange:
+          isJsonObject(editor.rateChange) &&
+          typeof editor.rateChange.periodIndex === "number" &&
+          Number.isSafeInteger(editor.rateChange.periodIndex) &&
+          editor.rateChange.periodIndex >= 0 &&
+          editor.rateChange.periodIndex < form.periods.length
+            ? {
+                periodIndex: editor.rateChange.periodIndex,
+                effectiveDate: text(editor.rateChange.effectiveDate),
+                feeRatePercent: text(editor.rateChange.feeRatePercent),
+                previewRequested: editor.rateChange.previewRequested === true,
+              }
+            : null,
+      }
+    : null;
+}
+
 export function decodeFeeView(value: unknown): FeeViewState {
   if (!isJsonObject(value)) return createFeeViewState();
-  const editor = isJsonObject(value.editing) ? value.editing : null;
-  const form = editor ? decodeDraft(editor.form) : null;
   const interrupted = value.savePending === true;
   return {
     search: text(value.search),
@@ -160,15 +188,13 @@ export function decodeFeeView(value: unknown): FeeViewState {
     requiresReload: interrupted || value.requiresReload === true,
     savedNotice: nullableText(value.savedNotice),
     refreshFailed: value.refreshFailed === true,
-    editing:
-      editor && form && isText(editor.sku) && typeof editor.isNew === "boolean"
-        ? {
-            sku: editor.sku,
-            isNew: editor.isNew,
-            form,
-            submitError: nullableText(editor.submitError),
-          }
-        : null,
+    editing: decodeFeeEditor(value.editing),
+    editorDrafts: Array.isArray(value.editorDrafts)
+      ? value.editorDrafts
+          .slice(0, 10000)
+          .map(decodeFeeEditor)
+          .filter((editor) => editor !== null)
+      : [],
     reviewing: value.reviewing === true,
     savePending: false,
   };

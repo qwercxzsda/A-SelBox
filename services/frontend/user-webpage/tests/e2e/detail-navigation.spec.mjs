@@ -4,11 +4,11 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 const reportId = "0198b50b-701a-7000-8000-000000000082";
 const companyId = "0198b50b-701a-7000-8000-000000000001";
 
-async function openReport(page, role) {
+async function openReport(page, role, companyName = "Navigation Company") {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
   fixture.companyIds["member-a"] = companyId;
-  fixture.companyNames[companyId] = "Navigation Company";
+  fixture.companyNames[companyId] = companyName;
   fixture.payoutRows = [
     {
       id: reportId,
@@ -106,6 +106,32 @@ for (const role of ["administrator", "member"]) {
     });
   }
 }
+
+test("sticky record columns follow a wrapped report heading when the viewport changes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await openReport(page, "administrator", "W".repeat(110));
+  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const records = drawer.getByRole("table", { name: "Amount records", exact: true });
+  await expect(records.locator("tbody tr")).toHaveCount(50);
+  const heights = [];
+  for (const width of [1920, 1100]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await records.locator("tbody tr").nth(30).scrollIntoViewIfNeeded();
+    await expect
+      .poll(async () => {
+        const header = await drawer.locator(".mantine-Drawer-header").boundingBox();
+        const column = await records
+          .getByRole("columnheader", { name: "Date", exact: true })
+          .boundingBox();
+        return Math.abs(column.y - header.y - header.height);
+      })
+      .toBeLessThan(1);
+    heights.push((await drawer.locator(".mantine-Drawer-header").boundingBox()).height);
+  }
+  expect(heights[1]).toBeGreaterThan(heights[0]);
+});
 
 test("narrow report tables retain horizontal keyboard scrolling and one drawer scroll", async ({
   page,

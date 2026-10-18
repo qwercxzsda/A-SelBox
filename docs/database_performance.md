@@ -110,8 +110,9 @@ or latency target for production data; measure the intended workload before capa
 - Identity refresh reads complete assignments and company labels. Administrator catalog work grows
   with distinct SKU count, and the browser retains the complete searchable list.
 - Current fees loads one role-scoped configuration with periods and source-derived coverage.
-  The administrator editor keeps complete state to validate staged changes across all known SKUs;
-  the list renders a local page at a time. Source or terms revisions invalidate that configuration.
+  The administrator editor keeps complete state for global setup diagnostics and validates each
+  staged SKU's full configuration when publishing; unrelated gaps do not block that batch.
+  The list renders a local page at a time. Source or terms revisions invalidate that configuration.
 
 The current design has no financial rollup cache, materialized serving projection, or realtime
 subscription. Ownership remains a live decision: reassignment changes live historical visibility

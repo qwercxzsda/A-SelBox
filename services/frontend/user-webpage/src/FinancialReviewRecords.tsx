@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Button, Group, NativeSelect } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialReviewRecords } from "./api";
@@ -5,6 +6,13 @@ import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { transactionTypeLabel } from "./categories";
 import type { FinancialReviewSourceProps } from "./financial-review-source-state";
+import { FinancialSourceRecord } from "./FinancialSourceRecord";
+import {
+  decodeFinancialSourceSelection,
+  type FinancialSourceSelection,
+} from "./api/financial-source";
+import { useWorkspacePreference } from "./use-workspace-preference";
+import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 
 export function FinancialReviewRecords({
   identity,
@@ -15,6 +23,13 @@ export function FinancialReviewRecords({
   state,
   change,
 }: FinancialReviewSourceProps) {
+  const [selection, setSelection] = useWorkspacePreference<FinancialSourceSelection | null>(
+    `financial-review:source-detail:${category}:${month}:${currency}`,
+    () => null,
+    decodeFinancialSourceSelection,
+  );
+  const controls = useRef<HTMLDivElement>(null);
+  const focus = useDrawerFocusReturn({ opened: selection !== null, fallbackRef: controls });
   const query = useQuery({
     queryKey: [
       "financial-review",
@@ -43,7 +58,7 @@ export function FinancialReviewRecords({
   const rows = query.data?.rows ?? [];
   return (
     <>
-      <Group mb="sm" gap="sm" align="end">
+      <Group ref={controls} tabIndex={-1} mb="sm" gap="sm" align="end">
         <NativeSelect
           label="Record source"
           value={state.source}
@@ -95,7 +110,7 @@ export function FinancialReviewRecords({
             label="Source records"
             rows={rows}
             rowKey={(row) => `${row.source ?? ""}:${row.source_row_id ?? ""}`}
-            minWidth={1200}
+            minWidth={960}
             columns={[
               { key: "activity_date", label: "Date", kind: "date" },
               { key: "source", label: "Source", kind: "source", nowrap: true },
@@ -104,12 +119,39 @@ export function FinancialReviewRecords({
               { key: "component_type", label: "Type", kind: "type" },
               { key: "amount", label: `Amount (${currency})`, kind: "amount" },
               { key: "seller_namespace", label: "Source namespace" },
-              { key: "source_version_id", label: "Source version" },
-              { key: "source_row_id", label: "Source row" },
+              { key: "details", label: "Details" },
             ]}
+            renderCell={(row, column) =>
+              column.key === "details" ? (
+                <Button
+                  variant="subtle"
+                  size="compact-xs"
+                  onClick={(event) => {
+                    event.currentTarget.focus();
+                    focus.rememberOpener();
+                    setSelection({
+                      source: row.source === "FINANCES" ? "FINANCES" : "DATA_KIOSK",
+                      rowId: row.source_row_id ?? "",
+                      versionId: row.source_version_id ?? "",
+                    });
+                  }}
+                >
+                  View source record
+                </Button>
+              ) : undefined
+            }
           />
         ) : null}
       </DetailData>
+      <FinancialSourceRecord
+        identity={identity}
+        selection={selection}
+        stacked
+        onClose={() => {
+          setSelection(null);
+        }}
+        onExitTransitionEnd={focus.restoreFocus}
+      />
     </>
   );
 }

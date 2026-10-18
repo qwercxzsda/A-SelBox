@@ -38,6 +38,13 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
       review(page).getByRole("button", { name: "Save all changes", exact: true }),
     ).toBeInViewport();
   }
+  await expect(
+    review(page).getByRole("button", { name: "Save all changes", exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: `Edit ${incompleteSku}`, exact: true }).click();
+  await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
+  await openReview(page);
   await review(page).getByRole("button", { name: "Show setup issues (1)", exact: true }).click();
   const complete = review(page).getByRole("button", {
     name: `Complete ${incompleteSku}`,

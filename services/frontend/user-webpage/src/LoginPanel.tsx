@@ -6,8 +6,9 @@ interface LoginPanelProps {
   email: string;
   errorMessage: string | null;
   statusMessage: string | null;
+  statusTitle: string;
   isSubmitting: boolean;
-  onModeChange: (mode: "sign-in" | "sign-up") => void;
+  onModeChange: (mode: "sign-in" | "sign-up" | "recover") => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
@@ -19,6 +20,7 @@ export function LoginPanel({
   email,
   errorMessage,
   statusMessage,
+  statusTitle,
   isSubmitting,
   onModeChange,
   onEmailChange,
@@ -48,7 +50,7 @@ export function LoginPanel({
             </Alert>
           ) : null}
           {statusMessage ? (
-            <Alert color="cyan" role="status" title="Check your email">
+            <Alert color="cyan" role="status" title={statusTitle}>
               {statusMessage}
             </Alert>
           ) : null}
@@ -87,6 +89,17 @@ export function LoginPanel({
               </Button>
             </Stack>
           </form>
+          {!signingUp ? (
+            <Button
+              disabled={isSubmitting}
+              variant="subtle"
+              onClick={() => {
+                onModeChange("recover");
+              }}
+            >
+              Forgot password?
+            </Button>
+          ) : null}
           <Button
             disabled={isSubmitting}
             onClick={() => {

@@ -60,14 +60,14 @@ New split modules must fit around those stable anchors. The table below follows 
 | [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture across namespaces, company/currency aggregation, and latest-report reuse. |
 | [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
 | [application_access](migrations/20260928123123_application_access.sql) | Account, financial, payout, and inventory RLS policies and authorized REST projections. |
-| [payout_generation](migrations/20260928123125_payout_generation.sql) | Atomic company/month generation and read-only maturity policy. |
+| [payout_generation](migrations/20260928123125_payout_generation.sql) | Atomic company/month generation, maturity policy, bounded readiness, and administrator setup diagnostics. |
 | [payout_refresh](migrations/20260928123126_payout_refresh.sql) | Pending revision requests, maturity discovery, bounded processing, and retry backoff. |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling. |
 | [payout_invalidation](migrations/20260928123128_payout_invalidation.sql) | Transactional requests after source or terms changes, scope expansion, and pruning. |
 | [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
 | [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
-| [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages retaining historical visibility. |
+| [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages, exact row/version detail, and indexed native transaction lookup retaining historical visibility. |
 | [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
 | [payout_schedule](migrations/20260928123139_payout_schedule.sql) | Five-minute pg_cron registration in the configured scheduler database. |
 | [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql) | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics. |
@@ -123,7 +123,9 @@ changes, and historical Finances/Data Kiosk pruning update financial source toke
 This covers administrator history reads as well as current Transactions. Changed daily inventory
 captures rotate the separate `inventory` token in the publication transaction; raw acquisitions,
 idempotent replays, and rolled-back publications do not. New payout headers rotate `payouts` tokens
-for their company and the global administrator scope; unchanged report reuse does not. Only financial
+for their company and the global administrator scope; refresh-state changes rotate the same token
+so a blocked attempt is visible even without a report. Unchanged report reuse does not rotate it
+unless refresh state changes. Only financial
 source tokens include the UTC mature cutoff date. The browser checks relevant tokens on its polling interval, focus, and
 reconnection, then invalidates dependent reads when a token changes. Unchanged inventory and
 ownership tokens retain successful cached inventory reads; failed reads can retry. The
@@ -154,8 +156,10 @@ private.publish_company_payout_report(jsonb)
 Source and terms replacements validate the expected current reference, complete inventories, and
 financial controls atomically. Published children cannot be extended or rewritten. Source imports
 do not assign companies or create fee terms. Administrators publish terms only through the guarded
-`public.publish_sku_configuration` RPC. Its batch validation requires owners for all known SKUs
-and fees for current commission-capable source dates, while preserving older incomplete terms.
+`public.publish_sku_configuration` RPC. Its batch validation requires an owner and fees for current
+commission-capable source dates on every changed SKU, while preserving older incomplete terms.
+Unrelated setup gaps remain visible in global diagnostics and still block financial scopes that
+require those settings; they do not prevent publishing a valid correction to another SKU.
 `public.sku_configuration` exposes all known settings to administrators and only owned settings to
 members. Source publication remains trusted Python/SQL work.
 The private payout worker runs every five minutes and processes up to 10 pending mature
@@ -286,7 +290,7 @@ conda run --no-capture-output -n A-SelBox python -m services.db.supabase.tests.v
 This opt-in check needs the Supabase CLI, Docker, a complete SKU configuration, and at least two
 fixture companies. It restores the full dump, including its Auth fixtures, into a newly created
 disposable Supabase stack. It creates verification logins through actual Auth and uses their tokens
-with PostgREST to check administrator and member configuration reads, global rejection and atomic
+with PostgREST to check administrator and member configuration reads, changed-SKU rejection and atomic
 rollback, assignment and exact fee changes, denied member writes, and stale-version rejection.
 Independent SQL checks verify source authority and daily reconciliation.
 

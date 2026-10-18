@@ -14,7 +14,7 @@ import {
   openReview,
 } from "./sku-configuration-fixtures.mjs";
 
-test("administrators stage multiple SKUs and cannot save until every known SKU is complete", async ({
+test("administrators stage multiple SKUs and validate each changed SKU before saving", async ({
   page,
 }, testInfo) => {
   const fixture = await setup(page, "administrator", [
@@ -23,6 +23,13 @@ test("administrators stage multiple SKUs and cannot save until every known SKU i
   ]);
   await stageRate(page, "6.123456");
   expect(fixture.configurationSaves).toHaveLength(0);
+  await openReview(page);
+  await expect(
+    review(page).getByRole("button", { name: "Save all changes", exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await openEditor(page, "S2");
+  await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
   await expect(
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
@@ -95,7 +102,7 @@ test("members see only their assigned settings and have no edit or save controls
   expect(fixture.configurationSaves).toHaveLength(0);
 });
 
-test("invalid draft fields are kept with inline errors and block the global save", async ({
+test("invalid draft fields are kept with inline errors and block the staged batch", async ({
   page,
 }) => {
   const fixture = await setup(page);
@@ -189,19 +196,16 @@ test("an unconfirmed save blocks re-saving across tab navigation until saved dat
   ).toBeEnabled();
 });
 
-test("newly imported missing ownership returned by the server preserves all prepared changes", async ({
+test("newly imported fee requirements for a changed SKU preserve its draft and block publication", async ({
   page,
 }) => {
   const fixture = await setup(page);
   await stageRate(page);
-  const missing = item("S2", {
-    sku_id: null,
-    company_id: null,
-    terms_version_id: null,
-    periods: [],
-    requirements: [],
+  fixture.skuConfigurationItems[0].requirements.push({
+    marketplace_name: "Amazon.com",
+    valid_from: "2026-08-01",
+    valid_to: "2026-09-01",
   });
-  fixture.skuConfigurationItems.push(missing);
   fixture.configurationSaveStatus = 409;
   fixture.configurationSaveError = {
     code: "23514",
@@ -209,11 +213,11 @@ test("newly imported missing ownership returned by the server preserves all prep
     details: JSON.stringify({
       issues: [
         {
-          sku: "S2",
-          kind: "missing_company",
-          marketplace_name: null,
-          valid_from: null,
-          valid_to: null,
+          sku: "S1",
+          kind: "missing_fee",
+          marketplace_name: "Amazon.com",
+          valid_from: "2026-08-01",
+          valid_to: "2026-09-01",
         },
       ],
     }),
@@ -222,7 +226,7 @@ test("newly imported missing ownership returned by the server preserves all prep
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "No changes were saved." })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Show marketplace fees for S2", exact: true }),
+    page.getByRole("button", { name: "Show marketplace fees for S1", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
   await openReview(page);

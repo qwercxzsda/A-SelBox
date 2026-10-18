@@ -126,7 +126,7 @@ const ACCOUNT_COLUMNS = [
 ] as const;
 
 // Transaction searches resolve these visible fields to exact catalog values locally.
-// Other REST datasets search only native text fields.
+// Other REST datasets search their published text fields, including payout month labels.
 export const DATASET_CONFIG = {
   live: {
     label: "Transactions",
@@ -162,7 +162,7 @@ export const DATASET_CONFIG = {
     label: "Payout reports",
     endpoint: "latest_company_payout_reports",
     selectColumns: PAYOUT_COLUMNS,
-    searchColumns: ["report_name", "currency"],
+    searchColumns: ["month_label", "report_name", "currency"],
     sortColumns: ["start_date"],
     defaultSort: { column: "start_date", direction: "desc" },
     idColumns: ["id"],

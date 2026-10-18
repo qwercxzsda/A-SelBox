@@ -1,0 +1,13 @@
+{
+  "unauthenticatedUpdateStatus": 401,
+  "invalidRecoveryStatus": 400,
+  "recoveryRequestStatus": 200,
+  "mailDeliveredToLocalSink": true,
+  "verificationLinkUsesPublicPreview": true,
+  "verifiedRecoveryForm": true,
+  "explicitPasswordUpdate": true,
+  "signinWithNewPassword": true,
+  "roleRemainsUnassigned": true,
+  "pageErrors": [],
+  "temporaryIdentityRemoved": true
+}

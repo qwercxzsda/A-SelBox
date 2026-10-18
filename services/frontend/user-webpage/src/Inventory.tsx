@@ -1,6 +1,4 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useDebouncedValue } from "@mantine/hooks";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -11,7 +9,6 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { ApiError, fetchInventoryFilterOptions, fetchInventoryPage } from "./api";
 import type { InventoryViewState, ViewStateProps } from "./workspace-view-state";
 import type { Identity } from "./auth-session";
 import marketplaces from "./generated/marketplaces.json";
@@ -21,9 +18,12 @@ import { InventoryDetail } from "./InventoryDetail";
 import { inventoryRowId } from "./inventory-row";
 import { PaginationBar } from "./PaginationBar";
 import { lastPageIndex } from "./pagination";
-import { resolveInventorySearch } from "./inventory-options";
 import { WorkspaceIntro } from "./WorkspaceIntro";
 import { RowsSelect } from "./RowsSelect";
+import { useInventoryData } from "./use-inventory-data";
+import { InventoryCoverage } from "./InventoryCoverage";
+import { InventoryAppliedFilters } from "./InventoryAppliedFilters";
+import { inventoryEmptyMessage } from "./inventory-coverage";
 import "./Inventory.css";
 
 export function Inventory({
@@ -36,41 +36,20 @@ export function Inventory({
   onShowTransactions: (sku: string) => void;
 }) {
   const { selectedRowId, ...pageState } = viewState;
-  const [debouncedSearch] = useDebouncedValue(viewState.search.trim(), 250);
-  const queryState = { ...pageState, search: debouncedSearch };
-  const scope = [
-    identity.account.user_id,
-    identity.account.access_role,
-    identity.account.company_id,
-  ];
-  const filterOptions = useQuery({
-    queryKey: ["inventory", ...scope, "filter-options"],
-    queryFn: ({ signal }) => fetchInventoryFilterOptions(identity.session.access_token, signal),
-    staleTime: Infinity,
-  });
-  const searching = Boolean(debouncedSearch);
-  const searchValues = filterOptions.data
-    ? resolveInventorySearch(debouncedSearch, filterOptions.data)
-    : null;
-  const query = useQuery({
-    queryKey: [
-      "inventory",
-      identity.account.user_id,
-      identity.account.access_role,
-      identity.account.company_id,
-      queryState,
-      searchValues,
-    ],
-    enabled: !searching || Boolean(filterOptions.data),
-    queryFn: ({ signal }) =>
-      fetchInventoryPage({
-        ...queryState,
-        searchValues,
-        accessToken: identity.session.access_token,
-        signal,
-      }),
-  });
-  const denied = query.error instanceof ApiError && [401, 403].includes(query.error.status ?? 0);
+  const { query, rows, denied, filterOptions, captures, availability, hasItems } = useInventoryData(
+    identity,
+    pageState,
+  );
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    // Age labels change without downloading inventory or waiting for a source revision.
+    const timer = globalThis.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+    return () => {
+      globalThis.clearInterval(timer);
+    };
+  }, []);
   const totalCount = denied ? null : (query.data?.totalCount ?? null);
   const finalPage = totalCount === null ? null : lastPageIndex(totalCount, viewState.pageSize);
   const pageCount = finalPage === null ? null : finalPage + 1;
@@ -78,7 +57,6 @@ export function Inventory({
     if (finalPage !== null && viewState.pageIndex > finalPage)
       onViewStateChange((current) => ({ ...current, pageIndex: finalPage, selectedRowId: null }));
   }, [finalPage, viewState.pageIndex, onViewStateChange]);
-  const rows = denied ? [] : (query.data?.rows ?? []);
   const selectedRow = rows.find((row) => inventoryRowId(row) === selectedRowId) ?? null;
   useEffect(() => {
     if (selectedRowId && !query.isFetching && (denied || (query.isSuccess && !selectedRow)))
@@ -153,7 +131,17 @@ export function Inventory({
         <NativeSelect
           label="Marketplace"
           value={viewState.marketplace}
-          data={[{ value: "", label: "All marketplaces" }, ...marketplaces]}
+          data={[
+            { value: "", label: "All marketplaces" },
+            ...marketplaces.map((value) => ({
+              value,
+              label:
+                captures.isSuccess &&
+                !captures.data.some((capture) => capture.marketplace_name === value)
+                  ? `${value} — no snapshot`
+                  : value,
+            })),
+          ]}
           onChange={(event) => {
             changeFilters({ marketplace: event.currentTarget.value });
           }}
@@ -181,6 +169,19 @@ export function Inventory({
           </Button>
         ) : null}
       </Group>
+      <InventoryAppliedFilters state={viewState} onChange={changeFilters} />
+      {captures.isSuccess ? (
+        <InventoryCoverage captures={captures.data} marketplace={viewState.marketplace} now={now} />
+      ) : captures.isPending ? (
+        <Text size="sm" c="dimmed" role="status">
+          Checking inventory snapshot coverage…
+        </Text>
+      ) : (
+        <Alert role="alert" color="red">
+          Could not check inventory snapshot coverage. {getErrorMessage(captures.error)} Updates
+          retry automatically.
+        </Alert>
+      )}
       {filterOptions.isError && !query.isError ? (
         <Alert role="alert" color="red">
           Could not load inventory filter options. {getErrorMessage(filterOptions.error)} Updates
@@ -197,6 +198,11 @@ export function Inventory({
       {query.isFetching ? (
         <Text role="status">{query.isPending ? "Loading inventory…" : "Updating inventory…"}</Text>
       ) : null}
+      {availability.isError && rows.length === 0 ? (
+        <Alert role="alert" color="red">
+          Could not check unfiltered inventory availability. Updates retry automatically.
+        </Alert>
+      ) : null}
       <PaginationBar {...pagination} ariaLabel="Inventory pagination, top" />
       <InventoryTable
         onShowTransactions={showTransactions}
@@ -205,12 +211,16 @@ export function Inventory({
         onChange={changeFilters}
         filterOptions={filterOptions.data}
         onSelect={selectRow}
+        now={now}
       />
-      {!query.isPending && !query.isError && rows.length === 0 ? (
+      {!query.isPending && !query.isError && !availability.isError && rows.length === 0 ? (
         <Text role="status">
-          {filtered
-            ? "No inventory matches these filters."
-            : "No inventory items are available for your account."}
+          {inventoryEmptyMessage({
+            captures: captures.isSuccess ? captures.data : undefined,
+            marketplace: viewState.marketplace,
+            hasItems,
+            member: identity.account.access_role === "member",
+          })}
         </Text>
       ) : null}
       <PaginationBar {...pagination} />
@@ -220,6 +230,7 @@ export function Inventory({
           selectRow(null);
         }}
         onShowTransactions={showTransactions}
+        now={now}
       />
     </Stack>
   );

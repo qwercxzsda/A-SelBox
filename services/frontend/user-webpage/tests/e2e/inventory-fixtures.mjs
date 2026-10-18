@@ -1,4 +1,4 @@
-import { INVENTORY_COLUMNS } from "../../src/api/inventory.ts";
+import { INVENTORY_CAPTURE_COLUMNS, INVENTORY_COLUMNS } from "../../src/api/inventory.ts";
 import { createReplies } from "./mocks/http.mjs";
 
 export function inventoryRow(sku, overrides = {}) {
@@ -75,7 +75,42 @@ function compareRows(left, right, order) {
 }
 
 export async function mockInventory(page, rows) {
-  const state = { rows, requests: [], optionRequests: [], failed: false };
+  const state = {
+    rows,
+    requests: [],
+    optionRequests: [],
+    captureRequests: [],
+    availabilityRequests: [],
+    captures: null,
+    failed: false,
+    coverageFailed: false,
+  };
+  await page.route(
+    "https://example.invalid/rest/v1/latest_inventory_captures?**",
+    async (route) => {
+      const replies = createReplies(route);
+      if (route.request().method() === "OPTIONS") return replies.reply({});
+      const params = new URL(route.request().url()).searchParams;
+      state.captureRequests.push(params);
+      if (state.coverageFailed) return replies.reply({}, 503);
+      const captures = state.captures ?? [
+        ...new Map(
+          state.rows.map((row) => [
+            `${row.capture_id}:${row.marketplace_name}`,
+            { ...row, capture_id: `${row.capture_id}:${row.marketplace_name}` },
+          ]),
+        ).values(),
+      ];
+      const offset = Number(params.get("offset"));
+      const limit = Number(params.get("limit"));
+      return replies.csvReply(
+        INVENTORY_CAPTURE_COLUMNS,
+        captures.slice(offset, offset + limit),
+        captures.length,
+        offset,
+      );
+    },
+  );
   await page.route(
     "https://example.invalid/rest/v1/rpc/inventory_filter_options",
     async (route) => {
@@ -95,7 +130,8 @@ export async function mockInventory(page, rows) {
     const replies = createReplies(route);
     if (route.request().method() === "OPTIONS") return replies.reply({});
     const params = new URL(route.request().url()).searchParams;
-    state.requests.push(params);
+    const availability = params.get("select") === "capture_id";
+    (availability ? state.availabilityRequests : state.requests).push(params);
     if (state.failed) return replies.reply({ message: "private database details" }, 503);
     const exact = (column) => (params.has(column) ? params.get(column).slice(3) : null);
     const matching = state.rows
@@ -105,10 +141,10 @@ export async function mockInventory(page, rows) {
             row.marketplace_name === exact("marketplace_name")) &&
           (!params.has("and") || matches(row, "and" + params.get("and"))),
       )
-      .sort((left, right) => compareRows(left, right, params.get("order")));
+      .sort((left, right) => compareRows(left, right, params.get("order") ?? "sku.asc"));
     const offset = Number(params.get("offset"));
     return replies.csvReply(
-      INVENTORY_COLUMNS,
+      availability ? ["capture_id"] : INVENTORY_COLUMNS,
       matching.slice(offset, offset + Number(params.get("limit"))),
       matching.length,
       offset,

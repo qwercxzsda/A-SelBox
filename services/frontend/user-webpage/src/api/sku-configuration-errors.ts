@@ -41,7 +41,7 @@ export function skuConfigurationRpcError(body: unknown): SkuConfigurationError |
     if (issues.length === 0) return null;
     return new SkuConfigurationError(
       "incomplete",
-      "Every known SKU needs a company and coverage for its required fees. No changes were saved.",
+      "Each changed SKU needs a company and coverage for its required fees. No changes were saved.",
       issues,
     );
   } catch {

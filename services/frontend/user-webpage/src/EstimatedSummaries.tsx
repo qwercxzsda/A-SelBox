@@ -1,6 +1,8 @@
 import { SummaryCard } from "./SummaryCard";
 import type { SummaryPeriod, SummaryState } from "./summary-types";
-import { Alert, Button, Group, NativeSelect, Text, Title } from "@mantine/core";
+import { Alert, Button, Group, Modal, NativeSelect, Text, Title } from "@mantine/core";
+import { useState } from "react";
+import { DateFilter } from "./ColumnFilters";
 import type { DateRange } from "./estimated-periods";
 import { UpdateStatus } from "./UpdateStatus";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
@@ -8,6 +10,7 @@ import "./EstimatedSummaries.css";
 
 interface EstimatedSummariesProps {
   selectedCurrency: string | null;
+  dateRange: DateRange;
   onCurrencyChange: (currency: string) => void;
   day: SummaryState;
   month: SummaryState;
@@ -23,6 +26,7 @@ interface EstimatedSummariesProps {
 
 export function EstimatedSummaries({
   selectedCurrency,
+  dateRange,
   onCurrencyChange,
   day,
   month,
@@ -35,6 +39,7 @@ export function EstimatedSummaries({
   coverageNote,
   appliedFilters = [],
 }: EstimatedSummariesProps) {
+  const [choosingDates, setChoosingDates] = useState(false);
   const periods = [day.period, month.period, selectionActive ? selected.period : null];
   const errors = [
     ...new Set(
@@ -43,15 +48,13 @@ export function EstimatedSummaries({
       ),
     ),
   ];
+  const currency = selectedCurrency ?? "USD";
   const currencies = [
-    ...new Set(periods.flatMap((period) => period?.totals ?? []).map((total) => total.currency)),
+    ...new Set([
+      currency,
+      ...periods.flatMap((period) => period?.totals ?? []).map((total) => total.currency),
+    ]),
   ].sort();
-  const currency =
-    selectedCurrency && currencies.includes(selectedCurrency)
-      ? selectedCurrency
-      : currencies.includes("USD")
-        ? "USD"
-        : (currencies.at(0) ?? null);
 
   return (
     <section className="estimated-summaries" aria-label="Estimated totals" aria-busy={loading}>
@@ -64,18 +67,16 @@ export function EstimatedSummaries({
             Updating estimated totals…
           </UpdateStatus>
         </div>
-        {currencies.length > 1 ? (
-          <NativeSelect
-            label="Currency"
-            className="estimated-summary-currency"
-            size="xs"
-            value={currency ?? ""}
-            data={currencies}
-            onChange={(event) => {
-              onCurrencyChange(event.currentTarget.value);
-            }}
-          />
-        ) : null}
+        <NativeSelect
+          label="Summary currency"
+          className="estimated-summary-currency"
+          size="xs"
+          value={currency}
+          data={currencies}
+          onChange={(event) => {
+            onCurrencyChange(event.currentTarget.value);
+          }}
+        />
       </Group>
       <SummaryFilters filters={appliedFilters} compact />
       {errors.length > 0 ? (
@@ -129,6 +130,9 @@ export function EstimatedSummaries({
               : "Select a date range to see totals."
           }
           onOpenBreakdown={onOpenBreakdown}
+          onChooseDates={() => {
+            setChoosingDates(true);
+          }}
         />
       </div>
       {coverageNote ? (
@@ -136,6 +140,28 @@ export function EstimatedSummaries({
           {coverageNote}
         </Text>
       ) : null}
+      <Modal
+        opened={choosingDates}
+        onClose={() => {
+          setChoosingDates(false);
+        }}
+        title="Choose summary dates"
+        centered
+      >
+        <DateFilter
+          filter={{
+            kind: "date",
+            from: dateRange.from,
+            to: dateRange.to,
+            onChange: (from, to) => {
+              onPeriodSelect({ from, to });
+            },
+          }}
+          onClose={() => {
+            setChoosingDates(false);
+          }}
+        />
+      </Modal>
     </section>
   );
 }

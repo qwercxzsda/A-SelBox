@@ -42,7 +42,11 @@ export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   }
   if (family === "sku-configuration") return FINANCIAL_REVISION_SOURCES;
   if (family === "payout-history") return ["payouts"];
+  if (family === "payout-readiness") return ["payouts", "fees"];
+  if (family === "payout-blockers") return [...FINANCIAL_REVISION_SOURCES, "payouts"];
   if (family === "financial-review") return ["finances", "data_kiosk"];
+  if (family === "financial-source-record") return ["finances", "data_kiosk"];
+  if (family === "financial-source-lookup") return ["finances"];
   if (family === "inventory") return ["inventory", "fees"];
   if (
     typeof family === "string" &&
@@ -92,11 +96,13 @@ export function isPolledQuery(query: Query): boolean {
   return (family === "dataset" || family === "dataset-count") && isPolledDataset(dataset);
 }
 
-/** Failed inventory reads retry without forcing successful pages to read again. */
+/** Failed operational reads retry without forcing successful pages to read again. */
 export function needsAutomaticRefresh(query: Query): boolean {
   return (
     isPolledQuery(query) ||
-    (query.queryKey[0] === "inventory" &&
+    ((query.queryKey[0] === "inventory" ||
+      query.queryKey[0] === "payout-readiness" ||
+      query.queryKey[0] === "payout-blockers") &&
       query.state.status === "error" &&
       query.state.fetchStatus === "idle")
   );

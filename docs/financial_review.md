@@ -92,8 +92,11 @@ Closing the month drawer returns focus to its opener after the exit transition, 
 the page. A drawer restored by a page reload returns focus to the monthly list instead. This also
 keeps X-button closing usable without clicking the underlying page again.
 
-Source records expose the original amount, activity date, SKU, marketplace, exact type, source
-namespace, and source row/version IDs. Finances marketplace identity is required; its native Non-Amazon US channel
+Source records expose the original amount, activity date, SKU, marketplace, exact type and source
+namespace. **View source record** opens the exact row/version in a nested drawer, including native
+Amazon transaction IDs, linked release/deferred IDs and processing provenance when available.
+The selection survives reload; a missing or pruned version shows an explicit unavailable message
+instead of substituting a current capture. Finances marketplace identity is required; its native Non-Amazon US channel
 remains explicit. These are current
 source facts without company allocation or fee joins. A difference at account or category level
 does not attribute a discrepancy to a particular SKU, transaction, campaign, or blank marketplace.
@@ -101,6 +104,35 @@ does not attribute a discrepancy to a particular SKU, transaction, campaign, or 
 Year, currency, category, selected month, source filters, detail pages, and expanded sections survive
 reloads. Only view state is saved; amounts are fetched again. Lightweight source revision checks
 and maturity-policy changes refresh current comparisons, including an open drawer.
+
+## Fee family comparison and source lookup
+
+The optional **Fee family comparison** groups already recognized fee identities: coupon participation
+and performance charges, deal participation and performance charges, monthly and aged storage,
+disposal, removal, labeling, inbound transportation/program charges, and subscription fees.
+The display sums each source separately with exact decimal arithmetic, then shows Finances minus
+Data Kiosk. Zero-value types remain. A missing side displays zero with an explicit missing-rows label;
+this is not evidence of complete coverage. No dates, categories, payout authority, or allocations change.
+
+The comparison loads all types for one selected category/month/currency, capped at 1,000 groups and
+fails closed if that limit is reached. It never calculates family totals from a partial 50-row page.
+**Unpaired or uncertain types** remain visible with their original amounts. Advertising and Sponsored
+Products are not paired. Ambiguous convenience/placement labels also stay unpaired. Family grouping
+is diagnostic, not a claim that billing periods, tax treatment or SKU allocations agree. Native
+**Amounts by type** remains available below for exact type and record drilldown.
+
+The administrator Finances tab also provides **Find Amazon transaction**, an explicit exact-ID lookup
+independent of SKU/type search and current table filters. It reads a bounded page across retained
+captures with an index on the native transaction ID. Results label **Current** versus **Retained**;
+each row is an amount component, and repeated observations are not added together. A record opens
+using both its row ID and version ID. All amount/quantity values are serialized as decimal text in
+PostgreSQL before JSON reaches the browser. Neither lookup is available to members, anonymous users,
+or service-role REST callers.
+
+**Activity eligibility** describes a component within its capture. Original activity can count while
+funds are still held; linked release copies and bank transfers are exclusive of activity totals.
+A directly posted released fee can count. This flag is separate from current-capture selection,
+month maturity, company ownership and fee configuration.
 
 ## Saved report snapshots
 
@@ -126,6 +158,8 @@ input manifests through the API.
 | `public.financial_review_records` | Current mature facts in the three monetary categories, with exact source provenance. |
 | `public.financial_review_totals(p_month_from, p_month_to, p_category)` | Monthly sums, differences, and source record counts by currency. |
 | `public.financial_review_type_totals(p_month_from, p_month_to, p_category, p_currency)` | Exact sums and counts by source and raw type. |
+| `public.financial_source_record(p_source, p_row_id, p_version_id)` | Exact retained source detail, with no version substitution; administrator-only. |
+| `public.financial_source_transaction_lookup(p_native_transaction_id, p_limit, p_offset)` | Exact Finances native-ID component lookup across retained captures; administrator-only and bounded to 100 rows per call. |
 | `public.payout_reconciliation_totals` | Frozen account controls for one selected saved report, grouped by currency. |
 | `public.payout_report_reconciliation` | Frozen daily account controls and their source provenance. |
 

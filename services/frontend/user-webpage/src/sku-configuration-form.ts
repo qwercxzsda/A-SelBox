@@ -70,21 +70,29 @@ export function clearSubmittedDrafts(
   return current.filter((draft) => {
     const snapshot = snapshots.get(draft.sku);
     if (!snapshot) return true;
-    return (
-      draft.company_id !== snapshot.company_id ||
-      draft.expected_current_version_id !== snapshot.expected_current_version_id ||
-      draft.periods.length !== snapshot.periods.length ||
-      draft.periods.some((period, index) => {
-        const original = snapshot.periods[index];
-        return (
-          period.marketplace_name !== original.marketplace_name ||
-          period.valid_from !== original.valid_from ||
-          period.valid_to !== original.valid_to ||
-          period.fee_rate_percent !== original.fee_rate_percent
-        );
-      })
-    );
+    return !sameSkuDraft(draft, snapshot);
   });
+}
+
+export function sameSkuDraft(
+  draft: SkuConfigurationChange,
+  snapshot: SkuConfigurationChange,
+): boolean {
+  return !(
+    draft.sku !== snapshot.sku ||
+    draft.company_id !== snapshot.company_id ||
+    draft.expected_current_version_id !== snapshot.expected_current_version_id ||
+    draft.periods.length !== snapshot.periods.length ||
+    draft.periods.some((period, index) => {
+      const original = snapshot.periods[index];
+      return (
+        period.marketplace_name !== original.marketplace_name ||
+        period.valid_from !== original.valid_from ||
+        period.valid_to !== original.valid_to ||
+        period.fee_rate_percent !== original.fee_rate_percent
+      );
+    })
+  );
 }
 
 function applySkuDrafts(
@@ -157,5 +165,7 @@ export function resolveSkuConfiguration(
     group.push(issue);
     issuesBySku.set(issue.sku, group);
   }
-  return { items: effectiveItems, issues, issuesBySku };
+  const changedSkus = new Set(drafts.map((draft) => draft.sku));
+  const draftIssues = issues.filter((issue) => changedSkus.has(issue.sku));
+  return { items: effectiveItems, issues, issuesBySku, draftIssues };
 }

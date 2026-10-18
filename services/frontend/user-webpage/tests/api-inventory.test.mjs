@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
-import { INVENTORY_COLUMNS } from "../src/api/inventory.ts";
+import { INVENTORY_CAPTURE_COLUMNS, INVENTORY_COLUMNS } from "../src/api/inventory.ts";
 import {
   inventoryFilterOptions,
   recommendationLabel,
@@ -35,6 +35,66 @@ const options = {
   pageSize: 25,
   accessToken: "test-access",
 };
+
+test("inventory capture discovery retains empty capture references and handles smaller server pages without counts", async () => {
+  const captures = [
+    {
+      capture_id: "empty-us",
+      marketplace_name: "Amazon.com",
+      capture_date: "2026-10-18",
+      report_created_at: "2026-10-18T01:00:00Z",
+      preprocessed_at: "2026-10-18T02:00:00Z",
+    },
+    {
+      capture_id: "jp",
+      marketplace_name: "Amazon.co.jp",
+      capture_date: "2026-10-17",
+      report_created_at: "2026-10-17T01:00:00Z",
+      preprocessed_at: "2026-10-18T02:00:00Z",
+    },
+  ];
+  const offsets = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    const params = new URL(url).searchParams;
+    const offset = Number(params.get("offset"));
+    offsets.push(offset);
+    assert.equal(new URL(url).pathname, "/rest/v1/latest_inventory_captures");
+    assert.equal(params.get("order"), "marketplace_name.asc,capture_id.asc");
+    assert.equal(params.get("select"), INVENTORY_CAPTURE_COLUMNS.join(","));
+    assert.equal(init.headers.Prefer, undefined);
+    return new Response(
+      offset < captures.length ? csvRecord(captures[offset]) : INVENTORY_CAPTURE_COLUMNS.join(","),
+    );
+  });
+  assert.deepEqual(
+    (await client.fetchInventoryCaptures("access")).map((row) => ({ ...row })),
+    captures,
+  );
+  assert.deepEqual(offsets, [0, 1, 2]);
+  const repeated = createApiClient(SETTINGS, async () => new Response(csvRecord(captures[0])));
+  await assert.rejects(repeated.fetchInventoryCaptures("access"), /did not advance/);
+  const incomplete = createApiClient(
+    SETTINGS,
+    async () => new Response(csvRecord({ capture_id: "missing-dates" })),
+  );
+  await assert.rejects(incomplete.fetchInventoryCaptures("access"), /incomplete capture/);
+});
+
+test("unfiltered inventory availability reads one authorized reference in the marketplace scope", async () => {
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    const params = new URL(url).searchParams;
+    assert.equal(params.get("select"), "capture_id");
+    assert.equal(params.get("limit"), "1");
+    assert.equal(params.get("marketplace_name"), "eq.Amazon.com");
+    assert.equal(params.has("and"), false);
+    assert.equal(init.headers.Prefer, undefined);
+    return new Response("capture_id\nvisible-capture");
+  });
+  assert.equal(await client.hasInventoryItems("access", "Amazon.com"), true);
+  const empty = createApiClient(SETTINGS, async () => new Response("capture_id\n"));
+  assert.equal(await empty.hasInventoryItems("access", ""), false);
+  await assert.rejects(empty.hasInventoryItems("access", "Amazon.fake"), /marketplace/);
+});
 
 test("inventory filters exact SKU text before stable pagination and keeps decimal precision and unknowns", async () => {
   let captured;

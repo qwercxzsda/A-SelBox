@@ -10,6 +10,7 @@ import { respondWithOptions } from "./mocks/options.mjs";
 import { respondWithWorkspaceLists } from "./mocks/workspace-lists.mjs";
 import { transactionPageParams } from "./transaction-page-fixtures.mjs";
 import { respondWithPayouts } from "./mocks/payouts.mjs";
+import { respondWithPayoutReadiness } from "./mocks/payout-readiness.mjs";
 import { respondWithReconciliation } from "./mocks/reconciliation.mjs";
 import { respondWithFinancialReview } from "./mocks/financial-review.mjs";
 import { respondWithSkuConfiguration } from "./mocks/sku-configuration.mjs";
@@ -48,6 +49,10 @@ export async function mockSupabase(page) {
     const context = { request, url, user, accessToken, route, track, ...createReplies(route) };
     if (request.method() === "OPTIONS") return context.reply({});
     fixture.events.push({ endpoint: url.pathname, user });
+    if (
+      ["/rest/v1/rpc/payout_readiness", "/rest/v1/rpc/payout_setup_blockers"].includes(url.pathname)
+    )
+      return respondWithPayoutReadiness(fixture, context);
     if (
       [
         "/rest/v1/rpc/financial_review_totals",

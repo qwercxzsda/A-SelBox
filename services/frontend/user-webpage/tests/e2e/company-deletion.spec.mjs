@@ -69,7 +69,7 @@ test("administrator explicitly deletes an unused company and all company pickers
   await expect(editor(page).getByRole("combobox", { name: "Company", exact: true })).toHaveValue(
     COMPANY,
   );
-  await button(editor(page), "Cancel").click();
+  await button(editor(page), "Close SKU editor").click();
   await tab(page, "User access").click();
   await page.getByRole("row").filter({ hasText: "member-b@example.test" }).click();
   const membership = page.getByRole("dialog", { name: "Company membership", exact: true });

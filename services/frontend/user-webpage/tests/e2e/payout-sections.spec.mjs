@@ -55,6 +55,20 @@ for (const width of [1440, 1920]) {
     const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
     const records = drawer.getByRole("table", { name: "Amount records", exact: true });
     await expect(records).toBeVisible();
+    await expect(drawer.getByRole("note")).toContainText("Totals use original precision");
+    await expect(drawer.locator(".detail-drawer-context")).toContainText("June 2026 · USD");
+    expect(
+      await drawer.evaluate((element) => {
+        const marketplace = [...element.querySelectorAll("button")].find(
+          (button) => button.textContent === "Marketplace breakdown",
+        );
+        const records = element.querySelector('[aria-label="Amount records"]');
+        return Boolean(
+          marketplace.compareDocumentPosition(records) &
+          globalThis.Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+      }),
+    ).toBe(true);
     await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
     const typeTable = drawer.getByRole("table", { name: "Transaction type amounts", exact: true });
     expect(
@@ -80,6 +94,8 @@ for (const width of [1440, 1920]) {
       name: "Payout marketplace breakdown",
       exact: true,
     });
+    await records.scrollIntoViewIfNeeded();
+    await expect(drawer.locator(".detail-drawer-context")).toBeInViewport();
     await expect(
       marketplace.getByRole("columnheader", { name: "Reported amount (USD)", exact: true }),
     ).toBeVisible();

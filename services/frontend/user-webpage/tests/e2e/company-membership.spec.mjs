@@ -103,6 +103,12 @@ test("administrator transfers a member then explicitly confirms membership revoc
   const fixture = await setupAdministrator(page, "member");
   await accountRow(page, targetEmail).click();
   await chooseCompany(page, "South Company");
+  await expect(membershipDrawer(page)).toContainText("Current company: North Company");
+  await expect(membershipDrawer(page).getByRole("status")).toContainText("Unsaved change");
+  await page.reload();
+  await expect(membershipDrawer(page)).toContainText("Current company: North Company");
+  await expect(membershipDrawer(page).getByRole("status")).toContainText("Unsaved change");
+  expect(fixture.membershipRequests).toHaveLength(0);
   await saveMembership(page, "South Company");
   await expect(accountRow(page, targetEmail)).toContainText("South Company");
   expect(fixture.membershipRequests[0].body.target_company_id).toBe(companyB);

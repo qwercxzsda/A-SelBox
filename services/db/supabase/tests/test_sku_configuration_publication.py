@@ -1,4 +1,4 @@
-"""Administrator batches preserve exact SKU identity and global configuration completeness."""
+"""Changed SKUs must be complete while global gaps stay visible and batches stay atomic."""
 
 from decimal import Decimal
 from uuid import UUID
@@ -51,7 +51,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.assertEqual({issue["kind"] for issue in issues}, {"missing_company"})
         self.connection.execute("set constraints all immediate")
 
-    def test_incomplete_configuration_remains_readable_until_repaired_in_one_atomic_save(
+    def test_valid_changed_sku_can_publish_while_unrelated_gaps_remain_readable(
         self,
     ) -> None:
         company, _ = self.owner("A")
@@ -61,11 +61,22 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.connection.commit()
         items = self.configuration(administrator)
         self.assertTrue(all(item["issues"] for item in items))
-        issues = self.assert_incomplete(
-            administrator, [self.change("A", company, [self.period("0")])]
+        self.assertEqual(
+            self.save(administrator, [self.change("A", company, [self.period("0")])])[
+                "changed_count"
+            ],
+            1,
         )
-        self.assertTrue(
-            any(issue["sku"] == "B" and issue["kind"] == "missing_company" for issue in issues)
+        items = {item["sku"]: item for item in self.configuration(administrator)}
+        self.assertEqual(items["A"]["issues"], [])
+        self.assertTrue(any(issue["kind"] == "missing_company" for issue in items["B"]["issues"]))
+        # An invalid changed SKU still rolls back every other change in its batch.
+        self.assert_incomplete(
+            administrator,
+            [
+                self.change("A", company, [self.period("7")]),
+                self.change("B", None, [self.period("5")]),
+            ],
         )
         before = self.configuration_state()
         result = self.save(
@@ -85,7 +96,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.connection.commit()
         self.assertEqual(self.configuration_state(), before)
 
-    def test_every_known_sku_needs_an_owner_including_registered_and_historical_only_skus(
+    def test_global_readiness_keeps_registered_and_historical_ownership_gaps(
         self,
     ) -> None:
         company, _ = self.owner("OWNED")
@@ -96,7 +107,10 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         )
         self.finances([], acquisition_id=acquisition, expected=previous)
         administrator = self.administrator()
-        issues = self.assert_incomplete(administrator, [self.change("OWNED", company)])
+        self.assertEqual(
+            self.save(administrator, [self.change("OWNED", company)])["changed_count"], 1
+        )
+        issues = [issue for item in self.configuration(administrator) for issue in item["issues"]]
         self.assertEqual(
             {(issue["sku"], issue["kind"]) for issue in issues},
             {("REGISTERED-ONLY", "missing_company"), ("HISTORY-ONLY", "missing_company")},
@@ -154,7 +168,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         )
         self.assertEqual(self.configuration(administrator)[0]["issues"], [])
 
-    def test_new_imports_can_create_gaps_but_next_save_must_repair_the_whole_configuration(
+    def test_new_import_gaps_do_not_block_a_valid_existing_sku_update(
         self,
     ) -> None:
         company, _ = self.owner("A")
@@ -166,10 +180,17 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
                 "issues"
             ]
         )
-        issues = self.assert_incomplete(
-            administrator, [self.change("A", company, [self.period("7")])]
+        self.assertEqual(
+            self.save(administrator, [self.change("A", company, [self.period("7")])])[
+                "changed_count"
+            ],
+            1,
         )
-        self.assertTrue(any(issue["sku"] == "NEW" for issue in issues))
+        items = {item["sku"]: item for item in self.configuration(administrator)}
+        self.assertEqual(items["A"]["periods"][0]["fee_rate_percent"], "7")
+        self.assertEqual(
+            {issue["kind"] for issue in items["NEW"]["issues"]}, {"missing_company", "missing_fee"}
+        )
         self.assertEqual(
             self.save(administrator, [self.change("NEW", company, [self.period("0")])])[
                 "changed_count"

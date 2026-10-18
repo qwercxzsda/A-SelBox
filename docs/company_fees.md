@@ -51,12 +51,15 @@ receive only their own assigned SKUs and can inspect their fees and coverage wit
 
 ### Administrator completeness
 
-Every administrator save must leave every known exact SKU assigned to a company. Known names
-come from the SKU registry and both retained source histories, including names found only in
-historical versions. A batch contains at least one changed SKU and a nonblank change reason.
-Only changed SKUs are submitted, but unchanged incomplete settings also block a save. Each
-changed SKU supplies a complete fee inventory and its expected current version; stale edits
-and invalid batches publish nothing.
+Every administrator save must leave each changed exact SKU assigned to a company, with coverage
+for its required fee dates. A batch contains at least one changed SKU and a nonblank change reason.
+Each changed SKU supplies a complete fee inventory and its expected current version; stale edits
+and invalid batches publish nothing. Unrelated incomplete settings do not block this batch.
+
+Global diagnostics still include known names from the SKU registry and both retained source
+histories, including names found only in historical versions. These setup gaps remain visible in
+Current fees, and complete financial totals and payout generation retain their ownership and fee
+coverage requirements. Saving a valid correction does not declare the whole catalog ready.
 
 Required fee dates come from the selected current source versions:
 
@@ -75,8 +78,25 @@ ranges and identify missing companies separately.
 
 This is validation of the configuration known when the batch is checked. Older incomplete
 terms remain readable, and subsequent imports can introduce new SKUs or fee requirements.
-These gaps appear on the screen and must be repaired before the next administrator save.
+These gaps appear on the screen and must be repaired before publishing changes to the affected SKU
+or calculating a complete financial scope that requires those settings.
 Source imports never invent an owner or rate. Saved payout snapshots remain unchanged.
+
+### Editing and review
+
+Closing the fee editor with X, Escape, or its backdrop keeps unfinished inputs separately from
+staged changes. **Resume unfinished edit** returns to them; **Discard edits** removes that
+unfinished edit while preserving any previously staged version. Both open and closed unfinished
+edits survive reload in the same browser session and permission scope. **Keep draft** explicitly
+stages the SKU for **Review changes**; only staged changes are submitted by **Save all changes**.
+Review warns when unfinished edits are outside the batch. The pending-changes bar stays reachable
+while scrolling Current fees, and closing a drawer returns focus to its opener where available.
+
+**Change rate from date** previews a split of one existing fee period. The previous rate ends
+exclusively on the new rate's inclusive start date; the original end remains unchanged. Choosing
+the existing start replaces that interval's rate without adding an empty interval. Rates remain
+exact strings with up to six fractional digits. **Use rate change in draft** applies the preview
+only to the editor; Keep draft, review, and final save are still explicit steps.
 
 ### Stable identity and versioned ownership
 
@@ -143,9 +163,10 @@ period inventory, validates the terms, and advances the current reference in one
 transaction. It allocates the next revision number while holding the lock.
 A stale edit or other failure preserves the previous selection.
 
-Administrator batches acquire changed-SKU locks in exact text order and validate the resulting
-whole configuration after all changes. Any missing ownership or required rate rolls back every
-new revision and pointer update in the batch. The browser preserves drafts after rejections and
+Administrator batches acquire changed-SKU locks in exact text order, recheck administrator access,
+and validate the resulting configuration for those changed SKUs after all writes. Missing ownership
+or a required rate on any changed SKU rolls back every new revision and pointer update in the batch.
+The browser preserves drafts after rejections and
 requires refreshed saved settings after a stale or unconfirmed write; it never retries publication
 automatically. A failed display refresh after a confirmed save does not undo that save.
 

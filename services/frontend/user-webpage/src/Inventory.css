@@ -9,6 +9,30 @@
 .inventory-filters > * {
   max-width: 100%;
 }
+.inventory-filter-chip {
+  height: auto;
+  max-width: 100%;
+  padding-block: 0.25rem;
+}
+.inventory-filter-chip .mantine-Button-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.inventory-coverage-markets > * {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.inventory-source-date {
+  max-width: 100%;
+}
+.inventory-source-date p {
+  overflow-wrap: anywhere;
+}
+.inventory-sales-note {
+  padding: 0.5rem 0.75rem;
+  border-inline-start: 3px solid var(--ui-accent);
+  background: var(--ui-surface-header);
+}
 .inventory-scroll-hint {
   display: none;
 }

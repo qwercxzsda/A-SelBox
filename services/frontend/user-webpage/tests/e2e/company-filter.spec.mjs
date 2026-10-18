@@ -113,11 +113,11 @@ test("administrator company scope controls the latest date, every summary, and e
     "lte.2026-02-28",
   ]);
   await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
-  await summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
+  await summaries.getByLabel("Summary currency", { exact: true }).selectOption("EUR");
   await expect(amount(day, "Reported amount")).toHaveText("20.00 EUR");
   await expect(amount(month, "Reported amount")).toHaveText("20.00 EUR");
   await expect(amount(selected, "Reported amount")).toHaveText("20.00 EUR");
-  await summaries.getByLabel("Currency", { exact: true }).selectOption("USD");
+  await summaries.getByLabel("Summary currency", { exact: true }).selectOption("USD");
 
   await chooseCompanies(page, ["Company B"]);
   await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");

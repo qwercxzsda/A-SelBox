@@ -154,7 +154,9 @@ for (const width of [1280, 320, 390]) {
     ).toHaveCount(0);
     await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
     await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
-    await summaryCards(page).summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
+    await summaryCards(page)
+      .summaries.getByLabel("Summary currency", { exact: true })
+      .selectOption("EUR");
     await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
     await expect(buttons).toHaveCount(1);
     await expect(salesButton).toHaveAttribute("aria-expanded", "false");

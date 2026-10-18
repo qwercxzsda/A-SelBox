@@ -9,6 +9,13 @@
   background: var(--ui-surface-subtle);
 }
 
+.fee-draft-status[data-dirty="true"] {
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  box-shadow: 0 3px 12px #24334214;
+}
+
 .fee-list-toolbar {
   display: flex;
   flex-wrap: wrap;

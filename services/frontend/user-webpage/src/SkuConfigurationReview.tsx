@@ -11,6 +11,7 @@ const GAP_SHORTCUT_LIMIT = 5;
 
 export function SkuConfigurationReview({
   drafts,
+  unfinishedCount,
   savedItems,
   companies,
   issues,
@@ -28,6 +29,7 @@ export function SkuConfigurationReview({
   onClose,
 }: {
   drafts: SkuConfigurationChange[];
+  unfinishedCount: number;
   savedItems: SkuConfigurationItem[];
   companies: Map<string, string>;
   issues: SkuFormIssue[];
@@ -74,6 +76,13 @@ export function SkuConfigurationReview({
             Company assignments apply to all live transaction history for each SKU. Fee rates follow
             their configured dates. Previously saved payout reports keep their original values.
           </Text>
+          {unfinishedCount ? (
+            <Alert color="orange">
+              {unfinishedCount} unfinished {unfinishedCount === 1 ? "edit is" : "edits are"} not
+              part of this save. Return to editing and choose Keep draft to include{" "}
+              {unfinishedCount === 1 ? "it" : "them"}.
+            </Alert>
+          ) : null}
           {saveProblem ? (
             <Alert role="alert" color="red">
               <Text size="sm">{saveProblem}</Text>
@@ -145,8 +154,8 @@ export function SkuConfigurationReview({
               title={`${String(incomplete.length)} ${incomplete.length === 1 ? "SKU needs" : "SKUs need"} setup before saving`}
             >
               <Text size="sm">
-                Every known SKU must have a company and all required fee periods, including SKUs
-                outside this draft.
+                Each changed SKU needs a company and all required fee periods. Setup gaps in other
+                SKUs do not block this draft.
               </Text>
               <Stack gap="xs" mt="sm">
                 {incomplete.slice(0, GAP_SHORTCUT_LIMIT).map((sku) => (
@@ -164,7 +173,7 @@ export function SkuConfigurationReview({
                 ))}
                 {incomplete.length > GAP_SHORTCUT_LIMIT ? (
                   <Button variant="subtle" disabled={isSaving} onClick={onShowIncomplete}>
-                    View all {incomplete.length} SKUs needing setup
+                    View all setup gaps in Current fees
                   </Button>
                 ) : null}
               </Stack>

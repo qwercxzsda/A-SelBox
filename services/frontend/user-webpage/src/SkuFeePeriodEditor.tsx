@@ -11,6 +11,7 @@ export function SkuFeePeriodEditor({
   marketplaceRef,
   onUpdate,
   onRemove,
+  onChangeRate,
 }: {
   period: SkuConfigurationPeriod;
   index: number;
@@ -18,6 +19,7 @@ export function SkuFeePeriodEditor({
   marketplaceRef: Ref<HTMLSelectElement>;
   onUpdate: (field: keyof SkuConfigurationPeriod, value: string | null) => void;
   onRemove: () => void;
+  onChangeRate: () => void;
 }) {
   const number = String(index + 1);
   const errorFor = (field: keyof SkuConfigurationPeriod) =>
@@ -29,15 +31,27 @@ export function SkuFeePeriodEditor({
           <Text fw={600} size="sm">
             Period {number}
           </Text>
-          <Button
-            size="compact-sm"
-            color="#9e1834"
-            variant="subtle"
-            aria-label={`Remove period ${number}`}
-            onClick={onRemove}
-          >
-            Remove
-          </Button>
+          <Group gap="xs">
+            <Button
+              type="button"
+              size="compact-sm"
+              variant="light"
+              disabled={!period.marketplace_name || !period.valid_from || !period.fee_rate_percent}
+              aria-label={`Change rate from date for period ${number}`}
+              onClick={onChangeRate}
+            >
+              Change rate from date
+            </Button>
+            <Button
+              size="compact-sm"
+              color="#9e1834"
+              variant="subtle"
+              aria-label={`Remove period ${number}`}
+              onClick={onRemove}
+            >
+              Remove
+            </Button>
+          </Group>
         </Group>
         <div className="sku-fee-period-fields">
           <NativeSelect

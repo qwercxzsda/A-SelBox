@@ -99,7 +99,7 @@ test("draft creation preserves saved rates and prefills only uncovered intervals
   draft.periods[0].fee_rate_percent = "6";
   assert.equal(saved.periods[0].fee_rate_percent, "5.123456");
 });
-test("global checks require an owner even without commission data and include untouched/new SKUs", () => {
+test("global readiness includes untouched SKUs while publication validates only staged changes", () => {
   const saved = [item(), newSkuItem("S2")];
   const drafts = [
     { ...createSkuDraft(item()), company_id: "company-b" },
@@ -111,6 +111,15 @@ test("global checks require an owner even without commission data and include un
   );
   assert.equal(resolveSkuConfiguration(saved, drafts).items[0].sku, " S3 ");
   assert.equal(saved[0].company_id, "company-a");
+  assert.deepEqual(resolveSkuConfiguration(saved, drafts).draftIssues, []);
+  const invalid = createSkuDraft(newSkuItem("S2"));
+  assert.deepEqual(
+    resolveSkuConfiguration(saved, [...drafts, invalid]).draftIssues.map((issue) => [
+      issue.sku,
+      issue.field,
+    ]),
+    [["S2", "company_id"]],
+  );
 });
 
 test("new marketplaces prefill one ongoing blank rate from the earliest required date", () => {

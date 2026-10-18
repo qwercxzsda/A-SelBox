@@ -98,7 +98,7 @@ test("a blocked review explains the disabled save and jumps directly to required
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await setup(page, "administrator", [item("S1"), item("S2", { company_id: null })]);
-  await openEditor(page);
+  await openEditor(page, "S2");
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6");
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);

@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchPayoutTypeTotals, type CanonicalRow } from "./api";
 import { AmountBreakdown } from "./AmountBreakdown";
 import { PayoutComponents } from "./PayoutComponents";
+import { PayoutMarketplaceTotals } from "./PayoutMarketplaceTotals";
+import { DetailSection } from "./DetailSection";
 import { getErrorMessage } from "./view-model";
 
 export function PayoutAmounts({ row, accessToken }: { row: CanonicalRow; accessToken: string }) {
@@ -29,6 +31,20 @@ export function PayoutAmounts({ row, accessToken }: { row: CanonicalRow; accessT
       loading={query.isFetching}
       error={query.error ? getErrorMessage(query.error) : null}
       onRetry={() => void query.refetch()}
+      additionalBreakdown={
+        <DetailSection
+          stateKey={`payout:${reportId}:marketplaces`}
+          title="Marketplace breakdown"
+          collapsible
+          description="Reported amount, service fee, and company amount by marketplace."
+        >
+          <PayoutMarketplaceTotals
+            reportId={reportId}
+            currency={currency}
+            accessToken={accessToken}
+          />
+        </DetailSection>
+      }
       renderRecords={(selection) => (
         <PayoutComponents
           key={JSON.stringify([selection.types, selection.revision])}
