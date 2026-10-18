@@ -52,7 +52,7 @@ async function seedGroupedBreakdown(page) {
 }
 
 for (const width of [1280, 320, 390]) {
-  test(`collapsed type groups at ${width}px use fixed order and preserve exact totals when expanded`, async ({
+  test(`collapsed type groups at ${width}px use fixed order and preserve totals when expanded`, async ({
     page,
   }, testInfo) => {
     const mobile = width < 720;
@@ -74,10 +74,8 @@ for (const width of [1280, 320, 390]) {
     const children = dialog.getByRole(childRole, { name: / amounts$/ });
     await expect(children).toHaveCount(0);
     const total = dialog.getByRole("region", { name: "Breakdown total", exact: true });
-    await expect(summaryAmount(total, "Reported amount")).toHaveText("109.000000000000000001 USD");
-    await expect(summaryAmount(total, "Known company amount")).toHaveText(
-      "97.000000000000000001 USD",
-    );
+    await expect(summaryAmount(total, "Reported amount")).toHaveText("109.00 USD");
+    await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
     await expect(total).toContainText("8 records across 7 types");
     await expect(total).toContainText("3 transactions have uncalculated amounts.");
     await testInfo.attach(`grouped-breakdown-collapsed-${width}px`, {
@@ -115,19 +113,15 @@ for (const width of [1280, 320, 390]) {
     }
 
     const sales = dialog.getByRole("region", { name: "Sales and refunds subtotal", exact: true });
-    await expect(summaryAmount(sales, "Reported amount")).toHaveText("5.000000000000000001 USD");
-    await expect(summaryAmount(sales, "Known company amount")).toHaveText(
-      "0.000000000000000001 USD",
-    );
+    await expect(summaryAmount(sales, "Reported amount")).toHaveText("5.00 USD");
+    await expect(summaryAmount(sales, "Known company amount")).toHaveText("0.00 USD");
     await expect(sales).toContainText("2 uncalculated");
     const referral = dialog.getByRole("region", { name: "Referral fee subtotal", exact: true });
-    await expect(summaryAmount(referral, "Company amount")).toHaveText("100 USD");
+    await expect(summaryAmount(referral, "Company amount")).toHaveText("100.00 USD");
     const unknown = dialog.getByRole("region", { name: "Other subtotal", exact: true });
     await expect(summaryAmount(unknown, "Known company amount")).toHaveText("—");
-    await expect(summaryAmount(total, "Reported amount")).toHaveText("109.000000000000000001 USD");
-    await expect(summaryAmount(total, "Known company amount")).toHaveText(
-      "97.000000000000000001 USD",
-    );
+    await expect(summaryAmount(total, "Reported amount")).toHaveText("109.00 USD");
+    await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
     await expect(total).toContainText("8 records across 7 types");
     expect(fixture.breakdownRequests).toHaveLength(1);
     if (mobile) {
@@ -158,9 +152,7 @@ for (const width of [1280, 320, 390]) {
     await expect(
       dialog.getByRole(childRole, { name: "Product sales amounts", exact: true }),
     ).toHaveCount(0);
-    await expect(summaryAmount(total, "Known company amount")).toHaveText(
-      "97.000000000000000001 USD",
-    );
+    await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
     await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
     await summaryCards(page).summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
     await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
@@ -168,7 +160,7 @@ for (const width of [1280, 320, 390]) {
     await expect(salesButton).toHaveAttribute("aria-expanded", "false");
     await salesButton.click();
     await expect(children).toHaveCount(1);
-    await expect(summaryAmount(total, "Company amount")).toHaveText("42 EUR");
+    await expect(summaryAmount(total, "Company amount")).toHaveText("42.00 EUR");
     await expect(total).toContainText("1 record across 1 type");
     await expect(dialog).not.toContainText("USD");
     expect(fixture.breakdownRequests.map(({ params }) => params.get("currency"))).toEqual([

@@ -35,11 +35,11 @@ test("a saved zero report displays without a currency and remains readable durin
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await selectColumnOptions(page, "Company", ["Monthly Company"]);
   await applyReportMonth(page, "2026-06");
-  await expect(page.getByRole("cell", { name: "0", exact: true })).toHaveCount(3);
-  await page.getByRole("cell", { name: "0", exact: true }).first().click();
+  await expect(page.getByRole("cell", { name: "0.00", exact: true })).toHaveCount(3);
+  await page.getByRole("cell", { name: "0.00", exact: true }).first().click();
   const drawer = page.getByRole("dialog", { name: "Selected row details" });
   await expect(
-    drawer.getByRole("region", { name: "Breakdown total" }).getByText("0", { exact: true }),
+    drawer.getByRole("region", { name: "Breakdown total" }).getByText("0.00", { exact: true }),
   ).toHaveCount(3);
   await drawer.getByText("Marketplace breakdown", { exact: true }).first().click();
   await expect(drawer.getByText("No saved marketplace amounts.", { exact: true })).toBeVisible();
@@ -48,7 +48,7 @@ test("a saved zero report displays without a currency and remains readable durin
   ).toBeVisible();
   await expect(drawer.getByRole("columnheader")).toHaveCount(0);
   await expect(drawer.getByText("Reconciliation", { exact: true })).toHaveCount(0);
-  await expect(drawer.getByText(/\b0 [A-Z]{3}\b/)).toHaveCount(0);
+  await expect(drawer.getByText(/\b0\.00 [A-Z]{3}\b/)).toHaveCount(0);
   await captureResponsiveReview(page, testInfo, "zero-payout-report");
   await page.getByRole("button", { name: "Close row details" }).click();
   const completedPolls = () => fixture.revisionRequests.filter(({ completed }) => completed).length;
@@ -61,5 +61,5 @@ test("a saved zero report displays without a currency and remains readable durin
   await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
   expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
   expect(fixture.payoutRows).toHaveLength(1);
-  await expect(page.getByRole("cell", { name: "0", exact: true })).toHaveCount(3);
+  await expect(page.getByRole("cell", { name: "0.00", exact: true })).toHaveCount(3);
 });

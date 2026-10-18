@@ -31,7 +31,7 @@ async function checkRevision(page, workspace) {
 }
 
 for (const role of ["member", "administrator"]) {
-  test(`${role} opens compact inventory rows by mouse and keyboard with complete exact details`, async ({
+  test(`${role} opens compact inventory rows by mouse and keyboard with precise quantities and rounded sales`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -61,7 +61,7 @@ for (const role of ["member", "administrator"]) {
       }),
     ]);
     const selected = row(page, "DETAIL-SKU");
-    await expect(selected).toContainText("9,007,199,254,740,993.123456789 USD");
+    await expect(selected).toContainText("9,007,199,254,740,993.12 USD");
     await expect(selected.getByText("Available", { exact: true }).locator("..")).toHaveText(
       "Available0",
     );
@@ -85,7 +85,7 @@ for (const role of ["member", "administrator"]) {
     await expect(details(page)).toBeVisible();
     expect(fixture.requests).toHaveLength(reads);
     for (const [label, value] of [
-      ["Sales", "9,007,199,254,740,993.123456789 USD"],
+      ["Sales", "9,007,199,254,740,993.12 USD"],
       ["Units shipped", "101"],
       ["Available", "0"],
       ["Inbound", "19"],

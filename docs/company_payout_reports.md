@@ -259,16 +259,18 @@ reconciliation. The view derives its totals from saved components.
 
 ## Administrator financial review
 
-[Financial review](financial_review.md) compares current mature source facts in the
-Finances, Data Kiosk, and SelBox categories. Each category groups months and currencies
-across the entire account. Its source records explain the current type subtotals without
-repeated company-report snapshots. Only the Data Kiosk difference is the accounting
+[Financial review](financial_review.md) compares current source facts in the
+Finances, Data Kiosk, and SelBox categories for one selected year and currency across the entire
+account. It includes only fully mature months, using the same month boundary as payout reports,
+and shows monthly and running differences. Its source records explain the current type subtotals
+without repeated company-report snapshots. Only the Data Kiosk difference is the accounting
 reconciliation amount; the other category differences are diagnostic.
 
-The month's **Saved report snapshots** section retains the selected report's comparison
-rows and frozen account controls. Those controls can include other companies and currencies,
-so their account scope stays separate from the report's company/month/currency scope.
-`public.payout_reconciliation_totals` groups one snapshot by currency; optional daily rows
+The month's **Saved report snapshots** section lists reports for the selected review currency and
+retains the selected report's comparison rows and frozen account controls. The UI filters both
+saved control totals and daily details to that currency. Controls can still include other companies,
+so their account scope stays separate from the report's company scope. The stored snapshot is
+unchanged: `public.payout_reconciliation_totals` groups it by currency, and optional daily rows
 preserve source provenance. Report diagnostics remain exclusive of the company payout amount.
 
 ## Saved account reconciliation

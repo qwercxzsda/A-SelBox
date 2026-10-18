@@ -6,7 +6,6 @@ import type { FetchInventoryPageOptions } from "./api/inventory.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
 import type {
   FinancialReviewCategory,
-  FinancialReviewPageCursor,
   FinancialReviewRecordFilters,
 } from "./api/financial-review.ts";
 import type {
@@ -31,8 +30,7 @@ export type {
   FinancialReviewCategory,
   FinancialReviewSource,
   FinancialReviewRecordFilters,
-  FinancialReviewMonthPage,
-  FinancialReviewPageCursor,
+  FinancialReviewBounds,
 } from "./api/financial-review.ts";
 export { SkuConfigurationError } from "./api/sku-configuration-errors.ts";
 export type {
@@ -152,36 +150,35 @@ export const fetchPayoutReconciliation = (
   reportId: string,
   pageIndex: number,
   signal?: AbortSignal,
-) => getDefaultClient().fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal);
+  currency?: string,
+) =>
+  getDefaultClient().fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal, currency);
 
 export const fetchPayoutReconciliationTotals = (
   accessToken: string,
   reportId: string,
   signal?: AbortSignal,
-) => getDefaultClient().fetchPayoutReconciliationTotals(accessToken, reportId, signal);
+  currency?: string,
+) => getDefaultClient().fetchPayoutReconciliationTotals(accessToken, reportId, signal, currency);
 
-export const fetchFinancialReviewMonths = (
+export const fetchFinancialReviewBounds = (
   accessToken: string,
   category: FinancialReviewCategory,
-  cursor: FinancialReviewPageCursor | null,
-  pageSize: number,
-  filterMonth: string,
   signal?: AbortSignal,
-) =>
-  getDefaultClient().fetchFinancialReviewMonths(
-    accessToken,
-    category,
-    cursor,
-    pageSize,
-    filterMonth,
-    signal,
-  );
+) => getDefaultClient().fetchFinancialReviewBounds(accessToken, category, signal);
+export const fetchFinancialReviewPeriod = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  year: string,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchFinancialReviewPeriod(accessToken, category, year, signal);
 export const fetchFinancialReviewTotals = (
   accessToken: string,
   category: FinancialReviewCategory,
   month: string,
+  currency: string,
   signal?: AbortSignal,
-) => getDefaultClient().fetchFinancialReviewTotals(accessToken, category, month, signal);
+) => getDefaultClient().fetchFinancialReviewTotals(accessToken, category, month, currency, signal);
 export const fetchFinancialReviewTypes = (
   accessToken: string,
   category: FinancialReviewCategory,

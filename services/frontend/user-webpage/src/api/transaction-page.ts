@@ -8,7 +8,7 @@ import type {
   FetchDatasetPageOptions,
   PageResult,
 } from "./types.ts";
-import { isJsonObject } from "./validation.ts";
+import { isCurrency, isJsonObject } from "./validation.ts";
 import { validateTransactionSearch } from "./transaction-search.ts";
 
 type TransactionDataset = Extract<TableDatasetKey, "live" | "finances" | "data_kiosk">;
@@ -23,7 +23,7 @@ export function transactionFilterArguments(
 ) {
   if (
     options.currency !== undefined &&
-    (options.dataset !== "live" || !/^[A-Z]{3}$/.test(options.currency))
+    (options.dataset !== "live" || !isCurrency(options.currency))
   )
     throw new Error("A valid transaction currency is required");
   const filters = datasetFilterValues(options.dataset, options.filters);

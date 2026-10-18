@@ -2,6 +2,7 @@ import { requireCalendarDate, textSelectionValues } from "./filters.ts";
 import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
+import { requireCurrency } from "./validation.ts";
 
 export type FinancialReviewCategory = "FINANCES" | "DATA_KIOSK" | "SELBOX";
 export type FinancialReviewSource = "FINANCES" | "DATA_KIOSK";
@@ -11,14 +12,9 @@ export interface FinancialReviewRecordFilters {
   type?: string;
 }
 
-export interface FinancialReviewPageCursor {
-  month: string;
-  offset: number;
-}
-
-export interface FinancialReviewMonthPage {
-  rows: CanonicalRow[];
-  nextCursor: FinancialReviewPageCursor | null;
+export interface FinancialReviewBounds {
+  firstMonth: string | null;
+  lastMonth: string | null;
 }
 
 export const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
@@ -61,40 +57,16 @@ function requireMonth(month: string): void {
   requireCalendarDate(`${month}-01`);
 }
 
+export function requireFinancialReviewYear(year: string): void {
+  if (typeof year !== "string" || !/^(?!0000)\d{4}$/.test(year))
+    throw new Error("Choose a valid financial review year");
+}
+
 function returnedMonth(date: string | null | undefined): string {
   if (!date) throw new Error("Financial review returned an invalid month");
   requireCalendarDate(date);
   if (!date.endsWith("-01")) throw new Error("Financial review returned an invalid month");
   return date.slice(0, 7);
-}
-
-function firstMonthInWindow(month: string): string {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const index = Math.max(0, (year - 1) * 12 + monthNumber - 1 - 5);
-  return `${String(Math.floor(index / 12) + 1).padStart(4, "0")}-${String((index % 12) + 1).padStart(2, "0")}`;
-}
-
-function requireMonthPage(
-  category: FinancialReviewCategory,
-  cursor: FinancialReviewPageCursor | null,
-  pageSize: number,
-  filterMonth: string,
-): void {
-  requireFinancialReviewCategory(category);
-  validatePagination(0, pageSize);
-  // Leave room under the server's row cap for the next-page lookahead.
-  validatePagination(0, pageSize + 1);
-  if (typeof filterMonth !== "string") throw new Error("Choose a valid financial review month");
-  if (filterMonth) requireMonth(filterMonth);
-  if (cursor === null) return;
-  if (typeof cursor !== "object" || Array.isArray(cursor))
-    throw new Error("Choose a valid financial review page");
-  requireMonth(cursor.month);
-  validatePagination(cursor.offset, 1);
-  if (!Number.isSafeInteger(cursor.offset + pageSize))
-    throw new Error("Page offset exceeds JavaScript's safe range");
-  if (filterMonth && cursor.month !== filterMonth)
-    throw new Error("Financial review page does not match the selected month");
 }
 
 function scopeParams(category: FinancialReviewCategory): URLSearchParams {
@@ -125,113 +97,117 @@ function totalParams(
 }
 
 function setDetailPage(params: URLSearchParams, currency: string, pageIndex: number): void {
-  if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency))
-    throw new Error("A valid currency code is required");
+  requireCurrency(currency);
   validatePagination(pageIndex, DETAIL_PAGE_SIZE);
   params.set("limit", String(DETAIL_PAGE_SIZE));
   params.set("offset", String(pageIndex * DETAIL_PAGE_SIZE));
 }
 
 export function createFinancialReviewApi(transport: ApiTransport) {
-  async function readLatestMonth(
+  async function readBoundaryMonth(
     accessToken: string,
     category: FinancialReviewCategory,
-    before?: string,
+    direction: "asc" | "desc",
     signal?: AbortSignal,
   ): Promise<string | null> {
     const params = scopeParams(category);
     params.set("select", "activity_date");
-    params.set("order", "activity_date.desc");
+    params.set("order", `activity_date.${direction}`);
     params.set("limit", "1");
-    if (before) params.set("activity_date", `lt.${before}-01`);
     const result = await transport.readCsvPage(
       accessToken,
       "financial_review_records",
       params,
-      "Latest financial review month",
+      "Financial review date bounds",
       signal,
       false,
     );
     if (result.rows.length === 0) return null;
+    if (result.rows.length > 1) throw new Error("Financial review returned too many date bounds");
     const date = result.rows[0].activity_date;
     if (!date) throw new Error("Financial review returned an invalid activity date");
     requireCalendarDate(date);
-    const month = date.slice(0, 7);
-    if (before && month >= before)
-      throw new Error("Financial review returned a month outside the requested range");
-    return month;
+    return date.slice(0, 7);
+  }
+
+  async function readTotals(
+    accessToken: string,
+    category: FinancialReviewCategory,
+    firstMonth: string,
+    lastMonth: string,
+    currency: string | undefined,
+    signal?: AbortSignal,
+  ): Promise<CanonicalRow[]> {
+    const params = totalParams(category, firstMonth, lastMonth);
+    if (currency !== undefined) {
+      requireCurrency(currency);
+      params.set("currency", `eq.${currency}`);
+    }
+    params.set("select", rpcProjection(FINANCIAL_REVIEW_TOTAL_COLUMNS));
+    params.set("order", "month.asc,currency.asc");
+    params.set("limit", String(LOOKUP_PAGE_SIZE));
+    const result = await transport.readCsvPage(
+      accessToken,
+      "rpc/financial_review_totals",
+      params,
+      "Financial review totals",
+      signal,
+      false,
+    );
+    if (result.rows.length >= LOOKUP_PAGE_SIZE)
+      throw new Error("Financial review returned too many monthly currencies");
+    const scopes = new Set<string>();
+    for (const row of result.rows) {
+      const month = returnedMonth(row.month);
+      if (month < firstMonth || month > lastMonth)
+        throw new Error("Financial review returned a month outside the requested range");
+      const rowCurrency = row.currency ?? "";
+      requireCurrency(rowCurrency);
+      if (currency !== undefined && rowCurrency !== currency)
+        throw new Error("Financial review returned a different currency");
+      const scope = `${month}:${rowCurrency}`;
+      if (scopes.has(scope)) throw new Error("Financial review repeated a monthly currency");
+      scopes.add(scope);
+    }
+    return result.rows;
   }
 
   return {
-    async fetchFinancialReviewMonths(
+    async fetchFinancialReviewBounds(
       accessToken: string,
       category: FinancialReviewCategory,
-      cursor: FinancialReviewPageCursor | null,
-      pageSize: number,
-      filterMonth: string,
       signal?: AbortSignal,
-    ): Promise<FinancialReviewMonthPage> {
-      requireMonthPage(category, cursor, pageSize, filterMonth);
-      let month =
-        cursor?.month ??
-        (filterMonth || (await readLatestMonth(accessToken, category, undefined, signal)));
-      let offset = cursor?.offset ?? 0;
-      const rows: CanonicalRow[] = [];
-      while (month !== null) {
-        const firstMonth = filterMonth || firstMonthInWindow(month);
-        const remaining = pageSize - rows.length;
-        const params = totalParams(category, firstMonth, month);
-        params.set("select", rpcProjection(FINANCIAL_REVIEW_TOTAL_COLUMNS));
-        params.set("order", "month.desc,currency.asc");
-        params.set("limit", String(remaining + 1));
-        params.set("offset", String(offset));
-        const result = await transport.readCsvPage(
-          accessToken,
-          "rpc/financial_review_totals",
-          params,
-          "Monthly financial review",
-          signal,
-          false,
-        );
-        if (result.rows.length > remaining + 1)
-          throw new Error("Financial review returned too many monthly currencies");
-        for (const row of result.rows) {
-          const rowMonth = returnedMonth(row.month);
-          if (rowMonth < firstMonth || rowMonth > month)
-            throw new Error("Financial review returned a month outside the requested range");
-        }
-        rows.push(...result.rows.slice(0, remaining));
-        if (result.rows.length > remaining)
-          return { rows, nextCursor: { month, offset: offset + remaining } };
-        if (filterMonth) return { rows, nextCursor: null };
-        month = await readLatestMonth(accessToken, category, firstMonth, signal);
-        offset = 0;
-        if (month !== null && rows.length === pageSize)
-          return { rows, nextCursor: { month, offset } };
-      }
-      return { rows, nextCursor: null };
+    ): Promise<FinancialReviewBounds> {
+      requireFinancialReviewCategory(category);
+      const [firstMonth, lastMonth] = await Promise.all([
+        readBoundaryMonth(accessToken, category, "asc", signal),
+        readBoundaryMonth(accessToken, category, "desc", signal),
+      ]);
+      if (
+        (firstMonth === null) !== (lastMonth === null) ||
+        (firstMonth && lastMonth && firstMonth > lastMonth)
+      )
+        throw new Error("Financial review returned inconsistent date bounds");
+      return { firstMonth, lastMonth };
+    },
+    async fetchFinancialReviewPeriod(
+      accessToken: string,
+      category: FinancialReviewCategory,
+      year: string,
+      signal?: AbortSignal,
+    ): Promise<CanonicalRow[]> {
+      requireFinancialReviewYear(year);
+      return readTotals(accessToken, category, `${year}-01`, `${year}-12`, undefined, signal);
     },
     async fetchFinancialReviewTotals(
       accessToken: string,
       category: FinancialReviewCategory,
       month: string,
+      currency: string,
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
-      const params = totalParams(category, month);
-      params.set("select", rpcProjection(FINANCIAL_REVIEW_TOTAL_COLUMNS));
-      params.set("order", "currency.asc");
-      params.set("limit", String(LOOKUP_PAGE_SIZE));
-      const result = await transport.readCsvPage(
-        accessToken,
-        "rpc/financial_review_totals",
-        params,
-        "Financial review totals",
-        signal,
-        false,
-      );
-      if (result.rows.length >= LOOKUP_PAGE_SIZE)
-        throw new Error("Financial review returned too many currencies");
-      return result.rows;
+      requireCurrency(currency);
+      return readTotals(accessToken, category, month, month, currency, signal);
     },
     fetchFinancialReviewTypes(
       accessToken: string,

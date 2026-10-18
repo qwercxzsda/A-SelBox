@@ -156,17 +156,25 @@ for (const [user, role] of [
         authoritative: "true",
       }));
       const estimate = await openEstimate(page, user);
-      const expected = ["50 USD", "-45 USD", "5 USD"];
+      const expected = ["50.00 USD", "-45.00 USD", "5.00 USD"];
       await assertTotals(estimate, expected);
       const groups = [
         [
           "Sales and refunds",
-          ["900 USD", "-45 USD", "855 USD"],
+          ["900.00 USD", "-45.00 USD", "855.00 USD"],
           ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
         ],
-        ["Sponsored Products charge", ["-700 USD", "0 USD", "-700 USD"], ["SPONSORED_PRODUCT_FEE"]],
-        ["Referral fee", ["-150 USD", "0 USD", "-150 USD"], ["REFERRAL_FEE"]],
-        ["Monthly inventory storage fee", ["0 USD", "0 USD", "0 USD"], ["FBA_STORAGE_FEE"]],
+        [
+          "Sponsored Products charge",
+          ["-700.00 USD", "0.00 USD", "-700.00 USD"],
+          ["SPONSORED_PRODUCT_FEE"],
+        ],
+        ["Referral fee", ["-150.00 USD", "0.00 USD", "-150.00 USD"], ["REFERRAL_FEE"]],
+        [
+          "Monthly inventory storage fee",
+          ["0.00 USD", "0.00 USD", "0.00 USD"],
+          ["FBA_STORAGE_FEE"],
+        ],
       ];
       for (const [name, amounts] of groups) await assertHeaderAmounts(estimate, name, amounts);
       for (const [index, field] of fields.entries()) {
@@ -178,14 +186,19 @@ for (const [user, role] of [
           (total, value) => total + Number(value.replaceAll(",", "").replace(" USD", "")),
           0,
         );
-        expect(`${sum} USD`).toBe(expected[index]);
+        expect(`${sum.toFixed(2)} USD`).toBe(expected[index]);
       }
       const records = estimate.getByRole("table", { name: "Amount records", exact: true });
       await expect(records.getByRole("row")).toHaveCount(rows.length + 1);
       for (const row of rows) {
         const cells = recordRow(records, row.sku).getByRole("cell");
         for (const [index, field] of ["source_amount", "fee_amount", "company_amount"].entries())
-          await expect(cells.nth(6 + index)).toHaveText(Number(row[field]).toLocaleString("en-US"));
+          await expect(cells.nth(6 + index)).toHaveText(
+            Number(row[field]).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }),
+          );
       }
       await estimate
         .getByRole("button", { name: "Sales and refunds details", exact: true })
@@ -236,7 +249,7 @@ for (const [user, role] of [
       });
       await estimate.getByRole("button", { name: "Close breakdown", exact: true }).click();
       await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-      await page.getByRole("cell", { name: "5 USD", exact: true }).last().click();
+      await page.getByRole("cell", { name: "5.00 USD", exact: true }).last().click();
       const payout = page.getByRole("dialog", { name: "Selected row details", exact: true });
       await assertTotals(payout, expected);
       for (const [name, amounts] of groups) await assertHeaderAmounts(payout, name, amounts);
@@ -252,19 +265,19 @@ for (const scenario of [
   {
     label: "all unknown",
     rows: [record("PRODUCT_SALES", "100", 1, null)],
-    expected: ["100 USD", "—", "—"],
+    expected: ["100.00 USD", "—", "—"],
   },
   {
     label: "known zero with unknown",
     rows: [record("PRODUCT_SALES", "100", 1, null), record("FBA_STORAGE_FEE", "0", 2)],
-    expected: ["100 USD", "0 USD", "0 USD"],
+    expected: ["100.00 USD", "0.00 USD", "0.00 USD"],
   },
 ]) {
   test(`every displayed total preserves ${scenario.label} amounts`, async ({ page }) => {
     await setRecords(page, scenario.rows);
     const estimate = await openEstimate(page);
     await assertTotals(estimate, scenario.expected, true);
-    await assertHeaderAmounts(estimate, "Sales and refunds", ["100 USD", "—", "—"], true);
+    await assertHeaderAmounts(estimate, "Sales and refunds", ["100.00 USD", "—", "—"], true);
     await expect(
       estimate.getByRole("region", { name: "Breakdown total", exact: true }),
     ).toContainText("1 transaction has uncalculated amounts.");
@@ -272,12 +285,12 @@ for (const scenario of [
     await expect(recordRow(records, "PRODUCT_SALES-001").getByRole("cell").nth(8)).toHaveText("—");
     if (scenario.rows.length > 1) {
       await assertHeaderAmounts(estimate, "Monthly inventory storage fee", [
-        "0 USD",
-        "0 USD",
-        "0 USD",
+        "0.00 USD",
+        "0.00 USD",
+        "0.00 USD",
       ]);
       await expect(recordRow(records, "FBA_STORAGE_FEE-002").getByRole("cell").nth(8)).toHaveText(
-        "0",
+        "0.00",
       );
     }
   });

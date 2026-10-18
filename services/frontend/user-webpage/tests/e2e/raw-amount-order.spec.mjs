@@ -54,6 +54,9 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
     ]) {
       await sortBy(page, "Reported amount", ordering);
       await expect(firstRow.getByRole("cell", { name: sku, exact: true })).toBeVisible();
+      await expect(firstRow.locator(`[data-column="${amountColumn}"]`)).toHaveText(
+        `${direction === "asc" ? "-" : ""}9,007,199,254,740,993.00 USD`,
+      );
       expect(fixture.requests.at(-1).transport).toBe("rpc");
       expect(fixture.requests.at(-1).args).toMatchObject({
         p_order_by: "amount",

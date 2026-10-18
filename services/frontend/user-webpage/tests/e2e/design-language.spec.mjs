@@ -136,9 +136,7 @@ for (const role of ["administrator", "member"]) {
       await monthly.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
       const review = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
       await checkDrawer(review);
-      await checkTable(
-        review.getByRole("table", { name: "Financial review by currency", exact: true }),
-      );
+      await checkTable(review.getByRole("table", { name: "Financial review totals", exact: true }));
       await screenshot("monthly-details");
       await review
         .getByRole("button", { name: "Close monthly financial review", exact: true })

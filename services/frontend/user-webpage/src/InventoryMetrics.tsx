@@ -1,7 +1,7 @@
 import { Text } from "@mantine/core";
 import type { InventoryRow } from "./api/inventory";
 import { formatRecordDate } from "./date-display";
-import { formatExactDecimal, formatExactMoney } from "./decimal";
+import { formatExactDecimal, formatMoney } from "./decimal";
 import type { InventoryMetricDefinition } from "./inventory-metrics";
 import { recommendationLabel, recommendationTone } from "./inventory-options";
 
@@ -20,7 +20,7 @@ export function InventoryMetrics({
         const rawValue = row[key];
         const value =
           key === "sales_amount_90d"
-            ? formatExactMoney(rawValue, row.currency)
+            ? formatMoney(rawValue, row.currency)
             : key.endsWith("_date") || key.endsWith("_at")
               ? rawValue === null
                 ? "—"

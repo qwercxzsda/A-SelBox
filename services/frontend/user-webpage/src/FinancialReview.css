@@ -3,27 +3,185 @@
   scroll-margin-top: 100px;
 }
 
+.financial-review-scope {
+  margin-bottom: 18px;
+}
+.financial-review-scope .mantine-NativeSelect-root {
+  min-width: 110px;
+}
+.financial-review-scope-note {
+  text-align: right;
+}
+
+.financial-review-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.financial-review-summary-card {
+  min-width: 0;
+}
+.financial-review-summary-period {
+  grid-column: 1 / -1;
+}
+.financial-review-summary-card[data-difference="true"] {
+  background: var(--ui-surface-subtle);
+}
+.financial-review-summary-value {
+  margin-block: 5px;
+  font-size: clamp(19px, 1.7vw, 24px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.financial-review-trend {
+  margin: 0 0 18px;
+}
+.financial-review-trend-legend {
+  color: var(--ui-text-muted);
+  font-size: 12px;
+}
+.financial-review-trend-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.financial-review-monthly-key {
+  width: 10px;
+  height: 10px;
+  background: var(--mantine-color-blue-3);
+}
+.financial-review-running-key {
+  width: 18px;
+  height: 3px;
+  background: var(--ui-accent);
+}
+.financial-review-trend-plot {
+  position: relative;
+  height: 190px;
+  margin: 14px 0 28px 38px;
+}
+.financial-review-zero-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--ui-text-muted);
+}
+.financial-review-zero-label {
+  position: absolute;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+.financial-review-trend-line {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+.financial-review-trend-line polyline {
+  stroke: var(--ui-accent);
+  stroke-width: 2;
+}
+.financial-review-trend-month {
+  position: absolute;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text-muted);
+  cursor: pointer;
+}
+.financial-review-trend-month:hover {
+  background: var(--ui-hover-tint);
+}
+.financial-review-trend-month:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.financial-review-trend-bar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(24px, 42%);
+  background: var(--mantine-color-blue-3);
+  border-radius: 2px;
+}
+.financial-review-trend-dot {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--ui-accent);
+  border-radius: 50%;
+  background: var(--ui-surface);
+  z-index: 3;
+}
+.financial-review-trend-month-label,
+.financial-review-trend-gap {
+  position: absolute;
+  top: calc(100% + 8px);
+  text-align: center;
+  font-size: 12px;
+}
+.financial-review-trend-month-label {
+  left: 0;
+  right: 0;
+}
+.financial-review-trend-gap {
+  color: var(--ui-text-muted);
+  opacity: 0.6;
+}
+
 .financial-review-months-table {
   min-width: 740px;
+  font-variant-numeric: tabular-nums;
 }
-
-.financial-review-months-table .month-group-cell {
-  width: 180px;
+.financial-review-months-table .financial-review-month-cell {
+  width: 190px;
+  font-weight: 500;
 }
-
-.financial-review-months-table .financial-review-months-difference {
-  font-weight: 600;
-}
-
 .financial-review-months-open {
-  display: flex;
-  margin-top: 8px;
-  margin-left: -6px;
+  margin-left: -8px;
+}
+.financial-review-running {
+  font-weight: 600;
+  background: var(--ui-surface-subtle);
+}
+.financial-review-months-empty {
+  padding: 24px 4px;
 }
 
-.financial-review-months-empty {
-  display: grid;
-  justify-items: start;
-  gap: 8px;
-  padding: 24px 4px;
+@media (max-width: 720px) {
+  .financial-review-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .financial-review-summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 12px;
+  }
+  .financial-review-summary-value {
+    font-size: 19px;
+    text-align: right;
+  }
+  .financial-review-scope-note {
+    text-align: left;
+  }
+  .financial-review-trend-plot {
+    height: 155px;
+    margin-left: 34px;
+  }
+  .financial-review-trend-month-label,
+  .financial-review-trend-gap {
+    font-size: 10px;
+  }
 }

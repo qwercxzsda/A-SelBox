@@ -1,6 +1,6 @@
 """Current monthly source review remains administrator-only and separate from payouts."""
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import LiteralString
 
@@ -18,9 +18,162 @@ _TOTALS: LiteralString = (
     + _TOTALS_FROM
     + "order by month,category::text,currency"
 )
+_REVIEW_CATEGORIES = ("FINANCES", "DATA_KIOSK", "SELBOX")
 
 
 class FinancialReviewAccessTests(SourceModelFixture):
+    def _publish_review_month_boundary(self, cutoff: date, latest_month: date) -> date:
+        frontier = cutoff.replace(day=1)
+        # Retain a precise amount and a zero in the complete month; large amounts
+        # in the next month make accidental inclusion visible in every category.
+        day_amounts = {
+            latest_month: ("10.000000001", "7.000000001"),
+            frontier - timedelta(days=1): ("0", "0"),
+            frontier: ("999", "888"),
+            cutoff: ("999", "888"),
+        }
+        transactions: list[dict[str, object]] = []
+        kiosk_days: dict[date, list[dict[str, object]]] = {}
+        for day, (finances_amount, kiosk_amount) in sorted(day_amounts.items()):
+            kiosk_days[day] = []
+            for category in _REVIEW_CATEGORIES:
+                transaction = self.transaction(
+                    finances_amount,
+                    len(transactions) + 1,
+                    activity_date=day.isoformat(),
+                    kind="Shipment" if category == "FINANCES" else "ServiceFee",
+                    category=category,
+                )
+                component = self.component(kiosk_amount, category=category)
+                if category == "SELBOX":
+                    transaction["sku"] = component["sku"] = None
+                transactions.append(transaction)
+                kiosk_days[day].append(component)
+        self.finances(transactions)
+        for day, components in kiosk_days.items():
+            self.kiosk(20, components, activity_date=day.isoformat())
+        return frontier
+
+    def test_only_complete_mature_months_match_payout_policy_at_calendar_boundaries(self) -> None:
+        for cutoff, latest_month in (
+            (date(2026, 8, 18), date(2026, 7, 1)),
+            (date(2026, 9, 1), date(2026, 8, 1)),
+            (date(2024, 3, 1), date(2024, 2, 1)),
+            (date(2025, 3, 1), date(2025, 2, 1)),
+            (date(2026, 1, 18), date(2025, 12, 1)),
+            (date(2026, 1, 1), date(2025, 12, 1)),
+        ):
+            with self.subTest(cutoff=cutoff), self.connection.transaction(force_rollback=True):
+                self.set_mature_cutoff_date(cutoff)
+                self.connection.execute("set local timezone='Pacific/Kiritimati'")
+                frontier = self._publish_review_month_boundary(cutoff, latest_month)
+                administrator = self.administrator()
+                self.assertEqual(
+                    self.as_user(
+                        administrator,
+                        "select (public.payout_report_policy()->>'latest_month')::date",
+                    ),
+                    [(latest_month,)],
+                )
+                self.assertEqual(
+                    self.as_user(
+                        administrator,
+                        "select activity_date,count(*) from public.financial_review_records "
+                        "group by activity_date order by activity_date",
+                    ),
+                    [(latest_month, 6), (frontier - timedelta(days=1), 6)],
+                )
+                # Request through the partial month so both RPCs must enforce the
+                # same complete-month eligibility as records and payout policy.
+                period_end = (frontier + timedelta(days=32)).replace(day=1)
+                for category in _REVIEW_CATEGORIES:
+                    self.assertEqual(
+                        self.as_user(
+                            administrator,
+                            "select month,finances_amount,data_kiosk_amount,difference,"
+                            "finances_row_count,data_kiosk_row_count "
+                            "from public.financial_review_totals(%s,%s,%s)",
+                            (latest_month, period_end, category),
+                        ),
+                        [
+                            (
+                                latest_month,
+                                Decimal("10.000000001"),
+                                Decimal("7.000000001"),
+                                3,
+                                2,
+                                2,
+                            )
+                        ],
+                    )
+                    self.assertEqual(
+                        self.as_user(
+                            administrator,
+                            "select month,source,amount,row_count "
+                            "from public.financial_review_type_totals(%s,%s,%s,'USD') "
+                            "order by source",
+                            (latest_month, period_end, category),
+                        ),
+                        [
+                            (latest_month, "DATA_KIOSK", Decimal("7.000000001"), 2),
+                            (latest_month, "FINANCES", Decimal("10.000000001"), 2),
+                        ],
+                    )
+                self.connection.execute("set constraints all immediate")
+
+    def test_partial_month_exclusion_does_not_change_raw_sources_or_daily_transaction_authority(
+        self,
+    ) -> None:
+        self.set_mature_cutoff_date(date(2026, 8, 18))
+        dates = ("2026-08-01", "2026-08-17", "2026-08-18")
+        self.finances(
+            [
+                self.transaction(amount, index + 1, activity_date=day)
+                for index, (day, amount) in enumerate(zip(dates, ("11", "13", "17"), strict=True))
+            ]
+        )
+        for day, amount in zip(dates, ("101", "103", "107"), strict=True):
+            self.kiosk(
+                1,
+                [self.component(amount, category="FINANCES"), self.component("-1")],
+                activity_date=day,
+            )
+        administrator = self.administrator()
+        self.assertEqual(
+            self.as_user(
+                administrator,
+                "select count(*) from public.financial_review_records",
+            ),
+            [(0,)],
+        )
+        self.assertEqual(
+            self.as_user(
+                administrator,
+                "select jsonb_array_length(public.source_transaction_page('finances')->'rows'),"
+                "jsonb_array_length(public.source_transaction_page('data_kiosk')->'rows')",
+            ),
+            [(3, 6)],
+        )
+        self.assertEqual(
+            self.as_user(
+                administrator,
+                "select r->>'source',r->>'activity_date',r->>'source_amount' "
+                "from jsonb_array_elements(public.transaction_page(p_limit=>100)->'rows') r "
+                "order by r->>'source',r->>'activity_date',r->>'source_amount'",
+            ),
+            [
+                ("DATA_KIOSK", "2026-08-01", "-1"),
+                ("DATA_KIOSK", "2026-08-17", "-1"),
+                ("DATA_KIOSK", "2026-08-18", "-1"),
+                ("DATA_KIOSK", "2026-08-18", "107"),
+                ("FINANCES", "2026-08-01", "11"),
+                ("FINANCES", "2026-08-17", "13"),
+                ("RECONCILIATION", "2026-08-01", "1"),
+                ("RECONCILIATION", "2026-08-17", "1"),
+            ],
+        )
+        self.connection.execute("set constraints all immediate")
+
     def test_invoker_security_and_administrator_gate_cover_records_and_summaries(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         company, _ = self.owner()

@@ -11,6 +11,7 @@ import {
 } from "./transaction-page.ts";
 import { ApiError, requireAccessToken, type ApiTransport } from "./transport.ts";
 import { validatePagination } from "./pagination.ts";
+import { isCurrency } from "./validation.ts";
 import type {
   TableDatasetKey,
   DatasetSort,
@@ -49,6 +50,11 @@ function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchPara
   if (searchFilter !== null) params.set("or", searchFilter);
   const values = datasetFilterValues(dataset, filters);
   if (values.companyIds.length) params.set("company_id", `in.(${values.companyIds.join(",")})`);
+  if (options.currency !== undefined) {
+    if (dataset !== "payouts" || !isCurrency(options.currency))
+      throw new Error("A valid payout currency is required");
+    params.set("currency", `eq.${options.currency}`);
+  }
   if (dataset === "payouts") {
     if (values.dateFrom) params.append("start_date", `gte.${values.dateFrom}`);
     if (values.dateTo) params.append("start_date", `lte.${values.dateTo}`);

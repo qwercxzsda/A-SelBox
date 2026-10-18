@@ -87,10 +87,10 @@ test("daily and previous-month estimates include both sources, stay exact, and i
   fixture.assignments = skuAssignments(fixture.liveRows.map(({ sku }) => sku));
   await signIn(page);
   const { summaries, day, month } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("150.123456789012345678 USD");
-  await expect(amount(day, "Company amount")).toHaveText("142.623456789012345678 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("0.12345678901234568 USD");
-  await expect(amount(month, "Company amount")).toHaveText("0.123456789012345679 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("150.12 USD");
+  await expect(amount(day, "Company amount")).toHaveText("142.62 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("0.12 USD");
+  await expect(amount(month, "Company amount")).toHaveText("0.12 USD");
   await expect(day.getByText("2 records", { exact: true })).toBeVisible();
   await expect(month.getByText("2 records", { exact: true })).toBeVisible();
   for (const bounds of [
@@ -133,14 +133,14 @@ test("daily and previous-month estimates include both sources, stay exact, and i
   await expect(
     page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
   ).toHaveCount(2);
-  await expect(amount(day, "Reported amount")).toHaveText("150.123456789012345678 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("0.12345678901234568 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("150.12 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("0.12 USD");
   expect(fixture.aggregateRequests).toHaveLength(summaryRequestCount);
   await summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
-  await expect(amount(day, "Reported amount")).toHaveText("20 EUR");
-  await expect(amount(month, "Reported amount")).toHaveText("10 EUR");
-  await expect(day).not.toContainText("150.123456789012345678 USD");
-  await expect(month).not.toContainText("0.12345678901234568 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("20.00 EUR");
+  await expect(amount(month, "Reported amount")).toHaveText("10.00 EUR");
+  await expect(day).not.toContainText("150.12 USD");
+  await expect(month).not.toContainText("0.12 USD");
 });
 
 test("a leap-year month-end latest date selects that same month despite gaps in activity", async ({
@@ -154,9 +154,9 @@ test("a leap-year month-end latest date selects that same month despite gaps in 
   ];
   await signIn(page);
   const { summaries, day, month } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("20 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("30 USD");
-  await expect(amount(month, "Company amount")).toHaveText("29 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("20.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("30.00 USD");
+  await expect(amount(month, "Company amount")).toHaveText("29.00 USD");
   await expect(month.getByText("2 records", { exact: true })).toBeVisible();
   await expect(summaries.getByLabel("Currency", { exact: true })).toHaveCount(0);
 });
@@ -168,10 +168,10 @@ test("a selected previous month without activity is empty rather than falling ba
   fixture.aggregateRows = [summaryBucket("2026-04-30", "999"), summaryBucket("2026-06-12", "10")];
   await signIn(page);
   const { day, month } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("10.00 USD");
   await expect(month).toContainText(/May|2026-05|05\/2026/);
   await expect(month).toContainText(/No transactions/);
-  await expect(month).not.toContainText("999 USD");
+  await expect(month).not.toContainText("999.00 USD");
 });
 
 for (const known of [true, false]) {
@@ -191,9 +191,9 @@ for (const known of [true, false]) {
     const { day, month, selected } = cards(page);
     await day.getByRole("button", { name: /^Filter transactions to / }).click();
     for (const card of [day, month, selected]) {
-      await expect(amount(card, "Reported amount")).toHaveText("300 USD");
-      await expect(amount(card, "Known company amount")).toHaveText(known ? "95 USD" : "—");
-      await expect(amount(card, "Service fee")).toHaveText(known ? "-5 USD" : "—");
+      await expect(amount(card, "Reported amount")).toHaveText("300.00 USD");
+      await expect(amount(card, "Known company amount")).toHaveText(known ? "95.00 USD" : "—");
+      await expect(amount(card, "Service fee")).toHaveText(known ? "-5.00 USD" : "—");
       await expect(card).toContainText("2 transactions have uncalculated amounts.");
     }
   });
@@ -213,11 +213,11 @@ test("changing account and role clears estimates and the selected currency befor
   };
   await signIn(page);
   const { summaries, day, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("42 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("42.00 USD");
   await summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
-  await expect(amount(day, "Reported amount")).toHaveText("7 EUR");
+  await expect(amount(day, "Reported amount")).toHaveText("7.00 EUR");
   await applyDates(page, "2026-03-15", "2026-03-15");
-  await expect(amount(selected, "Reported amount")).toHaveText("7 EUR");
+  await expect(amount(selected, "Reported amount")).toHaveText("7.00 EUR");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   const started = deferred();
   const release = deferred();
@@ -229,10 +229,10 @@ test("changing account and role clears estimates and the selected currency befor
   };
   await signIn(page, "member-b");
   await started.promise;
-  await expect(summaries).not.toContainText("7 EUR");
-  await expect(summaries).not.toContainText("42 USD");
+  await expect(summaries).not.toContainText("7.00 EUR");
+  await expect(summaries).not.toContainText("42.00 USD");
   release.resolve();
-  await expect(amount(day, "Reported amount")).toHaveText("907 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("907.00 USD");
   await expect(summaries.getByLabel("Currency", { exact: true })).toHaveCount(0);
   await expect(selected).toContainText("Select a date range to see totals.");
   await expect(amount(selected, "Reported amount")).toHaveCount(0);
@@ -251,6 +251,6 @@ test("latest-date errors leave transactions usable and Retry summaries can recov
   expect(fixture.aggregateRequests).toHaveLength(0);
   fixture.latestStatus = 200;
   await summaries.getByRole("button", { name: "Retry summaries", exact: true }).click();
-  await expect(amount(day, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("10.00 USD");
   await expect(summaries.getByRole("alert")).toHaveCount(0);
 });

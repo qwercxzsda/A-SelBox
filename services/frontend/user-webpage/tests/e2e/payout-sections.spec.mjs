@@ -51,7 +51,7 @@ for (const width of [1440, 1920]) {
     ];
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-    await page.getByRole("cell", { name: "95 USD", exact: true }).click();
+    await page.getByRole("cell", { name: "95.00 USD", exact: true }).click();
     const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
     const records = drawer.getByRole("table", { name: "Amount records", exact: true });
     await expect(records).toBeVisible();
@@ -100,7 +100,7 @@ for (const width of [1440, 1920]) {
           const header = styleWindow.getComputedStyle(element.querySelector("th"));
           const cell = styleWindow.getComputedStyle(element.querySelector("td"));
           const number = styleWindow.getComputedStyle(
-            element.querySelector('td[data-kind="number"]') ?? element.querySelector("td"),
+            element.querySelector('td[data-kind="amount"]') ?? element.querySelector("td"),
           );
           return {
             font: cell.fontSize,

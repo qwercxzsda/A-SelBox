@@ -76,7 +76,7 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   ).toHaveText("-");
   await expect(
     rowWithSku(page, "NON-APPLICABLE-001").locator('[data-column="fee_amount"]'),
-  ).toHaveText("0 USD");
+  ).toHaveText("0.00 USD");
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
 
   await sortBy(page, "Reported amount", "Highest first");
@@ -134,11 +134,11 @@ for (const width of [1280, 390]) {
       width: element.getBoundingClientRect().width,
       height: element.getBoundingClientRect().height,
       lineHeight: Number.parseFloat(globalThis.getComputedStyle(element).lineHeight),
-      overflow: element.scrollWidth - element.clientWidth,
     }));
     expect(metrics.width).toBeLessThanOrEqual(320);
     expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight + 1);
-    expect(metrics.overflow).toBeLessThanOrEqual(1);
+    await expect(type).toHaveCSS("overflow", "hidden");
+    await expect(type).toHaveCSS("text-overflow", "ellipsis");
     expect(
       await page.evaluate(
         () => globalThis.document.documentElement.scrollWidth - globalThis.innerWidth,

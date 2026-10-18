@@ -13,7 +13,6 @@ for (const width of [1440, 390]) {
     await page.getByRole("tab", { name: "Financial review", exact: true }).click();
     await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
     const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-    await drawer.getByLabel("Review currency", { exact: true }).selectOption("USD");
     const table = drawer.getByRole("table", { name: "Amounts by type", exact: true });
     const scroll = drawer.getByRole("region", { name: "Amounts by type table", exact: true });
     await expect(table.locator("tbody tr")).toHaveCount(2);
@@ -22,7 +21,7 @@ for (const width of [1440, 390]) {
         "text-align",
         "right",
       );
-    for (const value of ["-100.25", "-101.5", "25", "26"])
+    for (const value of ["-100.25", "-101.50", "25", "26"])
       await expect(table.getByRole("cell", { name: value, exact: true })).toHaveCSS(
         "text-align",
         "right",

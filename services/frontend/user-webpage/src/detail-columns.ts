@@ -3,7 +3,7 @@ import { FINANCIAL_AMOUNTS } from "./financial-amounts";
 export interface DetailColumn {
   key: string;
   label: string;
-  kind?: "number" | "source" | "type" | "date";
+  kind?: "amount" | "number" | "source" | "type" | "date";
   empty?: string;
   nowrap?: boolean;
 }
@@ -13,7 +13,7 @@ export function financialAmountColumns(currency: string, authoritative = true): 
     ([, label, recordField]) => ({
       key: recordField,
       label: currency ? `${label} (${currency})` : label,
-      kind: "number",
+      kind: "amount",
     }),
   );
 }

@@ -85,17 +85,17 @@ test("breakdowns load lazily for the card dates and all types, independently of 
   const table = dialog.getByRole("table", { name: "Transaction type amounts", exact: true });
   await expect(table.getByRole("row", { name: / amounts$/ })).toHaveCount(3);
   const principal = table.getByRole("row", { name: "Principal amounts", exact: true });
-  await expect(principal.getByRole("cell").nth(0)).toHaveText("100.123456789012345678 USD");
-  await expect(principal.getByRole("cell").nth(1)).toHaveText("-5.123456789012345678 USD");
+  await expect(principal.getByRole("cell").nth(0)).toHaveText("100.12 USD");
+  await expect(principal.getByRole("cell").nth(1)).toHaveText("-5.12 USD");
   await expect(table.getByRole("row", { name: "Referral fee amounts", exact: true })).toContainText(
-    "-10 USD",
+    "-10.00 USD",
   );
   await expect(
     table.getByRole("row", { name: "Unpriced amounts", exact: true }).getByRole("cell"),
-  ).toHaveText(["7 USD", "—", "—", "2"]);
+  ).toHaveText(["7.00 USD", "—", "—", "2"]);
   const total = dialog.getByRole("region", { name: "Breakdown total", exact: true });
-  await expect(summaryAmount(total, "Reported amount")).toHaveText("97.123456789012345678 USD");
-  await expect(summaryAmount(total, "Known company amount")).toHaveText("85 USD");
+  await expect(summaryAmount(total, "Reported amount")).toHaveText("97.12 USD");
+  await expect(summaryAmount(total, "Known company amount")).toHaveText("85.00 USD");
   await expect(total).toContainText("5 records across 3 types");
   await expect(total).toContainText("2 transactions have uncalculated amounts.");
   expect(fixture.breakdownRequests.map((request) => Number(request.params.get("offset")))).toEqual([
@@ -153,7 +153,7 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "EUR only amounts", exact: true }),
-  ).toContainText("20 EUR");
+  ).toContainText("20.00 EUR");
   await expect(drawer(page)).not.toContainText("USD only");
   await closeBreakdown(page);
   expect(fixture.breakdownRequests.map(({ params }) => params.get("currency"))).toEqual([
@@ -219,7 +219,7 @@ test("a forbidden breakdown is not retried automatically and the explicit retry 
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "Principal amounts", exact: true }),
-  ).toContainText("7.125 USD");
+  ).toContainText("7.13 USD");
   await expect(drawer(page).getByRole("alert")).toHaveCount(0);
   expect(fixture.breakdownRequests).toHaveLength(2);
 });
@@ -260,17 +260,17 @@ test("signing into another account and role never displays the previous breakdow
     drawer(page).getByRole("status", { name: "Loading amounts by type", exact: true }),
   ).toBeVisible();
   await expect(drawer(page)).not.toContainText("Alpha only");
-  await expect(drawer(page)).not.toContainText("41.123456789012345678 USD");
+  await expect(drawer(page)).not.toContainText("41.12 USD");
   release.resolve();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "Bravo only amounts", exact: true }),
-  ).toContainText("907 USD");
+  ).toContainText("907.00 USD");
   expect(fixture.breakdownRequests.map(({ user }) => user)).toEqual(["member-a", "member-b"]);
 });
 
 for (const width of [320, 390]) {
-  test(`keyboard breakdown at ${width}px keeps exact amounts visible and restores focus`, async ({
+  test(`keyboard breakdown at ${width}px keeps rounded amounts visible and restores focus`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 });
@@ -286,7 +286,7 @@ for (const width of [320, 390]) {
     const dialog = drawer(page);
     const group = dialog.getByRole("article", { name: "Principal amounts", exact: true });
     await expect(summaryAmount(group, "Reported amount")).toHaveText(
-      "12,345,678,901,234,567,890.123456789012345678 USD",
+      "12,345,678,901,234,567,890.12 USD",
     );
     await expect(
       dialog.getByRole("table", { name: "Transaction type amounts", exact: true }),

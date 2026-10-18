@@ -14,7 +14,7 @@ define API behavior; [access control](access_control.md) defines visibility.
 | Filter options | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog. |
 | Assignments and fees | Load the caller's complete SKU configuration, deduplicate required source dates, and return compressed coverage ranges and setup gaps in one response. |
 | Revision polling | Read the current account and requested revision-token rows, then refresh only dependent queries when a revision changes. |
-| Financial review | Apply category and mature-date bounds to current source facts before monthly/type grouping; page exact source records separately. |
+| Financial review | Apply category and fully mature month bounds to current source facts before monthly/type grouping; page exact source records separately. |
 
 ### Authorization and current versions
 
@@ -65,10 +65,11 @@ Date and marketplace predicates can restrict grouping, while broad administrator
 still pay for the matching source aggregation. Company and SKU selections omit account groups.
 
 [Financial review](financial_review.md#read-contract) compares each monetary category directly from
-current source facts, without company ownership or fee joins. Its monthly list fills requested row
-pages through bounded six-month aggregations and single-row date anchors. The selected month's
-type totals and source rows have their own bounded queries. Date discovery can still examine many
-eligible rows; it is not a constant-time lookup or a full-history rollup cache.
+current source facts, without company ownership or fee joins. Single-row date anchors identify the
+available years; a bounded calendar-year aggregation supplies the currency menu and up to twelve
+monthly rows for the selected currency. Only fully mature months participate. The selected month's
+type totals and source rows have their own bounded, currency-filtered queries. Date discovery can
+still examine many eligible rows; it is not a constant-time lookup or a full-history rollup cache.
 
 ### Search and SKU discovery
 

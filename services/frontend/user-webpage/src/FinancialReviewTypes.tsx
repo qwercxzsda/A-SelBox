@@ -64,7 +64,7 @@ export function FinancialReviewTypes({
           columns={[
             { key: "source", label: "Source", kind: "source" },
             { key: "component_type", label: "Type", kind: "type" },
-            { key: "amount", label: `Amount (${currency})`, kind: "number" },
+            { key: "amount", label: `Amount (${currency})`, kind: "amount" },
             { key: "row_count", label: "Records", kind: "number" },
             { key: "details", label: "Details" },
           ]}

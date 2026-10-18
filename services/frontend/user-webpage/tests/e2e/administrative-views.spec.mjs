@@ -29,9 +29,9 @@ test("administrator lists read CSV pages and independent counts without account 
   await expect(table.getByRole("cell", { name: "Company B", exact: true })).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await expect(
-    table.getByRole("cell", { name: "9,007,199,254,740,993.000000000000000001 USD", exact: true }),
-  ).toBeVisible();
+  await expect(table.locator('td[data-column="company_amount"]')).toHaveText(
+    "9,007,199,254,740,993.00 USD",
+  );
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   for (const dataset of ["accounts", "payouts"]) {
     await expect

@@ -25,17 +25,19 @@ export function PayoutReports({
   onViewStateChange,
   reviewMode = false,
   fixedMonth = false,
+  currency,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
   reviewMode?: boolean;
   fixedMonth?: boolean;
+  currency?: string;
 } & ViewStateProps<DatasetViewState>) {
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
-    useFinanceTable(identity, "payouts", viewState, onViewStateChange);
+    useFinanceTable(identity, "payouts", viewState, onViewStateChange, currency);
   const [history, setHistory] = useWorkspacePreference(
     reviewMode
-      ? `payout-review-history${fixedMonth ? `:${viewState.filters.dateFrom}` : ""}`
+      ? `payout-review-history${fixedMonth ? `:${viewState.filters.dateFrom}:${currency ?? ""}` : ""}`
       : "payout-report-history",
     createPayoutHistoryState,
     decodePayoutHistoryState,

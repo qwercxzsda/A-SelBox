@@ -30,6 +30,7 @@ export function createDatasetScope(identity: DatasetQueryIdentity, options: Data
     options.search,
     filters,
     searchValues,
+    options.currency ?? null,
   ] as const;
   const key = ["dataset", ...membership] as const;
   const scopeHash = hashKey(key);

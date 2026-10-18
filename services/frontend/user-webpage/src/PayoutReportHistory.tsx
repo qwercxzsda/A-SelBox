@@ -5,7 +5,7 @@ import type { CanonicalRow } from "./api";
 import { DETAIL_PAGE_SIZE } from "./api/pagination";
 import type { Identity } from "./auth-session";
 import { formatRecordDate } from "./date-display";
-import { formatExactMoney } from "./decimal";
+import { formatMoney } from "./decimal";
 import { getErrorMessage, rowId } from "./view-model";
 import { PaginationBar } from "./PaginationBar";
 import { UpdateStatus } from "./UpdateStatus";
@@ -98,7 +98,7 @@ export function PayoutReportHistory({
                     </Table.Td>
                     {["source_amount", "fee_amount", "company_amount"].map((field) => (
                       <Table.Td key={field} className="numeric">
-                        {formatExactMoney(row[field] ?? null, currency)}
+                        {formatMoney(row[field] ?? null, currency)}
                       </Table.Td>
                     ))}
                     <Table.Td>

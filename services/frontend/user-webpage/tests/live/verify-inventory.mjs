@@ -1,7 +1,7 @@
 /** Opt-in, unmocked browser check driven by the disposable real-inventory verifier. */
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
-import { formatExactDecimal, formatExactMoney } from "../../src/decimal.ts";
+import { formatExactDecimal, formatMoney } from "../../src/decimal.ts";
 import { parseCsv } from "../../src/api/csv.ts";
 import { reviewInventoryLayout } from "./inventory-ui-review.mjs";
 
@@ -104,7 +104,7 @@ async function verifyMetrics(page, sample) {
   for (const [label, name] of QUANTITIES)
     await expect(metric(detail, label)).toHaveText(formatExactDecimal(field(name)));
   await expect(metric(detail, "Sales")).toHaveText(
-    formatExactMoney(field("sales_amount_90d"), field("currency")),
+    formatMoney(field("sales_amount_90d"), field("currency")),
   );
   await expect(metric(detail, "Recommended ship-in date")).toHaveText(
     field("recommended_ship_in_date") ?? "—",

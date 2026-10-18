@@ -41,15 +41,15 @@ test("date discovery gates automatic totals while an explicit selected range loa
   await expect(selected).toContainText("Select a date range to see totals.");
 
   await applyDates(page, "2026-01-10", "2026-01-10");
-  await expect(amount(selected, "Reported amount")).toHaveText("5 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
   expect(fixture.aggregateRequests).toHaveLength(1);
   expect(fixture.aggregateRequests[0].params.getAll("activity_date")).toEqual([
     "gte.2026-01-10",
     "lte.2026-01-10",
   ]);
   release.resolve();
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("10.00 USD");
   const bounds = fixture.aggregateRequests.map(({ params }) =>
     params.getAll("activity_date").join(),
   );
@@ -71,17 +71,17 @@ test("a failed month keeps day and selected totals usable and retry recovers tha
     hasDate(params, "gte.2026-02-01") ? 403 : 200;
   await signIn(page);
   const { summaries, day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
   await expect(month).toContainText("Summary unavailable.");
   await expect(summaries.getByRole("alert")).toContainText("Latest month:");
   await applyDates(page, "2026-01-10", "2026-01-10");
-  await expect(amount(selected, "Reported amount")).toHaveText("5 USD");
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
   fixture.aggregateStatusForRequest = null;
   await summaries.getByRole("button", { name: "Retry summaries", exact: true }).click();
-  await expect(amount(month, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("10.00 USD");
   await expect(summaries.getByRole("alert")).toHaveCount(0);
-  await expect(amount(selected, "Reported amount")).toHaveText("5 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
 });
 
 test("an uncached selected range hides old totals and a late response cannot replace its successor", async ({
@@ -92,10 +92,10 @@ test("an uncached selected range hides old totals and a late response cannot rep
   fixture.aggregateRows.push(summaryBucket("2026-01-11", "22"), summaryBucket("2026-01-12", "33"));
   await signIn(page);
   const { day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("10.00 USD");
   await applyDates(page, "2026-01-10", "2026-01-10");
-  await expect(amount(selected, "Reported amount")).toHaveText("5 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
   const started = deferred();
   const release = deferred();
   fixture.beforeAggregates = async ({ params }) => {
@@ -114,10 +114,10 @@ test("an uncached selected range hides old totals and a late response cannot rep
   await expect(
     selected.getByRole("status", { name: "Loading selected dates totals", exact: true }),
   ).toBeVisible();
-  await expect(selected).not.toContainText("5 USD");
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
+  await expect(selected).not.toContainText("5.00 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
   await applyDates(page, "2026-01-12", "2026-01-12");
-  await expect(amount(selected, "Reported amount")).toHaveText("33 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("33.00 USD");
   release.resolve();
   await olderSettled;
   await selected.evaluate(
@@ -126,8 +126,8 @@ test("an uncached selected range hides old totals and a late response cannot rep
         element.ownerDocument.defaultView.requestAnimationFrame(() => resolve()),
       ),
   );
-  await expect(amount(selected, "Reported amount")).toHaveText("33 USD");
-  await expect(selected).not.toContainText("22 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("33.00 USD");
+  await expect(selected).not.toContainText("22.00 USD");
 });
 
 test("an empty transaction dataset discovers no date and sends no automatic aggregate requests", async ({
@@ -151,14 +151,14 @@ test("refreshing the latest date to month end updates both bounded periods", asy
   seedPeriods(fixture);
   await signIn(page);
   const { day, month } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("10.00 USD");
   const discoveries = fixture.latestRequests.length;
   fixture.aggregateRows.push(summaryBucket("2026-03-31", "7"));
   fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
-  await expect(amount(day, "Reported amount")).toHaveText("7 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("57 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("7.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("57.00 USD");
   expect(fixture.latestRequests.length).toBeGreaterThan(discoveries);
   const requests = fixture.aggregateRequests.map(({ params }) => params.getAll("activity_date"));
   expect(requests).toContainEqual(["gte.2026-03-31", "lte.2026-03-31"]);
@@ -172,8 +172,8 @@ test("an offline uncached selected range stays pending until reconnect instead o
   seedPeriods(fixture);
   await signIn(page);
   const { day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("50 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("10.00 USD");
   const requests = fixture.aggregateRequests.length;
   await page.context().setOffline(true);
   await applyDates(page, "2026-01-10", "2026-01-10");
@@ -183,5 +183,5 @@ test("an offline uncached selected range stays pending until reconnect instead o
   await expect(selected).not.toContainText("No transactions");
   expect(fixture.aggregateRequests).toHaveLength(requests);
   await page.context().setOffline(false);
-  await expect(amount(selected, "Reported amount")).toHaveText("5 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
 });

@@ -4,9 +4,15 @@ import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { RECONCILIATION_TOTAL_COLUMNS } from "./reconciliation-columns";
 
-export function PayoutReconciliationTotals({ query }: { query: UseQueryResult<CanonicalRow[]> }) {
+export function PayoutReconciliationTotals({
+  query,
+  currency,
+}: {
+  query: UseQueryResult<CanonicalRow[]>;
+  currency: string | null;
+}) {
   const rows = query.data ?? [];
-  const label = "Saved account reconciliation by currency";
+  const label = "Saved account reconciliation totals";
   return (
     <DetailData
       query={query}
@@ -17,7 +23,11 @@ export function PayoutReconciliationTotals({ query }: { query: UseQueryResult<Ca
       {rows.length > 0 ? (
         <DetailTable
           label={label}
-          columns={RECONCILIATION_TOTAL_COLUMNS}
+          columns={
+            currency
+              ? RECONCILIATION_TOTAL_COLUMNS.filter((column) => column.key !== "currency")
+              : RECONCILIATION_TOTAL_COLUMNS
+          }
           rows={rows}
           rowKey={(row) => row.currency ?? ""}
           minWidth={650}

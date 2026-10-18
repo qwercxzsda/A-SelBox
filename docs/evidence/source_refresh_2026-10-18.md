@@ -1,5 +1,10 @@
 # Amazon source refresh and Financial review visibility — October 18, 2026
 
+The UI and maturity observations below describe the earlier paged month/currency layout and its
+partial-month eligibility. The current [Financial review](../financial_review.md) uses a selected
+year and currency, with monthly and running differences, and includes only fully mature calendar
+months matching payout reports. The source-coverage verification is unchanged.
+
 The database serving the public preview was refreshed from Amazon and verified to
 have daily capture coverage from **January 1 through October 16, 2026**, inclusive.
 This is year-to-date coverage, not the entire calendar year. At refresh time,

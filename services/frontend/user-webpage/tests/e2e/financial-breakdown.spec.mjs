@@ -8,7 +8,7 @@ const reportId = "0198b50b-701a-7000-8000-000000000002";
 const companyId = "0198b50b-701a-7000-8000-000000000001";
 
 for (const width of [834, 390]) {
-  test(`month estimates and payouts share exact totals and type-to-record drilldown at ${width}px`, async ({
+  test(`month estimates and payouts share rounded totals and type-to-record drilldown at ${width}px`, async ({
     page,
   }, testInfo) => {
     const errors = [];
@@ -93,7 +93,7 @@ for (const width of [834, 390]) {
     await applyDates(page, "2026-06-01", "2026-06-30");
     await page.getByRole("button", { name: "View Selected dates by type", exact: true }).click();
     const estimate = page.getByRole("dialog", { name: "Amounts by type", exact: true });
-    const expectedAmounts = ["100.123456789012345678 USD", "-5 USD", "95.123456789012345678 USD"];
+    const expectedAmounts = ["100.12 USD", "-5.00 USD", "95.12 USD"];
     const total = estimate.getByRole("region", { name: "Breakdown total", exact: true });
     await expect(total.locator("dd")).toHaveText(expectedAmounts);
     const records = estimate.getByRole("table", { name: "Amount records", exact: true });
@@ -126,7 +126,7 @@ for (const width of [834, 390]) {
     await captureResponsiveReview(page, testInfo, "estimated-month-records");
     await estimate.getByRole("button", { name: "Close breakdown" }).click();
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-    await page.getByRole("cell", { name: "95.123456789012345678 USD", exact: true }).click();
+    await page.getByRole("cell", { name: "95.12 USD", exact: true }).click();
     const report = page.getByRole("dialog", { name: "Selected row details", exact: true });
     const saved = report.getByRole("region", { name: "Breakdown total", exact: true });
     await expect(saved.locator("dd")).toHaveText(expectedAmounts);
@@ -137,10 +137,8 @@ for (const width of [834, 390]) {
         ? report.getByRole("row", { name: "Product sales amounts", exact: true })
         : report.getByRole("article", { name: "Product sales amounts", exact: true });
     if (width <= 720)
-      await expect(summaryAmount(sales, "Reported amount")).toHaveText(
-        "102.123456789012345678 USD",
-      );
-    else await expect(sales).toContainText("102.123456789012345678 USD");
+      await expect(summaryAmount(sales, "Reported amount")).toHaveText("102.12 USD");
+    else await expect(sales).toContainText("102.12 USD");
     await report.getByRole("button", { name: "View Product sales records", exact: true }).click();
     await expect(report.getByRole("heading", { name: "Records", exact: true })).toBeInViewport();
     const savedRecords = report.getByRole("table", { name: "Amount records", exact: true });

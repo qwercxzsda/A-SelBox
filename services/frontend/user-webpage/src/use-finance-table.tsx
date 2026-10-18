@@ -33,6 +33,7 @@ export function useFinanceTable(
   dataset: TableDatasetKey,
   viewState: DatasetViewState,
   onViewStateChange: ViewStateProps<DatasetViewState>["onViewStateChange"],
+  currency?: string,
 ) {
   const { pagination, sorting, search } = viewState;
   const filters = useMemo(() => normalizeDatasetFilters(viewState.filters), [viewState.filters]);
@@ -43,6 +44,7 @@ export function useFinanceTable(
   const sort = sorting[0];
   const query = useDatasetQuery(identity, {
     dataset,
+    currency,
     ...pagination,
     search: debouncedSearch,
     filters,

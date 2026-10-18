@@ -8,6 +8,7 @@ import {
 import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import { readOffsetRpcRows } from "./rpc-pagination.ts";
 import { requireAccessToken, type ApiTransport } from "./transport.ts";
+import { requireCurrency } from "./validation.ts";
 import type {
   CurrencyTotal,
   TransactionTypeTotal,
@@ -113,8 +114,7 @@ export function createSummaryApi(
       options: FetchTransactionTypeTotalsOptions,
     ): Promise<TransactionTypeTotal[]> {
       const { currency } = options;
-      if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency))
-        throw new Error("A valid currency code is required");
+      requireCurrency(currency);
       return readTransactionTotals(
         options,
         currency,

@@ -102,7 +102,7 @@ export function FinancialReviewRecords({
               { key: "sku", label: "SKU", empty: "No SKU", nowrap: true },
               { key: "marketplace_name", label: "Marketplace", empty: "Not specified" },
               { key: "component_type", label: "Type", kind: "type" },
-              { key: "amount", label: `Amount (${currency})`, kind: "number" },
+              { key: "amount", label: `Amount (${currency})`, kind: "amount" },
               { key: "seller_namespace", label: "Source namespace" },
               { key: "source_version_id", label: "Source version" },
               { key: "source_row_id", label: "Source row" },

@@ -59,8 +59,8 @@ for (const [role, dataset, tab] of SCOPES) {
     );
 
     for (const [amount, namespace] of [
-      ["10 USD", "N1"],
-      ["20 USD", "N2"],
+      ["10.00 USD", "N1"],
+      ["20.00 USD", "N2"],
     ]) {
       await table.getByRole("cell", { name: amount, exact: true }).click();
       const drawer = page.getByRole("dialog", { name: "Selected row details" });

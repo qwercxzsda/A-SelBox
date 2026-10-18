@@ -24,15 +24,6 @@
   background: var(--ui-surface);
 }
 
-.monthly-review-total .detail-table th:first-child,
-.monthly-review-total .detail-table td:first-child {
-  width: 110px;
-}
-
-.monthly-review-total .detail-table td:first-child {
-  font-weight: 600;
-}
-
 .monthly-review-total .detail-table th:last-child,
 .monthly-review-total .detail-table td:last-child {
   background: var(--ui-accent-soft);

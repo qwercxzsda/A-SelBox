@@ -262,6 +262,7 @@ select * from private.payout_report_reconciliation;
 -- Financial review is a source comparison, not a second company ledger. Retain
 -- both current sources in every allocation category without ownership/fee joins.
 -- Administrator gates are necessary because base facts also have member read policies.
+-- Match payout eligibility: exclude the entire month containing the maturity cutoff.
 create view public.financial_review_records with (security_invoker = true) as
 select
     'FINANCES'::text as source, -- noqa: RF04
@@ -280,7 +281,7 @@ inner join private.finances_days as h on t.version_id = h.current_version_id
 where
     t.activity_eligible
     and (select private.is_administrator())
-    and t.posted_date < (select private.mature_cutoff_date())
+    and t.posted_date < (select date_trunc('month', private.mature_cutoff_date()::timestamp)::date)
 union all
 select
     'DATA_KIOSK'::text as source, -- noqa: RF04
@@ -298,7 +299,7 @@ from private.data_kiosk_transactions as t
 inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
 where
     (select private.is_administrator())
-    and t.activity_date < (select private.mature_cutoff_date())
+    and t.activity_date < (select date_trunc('month', private.mature_cutoff_date()::timestamp)::date)
     and t.category in ('FINANCES', 'DATA_KIOSK', 'SELBOX');
 
 -- Direct activity-date bounds are applied before aggregation. Filtering a

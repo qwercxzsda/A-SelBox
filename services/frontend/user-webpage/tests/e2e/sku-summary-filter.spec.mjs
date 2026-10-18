@@ -115,12 +115,12 @@ test("member SKU selections scope all cards and raw breakdowns while unrelated t
   const fixture = await skuFixture(page);
   await signIn(page);
   const { day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("700 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("300 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("700.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("300.00 USD");
   await selectValues(page, "SKU", ["ALPHA"]);
-  await expect(amount(day, "Reported amount")).toHaveText("100.123456789012345678 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("110.123456789012345678 USD");
-  await expect(amount(month, "Company amount")).toHaveText("105 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.12 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("110.12 USD");
+  await expect(amount(month, "Company amount")).toHaveText("105.00 USD");
   const activeFilters = cards(page).summaries.getByRole("region", {
     name: "Applied filters",
     exact: true,
@@ -138,7 +138,7 @@ test("member SKU selections scope all cards and raw breakdowns while unrelated t
     ["gte.2026-02-01", "lte.2026-02-28"],
   ]);
   await applyDates(page, "2026-01-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   const summaryRequests = fixture.aggregateRequests.length;
   await selectValues(page, "Source", ["Finances"], ["Finances", "Data Kiosk"]);
   await selectValues(page, "Type", ["Product sales"], ["Product sales"]);
@@ -149,10 +149,10 @@ test("member SKU selections scope all cards and raw breakdowns while unrelated t
     .getByRole("dialog", { name: "Reported amount options", exact: true })
     .getByRole("button", { name: "Highest first", exact: true })
     .click();
-  await expect(amount(day, "Reported amount")).toHaveText("100.123456789012345678 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.12 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   expect(fixture.aggregateRequests).toHaveLength(summaryRequests);
-  const dialog = await openSelectedBreakdown(page, "115.123456789012345678 USD");
+  const dialog = await openSelectedBreakdown(page, "115.12 USD");
   await expect(dialog.getByRole("region", { name: "Applied filters", exact: true })).toContainText(
     "ALPHA",
   );
@@ -164,11 +164,11 @@ test("member SKU selections scope all cards and raw breakdowns while unrelated t
   expect(params.get("or")).toBeNull();
   await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await selectValues(page, "SKU", ["ALPHA", "BETA"]);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("200 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("135.123456789012345678 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("200.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("135.12 USD");
   expect(fixture.latestRequests.at(-1).params.get("sku")).toBe(skuScope("ALPHA", "BETA"));
-  await openSelectedBreakdown(page, "135.123456789012345678 USD");
+  await openSelectedBreakdown(page, "135.12 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("sku")).toBe(skuScope("ALPHA", "BETA"));
 });
 
@@ -178,19 +178,19 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
   const fixture = await skuFixture(page, "administrator");
   await signIn(page);
   const { day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("1,000 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("1,000.00 USD");
   await selectValues(page, "SKU", ["ALPHA"]);
-  await expect(amount(day, "Reported amount")).toHaveText("900 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("900 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("900.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("900.00 USD");
   await selectValues(page, "Company", ["Company A"], ["Company A", "Company B"]);
-  await expect(amount(day, "Reported amount")).toHaveText("100.123456789012345678 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("110.123456789012345678 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.12 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("110.12 USD");
   await applyDates(page, "2026-01-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   await selectValues(page, "Marketplace", ["Amazon.com"], MARKETPLACES);
-  await expect(amount(day, "Reported amount")).toHaveText("10 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("5 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("15 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("10.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("5.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("15.00 USD");
   const summaryFilters = cards(page).summaries.getByRole("region", {
     name: "Applied filters",
     exact: true,
@@ -202,7 +202,7 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
     path: testInfo.outputPath("administrator-summary-filters.png"),
     animations: "disabled",
   });
-  const dialog = await openSelectedBreakdown(page, "15 USD");
+  const dialog = await openSelectedBreakdown(page, "15.00 USD");
   for (const request of [
     fixture.latestRequests.at(-1),
     fixture.aggregateRequests.at(-1),
@@ -227,9 +227,9 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
   const latestCount = fixture.latestRequests.length;
   const aggregateCount = fixture.aggregateRequests.length;
   await applyDates(page, "2026-02-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("10 USD");
-  await expect(amount(day, "Reported amount")).toHaveText("10 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("5 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("10.00 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("10.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("5.00 USD");
   expect(fixture.latestRequests).toHaveLength(latestCount);
   expect(fixture.aggregateRequests).toHaveLength(aggregateCount + 1);
   expect(fixture.aggregateRequests.at(-1).params.getAll("activity_date")).toEqual([
@@ -237,15 +237,15 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
     "lte.2026-02-28",
   ]);
   await selectValues(page, "SKU", []);
-  await expect(amount(day, "Reported amount")).toHaveText("700 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("10 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("700.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("10.00 USD");
   for (const request of [fixture.latestRequests.at(-1), fixture.aggregateRequests.at(-1)]) {
     expect(request.params.get("sku")).toBeNull();
     expect(request.params.get("company_id")).toBe(companyScope(COMPANY_A));
     expect(request.params.get("marketplace_name")).toBe(skuScope("Amazon.com"));
   }
-  const allSku = await openSelectedBreakdown(page, "10 USD");
+  const allSku = await openSelectedBreakdown(page, "10.00 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("sku")).toBeNull();
   expect(fixture.breakdownRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_A));
   expect(fixture.breakdownRequests.at(-1).params.get("marketplace_name")).toBe(
@@ -283,23 +283,23 @@ test("member marketplace checkboxes combine as alternatives within the selected 
   await selectValues(page, "SKU", ["ALPHA"]);
   await selectValues(page, "Marketplace", ["Amazon.com"], MARKETPLACES);
   const { day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("10 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("5 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("10.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("5.00 USD");
   expect(fixture.latestRequests.at(-1).params.get("marketplace_name")).toBe(skuScope("Amazon.com"));
   await selectValues(page, "Marketplace", MARKETPLACES, MARKETPLACES);
-  await expect(amount(day, "Reported amount")).toHaveText("100.123456789012345678 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("110.123456789012345678 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.12 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("110.12 USD");
   expect(fixture.latestRequests.at(-1).params.get("marketplace_name")).toBe(
     skuScope(...MARKETPLACES),
   );
   expect(fixture.latestRequests.at(-1).params.get("sku")).toBe(skuScope("ALPHA"));
   await applyDates(page, "2026-01-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   await cards(page).summaries.screenshot({
     path: testInfo.outputPath("member-mobile-summary-filters.png"),
     animations: "disabled",
   });
-  const dialog = await openSelectedBreakdown(page, "115.123456789012345678 USD");
+  const dialog = await openSelectedBreakdown(page, "115.12 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("marketplace_name")).toBe(
     skuScope(...MARKETPLACES),
   );
@@ -313,7 +313,7 @@ test("member marketplace checkboxes combine as alternatives within the selected 
   });
   await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await selectValues(page, "Marketplace", [], MARKETPLACES);
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   const filters = cards(page).summaries.getByRole("region", {
     name: "Applied filters",
     exact: true,
@@ -333,9 +333,9 @@ test("late SKU responses cannot show previous totals and cached SKU selections r
   const fixture = await skuFixture(page);
   await signIn(page);
   const { day, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("700 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("700.00 USD");
   await applyDates(page, "2026-01-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("142.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("142.12 USD");
   const started = deferred();
   const release = deferred();
   fixture.beforeLatest = fixture.beforeAggregates = async ({ params }) => {
@@ -362,11 +362,11 @@ test("late SKU responses cannot show previous totals and cached SKU selections r
   await expect(
     selected.getByRole("status", { name: "Loading selected dates totals", exact: true }),
   ).toBeVisible();
-  await expect(day).not.toContainText("700 USD");
-  await expect(selected).not.toContainText("142.123456789012345678 USD");
+  await expect(day).not.toContainText("700.00 USD");
+  await expect(selected).not.toContainText("142.12 USD");
   await selectValues(page, "SKU", ["BETA"]);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("20 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("20.00 USD");
   release.resolve();
   await olderSettled;
   await selected.evaluate(
@@ -375,16 +375,16 @@ test("late SKU responses cannot show previous totals and cached SKU selections r
         element.ownerDocument.defaultView.requestAnimationFrame(() => resolve()),
       ),
   );
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("20 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("20.00 USD");
   await selectValues(page, "SKU", ["ALPHA"]);
-  await expect(amount(day, "Reported amount")).toHaveText("100.123456789012345678 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.12 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   const latestCount = fixture.latestRequests.length;
   const aggregateCount = fixture.aggregateRequests.length;
   await selectValues(page, "SKU", ["BETA"]);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("20 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("20.00 USD");
   expect(fixture.latestRequests).toHaveLength(latestCount);
   expect(fixture.aggregateRequests).toHaveLength(aggregateCount);
 });
@@ -397,7 +397,7 @@ test("signing into another member clears SKU and marketplace selections and thei
   await selectValues(page, "SKU", ["ALPHA"]);
   await selectValues(page, "Marketplace", ["Amazon.com"], MARKETPLACES);
   await applyDates(page, "2026-01-01", "2026-02-28");
-  const dialog = await openSelectedBreakdown(page, "15 USD");
+  const dialog = await openSelectedBreakdown(page, "15.00 USD");
   await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   fixture.liveRows = fixture.aggregateRowsByUser["member-b"].map((row, index) => ({
@@ -410,8 +410,8 @@ test("signing into another member clears SKU and marketplace selections and thei
     company_id: COMPANY_B,
   }));
   await signIn(page, "member-b");
-  await expect(amount(cards(page).day, "Reported amount")).toHaveText("1,000 USD");
-  await expect(amount(cards(page).month, "Reported amount")).toHaveText("50 USD");
+  await expect(amount(cards(page).day, "Reported amount")).toHaveText("1,000.00 USD");
+  await expect(amount(cards(page).month, "Reported amount")).toHaveText("50.00 USD");
   await expect(cards(page).selected).toContainText("Select a date range to see totals.");
   await expect(
     cards(page).summaries.getByRole("region", { name: "Applied filters", exact: true }),
@@ -424,7 +424,7 @@ test("signing into another member clears SKU and marketplace selections and thei
   await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
   await expect(
     amount(page.getByRole("region", { name: "Breakdown total", exact: true }), "Reported amount"),
-  ).toHaveText("1,000 USD");
+  ).toHaveText("1,000.00 USD");
   for (const request of [
     ...fixture.latestRequests,
     ...fixture.aggregateRequests,

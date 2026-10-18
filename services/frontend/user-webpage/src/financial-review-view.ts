@@ -1,25 +1,39 @@
 import type { CanonicalRow } from "./api/types.ts";
 import { requireCalendarDate } from "./api/filters.ts";
-import { isJsonObject } from "./api/validation.ts";
-import type { FinancialReviewPageCursor } from "./api/financial-review.ts";
-import { PAGE_SIZES } from "./view-model.ts";
+import { isCurrency, isJsonObject, requireCurrency } from "./api/validation.ts";
+import { requireFinancialReviewYear } from "./api/financial-review.ts";
+import { sumExactDecimals } from "./decimal.ts";
+
+export interface ReviewScope {
+  year: string;
+  currency: string;
+}
 
 export interface MonthlyReviewView {
-  cursors: (FinancialReviewPageCursor | null)[];
-  pageIndex: number;
-  pageSize: number;
   selectedMonth: string | null;
-  filterMonth: string;
+}
+
+export function createReviewScope(): ReviewScope {
+  return { year: "", currency: "USD" };
+}
+
+export function decodeReviewScope(value: unknown): ReviewScope {
+  const scope = createReviewScope();
+  if (!isJsonObject(value)) return scope;
+  if (typeof value.year === "string" && value.year !== "") {
+    try {
+      requireFinancialReviewYear(value.year);
+      scope.year = value.year;
+    } catch {
+      // Invalid saved years return to the latest available year.
+    }
+  }
+  if (isCurrency(value.currency)) scope.currency = value.currency;
+  return scope;
 }
 
 export function createMonthlyReviewView(): MonthlyReviewView {
-  return {
-    cursors: [null],
-    pageIndex: 0,
-    pageSize: PAGE_SIZES[0],
-    selectedMonth: null,
-    filterMonth: "",
-  };
+  return { selectedMonth: null };
 }
 
 function isMonth(value: unknown): value is string {
@@ -32,60 +46,41 @@ function isMonth(value: unknown): value is string {
   }
 }
 
-/** Store only navigation and selection; financial amounts always come from current sources. */
+/** Store only selection; financial amounts always come from current sources. */
 export function decodeMonthlyReviewView(value: unknown): MonthlyReviewView {
-  if (!isJsonObject(value)) return createMonthlyReviewView();
-  const filterMonth = isMonth(value.filterMonth) ? value.filterMonth : "";
-  const savedPageSize = PAGE_SIZES.find((size) => size === value.pageSize);
-  const pageSize = savedPageSize ?? PAGE_SIZES[0];
-  const cursors: (FinancialReviewPageCursor | null)[] = [null];
-  if (
-    savedPageSize &&
-    Array.isArray(value.cursors) &&
-    value.cursors[0] === null &&
-    value.cursors.length <= 1000
-  ) {
-    for (const cursor of value.cursors.slice(1)) {
-      const previous = cursors.at(-1);
-      if (
-        !isJsonObject(cursor) ||
-        !isMonth(cursor.month) ||
-        typeof cursor.offset !== "number" ||
-        !Number.isSafeInteger(cursor.offset) ||
-        cursor.offset < 0 ||
-        !Number.isSafeInteger(cursor.offset + pageSize + 1) ||
-        (filterMonth !== "" && cursor.month !== filterMonth) ||
-        (previous &&
-          (cursor.month > previous.month ||
-            (cursor.month === previous.month && cursor.offset <= previous.offset)))
-      )
-        break;
-      cursors.push({ month: cursor.month, offset: cursor.offset });
-    }
-  }
   return {
-    cursors,
-    pageSize,
-    pageIndex:
-      typeof value.pageIndex === "number" &&
-      Number.isSafeInteger(value.pageIndex) &&
-      value.pageIndex >= 0 &&
-      value.pageIndex < cursors.length
-        ? value.pageIndex
-        : 0,
-    selectedMonth: isMonth(value.selectedMonth) ? value.selectedMonth : null,
-    filterMonth,
+    selectedMonth: isJsonObject(value) && isMonth(value.selectedMonth) ? value.selectedMonth : null,
   };
 }
 
-export function groupFinancialReviewMonths(rows: CanonicalRow[]) {
-  const groups = new Map<string, CanonicalRow[]>();
-  for (const row of rows) {
-    const month = row.month?.slice(0, 7);
-    if (!month) continue;
-    const currencies = groups.get(month) ?? [];
-    currencies.push(row);
-    groups.set(month, currencies);
-  }
-  return [...groups].map(([month, currencies]) => ({ month, currencies }));
+/** Accumulate one currency within the fetched year without rounding or filling source gaps. */
+export function buildFinancialReviewTimeline(
+  rows: readonly CanonicalRow[],
+  currency: string,
+): CanonicalRow[] {
+  requireCurrency(currency);
+  const months = new Set<string>();
+  let year: string | null = null;
+  const selected = rows
+    .filter((row) => row.currency === currency)
+    .map((row) => {
+      const month = row.month;
+      if (!month || !isMonth(month.slice(0, 7)) || month !== `${month.slice(0, 7)}-01`)
+        throw new Error("Financial review returned an invalid month");
+      year ??= month.slice(0, 4);
+      if (month.slice(0, 4) !== year)
+        throw new Error("Financial review timeline must stay within one year");
+      if (months.has(month)) throw new Error("Financial review repeated a monthly currency");
+      if (typeof row.difference !== "string")
+        throw new Error("Financial review is missing a monthly difference");
+      months.add(month);
+      return { row, month, difference: row.difference };
+    });
+  let running: string | null = null;
+  return selected
+    .sort((left, right) => left.month.localeCompare(right.month))
+    .map(({ row, difference }) => {
+      running = sumExactDecimals([running, difference]);
+      return { ...row, running_difference: running };
+    });
 }

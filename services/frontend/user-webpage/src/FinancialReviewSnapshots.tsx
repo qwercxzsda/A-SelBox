@@ -7,14 +7,16 @@ import { decodeDatasetView } from "./workspace-view-codec";
 export function FinancialReviewSnapshots({
   identity,
   month,
+  currency,
   onRetry,
 }: {
   identity: Identity;
   month: string;
+  currency: string;
   onRetry: () => Promise<void>;
 }) {
   const [view, setView] = useWorkspacePreference(
-    `financial-review:snapshots:${month}`,
+    `financial-review:snapshots:${month}:${currency}`,
     () => createDatasetViewState("payouts"),
     (value) => decodeDatasetView(value, "payouts"),
   );
@@ -34,6 +36,7 @@ export function FinancialReviewSnapshots({
       onRetry={onRetry}
       reviewMode
       fixedMonth
+      currency={currency}
     />
   );
 }

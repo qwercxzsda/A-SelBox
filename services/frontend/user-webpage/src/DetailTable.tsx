@@ -3,13 +3,14 @@ import { useResizeObserver } from "@mantine/hooks";
 import type { ReactNode } from "react";
 import type { CanonicalRow } from "./api";
 import { humanizeCode, transactionTypeLabel } from "./categories";
-import { formatExactDecimal } from "./decimal";
+import { formatAmount, formatExactDecimal } from "./decimal";
 import type { DetailColumn } from "./detail-columns";
 import { TableColumnLabel } from "./TableColumnLabel";
 import "./DetailTable.css";
 
 function cellText(row: CanonicalRow, column: DetailColumn) {
   const value = row[column.key];
+  if (column.kind === "amount") return formatAmount(value);
   if (column.kind === "number") return formatExactDecimal(value);
   if (value === null) return column.empty ?? "—";
   if (column.kind === "source") return humanizeCode(value);

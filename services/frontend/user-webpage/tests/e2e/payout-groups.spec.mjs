@@ -61,13 +61,13 @@ for (const [role, width] of [
     const table = page.getByRole("table", { name: "Financial records", exact: true });
     await expect(table.getByRole("heading", { name: "June 2026", exact: true })).toBeVisible();
     await expect(table.getByRole("heading", { name: "May 2026", exact: true })).toBeVisible();
-    await expect(table.getByRole("cell", { name: "91 USD", exact: true })).toHaveCount(0);
+    await expect(table.getByRole("cell", { name: "91.00 USD", exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Report month", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Report company", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Report versions", { exact: true })).toHaveCount(0);
     expect(historyReads(fixture)).toHaveLength(0);
     if (role === "member") {
-      await expect(table.getByRole("cell", { name: "999 USD", exact: true })).toHaveCount(0);
+      await expect(table.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
       await expect(table.getByRole("button", { name: "Company", exact: true })).toHaveCount(0);
     }
 
@@ -76,10 +76,10 @@ for (const [role, width] of [
     await toggle.press("Enter");
     const history = page.getByRole("region", { name: `Report versions for ${scope}`, exact: true });
     await expect(history).toBeVisible();
-    await expect(history.getByRole("cell", { name: "91 USD", exact: true })).toBeVisible();
-    await expect(history).not.toContainText("999 USD");
-    await expect(history).not.toContainText("80 EUR");
-    await expect(history).not.toContainText("70 USD");
+    await expect(history.getByRole("cell", { name: "91.00 USD", exact: true })).toBeVisible();
+    await expect(history).not.toContainText("999.00 USD");
+    await expect(history).not.toContainText("80.00 EUR");
+    await expect(history).not.toContainText("70.00 USD");
     await expect
       .poll(() => historyReads(fixture).filter(({ completed }) => completed).length)
       .toBe(1);
@@ -111,7 +111,7 @@ test("column filters and historical selection survive F5 without returning to th
   await selectColumnOptions(page, "Company", [COMPANY_NAME]);
   await applyReportMonth(page, "2026-06");
   await expect(page.getByRole("heading", { name: "May 2026", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("cell", { name: "999 USD", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: `Show versions for ${scope}`, exact: true }).click();
   const history = page.getByRole("region", { name: `Report versions for ${scope}`, exact: true });
   await history.getByRole("button", { name: /^Open previous version created/ }).click();
@@ -187,7 +187,7 @@ test("version pagination reads only the requested scope and restores an older pa
   await expect(history.getByRole("button", { name: "Previous", exact: true })).toBeDisabled();
   await history.getByRole("button", { name: "Next", exact: true }).click();
   await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(1);
-  await expect(history.getByRole("cell", { name: "1,050 USD", exact: true })).toBeVisible();
+  await expect(history.getByRole("cell", { name: "1,050.00 USD", exact: true })).toBeVisible();
   await expect(history.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
   expect(historyReads(fixture).at(-1).params.get("offset")).toBe("50");
   await history.getByRole("button", { name: /^Open previous version created/ }).click();
@@ -228,7 +228,7 @@ test("currency-free zero reports load only currency-free history", async ({ page
     exact: true,
   });
   await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(2);
-  await expect(history.getByRole("cell", { name: "0", exact: true })).toHaveCount(6);
+  await expect(history.getByRole("cell", { name: "0.00", exact: true })).toHaveCount(6);
   await expect(history).not.toContainText("USD");
   expect(historyReads(fixture).at(-1).params.get("currency")).toBe("is.null");
   await history.getByRole("button", { name: /^Open previous version created/ }).click();

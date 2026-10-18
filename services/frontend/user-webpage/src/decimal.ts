@@ -140,14 +140,31 @@ export function formatExactDecimal(value: string | null): string {
   return parts === null ? EM_DASH : formatParts(parts);
 }
 
-export function formatExactMoney(value: string | null, currency: string | null): string {
+/** Round monetary display to cents, with decimal ties away from zero. */
+function roundAmount(parts: DecimalParts): DecimalParts {
+  let cents = BigInt(parts.integer + parts.fraction.slice(0, 2).padEnd(2, "0"));
+  if ((parts.fraction.at(2) ?? "0") >= "5") cents += 1n;
+  const digits = cents.toString().padStart(3, "0");
+  return {
+    integer: digits.slice(0, -2),
+    fraction: digits.slice(-2),
+    negative: parts.negative && cents !== 0n,
+  };
+}
+
+export function formatAmount(value: string | null): string {
+  const parts = parseDecimal(value);
+  return parts === null ? EM_DASH : formatParts(roundAmount(parts));
+}
+
+export function formatMoney(value: string | null, currency: string | null): string {
   const parts = parseDecimal(value);
   if (parts !== null && currency === null && parts.integer === "0" && parts.fraction === "")
-    return "0";
+    return "0.00";
   const currencyCode = normalizeCurrency(currency);
   return parts === null || currencyCode === null
     ? EM_DASH
-    : `${formatParts(parts)} ${currencyCode}`;
+    : `${formatParts(roundAmount(parts))} ${currencyCode}`;
 }
 
 /** Add known decimal values without converting financial amounts to Number. */

@@ -16,6 +16,7 @@ import {
 interface FinancialReviewMonthContentProps {
   identity: Identity;
   category: ReviewCategory;
+  currency: string;
   month: string;
   matureCutoff: string;
   onRetry: () => Promise<void>;
@@ -24,6 +25,7 @@ interface FinancialReviewMonthContentProps {
 export function FinancialReviewMonthContent({
   identity,
   category,
+  currency,
   month,
   matureCutoff,
   onRetry,
@@ -35,10 +37,11 @@ export function FinancialReviewMonthContent({
       identity.session.user.id,
       category,
       month,
+      currency,
       matureCutoff,
     ],
     queryFn: ({ signal }) =>
-      fetchFinancialReviewTotals(identity.session.access_token, category, month, signal),
+      fetchFinancialReviewTotals(identity.session.access_token, category, month, currency, signal),
     staleTime: Infinity,
   });
   const rows = query.data ?? [];
@@ -56,22 +59,22 @@ export function FinancialReviewMonthContent({
             {reviewCategoryLabel(category)} category totals
           </Title>
           <Text size="xs" c="dimmed">
-            {rows.length} {rows.length === 1 ? "currency" : "currencies"} · Shown separately
+            {currency} · Same currency as the overview
           </Text>
         </Group>
         <DetailData
           query={query}
           label="account totals"
           rowCount={rows.length}
-          emptyMessage="No source data for this month."
+          emptyMessage={`No source data for ${currency} in this month.`}
         >
           {rows.length ? (
             <DetailTable
-              label="Financial review by currency"
-              columns={reviewAmountColumns(category)}
+              label="Financial review totals"
+              columns={reviewAmountColumns(category).filter((column) => column.key !== "currency")}
               rows={rows}
               rowKey={(row) => row.currency ?? ""}
-              minWidth={650}
+              minWidth={520}
             />
           ) : null}
         </DetailData>
@@ -92,18 +95,24 @@ export function FinancialReviewMonthContent({
         <FinancialReviewSourceDetails
           identity={identity}
           category={category}
+          currency={currency}
           month={month}
           matureCutoff={matureCutoff}
-          totals={rows}
+          total={rows[0]}
         />
       ) : null}
       <DetailSection
-        stateKey={`financial-review:snapshots:${category}:${month}`}
+        stateKey={`financial-review:snapshots:${category}:${month}:${currency}`}
         title="Saved report snapshots"
         collapsible
-        description="Report versions saved for this month. Each retains its company scope and all categories; current category and currency selections do not filter these historical snapshots."
+        description={`Saved company reports for this month in ${currency}. Each retains all categories and its original company scope.`}
       >
-        <FinancialReviewSnapshots identity={identity} month={month} onRetry={onRetry} />
+        <FinancialReviewSnapshots
+          identity={identity}
+          month={month}
+          currency={currency}
+          onRetry={onRetry}
+        />
       </DetailSection>
     </>
   );

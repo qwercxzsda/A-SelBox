@@ -71,13 +71,15 @@
   max-width: 240px;
   overflow-wrap: anywhere;
 }
-.detail-table [data-kind="number"] {
+.detail-table [data-kind="number"],
+.detail-table [data-kind="amount"] {
   text-align: right;
 }
 .detail-table tr[aria-selected="true"] {
   background: var(--ui-accent-soft);
 }
 .detail-table td[data-kind="number"],
+.detail-table td[data-kind="amount"],
 .detail-table [data-kind="date"],
 .detail-table [data-nowrap="true"] {
   white-space: nowrap;

@@ -10,6 +10,7 @@ import { PayoutAmounts } from "./PayoutAmounts";
 import { DetailSection } from "./DetailSection";
 import { DetailTable } from "./DetailTable";
 import { formatRecordDate } from "./date-display";
+import { formatAmount } from "./decimal";
 import {
   DATASET_PRESENTATION,
   TABLE_COLUMNS,
@@ -73,7 +74,7 @@ export function RowDetail({
           <Text c="dimmed" size="sm" mb="lg">
             {dataset === "payouts"
               ? `${companies.get(row.company_id ?? "") ?? "Company"} · ${row.start_date ?? ""} – ${row.end_date ?? ""}${row.currency ? ` · ${row.currency}` : ""}`
-              : "Exact values for this record."}
+              : "Details for this record."}
           </Text>
           {dataset === "finances" && row.activity_eligible === "false" ? (
             <Text size="sm" c="dimmed" mb="lg">
@@ -132,7 +133,10 @@ export function RowDetail({
                   { key: "field", label: "Field" },
                   { key: "value", label: "Value" },
                 ]}
-                rows={remaining.map((key) => ({ field: humanizeCode(key), value: row[key] }))}
+                rows={remaining.map((key) => ({
+                  field: humanizeCode(key),
+                  value: key === "fee_base" ? formatAmount(row[key]) : row[key],
+                }))}
                 rowKey={(record) => record.field ?? ""}
                 minWidth={0}
               />

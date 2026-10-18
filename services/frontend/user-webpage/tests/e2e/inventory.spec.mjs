@@ -33,9 +33,7 @@ for (const user of ["member", "administrator"]) {
       "Inventory health status↕",
       "Recommendation↕",
     ]);
-    await expect(
-      region.getByText("9,007,199,254,740,993.123456789 USD", { exact: true }),
-    ).toBeVisible();
+    await expect(region.getByText("9,007,199,254,740,993.12 USD", { exact: true })).toBeVisible();
     await expect(region.getByText("Available", { exact: true }).locator("..")).toHaveText(
       "Available0",
     );

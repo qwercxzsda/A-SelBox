@@ -26,54 +26,21 @@ export function reviewAmounts(overrides = {}) {
   };
 }
 
-/** Enough month/currency groups to exercise split months, long pages, and an old source gap. */
+/** Complete prior year, current mature months, multiple currencies, and a gap year. */
 export function setupManyFinancialReviewRows(fixture) {
-  const currencies = [
-    "AED",
-    "AUD",
-    "BRL",
-    "CAD",
-    "CHF",
-    "CLP",
-    "CNY",
-    "COP",
-    "CZK",
-    "DKK",
-    "EGP",
-    "EUR",
-    "GBP",
-    "HKD",
-    "HUF",
-    "IDR",
-    "ILS",
-    "INR",
-    "JPY",
-    "KRW",
-    "MXN",
-    "MYR",
-    "NOK",
-    "NZD",
-    "PHP",
-    "PLN",
-    "QAR",
-    "SAR",
-    "SEK",
-    "SGD",
-    "USD",
-  ];
-  const rows = currencies.map((currency) => ({
-    month: "2026-07-01",
-    currency,
-    ...reviewAmounts(),
-  }));
-  for (let index = 0; index < 21; index++) {
-    const month =
-      index === 20
-        ? "2020-01-01"
-        : new Date(Date.UTC(2026, 5 - index, 1)).toISOString().slice(0, 10);
-    for (const currency of ["EUR", "GBP", "JPY", "USD"])
-      rows.push({ month, currency, ...reviewAmounts() });
-  }
+  const rows = [];
+  for (const [year, months] of [
+    [2025, 12],
+    [2026, 7],
+  ])
+    for (let month = 1; month <= months; month++)
+      for (const currency of ["EUR", "JPY", "USD"])
+        rows.push({
+          month: `${year}-${String(month).padStart(2, "0")}-01`,
+          currency,
+          ...reviewAmounts(),
+        });
+  rows.push({ month: "2020-01-01", currency: "USD", ...reviewAmounts() });
   fixture.financialReviewTotals = [
     ...fixture.financialReviewTotals.filter(({ category }) => category !== "DATA_KIOSK"),
     ...rows,
@@ -186,12 +153,17 @@ function setupCurrentReview(fixture) {
 }
 
 export function setupFinancialReview(fixture) {
+  fixture.payoutPolicy = {
+    mature_cutoff_date: "2026-08-27",
+    latest_month: "2026-07-01",
+    mature_cutoff_months: 2,
+  };
   fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = REVIEW_COMPANY;
   fixture.companyNames[REVIEW_COMPANY] = "Review Company";
   setupCurrentReview(fixture);
   const savedTotals = [
-    { month: "2026-07-01", currency: "USD", ...reconciliationAmounts(), source_group_count: "50" },
+    { month: "2026-07-01", currency: "USD", ...reconciliationAmounts(), source_group_count: "51" },
     {
       month: "2026-07-01",
       currency: "EUR",
@@ -211,7 +183,7 @@ export function setupFinancialReview(fixture) {
       source_group_count: "1",
     },
   ];
-  const savedDetails = Array.from({ length: 50 }, (_, index) => ({
+  const savedDetails = Array.from({ length: 51 }, (_, index) => ({
     seller_namespace: index % 2 ? "seller-east" : "seller-west",
     activity_date: `2026-07-${String((index % 25) + 1).padStart(2, "0")}`,
     marketplace_name: index % 2 ? "Amazon.com" : null,
@@ -243,7 +215,7 @@ export function setupFinancialReview(fixture) {
       source_amount: "100",
       fee_amount: "-5",
       company_amount: "95",
-      reconciliation_count: "51",
+      reconciliation_count: "52",
     },
   ];
   fixture.payoutComponents = [

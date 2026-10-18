@@ -109,7 +109,7 @@ test("F5 restores an estimate drilldown and fetches current values for its saved
   await expect(drawer).toBeVisible();
   await expect(
     drawer.getByRole("region", { name: "Breakdown total", exact: true }).locator("dd"),
-  ).toHaveText(["77 USD", "0 USD", "77 USD"]);
+  ).toHaveText(["77.00 USD", "0.00 USD", "77.00 USD"]);
   await expect(drawer.getByRole("region", { name: "Amount records", exact: true })).toContainText(
     "Page 2",
   );

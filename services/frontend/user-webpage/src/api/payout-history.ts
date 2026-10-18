@@ -3,7 +3,7 @@ import { requireCalendarDate } from "./filters.ts";
 import { DETAIL_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
-import { requireUuid } from "./validation.ts";
+import { requireCurrency, requireUuid } from "./validation.ts";
 
 interface PayoutScopeOptions {
   accessToken: string;
@@ -32,8 +32,7 @@ function payoutScopeParams({
   requireCalendarDate(startDate);
   requireCalendarDate(endDate);
   if (startDate > endDate) throw new Error("The start date must be on or before the end date");
-  if (currency !== null && (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)))
-    throw new Error("A valid currency code is required");
+  if (currency !== null) requireCurrency(currency);
   return new URLSearchParams({
     select: DATASET_CONFIG.payouts.selectColumns.join(","),
     company_id: `eq.${companyId}`,

@@ -27,8 +27,8 @@ async function setup(page, role = "member") {
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
-  await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("10 USD");
-  await expect(summaryAmount(summaryCards(page).month, "Reported amount")).toHaveText("20 USD");
+  await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("10.00 USD");
+  await expect(summaryAmount(summaryCards(page).month, "Reported amount")).toHaveText("20.00 USD");
   await expect.poll(() => completedPolls(fixture).length).toBe(1);
   return fixture;
 }
@@ -115,7 +115,7 @@ for (const source of ["finances", "data_kiosk"]) {
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, initial);
     await expect(rowWithSku(page, "UPDATED-001")).toBeVisible();
-    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30 USD");
+    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30.00 USD");
     await expect.poll(() => fixture.optionRequests.length).toBeGreaterThan(options);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 
@@ -125,14 +125,14 @@ for (const source of ["finances", "data_kiosk"]) {
       .click();
     await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
     const total = page.getByRole("region", { name: "Breakdown total", exact: true });
-    await expect(summaryAmount(total, "Reported amount")).toHaveText("10 USD");
+    await expect(summaryAmount(total, "Reported amount")).toHaveText("10.00 USD");
     const details = fixture.breakdownRequests.length;
     const next = completedPolls(fixture).length;
     fixture.revisions[source] = "2";
     fixture.breakdownRows = [typeBucket("PRINCIPAL", "30")];
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, next);
-    await expect(summaryAmount(total, "Reported amount")).toHaveText("30 USD");
+    await expect(summaryAmount(total, "Reported amount")).toHaveText("30.00 USD");
     expect(fixture.breakdownRequests.length).toBeGreaterThan(details);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
   });
@@ -188,8 +188,8 @@ for (const [source, tab, other] of [
     ).toBeVisible();
     expect(rows()).toBeGreaterThan(initialRows);
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30 USD");
-    await expect(summaryAmount(summaryCards(page).day, "Service fee")).toHaveText("3 USD");
+    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30.00 USD");
+    await expect(summaryAmount(summaryCards(page).day, "Service fee")).toHaveText("3.00 USD");
   });
 }
 

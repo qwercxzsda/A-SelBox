@@ -80,14 +80,14 @@ test("administrator company scope controls the latest date, every summary, and e
   const fixture = await companyFixture(page);
   await signIn(page);
   const { summaries, day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("200 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("200.00 USD");
   const optionsBefore = fixture.optionRequests.length;
   await chooseCompanies(page, ["Company A"]);
-  await expect(amount(day, "Reported amount")).toHaveText("100.123456789012345678 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("110.123456789012345678 USD");
-  await expect(amount(month, "Service fee")).toHaveText("-5.123456789012345678 USD");
-  await expect(amount(month, "Company amount")).toHaveText("105 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.12 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("110.12 USD");
+  await expect(amount(month, "Service fee")).toHaveText("-5.12 USD");
+  await expect(amount(month, "Company amount")).toHaveText("105.00 USD");
   await expect(selected).toContainText("Select a date range to see totals.");
   expect(fixture.optionRequests).toHaveLength(optionsBefore);
   expect(fixture.latestRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_A));
@@ -100,13 +100,13 @@ test("administrator company scope controls the latest date, every summary, and e
     ["gte.2026-02-01", "lte.2026-02-28"],
   ]);
   await applyDates(page, "2026-01-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   expect(fixture.aggregateRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_A));
   await page.getByRole("button", { name: "View Selected dates by type", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Amounts by type", exact: true });
   const total = drawer.getByRole("region", { name: "Breakdown total", exact: true });
-  await expect(amount(total, "Reported amount")).toHaveText("115.123456789012345678 USD");
-  await expect(amount(total, "Company amount")).toHaveText("110 USD");
+  await expect(amount(total, "Reported amount")).toHaveText("115.12 USD");
+  await expect(amount(total, "Company amount")).toHaveText("110.00 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_A));
   expect(fixture.breakdownRequests.at(-1).params.getAll("activity_date")).toEqual([
     "gte.2026-01-01",
@@ -114,24 +114,24 @@ test("administrator company scope controls the latest date, every summary, and e
   ]);
   await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await summaries.getByLabel("Currency", { exact: true }).selectOption("EUR");
-  await expect(amount(day, "Reported amount")).toHaveText("20 EUR");
-  await expect(amount(month, "Reported amount")).toHaveText("20 EUR");
-  await expect(amount(selected, "Reported amount")).toHaveText("20 EUR");
+  await expect(amount(day, "Reported amount")).toHaveText("20.00 EUR");
+  await expect(amount(month, "Reported amount")).toHaveText("20.00 EUR");
+  await expect(amount(selected, "Reported amount")).toHaveText("20.00 EUR");
   await summaries.getByLabel("Currency", { exact: true }).selectOption("USD");
 
   await chooseCompanies(page, ["Company B"]);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("200 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("900 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("200.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("900.00 USD");
   expect(fixture.latestRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_B));
   await page.getByRole("button", { name: "View Selected dates by type", exact: true }).click();
-  await expect(amount(total, "Reported amount")).toHaveText("900 USD");
+  await expect(amount(total, "Reported amount")).toHaveText("900.00 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_B));
   await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await chooseCompanies(page, ["Company B", "Company A"]);
-  await expect(amount(selected, "Reported amount")).toHaveText("1,015.123456789012345678 USD");
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("200 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("1,015.12 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("200.00 USD");
   expect(fixture.latestRequests.at(-1).params.get("company_id")).toBe(
     companyScope(COMPANY_A, COMPANY_B),
   );
@@ -139,15 +139,15 @@ test("administrator company scope controls the latest date, every summary, and e
     companyScope(COMPANY_A, COMPANY_B),
   );
   await page.getByRole("button", { name: "View Selected dates by type", exact: true }).click();
-  await expect(amount(total, "Reported amount")).toHaveText("1,015.123456789012345678 USD");
+  await expect(amount(total, "Reported amount")).toHaveText("1,015.12 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("company_id")).toBe(
     companyScope(COMPANY_A, COMPANY_B),
   );
   await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await chooseCompanies(page, ["Company A"]);
-  await expect(amount(selected, "Reported amount")).toHaveText("115.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
   await chooseCompanies(page, []);
-  await expect(amount(selected, "Reported amount")).toHaveText("1,022.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("1,022.12 USD");
   await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
     "1–25 of 61 rows",
   );
@@ -192,9 +192,7 @@ test("company selection resets only the page and clearing it preserves other ref
   expect(scoped.get("or")).toContain("Amazon");
   expect(scoped.get("order")).toBe(order);
   expect(scoped.getAll("activity_date")).toEqual(["gte.2026-01-01", "lte.2026-04-30"]);
-  await expect(amount(cards(page).selected, "Reported amount")).toHaveText(
-    "115.123456789012345678 USD",
-  );
+  await expect(amount(cards(page).selected, "Reported amount")).toHaveText("115.12 USD");
   for (const { params } of fixture.aggregateRequests.filter(
     ({ params }) => params.get("company_id") === companyScope(COMPANY_A),
   )) {
@@ -232,9 +230,9 @@ test("an unresolved company scope hides old totals and its late response cannot 
   const fixture = await companyFixture(page);
   await signIn(page);
   const { day, month, selected } = cards(page);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
   await applyDates(page, "2026-01-01", "2026-02-28");
-  await expect(amount(selected, "Reported amount")).toHaveText("1,022.123456789012345678 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("1,022.12 USD");
   const started = deferred();
   const release = deferred();
   fixture.beforeLatest = fixture.beforeAggregates = async ({ params }) => {
@@ -261,12 +259,12 @@ test("an unresolved company scope hides old totals and its late response cannot 
   await expect(
     selected.getByRole("status", { name: "Loading selected dates totals", exact: true }),
   ).toBeVisible();
-  await expect(day).not.toContainText("300 USD");
-  await expect(selected).not.toContainText("1,022.123456789012345678 USD");
+  await expect(day).not.toContainText("300.00 USD");
+  await expect(selected).not.toContainText("1,022.12 USD");
   await chooseCompanies(page, ["Company B"]);
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(month, "Reported amount")).toHaveText("200 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("900 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("200.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("900.00 USD");
   release.resolve();
   await olderSettled;
   await selected.evaluate(
@@ -275,8 +273,8 @@ test("an unresolved company scope hides old totals and its late response cannot 
         element.ownerDocument.defaultView.requestAnimationFrame(() => resolve()),
       ),
   );
-  await expect(amount(day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(selected, "Reported amount")).toHaveText("900 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(selected, "Reported amount")).toHaveText("900.00 USD");
 });
 
 test("signing in as a member removes the administrator company override and control", async ({
@@ -285,20 +283,20 @@ test("signing in as a member removes the administrator company override and cont
   const fixture = await companyFixture(page);
   await signIn(page);
   await chooseCompanies(page, ["Company A"]);
-  await expect(amount(cards(page).day, "Reported amount")).toHaveText("100.123456789012345678 USD");
+  await expect(amount(cards(page).day, "Reported amount")).toHaveText("100.12 USD");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   fixture.liveRows = fixture.liveRows.filter((row) => row.company_id === COMPANY_B);
   await signIn(page, "member-b");
   await expect(page.getByRole("button", { name: "Company", exact: true })).toHaveCount(0);
   await expect(page.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(0);
-  await expect(amount(cards(page).day, "Reported amount")).toHaveText("300 USD");
-  await expect(amount(cards(page).month, "Reported amount")).toHaveText("200 USD");
+  await expect(amount(cards(page).day, "Reported amount")).toHaveText("300.00 USD");
+  await expect(amount(cards(page).month, "Reported amount")).toHaveText("200.00 USD");
   await expect(cards(page).selected).toContainText("Select a date range to see totals.");
   await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
   const total = page
     .getByRole("dialog", { name: "Amounts by type", exact: true })
     .getByRole("region", { name: "Breakdown total", exact: true });
-  await expect(amount(total, "Reported amount")).toHaveText("300 USD");
+  await expect(amount(total, "Reported amount")).toHaveText("300.00 USD");
   for (const request of [
     ...fixture.requests,
     ...fixture.latestRequests,

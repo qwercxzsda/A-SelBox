@@ -1,5 +1,5 @@
 import type { CurrencyTotal } from "./api/types";
-import { formatExactMoney } from "./decimal";
+import { formatMoney } from "./decimal";
 import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
 
 /** Category rows and their total expose the same amounts as the main total. */
@@ -12,7 +12,7 @@ export function TypeBreakdownAmounts({ total, id }: { total: CurrencyTotal; id?:
             {financialAmountLabel(field, total.missingFeeCount > 0)}
           </span>
           <span className="type-breakdown-group-value">
-            {formatExactMoney(total[field[0]], total.currency)}
+            {formatMoney(total[field[0]], total.currency)}
           </span>
         </span>
       ))}

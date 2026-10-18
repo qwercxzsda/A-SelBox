@@ -3,7 +3,7 @@ import { FinancialAmounts } from "./FinancialAmounts";
 import { Accordion, Button, Group, Table, Text } from "@mantine/core";
 import type { CurrencyTotal, TransactionTypeTotal } from "./api/types";
 import { transactionTypeLabel } from "./categories";
-import { formatExactMoney } from "./decimal";
+import { formatMoney } from "./decimal";
 import type { TransactionTypeGroup } from "./type-breakdown-groups";
 
 import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
@@ -40,7 +40,7 @@ function AmountRow({
       </Table.Th>
       {FINANCIAL_AMOUNTS.map(([field]) => (
         <Table.Td key={field} ta="right">
-          {formatExactMoney(total[field], total.currency)}
+          {formatMoney(total[field], total.currency)}
         </Table.Td>
       ))}
       <Table.Td ta="right">

@@ -2,7 +2,7 @@ import "./Cell.css";
 import type { CanonicalRow } from "./api";
 import { humanizeCode } from "./categories";
 import { TransactionTypeValue } from "./TransactionTypeValue";
-import { formatExactDecimal, formatExactMoney } from "./decimal";
+import { formatExactDecimal, formatMoney } from "./decimal";
 import { formatRecordDate, formatRecordMonth } from "./date-display";
 import { companyLabel, type ColumnDefinition } from "./view-model";
 
@@ -56,7 +56,7 @@ export function TableCellValue({
     case "month":
       return <time dateTime={value.slice(0, 7)}>{formatRecordMonth(value)}</time>;
     case "money":
-      return formatExactMoney(value, row.currency ?? null);
+      return formatMoney(value, row.currency ?? null);
     case "percent":
       return `${formatExactDecimal(value)}%`;
     case "number":

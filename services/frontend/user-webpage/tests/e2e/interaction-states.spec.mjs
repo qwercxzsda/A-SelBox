@@ -133,7 +133,7 @@ test("summary cards and date links keep distinct keyboard and click actions with
   await expect(panel(page, "Amounts by type")).toHaveCount(0);
   await expect(
     page.getByRole("article", { name: "Selected dates estimated totals", exact: true }),
-  ).toContainText("10 USD");
+  ).toContainText("10.00 USD");
   await open.focus();
   await open.press("Enter");
   const breakdown = panel(page, "Amounts by type");

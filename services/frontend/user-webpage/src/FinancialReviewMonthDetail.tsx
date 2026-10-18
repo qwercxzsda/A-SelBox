@@ -8,9 +8,11 @@ import "./FinancialReviewMonthDetail.css";
 export function FinancialReviewMonthDetail({
   identity,
   category,
+  currency,
   onRetry,
   month,
   matureCutoff,
+  latestMonth,
   months,
   onSelect,
   onClose,
@@ -18,22 +20,25 @@ export function FinancialReviewMonthDetail({
 }: {
   identity: Identity;
   category: ReviewCategory;
+  currency: string;
   onRetry: () => Promise<void>;
   month: string | null;
   matureCutoff: string;
+  latestMonth: string;
   months: string[];
   onSelect: (month: string) => void;
   onClose: () => void;
   onExitTransitionEnd: () => void;
 }) {
+  const opened = month !== null && latestMonth !== "";
   const index = month ? months.indexOf(month) : -1;
-  const newerMonth = index > 0 ? months[index - 1] : null;
-  const olderMonth = index >= 0 ? (months[index + 1] ?? null) : null;
+  const olderMonth = index > 0 ? months[index - 1] : null;
+  const newerMonth = index >= 0 ? (months[index + 1] ?? null) : null;
   return (
     <Drawer.Stack>
       <Drawer
         stackId="monthly-financial-review"
-        opened={month !== null && matureCutoff !== ""}
+        opened={opened}
         onClose={onClose}
         onExitTransitionEnd={onExitTransitionEnd}
         position="right"
@@ -42,7 +47,7 @@ export function FinancialReviewMonthDetail({
         title="Monthly financial review"
         closeButtonProps={{ "aria-label": "Close monthly financial review" }}
       >
-        {month ? (
+        {opened ? (
           <>
             <Group
               className="monthly-review-heading"
@@ -53,31 +58,17 @@ export function FinancialReviewMonthDetail({
               <div className="monthly-review-title">
                 <Group gap="sm">
                   <Title order={3}>{formatRecordMonth(month)}</Title>
+                  <Badge variant="light">{currency}</Badge>
                   <Badge color="gray" variant="light">
                     {reviewCategoryLabel(category)} · Current sources
                   </Badge>
-                  {month === matureCutoff.slice(0, 7) ? (
-                    <Badge color="gray" variant="light">
-                      Mature dates only
-                    </Badge>
-                  ) : null}
                 </Group>
                 <Text size="sm" c="dimmed" mt={4}>
                   All source accounts · All companies · All marketplaces · All SKUs
                 </Text>
               </div>
               {months.length > 1 ? (
-                <Group component="nav" aria-label="Review months on this page" gap="xs">
-                  <Button
-                    size="xs"
-                    variant="default"
-                    disabled={!newerMonth}
-                    onClick={() => {
-                      if (newerMonth) onSelect(newerMonth);
-                    }}
-                  >
-                    Previous
-                  </Button>
+                <Group component="nav" aria-label="Review months in this year" gap="xs">
                   <Button
                     size="xs"
                     variant="default"
@@ -86,29 +77,34 @@ export function FinancialReviewMonthDetail({
                       if (olderMonth) onSelect(olderMonth);
                     }}
                   >
+                    Previous
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="default"
+                    disabled={!newerMonth}
+                    onClick={() => {
+                      if (newerMonth) onSelect(newerMonth);
+                    }}
+                  >
                     Next
                   </Button>
                 </Group>
               ) : null}
             </Group>
-            {matureCutoff ? (
-              <Text size="xs" c="dimmed" mb="lg">
-                Includes mature dates before {matureCutoff} (UTC) only. Later dates appear
-                automatically as they mature.
-              </Text>
-            ) : null}
-            {matureCutoff ? (
-              <FinancialReviewMonthContent
-                key={`${category}:${month}`}
-                identity={identity}
-                category={category}
-                onRetry={onRetry}
-                month={month}
-                matureCutoff={matureCutoff}
-              />
-            ) : (
-              <Text role="status">Loading financial review…</Text>
-            )}
+            <Text size="xs" c="dimmed" mb="lg">
+              Full mature months through {formatRecordMonth(latestMonth)}. Uses the same
+              mature-month window as payout reports.
+            </Text>
+            <FinancialReviewMonthContent
+              key={`${category}:${month}:${currency}`}
+              identity={identity}
+              category={category}
+              currency={currency}
+              onRetry={onRetry}
+              month={month}
+              matureCutoff={matureCutoff}
+            />
           </>
         ) : null}
       </Drawer>

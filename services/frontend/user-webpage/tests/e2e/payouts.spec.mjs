@@ -37,7 +37,7 @@ for (const role of ["administrator", "member"]) {
       page.getByText("Reports are generated automatically", { exact: false }),
     ).toBeVisible();
     await applyReportMonth(page, "2026-06");
-    await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /generate|refresh|reload/i })).toHaveCount(0);
     expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
     await captureResponsiveReview(page, testInfo, `${role}-payout-reports`);
@@ -146,15 +146,15 @@ test("members see both company amount sources without supporting or account cont
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await expect(page.getByRole("button", { name: "Generate payout reports" })).toHaveCount(0);
   await expect(page.getByLabel("Report company")).toHaveCount(0);
-  await expect(page.getByRole("cell", { name: "999 USD", exact: true })).toHaveCount(0);
-  await page.getByRole("cell", { name: "87 USD", exact: true }).click();
+  await expect(page.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
+  await page.getByRole("cell", { name: "87.00 USD", exact: true }).click();
   await page.getByText("Marketplace breakdown", { exact: true }).first().click();
   const breakdown = page.getByRole("table", { name: "Payout marketplace breakdown" });
   await expect(breakdown).toBeVisible();
   await expect(breakdown.getByRole("columnheader", { name: "Company amount (USD)" })).toBeVisible();
   await expect(breakdown.getByRole("cell", { name: "Not specified", exact: true })).toBeVisible();
-  await expect(breakdown.getByRole("cell", { name: "-8", exact: true })).toHaveCount(2);
-  await expect(breakdown.getByRole("cell", { name: "999", exact: true })).toHaveCount(0);
+  await expect(breakdown.getByRole("cell", { name: "-8.00", exact: true })).toHaveCount(2);
+  await expect(breakdown.getByRole("cell", { name: "999.00", exact: true })).toHaveCount(0);
   await expect(page.getByRole("table", { name: "Amount records", exact: true })).toBeVisible();
   await expect(
     page
@@ -167,9 +167,9 @@ test("members see both company amount sources without supporting or account cont
   await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(0);
   await expect(page.getByText("Saved source details", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Reconciliation", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("cell", { name: "102", exact: true })).toHaveCount(0);
-  await expect(breakdown.getByRole("cell", { name: "102", exact: true })).toHaveCount(0);
-  await expect(breakdown.getByRole("cell", { name: "-8", exact: true })).toHaveCount(2);
+  await expect(page.getByRole("cell", { name: "102.00", exact: true })).toHaveCount(0);
+  await expect(breakdown.getByRole("cell", { name: "102.00", exact: true })).toHaveCount(0);
+  await expect(breakdown.getByRole("cell", { name: "-8.00", exact: true })).toHaveCount(2);
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
   ).toBe(false);
@@ -190,7 +190,7 @@ test("marketplace breakdown loads independently and retries an error into an emp
   fixture.payoutMarketplaceTotalsStatus = 400;
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByRole("cell", { name: "85 USD", exact: true }).click();
+  await page.getByRole("cell", { name: "85.00 USD", exact: true }).click();
   await page.getByText("Marketplace breakdown", { exact: true }).first().click();
   await expect(page.getByText("Loading marketplace breakdown…", { exact: true })).toBeVisible();
   await expect(page.getByText("No records match this selection.").first()).toBeVisible();
@@ -240,7 +240,7 @@ test("administrator payout drawers contain only their payout amounts and records
   ];
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByRole("cell", { name: "70 USD", exact: true }).click();
+  await page.getByRole("cell", { name: "70.00 USD", exact: true }).click();
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
   ).toBe(false);

@@ -129,10 +129,12 @@ allows. Each tab has its own associated panel for keyboard and assistive-technol
   fee revisions; old incomplete settings remain visible so an administrator can repair them.
 - Transactions, Data Kiosk, estimated totals, and payout reports retain zero monetary rows,
   including any service fee based on a nonzero fee base. Financial values arrive as CSV or JSON
-  strings and retain their decimal precision. Missing fees display as a dash. Known zero service
-  fees remain zero, including non-applicable fees; a non-applicable fee rate displays as a dash.
-  Timestamp cells use readable UTC dates and times while their title preserves the exact original
-  value.
+  strings and retain their exact decimal precision in calculations. All monetary displays use two
+  decimal places, including yen and zero (`0.00`). Display rounding uses decimal arithmetic with
+  ties away from zero; totals are summed exactly before rounding. Rates and counts retain their
+  existing precision. Missing fees display as a dash. Known zero service fees remain zero, including
+  non-applicable fees; a non-applicable fee rate displays as a dash. Timestamp cells use readable
+  UTC dates and times while their title preserves the exact original value.
 - Transactions, Finances, and Data Kiosk allow ordering by Date or Reported amount. Transactions
   includes derived reconciliation amounts; raw tabs use the stored source amount. Amount ordering is
   available only when at most 10,000 rows match every active filter and search. Larger scopes
@@ -155,9 +157,9 @@ introductions use [WorkspaceIntro](src/WorkspaceIntro.tsx) for consistent titles
 Views keep layouts suited to their tasks: fee editing uses SKU cards and period forms, inventory
 keeps its descriptive metrics and urgency colors, and financial reports use grouped tables and
 detail drawers. Transactions, Finances, and Data Kiosk share the 320px, single-line Type column with
-one readable canonical label. The complete label and exact source code remain available in the
-cell title and row details. Desktop density and local scrolling on smaller screens remain part of
-the shared conventions. Use Previous/Next for pagination, Rows for page size, and sentence case for
+one readable canonical label. The complete label and exact source code remain available in the cell
+title and row details. Desktop density and local scrolling on smaller screens remain part of the
+shared conventions. Use Previous/Next for pagination, Rows for page size, and sentence case for
 labels. Use **exclusive** for amounts outside a payout or the end boundary of a fee period, with the
 scope explicit. Use **Finances** consistently for the API source, category, and source tab.
 
@@ -247,13 +249,18 @@ and list. Marketplace breakdown is an expandable saved-report section. The
 [payout contract](../../../docs/company_payout_reports.md) defines maturity, coverage, empty
 reports, immutability, and when estimates match the latest saved report.
 
-Administrator-only **Financial review** uses the same month grouping, column filters, drawers, and
-pagination, with **Rows: 25 / 50 / 100**. Its Finances, Data Kiosk, and SelBox category tabs compare
-current mature source facts. Opening a month shows totals, amounts by source/type, and exact source
-records. The month's expandable **Saved report snapshots** section contains historical comparison
-rows and account controls. Their account scope stays separate from company payout amounts. The
-[Financial review guide](../../../docs/financial_review.md) defines these scopes, labels, read
-interfaces, and the distinction between source differences and the accounting reconciliation.
+Administrator-only **Financial review** shares one **Year** and **Currency** across its Finances,
+Data Kiosk, and SelBox category tabs. It shows up to twelve chronological monthly rows, monthly
+differences, and an exact running difference from the start of the selected year. Period totals and
+the trend chart use the same currency; offsetting differences do not prove source convergence. Only
+fully mature calendar months appear, through the payout policy's latest eligible month. The
+partially mature month is excluded from date discovery, currency choices, totals, and details.
+Opening a month keeps that currency for totals, amounts by source/type, source records, and the
+saved-report list. The month's expandable **Saved report snapshots** section contains historical
+comparison rows and account controls. Their account scope stays separate from company payout
+amounts. The [Financial review guide](../../../docs/financial_review.md) defines these scopes,
+labels, read interfaces, and the distinction between source differences and the accounting
+reconciliation.
 
 ## Totals
 
@@ -270,8 +277,9 @@ affect the cards. Clicking a day or month applies its date bounds to Transaction
 page one. Clicking amounts opens the shared amount breakdown with the effective dates, currency, and
 filters. Related types use expandable groups in a fixed order. Its record pages use
 `transaction_page` with the same date/company/SKU/marketplace scope plus the selected currency and
-types. Date ordering, exact decimals, and financial authority match the main Transactions view.
-Source and ownership revisions refresh both the open summary and its record pages.
+types. Date ordering, exact calculations, two-decimal amount display, and financial authority match
+the main Transactions view. Source and ownership revisions refresh both the open summary and its
+record pages.
 
 Totals use Data Kiosk for all monetary categories on recent dates (the mature cutoff date and
 later). For mature dates (before the mature cutoff date), Finances activity components supply the
@@ -319,7 +327,8 @@ authority, ordering/ties, null/empty search semantics, and amount limits.
 
 Other datasets use their dedicated REST/RPC interfaces. Details and Previous/Next remain usable
 while a separate count loads; page-number entry appears when its bound is known. Count failures have
-their own retry. Financial review uses bounded cursor pages rather than a full-history count.
+their own retry. Financial review uses date bounds and a bounded calendar-year read, with no
+overview pagination or full-history count; its source records and type details remain paginated.
 
 Administrators reload their SKU catalog on any financial source or fee revision before dependent
 search reads; members reload assigned SKUs on fee revisions. Refreshed catalogs update search keys

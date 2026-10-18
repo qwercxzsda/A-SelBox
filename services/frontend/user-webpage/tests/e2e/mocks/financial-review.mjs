@@ -66,12 +66,14 @@ export async function respondWithFinancialReview(
   const sourceRows = isAnchor
     ? fixture.financialReviewTotals.map((row) => ({ ...row, activity_date: row.month }))
     : fixture[DATA[endpoint]];
+  const matureMonthBoundary = `${(fixture.payoutPolicy?.mature_cutoff_date ?? "2026-07-27").slice(0, 7)}-01`;
   for (const [, field, operator, date] of (filters.get("and") ?? "").matchAll(
     /(month|activity_date)\.(eq|gte|lte|gt|lt)\.([0-9-]+)/g,
   ))
     filters.append(field, `${operator}.${date}`);
   const rows = sortRecordRows(
     filterRecordRows(sourceRows, filters).filter((row) => {
+      if ((row.activity_date ?? row.month) >= matureMonthBoundary) return false;
       if (filters.get("category") !== `eq.${row.category}`) return false;
       const before = filters.get("activity_date");
       if (before?.startsWith("lt.") && row.activity_date >= before.slice(3)) return false;

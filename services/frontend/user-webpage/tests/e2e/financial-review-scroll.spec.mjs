@@ -5,7 +5,7 @@ import {
   setupManyFinancialReviewRows,
 } from "./financial-review-fixtures.mjs";
 
-test.use({ viewport: { width: 1440, height: 900 } });
+test.use({ viewport: { width: 1440, height: 600 } });
 
 const monthly = (page) =>
   page.getByRole("dialog", { name: "Monthly financial review", exact: true });
@@ -40,7 +40,11 @@ function documentState(page) {
 async function expectPageWheelScroll(page) {
   const state = await documentState(page);
   const remaining = state.scrollHeight - state.viewportHeight - state.scrollY;
-  expect(remaining, "The long fixture must leave room to scroll the document").toBeGreaterThan(600);
+  const direction = remaining >= state.scrollY ? 1 : -1;
+  expect(
+    Math.max(remaining, state.scrollY),
+    "The fixture must leave room for a native document scroll",
+  ).toBeGreaterThan(100);
   // Leave the pointer where closing placed it. Moving/hovering or clicking the
   // page could mask Safari's need for another window click before scrolling.
   await test.info().attach(`wheel-focus-${test.info().attachments.length + 1}`, {
@@ -52,12 +56,12 @@ async function expectPageWheelScroll(page) {
       async () => {
         // Repeat native gestures while the close animation finishes. Programmatic
         // scrollTo would bypass the user's blocked-wheel failure.
-        await page.mouse.wheel(0, 240);
-        return page.evaluate(() => globalThis.scrollY);
+        await page.mouse.wheel(0, direction * 240);
+        return page.evaluate((start) => Math.abs(globalThis.scrollY - start), state.scrollY);
       },
       { message: "Native wheel scrolling should move the underlying document" },
     )
-    .toBeGreaterThan(state.scrollY + 100);
+    .toBeGreaterThan(100);
   await expect
     .poll(async () => {
       const state = await documentState(page);
@@ -80,12 +84,11 @@ async function openLongReview(page) {
   setupManyFinancialReviewRows(fixture);
   await signIn(page);
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await page.getByRole("combobox", { name: "Rows", exact: true }).selectOption("100");
   await expect(
     page.getByRole("table", { name: "Monthly financial review", exact: true }).locator("tbody tr"),
-  ).toHaveCount(100);
+  ).toHaveCount(7);
   // Confirm the same native gesture works before any drawer is opened.
-  await page.mouse.move(12, 800);
+  await page.mouse.move(12, 500);
   await expectPageWheelScroll(page);
 }
 
@@ -138,12 +141,12 @@ test("reopening monthly review preserves native scrolling after X, Escape, and b
   await openLongReview(page);
   for (const method of ["button", "escape", "backdrop", "button", "escape"]) {
     // The drawer fills the 1440px baseline; expose a real backdrop on a wider desktop.
-    if (method === "backdrop") await page.setViewportSize({ width: 1920, height: 900 });
+    if (method === "backdrop") await page.setViewportSize({ width: 1920, height: 600 });
     await openMonth(page);
     if (method === "escape") {
       await monthly(page)
-        .getByRole("navigation", { name: "Review months on this page", exact: true })
-        .getByRole("button", { name: "Next", exact: true })
+        .getByRole("navigation", { name: /^Review months/ })
+        .getByRole("button", { name: "Previous", exact: true })
         .click();
       await expect(
         monthly(page).getByRole("heading", { name: "June 2026", exact: true }).first(),
@@ -154,7 +157,7 @@ test("reopening monthly review preserves native scrolling after X, Escape, and b
       page.getByRole("button", { name: "Open review for July 2026", exact: true }),
     ).toBeFocused();
     await expectPageWheelScroll(page);
-    if (method === "backdrop") await page.setViewportSize({ width: 1440, height: 900 });
+    if (method === "backdrop") await page.setViewportSize({ width: 1440, height: 600 });
   }
 });
 
@@ -164,7 +167,6 @@ test("closing nested saved details and their month restores native page scrollin
   await openLongReview(page);
   for (const method of ["button", "escape"]) {
     await openMonth(page, "June 2026");
-    await monthly(page).getByLabel("Review currency", { exact: true }).selectOption("USD");
     const snapshots = monthly(page).getByRole("button", {
       name: "Saved report snapshots",
       exact: true,

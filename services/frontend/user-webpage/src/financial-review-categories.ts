@@ -36,12 +36,12 @@ export function reviewAmountColumns(category: ReviewCategory): DetailColumn[] {
   const amount = category === "DATA_KIOSK" ? "costs" : "amount";
   return [
     { key: "currency", label: "Currency" },
-    { key: "finances_amount", label: `Finances ${amount}`, kind: "number" },
-    { key: "data_kiosk_amount", label: `Data Kiosk ${amount}`, kind: "number" },
+    { key: "finances_amount", label: `Finances ${amount}`, kind: "amount" },
+    { key: "data_kiosk_amount", label: `Data Kiosk ${amount}`, kind: "amount" },
     {
       key: "difference",
       label: `Difference (Finances ${amount} - Data Kiosk ${amount})`,
-      kind: "number",
+      kind: "amount",
     },
   ];
 }

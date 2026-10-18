@@ -3,6 +3,7 @@ import type { Identity } from "./auth-session";
 import { FinancialReviewMonths } from "./FinancialReviewMonths";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { REVIEW_CATEGORIES, reviewCategory } from "./financial-review-categories";
+import { createReviewScope, decodeReviewScope } from "./financial-review-view";
 
 export function FinancialReview({
   identity,
@@ -15,6 +16,11 @@ export function FinancialReview({
     "financial-review:category",
     () => reviewCategory(null),
     reviewCategory,
+  );
+  const [scope, setScope] = useWorkspacePreference(
+    "financial-review:scope",
+    createReviewScope,
+    decodeReviewScope,
   );
   if (identity.account.access_role !== "administrator") return null;
   return (
@@ -33,8 +39,10 @@ export function FinancialReview({
       </Tabs.List>
       <Tabs.Panel value={category} pt="md">
         <FinancialReviewMonths
-          key={category}
+          key={`${category}:${scope.year}:${scope.currency}`}
           category={category}
+          scope={scope}
+          onScopeChange={setScope}
           identity={identity}
           onRetry={onRetry}
         />

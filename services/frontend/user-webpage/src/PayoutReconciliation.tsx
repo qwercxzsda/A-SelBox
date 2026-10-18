@@ -10,18 +10,21 @@ import { decodeDetailPage } from "./detail-view-state";
 export function PayoutReconciliation({
   accessToken,
   reportId,
+  currency,
 }: {
   accessToken: string;
   reportId: string;
+  currency: string | null;
 }) {
   const [pageIndex, setPageIndex] = useWorkspacePreference(
-    `payout:${reportId}:reconciliation-page`,
+    `payout:${reportId}:${currency ?? ""}:reconciliation-page`,
     () => 0,
     decodeDetailPage,
   );
   const query = useQuery({
-    queryKey: ["payout-reconciliation", reportId, pageIndex],
-    queryFn: ({ signal }) => fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal),
+    queryKey: ["payout-reconciliation", reportId, currency, pageIndex],
+    queryFn: ({ signal }) =>
+      fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal, currency ?? undefined),
     staleTime: Infinity,
   });
   const rows = query.data?.rows ?? [];

@@ -1,5 +1,13 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
+export function isCurrency(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Z]{3}$/.test(value);
+}
+
+export function requireCurrency(value: unknown): asserts value is string {
+  if (!isCurrency(value)) throw new Error("A valid currency code is required");
+}
+
 export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_PATTERN.test(value);
 }

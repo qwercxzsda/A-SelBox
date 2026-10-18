@@ -1,7 +1,7 @@
 # Financial review
 
-Financial review is an administrator-only comparison of current mature source facts across all
-source namespaces, companies, marketplaces, and SKUs. It explains source differences; it is not a
+Financial review is an administrator-only comparison of current facts from fully mature months
+across all source namespaces, companies, marketplaces, and SKUs. It explains source differences; it is not a
 company payout. [Payout reports](company_payout_reports.md) freeze company amounts separately.
 Currencies remain separate in both views.
 
@@ -22,10 +22,15 @@ Data Kiosk is the initial category. Each month/currency row compares the signed 
 difference = finances_amount - data_kiosk_amount
 ```
 
-The Data Kiosk column labels are **Finances costs**, **Data Kiosk costs**, and
-**Difference (Finances costs - Data Kiosk costs)**. The other categories use **amount** in place
-of **costs**. Parenthesized formula text has less visual emphasis, without changing its accessible
-label. Costs retain the source sign; the UI does not convert them to positive magnitudes.
+The Data Kiosk source columns are **Finances costs** and **Data Kiosk costs**. The other categories
+use **amount** in place of **costs**. Monthly details label the difference with its formula;
+parenthesized formula text has less visual emphasis, without changing its accessible label.
+Costs retain the source sign; the UI does not convert them to positive magnitudes.
+
+All monetary displays use two decimal places, including yen and zero. Calculations keep exact
+decimal precision and round only the displayed result, with ties away from zero. Differences use
+the unrounded source sums, so subtracting two displayed rounded amounts can differ by a cent from
+the displayed difference. Values that round to zero display `0.00`, without a negative sign.
 
 Only the Data Kiosk category difference is the accounting reconciliation amount retained by SelBox.
 Differences in the Finances and SelBox categories are diagnostic and do not create additional
@@ -33,9 +38,13 @@ payout adjustments. A source with no matching rows has a zero sum and is identif
 record count. Source rows with zero amounts remain visible. `ANALYSIS_ONLY` rows do not enter
 these monetary comparisons.
 
-Dates before `mature_cutoff_date` are eligible under the shared [source policy](source_allocation.md).
-A month containing the cutoff is labeled **Mature dates only**. The list and month drawer state
-the exclusive cutoff date in UTC; later downloaded dates appear automatically as they mature.
+Only fully mature calendar months are eligible, matching [payout reports](company_payout_reports.md).
+The current-source boundary is the first day of the month containing `mature_cutoff_date`, exclusive.
+For example, an August 18 cutoff includes all of July and excludes all of August, including its
+otherwise mature early dates. The overview and month drawer identify the latest eligible month from
+the payout policy's `latest_month`. A newly eligible month appears in full when the cutoff enters
+the following month. This boundary applies to date discovery, available currencies, period and running
+totals, types, and source records; a stale saved selection cannot reopen an ineligible month.
 Downloaded coverage and Financial review eligibility are separate: recent months can be present
 in the source tabs while absent from this comparison. Maturity is an application assumption,
 not proof that Amazon's sources agree or that every expected transaction has arrived.
@@ -56,21 +65,29 @@ Amazon's Summary groups native Non-Amazon US activity into Amazon.com. Financial
 review deliberately retains the native marketplaces in its Data Kiosk comparison.
 Only the separate monthly Summary control applies that verified grouping.
 
-## Monthly browsing and source records
+## Yearly overview and monthly details
 
-The list groups month/currency rows newest first, using the same month cells, column filters, table
-typography, and pagination controls as Payout reports. **Rows** selects 25, 50, or 100 rows;
-**Previous** and **Next** switch pages. The Month column filter selects an exact month. Clearing it
-returns to the newest rows and preserves the chosen row count. A page counts currency rows, so a
-month can continue on the next page.
-The month cell says **N currencies on this page**, and a pagination hint explains the boundary;
-the count does not describe the month's total currency coverage.
+**Year** and **Currency** define one shared scope across the three category tabs. The initial year
+is the latest year with fully mature source records and the initial currency is USD. Changing the year or category
+retains the selected currency; if it has no matching records, the view stays empty rather than
+switching currencies. The currency menu includes currencies available in the selected year and
+the current selection. Year options span the available source years, including intervening gaps.
 
-Selecting a month opens its totals and **Amounts by type** in a drawer. **Review currency** scopes
-the type breakdown and **Source records** to the selected currency. Choosing a type opens and
+The overview shows up to twelve monthly rows, January through December, without row pagination or
+a separate month filter. Each row shows the monthly source sums, monthly difference, and
+**Running difference**: the exact sum of monthly differences from the start of the selected year
+through that row. Missing months have no row; the running sum includes only returned source facts.
+Period totals and the **Monthly and running differences** chart use the same year, currency, and
+category. Offsetting differences can reduce a running total, but this does not prove that earlier
+captures converged or that individual source discrepancies were resolved.
+
+Selecting a month opens its totals and **Amounts by type** in a drawer, with the overview's currency
+fixed throughout totals, types, source records, and the saved-report list. Choosing a type opens and
 focuses records for the same category, month, currency, source, and exact raw type. Type and record
-tables use 50-row pages. Currency changes clear the type and page while preserving an open records
-section. A type's sum and count cover all matching records, independently of the loaded record page.
+tables use 50-row pages. Source-filter state is saved separately for each category, month, and
+currency. Changing Year or Currency closes the monthly drawer. **Previous** and **Next** within the
+drawer move to older and newer available months of that year. A type's sum and count cover all
+matching records, independently of the loaded record page.
 Closing the month drawer returns focus to its opener after the exit transition, without scrolling
 the page. A drawer restored by a page reload returns focus to the monthly list instead. This also
 keeps X-button closing usable without clicking the underlying page again.
@@ -81,20 +98,21 @@ remains explicit. These are current
 source facts without company allocation or fee joins. A difference at account or category level
 does not attribute a discrepancy to a particular SKU, transaction, campaign, or blank marketplace.
 
-Category, row count, filters, selected month, currency, type, page, and expanded sections survive
+Year, currency, category, selected month, source filters, detail pages, and expanded sections survive
 reloads. Only view state is saved; amounts are fetched again. Lightweight source revision checks
-and the maturity cutoff refresh current comparisons, including an open drawer.
+and maturity-policy changes refresh current comparisons, including an open drawer.
 
 ## Saved report snapshots
 
 Each month's expandable **Saved report snapshots** section lists saved company reports and their
-earlier versions. This section stays scoped to its month and preserves company/currency filters
-independently of the current category comparison.
+earlier versions. This section stays scoped to its month and the selected review currency, while
+preserving its company filter independently of the current category comparison.
 
 Selecting a snapshot opens **Saved source details**, including **Supporting records**, saved
 account reconciliation, and input metadata captured when that report was created. These details are exclusive of the company
-payout amount. Account controls can include other companies or currencies from the source accounts;
-they are identified separately from the report's company/month/currency scope.
+payout amount. Account controls can include other companies from the source accounts; the selected
+review currency filters their totals and daily details, while their account scope remains separate
+from the report's company scope.
 
 Saved account controls remain immutable. The same controls can appear beside several company
 reports, so they must not be added across reports. The [saved reconciliation contract](company_payout_reports.md#saved-account-reconciliation)
@@ -113,9 +131,11 @@ input manifests through the API.
 
 Current-source interfaces use invoker security and an explicit administrator check. Month RPCs require
 half-open date bounds and apply those bounds before grouping, with existing fact-date indexes.
-The browser fills pages using bounded six-calendar-month queries and one-row date anchors to skip
-gaps. It does not aggregate all history to count pages. Finding the newest eligible source date can
-still examine source rows; bounded result size is not a constant-time guarantee.
+The browser reads the earliest and latest eligible dates with one-row date anchors, then requests
+one bounded January-to-January period. The period response includes every currency to populate the
+currency menu; only the selected currency enters displayed totals and running sums. Monthly detail
+reads also filter by the selected currency. Finding the date bounds can still examine source rows;
+bounded result size is not a constant-time guarantee.
 
 CSV responses preserve decimal strings. Aggregate RPC projections are alphabetically ordered to
 keep values aligned with headers on the deployed PostgREST CSV serializer; tests protect that

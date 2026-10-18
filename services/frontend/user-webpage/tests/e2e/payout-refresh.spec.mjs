@@ -43,7 +43,7 @@ for (const role of ["administrator", "member"]) {
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await applyReportMonth(page, "2026-06");
-    await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
     await expect(page.getByText("1–1 of 1 latest reports", { exact: true })).toBeVisible();
     const before = reportReads(fixture);
 
@@ -55,7 +55,7 @@ for (const role of ["administrator", "member"]) {
     fixture.revisions.data_kiosk = "2";
     await checkForUpdates(page, fixture);
     expect(reportReads(fixture)).toEqual(before);
-    await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
 
     // The server may combine intermediate changes before publishing a newer snapshot.
     fixture.payoutRows.push({
@@ -67,8 +67,8 @@ for (const role of ["administrator", "member"]) {
     });
     fixture.revisions.payouts = "new-snapshot";
     await checkForUpdates(page, fixture);
-    await expect(page.getByRole("cell", { name: "93 USD", exact: true })).toBeVisible();
-    await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("cell", { name: "93.00 USD", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toHaveCount(0);
     await expect(page.getByText("1–1 of 1 latest reports", { exact: true })).toBeVisible();
     expect(reportReads(fixture)).toEqual({ rows: before.rows + 1, counts: before.counts + 1 });
 
@@ -76,8 +76,8 @@ for (const role of ["administrator", "member"]) {
     expect(reportReads(fixture)).toEqual({ rows: before.rows + 1, counts: before.counts + 1 });
     expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
     await page.getByRole("button", { name: /^Show versions for/ }).click();
-    await expect(page.getByRole("cell", { name: "95 USD", exact: true })).toBeVisible();
-    await expect(page.getByRole("cell", { name: "93 USD", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "93.00 USD", exact: true }).first()).toBeVisible();
     await expect(page.getByText("1–1 of 1 latest reports", { exact: true })).toBeVisible();
 
     fixture.payoutRows.push({
@@ -91,8 +91,8 @@ for (const role of ["administrator", "member"]) {
     await checkForUpdates(page, fixture);
     const history = page.getByRole("region", { name: /^Report versions for/ });
     await expect(history).toBeVisible();
-    await expect(history.getByRole("cell", { name: "91 USD", exact: true })).toBeVisible();
-    await expect(history.getByRole("cell", { name: "93 USD", exact: true })).toBeVisible();
-    await expect(history.locator('tr[data-version="latest"]')).toContainText("91 USD");
+    await expect(history.getByRole("cell", { name: "91.00 USD", exact: true })).toBeVisible();
+    await expect(history.getByRole("cell", { name: "93.00 USD", exact: true })).toBeVisible();
+    await expect(history.locator('tr[data-version="latest"]')).toContainText("91.00 USD");
   });
 }

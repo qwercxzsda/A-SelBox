@@ -1,46 +1,38 @@
-import { inspectableRowProps } from "./inspectable-row";
 import { useId, useRef } from "react";
-import { Badge, Button, Group, Paper, Table, Text } from "@mantine/core";
+import { Button, Group, Paper, Table, Text } from "@mantine/core";
 import type { CanonicalRow } from "./api";
+import { inspectableRowProps } from "./inspectable-row";
 import { TableScrollControls } from "./TableScrollControls";
 import { formatRecordMonth } from "./date-display";
-import { formatExactDecimal } from "./decimal";
-import { groupFinancialReviewMonths } from "./financial-review-view";
-import { ColumnMenu } from "./ColumnMenu";
-import { MonthGroupCell } from "./MonthGroupCell";
+import { formatAmount } from "./decimal";
 import { UpdateStatus } from "./UpdateStatus";
-import { reviewAmountColumns, type ReviewCategory } from "./financial-review-categories";
-import { TableColumnLabel } from "./TableColumnLabel";
+import type { ReviewCategory } from "./financial-review-categories";
 
 export function FinancialReviewMonthTable({
   rows,
+  currency,
   selectedMonth,
   onSelect,
-  filterMonth,
-  onFilterMonth,
-  matureCutoff,
   isBusy,
   emptyMessage,
   category,
 }: {
   rows: CanonicalRow[];
+  currency: string;
   selectedMonth: string | null;
   onSelect: (month: string) => void;
-  filterMonth: string;
-  onFilterMonth: (month: string) => void;
-  matureCutoff: string;
   isBusy: boolean;
   emptyMessage: string;
   category: ReviewCategory;
 }) {
   const scrollTarget = useRef<HTMLDivElement>(null);
   const scrollId = useId();
+  const amount = category === "DATA_KIOSK" ? "costs" : "amount";
   return (
     <>
       <Group justify="space-between" gap="xs" mb="xs">
         <Text size="xs" c="dimmed">
-          Filter by month in the column heading. Open a month for amounts by type and source
-          records. Pages count currency rows; a month can continue on the next page.
+          All amounts in {currency}. Based on months with source records. Open a month for details.
         </Text>
         <Group gap="xs">
           <UpdateStatus active={isBusy}>Updating monthly summaries…</UpdateStatus>
@@ -58,117 +50,82 @@ export function FinancialReviewMonthTable({
           tabIndex={0}
         >
           <Table
-            className="financial-review-months-table month-grouped-table"
+            className="financial-review-months-table"
             aria-label="Monthly financial review"
             highlightOnHover
           >
             <Table.Thead>
               <Table.Tr>
-                <Table.Th scope="col">
-                  <ColumnMenu
-                    label="Month"
-                    filter={{ kind: "month", value: filterMonth, onChange: onFilterMonth }}
-                  />
+                <Table.Th scope="col">Month</Table.Th>
+                <Table.Th scope="col" className="numeric">
+                  Finances {amount}
                 </Table.Th>
-                {reviewAmountColumns(category).map((column) => (
-                  <Table.Th
-                    key={column.key}
-                    scope="col"
-                    className={column.kind === "number" ? "numeric" : undefined}
-                  >
-                    <TableColumnLabel label={column.label} />
-                  </Table.Th>
-                ))}
+                <Table.Th scope="col" className="numeric">
+                  Data Kiosk {amount}
+                </Table.Th>
+                <Table.Th scope="col" className="numeric">
+                  Monthly difference
+                </Table.Th>
+                <Table.Th scope="col" className="numeric">
+                  Running difference
+                </Table.Th>
               </Table.Tr>
             </Table.Thead>
-            {groupFinancialReviewMonths(rows).map(({ month, currencies }) => {
+            {rows.map((row) => {
+              const month = row.month?.slice(0, 7) ?? "";
               const label = formatRecordMonth(month);
               return (
                 <Table.Tbody key={month} aria-label={label}>
-                  {currencies.map((row, index) => (
-                    <Table.Tr
-                      key={row.currency ?? ""}
-                      {...inspectableRowProps(selectedMonth === month, () => {
-                        onSelect(month);
-                      })}
-                    >
-                      {index === 0 ? (
-                        <MonthGroupCell
-                          month={month}
-                          rowSpan={currencies.length}
-                          description={`${String(currencies.length)} ${currencies.length === 1 ? "currency" : "currencies"} on this page`}
-                        >
-                          {month === matureCutoff.slice(0, 7) ? (
-                            <Badge
-                              mt="xs"
-                              size="xs"
-                              color="gray"
-                              variant="light"
-                              title={`Includes dates before ${matureCutoff} (UTC) only. Later dates appear as they mature.`}
-                            >
-                              Mature dates only
-                            </Badge>
-                          ) : null}
-                          <Button
-                            className="financial-review-months-open ui-text-action"
-                            size="compact-xs"
-                            variant="subtle"
-                            aria-label={`Open review for ${label}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              event.currentTarget.focus({ preventScroll: true });
-                              onSelect(month);
-                            }}
-                          >
-                            Open review
-                          </Button>
-                        </MonthGroupCell>
-                      ) : null}
-                      <Table.Td>{row.currency ?? "—"}</Table.Td>
-                      <Table.Td className="numeric">
-                        {formatExactDecimal(row.finances_amount)}
-                        {row.finances_row_count === "0" ? (
+                  <Table.Tr
+                    {...inspectableRowProps(selectedMonth === month, () => {
+                      onSelect(month);
+                    })}
+                  >
+                    <Table.Th scope="row" className="financial-review-month-cell">
+                      <Button
+                        className="financial-review-months-open ui-text-action"
+                        size="compact-sm"
+                        variant="subtle"
+                        aria-label={`Open review for ${label}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          event.currentTarget.focus({ preventScroll: true });
+                          onSelect(month);
+                        }}
+                      >
+                        {label}
+                      </Button>
+                    </Table.Th>
+                    {["finances_amount", "data_kiosk_amount"].map((key) => (
+                      <Table.Td key={key} className="numeric">
+                        {formatAmount(row[key])}
+                        {row[key.replace("_amount", "_row_count")] === "0" ? (
                           <Text size="xs" c="dimmed">
-                            No source rows
+                            No source records
                           </Text>
                         ) : null}
                       </Table.Td>
-                      <Table.Td className="numeric">
-                        {formatExactDecimal(row.data_kiosk_amount)}
-                        {row.data_kiosk_row_count === "0" ? (
-                          <Text size="xs" c="dimmed">
-                            No source rows
-                          </Text>
-                        ) : null}
-                      </Table.Td>
-                      <Table.Td className="numeric financial-review-months-difference">
-                        {formatExactDecimal(row.difference)}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
+                    ))}
+                    <Table.Td className="numeric">{formatAmount(row.difference)}</Table.Td>
+                    <Table.Td className="numeric financial-review-running">
+                      {formatAmount(row.running_difference)}
+                    </Table.Td>
+                  </Table.Tr>
                 </Table.Tbody>
               );
             })}
-            {rows.length === 0 ? (
+            {!rows.length ? (
               <Table.Tbody>
                 <Table.Tr>
                   <Table.Td colSpan={5}>
-                    <div className="financial-review-months-empty">
-                      <Text size="sm" c="dimmed" role="status">
-                        {emptyMessage}
-                      </Text>
-                      {filterMonth && !isBusy ? (
-                        <Button
-                          variant="subtle"
-                          size="xs"
-                          onClick={() => {
-                            onFilterMonth("");
-                          }}
-                        >
-                          Clear month filter
-                        </Button>
-                      ) : null}
-                    </div>
+                    <Text
+                      className="financial-review-months-empty"
+                      size="sm"
+                      c="dimmed"
+                      role="status"
+                    >
+                      {emptyMessage}
+                    </Text>
                   </Table.Td>
                 </Table.Tr>
               </Table.Tbody>

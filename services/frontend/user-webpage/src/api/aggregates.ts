@@ -1,5 +1,5 @@
 import type { CurrencyTotal, TransactionTypeTotal } from "./types.ts";
-import { isJsonObject } from "./validation.ts";
+import { isCurrency, isJsonObject } from "./validation.ts";
 
 function aggregateCount(row: Record<string, unknown>, field: string): number {
   const value = row[field];
@@ -39,7 +39,7 @@ export function decodeCurrencyTotals(rows: unknown[]): CurrencyTotal[] {
 
 function decodeTotalFields(row: Record<string, unknown>): CurrencyTotal {
   const currency = row.currency;
-  if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) {
+  if (!isCurrency(currency)) {
     throw new Error("Aggregation returned an invalid currency");
   }
   const rowCount = aggregateCount(row, "row_count");

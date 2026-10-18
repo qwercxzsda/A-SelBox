@@ -8,25 +8,28 @@ import { PayoutReconciliationTotals } from "./PayoutReconciliationTotals";
 function SavedAccountReconciliation({
   accessToken,
   reportId,
+  currency,
 }: {
   accessToken: string;
   reportId: string;
+  currency: string | null;
 }) {
   const query = useQuery({
-    queryKey: ["payout-reconciliation-totals", reportId],
-    queryFn: ({ signal }) => fetchPayoutReconciliationTotals(accessToken, reportId, signal),
+    queryKey: ["payout-reconciliation-totals", reportId, currency],
+    queryFn: ({ signal }) =>
+      fetchPayoutReconciliationTotals(accessToken, reportId, signal, currency ?? undefined),
     staleTime: Infinity,
   });
   return (
     <>
-      <PayoutReconciliationTotals query={query} />
+      <PayoutReconciliationTotals query={query} currency={currency} />
       <DetailSection
         stateKey={`payout-review:${reportId}:daily`}
         title="Saved daily source details"
         collapsible
         description="Daily rows separate source accounts and marketplaces. Total after adding difference equals Finances total by construction; it does not confirm that the sources agree."
       >
-        <PayoutReconciliation accessToken={accessToken} reportId={reportId} />
+        <PayoutReconciliation accessToken={accessToken} reportId={reportId} currency={currency} />
       </DetailSection>
     </>
   );
@@ -57,9 +60,13 @@ export function PayoutReviewDetails({
         stateKey={`payout-review:${reportId}:reconciliation`}
         title="Saved account reconciliation"
         collapsible
-        description="Account controls saved when this report was generated, across all companies, marketplaces, SKUs and currencies in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports."
+        description={`Account controls saved for ${row.currency ?? "this report"}, across all companies, marketplaces and SKUs in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
       >
-        <SavedAccountReconciliation accessToken={accessToken} reportId={reportId} />
+        <SavedAccountReconciliation
+          accessToken={accessToken}
+          reportId={reportId}
+          currency={row.currency}
+        />
       </DetailSection>
     </>
   );

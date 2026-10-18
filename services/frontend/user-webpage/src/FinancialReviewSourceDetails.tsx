@@ -1,5 +1,5 @@
 import { useId, useRef } from "react";
-import { Group, NativeSelect, Text, Title, UnstyledButton } from "@mantine/core";
+import { Text, Title, UnstyledButton } from "@mantine/core";
 import type { CanonicalRow } from "./api";
 import { FinancialReviewRecords } from "./FinancialReviewRecords";
 import { FinancialReviewTypes } from "./FinancialReviewTypes";
@@ -16,45 +16,26 @@ export function FinancialReviewSourceDetails({
   category,
   month,
   matureCutoff,
-  totals,
-}: Omit<FinancialReviewSourceProps, "currency" | "state" | "change"> & { totals: CanonicalRow[] }) {
-  const [saved, setSaved] = useWorkspacePreference(
-    `financial-review:sources:${category}:${month}`,
+  currency,
+  total,
+}: Omit<FinancialReviewSourceProps, "state" | "change"> & { total: CanonicalRow }) {
+  const [state, setSaved] = useWorkspacePreference(
+    `financial-review:sources:${category}:${month}:${currency}`,
     createReviewSourceState,
     decodeReviewSourceState,
   );
-  const state = totals.some((row) => row.currency === saved.currency)
-    ? saved
-    : { ...createReviewSourceState(), currency: totals[0]?.currency ?? "" };
-  const currency = state.currency;
   const recordsRef = useRef<HTMLElement>(null);
   const recordsId = useId();
-  const selected = totals.find((row) => row.currency === currency);
-  if (!currency) return null;
   function change(patch: Partial<ReviewSourceState>) {
     setSaved({ ...state, ...patch });
   }
   const props = { identity, category, month, matureCutoff, currency, state, change };
   return (
     <>
-      <Group mt="lg" mb="sm" align="end" gap="md">
-        <NativeSelect
-          label="Review currency"
-          value={currency}
-          data={totals.map((row) => row.currency ?? "")}
-          onChange={(event) => {
-            setSaved({
-              ...createReviewSourceState(),
-              currency: event.currentTarget.value,
-              recordsOpen: state.recordsOpen,
-            });
-          }}
-        />
-        <Text size="xs" c="dimmed">
-          Finances: {selected?.finances_row_count ?? "0"} records · Data Kiosk:{" "}
-          {selected?.data_kiosk_row_count ?? "0"} records
-        </Text>
-      </Group>
+      <Text size="xs" c="dimmed" mt="lg" mb="sm">
+        {currency} · Finances: {total.finances_row_count ?? "0"} records · Data Kiosk:{" "}
+        {total.data_kiosk_row_count ?? "0"} records
+      </Text>
       <section className="detail-section" aria-label="Amounts by type">
         <Title order={4} className="detail-section-title" mb="sm">
           Amounts by type

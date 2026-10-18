@@ -117,7 +117,7 @@ for (const width of [1440, 834, 390]) {
       await expect(
         table.getByRole("columnheader", { name: "Processing version", exact: true }),
       ).toHaveCount(0);
-      await expect(table.getByRole("cell", { name: "0 USD", exact: true })).toBeVisible();
+      await expect(table.getByRole("cell", { name: "0.00 USD", exact: true })).toBeVisible();
       expect(
         await page.evaluate(
           () => globalThis.document.documentElement.scrollWidth - globalThis.innerWidth,

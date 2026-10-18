@@ -1,4 +1,4 @@
-import { sortRecordRows } from "../record-fixtures.mjs";
+import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
 
 const COLUMNS = [
   "report_id",
@@ -28,7 +28,10 @@ export async function respondWithReconciliation(
   if (status !== 200) return reply({}, status);
   const reportId = url.searchParams.get("report_id")?.slice(3);
   const rows = sortRecordRows(
-    fixture.payoutReconciliationTotals.filter((row) => row.report_id === reportId),
+    filterRecordRows(
+      fixture.payoutReconciliationTotals.filter((row) => row.report_id === reportId),
+      url.searchParams,
+    ),
     url.searchParams,
   );
   const offset = Number(url.searchParams.get("offset") ?? 0);

@@ -28,7 +28,7 @@ for (const width of [1440, 1920, 834, 390]) {
     const currency = summaries.getByLabel("Currency", { exact: true });
     await expect(currency).toBeVisible();
     await currency.selectOption("EUR");
-    await expect(summaries).toContainText("90 EUR");
+    await expect(summaries).toContainText("90.00 EUR");
     await expect(page.getByRole("tabpanel", { name: "Transactions", exact: true })).toBeVisible();
     const table = page.getByRole("table", { name: "Financial records", exact: true });
     await expect(table.locator("tbody tr")).toHaveCount(25);

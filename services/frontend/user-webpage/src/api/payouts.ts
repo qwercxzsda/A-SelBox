@@ -27,41 +27,10 @@ export const PAYOUT_COMPONENT_COLUMNS = [
   "company_amount",
 ] as const;
 
-export const PAYOUT_RECONCILIATION_COLUMNS = [
-  "row_number",
-  "seller_namespace",
-  "activity_date",
-  "marketplace_name",
-  "currency",
-  "finances_category_amount",
-  "selbox_category_amount",
-  "data_kiosk_finances_control",
-  "data_kiosk_category_amount",
-  "difference",
-  "finances_total",
-  "accounted_total",
-] as const;
-
 export interface PayoutPolicy {
   mature_cutoff_date: string;
   latest_month: string;
   mature_cutoff_months: number;
-}
-
-function reportPageParams(
-  reportId: string,
-  pageIndex: number,
-  columns: readonly string[],
-): URLSearchParams {
-  requireUuid(reportId, "report");
-  validatePagination(pageIndex, DETAIL_PAGE_SIZE);
-  return new URLSearchParams({
-    select: columns.join(","),
-    report_id: `eq.${reportId}`,
-    order: "row_number.asc",
-    limit: String(DETAIL_PAGE_SIZE),
-    offset: String(pageIndex * DETAIL_PAGE_SIZE),
-  });
 }
 
 export function createPayoutApi(transport: ApiTransport) {
@@ -123,9 +92,16 @@ export function createPayoutApi(transport: ApiTransport) {
       signal?: AbortSignal,
       types: string[] = [],
     ) {
-      const params = reportPageParams(reportId, pageIndex, PAYOUT_COMPONENT_COLUMNS);
-      params.set("order", "activity_date.desc,source.desc,source_row_id.desc,id.desc");
-      params.set("authoritative", `eq.${String(authoritative)}`);
+      requireUuid(reportId, "report");
+      validatePagination(pageIndex, DETAIL_PAGE_SIZE);
+      const params = new URLSearchParams({
+        select: PAYOUT_COMPONENT_COLUMNS.join(","),
+        report_id: `eq.${reportId}`,
+        order: "activity_date.desc,source.desc,source_row_id.desc,id.desc",
+        limit: String(DETAIL_PAGE_SIZE),
+        offset: String(pageIndex * DETAIL_PAGE_SIZE),
+        authoritative: `eq.${String(authoritative)}`,
+      });
       const selectedTypes = textSelectionValues("component_type", types);
       if (selectedTypes.length > 0)
         params.set(
@@ -164,20 +140,6 @@ export function createPayoutApi(transport: ApiTransport) {
         (rows) => decodeTypeTotals(rows, currency),
         (row) => row.type,
         "Payout amounts by type",
-        signal,
-      );
-    },
-    async fetchPayoutReconciliation(
-      accessToken: string,
-      reportId: string,
-      pageIndex: number,
-      signal?: AbortSignal,
-    ) {
-      return transport.readCsvPage(
-        accessToken,
-        "payout_report_reconciliation",
-        reportPageParams(reportId, pageIndex, PAYOUT_RECONCILIATION_COLUMNS),
-        "Payout reconciliation",
         signal,
       );
     },
