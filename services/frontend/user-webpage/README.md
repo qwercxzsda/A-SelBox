@@ -81,13 +81,16 @@ Navigation stays above the active tab's content in one consistent position. Esti
 only in Transactions; the selected currency and transaction filters survive tab changes and reloads.
 Desktop tables use the available width, compact summary cards, and a single toolbar row when space
 allows. Each tab has its own associated panel for keyboard and assistive-technology navigation.
+Changing the active workspace tab keeps tab widths stable, including with platform fallback fonts.
 
 - Column menus filter inclusive dates, SKUs, marketplaces, sources, and types. Company, SKU, and
   other selections are alternatives within each filter; different filters intersect. Menus offer
   search when there are more than eight choices. Text search treats punctuation literally. Pop-ups
   use one native scroll area: wheel input over the panel needs no extra click. Close and action
   controls remain reachable while scrolling, and the panel stays within the viewport as the page
-  moves or resizes.
+  moves or resizes. Selection menus explain that changes apply immediately and provide a sticky Done
+  action. Clearing search returns focus to the field; removing filter chips by keyboard returns
+  focus to the related search without resetting other criteria.
 - Type filters start with selectable groups, including Other fees & adjustments for EPR,
   subscription, and similar entries. Expand a group for exact types, or search across group names,
   readable labels, and source codes. Search words may appear in any order; Select matches and
@@ -159,6 +162,8 @@ allows. Each tab has its own associated panel for keyboard and assistive-technol
 - Change rate from date previews splitting an existing interval at one effective date, retaining its
   original end and exact rate precision. Applying the preview changes only the editor; Keep draft
   and final Save all changes remain explicit. The pending preview survives dismissal and reload.
+  Phone layouts keep dates and rates readable, with exact percentages on one line. Invalid SKU and
+  rate-preview submissions focus the input that needs correction.
 - Source imports can make older settings incomplete. Configuration coverage refreshes on source and
   fee revisions; old incomplete settings remain visible so an administrator can repair them.
 - Transactions, Data Kiosk, estimated totals, and payout reports retain zero monetary rows,
@@ -259,6 +264,10 @@ individual removal, including after F5. The sales heading states that currencies
 choosing a sales sort displays the comparison caveat above the table and suggests selecting a
 marketplace. Informational recommendations and urgency ordering are unchanged.
 
+Left/Right column controls remain available near the table start. Paging from the bottom returns the
+viewport and keyboard focus to the top pagination, including for cached pages. On phones, Clear
+inventory filters takes its own row so the Marketplace control remains readable.
+
 Inventory relies on the `inventory` and ownership (`fees`) revision tokens. Unchanged checks make no
 inventory row/count reads. Failed reads retry automatically; the tab has no refresh, shipment, or
 listing controls. Recommendation badges describe Amazon's suggested action. Inventory dates remain
@@ -311,11 +320,12 @@ the trend chart use the same currency; offsetting differences do not prove sourc
 fully mature calendar months appear, through the payout policy's latest eligible month. The
 partially mature month is excluded from date discovery, currency choices, totals, and details.
 Opening a month keeps that currency for totals, amounts by source/type, source records, and the
-saved-report list. The month's expandable **Saved report snapshots** section contains historical
-comparison rows and account controls. Their account scope stays separate from company payout
-amounts. The [Financial review guide](../../../docs/financial_review.md) defines these scopes,
-labels, read interfaces, and the distinction between source differences and the accounting
-reconciliation.
+saved-report list. Source records offer Back to amounts, restoring focus to the breakdown without
+clearing its selected scope. Removing the selected type by keyboard returns focus to Record source.
+The month's expandable **Saved report snapshots** section contains historical comparison rows and
+account controls. Their account scope stays separate from company payout amounts. The
+[Financial review guide](../../../docs/financial_review.md) defines these scopes, labels, read
+interfaces, and the distinction between source differences and the accounting reconciliation.
 
 ## Totals
 

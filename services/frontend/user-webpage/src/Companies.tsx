@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Accordion,
-  Alert,
-  Button,
-  CloseButton,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Accordion, Alert, Button, Group, Paper, Stack, Text } from "@mantine/core";
 import type { Company } from "./api";
 import type { Identity } from "./auth-session";
 import { CompanyCreateForm } from "./CompanyCreateForm";
@@ -21,6 +11,7 @@ import { CompanyDetails } from "./CompanyDetails";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { PAGE_SIZES } from "./view-model";
 import { WorkspaceIntro } from "./WorkspaceIntro";
+import { SearchInput } from "./SearchInput";
 import "./Companies.css";
 
 interface CompanyListState {
@@ -137,24 +128,13 @@ export function Companies({
         </Alert>
       ) : null}
       <Group align="flex-end" gap="md" className="company-list-toolbar">
-        <TextInput
+        <SearchInput
           label="Search companies"
           placeholder="Company name or ID"
           className="company-list-search"
           value={state.search}
-          rightSectionPointerEvents="auto"
-          rightSection={
-            state.search ? (
-              <CloseButton
-                aria-label="Clear search"
-                onClick={() => {
-                  change({ search: "", pageIndex: 0 });
-                }}
-              />
-            ) : null
-          }
-          onChange={(event) => {
-            change({ search: event.currentTarget.value, pageIndex: 0 });
+          onChange={(search) => {
+            change({ search, pageIndex: 0 });
           }}
         />
         <RowsSelect

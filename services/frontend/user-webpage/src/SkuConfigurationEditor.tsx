@@ -1,4 +1,11 @@
-import { Fragment, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+  type SubmitEvent,
+} from "react";
 import {
   Alert,
   Autocomplete,
@@ -49,36 +56,55 @@ export function SkuConfigurationEditor({
   onAddCompany: () => void;
 }) {
   const { form, submitError } = editing;
+  const skuInput = useRef<HTMLInputElement>(null);
   const marketplaceInputs = useRef(new Map<number, HTMLSelectElement>());
   const addPeriodButton = useRef<HTMLButtonElement>(null);
-  const periodFocus = useRef<number | "add" | null>(null);
+  const pendingPeriodFocus = useRef<number | "add" | null>(null);
   useEffect(() => {
-    if (periodFocus.current === null) return;
+    if (pendingPeriodFocus.current === null) return;
     const target =
-      periodFocus.current === "add"
+      pendingPeriodFocus.current === "add"
         ? addPeriodButton.current
-        : marketplaceInputs.current.get(periodFocus.current);
+        : marketplaceInputs.current.get(pendingPeriodFocus.current);
     target?.focus();
-    periodFocus.current = null;
+    pendingPeriodFocus.current = null;
   }, [form.periods.length]);
   const setForm = (update: SetStateAction<SkuConfigurationChange>) => {
     onEditingChange((current) => {
-      const form = typeof update === "function" ? update(current.form) : update;
+      const nextForm = typeof update === "function" ? update(current.form) : update;
       return {
         ...current,
-        form,
-        rateChange: form.periods === current.form.periods ? current.rateChange : null,
+        form: nextForm,
+        rateChange: nextForm.periods === current.form.periods ? current.rateChange : null,
       };
     });
   };
   const setSubmitError = (submitError: string | null) => {
     onEditingChange((current) => ({ ...current, submitError }));
   };
+  function showSkuError(message: string) {
+    setSubmitError(message);
+    skuInput.current?.focus();
+    skuInput.current?.scrollIntoView({ block: "center" });
+  }
   const knownCompanyIds = new Set(companies.map(({ id }) => id));
   const issues = validateSkuItem({ ...item, ...form }, knownCompanyIds);
   const unavailableCompany = form.company_id !== null && !knownCompanyIds.has(form.company_id);
   const stale = form.expected_current_version_id !== item.terms_version_id;
   const existingSku = isNew && knownSkus.includes(form.sku);
+  function stageDraft(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (editing.rateChange !== null) return;
+    if (!form.sku.trim() || form.sku.includes("\0")) {
+      showSkuError("Enter a SKU.");
+      return;
+    }
+    if (existingSku) {
+      showSkuError("This exact SKU already exists. Edit its current settings instead.");
+      return;
+    }
+    onStage(form);
+  }
   function updatePeriod(index: number, field: keyof SkuConfigurationPeriod, value: string | null) {
     setForm((current) => ({
       ...current,
@@ -88,7 +114,7 @@ export function SkuConfigurationEditor({
     }));
   }
   function addPeriod() {
-    periodFocus.current = form.periods.length;
+    pendingPeriodFocus.current = form.periods.length;
     setForm({
       ...form,
       periods: [
@@ -98,7 +124,8 @@ export function SkuConfigurationEditor({
     });
   }
   function removePeriod(index: number) {
-    if (index === form.periods.length - 1) periodFocus.current = index === 0 ? "add" : index - 1;
+    if (index === form.periods.length - 1)
+      pendingPeriodFocus.current = index === 0 ? "add" : index - 1;
     setForm((current) => ({
       ...current,
       periods: current.periods.filter((_, position) => position !== index),
@@ -118,22 +145,7 @@ export function SkuConfigurationEditor({
       }}
       closeButtonProps={{ "aria-label": "Close SKU editor" }}
     >
-      <form
-        className="sku-configuration-drawer-layout"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (editing.rateChange !== null) return;
-          if (!form.sku.trim() || form.sku.includes("\0")) {
-            setSubmitError("Enter a SKU.");
-            return;
-          }
-          if (existingSku) {
-            setSubmitError("This exact SKU already exists. Edit its current settings instead.");
-            return;
-          }
-          onStage(form);
-        }}
-      >
+      <form className="sku-configuration-drawer-layout" onSubmit={stageDraft}>
         <Stack gap="md" className="sku-configuration-drawer-scroll">
           <Text size="sm" c="dimmed">
             Closing keeps unfinished edits here. Choose Keep draft when ready to review, then save
@@ -155,6 +167,7 @@ export function SkuConfigurationEditor({
           ) : null}
           {isNew ? (
             <Autocomplete
+              ref={skuInput}
               label="SKU"
               description="Type a SKU prefix to find existing settings, or enter a new exact SKU. Spelling and spaces are preserved."
               value={form.sku}

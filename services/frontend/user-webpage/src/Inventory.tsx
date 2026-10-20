@@ -1,14 +1,5 @@
-import { useEffect, useState } from "react";
-import {
-  Alert,
-  Button,
-  CloseButton,
-  Group,
-  NativeSelect,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Button, Group, NativeSelect, Stack, Text } from "@mantine/core";
 import type { InventoryViewState, ViewStateProps } from "./workspace-view-state";
 import type { Identity } from "./auth-session";
 import marketplaces from "./generated/marketplaces.json";
@@ -24,6 +15,7 @@ import { useInventoryData } from "./use-inventory-data";
 import { InventoryCoverage } from "./InventoryCoverage";
 import { InventoryAppliedFilters } from "./InventoryAppliedFilters";
 import { inventoryEmptyMessage } from "./inventory-coverage";
+import { SearchInput } from "./SearchInput";
 import "./Inventory.css";
 
 export function Inventory({
@@ -35,6 +27,8 @@ export function Inventory({
   identity: Identity;
   onShowTransactions: (sku: string) => void;
 }) {
+  const searchInput = useRef<HTMLInputElement>(null);
+  const pageStart = useRef<HTMLDivElement>(null);
   const { selectedRowId, ...pageState } = viewState;
   const { query, rows, denied, filterOptions, captures, availability, hasItems } = useInventoryData(
     identity,
@@ -71,6 +65,11 @@ export function Inventory({
   );
   const changePage = (pageIndex: number) => {
     onViewStateChange((current) => ({ ...current, pageIndex, selectedRowId: null }));
+    const target = pageStart.current;
+    if (target && target.getBoundingClientRect().top < 0) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "start" });
+    }
   };
   const changeFilters = (patch: Partial<InventoryViewState>) => {
     onViewStateChange((current) => ({ ...current, ...patch, pageIndex: 0, selectedRowId: null }));
@@ -108,24 +107,14 @@ export function Inventory({
         description="Daily snapshots for approximate replenishment planning. Sales are historical, not a forecast. A dash means unavailable; zero is a reported value. Source dates can differ from the capture date."
       />
       <Group align="end" className="inventory-filters">
-        <TextInput
+        <SearchInput
+          inputRef={searchInput}
           label="Search"
           placeholder="SKU, marketplace, health or recommendation"
           value={viewState.search}
           type="search"
-          rightSectionPointerEvents="auto"
-          rightSection={
-            viewState.search ? (
-              <CloseButton
-                aria-label="Clear search"
-                onClick={() => {
-                  changeFilters({ search: "" });
-                }}
-              />
-            ) : undefined
-          }
-          onChange={(event) => {
-            changeFilters({ search: event.currentTarget.value });
+          onChange={(search) => {
+            changeFilters({ search });
           }}
         />
         <NativeSelect
@@ -154,8 +143,10 @@ export function Inventory({
         />
         {filtered ? (
           <Button
+            className="inventory-clear-filters"
             variant="subtle"
-            onClick={() => {
+            onClick={(event) => {
+              if (event.detail === 0) searchInput.current?.focus();
               changeFilters({
                 search: "",
                 skus: [],
@@ -169,7 +160,11 @@ export function Inventory({
           </Button>
         ) : null}
       </Group>
-      <InventoryAppliedFilters state={viewState} onChange={changeFilters} />
+      <InventoryAppliedFilters
+        state={viewState}
+        onChange={changeFilters}
+        focusTarget={searchInput}
+      />
       {captures.isSuccess ? (
         <InventoryCoverage captures={captures.data} marketplace={viewState.marketplace} now={now} />
       ) : captures.isPending ? (
@@ -203,7 +198,9 @@ export function Inventory({
           Could not check unfiltered inventory availability. Updates retry automatically.
         </Alert>
       ) : null}
-      <PaginationBar {...pagination} ariaLabel="Inventory pagination, top" />
+      <div ref={pageStart} tabIndex={-1} className="inventory-page-start">
+        <PaginationBar {...pagination} ariaLabel="Inventory pagination, top" />
+      </div>
       <InventoryTable
         onShowTransactions={showTransactions}
         rows={rows}

@@ -1,4 +1,5 @@
-import { Table, Text } from "@mantine/core";
+import { useId, useRef } from "react";
+import { Group, Table, Text } from "@mantine/core";
 import type { InventoryFilterOptions, InventoryRow, InventorySortColumn } from "./api/inventory";
 import { ColumnMenu } from "./ColumnMenu";
 import { SkuTransactionLink } from "./SkuTransactionLink";
@@ -14,6 +15,7 @@ import {
 import { inventoryRowId } from "./inventory-row";
 import { inspectableRowProps } from "./inspectable-row";
 import { InventorySourceDate } from "./InventorySourceDate";
+import { TableScrollControls } from "./TableScrollControls";
 
 const OVERVIEW = INVENTORY_METRICS.overview.filter(
   ([key]) => key === "available_quantity" || key === "inbound_quantity",
@@ -40,6 +42,8 @@ export function InventoryTable({
   onShowTransactions: (sku: string) => void;
   now: number;
 }) {
+  const scrollTarget = useRef<HTMLDivElement>(null);
+  const scrollId = useId();
   const sort = (column: InventorySortColumn) => ({
     direction: viewState.sortColumn === column ? viewState.sortDirection : (false as const),
     onChange: (sortDirection: "asc" | "desc") => {
@@ -85,9 +89,12 @@ export function InventoryTable({
       : undefined;
   return (
     <>
-      <Text size="xs" c="dimmed">
-        Select a row for inventory details. Select a SKU to view its transactions.
-      </Text>
+      <Group gap="xs" justify="space-between">
+        <Text size="xs" c="dimmed">
+          Select a row for inventory details. Select a SKU to view its transactions.
+        </Text>
+        <TableScrollControls target={scrollTarget} targetId={scrollId} />
+      </Group>
       {viewState.sortColumn === "sales_amount_90d" ? (
         <Text size="sm" role="note" className="inventory-sales-note">
           Sales ordering compares original currency amounts without conversion. Select one
@@ -98,6 +105,8 @@ export function InventoryTable({
         Scroll horizontally to see all columns. You can focus the table and use the arrow keys.
       </Text>
       <div
+        id={scrollId}
+        ref={scrollTarget}
         className="inventory-scroll"
         role="region"
         aria-label="Inventory items"

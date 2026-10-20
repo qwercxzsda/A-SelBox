@@ -2,16 +2,11 @@ import { useId, useRef, useState } from "react";
 import { DateFilter, SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
 import { MonthFilter } from "./MonthFilter";
 import { TransactionTypeFilter } from "./TransactionTypeFilter";
-import { Button, CloseButton, Group, Popover, Stack, Text, UnstyledButton } from "@mantine/core";
+import { ColumnMenuFooter, type ColumnMenuSort } from "./ColumnMenuFooter";
+import { CloseButton, Group, Popover, Stack, Text, UnstyledButton } from "@mantine/core";
 import "./ColumnMenu.css";
 
-export interface ColumnMenuSort {
-  direction: "asc" | "desc" | false;
-  onChange: (direction: "asc" | "desc") => void;
-  ascendingLabel: string;
-  descendingLabel: string;
-  disabledReason?: string;
-}
+export type { ColumnMenuSort } from "./ColumnMenuFooter";
 
 interface ColumnMenuProps {
   label: string;
@@ -35,7 +30,6 @@ function activeColumnFilterCount(filter?: ColumnMenuFilter): number {
 export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
   const [opened, setOpened] = useState(false);
   const titleId = useId();
-  const disabledSortId = useId();
   const dropdown = useRef<HTMLDivElement>(null);
   const filterCount = activeColumnFilterCount(filter);
 
@@ -106,42 +100,12 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
           ) : null}
           {opened && filter?.kind === "selection" ? (
             filter.groupBy === "transaction-type" ? (
-              <TransactionTypeFilter filter={filter} onClose={close} onResetScroll={resetScroll} />
+              <TransactionTypeFilter filter={filter} onResetScroll={resetScroll} />
             ) : (
               <SelectionFilter label={label} filter={filter} onResetScroll={resetScroll} />
             )
           ) : null}
-          {sort ? (
-            <Stack
-              className="column-menu-footer"
-              data-separated={Boolean(filter) || undefined}
-              gap={4}
-            >
-              {(["desc", "asc"] as const).map((direction, index) => (
-                <Button
-                  key={direction}
-                  variant={sort.direction === direction ? "light" : "subtle"}
-                  aria-pressed={sort.direction === direction}
-                  disabled={Boolean(sort.disabledReason)}
-                  aria-describedby={sort.disabledReason ? disabledSortId : undefined}
-                  data-autofocus={(!filter && !sort.disabledReason && index === 0) || undefined}
-                  justify="flex-start"
-                  fullWidth
-                  onClick={() => {
-                    sort.onChange(direction);
-                    close();
-                  }}
-                >
-                  {direction === "asc" ? sort.ascendingLabel : sort.descendingLabel}
-                </Button>
-              ))}
-              {sort.disabledReason ? (
-                <Text id={disabledSortId} size="sm" c="dimmed" role="note">
-                  {sort.disabledReason}
-                </Text>
-              ) : null}
-            </Stack>
-          ) : null}
+          <ColumnMenuFooter filterKind={filter?.kind} sort={sort} onClose={close} />
         </Stack>
       </Popover.Dropdown>
     </Popover>

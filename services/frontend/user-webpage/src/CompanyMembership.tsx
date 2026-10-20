@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, Drawer, Group, Select, Stack, Text, Title } from "@mantine/core";
 import type { CanonicalRow, Company } from "./api";
 import { parseAppAccount } from "./api/workspace";
@@ -16,6 +16,11 @@ interface MembershipProps {
 
 export function CompanyMembership({ row, ...props }: MembershipProps) {
   const [notice, setNotice] = useState<{ userId: string; message: string } | null>(null);
+  const visibleNotice = notice?.userId === row?.user_id ? notice : null;
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (visibleNotice) noticeRef.current?.focus();
+  }, [visibleNotice]);
   return (
     <Drawer
       opened={row !== null}
@@ -29,9 +34,9 @@ export function CompanyMembership({ row, ...props }: MembershipProps) {
       title="Company membership"
       closeButtonProps={{ "aria-label": "Close membership details" }}
     >
-      {notice && notice.userId === row?.user_id ? (
-        <Alert color="teal" role="status" mb="md">
-          {notice.message}
+      {visibleNotice ? (
+        <Alert ref={noticeRef} tabIndex={-1} color="teal" role="status" mb="md">
+          {visibleNotice.message}
         </Alert>
       ) : null}
       {row ? (
@@ -68,6 +73,14 @@ function MembershipEditor({
     problem,
     save,
   } = useCompanyMembership({ accessToken, account, companies, onNoticeChange });
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  const revokeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasConfirmingRevocation = useRef(false);
+  useEffect(() => {
+    if (confirmRevocation) confirmationRef.current?.focus();
+    else if (wasConfirmingRevocation.current) revokeButtonRef.current?.focus();
+    wasConfirmingRevocation.current = confirmRevocation;
+  }, [confirmRevocation]);
   const administrator = account.access_role === "administrator";
   const unavailableCompany = companyId !== null && !companies.some(({ id }) => id === companyId);
   const label = companyLabel(
@@ -152,7 +165,12 @@ function MembershipEditor({
             </Alert>
           ) : null}
           {confirmRevocation ? (
-            <Alert color="orange" title="Revoke company membership?">
+            <Alert
+              ref={confirmationRef}
+              tabIndex={-1}
+              color="orange"
+              title="Revoke company membership?"
+            >
               <Text size="sm">
                 This user will lose access to {label} and become Unassigned. Their sign-in account
                 will remain available.
@@ -183,6 +201,7 @@ function MembershipEditor({
               </Button>
               {account.access_role === "member" ? (
                 <Button
+                  ref={revokeButtonRef}
                   color="red"
                   variant="light"
                   disabled={isSaving}

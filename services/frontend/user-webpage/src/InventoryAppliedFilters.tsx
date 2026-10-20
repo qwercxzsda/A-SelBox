@@ -1,13 +1,16 @@
 import { Button, Group, Text } from "@mantine/core";
+import type { RefObject } from "react";
 import type { InventoryViewState } from "./workspace-view-state";
 import { recommendationLabel } from "./inventory-options";
 
 export function InventoryAppliedFilters({
   state,
   onChange,
+  focusTarget,
 }: {
   state: InventoryViewState;
   onChange: (patch: Partial<InventoryViewState>) => void;
+  focusTarget?: RefObject<HTMLElement | null>;
 }) {
   const filters = [
     ...(state.search
@@ -34,7 +37,7 @@ export function InventoryAppliedFilters({
     })),
     ...state.recommendations.map((action) => ({
       key: `recommendation:${JSON.stringify(action)}`,
-      label: `Recommendation: ${action === null ? "Unavailable" : recommendationLabel(action)}`,
+      label: `Recommendation: ${recommendationLabel(action)}`,
       clear: { recommendations: state.recommendations.filter((value) => value !== action) },
     })),
   ];
@@ -52,7 +55,8 @@ export function InventoryAppliedFilters({
           variant="light"
           aria-label={`Remove ${label}`}
           rightSection={<span aria-hidden="true">×</span>}
-          onClick={() => {
+          onClick={(event) => {
+            if (event.detail === 0) focusTarget?.current?.focus();
             onChange(clear);
           }}
         >

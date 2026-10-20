@@ -93,11 +93,9 @@ function TypeGroup({
 
 export function TransactionTypeFilter({
   filter,
-  onClose,
   onResetScroll,
 }: {
   filter: TypeFilter;
-  onClose: () => void;
   onResetScroll: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -203,14 +201,6 @@ export function TransactionTypeFilter({
           </Text>
         ) : null}
       </div>
-      <Group className="column-menu-footer" data-separated justify="space-between" gap="xs">
-        <Text size="xs" c="dimmed">
-          Changes apply immediately.
-        </Text>
-        <Button size="compact-sm" onClick={onClose}>
-          Done
-        </Button>
-      </Group>
     </Stack>
   );
 }

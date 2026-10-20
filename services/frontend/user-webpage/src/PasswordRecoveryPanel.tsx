@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { Alert, Button, Paper, PasswordInput, Stack, Text, Title } from "@mantine/core";
 
 export function PasswordRecoveryPanel({
@@ -19,11 +19,29 @@ export function PasswordRecoveryPanel({
   // Password fields intentionally remain in component memory, never browser storage.
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [validation, setValidation] = useState<string | null>(null);
+  const [invalidField, setInvalidField] = useState<"password" | "confirmation" | null>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
+  const confirmationInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus();
   }, []);
+  function submitPassword(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    if (password.length < 8) {
+      setInvalidField("password");
+      passwordInput.current?.focus();
+      return;
+    }
+    if (password !== confirmation) {
+      setInvalidField("confirmation");
+      confirmationInput.current?.focus();
+      return;
+    }
+    setInvalidField(null);
+    void onSubmit(password);
+  }
   return (
     <div className="login-shell">
       <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
@@ -36,29 +54,15 @@ export function PasswordRecoveryPanel({
               ? `Resetting the password for ${email}.`
               : "Your recovery link has been verified."}
           </Text>
-          {error || validation ? (
+          {error && !invalidField ? (
             <Alert color="red" role="alert">
-              {validation ?? error}
+              {error}
             </Alert>
           ) : null}
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (pending) return;
-              if (password.length < 8) {
-                setValidation("Use at least 8 characters.");
-                return;
-              }
-              if (password !== confirmation) {
-                setValidation("The passwords do not match.");
-                return;
-              }
-              setValidation(null);
-              void onSubmit(password);
-            }}
-          >
+          <form onSubmit={submitPassword}>
             <Stack gap="md">
               <PasswordInput
+                ref={passwordInput}
                 label="New password"
                 name="new-password"
                 autoComplete="new-password"
@@ -67,12 +71,19 @@ export function PasswordRecoveryPanel({
                 required
                 disabled={pending}
                 value={password}
+                aria-invalid={invalidField === "password" || undefined}
+                error={
+                  invalidField === "password" ? (
+                    <span role="alert">Use at least 8 characters.</span>
+                  ) : undefined
+                }
                 onChange={(event) => {
                   setPassword(event.currentTarget.value);
-                  setValidation(null);
+                  setInvalidField(null);
                 }}
               />
               <PasswordInput
+                ref={confirmationInput}
                 label="Confirm new password"
                 name="confirm-password"
                 autoComplete="new-password"
@@ -80,9 +91,15 @@ export function PasswordRecoveryPanel({
                 required
                 disabled={pending}
                 value={confirmation}
+                aria-invalid={invalidField === "confirmation" || undefined}
+                error={
+                  invalidField === "confirmation" ? (
+                    <span role="alert">The passwords do not match.</span>
+                  ) : undefined
+                }
                 onChange={(event) => {
                   setConfirmation(event.currentTarget.value);
-                  setValidation(null);
+                  setInvalidField(null);
                 }}
               />
               <Button type="submit" loading={pending}>

@@ -1,5 +1,5 @@
 import { useId, useRef } from "react";
-import { Text, Title, UnstyledButton } from "@mantine/core";
+import { Button, Group, Text, Title, UnstyledButton } from "@mantine/core";
 import type { CanonicalRow } from "./api";
 import { FinancialReviewRecords } from "./FinancialReviewRecords";
 import { FinancialReviewTypes } from "./FinancialReviewTypes";
@@ -12,6 +12,12 @@ import {
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { FinancialReviewFamilies } from "./FinancialReviewFamilies";
 import { DetailSection } from "./DetailSection";
+
+function revealSection(section: HTMLElement | null) {
+  if (!section) return;
+  section.focus({ preventScroll: true });
+  section.scrollIntoView({ block: "start", behavior: "instant" });
+}
 
 export function FinancialReviewSourceDetails({
   identity,
@@ -26,6 +32,7 @@ export function FinancialReviewSourceDetails({
     createReviewSourceState,
     decodeReviewSourceState,
   );
+  const amountsRef = useRef<HTMLElement>(null);
   const recordsRef = useRef<HTMLElement>(null);
   const recordsId = useId();
   function change(patch: Partial<ReviewSourceState>) {
@@ -51,41 +58,51 @@ export function FinancialReviewSourceDetails({
           currency={currency}
         />
       </DetailSection>
-      <section className="detail-section" aria-label="Amounts by type">
-        <Title order={4} className="detail-section-title" mb="sm">
-          Amounts by type
-        </Title>
-        <Text size="xs" c="dimmed" mb="sm">
-          Select a type to inspect its exact source records for this category, month and currency.
-        </Text>
+      <DetailSection
+        ref={amountsRef}
+        title="Amounts by type"
+        description="Select a type to inspect its exact source records for this category, month and currency."
+      >
         <FinancialReviewTypes
           {...props}
           onSelect={() => {
             requestAnimationFrame(() => {
-              recordsRef.current?.focus({ preventScroll: true });
-              recordsRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+              revealSection(recordsRef.current);
             });
           }}
         />
-      </section>
+      </DetailSection>
       <section
         className="detail-section"
         ref={recordsRef}
         tabIndex={-1}
         aria-label="Source records"
       >
-        <Title order={4} className="detail-section-title">
-          <UnstyledButton
-            className="detail-section-toggle ui-text-action"
-            aria-expanded={state.recordsOpen}
-            aria-controls={recordsId}
-            onClick={() => {
-              change({ recordsOpen: !state.recordsOpen });
-            }}
-          >
-            Source records <span aria-hidden="true">{state.recordsOpen ? "⌃" : "⌄"}</span>
-          </UnstyledButton>
-        </Title>
+        <Group className="detail-section-header" justify="space-between" gap="sm">
+          <Title order={4} className="detail-section-title">
+            <UnstyledButton
+              className="detail-section-toggle ui-text-action"
+              aria-expanded={state.recordsOpen}
+              aria-controls={recordsId}
+              onClick={() => {
+                change({ recordsOpen: !state.recordsOpen });
+              }}
+            >
+              Source records <span aria-hidden="true">{state.recordsOpen ? "⌃" : "⌄"}</span>
+            </UnstyledButton>
+          </Title>
+          {state.recordsOpen ? (
+            <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => {
+                revealSection(amountsRef.current);
+              }}
+            >
+              Back to amounts
+            </Button>
+          ) : null}
+        </Group>
         <div className="detail-section-body" id={recordsId} hidden={!state.recordsOpen}>
           {state.recordsOpen ? <FinancialReviewRecords {...props} /> : null}
         </div>

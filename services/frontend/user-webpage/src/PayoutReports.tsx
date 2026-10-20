@@ -1,7 +1,8 @@
 import "./FinanceDataset.css";
 import "./FinancialTable.css";
 import "./PayoutReports.css";
-import { Alert, Badge, Button, CloseButton, Group, Text, TextInput } from "@mantine/core";
+import { useRef } from "react";
+import { Alert, Badge, Button, Group, Text } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { AppliedTableFilters } from "./AppliedTableFilters";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
@@ -17,6 +18,7 @@ import { DATASET_PRESENTATION, getErrorMessage } from "./view-model";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { usePayoutReportSelection } from "./use-payout-report-selection";
 import { RowsSelect } from "./RowsSelect";
+import { SearchInput } from "./SearchInput";
 
 export function PayoutReports({
   identity,
@@ -35,6 +37,7 @@ export function PayoutReports({
   currency?: string;
   onConfigureSku?: (sku: string) => void;
 } & ViewStateProps<DatasetViewState>) {
+  const searchInput = useRef<HTMLInputElement>(null);
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, "payouts", viewState, onViewStateChange, currency);
   const [history, setHistory] = useWorkspacePreference(
@@ -116,26 +119,14 @@ export function PayoutReports({
       </UpdateStatus>
       <Group className="table-toolbar" justify="space-between" align="end">
         <Group align="end" className="table-toolbar-fields">
-          <TextInput
+          <SearchInput
+            inputRef={searchInput}
             className="search-field"
             label="Search"
             type="search"
             value={search}
             placeholder={DATASET_PRESENTATION.payouts.searchPlaceholder}
-            rightSectionPointerEvents="auto"
-            rightSection={
-              search ? (
-                <CloseButton
-                  aria-label="Clear search"
-                  onClick={() => {
-                    changeSearch("");
-                  }}
-                />
-              ) : undefined
-            }
-            onChange={(event) => {
-              changeSearch(event.currentTarget.value);
-            }}
+            onChange={changeSearch}
           />
           <RowsSelect
             value={pageSize}
@@ -167,6 +158,7 @@ export function PayoutReports({
         />
       </Group>
       <AppliedTableFilters
+        focusTarget={searchInput}
         dataset="payouts"
         filters={visibleFilters}
         companies={companies}

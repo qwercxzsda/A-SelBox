@@ -69,6 +69,11 @@
   display: none;
 }
 
+.dataset-tabs > .ui-tabs-list > .ui-tabs-tab {
+  /* Keep tab widths stable across selection, including platform fallback fonts. */
+  font-weight: 500;
+}
+
 @media (max-width: 720px) {
   .app-shell {
     padding: 16px;

@@ -97,11 +97,16 @@
   vertical-align: top;
 }
 
-.fee-period-date {
+.fee-period-date,
+.fee-period-rate {
   white-space: nowrap;
 }
 
 @media (max-width: 600px) {
+  .fee-period-table {
+    table-layout: auto;
+  }
+
   .fee-list-search {
     max-width: none;
   }
@@ -118,5 +123,12 @@
 
   .fee-sku-actions {
     align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .fee-period-table th,
+  .fee-period-table td {
+    padding-inline: 4px;
   }
 }

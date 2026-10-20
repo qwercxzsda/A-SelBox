@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import { Button, Group, Text, Tooltip } from "@mantine/core";
 import type { DatasetFilters, TableDatasetKey } from "./api";
 import { humanizeCode, transactionTypeLabel } from "./categories";
@@ -17,12 +18,14 @@ export function AppliedTableFilters({
   companies,
   typeLabels,
   onChange,
+  focusTarget,
 }: {
   dataset: TableDatasetKey;
   filters: DatasetFilters;
   companies: Map<string, string>;
   typeLabels?: string[];
   onChange: (filters: Partial<DatasetFilters>) => void;
+  focusTarget?: RefObject<HTMLElement | null>;
 }) {
   const count = activeFilterCount(filters);
   if (count === 0) return null;
@@ -95,7 +98,8 @@ export function AppliedTableFilters({
                 size="compact-xs"
                 variant="light"
                 aria-label={`Clear ${label.toLowerCase()} filter: ${values.join(", ")}`}
-                onClick={() => {
+                onClick={(event) => {
+                  if (event.detail === 0) focusTarget?.current?.focus();
                   onChange(clear);
                 }}
                 rightSection={<span aria-hidden="true">×</span>}
@@ -112,7 +116,8 @@ export function AppliedTableFilters({
       <Button
         size="compact-xs"
         variant="subtle"
-        onClick={() => {
+        onClick={(event) => {
+          if (event.detail === 0) focusTarget?.current?.focus();
           onChange(normalizeDatasetFilters());
         }}
       >

@@ -1,5 +1,5 @@
 import "./FinanceDataset.css";
-import { Alert, Button, CloseButton, Group, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Group, Text } from "@mantine/core";
 import { type TableDatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
@@ -23,6 +23,7 @@ import { useBrowserOnline } from "./use-browser-online";
 import { useRef } from "react";
 import { FinancialSourceLookup } from "./FinancialSourceLookup";
 import { ActivityEligibilityHelp } from "./ActivityEligibilityHelp";
+import { SearchInput } from "./SearchInput";
 
 interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   identity: Identity;
@@ -51,6 +52,7 @@ function StandardFinanceDataset({
 }: FinanceDatasetProps) {
   const online = useBrowserOnline();
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, dataset, viewState, onViewStateChange);
   const { pageIndex, pageSize } = table.state.pagination;
@@ -106,27 +108,15 @@ function StandardFinanceDataset({
       <Group ref={toolbarRef} className="table-toolbar" justify="space-between" align="end">
         <Group align="end" className="table-toolbar-fields">
           {DATASET_CONFIG[dataset].searchColumns.length > 0 ? (
-            <TextInput
+            <SearchInput
+              inputRef={searchInput}
               className="search-field"
               label="Search"
               description={dataset === "live" ? "Search records only" : undefined}
               type="search"
               value={search}
               placeholder={presentation.searchPlaceholder}
-              rightSectionPointerEvents="auto"
-              rightSection={
-                search ? (
-                  <CloseButton
-                    aria-label="Clear search"
-                    onClick={() => {
-                      changeSearch("");
-                    }}
-                  />
-                ) : undefined
-              }
-              onChange={(event) => {
-                changeSearch(event.currentTarget.value);
-              }}
+              onChange={changeSearch}
             />
           ) : null}
           <RowsSelect
@@ -161,6 +151,7 @@ function StandardFinanceDataset({
         />
       </Group>
       <AppliedTableFilters
+        focusTarget={searchInput}
         dataset={dataset}
         filters={filters}
         companies={companies}

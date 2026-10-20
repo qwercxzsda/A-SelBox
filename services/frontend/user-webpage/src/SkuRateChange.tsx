@@ -20,6 +20,7 @@ export function SkuRateChange({
   onCancel: () => void;
 }) {
   const dateInput = useRef<HTMLInputElement>(null);
+  const rateInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     dateInput.current?.focus();
   }, []);
@@ -41,7 +42,7 @@ export function SkuRateChange({
           {periods[draft.periodIndex].marketplace_name}. Preview the date boundary before adding it
           to your draft. Other periods stay unchanged.
         </Text>
-        <Group align="start" grow>
+        <div className="sku-rate-change-fields">
           <TextInput
             ref={dateInput}
             data-autofocus
@@ -54,6 +55,7 @@ export function SkuRateChange({
             error={draft.previewRequested ? errors.effectiveDate : undefined}
           />
           <TextInput
+            ref={rateInput}
             label="New fee rate (%)"
             inputMode="decimal"
             value={draft.feeRatePercent}
@@ -62,7 +64,7 @@ export function SkuRateChange({
             }}
             error={draft.previewRequested ? errors.feeRatePercent : undefined}
           />
-        </Group>
+        </div>
         {draft.previewRequested && errors.period ? (
           <Alert color="red" role="alert">
             {errors.period}
@@ -101,6 +103,8 @@ export function SkuRateChange({
               variant="light"
               onClick={() => {
                 onChange({ ...draft, previewRequested: true });
+                if (errors.effectiveDate) dateInput.current?.focus();
+                else if (errors.feeRatePercent) rateInput.current?.focus();
               }}
             >
               Preview rate change

@@ -2,6 +2,10 @@
   margin-bottom: 0;
 }
 
+.inventory-page-start {
+  scroll-margin-top: 16px;
+}
+
 .inventory-filters > :first-child {
   min-width: 0;
   flex: 1 1 18rem;
@@ -139,5 +143,8 @@
   .inventory-filters > :nth-child(2) {
     flex: 1;
     min-width: 0;
+  }
+  .inventory-clear-filters {
+    flex-basis: 100%;
   }
 }

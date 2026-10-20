@@ -95,9 +95,18 @@ test("readiness uses lightweight revision checks and changes automatically after
   const requests = () =>
     fixture.payoutReadinessRequests.filter(({ params }) => params.get("p_month") === "2026-04-01")
       .length;
+  const completedChecks = () =>
+    fixture.revisionRequests.filter(({ completed }) => completed).length;
+  async function checkForUpdates() {
+    const before = completedChecks();
+    await page.clock.fastForward(60_000);
+    // Updating can still be hidden while the revision request is in flight.
+    // Settle this poll before advancing to another tick or changing its fixtures.
+    await expect.poll(completedChecks).toBeGreaterThan(before);
+    await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+  }
   const original = requests();
-  await page.clock.fastForward(60000);
-  await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+  await checkForUpdates();
   expect(requests()).toBe(original);
   fixture.payoutReadinessRows[0] = {
     ...fixture.payoutReadinessRows[0],
@@ -107,7 +116,7 @@ test("readiness uses lightweight revision checks and changes automatically after
     next_attempt_at: null,
   };
   fixture.revisions.payouts = "complete";
-  await page.clock.fastForward(60000);
+  await checkForUpdates();
   await expect(readiness(page).getByText("Complete", { exact: true })).toBeVisible();
   await expect(readiness(page).getByText("Blocked", { exact: true })).toHaveCount(0);
   expect(requests()).toBe(original + 1);

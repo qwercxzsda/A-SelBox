@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Alert, Button, Checkbox, CloseButton, Group, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Checkbox, Group, Stack, Text, TextInput } from "@mantine/core";
 import { requireCalendarDate } from "./api/filters";
 import type { FilterOption } from "./filter-options";
+import { SearchInput } from "./SearchInput";
 
 export type ColumnMenuFilter =
   | {
@@ -118,26 +119,14 @@ export function OptionSearch({
   }
 
   return (
-    <TextInput
+    <SearchInput
       label={`Search ${label.toLowerCase()}`}
       placeholder={placeholder}
       data-autofocus
       value={search}
-      onChange={(event) => {
-        changeSearch(event.currentTarget.value);
-      }}
-      rightSectionPointerEvents="auto"
-      rightSection={
-        search ? (
-          <CloseButton
-            aria-label="Clear option search"
-            size="sm"
-            onClick={() => {
-              changeSearch("");
-            }}
-          />
-        ) : undefined
-      }
+      onChange={changeSearch}
+      clearLabel="Clear option search"
+      clearButtonSize="sm"
     />
   );
 }

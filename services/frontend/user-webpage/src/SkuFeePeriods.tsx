@@ -26,7 +26,7 @@ export function SkuFeePeriods({ item }: { item: Pick<SkuConfigurationItem, "sku"
         {item.periods.map((period, index) => (
           <Table.Tr key={index}>
             <Table.Td>{period.marketplace_name || "Not set"}</Table.Td>
-            <Table.Td ta="right">
+            <Table.Td ta="right" className="fee-period-rate">
               {period.fee_rate_percent
                 ? `${formatExactDecimal(period.fee_rate_percent)}%`
                 : "Not set"}

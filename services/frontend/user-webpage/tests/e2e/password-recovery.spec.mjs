@@ -62,6 +62,28 @@ async function openRecovery(page, overrides = {}) {
   await expect(passwordForm(page)).toBeVisible();
 }
 
+test("a password mismatch identifies and focuses confirmation so it can be corrected", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  const { state } = await setup(page);
+  await openRecovery(page);
+  const password = page.getByLabel(/^New password/);
+  const confirmation = page.getByLabel(/^Confirm new password/);
+  await password.fill("new-password-123");
+  await confirmation.fill("different-password");
+  await page.getByRole("button", { name: "Update password", exact: true }).click();
+  await expect(confirmation).toBeFocused();
+  await expect(confirmation).toHaveAttribute("aria-invalid", "true");
+  await expect(confirmation).toHaveAccessibleDescription("The passwords do not match.");
+  await expect(page.getByRole("alert")).toBeInViewport();
+  await expect(password).toHaveValue("new-password-123");
+  await confirmation.fill("new-password-123");
+  await expect(confirmation).not.toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(state.updates).toHaveLength(0);
+});
+
 test("forgot password requests a generic recovery email once and F5 never resends it", async ({
   page,
 }) => {

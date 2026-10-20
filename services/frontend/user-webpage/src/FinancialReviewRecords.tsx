@@ -29,6 +29,7 @@ export function FinancialReviewRecords({
     decodeFinancialSourceSelection,
   );
   const controls = useRef<HTMLDivElement>(null);
+  const sourceInput = useRef<HTMLSelectElement>(null);
   const focus = useDrawerFocusReturn({ opened: selection !== null, fallbackRef: controls });
   const query = useQuery({
     queryKey: [
@@ -60,6 +61,7 @@ export function FinancialReviewRecords({
     <>
       <Group ref={controls} tabIndex={-1} mb="sm" gap="sm" align="end">
         <NativeSelect
+          ref={sourceInput}
           label="Record source"
           value={state.source}
           data={[
@@ -84,7 +86,8 @@ export function FinancialReviewRecords({
             aria-label="Clear selected type"
             title={transactionTypeLabel(state.type)}
             rightSection={<span aria-hidden="true">×</span>}
-            onClick={() => {
+            onClick={(event) => {
+              if (event.detail === 0) sourceInput.current?.focus();
               change({ type: "", recordPage: 0 });
             }}
           >

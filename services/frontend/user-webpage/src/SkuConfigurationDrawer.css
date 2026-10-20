@@ -95,14 +95,21 @@
   min-width: 0;
 }
 
+.sku-rate-change-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--mantine-spacing-md);
+}
+
 @media (max-width: 750px) {
   .sku-fee-period-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 370px) {
-  .sku-fee-period-fields {
+@media (max-width: 480px) {
+  .sku-fee-period-fields,
+  .sku-rate-change-fields {
     grid-template-columns: minmax(0, 1fr);
   }
 }

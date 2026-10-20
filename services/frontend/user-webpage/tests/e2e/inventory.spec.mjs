@@ -266,6 +266,8 @@ test("recommendation badges keep readable text and high contrast across desktop 
 test("inventory debounces typing while preserving raw search immediately across F5", async ({
   page,
 }) => {
+  // React and query scheduling must start with the same clock as the debounce.
+  await page.clock.install();
   await mockSupabase(page);
   const inventory = await mockInventory(page, [
     inventoryRow("SEND", { recommended_action: "SendToFBA" }),
@@ -274,8 +276,7 @@ test("inventory debounces typing while preserving raw search immediately across 
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(page.locator(".inventory-sku")).toHaveCount(2);
-  await page.clock.install();
-  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 1000)));
   const initialReads = inventory.requests.length;
   const search = page.getByLabel("Search", { exact: true });
   await search.fill("S");
@@ -287,10 +288,14 @@ test("inventory debounces typing while preserving raw search immediately across 
   expect(inventory.requests).toHaveLength(initialReads);
   await page.clock.runFor(1);
   await expect.poll(() => inventory.requests.length).toBe(initialReads + 1);
-  await page.clock.runFor(20);
+  // The debounce boundary is verified; let asynchronous query notifications settle.
+  await page.clock.resume();
   await expect(page.locator(".inventory-sku")).toHaveText(["SEND"]);
   expect(inventory.requests).toHaveLength(initialReads + 1);
+  // Reload before the next debounce can run, so this checks the raw saved input.
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 1000)));
   await search.fill(" restock ");
+  expect(inventory.requests).toHaveLength(initialReads + 1);
   await page.reload();
   await page.clock.resume();
   await expect(search).toHaveValue(" restock ");

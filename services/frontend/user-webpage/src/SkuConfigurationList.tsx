@@ -1,15 +1,4 @@
-import {
-  Accordion,
-  Badge,
-  Button,
-  Checkbox,
-  CloseButton,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Accordion, Badge, Button, Checkbox, Group, Paper, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { SkuFeePeriods } from "./SkuFeePeriods";
 import { SkuTransactionLink } from "./SkuTransactionLink";
@@ -18,6 +7,7 @@ import { filterFeeSkus, paginateFeeSkus } from "./fee-skus";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import { companyLabel } from "./view-model";
 import { RowsSelect } from "./RowsSelect";
+import { SearchInput } from "./SearchInput";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import "./SkuConfigurationList.css";
 
@@ -55,24 +45,13 @@ export function SkuConfigurationList({
   return (
     <>
       <div className="fee-list-toolbar">
-        <TextInput
+        <SearchInput
           className="fee-list-search"
           label="Search SKUs"
           placeholder={administrator ? "SKU or company" : "SKU"}
           value={search}
-          rightSectionPointerEvents="auto"
-          rightSection={
-            search ? (
-              <CloseButton
-                aria-label="Clear search"
-                onClick={() => {
-                  change({ search: "", pageIndex: 0 });
-                }}
-              />
-            ) : null
-          }
-          onChange={(event) => {
-            change({ search: event.currentTarget.value, pageIndex: 0 });
+          onChange={(search) => {
+            change({ search, pageIndex: 0 });
           }}
         />
         <RowsSelect
