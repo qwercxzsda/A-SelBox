@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { Alert, Button, Checkbox, Group, Stack, Text, TextInput } from "@mantine/core";
-import { requireCalendarDate } from "./api/filters";
+import { useRef, useState, type RefObject } from "react";
+import { Button, Checkbox, Group, Stack, Text } from "@mantine/core";
 import type { FilterOption } from "./filter-options";
 import { SearchInput } from "./SearchInput";
 
@@ -24,89 +23,15 @@ export type ColumnMenuFilter =
       onChange: (values: string[]) => void;
     };
 
-export function DateFilter({
-  filter,
-  onClose,
-}: {
-  filter: Extract<ColumnMenuFilter, { kind: "date" }>;
-  onClose: () => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const from = form.get("dateFrom");
-        const to = form.get("dateTo");
-        if (typeof from !== "string" || typeof to !== "string") return;
-        try {
-          if (from) requireCalendarDate(from);
-          if (to) requireCalendarDate(to);
-        } catch (error) {
-          setError(error instanceof Error ? error.message : "Choose a valid date.");
-          return;
-        }
-        if (from && to && from > to) {
-          setError("From date must be on or before To date.");
-          return;
-        }
-        filter.onChange(from, to);
-        onClose();
-      }}
-    >
-      <Stack gap="sm">
-        <div className="column-menu-dates">
-          <TextInput
-            label="From date"
-            type="date"
-            name="dateFrom"
-            data-autofocus
-            defaultValue={filter.from}
-            onChange={() => {
-              setError(null);
-            }}
-          />
-          <TextInput
-            label="To date"
-            type="date"
-            name="dateTo"
-            defaultValue={filter.to}
-            onChange={() => {
-              setError(null);
-            }}
-          />
-        </div>
-        {error ? (
-          <Alert role="alert" color="red">
-            {error}
-          </Alert>
-        ) : null}
-        <Group gap="xs" justify="space-between">
-          <Button
-            variant="subtle"
-            onClick={() => {
-              filter.onChange("", "");
-              onClose();
-            }}
-          >
-            Clear dates
-          </Button>
-          <Button type="submit">Apply dates</Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
-
 export function OptionSearch({
+  inputRef,
   label,
   search,
   onChange,
   onResetScroll,
   placeholder = "Find an option",
 }: {
+  inputRef?: RefObject<HTMLInputElement | null>;
   label: string;
   search: string;
   onChange: (value: string) => void;
@@ -120,6 +45,7 @@ export function OptionSearch({
 
   return (
     <SearchInput
+      inputRef={inputRef}
       label={`Search ${label.toLowerCase()}`}
       placeholder={placeholder}
       data-autofocus
@@ -141,6 +67,8 @@ export function SelectionFilter({
   onResetScroll: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
+  const firstOption = useRef<HTMLInputElement>(null);
   const searchable = filter.options.length > 8;
   const query = searchable ? search.trim().toLocaleLowerCase() : "";
   const options = filter.options.filter((option) =>
@@ -151,6 +79,7 @@ export function SelectionFilter({
     <Stack gap="sm">
       {searchable ? (
         <OptionSearch
+          inputRef={searchInput}
           label={label}
           search={search}
           onChange={setSearch}
@@ -165,7 +94,8 @@ export function SelectionFilter({
           variant="subtle"
           size="compact-sm"
           disabled={filter.value.length === 0}
-          onClick={() => {
+          onClick={(event) => {
+            if (event.detail === 0) (searchable ? searchInput : firstOption).current?.focus();
             filter.onChange([]);
           }}
         >
@@ -173,9 +103,10 @@ export function SelectionFilter({
         </Button>
       </Group>
       <div className="column-menu-options">
-        {options.map((option) => (
+        {options.map((option, index) => (
           <Checkbox
             key={option.value}
+            ref={index === 0 ? firstOption : undefined}
             className="column-menu-option"
             label={<span title={option.title}>{option.label}</span>}
             checked={filter.value.includes(option.value)}

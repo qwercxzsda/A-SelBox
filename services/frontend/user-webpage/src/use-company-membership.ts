@@ -11,7 +11,12 @@ interface MembershipOptions {
   accessToken: string;
   account: AppAccount;
   companies: Company[];
-  onNoticeChange: (message: string | null) => void;
+  onFeedbackChange: (feedback: MembershipFeedback | null) => void;
+}
+
+export interface MembershipFeedback {
+  kind: "success" | "error";
+  message: string;
 }
 
 function isAccountQuery(query: Query): boolean {
@@ -22,10 +27,14 @@ function isAccountQuery(query: Query): boolean {
 }
 
 function membershipError(error: unknown): string {
-  if (error instanceof ApiError && error.status === 403)
-    return "You cannot change this user's access. Only the database manager can change administrators.";
-  if (error instanceof ApiError && error.status === 409)
-    return "This user's access changed while you were editing. Close this panel and review their latest membership.";
+  if (error instanceof ApiError) {
+    if (error.status === 403)
+      return "You cannot change this user's access. Only the database manager can change administrators.";
+    if (error.status === 409)
+      return "This user's access changed while you were editing. Review their current membership below before saving again.";
+    if (error.status === null || error.status >= 500)
+      return "Could not confirm whether membership changed. Review the current membership below before trying again.";
+  }
   return `Could not save membership. ${getErrorMessage(error)}`;
 }
 
@@ -33,7 +42,7 @@ export function useCompanyMembership({
   accessToken,
   account,
   companies,
-  onNoticeChange,
+  onFeedbackChange,
 }: MembershipOptions) {
   const client = useQueryClient();
   const mounted = useMountedRef();
@@ -45,18 +54,19 @@ export function useCompanyMembership({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [confirmRevocation, setConfirmRevocation] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
 
   async function save(nextCompanyId: string | null) {
     if (saving.current) return;
     if (nextCompanyId !== null && !companies.some(({ id }) => id === nextCompanyId)) {
-      setProblem("This company is no longer available. Choose another company.");
+      onFeedbackChange({
+        kind: "error",
+        message: "This company is no longer available. Choose another company.",
+      });
       return;
     }
     saving.current = true;
     setIsSaving(true);
-    setProblem(null);
-    onNoticeChange(null);
+    onFeedbackChange(null);
     try {
       const updated = await setCompanyMembership({
         accessToken,
@@ -69,11 +79,13 @@ export function useCompanyMembership({
         // later revocation must not restore the company we just granted.
         setCompanyId(account.company_id);
         setConfirmRevocation(false);
-        onNoticeChange(
-          nextCompanyId === null
-            ? "Membership revoked. This user is now Unassigned."
-            : "Company membership saved.",
-        );
+        onFeedbackChange({
+          kind: "success",
+          message:
+            nextCompanyId === null
+              ? "Membership revoked. This user is now Unassigned."
+              : "Company membership saved.",
+        });
       }
       // Update cached roster pages before server verification, including after the drawer closes.
       client.setQueriesData<PageResult>(
@@ -89,7 +101,7 @@ export function useCompanyMembership({
             : page,
       );
     } catch (error) {
-      if (mounted.current) setProblem(membershipError(error));
+      if (mounted.current) onFeedbackChange({ kind: "error", message: membershipError(error) });
     } finally {
       // Even a failed response may have committed; verify before another change.
       await client.invalidateQueries({ predicate: isAccountQuery });
@@ -104,7 +116,6 @@ export function useCompanyMembership({
     isSaving,
     confirmRevocation,
     setConfirmRevocation,
-    problem,
     save,
   };
 }

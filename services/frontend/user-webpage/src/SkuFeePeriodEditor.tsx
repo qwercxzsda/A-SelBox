@@ -12,6 +12,7 @@ export function SkuFeePeriodEditor({
   onUpdate,
   onRemove,
   onChangeRate,
+  rateChangeOpen,
 }: {
   period: SkuConfigurationPeriod;
   index: number;
@@ -20,6 +21,7 @@ export function SkuFeePeriodEditor({
   onUpdate: (field: keyof SkuConfigurationPeriod, value: string | null) => void;
   onRemove: () => void;
   onChangeRate: () => void;
+  rateChangeOpen: boolean;
 }) {
   const number = String(index + 1);
   const errorFor = (field: keyof SkuConfigurationPeriod) =>
@@ -36,7 +38,13 @@ export function SkuFeePeriodEditor({
               type="button"
               size="compact-sm"
               variant="light"
-              disabled={!period.marketplace_name || !period.valid_from || !period.fee_rate_percent}
+              disabled={
+                rateChangeOpen ||
+                !period.marketplace_name ||
+                !period.valid_from ||
+                !period.fee_rate_percent
+              }
+              title={rateChangeOpen ? "Finish or cancel the current rate change first." : undefined}
               aria-label={`Change rate from date for period ${number}`}
               onClick={onChangeRate}
             >

@@ -29,6 +29,7 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     decodeFinancialSourceSelection,
   );
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLElement>(null);
   const focus = useDrawerFocusReturn({ opened: selection !== null, fallbackRef: inputRef });
   const query = useQuery({
     queryKey: ["financial-source-lookup", identity.session.user.id, transactionId, pageIndex],
@@ -43,6 +44,18 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     staleTime: Infinity,
   });
   const rows = query.data?.rows ?? [];
+  function changePage(nextPage: number) {
+    setPageIndex(nextPage);
+    resultsRef.current?.focus({ preventScroll: true });
+    resultsRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }
+  const pagination = {
+    label: "matches",
+    pageIndex,
+    hasNext: query.data?.hasNext ?? false,
+    disabled: query.isFetching,
+    onPageChange: changePage,
+  };
   if (identity.account.access_role !== "administrator") return null;
   return (
     <DetailSection
@@ -76,8 +89,13 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
         </Group>
       </form>
       {transactionId ? (
-        <>
-          <Text size="xs" c="dimmed" mb="sm">
+        <section
+          ref={resultsRef}
+          tabIndex={-1}
+          className="detail-data"
+          aria-label="Amazon transaction results"
+        >
+          <Text size="xs" c="dimmed" mb="sm" style={{ overflowWrap: "anywhere" }}>
             Showing {transactionId}. Each row is one amount component. Current and retained captures
             are separate observations; do not add them together.
           </Text>
@@ -87,6 +105,7 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
             rowCount={rows.length}
             emptyMessage="No retained source record has this exact Amazon transaction ID."
           >
+            {query.data || pageIndex > 0 ? <LookupPagination {...pagination} mb="sm" /> : null}
             {rows.length ? (
               <DetailTable
                 label="Amazon transaction matches"
@@ -123,15 +142,9 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                 }
               />
             ) : null}
-            <LookupPagination
-              label="matches"
-              pageIndex={pageIndex}
-              hasNext={query.data?.hasNext ?? false}
-              disabled={query.isFetching}
-              onPageChange={setPageIndex}
-            />
+            {rows.length > 10 ? <LookupPagination {...pagination} bottom /> : null}
           </DetailData>
-        </>
+        </section>
       ) : null}
       <FinancialSourceRecord
         identity={identity}

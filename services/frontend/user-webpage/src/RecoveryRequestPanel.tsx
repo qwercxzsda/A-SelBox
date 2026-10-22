@@ -19,9 +19,13 @@ export function RecoveryRequestPanel({
   status: string | null;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     heading.current?.focus();
   }, []);
+  useEffect(() => {
+    if (error || status) feedbackRef.current?.focus();
+  }, [error, status]);
   return (
     <div className="login-shell">
       <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
@@ -33,12 +37,18 @@ export function RecoveryRequestPanel({
             Enter your account email to request a password recovery link.
           </Text>
           {error ? (
-            <Alert color="red" role="alert">
+            <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">
               {error}
             </Alert>
           ) : null}
           {status ? (
-            <Alert color="cyan" role="status" title="Check your email">
+            <Alert
+              ref={feedbackRef}
+              tabIndex={-1}
+              color="cyan"
+              role="status"
+              title="Check your email"
+            >
               {status}
             </Alert>
           ) : null}

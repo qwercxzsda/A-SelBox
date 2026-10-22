@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Alert, Button, Drawer, Group, Paper, Stack, Text, TextInput } from "@mantine/core";
 import type { SkuConfigurationChange, SkuConfigurationItem } from "./api";
 import type { SkuFormIssue } from "./sku-configuration-form";
@@ -49,6 +49,22 @@ export function SkuConfigurationReview({
   const incomplete = [...new Set(issues.map((issue) => issue.sku))];
   const savedBySku = new Map(savedItems.map((item) => [item.sku, item]));
   const issuesRef = useRef<HTMLDivElement>(null);
+  const editButtons = useRef(new Map<string, HTMLButtonElement>());
+  const backButton = useRef<HTMLButtonElement>(null);
+  const pendingDiscardFocus = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const sku = pendingDiscardFocus.current;
+    if (sku === undefined) return;
+    const target = sku === null ? backButton.current : editButtons.current.get(sku);
+    (target ?? backButton.current)?.focus();
+    pendingDiscardFocus.current = undefined;
+  }, [drafts]);
+  function discardDraft(sku: string) {
+    const index = drafts.findIndex((draft) => draft.sku === sku);
+    const adjacentDraft = drafts.at(index + 1) ?? (index > 0 ? drafts.at(index - 1) : undefined);
+    pendingDiscardFocus.current = adjacentDraft?.sku ?? null;
+    onDiscard(sku);
+  }
   return (
     <Drawer
       opened
@@ -105,6 +121,10 @@ export function SkuConfigurationReview({
                 </div>
                 <Group gap="xs">
                   <Button
+                    ref={(element) => {
+                      if (element) editButtons.current.set(draft.sku, element);
+                      else editButtons.current.delete(draft.sku);
+                    }}
                     variant="light"
                     aria-label={`Edit ${draft.sku}`}
                     disabled={isSaving}
@@ -120,7 +140,7 @@ export function SkuConfigurationReview({
                     disabled={isSaving}
                     aria-label={`Discard draft for ${draft.sku}`}
                     onClick={() => {
-                      onDiscard(draft.sku);
+                      discardDraft(draft.sku);
                     }}
                   >
                     Discard draft
@@ -207,7 +227,7 @@ export function SkuConfigurationReview({
             }}
           />
           <Group justify="space-between">
-            <Button variant="default" disabled={isSaving} onClick={onClose}>
+            <Button ref={backButton} variant="default" disabled={isSaving} onClick={onClose}>
               Back to editing
             </Button>
             <Button

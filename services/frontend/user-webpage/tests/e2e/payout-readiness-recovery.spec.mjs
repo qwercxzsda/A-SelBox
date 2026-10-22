@@ -1,0 +1,77 @@
+import { expect, test } from "@playwright/test";
+import { mockSupabase, signIn } from "./fixtures.mjs";
+import { applyReportMonth } from "./table-actions.mjs";
+
+const companyId = (index) => `0198b50b-701a-7000-8000-${String(index + 1).padStart(12, "0")}`;
+const readiness = (page) =>
+  page.getByRole("region", { name: "April 2026 payout readiness", exact: true });
+
+async function openReadiness(page, companyCount = 1) {
+  const fixture = await mockSupabase(page);
+  fixture.roles["member-a"] = "administrator";
+  fixture.payoutReadinessRows = Array.from({ length: companyCount }, (_, index) => ({
+    company_id: companyId(index),
+    company_name: `Company ${String(index + 1).padStart(2, "0")}`,
+    month: "2026-04-01",
+    status: "BLOCKED",
+    reason: "SETUP_REQUIRED",
+    has_report: "false",
+    last_success_at: null,
+    next_attempt_at: null,
+  }));
+  fixture.payoutSetupBlockers = Array.from({ length: 26 }, (_, index) => ({
+    company_id: companyId(0),
+    month: "2026-04-01",
+    sku: `BLOCKED-${String(index).padStart(2, "0")}`,
+    reason: "MISSING_OWNERSHIP",
+    marketplace_name: "Amazon.com",
+    first_date: "2026-04-01",
+    last_date: "2026-04-30",
+    component_count: "1",
+  }));
+  await signIn(page);
+  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
+  await applyReportMonth(page, "2026-04");
+  await expect(readiness(page).getByText("Company 01", { exact: true })).toBeVisible();
+  return fixture;
+}
+
+test("a failed later readiness page keeps a route back to cached companies", async ({ page }) => {
+  const fixture = await openReadiness(page, 26);
+  fixture.payoutReadinessStatus = 503;
+  await readiness(page).getByRole("button", { name: "Next companies", exact: true }).click();
+  await expect(readiness(page)).toContainText("Readiness is temporarily unavailable.");
+  const previous = readiness(page).getByRole("button", { name: "Previous companies", exact: true });
+  await expect(previous).toBeVisible();
+  await expect(previous).toBeEnabled();
+  await previous.click();
+  await expect(readiness(page).getByText("Company 01", { exact: true })).toBeVisible();
+  await expect(readiness(page).getByText("Company 25", { exact: true })).toBeVisible();
+  await expect(previous).toBeDisabled();
+});
+
+test("a failed later setup page keeps a route back to cached requirements", async ({ page }) => {
+  const fixture = await openReadiness(page);
+  await readiness(page)
+    .getByRole("button", { name: "View setup requirements", exact: true })
+    .click();
+  const table = readiness(page).getByRole("table", {
+    name: "Payout setup requirements",
+    exact: true,
+  });
+  await expect(table.locator("tbody tr")).toHaveCount(25);
+  fixture.payoutReadinessStatus = 503;
+  await readiness(page).getByRole("button", { name: "Next requirements", exact: true }).click();
+  await expect(readiness(page).getByRole("alert")).toContainText(
+    "Could not load payout setup requirements.",
+  );
+  const previous = readiness(page).getByRole("button", {
+    name: "Previous requirements",
+    exact: true,
+  });
+  await expect(previous).toBeVisible();
+  await expect(previous).toBeEnabled();
+  await previous.click();
+  await expect(table.locator("tbody tr")).toHaveCount(25);
+  await expect(table).toContainText("BLOCKED-00");
+});

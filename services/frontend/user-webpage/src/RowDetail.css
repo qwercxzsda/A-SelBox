@@ -1,3 +1,7 @@
+.row-detail-title {
+  overflow-wrap: anywhere;
+}
+
 .field-label {
   color: var(--ui-text-muted);
   font-size: var(--ui-font-caption);

@@ -4,7 +4,7 @@ import type { CanonicalRow, Company } from "./api";
 import { parseAppAccount } from "./api/workspace";
 import { humanizeCode } from "./categories";
 import { companyLabel } from "./view-model";
-import { useCompanyMembership } from "./use-company-membership";
+import { useCompanyMembership, type MembershipFeedback } from "./use-company-membership";
 
 interface MembershipProps {
   accessToken: string;
@@ -15,17 +15,17 @@ interface MembershipProps {
 }
 
 export function CompanyMembership({ row, ...props }: MembershipProps) {
-  const [notice, setNotice] = useState<{ userId: string; message: string } | null>(null);
-  const visibleNotice = notice?.userId === row?.user_id ? notice : null;
-  const noticeRef = useRef<HTMLDivElement>(null);
+  const [feedback, setFeedback] = useState<(MembershipFeedback & { userId: string }) | null>(null);
+  const visibleFeedback = feedback?.userId === row?.user_id ? feedback : null;
+  const feedbackRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (visibleNotice) noticeRef.current?.focus();
-  }, [visibleNotice]);
+    if (visibleFeedback) feedbackRef.current?.focus();
+  }, [visibleFeedback]);
   return (
     <Drawer
       opened={row !== null}
       onClose={() => {
-        setNotice(null);
+        setFeedback(null);
         props.onClose();
       }}
       position="right"
@@ -34,9 +34,15 @@ export function CompanyMembership({ row, ...props }: MembershipProps) {
       title="Company membership"
       closeButtonProps={{ "aria-label": "Close membership details" }}
     >
-      {visibleNotice ? (
-        <Alert ref={noticeRef} tabIndex={-1} color="teal" role="status" mb="md">
-          {visibleNotice.message}
+      {visibleFeedback ? (
+        <Alert
+          ref={feedbackRef}
+          tabIndex={-1}
+          color={visibleFeedback.kind === "error" ? "red" : "teal"}
+          role={visibleFeedback.kind === "error" ? "alert" : "status"}
+          mb="md"
+        >
+          {visibleFeedback.message}
         </Alert>
       ) : null}
       {row ? (
@@ -44,8 +50,8 @@ export function CompanyMembership({ row, ...props }: MembershipProps) {
           key={`${row.user_id ?? ""}:${row.access_role ?? ""}:${row.company_id ?? ""}`}
           row={row}
           {...props}
-          onNoticeChange={(message) => {
-            setNotice(message === null ? null : { userId: row.user_id ?? "", message });
+          onFeedbackChange={(feedback) => {
+            setFeedback(feedback === null ? null : { ...feedback, userId: row.user_id ?? "" });
           }}
         />
       ) : null}
@@ -57,22 +63,15 @@ function MembershipEditor({
   row,
   accessToken,
   companies,
-  onNoticeChange,
+  onFeedbackChange,
   onAddCompany,
 }: Omit<MembershipProps, "row"> & {
   row: CanonicalRow;
-  onNoticeChange: (message: string | null) => void;
+  onFeedbackChange: (feedback: MembershipFeedback | null) => void;
 }) {
   const account = parseAppAccount(row, row.user_id ?? "");
-  const {
-    companyId,
-    setCompanyId,
-    isSaving,
-    confirmRevocation,
-    setConfirmRevocation,
-    problem,
-    save,
-  } = useCompanyMembership({ accessToken, account, companies, onNoticeChange });
+  const { companyId, setCompanyId, isSaving, confirmRevocation, setConfirmRevocation, save } =
+    useCompanyMembership({ accessToken, account, companies, onFeedbackChange });
   const confirmationRef = useRef<HTMLDivElement>(null);
   const revokeButtonRef = useRef<HTMLButtonElement>(null);
   const wasConfirmingRevocation = useRef(false);
@@ -158,11 +157,6 @@ function MembershipEditor({
             <Text size="sm" c="dimmed">
               No companies are available. Add a company to assign membership.
             </Text>
-          ) : null}
-          {problem ? (
-            <Alert color="red" role="alert">
-              {problem}
-            </Alert>
           ) : null}
           {confirmRevocation ? (
             <Alert

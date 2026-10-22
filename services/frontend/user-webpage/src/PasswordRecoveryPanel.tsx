@@ -23,9 +23,13 @@ export function PasswordRecoveryPanel({
   const passwordInput = useRef<HTMLInputElement>(null);
   const confirmationInput = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const serverErrorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     heading.current?.focus();
   }, []);
+  useEffect(() => {
+    if (error) serverErrorRef.current?.focus();
+  }, [error]);
   function submitPassword(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -55,7 +59,7 @@ export function PasswordRecoveryPanel({
               : "Your recovery link has been verified."}
           </Text>
           {error && !invalidField ? (
-            <Alert color="red" role="alert">
+            <Alert ref={serverErrorRef} tabIndex={-1} color="red" role="alert">
               {error}
             </Alert>
           ) : null}

@@ -53,6 +53,7 @@ export function Companies({
   const { companies } = useCompanyDirectory();
   const [notice, setNotice] = useState<string | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (notice) noticeRef.current?.focus();
   }, [notice]);
@@ -129,6 +130,7 @@ export function Companies({
       ) : null}
       <Group align="flex-end" gap="md" className="company-list-toolbar">
         <SearchInput
+          inputRef={searchInput}
           label="Search companies"
           placeholder="Company name or ID"
           className="company-list-search"
@@ -231,7 +233,8 @@ export function Companies({
             {query ? (
               <Button
                 variant="subtle"
-                onClick={() => {
+                onClick={(event) => {
+                  if (event.detail === 0) searchInput.current?.focus();
                   change({ search: "", pageIndex: 0 });
                 }}
               >

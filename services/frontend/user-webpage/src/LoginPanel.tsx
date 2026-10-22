@@ -1,4 +1,4 @@
-import type { SubmitEvent } from "react";
+import { useEffect, useRef, type SubmitEvent } from "react";
 import { Alert, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
 
 interface LoginPanelProps {
@@ -30,12 +30,16 @@ export function LoginPanel({
 }: LoginPanelProps) {
   const signingUp = mode === "sign-up";
   const action = signingUp ? "Create account" : "Sign in";
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [mode]);
   return (
     <div className="login-shell">
       <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
         <Stack gap="md">
           <div>
-            <Title order={2} size="h3" mb="xs">
+            <Title ref={heading} tabIndex={-1} order={2} size="h3" mb="xs">
               {action}
             </Title>
             <Text c="dimmed" size="sm">

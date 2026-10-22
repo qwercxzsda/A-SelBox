@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Accordion, Badge, Button, Checkbox, Group, Paper, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { SkuFeePeriods } from "./SkuFeePeriods";
@@ -30,6 +31,7 @@ export function SkuConfigurationList({
   onEdit: (sku: string) => void;
   onShowTransactions: (sku: string) => void;
 } & ViewStateProps<FeeViewState>) {
+  const searchInput = useRef<HTMLInputElement>(null);
   const { search, pageSize, expanded, drafts } = viewState;
   const draftSkus = new Set(drafts.map((draft) => draft.sku));
   const unfinishedSkus = new Set(
@@ -46,6 +48,7 @@ export function SkuConfigurationList({
     <>
       <div className="fee-list-toolbar">
         <SearchInput
+          inputRef={searchInput}
           className="fee-list-search"
           label="Search SKUs"
           placeholder={administrator ? "SKU or company" : "SKU"}
@@ -110,7 +113,8 @@ export function SkuConfigurationList({
             {search || viewState.onlyIncomplete ? (
               <Button
                 variant="subtle"
-                onClick={() => {
+                onClick={(event) => {
+                  if (event.detail === 0) searchInput.current?.focus();
                   change({ search: "", onlyIncomplete: false, pageIndex: 0 });
                 }}
               >

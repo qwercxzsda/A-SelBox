@@ -230,7 +230,8 @@ export function PayoutReports({
               <Button
                 mt="sm"
                 variant="light"
-                onClick={() => {
+                onClick={(event) => {
+                  if (event.detail === 0) searchInput.current?.focus();
                   onViewStateChange({
                     ...viewState,
                     search: "",

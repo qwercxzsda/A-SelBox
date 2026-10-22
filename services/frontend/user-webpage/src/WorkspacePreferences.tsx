@@ -3,7 +3,10 @@ import { Alert, Portal } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { createWorkspaceStore } from "./workspace-storage";
 import { browserWorkspaceStorage } from "./workspace-browser-storage";
-import { WorkspaceContext } from "./workspace-preferences-context";
+import {
+  WorkspaceContext,
+  WorkspaceNavigationRevisionContext,
+} from "./workspace-preferences-context";
 import { createWorkspaceNavigation } from "./workspace-navigation";
 
 export function WorkspacePreferences({
@@ -48,7 +51,9 @@ export function WorkspacePreferences({
   }, [routedStore]);
   return (
     <WorkspaceContext value={routedStore}>
-      <Fragment key={revision}>{children}</Fragment>
+      <WorkspaceNavigationRevisionContext value={revision}>
+        <Fragment key={revision}>{children}</Fragment>
+      </WorkspaceNavigationRevisionContext>
       {persistenceFailed && !warningDismissed ? (
         <Portal>
           <Alert

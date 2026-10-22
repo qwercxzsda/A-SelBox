@@ -9,6 +9,8 @@ export function LookupPagination({
   label,
   pageLabel = "Page",
   mt = "sm",
+  mb,
+  bottom = false,
 }: {
   pageIndex: number;
   hasNext: boolean;
@@ -17,9 +19,18 @@ export function LookupPagination({
   label: string;
   pageLabel?: string;
   mt?: "xs" | "sm";
+  mb?: "xs" | "sm";
+  bottom?: boolean;
 }) {
+  const position = bottom ? " at bottom" : "";
   return (
-    <Group component="nav" aria-label={`Pagination for ${label}`} mt={mt} justify="space-between">
+    <Group
+      component="nav"
+      aria-label={`Pagination for ${label}${position}`}
+      mt={mt}
+      mb={mb}
+      justify="space-between"
+    >
       <Text size="xs">
         {pageLabel} {pageIndex + 1}
       </Text>
@@ -27,6 +38,7 @@ export function LookupPagination({
         <Button
           size="xs"
           variant="default"
+          aria-label={`Previous ${label}${position}`}
           disabled={pageIndex === 0 || disabled}
           onClick={() => {
             onPageChange(pageIndex - 1);
@@ -37,6 +49,7 @@ export function LookupPagination({
         <Button
           size="xs"
           variant="default"
+          aria-label={`Next ${label}${position}`}
           disabled={!hasNext || disabled}
           onClick={() => {
             onPageChange(pageIndex + 1);

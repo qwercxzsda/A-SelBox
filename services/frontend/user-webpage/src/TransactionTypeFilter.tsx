@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -99,6 +99,7 @@ export function TransactionTypeFilter({
   onResetScroll: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const groups = transactionTypeGroups(filter.options);
   const [expanded, setExpanded] = useState<string[]>(() =>
     groups
@@ -122,6 +123,7 @@ export function TransactionTypeFilter({
   return (
     <Stack gap="xs">
       <OptionSearch
+        inputRef={searchInput}
         label="Type"
         search={search}
         onChange={setSearch}
@@ -141,7 +143,8 @@ export function TransactionTypeFilter({
           variant="subtle"
           size="compact-sm"
           disabled={filter.value.length === 0}
-          onClick={() => {
+          onClick={(event) => {
+            if (event.detail === 0) searchInput.current?.focus();
             filter.onChange([]);
           }}
         >
@@ -158,7 +161,8 @@ export function TransactionTypeFilter({
               variant="subtle"
               size="compact-xs"
               disabled={matches.every((value) => selected.has(value))}
-              onClick={() => {
+              onClick={(event) => {
+                if (event.detail === 0) searchInput.current?.focus();
                 select(matches, true);
               }}
             >
@@ -168,7 +172,8 @@ export function TransactionTypeFilter({
               variant="subtle"
               size="compact-xs"
               disabled={!matches.some((value) => selected.has(value))}
-              onClick={() => {
+              onClick={(event) => {
+                if (event.detail === 0) searchInput.current?.focus();
                 select(matches, false);
               }}
             >

@@ -2,7 +2,7 @@ import { SummaryCard } from "./SummaryCard";
 import type { SummaryPeriod, SummaryState } from "./summary-types";
 import { Alert, Button, Group, Modal, NativeSelect, Text, Title } from "@mantine/core";
 import { useState } from "react";
-import { DateFilter } from "./ColumnFilters";
+import { DateFilter } from "./DateFilter";
 import type { DateRange } from "./estimated-periods";
 import { UpdateStatus } from "./UpdateStatus";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";

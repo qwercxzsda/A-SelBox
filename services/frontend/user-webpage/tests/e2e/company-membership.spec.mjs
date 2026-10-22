@@ -179,7 +179,7 @@ test("a rejected membership change preserves the saved access and can be retried
     .getByRole("button", { name: "Save membership", exact: true })
     .click();
   await expect(membershipDrawer(page).getByRole("alert")).toContainText(
-    "Could not save membership",
+    "Could not confirm whether membership changed",
   );
   expect(fixture.roles[targetUser]).toBe("unassigned");
   await expect(accountRow(page, targetEmail)).toContainText("Unassigned");

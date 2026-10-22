@@ -62,6 +62,37 @@ async function openRecovery(page, overrides = {}) {
   await expect(passwordForm(page)).toBeVisible();
 }
 
+test("recovery request feedback keeps keyboard focus after the disabled submit control", async ({
+  page,
+}) => {
+  const { state } = await setup(page);
+  await page.getByRole("button", { name: "Forgot password?", exact: true }).click();
+  await page.getByLabel(/^Email/).fill("member-a@example.test");
+  await page.getByRole("button", { name: "Send recovery link", exact: true }).click();
+  await expect(page.getByRole("status")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel(/^Email/)).toBeFocused();
+  expect(state.requests).toHaveLength(1);
+});
+
+test("a rejected password update focuses its explanation and preserves typed values", async ({
+  page,
+}) => {
+  const { state } = await setup(page);
+  state.updateStatus = 503;
+  await openRecovery(page);
+  await page.getByLabel(/^New password/).fill("new-password-123");
+  await page.getByLabel(/^Confirm new password/).fill("new-password-123");
+  await page.getByRole("button", { name: "Update password", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Could not update your password");
+  await expect(page.getByRole("alert")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel(/^New password/)).toBeFocused();
+  await expect(page.getByLabel(/^New password/)).toHaveValue("new-password-123");
+  await expect(page.getByLabel(/^Confirm new password/)).toHaveValue("new-password-123");
+  expect(state.updates).toHaveLength(1);
+});
+
 test("a password mismatch identifies and focuses confirmation so it can be corrected", async ({
   page,
 }) => {

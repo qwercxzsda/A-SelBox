@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from "react";
-import { DateFilter, SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
+import { SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
+import { DateFilter } from "./DateFilter";
 import { MonthFilter } from "./MonthFilter";
 import { TransactionTypeFilter } from "./TransactionTypeFilter";
 import { ColumnMenuFooter, type ColumnMenuSort } from "./ColumnMenuFooter";

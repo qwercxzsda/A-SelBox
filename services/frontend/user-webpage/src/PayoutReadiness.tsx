@@ -162,12 +162,12 @@ export function PayoutReadiness({
           );
         })}
       </Stack>
-      {query.data && (pageIndex > 0 || query.data.hasNext) ? (
+      {pageIndex > 0 || query.data?.hasNext ? (
         <LookupPagination
           label="companies"
           pageLabel="Company page"
           pageIndex={pageIndex}
-          hasNext={query.data.hasNext}
+          hasNext={query.data?.hasNext ?? false}
           disabled={query.isFetching}
           onPageChange={setPageIndex}
         />

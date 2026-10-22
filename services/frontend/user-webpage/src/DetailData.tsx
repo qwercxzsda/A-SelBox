@@ -94,7 +94,7 @@ export function DetailData({
   rowCount: number;
   emptyMessage: string;
   pagination?: DetailPagination;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const { pageIndex, totalCount, onPageChange } = pagination ?? {};

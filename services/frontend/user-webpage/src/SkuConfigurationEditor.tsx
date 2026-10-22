@@ -30,6 +30,20 @@ import type { FeeEditorState } from "./workspace-view-state";
 import "./SkuConfigurationDrawer.css";
 import { SkuRateChange } from "./SkuRateChange";
 
+function rateChangeAfterPeriodEdit(
+  rateChange: FeeEditorState["rateChange"],
+  removedIndex?: number,
+) {
+  if (!rateChange || removedIndex === rateChange.periodIndex) return null;
+  const removedEarlierPeriod = removedIndex !== undefined && removedIndex < rateChange.periodIndex;
+  // Manual edits require a fresh preview, without losing the typed date and rate.
+  return {
+    ...rateChange,
+    periodIndex: removedEarlierPeriod ? rateChange.periodIndex - 1 : rateChange.periodIndex,
+    previewRequested: false,
+  };
+}
+
 export function SkuConfigurationEditor({
   item,
   editing,
@@ -105,31 +119,48 @@ export function SkuConfigurationEditor({
     }
     onStage(form);
   }
-  function updatePeriod(index: number, field: keyof SkuConfigurationPeriod, value: string | null) {
-    setForm((current) => ({
+  function changePeriods(
+    update: (periods: SkuConfigurationPeriod[]) => SkuConfigurationPeriod[],
+    removedIndex?: number,
+  ) {
+    onEditingChange((current) => ({
       ...current,
-      periods: current.periods.map((period, position) =>
+      form: { ...current.form, periods: update(current.form.periods) },
+      rateChange: rateChangeAfterPeriodEdit(current.rateChange, removedIndex),
+    }));
+  }
+  function startRateChange(index: number) {
+    onEditingChange((current) => {
+      if (current.rateChange) return current;
+      return {
+        ...current,
+        rateChange: {
+          periodIndex: index,
+          effectiveDate: "",
+          feeRatePercent: "",
+          previewRequested: false,
+        },
+      };
+    });
+  }
+  function updatePeriod(index: number, field: keyof SkuConfigurationPeriod, value: string | null) {
+    changePeriods((periods) =>
+      periods.map((period, position) =>
         position === index ? { ...period, [field]: value } : period,
       ),
-    }));
+    );
   }
   function addPeriod() {
     pendingPeriodFocus.current = form.periods.length;
-    setForm({
-      ...form,
-      periods: [
-        ...form.periods,
-        { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "" },
-      ],
-    });
+    changePeriods((periods) => [
+      ...periods,
+      { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "" },
+    ]);
   }
   function removePeriod(index: number) {
     if (index === form.periods.length - 1)
       pendingPeriodFocus.current = index === 0 ? "add" : index - 1;
-    setForm((current) => ({
-      ...current,
-      periods: current.periods.filter((_, position) => position !== index),
-    }));
+    changePeriods((periods) => periods.filter((_, position) => position !== index), index);
   }
   return (
     <Drawer
@@ -242,6 +273,7 @@ export function SkuConfigurationEditor({
                 period={period}
                 index={index}
                 issues={issues}
+                rateChangeOpen={editing.rateChange !== null}
                 marketplaceRef={(element) => {
                   if (element) marketplaceInputs.current.set(index, element);
                   else marketplaceInputs.current.delete(index);
@@ -253,15 +285,7 @@ export function SkuConfigurationEditor({
                   removePeriod(index);
                 }}
                 onChangeRate={() => {
-                  onEditingChange((current) => ({
-                    ...current,
-                    rateChange: {
-                      periodIndex: index,
-                      effectiveDate: "",
-                      feeRatePercent: "",
-                      previewRequested: false,
-                    },
-                  }));
+                  startRateChange(index);
                 }}
               />
               {editing.rateChange?.periodIndex === index ? (

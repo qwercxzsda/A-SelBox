@@ -15,6 +15,31 @@ interface PaginationBarProps {
   ariaLabel?: string;
 }
 
+/** Keep focus on an unavailable step without allowing another page request. */
+function PaginationStepButton({
+  label,
+  disabled,
+  onClick,
+}: {
+  label: "Previous" | "Next";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="default"
+      aria-disabled={disabled}
+      data-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : undefined}
+      onClick={() => {
+        if (!disabled) onClick();
+      }}
+    >
+      {label}
+    </Button>
+  );
+}
+
 export function PaginationBar({
   pageIndex,
   pageCount,
@@ -30,6 +55,7 @@ export function PaginationBar({
   const [previousPageIndex, setPreviousPageIndex] = useState(pageIndex);
   const [draftPage, setDraftPage] = useState<string | number>(pageIndex + 1);
   const pageLabel = `Page ${String(pageIndex + 1)} of ${pageCount === null ? "—" : String(pageCount)}`;
+  const hasPageDraft = String(draftPage) !== String(pageIndex + 1);
 
   if (previousPageIndex !== pageIndex) {
     setPreviousPageIndex(pageIndex);
@@ -59,9 +85,11 @@ export function PaginationBar({
         {summary}
       </Text>
       <div className="pagination-controls">
-        <Button variant="default" disabled={!canPrevious || isBusy} onClick={onPrevious}>
-          Previous
-        </Button>
+        <PaginationStepButton
+          label="Previous"
+          disabled={!canPrevious || isBusy}
+          onClick={onPrevious}
+        />
         <form
           className="pagination-current"
           aria-label={pageLabel}
@@ -82,6 +110,8 @@ export function PaginationBar({
             min={1}
             max={pageCount ?? undefined}
             value={draftPage}
+            // Drawer Escape handlers run during capture; cancel this edit before closing a drawer.
+            data-mantine-stop-propagation={hasPageDraft || undefined}
             onChange={setDraftPage}
             readOnly={isBusy || !onPageChange || pageCount === null}
             onKeyDown={(event) => {
@@ -93,9 +123,7 @@ export function PaginationBar({
           />
           <span>of {pageCount ?? "—"}</span>
         </form>
-        <Button variant="default" disabled={!canNext || isBusy} onClick={onNext}>
-          Next
-        </Button>
+        <PaginationStepButton label="Next" disabled={!canNext || isBusy} onClick={onNext} />
       </div>
     </Group>
   );

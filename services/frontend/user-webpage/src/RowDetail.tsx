@@ -1,5 +1,5 @@
 import "./RowDetail.css";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Drawer, Text, Title } from "@mantine/core";
 import type { CanonicalRow, TableDatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
@@ -30,6 +30,7 @@ export function RowDetail({
   reportNavigation,
   stackId,
   onExitTransitionEnd,
+  fallbackContent = null,
 }: {
   companies: Map<string, string>;
   dataset: TableDatasetKey;
@@ -41,6 +42,7 @@ export function RowDetail({
   reportNavigation?: ReactNode;
   stackId?: string;
   onExitTransitionEnd?: () => void;
+  fallbackContent?: ReactElement | null;
 }) {
   const isReview = dataset === "payouts" && reviewMode && isAdministrator;
   const columns: ColumnDefinition[] = [
@@ -58,7 +60,7 @@ export function RowDetail({
       stackId={stackId}
       onExitTransitionEnd={onExitTransitionEnd}
       id="selected-row-details"
-      opened={row !== null}
+      opened={row !== null || fallbackContent !== null}
       onClose={onClose}
       position="right"
       size={dataset === "payouts" ? "min(1440px, 100vw)" : "lg"}
@@ -77,7 +79,7 @@ export function RowDetail({
     >
       {row ? (
         <>
-          <Title order={3} mb={4}>
+          <Title order={3} mb={4} className="row-detail-title">
             {isReview ? "Saved report review" : (row.sku ?? DATASET_PRESENTATION[dataset].label)}
           </Title>
           <Text c="dimmed" size="sm" mb="lg">
@@ -140,7 +142,9 @@ export function RowDetail({
             </DetailSection>
           ) : null}
         </>
-      ) : null}
+      ) : (
+        fallbackContent
+      )}
     </Drawer>
   );
 }

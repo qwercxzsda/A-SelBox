@@ -26,6 +26,7 @@ import {
 } from "./workspace-view-codec";
 import { normalizeDatasetFilters } from "./dataset-filters";
 import { Companies } from "./Companies";
+import { useWorkspaceHistoryFocus } from "./use-workspace-history-focus";
 
 interface WorkspaceProps {
   identity: Identity;
@@ -35,6 +36,7 @@ interface WorkspaceProps {
 }
 
 export function FinanceWorkspace(props: WorkspaceProps) {
+  const activeTab = useWorkspaceHistoryFocus();
   const [selectedSummaryCurrency, setSelectedSummaryCurrency] = useWorkspacePreference<
     string | null
   >(
@@ -200,16 +202,25 @@ export function FinanceWorkspace(props: WorkspaceProps) {
       >
         <Tabs.List aria-label="Workspace data">
           {datasets.map((key) => (
-            <Tabs.Tab key={key} value={key}>
+            <Tabs.Tab key={key} value={key} ref={dataset === key ? activeTab : undefined}>
               {DATASET_PRESENTATION[key].label}
             </Tabs.Tab>
           ))}
           {props.identity.account.access_role === "administrator" ? (
-            <Tabs.Tab value="companies">Companies</Tabs.Tab>
+            <Tabs.Tab value="companies" ref={dataset === "companies" ? activeTab : undefined}>
+              Companies
+            </Tabs.Tab>
           ) : null}
-          <Tabs.Tab value="inventory">Inventory</Tabs.Tab>
+          <Tabs.Tab value="inventory" ref={dataset === "inventory" ? activeTab : undefined}>
+            Inventory
+          </Tabs.Tab>
           {props.identity.account.access_role === "administrator" ? (
-            <Tabs.Tab value="financial-review">Financial review</Tabs.Tab>
+            <Tabs.Tab
+              value="financial-review"
+              ref={dataset === "financial-review" ? activeTab : undefined}
+            >
+              Financial review
+            </Tabs.Tab>
           ) : null}
         </Tabs.List>
         <Tabs.Panel value={dataset} pt="md">
