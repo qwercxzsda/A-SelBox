@@ -2,7 +2,7 @@ import type { RecordSelection } from "./AmountBreakdown";
 import type { PeriodDefinition } from "./estimated-periods";
 import type { TransactionSummaryScope } from "./use-transaction-summaries";
 import { requireDateRange } from "./api/filters.ts";
-import { isJsonObject, isUuid } from "./api/validation.ts";
+import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
 import marketplaces from "./generated/marketplaces.json" with { type: "json" };
 
 /** Persist the chosen scope, never a fetched financial result. */
@@ -55,8 +55,7 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     !isJsonObject(value.scope) ||
     typeof value.title !== "string" ||
     !["Latest day", "Latest month", "Selected dates"].includes(value.title) ||
-    typeof value.currency !== "string" ||
-    !/^[A-Z]{3}$/.test(value.currency) ||
+    !isCurrency(value.currency) ||
     typeof value.period.label !== "string" ||
     value.period.label.length > 256 ||
     typeof value.period.range.from !== "string" ||

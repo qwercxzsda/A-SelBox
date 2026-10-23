@@ -1,13 +1,8 @@
 # Frontend
 
-The A-SelBox web client is in `services/frontend/user-webpage`.
+The [A-SelBox web client](user-webpage/README.md) lives in `user-webpage/`.
+Its guide owns workspace behavior, architecture, public configuration, and verification commands.
+Business rules and API contracts are linked there.
 
-- Stack: React, TypeScript, Vite, and pnpm.
-- Run every `node`, `npm`, `npx`, `corepack`, and `pnpm` command through Docker;
-  native host execution is unsupported.
-- The Docker-only `pnpm run check` enforces deterministic Prettier output,
-  zero-warning type-aware and accessibility ESLint rules, unit tests,
-  TypeScript, and the production build.
-
-See the [user webpage README](user-webpage/README.md) for the exact Docker-only
-commands and current Supabase REST contract.
+Run every frontend `node`, `npm`, `npx`, `corepack`, and `pnpm` command in Docker.
+See [Docker tooling](user-webpage/README.md#docker-tooling) for installation, checks, and development.

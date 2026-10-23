@@ -183,7 +183,6 @@ export function CurrentFees({
           companies={identity.companies}
           knownSkus={effectiveItems.map((item) => item.sku)}
           onEditExisting={editSku}
-          isNew={editing.isNew}
           onClose={closeEditor}
           onDiscard={() => {
             closeEditor(true);

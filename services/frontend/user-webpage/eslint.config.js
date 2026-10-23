@@ -12,6 +12,7 @@ export default defineConfig([
     ".pnpm-store",
     "node_modules",
     "coverage",
+    "output",
     "playwright-report*",
     "test-results*",
   ]),

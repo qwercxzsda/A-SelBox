@@ -1,6 +1,6 @@
 import type { CanonicalRow } from "./api/types.ts";
 import { requireDateRange } from "./api/filters.ts";
-import { isJsonObject, isUuid } from "./api/validation.ts";
+import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
 import { decodeDetailPage, decodeDetailStrings } from "./detail-view-state.ts";
 
 export function payoutScopeKey(row: CanonicalRow): string {
@@ -44,10 +44,7 @@ function decodePayoutVersionSelection(value: unknown): PayoutVersionSelection | 
     !value.startDate ||
     typeof value.endDate !== "string" ||
     !value.endDate ||
-    !(
-      value.currency === null ||
-      (typeof value.currency === "string" && /^[A-Z]{3}$/.test(value.currency))
-    )
+    !(value.currency === null || isCurrency(value.currency))
   )
     return null;
   try {

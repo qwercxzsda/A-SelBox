@@ -3,17 +3,15 @@ import { Table, Text, Title } from "@mantine/core";
 import { formatRecordMonth } from "./date-display";
 import "./MonthGroupedTable.css";
 
-/** Shared month heading for saved payout reports and current financial reviews. */
+/** Month heading shared by the saved reports in one table group. */
 export function MonthGroupCell({
   month,
   rowSpan,
   description,
-  children,
 }: {
   month: string;
   rowSpan: number;
   description: ReactNode;
-  children?: ReactNode;
 }) {
   return (
     <Table.Th scope="rowgroup" rowSpan={rowSpan} className="month-group-cell">
@@ -23,7 +21,6 @@ export function MonthGroupCell({
       <Text size="xs" c="dimmed" mt={4}>
         {description}
       </Text>
-      {children}
     </Table.Th>
   );
 }

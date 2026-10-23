@@ -9,7 +9,7 @@ export interface ReviewScope {
   currency: string;
 }
 
-export interface MonthlyReviewView {
+interface MonthlyReviewView {
   selectedMonth: string | null;
 }
 

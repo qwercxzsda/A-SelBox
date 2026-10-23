@@ -1,459 +1,242 @@
 # A-SelBox web client
 
 React and TypeScript client using Vite, Mantine, TanStack Router, TanStack Query, TanStack Table,
-and Playwright. The browser accesses Supabase Auth and REST APIs with the signed-in user's token. It
-never sends SQL. Database row-level security enforces access. UI copy and browser review fixtures
-use English.
+and Playwright. The browser calls Supabase Auth and REST APIs with the signed-in user's token;
+database row-level security enforces access. UI copy and browser fixtures use English.
+
+This guide covers the client, its interaction conventions, and development. The maintained business
+and API contracts are [access control](../../../docs/access_control.md),
+[company fees](../../../docs/company_fees.md),
+[transaction queries](../../../docs/transaction_query_contracts.md),
+[payout reports](../../../docs/company_payout_reports.md),
+[Financial review](../../../docs/financial_review.md), and
+[daily inventory](../../../docs/inventory_daily_captures.md).
 
 ## Workspace
 
-| Tab              | API                                                                         | Access                                                                         |
-| ---------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Transactions     | `transaction_page`, `transaction_count`                                     | Current company assignments and fees                                           |
-| Current fees     | `sku_configuration`, `publish_sku_configuration`                            | Administrators edit complete configuration; members read their own             |
-| Inventory        | `latest_inventory_items`                                                    | All source inventory for administrators; current company ownership for members |
-| Finances         | `source_transaction_page`, `source_transaction_count`                       | Administrators                                                                 |
-| Data Kiosk       | `source_transaction_page`, `source_transaction_count`                       | Administrators                                                                 |
-| Payout reports   | `latest_company_payout_reports`, report history, maturity policy            | All companies for administrators; own company for members                      |
-| Financial review | `financial_review_records`, category summary RPCs, saved report diagnostics | Administrators                                                                 |
-| Companies        | `companies`, `company_skus`, `create_company`, `delete_company`             | Administrators browse, add, and delete unused companies                        |
-| User access      | `account_directory`, `set_company_membership`                               | Administrators manage company membership; administrator roles are DB-only      |
+| Tab                   | Purpose                                                | Access                                                        |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| Transactions          | Current company amounts, fees, and estimated totals    | Members see their company; administrators see all companies   |
+| Current fees          | SKU assignments, fee periods, and batch editing        | Members read their settings; administrators edit              |
+| Inventory             | Latest daily inventory captures and recommendations    | Members see their assigned SKUs; administrators see all items |
+| Finances / Data Kiosk | Retained source components and provenance              | Administrators                                                |
+| Payout reports        | Latest saved reports and earlier versions              | Members see their company; administrators see all companies   |
+| Financial review      | Yearly source comparisons and monthly investigation    | Administrators                                                |
+| Companies             | Company creation, assignments, and restricted deletion | Administrators                                                |
+| User access           | Company membership and revocation                      | Administrators; administrator roles remain DB-only            |
 
-Administrators (`administrator`) browse all companies and edit complete SKU assignments/fees.
-Members (`member`) read their own company data. New email/password signups start as **Unassigned**
-(`unassigned`) and see an access-pending screen with no company data. Signup supports both immediate
-sessions and email confirmation, according to the Auth server's settings. Confirmation links are
-verified with Auth; tokens are removed from the URL before loading the workspace. Reverse proxies
-must allow `/auth/v1/signup` alongside the existing token, user, and logout endpoints.
-Confirmation-enabled installations also need `/auth/v1/verify`, configured email delivery, and
-approved website redirect URLs. The local preview uses immediate sign-in and does not send
-confirmation emails.
+New accounts are Unassigned until an administrator assigns a company. They see an access-pending
+screen without company data. Signup supports immediate sessions or email confirmation according to
+the Auth server's settings. See [Configuration](#configuration) for callback and email requirements.
 
-**Forgot password?** requests a recovery email with the same acknowledgment for registered and
-unregistered addresses. Recovery links use the client-only implicit Auth flow. Their fragment is
-removed before rendering or verification requests, including when a link arrives while the app is
-already open. Auth verifies the token's user before the new-password form appears; no company
-workspace is loaded during recovery. Reloads restore the verified flow and clear password fields.
-Only an explicit **Update password** submits the change; reloads never replay it. Successful updates
-clear the local recovery session and return to sign-in, where role/company access is checked again.
+### Navigation and tables
 
-Recovery requires proxy access to `POST /auth/v1/recover`, authenticated `PUT /auth/v1/user`, and
-the existing token/user/verify endpoints. Configure email delivery and allow the application's
-origin and pathname as a redirect URL. Invalid or expired links offer a new recovery request.
-Browser fixtures cover requests, token verification, updates, expiry, renewal, and F5; no recovery
-email or password change is submitted for an existing live account during verification. The local
-preview captures recovery emails in a local test mailbox; it does not deliver them externally.
-Hosted installations need a configured mail provider and a delivery check.
+Each workspace tab has an associated panel. Filters, raw search text, ordering, page size, selected
+records, expanded sections, summary currency, and fee drafts survive tab changes and reloads within
+the same account scope. Session storage belongs to this browser tab and Supabase project. Storage
+failures show a warning; editing remains available in memory.
 
-User access searches users by email and uses the same paginated table and detail drawer as other
-tabs. Administrators assign a company, transfer membership, or explicitly confirm revocation back to
-Unassigned. The editor labels the saved Current company separately from an Unsaved change; restored
-draft selections do not grant access until Save membership succeeds. The saved role/company is
-checked atomically before a change; stale forms cannot overwrite a newer assignment. Administrator
-accounts are read-only here. Only the trusted Python database function can grant or revoke
-administrator access. Database authorization applies to every request; the lightweight access check
-automatically replaces the workspace and clears cached data after a role/company change. See the
-[access guide](../../../docs/access_control.md) for the permission matrix and database-manager
-instructions.
+Supported read-only state also appears in the URL: tab, filters/search, ordering/page, selected
+record, summary currency, Financial review scope, and exact report identity. Back/Forward restores
+that state while retaining scoped drafts. URL values are validated against the current account's
+permissions. Drafts, passwords, tokens, and financial amounts do not enter workspace links. Initial
+sign-in preserves a report link; explicit sign-out clears workspace navigation fields.
 
-The administrator-only **Companies** tab lists companies with search, Rows, and Previous/Next
-pagination. Expand a company to see its ID and saved SKU assignments; SKU links open Transactions
-with the exact SKU filter, and **View members** opens User access with that company's filter. The
-inline **Add company** form belongs to this tab. **Add company** shortcuts in Current fees, User
-access, and their company selectors switch to Companies and offer a return action to the original
-tab. Unfinished fee and membership drafts, the selected user, and the company name survive tab
-changes and reloads. Return to the original editor and explicitly select a newly created company;
-creation does not publish that editor's changes. Confirmed companies appear throughout the workspace
-immediately, then revision checks refresh the server catalog.
+Selections are alternatives within one filter; different filters intersect. Search is literal and
+case-insensitive. Type menus group readable labels and exact source codes; Select matches and
+Deselect matches affect only the visible matches. Selection filters apply immediately. Applied chips
+expose the active values and support individual removal. Clearing an empty filtered result preserves
+ordering and page size.
 
-Expanded company details also offer **Delete company**, followed by an inline confirmation naming
-the company. The interface shows the blocking kinds and counts for companies with linked records; it
-never deletes or unassigns those records. Confirmation does not survive reloads and mutations are
-never replayed automatically. Uncertain outcomes keep the company visible for an explicit retry;
-deleting an already missing company succeeds safely. Confirmed deletions immediately disappear from
-every company selector, even during a stale catalog refresh. Any unsaved fee or membership draft
-that selected the company is retained, marked as unavailable, and blocked from saving until another
-company is chosen.
+Financial and inventory paging and sorting run on the server. Current fees pages its complete loaded
+configuration. Previous/Next remains available while a separate count loads; page-number entry
+becomes editable when a bound is known. Enter applies a page number and Escape cancels the edit.
+Changing search or filters returns to page one. Clicking a record or pressing Enter/Space opens its
+details. Long lists have navigation at both ends; bottom paging returns to the list controls.
 
-The [company API contract](../../../docs/access_control.md#company-creation) defines accepted names,
-deduplication, deletion restrictions, and retry behavior. Reloads never repeat mutation requests.
+Wide tables keep horizontal scrolling and Left/Right column controls near the table start.
+Transactions pins Company amount at desktop widths of at least 1100px. Long lists retain visual
+column headings while scrolling; the original table provides the accessible semantics. Detail tables
+preserve their scope and pagination within the drawer.
 
-Navigation stays above the active tab's content in one consistent position. Estimated totals appear
-only in Transactions; the selected currency and transaction filters survive tab changes and reloads.
-Desktop tables use the available width, compact summary cards, and a single toolbar row when space
-allows. Each tab has its own associated panel for keyboard and assistive-technology navigation.
-Changing the active workspace tab keeps tab widths stable, including with platform fallback fonts.
+### Financial amounts and estimates
 
-- Column menus filter inclusive dates, SKUs, marketplaces, sources, and types. Company, SKU, and
-  other selections are alternatives within each filter; different filters intersect. Menus offer
-  search when there are more than eight choices. Text search treats punctuation literally. Pop-ups
-  use one native scroll area: wheel input over the panel needs no extra click. Close and action
-  controls remain reachable while scrolling, and the panel stays within the viewport as the page
-  moves or resizes. Selection menus explain that changes apply immediately and provide a sticky Done
-  action. Clearing search returns focus to the field; removing filter chips by keyboard returns
-  focus to the related search without resetting other criteria.
-- Type filters start with selectable groups, including Other fees & adjustments for EPR,
-  subscription, and similar entries. Expand a group for exact types, or search across group names,
-  readable labels, and source codes. Search words may appear in any order; Select matches and
-  Deselect matches affect only the visible matches and preserve other selections. Changes apply
-  immediately. Applied chips name fully selected groups, and exact selections survive reloads.
-  Groups reuse the amount breakdown's classification as a browsing aid; requests still contain the
-  existing exact type keys, scoped to the current role and dataset.
-- Available sort controls support one ordering at a time. Financial/inventory pagination and sorting
-  run on the server; Current fees pages its complete loaded configuration. Previous/Next switch
-  pages. Enter applies an inline page number when a page bound is known; Escape cancels the edit.
-  Tables expand vertically and scroll horizontally when needed. Clicking a row or pressing
-  Enter/Space opens its details.
-- Applied filters are visible above each financial table and can be cleared individually. An empty
-  filtered result offers one action to clear search and filters without changing sorting or page
-  size. Wide financial tables expose Left/Right column controls above the rows, so their farthest
-  columns remain reachable without scrolling to the last record. Transactions pins Company amount at
-  the right edge at desktop widths of at least 1100 px. Long main lists retain visual column
-  headings during document scrolling and add paging plus Back to filters below the records. The
-  mirrored headings are hidden from assistive technology; the original table keeps its semantics.
-  Source processing versions remain available in administrator row details instead of occupying
-  primary table columns.
-- Long detail tables have paging above and below the records. Paging returns to the table start;
-  fitting tables keep column headers visible during drawer scrolling. Wide tables retain horizontal
-  keyboard scrolling, with one vertical scroll area per drawer. Saved payout creation times are
-  visible to administrators and members.
-- The workspace retains the active tab, filters, search, ordering, page, selected records, summary
-  currency, detail drawers, expanded sections, and fee editing state when the page reloads (F5).
-  Versioned session storage belongs to this browser tab and Supabase project. Restored controls are
-  validated; permissions and displayed records are fetched again. Sign-out, a new sign-in, or a
-  change of user, role, or assigned company clears the workspace and its cache. Stored preferences
-  must match the current user, role, and company; incompatible state is discarded. If browser
-  storage fails, a visible warning explains that reloading may lose edits; editing remains available
-  in memory.
-- Supported read-only navigation is also encoded in the URL: active tab, record filters/search,
-  sort/page, selected row, summary currency, Financial review scope, and exact report identity.
-  Back/Forward restores these controls without dropping scoped fee drafts. URL values are validated
-  and never override authorization. Drafts, passwords, session tokens, and financial amounts are
-  excluded. Initial sign-in preserves a report link; explicit sign-out clears workspace URL fields.
-- Exact SKU text identifies one product across all source namespaces. SKU catalogs, filters, and
-  Transactions include its records from every namespace. Administrators can inspect the source
-  namespace in row details; members never see it. Namespace is not a filter or SKU identity.
-- Current fees loads one complete role-scoped configuration, including saved periods and required
-  coverage. Administrators see imported-only and unassigned SKUs and can filter for setup gaps. They
-  stage edits across multiple SKUs, review the changes, and publish one atomic batch. Every changed
-  SKU must have a company and coverage for its required fee dates before a save succeeds. Unrelated
-  setup gaps remain visible without blocking that batch; payout readiness keeps its full-scope
-  safeguards. Members see only their own assignments and fee periods, with no editing controls.
-  Review shows the staged batch's setup gaps with a link to the complete paginated catalog.
-- Configuration drafts, unfinished editor fields, open review, and change reasons survive tab
-  changes and reloads. X, Escape, and backdrop dismissal keep unfinished edits separately from
-  staged changes; Resume unfinished edit reopens them, and Discard edits removes only the unfinished
-  form. Keep draft explicitly stages a SKU for Review changes. Review warns about unfinished edits
-  outside the save, and the pending-changes bar stays reachable while scrolling. Validation errors
-  preserve drafts; stale or unconfirmed writes require loading current saved settings before retry.
-  Reloading during a save preserves the original optimistic version and marks the outcome
-  unconfirmed; it never repeats a publication automatically. Confirmed saves refresh assignments,
-  fees, and affected financial reads. Refresh failures are reported separately from save failures.
-  The save controller remains mounted across tab changes and follows session renewal; configuration
-  reads begin when Current fees is opened. No publication is automatically retried.
-- Current fees exposes Edit directly beside each SKU. Clicking the SKU opens Transactions with its
-  exact SKU filter and clears previous search and column filters, while preserving sorting, page
-  size, and fee drafts. Fee periods expand separately. Add SKU suggests up to 20 existing authorized
-  SKUs by literal, case-insensitive prefix; selecting an exact existing SKU offers Edit existing SKU
-  and restores any draft. New SKU text preserves case, punctuation, and spaces.
-- Fee editors use compact desktop rows and keep Add fee period, Discard edits, and Keep draft
-  visible. Adding a period focuses its marketplace field. Review explicitly identifies company
-  changes, rate changes, and added or removed intervals alongside the proposed periods. Its reason
-  field and save actions remain visible; disabled saving links directly to required setup issues.
-- Change rate from date previews splitting an existing interval at one effective date, retaining its
-  original end and exact rate precision. Applying the preview changes only the editor; Keep draft
-  and final Save all changes remain explicit. The pending preview survives dismissal and reload.
-  Phone layouts keep dates and rates readable, with exact percentages on one line. Invalid SKU and
-  rate-preview submissions focus the input that needs correction.
-- Source imports can make older settings incomplete. Configuration coverage refreshes on source and
-  fee revisions; old incomplete settings remain visible so an administrator can repair them.
-- Transactions, Data Kiosk, estimated totals, and payout reports retain zero monetary rows,
-  including any service fee based on a nonzero fee base. Financial values arrive as CSV or JSON
-  strings and retain their exact decimal precision in calculations. All monetary displays use two
-  decimal places, including yen and zero (`0.00`). Display rounding uses decimal arithmetic with
-  ties away from zero; totals are summed exactly before rounding. Rates and counts retain their
-  existing precision. Missing fees display as a dash. Known zero service fees remain zero, including
-  non-applicable fees; a non-applicable fee rate displays as a dash. Timestamp cells use readable
-  UTC dates and times while their title preserves the exact original value.
-- Transactions, Finances, and Data Kiosk allow ordering by Date or Reported amount. Transactions
-  includes derived reconciliation amounts; raw tabs use the stored source amount. Amount ordering is
-  available only when at most 10,000 rows match every active filter and search. Larger scopes
-  explain the limit and offer date ordering; an unknown or stale count is checked by the database.
-  Date descending is the default. Company amount remains visible without a sort control.
-  Transactions also shows Quantity. The Fee rate menu filters Applicable or Not applicable by source
-  Type: Finances product sales/refunds and Data Kiosk net product sales are applicable, including
-  zero bases/rates and missing fee configuration. Selecting both or neither shows all applicability
-  states. Type cells show readable component names on one line within 320px. The complete name and
-  exact source code remain accessible in the cell title and details.
+Financial values remain decimal strings with exact calculations. Displays round to two decimal
+places, including yen and zero, with ties away from zero. Totals sum exact values before rounding.
+Rates retain their precision. Missing values display a dash; known zero amounts remain zero.
+Timestamp displays use UTC, with the original value available in the title.
 
-## Design conventions
+Transactions' three estimated-total cards follow company, SKU, and marketplace selections:
 
-The shared Mantine theme and [design tokens](src/design-system.css) define table typography,
-surfaces, borders, spacing, controls and drawers across every role and tab. Table headers use
-sentence case at 12px with medium emphasis; data uses 13px. Standard controls have 6px corners,
-cards have 8px corners, and drawer titles use the same 16px heading treatment. Workspace
-introductions use [WorkspaceIntro](src/WorkspaceIntro.tsx) for consistent titles and descriptions.
+- Latest day uses the latest transaction date in that scope.
+- Latest month uses that date's month if it is the last calendar day, otherwise the previous month.
+  This rule does not certify complete source coverage.
+- Selected dates requires at least one date bound and allows an open start or end.
 
-Views keep layouts suited to their tasks: fee editing uses SKU cards and period forms, inventory
-keeps its descriptive metrics and urgency colors, and financial reports use grouped tables and
-detail drawers. Transactions, Finances, and Data Kiosk share the 320px, single-line Type column with
-one readable canonical label. The complete label and exact source code remain available in the cell
-title and row details. Desktop density and local scrolling on smaller screens remain part of the
-shared conventions. Use Previous/Next for pagination, Rows for page size, and sentence case for
-labels. Use **exclusive** for amounts outside a payout or the end boundary of a fee period, with the
-scope explicit. Use **Finances** consistently for the API source, category, and source tab.
+Summary currency applies to these cards and their details. Record search, Source, Type, Fee rate,
+ordering, and pagination do not change the cards; record dates affect only Selected dates. A
+currency stays selected when its scope becomes empty. Choose dates opens the range editor, a period
+link filters Transactions, and View by type opens the amount breakdown. Selecting a type or category
+narrows its record list; Show all records and Back to amounts preserve a clear return path.
 
-Interactive controls visibly change shade on hover, including buttons, tabs, column menus,
-expandable headings, and rows that open details. Neutral controls use a subtle 3% accent tint;
-colored buttons use their palette's hover shade. Disabled controls keep their disabled appearance.
-Text actions use an accent underline that thickens to 2px on hover while the text color and
-transparent background stay unchanged. Keyboard focus stays visible without moving the layout. Use
-normal `:hover` feedback without a capability media-query gate: browsers configured for touch can
-still receive mouse or trackpad input. Touch actions remain available with one tap and must not
-intercept native gestures. Estimated total cards retain their accessible button labels and open
-Amounts by type without a separate visible prompt.
+Transactions, Finances, and Data Kiosk support Date or Reported amount ordering. Amount ordering is
+bounded to 10,000 matching rows; larger scopes explain how to narrow the result or use date order.
+The [query contract](../../../docs/transaction_query_contracts.md) defines exact request fields,
+search/count semantics, ordering, fee applicability, source authority, and amount limits.
 
-Drawers lock the document with CSS while their content is mounted, including nested panels and exit
-transitions. They do not intercept wheel or touch events: pinch zoom and browser navigation gestures
-remain available. Drawer and filter-menu scroll containment applies only vertically; horizontal
-browser gestures remain native. Focus trapping, Escape, and returning focus to the selected row
-retain the shared drawer behavior.
+### Fee editing and company access
 
-On narrow screens and devices with a coarse pointer, form controls use at least 16px text to avoid
-iPhone Safari's automatic zoom on focus. This includes searchable selects, native selects, password
-fields, and page numbers. Desktop controls and table text retain their compact sizing; the viewport
-continues to allow manual zoom.
+Administrators stage multiple SKU changes, inspect Review changes, and publish one atomic batch.
+Each changed SKU needs a company and all required fee coverage. Unrelated setup gaps remain visible
+without blocking a valid batch. Payout generation retains completeness checks for its full scope.
+Members can inspect only their own assignments and periods.
+
+X, Escape, and backdrop dismissal retain unfinished inputs separately from staged drafts. Resume
+unfinished edit restores them; Discard edits removes the unfinished form; Keep draft stages it for
+review. Drafts, open review, and reasons survive tab changes and reloads. Change rate from date
+previews a period split while preserving the original end and exact rate precision. Applying that
+preview changes only the editor. Publication remains an explicit Save all changes action.
+
+Stale or uncertain writes preserve the draft and require explicit recovery. Reloads never replay a
+save, and publication is not automatically retried. Confirmed saves refresh affected reads; a failed
+refresh is distinguished from a failed save. Source revisions can make earlier configuration
+incomplete, so coverage is rechecked without hiding the saved settings.
+
+SKU links in Current fees, Inventory, and Companies open Transactions with that exact SKU, clear
+other filters/search, and preserve ordering, page size, and drafts. Exact SKU text is shared across
+source namespaces. Add SKU suggests existing authorized values by literal prefix and preserves the
+spelling and whitespace of new values.
+
+Companies lists assignments and offers View members. Add company shortcuts return to the originating
+editor with its draft intact; a new company must still be explicitly selected and saved there.
+Delete company requires confirmation and reports linked-record blockers. It never removes linked
+records. A confirmed deletion marks affected unsaved selections unavailable until corrected.
+
+Membership editing distinguishes saved access from an unsaved selection. Saving checks the expected
+role/company atomically; revocation needs explicit confirmation. A pending operation remains tracked
+across drawer and tab changes. Administrator accounts are read-only here. The
+[access contract](../../../docs/access_control.md#rest-interfaces) defines creation, deletion,
+membership, and publication permissions and retry rules.
 
 ## Inventory
 
-The read-only list shows the latest successful daily capture per seller/marketplace. Compact rows
-show SKU/marketplace, trailing 90-day sales and units, available/inbound stock, health and days of
-supply, and recommendations with ship-in quantities. A row click or Enter/Space opens the complete
-stock breakdown, secondary metrics, recommended ship-in date, and expandable Source capture dates.
-Only the capture/SKU identity is saved across reloads; the drawer uses freshly loaded current-page
-values without another request. Same-capture updates refresh it; changed or removed captures close
-it. Paging, filtering, and sorting clear the selection.
+Inventory is read-only. It displays the latest successful daily capture per seller/marketplace, with
+historical sales, available/inbound stock, health, days of supply, and recommendations. Details show
+secondary metrics and source dates. Missing metrics remain distinct from zero. Sales ordering
+compares original currencies without conversion; selecting one marketplace avoids that ambiguity.
+Health and recommendation ordering use the
+[documented urgency ranks](../../../docs/inventory_daily_captures.md#dates-latest-reads-and-access).
 
-The coverage summary reads `latest_inventory_captures`, including completed empty captures, and
-shows report dates by marketplace. Rows and details show the stock snapshot date; when it is absent,
-the report date is labelled as a fallback rather than a known stock date. Sources more than two UTC
-calendar days old are marked overdue. Age labels advance locally without polling inventory data.
-Processing timestamps remain distinct from Amazon's source dates and do not make an old snapshot
-fresh.
+Coverage includes successful empty captures and distinguishes missing snapshots, no authorized
+items, and filters with no matches. Failed coverage reads never become a no-snapshot claim. Rows use
+the stock snapshot date when available and explicitly identify a fallback report date otherwise.
+Dates older than two UTC calendar days are overdue; a recent processing timestamp does not make an
+old source fresh.
 
-Marketplace choices identify missing snapshots. Empty states distinguish missing capture coverage,
-an empty imported snapshot for administrators, no authorized items for a member, and filters with no
-matches. A bounded one-row availability read is used only when a filtered-empty result needs that
-distinction. It retains the caller's RLS scope and does not reveal other companies' stock. Failed
-coverage reads never become a no-snapshot claim and retry automatically.
-
-SKU links use the same [SkuTransactionLink](src/SkuTransactionLink.tsx) as Current fees: open
-Transactions with that exact SKU, clear other filters/search, reset the page, and preserve ordering
-and row count. They do not also open the inventory drawer. Returning to Inventory restores its view.
-
-Search resolves literal, case-insensitive matches against the complete authorized latest-capture
-catalog. Column menus filter SKU, health, and recommendation; Marketplace stays in the toolbar. SKU
-and numeric sales sorting use source values without currency conversion. Health and recommendation
-sort by
-[application urgency](../../../docs/inventory_daily_captures.md#dates-latest-reads-and-access), with
-unknown or absent labels last in either direction. Known aliases share a rank and readable status
-badge; unknown labels remain unchanged. Search and filters apply before server pagination and
-counting. Missing metrics display a dash; a reported zero remains zero.
-
-Active search, SKU, marketplace, health, and recommendation values appear as accessible chips with
-individual removal, including after F5. The sales heading states that currencies are not converted;
-choosing a sales sort displays the comparison caveat above the table and suggests selecting a
-marketplace. Informational recommendations and urgency ordering are unchanged.
-
-Left/Right column controls remain available near the table start. Paging from the bottom returns the
-viewport and keyboard focus to the top pagination, including for cached pages. On phones, Clear
-inventory filters takes its own row so the Marketplace control remains readable.
-
-Inventory relies on the `inventory` and ownership (`fees`) revision tokens. Unchanged checks make no
-inventory row/count reads. Failed reads retry automatically; the tab has no refresh, shipment, or
-listing controls. Recommendation badges describe Amazon's suggested action. Inventory dates remain
-absolute, historical sales are not a forecast, and stock supports approximate daily planning. See
-the [inventory contract](../../../docs/inventory_daily_captures.md) for fields, capture identity,
-access, and pipeline verification.
-
-## Finances source records
-
-The administrator-only Finances tab reads retained daily versions, matching the Data Kiosk source
-tab. Original activity, linked releases, and transfers remain available for inspection. **Activity
-eligibility** distinguishes included components from records exclusive of the activity calculation
-within each version; this is independent of the Finances/Data Kiosk/SelBox allocation category. Raw
-row amounts do not form a monthly net by simple summation. Company calculations and Financial review
-use eligible activity components from current daily versions only.
-
-Row details retain the daily version and day IDs, original Amazon transaction ID, transaction
-status, account type, and original/release links. A new capture replaces the current daily version
-atomically. Lightweight `finances` revision checks refresh visible reads, using the same workflow as
-Data Kiosk and Transactions. There is no manual refresh button.
+Only capture/SKU identity is persisted for an open item. Its values follow the freshly loaded page;
+a changed or removed capture closes the drawer. Paging, filtering, and sorting clear selection.
+Inventory and ownership revisions refresh affected reads. Unchanged revision checks do not reload
+inventory rows or counts. Recommendations are informational, with no shipment or listing actions.
 
 ## Payout reports and Financial review
 
-Payout reports group the latest saved company/month/currency reports by month, across source
-namespaces. Month and Company column menus filter the list; Company is administrator-only.
-**Previous** and **Next** switch pages. Each report's **Versions** disclosure loads earlier
-snapshots for that exact scope. History loads on demand; filters, expanded versions, and the
-selected report survive reloads. Source or fee changes can leave the preceding saved report visible
-until the automatic worker captures the updated inputs. The browser never generates reports. New
-reports require at least one currently assigned SKU. Companies with no current assignments retain
-their saved history, but receive no new reports until a SKU is assigned. An assigned SKU without
-activity can still produce a zero report.
+Payout reports group the latest saved company/month/currency snapshots. Month and Company filters,
+visible month/year search, and on-demand Versions history support browsing. Source or fee changes
+may leave the preceding snapshot visible until the automatic worker publishes its replacement. The
+browser never generates reports. Selected-month readiness distinguishes incomplete setup, pending
+work, completed reports, and no activity; administrators can inspect setup requirements and open the
+affected SKU in Current fees.
 
-Payout and estimate drawers share **Total**, **Amounts by type**, and **Records**. All three use
-Reported amount, Service fee, and Company amount; the Total card emphasizes Company amount and the
-type breakdown ends with the same totals. Selecting a category or type's record count filters the
-records and focuses their heading. **Show all records** clears that selection; **Back to amounts**
-returns to the breakdown. Records use 50-row pages. Zero monetary rows stay in the same calculation
-and list. The saved report's expandable Marketplace breakdown appears between types and records.
-Payout and Financial review drawer headers retain the selected scope while scrolling. Totals explain
-that displays round each amount while calculations retain original precision. Payout Search matches
-the displayed month/year, generated report name (including its ISO month), or currency. The
-[payout contract](../../../docs/company_payout_reports.md) defines maturity, coverage, empty
-reports, immutability, and when estimates match the latest saved report.
+Saved report details contain Total, Amounts by type, Marketplace breakdown, and paginated Records.
+Headers retain company/month/currency context. Historical reports preserve their original values and
+versions. The [payout contract](../../../docs/company_payout_reports.md) defines eligibility,
+maturity, completeness, zero reports, and agreement with estimates.
 
-Administrator-only **Financial review** shares one **Year** and **Currency** across its Finances,
-Data Kiosk, and SelBox category tabs. It shows up to twelve chronological monthly rows, monthly
-differences, and an exact running difference from the start of the selected year. Period totals and
-the trend chart use the same currency; offsetting differences do not prove source convergence. Only
-fully mature calendar months appear, through the payout policy's latest eligible month. The
-partially mature month is excluded from date discovery, currency choices, totals, and details.
-Opening a month keeps that currency for totals, amounts by source/type, source records, and the
-saved-report list. Source records offer Back to amounts, restoring focus to the breakdown without
-clearing its selected scope. Removing the selected type by keyboard returns focus to Record source.
-The month's expandable **Saved report snapshots** section contains historical comparison rows and
-account controls. Their account scope stays separate from company payout amounts. The
-[Financial review guide](../../../docs/financial_review.md) defines these scopes, labels, read
-interfaces, and the distinction between source differences and the accounting reconciliation.
+Financial review shares Year and Currency across Finances, Data Kiosk, and SelBox categories. Its
+bounded yearly overview and chart show fully mature months, monthly differences, and the exact
+running difference. Monthly details retain that scope for type comparisons, source records, and
+saved snapshots. Related fee families are browsing aids; uncertain types remain separate.
 
-## Totals
+Source drilldowns retain exact row/version provenance. The Finances transaction-ID lookup searches
+all retained captures and preserves its page. An unavailable exact version is reported explicitly,
+without substituting a different capture. Retained components are separate observations, not values
+to sum across captures. See the [Financial review contract](../../../docs/financial_review.md) for
+source eligibility, comparison scope, and saved account controls.
 
-Latest day uses the latest transaction date within the selected company, SKU, and marketplace scope.
-Discovery uses the shared `transaction_page` request with one date-descending row and no count; the
-selected date range and source/type filters are omitted. Latest month uses that date's month if it
-falls on the last calendar day, otherwise the previous month. This rule does not certify complete
-import coverage. Selected dates has no total until at least one DATE bound is set; it supports
-ranges with only a start or end date. Choose dates or Change dates opens the same range editor.
-Populated cards visibly offer View by type. Summary currency applies only to totals and their
-details, while the main record table retains all currencies. The selected currency stays selected
-when filters remove its records; the card shows an explicit empty state instead of switching it.
+## Design conventions
 
-All three cards follow company, SKU, and marketplace selections. DATE applies only to Selected
-dates. Source/type and fee-applicability filters, text search, ordering, and table pagination do not
-affect the cards. Clicking a day or month applies its date bounds to Transactions and returns to
-page one. Clicking amounts opens the shared amount breakdown with the effective dates, currency, and
-filters. Related types use expandable groups in a fixed order. Its record pages use
-`transaction_page` with the same date/company/SKU/marketplace scope plus the selected currency and
-types. Date ordering, exact calculations, two-decimal amount display, and financial authority match
-the main Transactions view. Source and ownership revisions refresh both the open summary and its
-record pages.
+Use the shared [Mantine theme](src/design-system.ts), [design tokens](src/design-system.css), and
+[WorkspaceIntro](src/WorkspaceIntro.tsx). Semantic heading levels and accessible names must match
+content structure and visible labels while retaining the intended visual size. Use sentence case,
+Previous/Next, Rows, and the source name Finances consistently. Explain the scope of exclusive
+amounts and exclusive fee-period end dates.
 
-Totals use Data Kiosk for all monetary categories on recent dates (the mature cutoff date and
-later). For mature dates (before the mature cutoff date), Finances activity components supply the
-Finances and SelBox categories, while Data Kiosk supplies the Data Kiosk category. An
-administrator-only daily marketplace difference compares the Data Kiosk category amounts reported by
-Finances and Data Kiosk. Members see their own Finances and Data Kiosk category amounts; SelBox
-retains the SelBox category and the difference. Comparison/analysis rows are excluded and currencies
-stay separate. Requests aggregate only the needed periods. Latest-date discovery, each period, and
-each opened breakdown have independent cache and error states. Totals and Type breakdowns call
-`transaction_totals`; compatible source facts are summed before their fee lookup. The response keeps
-exact decimal strings and counts needed to identify missing company amounts.
+Controls expose hover and keyboard-focus feedback without shifting layout. Native `:hover` remains
+available to mouse/trackpad input on touch-capable devices. Disabled controls keep their disabled
+appearance. Text links use the shared accent underline. Narrow/coarse-pointer form controls use at
+least 16px text to avoid automatic focus zoom; manual zoom remains available.
 
-Source menus offer Finances and Data Kiosk; administrator Transactions also offers Reconciliation.
-Marketplace menus include all 24 canonical marketplace names. Type menus use the generated
-preprocessing registry: company Transactions includes every known type except category `SELBOX`
-(including `ANALYSIS_ONLY`). Administrator Transactions offers every known type from both sources
-and the derived Finances / Data Kiosk difference; raw source tabs offer only registered types for
-that source. Options remain available with no matching rows, and actual rows keep their existing
-access and category rules. The JSON files in `src/generated/` are generated from the Python
-registries; do not edit them manually.
-
-Company-member SKU catalogs use assignments already loaded with identity. Administrator identity
-preloads one complete `sku_filter_options` response, covering registered SKUs and imported
-source-history SKUs under database access rules, including unassigned imports. All SKU menus use
-this preloaded catalog and send no option requests when opened. Selected values stay available after
-options change. No separate source-row count is requested. Generated PostgREST aggregation is
-disabled; the frontend never sends aggregate expressions in REST query parameters.
+Drawers lock the document with CSS while mounted, including exit transitions. Drawer and popover
+scroll containment is vertical only, preserving horizontal browser gestures and pinch zoom. Escape
+closes the innermost panel; focus returns to its opener or a relevant surviving control.
+Request/validation feedback restores lost focus without interrupting a user who moved elsewhere.
 
 ## Requests and session lifecycle
 
-Each API request has one 30-second deadline covering both headers and the response body. Timeouts
-cancel the underlying request and show a recoverable error; caller cancellation retains its own
-reason. Unused response bodies are canceled, including rejected HTTP responses. Read queries retain
-their existing single retry for transient failures. Sign-in, signup, and writes are never
-automatically repeated. Session-restore timeouts preserve the stored session for Retry.
+Each API request has one 30-second deadline covering headers and body. Timeouts cancel the request
+and expose recovery; caller cancellation retains its reason. Unused bodies are cancelled. Reads have
+one retry for transient failures. Sign-in, signup, and writes are never automatically repeated.
 
-Financial pages use `transaction_page` for Transactions and `source_transaction_page` for
-Finances/Data Kiosk, followed by independent exact count RPCs. The browser resolves literal,
-case-insensitive search against complete SKU, Type, Marketplace, and Source catalogs before
-requesting rows. Search alternatives combine with OR and intersect with column filters. All filters,
-including fee applicability, apply before server pagination/counting and belong in the query key.
-Changing search or filters returns to page one. The
-[query contract](../../../docs/transaction_query_contracts.md) owns request fields, source
-authority, ordering/ties, null/empty search semantics, and amount limits.
+Transactions and source tabs load pages and exact counts independently. Query keys contain the
+complete account and filter scope. Catalog refreshes finish before dependent search queries so newly
+imported or reassigned SKUs participate in search. Administrator SKU catalogs can be reused only in
+memory after account and source/fee revision checks; an explicit retry forces reload. Sign-out,
+scope changes, and reloads never reuse that catalog.
 
-Other datasets use their dedicated REST/RPC interfaces. Details and Previous/Next remain usable
-while a separate count loads; page-number entry appears when its bound is known. Count failures have
-their own retry. Financial review uses date bounds and a bounded calendar-year read, with no
-overview pagination or full-history count; its source records and type details remain paginated.
+Visible, online workspaces check `workspace_revisions` every 60 seconds and on focus/reconnection.
+Unchanged revisions preserve successful cached financial and inventory reads. Relevant changes
+invalidate dependent pages, counts, summaries, options, and fee lookups. Financial source tokens
+also include the mature cutoff date. Payout publication/readiness revisions are independent of
+source and fee revisions. Member fee/ownership and payout revisions are company-scoped. Pages and
+account counts have 30-second freshness; financial/payout counts persist until a relevant revision
+changes.
 
-Administrators reload their SKU catalog on any financial source or fee revision before dependent
-search reads; members reload assigned SKUs on fee revisions. Refreshed catalogs update search keys
-before queries refetch, including when a previously unmatched search gains a newly imported SKU.
+Offline notices distinguish cached information from a new view waiting for a connection. The last
+successful application read is not Amazon capture freshness. Cached rows remain visible and paused
+reads resume when connectivity returns.
 
-Identity refreshes reuse an in-memory administrator SKU catalog only after fetching the current
-account and the `finances`, `data_kiosk`, and `fees` revision tokens and confirming they match its
-existing scope and revisions. An explicit workspace retry forces catalog reload. Reuse does not
-cross sign-out, account/role/company changes, or page reloads. Missing revision tokens never
-authorize reuse. Company names and assignments still reload on identity refresh; members derive SKU
-options from those fresh assignments.
+A session survives reloads in the same browser tab through storage scoped to the Supabase URL.
+Reload verifies Auth and account access, then reloads lookups before showing the workspace. Token
+rotation is stored before dependent requests. Renewal within the same user/role/company scope
+preserves drafts and the query cache; changed access discards that workspace. Temporary restore
+failures offer Retry. Sign-out clears local session, view state, and cached data. Sessions are not
+synchronized between browser tabs, and stored preferences never restore financial results.
 
-Financial and payout counts are cached until a relevant data revision changes. Pages and account
-counts have 30-second freshness. Every visible, online workspace polls `workspace_revisions` every
-60 seconds; focus and reconnection also check for changes. Unchanged revisions retain successful
-cached financial and inventory reads. Changes invalidate only dependent rows, options, counts,
-summaries, and fee lookups. Financial source revisions cover current pointers, historical
-publications, and Data Kiosk pruning; inventory revisions cover changed daily capture publications.
-Payout revisions change when a report is published or its company/month readiness state changes.
-Routine polling reads the revision table; blocker details load only when an administrator opens
-them. Fee/ownership and payout revisions are company-scoped for members; source revisions are
-global. Active financial summaries require the `finances`, `data_kiosk`, and `fees` revisions.
-Summaries unmount outside Transactions. Financial source tokens also include the mature cutoff date,
-so the daily authority change invalidates cached money and counts. Inventory tokens have no date
-suffix and checks read only the small revision table. Payout pages and counts refresh when their
-publication token changes, independently of source or fee changes. Account lists and payout
-eligibility refresh separately.
+Forgot password uses the same acknowledgement for registered and unregistered addresses. Callback
+tokens are removed from the URL before verification. Recovery loads no company workspace, persists
+only the verified flow across reloads, and clears password fields. Only Update password submits;
+success returns to sign-in for fresh access checks. Invalid or expired links offer a new request.
 
-When offline, a workspace notice distinguishes cached information from a new view waiting for a
-connection. Its last-successful-read timestamp describes an application response, not the age of
-Amazon data. Cached rows remain visible and paused reads resume when connectivity returns.
+## Frontend library boundaries
 
-A session survives reloads in the same tab through `sessionStorage`, scoped to the Supabase URL.
-Only tokens, expiry, and minimal identity are stored. Reload verifies the token with Auth and uses
-the account returned by the revision RPC, then reloads company and SKU lookups before showing the
-workspace. Token rotation is saved before dependent requests. Temporary restore failures offer
-retry; sign-out immediately clears local session and workspace data and ends the current session.
-Authentication is not synchronized between tabs.
-
-Token renewal rechecks account access and revisions, reloads company names and assignments, and uses
-the catalog reuse rules above. Within the same user/role/company scope, it preserves the mounted
-workspace, drafts, and query cache. Tokens are not query-cache keys. Changed scope mounts a new
-workspace and discards the previous cache; sign-out and failed access verification remove the
-authenticated workspace. Session storage never restores catalog or financial results.
+- [TanStack Router](https://tanstack.com/router/latest/docs/framework/react/guide/search-params)
+  owns workspace navigation and browser history. Account-aware codecs validate search parameters;
+  session storage retains private drafts and inactive-tab preferences.
+- TanStack Query owns server state, request caching, cancellation, and invalidation. Authentication
+  and account-scope changes control the lifetime of the workspace cache.
+- [Mantine Form](https://mantine.dev/form/use-form/) owns fee editor input values and nested period
+  updates. Draft persistence, exact precision, coverage, and stale-version checks remain application
+  responsibilities.
+- [axe for Playwright](https://playwright.dev/docs/accessibility-testing) scans representative
+  authentication, workspace, filter, and dialog states. It waits for finite transitions to settle,
+  uses default rules without exclusions, saves full JSON reports, and fails on violations.
+  Incomplete results need review; keyboard, focus, responsive, and manual checks remain necessary.
 
 ## Configuration
 
-For the production preview, compress and privately cache fingerprinted `/assets/` files with
-`max-age=31536000, immutable`. Keep HTML, Auth, and REST responses `no-store`, so a reload picks up
-the latest build and financial data. Missing assets must return 404 instead of the SPA HTML; an
-absent browser icon should return 204. These settings avoid repeat application downloads and invalid
-icon/module responses through the tunnel.
-
-Apply the project's database migrations and configure Auth accounts using the
-[database guide](../../db/supabase/README.md). Do not reset an existing database to run this
-frontend. Browser tests use synthetic responses and need no database or credentials.
+Apply database migrations and configure Auth accounts using the
+[database guide](../../db/supabase/README.md). Do not reset an existing database to run the client.
+Browser tests intercept synthetic APIs and require no database or credentials.
 
 Set both public values in an ignored `.env.local`:
 
@@ -462,31 +245,25 @@ VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_PUBLISHABLE_KEY=<public publishable key for that instance>
 ```
 
-Use the API URL reachable from the browser; local instances may use a different port. A public
-`anon` JWT is also accepted. Secret and `service_role` keys must never enter `VITE_` settings.
-Production requires HTTPS; HTTP is accepted only for local hosts. Missing configuration has no
-implicit fallback.
+Use an API URL reachable from the browser; local ports can differ. A public `anon` JWT is also
+accepted. Secret and `service_role` keys must never enter `VITE_` settings. HTTPS is required except
+for local hosts. Missing configuration has no implicit fallback.
 
-## Frontend library boundaries
+Reverse proxies must allow the Auth token, user, logout, signup, verify, and recover endpoints,
+including authenticated `PUT /auth/v1/user` for password updates. Configure approved callback URLs
+for the deployed origin/path and email delivery for confirmation/recovery. The local preview uses a
+mail sink; successful local recovery does not establish hosted email delivery.
 
-- [TanStack Router](https://tanstack.com/router/latest/docs/framework/react/guide/search-params)
-  owns workspace navigation and browser history. Existing query-string links remain compatible;
-  account-aware codecs validate their values. Session storage retains private drafts and
-  inactive-tab preferences, while TanStack Query owns server data.
-- [Mantine Form](https://mantine.dev/form/use-form/) manages the fee editor's input values and
-  nested period updates. Draft persistence and domain checks for fee coverage, precision, and stale
-  versions remain application responsibilities. Keeping an incomplete draft still differs from
-  publishing a validated batch.
-- [axe for Playwright](https://playwright.dev/docs/accessibility-testing) scans representative
-  authentication, workspace, filter, and dialog states with default rules and no rule exclusions.
-  Each scan attaches its JSON report and fails on accessibility violations. Existing keyboard,
-  focus, recovery, and responsive tests remain necessary; automated scans cover only part of
-  accessibility.
+Cache fingerprinted `/assets/` privately with `max-age=31536000, immutable`; keep HTML, Auth, and
+REST responses `no-store`. Missing assets must return 404 rather than SPA HTML, and an absent
+browser icon may return 204. The deployment must serve the application at supported
+navigation/callback paths.
 
 ## Docker tooling
 
-Run every Node/package-manager command in Docker, from this directory. The pinned image matches
-`@playwright/test` and supplies Chromium. Install the exact lockfile:
+Run every Node/package-manager command in Docker from this directory. The pinned image matches
+`@playwright/test`; [playwright.config.mjs](playwright.config.mjs) selects Chromium by default.
+Install the exact lockfile:
 
 ```sh
 docker run --rm -u "$(id -u):$(id -g)" \
@@ -504,11 +281,11 @@ docker run --rm --init --ipc=host -u "$(id -u):$(id -g)" \
   mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run check
 ```
 
-Replace `check` with `format:write`, `test`, `test:e2e`, or `test:a11y` for an individual task.
-Accessibility scans also run as part of the normal browser suite. Browser tests start their own Vite
-server and intercept requests to `example.invalid`. Failures retain traces and screenshots in
-`test-results/`. Set `PLAYWRIGHT_CAPTURE_REVIEW=1` in the container for additional responsive
-screenshots. Use standard Docker networking so online/reconnection tests work.
+Replace `check` with `format:write`, `test`, `test:e2e`, or `test:a11y` for individual checks.
+Accessibility scans also run in the normal browser suite. Tests start their own Vite server and
+intercept `example.invalid`; use standard Docker networking for connection/reconnection cases.
+Failures retain traces and screenshots in `test-results/`. Axe results include standalone JSON and
+attachments there. `PLAYWRIGHT_CAPTURE_REVIEW=1` enables additional screenshots.
 
 Start the configured application:
 
@@ -519,4 +296,5 @@ docker run --rm -u "$(id -u):$(id -g)" \
   mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run dev --host 0.0.0.0
 ```
 
-Open `http://127.0.0.1:5173`.
+Open `http://127.0.0.1:5173`. Browser fixtures and engine runs establish client behavior; production
+data, external mail delivery, and physical-device/screen-reader behavior require separate checks.

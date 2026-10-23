@@ -8,9 +8,7 @@ export function withoutWorkspaceLocation(url: URL): URL {
 }
 
 export function clearWorkspaceLocation(router: RegisteredRouter) {
-  const next = withoutWorkspaceLocation(
-    new URL(router.history.location.href, window.location.origin),
-  );
+  const next = withoutWorkspaceLocation(new URL(router.history.location.href, router.origin));
   void router.navigate({
     href: `${next.pathname}${next.search}${next.hash}`,
     replace: true,

@@ -2,7 +2,7 @@ import { DATASET_CONFIG, isTableDataset, type DatasetConfig } from "./config.ts"
 import type { DatasetFilterField, DatasetFilters, TableDatasetKey } from "./types.ts";
 import { isUuid } from "./validation.ts";
 
-export function requireFilterField(dataset: TableDatasetKey, field: DatasetFilterField): void {
+function requireFilterField(dataset: TableDatasetKey, field: DatasetFilterField): void {
   if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   const config: DatasetConfig = DATASET_CONFIG[dataset];
   if (!config.filterColumns.includes(field)) {

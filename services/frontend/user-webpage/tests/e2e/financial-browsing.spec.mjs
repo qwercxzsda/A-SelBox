@@ -1,15 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { kioskRow, liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
-
-async function choose(page, label, choices) {
-  const menu = await openColumn(page, label);
-  for (const choice of choices) {
-    await menu.getByRole("checkbox", { name: choice, exact: true }).check();
-  }
-  await menu.getByRole("button", { name: "Close options", exact: true }).click();
-}
+import { applyDates, selectColumnOptions, sortBy } from "./table-actions.mjs";
 
 for (const role of ["administrator", "member"]) {
   test(`${role} can see and remove table refinements and recover without losing ordering`, async ({
@@ -25,8 +17,8 @@ for (const role of ["administrator", "member"]) {
     await page.getByLabel("Rows", { exact: true }).selectOption("50");
     await sortBy(page, "Date", "Oldest first");
     await applyDates(page, "2026-09-01", "2026-09-30");
-    await choose(page, "SKU", ["ALPHA-001", "ALPHA-002"]);
-    await choose(page, "Source", ["Finances"]);
+    await selectColumnOptions(page, "SKU", ["ALPHA-001", "ALPHA-002"]);
+    await selectColumnOptions(page, "Source", ["Finances"]);
     const filters = page.getByLabel("Applied table filters", { exact: true });
     await expect(filters).toContainText("3 filters applied");
     await expect(filters).toContainText("SKU: 2 selected");

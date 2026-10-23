@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react";
-import { Alert, Button, Drawer, Group, Paper, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Drawer, Group, Stack, Text, TextInput } from "@mantine/core";
 import type { SkuConfigurationChange, SkuConfigurationItem } from "./api";
 import type { SkuFormIssue } from "./sku-configuration-form";
-import { companyLabel } from "./view-model";
-import { SkuFeePeriods } from "./SkuFeePeriods";
-import { SkuConfigurationChanges } from "./SkuConfigurationChanges";
+import { SkuConfigurationReviewCard } from "./SkuConfigurationReviewCard";
 import "./SkuConfigurationDrawer.css";
 
 const GAP_SHORTCUT_LIMIT = 5;
@@ -108,63 +106,19 @@ export function SkuConfigurationReview({
             </Alert>
           ) : null}
           {drafts.map((draft) => (
-            <Paper withBorder p="md" key={draft.sku} className="sku-configuration-card">
-              <Group justify="space-between" align="start">
-                <div className="sku-configuration-card-identity">
-                  <Text fw={600} className="sku-configuration-card-sku">
-                    {draft.sku}
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    {companyLabel(draft.company_id, companies)} · {draft.periods.length} fee{" "}
-                    {draft.periods.length === 1 ? "period" : "periods"}
-                  </Text>
-                </div>
-                <Group gap="xs">
-                  <Button
-                    ref={(element) => {
-                      if (element) editButtons.current.set(draft.sku, element);
-                      else editButtons.current.delete(draft.sku);
-                    }}
-                    variant="light"
-                    aria-label={`Edit ${draft.sku}`}
-                    disabled={isSaving}
-                    onClick={() => {
-                      onEdit(draft.sku);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="subtle"
-                    color="#9e1834"
-                    disabled={isSaving}
-                    aria-label={`Discard draft for ${draft.sku}`}
-                    onClick={() => {
-                      discardDraft(draft.sku);
-                    }}
-                  >
-                    Discard draft
-                  </Button>
-                </Group>
-              </Group>
-              <SkuConfigurationChanges
-                draft={draft}
-                saved={savedBySku.get(draft.sku)}
-                companies={companies}
-              />
-              <div className="sku-configuration-proposed-periods">
-                <Text fw={600} size="sm" mb="xs">
-                  Proposed fee periods
-                </Text>
-                {draft.periods.length > 0 ? (
-                  <SkuFeePeriods item={draft} />
-                ) : (
-                  <Text size="sm" c="dimmed">
-                    No fee periods.
-                  </Text>
-                )}
-              </div>
-            </Paper>
+            <SkuConfigurationReviewCard
+              key={draft.sku}
+              draft={draft}
+              saved={savedBySku.get(draft.sku)}
+              companies={companies}
+              isSaving={isSaving}
+              editButtonRef={(element) => {
+                if (element) editButtons.current.set(draft.sku, element);
+                else editButtons.current.delete(draft.sku);
+              }}
+              onEdit={onEdit}
+              onDiscard={discardDraft}
+            />
           ))}
           {incomplete.length ? (
             <Alert

@@ -1,21 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { liveRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { applyReportMonth, openColumn } from "./table-actions.mjs";
+import { applyReportMonth, selectColumnOptions } from "./table-actions.mjs";
 
 const COMPANY = "11111111-1111-4111-8111-111111111111";
 const COMPANY_NAME = "Applied filters international distribution company with a very long name";
 const LONG_SKU = "APPLIED-FILTERS-LONG-SKU-WITH-MANY-SEGMENTS-AND-A-VERY-LONG-VARIANT-NAME";
 const OTHER_SKU = "APPLIED-FILTERS-SECOND-SKU";
 const appliedFilters = (page) => page.getByRole("group", { name: "Applied table filters" });
-
-async function selectOptions(page, column, options) {
-  const menu = await openColumn(page, column);
-  for (const option of options) {
-    await menu.getByRole("checkbox", { name: option, exact: true }).check();
-  }
-  await menu.getByRole("button", { name: "Close options", exact: true }).click();
-}
 
 async function expectCenteredChip(chip) {
   await expect(chip).toBeVisible();
@@ -57,7 +49,7 @@ test("clearing payout column filters stays cleared after F5", async ({ page }) =
   fixture.companyNames[COMPANY] = COMPANY_NAME;
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await selectOptions(page, "Company", [COMPANY_NAME]);
+  await selectColumnOptions(page, "Company", [COMPANY_NAME]);
   await applyReportMonth(page, "2026-06");
   await expect(appliedFilters(page)).toContainText("2 filters applied");
   await expect.poll(() => fixture.requests.at(-1).params.get("start_date")).toBe("gte.2026-06-01");
@@ -99,9 +91,9 @@ for (const [role, width] of [
     await signIn(page);
     await page.getByLabel("Search", { exact: true }).fill("Amazon");
     await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
-    if (role === "administrator") await selectOptions(page, "Company", [COMPANY_NAME]);
-    await selectOptions(page, "Marketplace", ["Amazon.com"]);
-    await selectOptions(page, "SKU", [LONG_SKU]);
+    if (role === "administrator") await selectColumnOptions(page, "Company", [COMPANY_NAME]);
+    await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
+    await selectColumnOptions(page, "SKU", [LONG_SKU]);
     const skuChip = appliedFilters(page).getByRole("button", {
       name: `Clear sku filter: ${LONG_SKU}`,
       exact: true,
@@ -128,7 +120,7 @@ for (const [role, width] of [
       animations: "disabled",
     });
 
-    await selectOptions(page, "SKU", [OTHER_SKU]);
+    await selectColumnOptions(page, "SKU", [OTHER_SKU]);
     const multipleSkus = appliedFilters(page).getByRole("button", {
       name: /^Clear sku filter:/,
     });

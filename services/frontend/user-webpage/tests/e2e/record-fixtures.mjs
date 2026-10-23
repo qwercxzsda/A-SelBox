@@ -9,7 +9,7 @@ function decimalParts(value) {
   return { coefficient: BigInt(integer + fraction), scale: fraction.length };
 }
 
-function compareAmounts(left, right) {
+export function compareAmounts(left, right) {
   const a = decimalParts(left);
   const b = decimalParts(right);
   const scale = Math.max(a.scale, b.scale);

@@ -49,7 +49,8 @@ export function AmountBreakdown({
   const amountsRef = useRef<HTMLElement>(null);
   const shouldScroll = useRef(false);
   const groups = useMemo(() => groupTransactionTypes(totals ?? [], currency), [totals, currency]);
-  const total = savedTotal ?? totalTransactionTypes(totals ?? [], currency);
+  const typeTotal = totalTransactionTypes(totals ?? [], currency);
+  const total = savedTotal ?? typeTotal;
   const typeCount = groups.reduce((count, group) => count + group.types.length, 0);
   function selectRecords(next: RecordSelection) {
     shouldScroll.current = true;
@@ -129,7 +130,7 @@ export function AmountBreakdown({
             />
             <section className="type-breakdown-footer" aria-label="Amounts by type total">
               <span className="type-breakdown-group-name">Total</span>
-              <TypeBreakdownAmounts total={totalTransactionTypes(totals ?? [], currency)} />
+              <TypeBreakdownAmounts total={typeTotal} />
             </section>
           </>
         ) : !error ? (

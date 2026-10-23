@@ -170,10 +170,11 @@ pruning marker on an old identity.
 ## Company terms and payout reports
 
 An administrator publishes complete SKU assignments and marketplace fee periods atomically through
-`publish_sku_configuration`. Validation covers unchanged and edited SKUs: each known SKU needs an
-owner and every applicable fee date needs coverage. A known 0% rate is valid. New source imports can
-expose new configuration gaps without preventing valid source publication. Reassignment restates
-live history; saved reports preserve the original terms versions.
+`publish_sku_configuration`. Validation covers each submitted SKU's complete configuration: it needs
+an owner and coverage for every required fee date. Unrelated incomplete SKUs remain in global
+diagnostics without blocking a valid batch. A known 0% rate is valid. New source imports can expose
+new gaps without preventing valid source publication. Reassignment restates live history; saved
+reports preserve the original terms versions.
 
 Maturity keeps the existing two-calendar-month assumption. The private payout worker processes
 pending mature company months on its five-minute schedule. A small indexed revision queue and a

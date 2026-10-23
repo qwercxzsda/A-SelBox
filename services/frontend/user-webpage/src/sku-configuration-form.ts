@@ -78,18 +78,27 @@ export function sameSkuDraft(
   draft: SkuConfigurationChange,
   snapshot: SkuConfigurationChange,
 ): boolean {
-  return !(
-    draft.sku !== snapshot.sku ||
-    draft.company_id !== snapshot.company_id ||
-    draft.expected_current_version_id !== snapshot.expected_current_version_id ||
-    draft.periods.length !== snapshot.periods.length ||
-    draft.periods.some((period, index) => {
-      const original = snapshot.periods[index];
+  return (
+    draft.sku === snapshot.sku &&
+    draft.company_id === snapshot.company_id &&
+    draft.expected_current_version_id === snapshot.expected_current_version_id &&
+    sameFeePeriods(draft.periods, snapshot.periods)
+  );
+}
+
+export function sameFeePeriods(
+  periods: readonly SkuConfigurationPeriod[],
+  snapshot: readonly SkuConfigurationPeriod[],
+): boolean {
+  return (
+    periods.length === snapshot.length &&
+    periods.every((period, index) => {
+      const original = snapshot[index];
       return (
-        period.marketplace_name !== original.marketplace_name ||
-        period.valid_from !== original.valid_from ||
-        period.valid_to !== original.valid_to ||
-        period.fee_rate_percent !== original.fee_rate_percent
+        period.marketplace_name === original.marketplace_name &&
+        period.valid_from === original.valid_from &&
+        period.valid_to === original.valid_to &&
+        period.fee_rate_percent === original.fee_rate_percent
       );
     })
   );

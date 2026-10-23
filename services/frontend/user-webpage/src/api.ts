@@ -4,7 +4,6 @@ import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-typ
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
 import type { FinancialSourceSelection } from "./api/financial-source.ts";
-export type { FinancialSourceSelection } from "./api/financial-source.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
 import type {
   FinancialReviewCategory,
@@ -28,22 +27,11 @@ import type {
 } from "./api/types.ts";
 
 export { ApiError } from "./api/transport.ts";
-export type {
-  FinancialReviewCategory,
-  FinancialReviewSource,
-  FinancialReviewRecordFilters,
-  FinancialReviewBounds,
-} from "./api/financial-review.ts";
 export { SkuConfigurationError } from "./api/sku-configuration-errors.ts";
 export type {
-  SkuConfiguration,
   SkuConfigurationItem,
   SkuConfigurationPeriod,
-  SkuConfigurationRequirement,
-  SkuConfigurationIssue,
   SkuConfigurationChange,
-  PublishSkuConfigurationOptions,
-  PublishSkuConfigurationResult,
 } from "./api/sku-configuration-types.ts";
 export { DATASET_CONFIG } from "./api/config.ts";
 export type {

@@ -152,9 +152,7 @@ export function displayColumns(
     .filter(
       (column) =>
         isAdministrator ||
-        (column.kind !== "company" &&
-          column.key !== "preprocess_version" &&
-          !(dataset === "finances" && column.key === "category")),
+        (column.kind !== "company" && !(dataset === "finances" && column.key === "category")),
     )
     .map((column) => ({
       ...column,

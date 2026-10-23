@@ -6,7 +6,7 @@ import { useFinanceTable } from "./use-finance-table";
 import { DATASET_PRESENTATION, displayColumns, getErrorMessage } from "./view-model";
 import type { Identity } from "./auth-session";
 import { FinancialTable } from "./FinancialTable";
-import { UpdateStatus } from "./UpdateStatus";
+import { DatasetCountStatus } from "./DatasetCountStatus";
 import { PaginationBar } from "./PaginationBar";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { FinanceColumnHeader } from "./FinanceColumnHeader";
@@ -24,12 +24,13 @@ import { useRef } from "react";
 import { FinancialSourceLookup } from "./FinancialSourceLookup";
 import { ActivityEligibilityHelp } from "./ActivityEligibilityHelp";
 import { SearchInput } from "./SearchInput";
+import { ListPageNavigation } from "./ListPageNavigation";
+import { pageRangeSummary } from "./pagination";
 
 interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   identity: Identity;
   dataset: TableDatasetKey;
   onRetry: () => Promise<void>;
-  reviewMode?: boolean;
   onAddCompany?: () => void;
   onConfigureSku?: (sku: string) => void;
 }
@@ -59,14 +60,17 @@ function StandardFinanceDataset({
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
   const pageCount = totalCount === null ? null : table.getPageCount();
+  const canPrevious = table.getCanPreviousPage();
+  const canNext = totalCount === null ? rows.length === pageSize : table.getCanNextPage();
   const isBusy = query.isFetching;
   const selectedRow = table.getSelectedRowModel().rows[0]?.original ?? null;
-  const filterCount = activeFilterCount(filters);
-  const hasFilters = filterCount > 0;
-  const hasRefinements = hasFilters || search.trim().length > 0;
+  const hasRefinements = activeFilterCount(filters) > 0 || search.trim().length > 0;
   const columns = displayColumns(dataset, identity.account.access_role === "administrator");
   const sort = viewState.sorting[0];
   const amountLimitExceeded = query.error instanceof AmountOrderingLimitError;
+  function showControls() {
+    toolbarRef.current?.scrollIntoView({ block: "start" });
+  }
   return (
     <>
       <WorkspaceIntro
@@ -129,8 +133,8 @@ function StandardFinanceDataset({
         <PaginationBar
           pageIndex={pageIndex}
           pageCount={pageCount}
-          canPrevious={table.getCanPreviousPage()}
-          canNext={totalCount === null ? rows.length === pageSize : table.getCanNextPage()}
+          canPrevious={canPrevious}
+          canNext={canNext}
           isBusy={isBusy}
           onPrevious={() => {
             table.previousPage();
@@ -146,7 +150,7 @@ function StandardFinanceDataset({
               ? "Narrow your filters or order by date to load rows."
               : query.isPending
                 ? `Loading page ${String(pageIndex + 1)}…`
-                : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} rows`
+                : pageRangeSummary(pageIndex, pageSize, rows.length, totalCount, "rows")
           }
         />
       </Group>
@@ -170,22 +174,12 @@ function StandardFinanceDataset({
         table={table}
         isBusy={isBusy}
         status={
-          query.countQuery.isError ? (
-            <>
-              <Text size="xs" c="red" role="status">
-                Row count unavailable.
-              </Text>
-              <Button
-                size="compact-xs"
-                variant="subtle"
-                onClick={() => void query.countQuery.refetch()}
-              >
-                Retry count
-              </Button>
-            </>
-          ) : (
-            <UpdateStatus active={query.countQuery.isFetching}>Counting rows…</UpdateStatus>
-          )
+          <DatasetCountStatus
+            isError={query.countQuery.isError}
+            isFetching={query.countQuery.isFetching}
+            items="rows"
+            onRetry={() => void query.countQuery.refetch()}
+          />
         }
         renderColumnHeader={(columnId) => {
           const column = columns.find((definition) => definition.key === columnId);
@@ -246,51 +240,23 @@ function StandardFinanceDataset({
         ) : null}
       </FinancialTable>
       {rows.length > 10 ? (
-        <Group
-          component="nav"
-          aria-label="Record navigation at bottom"
-          justify="space-between"
-          mt="md"
-        >
-          <Button
-            variant="subtle"
-            onClick={() => {
-              toolbarRef.current?.scrollIntoView({ block: "start" });
-            }}
-          >
-            Back to filters
-          </Button>
-          <Group>
-            <Button
-              variant="default"
-              aria-label="Previous records"
-              disabled={!table.getCanPreviousPage() || isBusy}
-              onClick={() => {
-                table.previousPage();
-                toolbarRef.current?.scrollIntoView({ block: "start" });
-              }}
-            >
-              Previous
-            </Button>
-            <Text size="sm">
-              Page {pageIndex + 1}
-              {pageCount === null ? "" : ` of ${String(pageCount)}`}
-            </Text>
-            <Button
-              variant="default"
-              aria-label="Next records"
-              disabled={
-                isBusy || !(totalCount === null ? rows.length === pageSize : table.getCanNextPage())
-              }
-              onClick={() => {
-                table.nextPage();
-                toolbarRef.current?.scrollIntoView({ block: "start" });
-              }}
-            >
-              Next
-            </Button>
-          </Group>
-        </Group>
+        <ListPageNavigation
+          labels={{
+            navigation: "Record navigation at bottom",
+            items: "records",
+            back: "Back to filters",
+          }}
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          canPrevious={canPrevious}
+          canNext={canNext}
+          isBusy={isBusy}
+          onBackToFilters={showControls}
+          onPageChange={(index) => {
+            table.setPageIndex(index);
+            showControls();
+          }}
+        />
       ) : null}
       {dataset === "accounts" ? (
         <CompanyMembership

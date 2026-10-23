@@ -73,7 +73,6 @@ export function SkuConfigurationList({
           }}
         />
         <RowsSelect
-          className="fee-list-rows"
           value={pageSize}
           onChange={(pageSize) => {
             change({ pageSize, pageIndex: 0 });

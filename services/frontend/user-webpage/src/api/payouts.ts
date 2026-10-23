@@ -27,7 +27,7 @@ export const PAYOUT_COMPONENT_COLUMNS = [
   "company_amount",
 ] as const;
 
-export interface PayoutPolicy {
+interface PayoutPolicy {
   mature_cutoff_date: string;
   latest_month: string;
   mature_cutoff_months: number;

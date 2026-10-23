@@ -137,33 +137,29 @@ function decodeDraft(value: unknown): SkuConfigurationChange | null {
 }
 
 function decodeFeeEditor(value: unknown): FeeViewState["editing"] {
-  const editor = isJsonObject(value) ? value : null;
-  const form = editor ? decodeDraft(editor.form) : null;
-  return editor &&
-    form &&
-    isText(editor.sku) &&
-    typeof editor.isNew === "boolean" &&
-    (editor.isNew || form.sku === editor.sku)
-    ? {
-        sku: editor.sku,
-        isNew: editor.isNew,
-        form,
-        submitError: nullableText(editor.submitError),
-        rateChange:
-          isJsonObject(editor.rateChange) &&
-          typeof editor.rateChange.periodIndex === "number" &&
-          Number.isSafeInteger(editor.rateChange.periodIndex) &&
-          editor.rateChange.periodIndex >= 0 &&
-          editor.rateChange.periodIndex < form.periods.length
-            ? {
-                periodIndex: editor.rateChange.periodIndex,
-                effectiveDate: text(editor.rateChange.effectiveDate),
-                feeRatePercent: text(editor.rateChange.feeRatePercent),
-                previewRequested: editor.rateChange.previewRequested === true,
-              }
-            : null,
-      }
-    : null;
+  if (!isJsonObject(value) || !isText(value.sku) || typeof value.isNew !== "boolean") return null;
+  const form = decodeDraft(value.form);
+  if (!form || (!value.isNew && form.sku !== value.sku)) return null;
+  const rateChange = value.rateChange;
+  return {
+    sku: value.sku,
+    isNew: value.isNew,
+    form,
+    submitError: nullableText(value.submitError),
+    rateChange:
+      isJsonObject(rateChange) &&
+      typeof rateChange.periodIndex === "number" &&
+      Number.isSafeInteger(rateChange.periodIndex) &&
+      rateChange.periodIndex >= 0 &&
+      rateChange.periodIndex < form.periods.length
+        ? {
+            periodIndex: rateChange.periodIndex,
+            effectiveDate: text(rateChange.effectiveDate),
+            feeRatePercent: text(rateChange.feeRatePercent),
+            previewRequested: rateChange.previewRequested === true,
+          }
+        : null,
+  };
 }
 
 export function decodeFeeView(value: unknown): FeeViewState {

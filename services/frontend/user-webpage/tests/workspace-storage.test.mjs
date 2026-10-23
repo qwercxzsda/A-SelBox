@@ -76,6 +76,45 @@ test("closed unfinished fee editors retain incomplete inputs and a pending rate 
   );
 });
 
+test("fee editor restoration rejects malformed identity without normalizing unfinished fields", () => {
+  const form = {
+    sku: " Padded SKU ",
+    company_id: null,
+    expected_current_version_id: null,
+    periods: [
+      { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "unfinished" },
+    ],
+  };
+  const editor = { sku: form.sku, isNew: false, form, submitError: null, rateChange: null };
+  assert.deepEqual(decodeFeeView({ editing: editor }).editing, editor);
+  const newEditor = { ...editor, sku: "", isNew: true };
+  assert.deepEqual(decodeFeeView({ editing: newEditor }).editing, newEditor);
+  for (const invalid of [
+    null,
+    [],
+    {},
+    { ...editor, sku: form.sku.trim() },
+    { ...editor, sku: 1 },
+    { ...editor, isNew: "true" },
+    { ...editor, form: { ...form, periods: [null] } },
+    { ...editor, form: { ...form, periods: [{ ...form.periods[0], fee_rate_percent: 0 }] } },
+  ]) {
+    const restored = decodeFeeView({ editing: invalid, editorDrafts: [invalid] });
+    assert.equal(restored.editing, null);
+    assert.deepEqual(restored.editorDrafts, []);
+  }
+  for (const periodIndex of [-1, 0.5, "0", 1]) {
+    const restored = decodeFeeView({
+      editing: {
+        ...editor,
+        rateChange: { periodIndex, effectiveDate: "", feeRatePercent: "", previewRequested: true },
+      },
+    }).editing;
+    assert.deepEqual(restored.form, form);
+    assert.equal(restored.rateChange, null);
+  }
+});
+
 test("current role scopes retain drafts on reload and discard them after identity changes", () => {
   const member = { ...account, access_role: "member", company_id: "company-a" };
   for (const [original, next] of [

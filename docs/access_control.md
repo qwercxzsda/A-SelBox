@@ -250,9 +250,10 @@ The changes array must be nonempty and the reason must be nonblank. Use each SKU
 terms UUID instead of NULL for a replacement. Each changed SKU submits its complete fee
 inventory. Rates are decimal strings; a period's end is exclusive and may be null for an
 open-ended period. The server locks changed SKUs in a common order, checks expected
-versions, and validates the resulting configuration for **every currently known SKU**, including
-unchanged entries. Missing ownership or required fee coverage rejects the whole batch. A stale
-edit returns HTTP 409. A successful response contains `published`, an array of
+versions, and validates the complete resulting configuration for **every changed SKU**.
+Missing ownership or required fee coverage on a changed SKU rejects the whole batch. Unrelated
+incomplete settings remain visible in configuration diagnostics without blocking this publication.
+A stale edit returns HTTP 409. A successful response contains `published`, an array of
 `{sku, terms_version_id}` entries, and `changed_count`.
 
 | Publication result | SQLSTATE | Response |
@@ -326,7 +327,7 @@ the RPC, including direct SQL calls without an administrator identity; ordinary 
 separate.
 
 Account table write grants and write policies are absent. The membership RPC is the
-only application mutation: its private helper checks the caller, locks and checks
+only application mutation of these accounts: its private helper checks the caller, locks and checks
 the target, validates the expected state, and derives the resulting role solely from
 the requested company. Administrator-role management has no public wrapper. Source-row RLS enforces
 current-version and current-company access even beneath the public views.

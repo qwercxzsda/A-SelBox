@@ -1,5 +1,5 @@
 import { Alert, Button, Group, Tabs } from "@mantine/core";
-import { useEffect } from "react";
+import { useEffect, type SetStateAction } from "react";
 import { UpdateStatus } from "./UpdateStatus";
 import type { DatasetKey, TableDatasetKey } from "./api";
 import { FinanceDataset } from "./FinanceDataset";
@@ -102,53 +102,45 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     setDataset("companies");
   }
 
-  function showCompanyMembers(companyId: string) {
+  function updateDatasetView(dataset: TableDatasetKey, update: SetStateAction<DatasetViewState>) {
     setDatasetViews((current) => {
-      const previous = current.accounts ?? createDatasetViewState("accounts");
+      const previous = current[dataset] ?? createDatasetViewState(dataset);
       return {
         ...current,
-        accounts: {
-          ...previous,
-          search: "",
-          filters: { ...normalizeDatasetFilters(), companyIds: [companyId] },
-          pagination: { ...previous.pagination, pageIndex: 0 },
-          selectedRowId: null,
-        },
+        [dataset]: typeof update === "function" ? update(previous) : update,
       };
     });
+  }
+
+  function showCompanyMembers(companyId: string) {
+    updateDatasetView("accounts", (previous) => ({
+      ...previous,
+      search: "",
+      filters: { ...normalizeDatasetFilters(), companyIds: [companyId] },
+      pagination: { ...previous.pagination, pageIndex: 0 },
+      selectedRowId: null,
+    }));
     setCompanyReturnTo(null);
     setDataset("accounts");
   }
 
   function selectPeriod(range: DateRange) {
-    setDatasetViews((current) => {
-      const previous = current.live ?? createDatasetViewState("live");
-      return {
-        ...current,
-        live: {
-          ...previous,
-          filters: { ...previous.filters, dateFrom: range.from, dateTo: range.to },
-          pagination: { ...previous.pagination, pageIndex: 0 },
-          selectedRowId: null,
-        },
-      };
-    });
+    updateDatasetView("live", (previous) => ({
+      ...previous,
+      filters: { ...previous.filters, dateFrom: range.from, dateTo: range.to },
+      pagination: { ...previous.pagination, pageIndex: 0 },
+      selectedRowId: null,
+    }));
     setDataset("live");
   }
   function showSkuTransactions(sku: string) {
-    setDatasetViews((current) => {
-      const previous = current.live ?? createDatasetViewState("live");
-      return {
-        ...current,
-        live: {
-          ...previous,
-          search: "",
-          filters: { ...normalizeDatasetFilters(), skus: [sku] },
-          pagination: { ...previous.pagination, pageIndex: 0 },
-          selectedRowId: null,
-        },
-      };
-    });
+    updateDatasetView("live", (previous) => ({
+      ...previous,
+      search: "",
+      filters: { ...normalizeDatasetFilters(), skus: [sku] },
+      pagination: { ...previous.pagination, pageIndex: 0 },
+      selectedRowId: null,
+    }));
     setDataset("live");
   }
   function configureSku(sku: string) {
@@ -183,20 +175,10 @@ export function FinanceWorkspace(props: WorkspaceProps) {
       <Tabs
         value={dataset}
         onChange={(value) => {
-          if (value === "companies" && props.identity.account.access_role === "administrator") {
-            setCompanyReturnTo(null);
-            setDataset(value);
-            return;
-          }
-          if (
-            value === "inventory" ||
-            (value === "financial-review" && props.identity.account.access_role === "administrator")
-          ) {
-            setDataset(value);
-            return;
-          }
-          const next = datasets.find((key) => key === value);
-          if (next) setDataset(next);
+          const next = decodeWorkspaceTab(value, props.identity.account);
+          if (next !== value) return;
+          if (next === "companies") setCompanyReturnTo(null);
+          setDataset(next);
         }}
         className="dataset-tabs"
       >
@@ -282,13 +264,7 @@ export function FinanceWorkspace(props: WorkspaceProps) {
               onRetry={props.onRetry}
               viewState={datasetViews[dataset] ?? createDatasetViewState(dataset)}
               onViewStateChange={(update) => {
-                setDatasetViews((current) => {
-                  const previous = current[dataset] ?? createDatasetViewState(dataset);
-                  return {
-                    ...current,
-                    [dataset]: typeof update === "function" ? update(previous) : update,
-                  };
-                });
+                updateDatasetView(dataset, update);
               }}
             />
           )}

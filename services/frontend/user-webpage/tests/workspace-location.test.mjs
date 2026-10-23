@@ -108,7 +108,7 @@ test("inventory navigation preserves unknown filter choices and exact SKU identi
   assert.deepEqual(locationPreference(url, admin, "inventory", null), view);
 });
 
-test("legacy bare URLs keep local state, and malformed report/month identifiers are ignored", () => {
+test("bare URLs keep local state, and malformed report/month identifiers are ignored", () => {
   const saved = { editing: { form: { fee_rate_percent: "4.8" } } };
   assert.equal(locationPreference(origin, admin, "fees", saved), saved);
   const url = new URL("https://example.test/?tab=payouts&report=invalid&reportFrom=2026-02-30");

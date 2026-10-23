@@ -20,7 +20,6 @@ test("a saved zero report displays without a currency and remains readable durin
       created_at: "2026-09-27T00:00:00Z",
       seller_namespace: null,
       currency: null,
-      preprocess_version: null,
       source_amount: "0",
       fee_amount: "0",
       company_amount: "0",

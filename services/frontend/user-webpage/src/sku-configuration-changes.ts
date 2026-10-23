@@ -2,7 +2,7 @@ import type { SkuConfigurationPeriod } from "./api/sku-configuration-types.ts";
 import { isFeeRate } from "./api/sku-configuration-codec.ts";
 import { formatExactDecimal } from "./decimal.ts";
 
-export interface FeePeriodChange {
+interface FeePeriodChange {
   kind: "added" | "removed" | "rate";
   period: SkuConfigurationPeriod;
   previousRate?: string;

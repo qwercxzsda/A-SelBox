@@ -1,4 +1,4 @@
-export type WorkspaceSearch = Record<string, string | string[]>;
+type WorkspaceSearch = Record<string, string | string[]>;
 
 export const WORKSPACE_SEARCH_PARAMETERS = {
   tab: "single",

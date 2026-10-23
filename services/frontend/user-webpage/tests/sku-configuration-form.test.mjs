@@ -202,3 +202,21 @@ test("submitted snapshots compare fields rather than JSON property order", () =>
   };
   assert.deepEqual(clearSubmittedDrafts([reordered], [submitted]), []);
 });
+
+test("publication completion retains every newer fee edit, including incomplete values", () => {
+  const submitted = createSkuDraft(item());
+  for (const change of [
+    { marketplace_name: "Amazon.co.uk" },
+    { valid_from: "2025-12-31" },
+    { valid_to: "2026-02-01" },
+    { fee_rate_percent: "5.123457" },
+    { fee_rate_percent: "" },
+  ]) {
+    const newer = { ...submitted, periods: [{ ...submitted.periods[0], ...change }] };
+    assert.deepEqual(clearSubmittedDrafts([newer], [submitted]), [newer]);
+  }
+  const removed = { ...submitted, periods: [] };
+  const added = { ...submitted, periods: [...submitted.periods, period("2026-02-01", null)] };
+  assert.deepEqual(clearSubmittedDrafts([removed], [submitted]), [removed]);
+  assert.deepEqual(clearSubmittedDrafts([added], [submitted]), [added]);
+});

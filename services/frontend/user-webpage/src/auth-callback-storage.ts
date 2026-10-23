@@ -1,8 +1,8 @@
 import { isJsonObject } from "./api/validation.ts";
 import { readAuthCallback, takeAuthCallback, type AuthCallback } from "./auth-callback.ts";
 
-export type RecoveryMode = { stage: "request" } | { stage: "password"; userId: string };
-export interface AuthCallbackState {
+type RecoveryMode = { stage: "request" } | { stage: "password"; userId: string };
+interface AuthCallbackState {
   pending: AuthCallback | null;
   recovery: RecoveryMode | null;
 }

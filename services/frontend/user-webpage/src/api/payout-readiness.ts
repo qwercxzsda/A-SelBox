@@ -4,8 +4,8 @@ import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow } from "./types.ts";
 import { requireUuid } from "./validation.ts";
 
-export const PAYOUT_READINESS_PAGE_SIZE = 25;
-export const PAYOUT_READINESS_STATUSES = [
+const PAYOUT_READINESS_PAGE_SIZE = 25;
+const PAYOUT_READINESS_STATUSES = [
   "PENDING",
   "UPDATING",
   "BLOCKED",
@@ -14,9 +14,7 @@ export const PAYOUT_READINESS_STATUSES = [
   "NOT_SCHEDULED",
   "IMMATURE",
 ] as const;
-export type PayoutReadinessStatus = (typeof PAYOUT_READINESS_STATUSES)[number];
-
-export interface PayoutReadinessPage {
+interface PayoutReadinessPage {
   rows: CanonicalRow[];
   hasNext: boolean;
 }

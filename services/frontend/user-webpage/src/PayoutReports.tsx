@@ -21,6 +21,8 @@ import { RowsSelect } from "./RowsSelect";
 import { SearchInput } from "./SearchInput";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
+import { DatasetCountStatus } from "./DatasetCountStatus";
+import { pageRangeSummary } from "./pagination";
 
 export function PayoutReports({
   identity,
@@ -173,8 +175,8 @@ export function PayoutReports({
           }}
           summary={
             query.isPending
-              ? `Loading reports…`
-              : `${String(rows.length === 0 ? 0 : pageIndex * pageSize + 1)}–${String(rows.length === 0 ? 0 : pageIndex * pageSize + rows.length)} of ${totalCount?.toLocaleString("en-US") ?? "—"} latest reports`
+              ? "Loading reports…"
+              : pageRangeSummary(pageIndex, pageSize, rows.length, totalCount, "latest reports")
           }
         />
       </Group>
@@ -216,22 +218,12 @@ export function PayoutReports({
         onSelect={selectReport}
         onSelectVersion={selectVersion}
         status={
-          query.countQuery.isError ? (
-            <>
-              <Text size="xs" c="red" role="status">
-                Report count unavailable.
-              </Text>
-              <Button
-                size="compact-xs"
-                variant="subtle"
-                onClick={() => void query.countQuery.refetch()}
-              >
-                Retry count
-              </Button>
-            </>
-          ) : (
-            <UpdateStatus active={query.countQuery.isFetching}>Counting reports…</UpdateStatus>
-          )
+          <DatasetCountStatus
+            isError={query.countQuery.isError}
+            isFetching={query.countQuery.isFetching}
+            items="reports"
+            onRetry={() => void query.countQuery.refetch()}
+          />
         }
       >
         {query.isPending ? (

@@ -12,12 +12,12 @@ export interface FinancialReviewRecordFilters {
   type?: string;
 }
 
-export interface FinancialReviewBounds {
+interface FinancialReviewBounds {
   firstMonth: string | null;
   lastMonth: string | null;
 }
 
-export const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
+const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
   "month",
   "category",
   "currency",
@@ -28,7 +28,7 @@ export const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
   "data_kiosk_row_count",
 ] as const;
 
-export const FINANCIAL_REVIEW_RECORD_COLUMNS = [
+const FINANCIAL_REVIEW_RECORD_COLUMNS = [
   "source",
   "source_row_id",
   "source_version_id",
@@ -48,7 +48,7 @@ function rpcProjection(columns: readonly string[]): string {
   return [...columns].sort().join(",");
 }
 
-export function requireFinancialReviewCategory(category: FinancialReviewCategory): void {
+function requireFinancialReviewCategory(category: FinancialReviewCategory): void {
   if (!["FINANCES", "DATA_KIOSK", "SELBOX"].includes(category))
     throw new Error("Choose a valid financial review category");
 }
@@ -96,11 +96,34 @@ function totalParams(
   });
 }
 
-function setDetailPage(params: URLSearchParams, currency: string, pageIndex: number): void {
-  requireCurrency(currency);
+function setDetailPage(params: URLSearchParams, pageIndex: number): void {
   validatePagination(pageIndex, DETAIL_PAGE_SIZE);
   params.set("limit", String(DETAIL_PAGE_SIZE));
   params.set("offset", String(pageIndex * DETAIL_PAGE_SIZE));
+}
+
+function typeTotalParams(
+  category: FinancialReviewCategory,
+  month: string,
+  currency: string,
+): URLSearchParams {
+  const params = totalParams(category, month);
+  requireCurrency(currency);
+  params.set("p_currency", currency);
+  params.set(
+    "select",
+    rpcProjection([
+      "month",
+      "category",
+      "currency",
+      "source",
+      "component_type",
+      "amount",
+      "row_count",
+    ]),
+  );
+  params.set("order", "source.asc,component_type.asc");
+  return params;
 }
 
 export function createFinancialReviewApi(transport: ApiTransport) {
@@ -217,22 +240,8 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       pageIndex = 0,
       signal?: AbortSignal,
     ): Promise<PageResult> {
-      const params = totalParams(category, month);
-      setDetailPage(params, currency, pageIndex);
-      params.set("p_currency", currency);
-      params.set(
-        "select",
-        rpcProjection([
-          "month",
-          "category",
-          "currency",
-          "source",
-          "component_type",
-          "amount",
-          "row_count",
-        ]),
-      );
-      params.set("order", "source.asc,component_type.asc");
+      const params = typeTotalParams(category, month, currency);
+      setDetailPage(params, pageIndex);
       return transport.readCsvPage(
         accessToken,
         "rpc/financial_review_type_totals",
@@ -248,22 +257,7 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       currency: string,
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
-      const params = totalParams(category, month);
-      requireCurrency(currency);
-      params.set("p_currency", currency);
-      params.set(
-        "select",
-        rpcProjection([
-          "month",
-          "category",
-          "currency",
-          "source",
-          "component_type",
-          "amount",
-          "row_count",
-        ]),
-      );
-      params.set("order", "source.asc,component_type.asc");
+      const params = typeTotalParams(category, month, currency);
       params.set("limit", String(LOOKUP_PAGE_SIZE));
       const result = await transport.readCsvPage(
         accessToken,
@@ -292,7 +286,8 @@ export function createFinancialReviewApi(transport: ApiTransport) {
     ): Promise<PageResult> {
       const params = scopeParams(category);
       requireMonth(month);
-      setDetailPage(params, currency, pageIndex);
+      requireCurrency(currency);
+      setDetailPage(params, pageIndex);
       params.set("currency", `eq.${currency}`);
       const types = textSelectionValues(
         "component_type",

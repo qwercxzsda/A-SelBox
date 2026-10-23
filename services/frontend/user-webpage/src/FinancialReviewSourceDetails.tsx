@@ -31,7 +31,7 @@ export function FinancialReviewSourceDetails({
   const recordsRef = useRef<HTMLElement>(null);
   const recordsId = useId();
   function change(patch: Partial<ReviewSourceState>) {
-    setSaved({ ...state, ...patch });
+    setSaved((current) => ({ ...current, ...patch }));
   }
   const props = { identity, category, month, matureCutoff, currency, state, change };
   return (

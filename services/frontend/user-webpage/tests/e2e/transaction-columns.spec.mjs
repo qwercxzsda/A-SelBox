@@ -1,6 +1,5 @@
-import { skuAssignments } from "./api-fixtures.mjs";
+import { liveRow, skuAssignments } from "./api-fixtures.mjs";
 import { expect, test } from "@playwright/test";
-import { liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { summaryBucket, summaryCards } from "./summary-fixtures.mjs";
 import { applyDates, openColumn, sortBy } from "./table-actions.mjs";

@@ -28,7 +28,7 @@ interface MarketplacePeriods {
   periods: IndexedPeriod[];
   coverage: Interval[];
 }
-export type FeePeriodIndex = Map<string, MarketplacePeriods>;
+type FeePeriodIndex = Map<string, MarketplacePeriods>;
 
 function isValidPeriod(period: SkuConfigurationPeriod): boolean {
   return (

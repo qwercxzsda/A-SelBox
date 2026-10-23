@@ -211,6 +211,60 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await expect(region.getByRole("button", { name: "Recommendation", exact: true })).toBeVisible();
 });
 
+test("inventory sorting keeps exact large sales values, numeric ties and nulls in server order", async ({
+  page,
+}) => {
+  await mockSupabase(page);
+  await mockInventory(page, [
+    inventoryRow("LARGER", {
+      sales_amount_90d: "9007199254740993.000000002",
+      health_status_urgency: "3",
+    }),
+    inventoryRow("SMALLER", {
+      sales_amount_90d: "9007199254740993.000000001",
+      health_status_urgency: "20",
+    }),
+    inventoryRow("TIE-B", { sales_amount_90d: "10.00", health_status_urgency: "20.0" }),
+    inventoryRow("TIE-A", { sales_amount_90d: "10", health_status_urgency: "20" }),
+    inventoryRow("NEGATIVE", {
+      sales_amount_90d: "-9007199254740993.000000001",
+      health_status_urgency: "0",
+    }),
+    inventoryRow("UNKNOWN"),
+  ]);
+  await signIn(page);
+  await page.getByRole("tab", { name: "Inventory", exact: true }).click();
+  const region = page.getByRole("region", { name: "Inventory items" });
+  const skus = region.locator(".inventory-sku");
+  const orderCases = [
+    [
+      "Sales · last 90 days",
+      "Highest first",
+      ["LARGER", "SMALLER", "TIE-A", "TIE-B", "NEGATIVE", "UNKNOWN"],
+    ],
+    [
+      "Sales · last 90 days",
+      "Lowest first",
+      ["NEGATIVE", "TIE-A", "TIE-B", "SMALLER", "LARGER", "UNKNOWN"],
+    ],
+    [
+      "Inventory health status",
+      "Most urgent first",
+      ["SMALLER", "TIE-A", "TIE-B", "LARGER", "NEGATIVE", "UNKNOWN"],
+    ],
+    [
+      "Inventory health status",
+      "Least urgent first",
+      ["NEGATIVE", "LARGER", "SMALLER", "TIE-A", "TIE-B", "UNKNOWN"],
+    ],
+  ];
+  for (const [column, direction, expected] of orderCases) {
+    await region.getByRole("button", { name: column, exact: true }).click();
+    await page.getByRole("button", { name: direction, exact: true }).click();
+    await expect(skus).toHaveText(expected);
+  }
+});
+
 test("recommendation badges keep readable text and high contrast across desktop and tablet", async ({
   page,
 }) => {

@@ -5,7 +5,7 @@ import type { CanonicalRow } from "./types.ts";
 import type { FinancialReviewSource } from "./financial-review.ts";
 import { isJsonObject, isUuid } from "./validation.ts";
 
-export const SOURCE_LOOKUP_PAGE_SIZE = 25;
+const SOURCE_LOOKUP_PAGE_SIZE = 25;
 
 export interface FinancialSourceSelection {
   source: FinancialReviewSource;

@@ -4,7 +4,7 @@ import { createSkuDraft, newSkuItem, sameSkuDraft } from "./sku-configuration-fo
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import type { FeeEditorState, FeeViewState, ViewStateProps } from "./workspace-view-state";
 
-function editorKey(editor: FeeEditorState): string {
+function editorKey(editor: Pick<FeeEditorState, "sku" | "isNew">): string {
   return editor.isNew ? "new" : `sku:${editor.sku}`;
 }
 
@@ -30,52 +30,38 @@ export function useFeeEditor(
     fallbackRef: panelRef,
     restoreOnClose: true,
   });
-  function editSku(sku: string) {
+  function openEditor(sku: string, isNew: boolean) {
     rememberOpener();
     change((current) => {
-      const paused = current.editorDrafts.find((editor) => !editor.isNew && editor.sku === sku);
+      const key = editorKey({ sku, isNew });
+      const paused = current.editorDrafts.find((editor) => editorKey(editor) === key);
       return {
         ...current,
         reviewing: false,
         editing: paused ?? {
           sku,
-          isNew: false,
-          form: structuredClone(baselineDraft(sku, savedItems, current.drafts)),
+          isNew,
+          form: structuredClone(
+            isNew ? createSkuDraft(newSkuItem()) : baselineDraft(sku, savedItems, current.drafts),
+          ),
           submitError: null,
           rateChange: null,
         },
       };
     });
   }
-  function addSku() {
-    rememberOpener();
-    change((current) => ({
-      ...current,
-      reviewing: false,
-      editing: current.editorDrafts.find((editor) => editor.isNew) ?? {
-        sku: "",
-        isNew: true,
-        form: createSkuDraft(newSkuItem("")),
-        submitError: null,
-        rateChange: null,
-      },
-    }));
-  }
   function updateEditor(update: SetStateAction<FeeEditorState>) {
-    change((current) => ({
-      ...current,
-      editing: current.editing
-        ? typeof update === "function"
-          ? update(current.editing)
-          : update
-        : null,
-    }));
+    change((current) => {
+      if (!current.editing) return current;
+      return {
+        ...current,
+        editing: typeof update === "function" ? update(current.editing) : update,
+      };
+    });
   }
   function resumeEditor() {
-    if (view.editorDrafts.length === 0) return;
-    const editor = view.editorDrafts[0];
-    if (editor.isNew) addSku();
-    else editSku(editor.sku);
+    const editor = view.editorDrafts.at(0);
+    if (editor) openEditor(editor.sku, editor.isNew);
   }
   function closeEditor(discard = false) {
     change((current) => {
@@ -108,8 +94,12 @@ export function useFeeEditor(
   }
   return {
     panelRef,
-    editSku,
-    addSku,
+    editSku: (sku: string) => {
+      openEditor(sku, false);
+    },
+    addSku: () => {
+      openEditor("", true);
+    },
     updateEditor,
     resumeEditor,
     closeEditor,

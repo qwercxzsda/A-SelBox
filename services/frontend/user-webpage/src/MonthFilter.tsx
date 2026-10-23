@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, Button, Group, Stack, TextInput } from "@mantine/core";
+import { useRef, useState } from "react";
+import { Button, Group, Stack, TextInput } from "@mantine/core";
 import { requireCalendarDate } from "./api/filters";
 import type { ColumnMenuFilter } from "./ColumnFilters";
 
@@ -11,6 +11,7 @@ export function MonthFilter({
   onClose: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const monthInput = useRef<HTMLInputElement>(null);
   return (
     <form
       onSubmit={(event) => {
@@ -19,29 +20,28 @@ export function MonthFilter({
         if (typeof month !== "string") return;
         try {
           if (month) requireCalendarDate(`${month}-01`);
-          filter.onChange(month);
-          onClose();
         } catch {
           setError("Choose a valid month.");
+          monthInput.current?.focus();
+          return;
         }
+        filter.onChange(month);
+        onClose();
       }}
     >
       <Stack gap="sm">
         <TextInput
+          ref={monthInput}
           label="Report month"
           type="month"
           name="month"
           defaultValue={filter.value}
           data-autofocus
+          error={error ? <span role="alert">{error}</span> : undefined}
           onChange={() => {
             setError(null);
           }}
         />
-        {error ? (
-          <Alert role="alert" color="red">
-            {error}
-          </Alert>
-        ) : null}
         <Group gap="xs" justify="space-between">
           <Button
             variant="subtle"

@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { PaginationState, SortingState } from "@tanstack/react-table";
 import { DATASET_CONFIG } from "./api/config.ts";
-import type { DatasetFilters, TableDatasetKey } from "./api/types.ts";
+import type { DatasetFilters, DatasetSort, TableDatasetKey } from "./api/types.ts";
 import { PAGE_SIZES } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import type { SkuConfigurationChange } from "./api/sku-configuration-types.ts";
@@ -68,11 +68,11 @@ export function createInventoryViewState(): InventoryViewState {
 }
 
 export function createDatasetViewState(dataset: TableDatasetKey): DatasetViewState {
-  const sort = DATASET_CONFIG[dataset].defaultSort;
+  const sort: DatasetSort = DATASET_CONFIG[dataset].defaultSort;
   return {
     search: "",
     pagination: { pageIndex: 0, pageSize: PAGE_SIZES[0] },
-    sorting: [{ id: sort.column, desc: true }],
+    sorting: [{ id: sort.column, desc: sort.direction === "desc" }],
     filters: normalizeDatasetFilters(),
     selectedRowId: null,
   };

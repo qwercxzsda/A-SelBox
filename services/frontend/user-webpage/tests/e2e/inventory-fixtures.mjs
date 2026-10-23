@@ -1,5 +1,6 @@
 import { INVENTORY_CAPTURE_COLUMNS, INVENTORY_COLUMNS } from "../../src/api/inventory.ts";
 import { createReplies } from "./mocks/http.mjs";
+import { compareAmounts } from "./record-fixtures.mjs";
 
 export function inventoryRow(sku, overrides = {}) {
   return {
@@ -67,9 +68,11 @@ function compareRows(left, right, order) {
     if (a === b) continue;
     if (a === null) return 1;
     if (b === null) return -1;
-    const comparable = (value) =>
-      column === "sales_amount_90d" || column.endsWith("_urgency") ? Number(value) : value;
-    return (comparable(a) < comparable(b) ? -1 : 1) * (direction === "desc" ? -1 : 1);
+    let comparison;
+    if (column === "sales_amount_90d") comparison = compareAmounts(a, b);
+    else if (column.endsWith("_urgency")) comparison = Number(a) - Number(b);
+    else comparison = a < b ? -1 : a > b ? 1 : 0;
+    if (comparison !== 0) return direction === "desc" ? -comparison : comparison;
   }
   return 0;
 }

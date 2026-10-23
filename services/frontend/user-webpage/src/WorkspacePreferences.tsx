@@ -18,7 +18,7 @@ export function WorkspacePreferences({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const [store] = useState(() => {
+  const [navigation] = useState(() => {
     const { storage, prefix } = browserWorkspaceStorage();
     return createWorkspaceNavigation(
       createWorkspaceStore(storage, prefix, identity.account),
@@ -26,7 +26,6 @@ export function WorkspacePreferences({
       router,
     );
   });
-  const navigation = store;
   const routedStore = navigation.store;
   const revision = useSyncExternalStore(navigation.subscribe, navigation.getRevision);
   const persistenceFailed = useSyncExternalStore(
