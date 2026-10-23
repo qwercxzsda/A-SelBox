@@ -4,7 +4,7 @@ import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 
 const SKU = "GROUP 001 / SAMPLE";
 const skuButton = (page) =>
-  page.getByRole("button", { name: `Show marketplace fees for ${SKU}`, exact: true });
+  page.getByRole("button", { name: `Show marketplace fees for ${SKU}: ` });
 const feeTable = (page) =>
   page.getByRole("table", { name: `Marketplace fees for ${SKU}`, exact: true });
 async function feeFixture(page, role = "member") {

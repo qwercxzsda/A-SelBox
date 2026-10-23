@@ -22,6 +22,7 @@
 
 .app-brand {
   margin: 0;
+  line-height: inherit;
   color: var(--ui-text-muted);
   font-size: 12px;
   font-weight: 700;

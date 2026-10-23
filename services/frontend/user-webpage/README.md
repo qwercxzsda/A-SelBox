@@ -1,8 +1,9 @@
 # A-SelBox web client
 
-React and TypeScript client using Vite, Mantine, TanStack Query, TanStack Table, and Playwright. The
-browser accesses Supabase Auth and REST APIs with the signed-in user's token. It never sends SQL.
-Database row-level security enforces access. UI copy and browser review fixtures use English.
+React and TypeScript client using Vite, Mantine, TanStack Router, TanStack Query, TanStack Table,
+and Playwright. The browser accesses Supabase Auth and REST APIs with the signed-in user's token. It
+never sends SQL. Database row-level security enforces access. UI copy and browser review fixtures
+use English.
 
 ## Workspace
 
@@ -466,6 +467,22 @@ Use the API URL reachable from the browser; local instances may use a different 
 Production requires HTTPS; HTTP is accepted only for local hosts. Missing configuration has no
 implicit fallback.
 
+## Frontend library boundaries
+
+- [TanStack Router](https://tanstack.com/router/latest/docs/framework/react/guide/search-params)
+  owns workspace navigation and browser history. Existing query-string links remain compatible;
+  account-aware codecs validate their values. Session storage retains private drafts and
+  inactive-tab preferences, while TanStack Query owns server data.
+- [Mantine Form](https://mantine.dev/form/use-form/) manages the fee editor's input values and
+  nested period updates. Draft persistence and domain checks for fee coverage, precision, and stale
+  versions remain application responsibilities. Keeping an incomplete draft still differs from
+  publishing a validated batch.
+- [axe for Playwright](https://playwright.dev/docs/accessibility-testing) scans representative
+  authentication, workspace, filter, and dialog states with default rules and no rule exclusions.
+  Each scan attaches its JSON report and fails on accessibility violations. Existing keyboard,
+  focus, recovery, and responsive tests remain necessary; automated scans cover only part of
+  accessibility.
+
 ## Docker tooling
 
 Run every Node/package-manager command in Docker, from this directory. The pinned image matches
@@ -487,10 +504,11 @@ docker run --rm --init --ipc=host -u "$(id -u):$(id -g)" \
   mcr.microsoft.com/playwright:v1.63.0-noble corepack pnpm run check
 ```
 
-Replace `check` with `format:write`, `test`, or `test:e2e` for an individual task. Browser tests
-start their own Vite server and intercept requests to `example.invalid`. Failures retain traces and
-screenshots in `test-results/`. Set `PLAYWRIGHT_CAPTURE_REVIEW=1` in the container for additional
-responsive screenshots. Use standard Docker networking so online/reconnection tests work.
+Replace `check` with `format:write`, `test`, `test:e2e`, or `test:a11y` for an individual task.
+Accessibility scans also run as part of the normal browser suite. Browser tests start their own Vite
+server and intercept requests to `example.invalid`. Failures retain traces and screenshots in
+`test-results/`. Set `PLAYWRIGHT_CAPTURE_REVIEW=1` in the container for additional responsive
+screenshots. Use standard Docker networking so online/reconnection tests work.
 
 Start the configured application:
 

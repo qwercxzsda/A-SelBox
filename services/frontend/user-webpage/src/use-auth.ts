@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
+import { useRouter } from "@tanstack/react-router";
 import {
   ApiError,
   requestPasswordRecovery,
@@ -33,6 +34,7 @@ const callbackBootstrap = bootstrapAuthCallback();
 const callbackStore = callbackBootstrap.store;
 
 export function useAuth() {
+  const router = useRouter();
   const [store] = useState(browserSessionStore);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -282,7 +284,7 @@ export function useAuth() {
   async function handleSignOut() {
     if (!session || isSigningOut) return;
     const accessToken = session.access_token;
-    clearWorkspaceLocation();
+    clearWorkspaceLocation(router);
     discardStoredSession();
     const generation = operation.current;
     const current = () => mounted.current && generation === operation.current;

@@ -91,10 +91,8 @@ test("members see only their assigned settings and have no edit or save controls
     item("S1"),
     item("S2", { company_id: OTHER_COMPANY }),
   ]);
-  await expect(
-    page.getByRole("button", { name: "Show marketplace fees for S2", exact: true }),
-  ).toHaveCount(0);
-  await page.getByRole("button", { name: "Show marketplace fees for S1", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Show marketplace fees for S2: " })).toHaveCount(0);
+  await page.getByRole("button", { name: "Show marketplace fees for S1: " }).click();
   await expect(page.getByRole("cell", { name: "5%", exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Add SKU|Edit S1|Review changes|Save all changes/ }),
@@ -225,9 +223,7 @@ test("newly imported fee requirements for a changed SKU preserve its draft and b
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "No changes were saved." })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Show marketplace fees for S1", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Show marketplace fees for S1: " })).toBeVisible();
   await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
   await openReview(page);
   await expect(
@@ -318,7 +314,7 @@ test("discarding an accidental new SKU in review preserves other drafts without 
   await expect(review(page).getByRole("cell", { name: "6.123456%", exact: true })).toBeVisible();
   await review(page).getByRole("button", { name: "Back to editing", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Show marketplace fees for TYPO-SKU", exact: true }),
+    page.getByRole("button", { name: "Show marketplace fees for TYPO-SKU: " }),
   ).toHaveCount(0);
   await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(0);

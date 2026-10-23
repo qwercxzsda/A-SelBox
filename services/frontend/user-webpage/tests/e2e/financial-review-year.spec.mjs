@@ -183,7 +183,10 @@ test("chart keyboard selection opens the same currency and restores focus to its
   const fixture = await openFinancialReview(page);
   await currency(page).selectOption("EUR");
   const chart = page.getByRole("figure", { name: "Monthly and running differences", exact: true });
-  const july = chart.getByRole("button", { name: "View chart details for July 2026", exact: true });
+  const july = chart.getByRole("button", {
+    name: "Jul: View chart details for July 2026",
+    exact: true,
+  });
   await expect(july).toHaveAttribute(
     "title",
     "July 2026: Monthly difference 0.00 EUR; Running difference 0.00 EUR",

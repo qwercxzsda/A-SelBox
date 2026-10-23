@@ -93,9 +93,7 @@ for (const role of ["administrator", "member"]) {
     }
 
     await openTab("Current fees");
-    await page
-      .getByRole("button", { name: "Show marketplace fees for DESIGN-SKU", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Show marketplace fees for DESIGN-SKU: " }).click();
     await checkTable(
       page.getByRole("table", { name: "Marketplace fees for DESIGN-SKU", exact: true }),
     );

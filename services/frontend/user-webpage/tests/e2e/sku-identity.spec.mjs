@@ -81,7 +81,7 @@ for (const [role, dataset, tab] of SCOPES) {
 
     if (dataset === "live") {
       await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-      const sku = page.getByRole("button", { name: "Show marketplace fees for S1", exact: true });
+      const sku = page.getByRole("button", { name: "Show marketplace fees for S1: " });
       await expect(sku).toHaveCount(1);
       await sku.click();
       const fees = page.getByRole("table", { name: "Marketplace fees for S1", exact: true });

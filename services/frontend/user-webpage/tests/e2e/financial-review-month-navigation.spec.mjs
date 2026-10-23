@@ -8,7 +8,7 @@ for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await openFinancialReview(page);
     const july = page.getByRole("button", {
-      name: "View chart details for July 2026",
+      name: "Jul: View chart details for July 2026",
       exact: true,
     });
     await july.click();

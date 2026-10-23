@@ -51,6 +51,7 @@ export function TableScrollControls({
       className="table-scroll-controls"
       gap={4}
       wrap="nowrap"
+      role="group"
       aria-label="Scroll table columns"
     >
       <Text size="xs" c="dimmed">

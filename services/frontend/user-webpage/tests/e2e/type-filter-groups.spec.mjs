@@ -158,14 +158,13 @@ test("type groups support keyboard selection, disclosure, and escape focus retur
   await expect(group).toBeChecked();
   await expect.poll(() => typesSent(fixture)).toContain("FBA_STORAGE_FEE");
   const disclosure = menu.getByRole("button", {
-    name: `Show individual types in ${STORAGE}`,
-    exact: true,
+    name: `Show individual types in ${STORAGE}: `,
   });
   await disclosure.focus();
   await page.keyboard.press("Enter");
   await expect(checkbox(menu, "FBA storage fee")).toBeVisible();
   await expect(
-    menu.getByRole("button", { name: `Hide individual types in ${STORAGE}`, exact: true }),
+    menu.getByRole("button", { name: `Hide individual types in ${STORAGE}: ` }),
   ).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();

@@ -203,7 +203,7 @@ test("workspace controls share hover feedback across every administrator tab", a
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
   await hoverEmphasizesText(page, button(page, "Open review for June 2026"));
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  const details = button(page, "Show details for Review Company");
+  const details = page.getByRole("button", { name: "Show details for Review Company: " });
   await hoverChangesShade(page, details);
   await details.click();
   await hoverChangesShade(page, button(page, "View members"));
@@ -226,13 +226,17 @@ test("SKU text actions share the date-link appearance in fees, inventory and com
   const dateColor = (await appearance(date)).color;
   for (const name of ["Current fees", "Inventory", "Companies"]) {
     await page.getByRole("tab", { name, exact: true }).click();
-    if (name === "Companies") await button(page, "Show details for Review Company").click();
+    if (name === "Companies")
+      await page.getByRole("button", { name: "Show details for Review Company: " }).click();
     const sku = button(page, "Show transactions for S1");
     await expect(sku).toHaveCSS("color", dateColor);
     await hoverEmphasizesText(page, sku);
     await expectKeyboardFocus(page, sku);
     if (name === "Current fees")
-      await hoverChangesShade(page, button(page, "Show marketplace fees for S1"));
+      await hoverChangesShade(
+        page,
+        page.getByRole("button", { name: "Show marketplace fees for S1: " }),
+      );
     if (name === "Inventory")
       await hoverChangesShade(page, page.locator(".inventory-table tbody tr").first());
   }
@@ -311,7 +315,10 @@ test.describe("mouse input on a touch-configured browser", () => {
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     await hoverChangesShade(page, button(page, "Add company"));
     await page.getByRole("tab", { name: "Companies", exact: true }).click();
-    await hoverChangesShade(page, button(page, "Show details for Review Company"));
+    await hoverChangesShade(
+      page,
+      page.getByRole("button", { name: "Show details for Review Company: " }),
+    );
     const create = button(page, "Create company");
     await expect(create).toBeDisabled();
     const disabled = await appearance(create);

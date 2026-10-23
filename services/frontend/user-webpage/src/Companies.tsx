@@ -186,16 +186,18 @@ export function Companies({
         >
           {visible.map((company) => {
             const skus = assignments.get(company.id) ?? [];
+            const assignmentSummary = `${skus.length.toLocaleString("en-US")} assigned ${skus.length === 1 ? "SKU" : "SKUs"}`;
             return (
               <Accordion.Item key={company.id} value={company.id}>
-                <Accordion.Control aria-label={`Show details for ${company.name}`}>
+                <Accordion.Control
+                  aria-label={`Show details for ${company.name}: ${assignmentSummary}`}
+                >
                   <Group justify="space-between" gap="xs" className="company-list-summary">
                     <Text fw={600} size="sm" className="company-list-name">
                       {company.name}
-                    </Text>
+                    </Text>{" "}
                     <Text size="sm" c="dimmed">
-                      {skus.length.toLocaleString("en-US")} assigned{" "}
-                      {skus.length === 1 ? "SKU" : "SKUs"}
+                      {assignmentSummary}
                     </Text>
                   </Group>
                 </Accordion.Control>

@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Portal } from "@mantine/core";
+import { useRouter } from "@tanstack/react-router";
 import type { Identity } from "./auth-session";
 import { createWorkspaceStore } from "./workspace-storage";
 import { browserWorkspaceStorage } from "./workspace-browser-storage";
@@ -16,11 +17,13 @@ export function WorkspacePreferences({
   identity: Identity;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const [store] = useState(() => {
     const { storage, prefix } = browserWorkspaceStorage();
     return createWorkspaceNavigation(
       createWorkspaceStore(storage, prefix, identity.account),
       identity.account,
+      router,
     );
   });
   const navigation = store;

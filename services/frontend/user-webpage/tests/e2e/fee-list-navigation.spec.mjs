@@ -19,10 +19,10 @@ for (const [role, width] of [
         }),
       ),
     );
-    const first = page.getByRole("button", { name: "Show marketplace fees for S1", exact: true });
+    const first = page.getByRole("button", { name: "Show marketplace fees for S1: " });
     await first.click();
     await page
-      .getByRole("button", { name: "Show marketplace fees for Z-SKU-025", exact: true })
+      .getByRole("button", { name: "Show marketplace fees for Z-SKU-025: " })
       .scrollIntoViewIfNeeded();
     const bottom = page.getByRole("navigation", {
       name: "SKU list navigation at bottom",
@@ -36,7 +36,7 @@ for (const [role, width] of [
     });
     await bottom.getByRole("button", { name: "Next SKUs", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "Show marketplace fees for Z-SKU-026", exact: true }),
+      page.getByRole("button", { name: "Show marketplace fees for Z-SKU-026: " }),
     ).toBeInViewport();
     await expect(page.getByRole("group", { name: "Fee list controls", exact: true })).toBeFocused();
     await bottom.getByRole("button", { name: "Previous SKUs", exact: true }).click();

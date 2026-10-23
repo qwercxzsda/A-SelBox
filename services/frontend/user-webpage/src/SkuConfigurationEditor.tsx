@@ -18,29 +18,23 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import type {
-  Company,
-  SkuConfigurationChange,
-  SkuConfigurationItem,
-  SkuConfigurationPeriod,
-} from "./api";
+import type { Company, SkuConfigurationChange, SkuConfigurationItem } from "./api";
 import { SkuFeePeriodEditor } from "./SkuFeePeriodEditor";
 import { createSkuDraft, validateSkuItem } from "./sku-configuration-form";
 import type { FeeEditorState } from "./workspace-view-state";
 import "./SkuConfigurationDrawer.css";
 import { SkuRateChange } from "./SkuRateChange";
+import { useSkuEditorForm } from "./use-sku-editor-form";
 
-function rateChangeAfterPeriodEdit(
+function rateChangeAfterPeriodRemoval(
   rateChange: FeeEditorState["rateChange"],
-  removedIndex?: number,
+  removedIndex: number,
 ) {
   if (!rateChange || removedIndex === rateChange.periodIndex) return null;
-  const removedEarlierPeriod = removedIndex !== undefined && removedIndex < rateChange.periodIndex;
-  // Manual edits require a fresh preview, without losing the typed date and rate.
   return {
     ...rateChange,
-    periodIndex: removedEarlierPeriod ? rateChange.periodIndex - 1 : rateChange.periodIndex,
-    previewRequested: false,
+    periodIndex:
+      removedIndex < rateChange.periodIndex ? rateChange.periodIndex - 1 : rateChange.periodIndex,
   };
 }
 
@@ -69,7 +63,9 @@ export function SkuConfigurationEditor({
   onEditExisting: (sku: string) => void;
   onAddCompany: () => void;
 }) {
-  const { form, submitError } = editing;
+  const form = useSkuEditorForm(editing, onEditingChange);
+  const values = form.values;
+  const { submitError } = editing;
   const skuInput = useRef<HTMLInputElement>(null);
   const marketplaceInputs = useRef(new Map<number, HTMLSelectElement>());
   const addPeriodButton = useRef<HTMLButtonElement>(null);
@@ -82,16 +78,10 @@ export function SkuConfigurationEditor({
         : marketplaceInputs.current.get(pendingPeriodFocus.current);
     target?.focus();
     pendingPeriodFocus.current = null;
-  }, [form.periods.length]);
-  const setForm = (update: SetStateAction<SkuConfigurationChange>) => {
-    onEditingChange((current) => {
-      const nextForm = typeof update === "function" ? update(current.form) : update;
-      return {
-        ...current,
-        form: nextForm,
-        rateChange: nextForm.periods === current.form.periods ? current.rateChange : null,
-      };
-    });
+  }, [values.periods.length]);
+  const replaceDraft = (draft: SkuConfigurationChange) => {
+    onEditingChange((current) => ({ ...current, rateChange: null }));
+    form.setValues(draft);
   };
   const setSubmitError = (submitError: string | null) => {
     onEditingChange((current) => ({ ...current, submitError }));
@@ -102,20 +92,20 @@ export function SkuConfigurationEditor({
     skuInput.current?.scrollIntoView({ block: "center" });
   }
   const knownCompanyIds = new Set(companies.map(({ id }) => id));
-  const issues = validateSkuItem({ ...item, ...form }, knownCompanyIds);
+  const issues = validateSkuItem({ ...item, ...values }, knownCompanyIds);
   const initialIssue =
     editing.rateChange === null ? issues.find((issue) => issue.field) : undefined;
   const initialPeriodField =
     initialIssue?.field === "company_id" || initialIssue?.field === "sku"
       ? undefined
       : initialIssue?.field;
-  const unavailableCompany = form.company_id !== null && !knownCompanyIds.has(form.company_id);
-  const stale = form.expected_current_version_id !== item.terms_version_id;
-  const existingSku = isNew && knownSkus.includes(form.sku);
+  const unavailableCompany = values.company_id !== null && !knownCompanyIds.has(values.company_id);
+  const stale = values.expected_current_version_id !== item.terms_version_id;
+  const existingSku = isNew && knownSkus.includes(values.sku);
   function stageDraft(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (editing.rateChange !== null) return;
-    if (!form.sku.trim() || form.sku.includes("\0")) {
+    if (!values.sku.trim() || values.sku.includes("\0")) {
       showSkuError("Enter a SKU.");
       return;
     }
@@ -123,17 +113,7 @@ export function SkuConfigurationEditor({
       showSkuError("This exact SKU already exists. Edit its current settings instead.");
       return;
     }
-    onStage(form);
-  }
-  function changePeriods(
-    update: (periods: SkuConfigurationPeriod[]) => SkuConfigurationPeriod[],
-    removedIndex?: number,
-  ) {
-    onEditingChange((current) => ({
-      ...current,
-      form: { ...current.form, periods: update(current.form.periods) },
-      rateChange: rateChangeAfterPeriodEdit(current.rateChange, removedIndex),
-    }));
+    onStage(form.getValues());
   }
   function startRateChange(index: number) {
     onEditingChange((current) => {
@@ -149,24 +129,23 @@ export function SkuConfigurationEditor({
       };
     });
   }
-  function updatePeriod(index: number, field: keyof SkuConfigurationPeriod, value: string | null) {
-    changePeriods((periods) =>
-      periods.map((period, position) =>
-        position === index ? { ...period, [field]: value } : period,
-      ),
-    );
-  }
   function addPeriod() {
-    pendingPeriodFocus.current = form.periods.length;
-    changePeriods((periods) => [
-      ...periods,
-      { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "" },
-    ]);
+    pendingPeriodFocus.current = values.periods.length;
+    form.insertListItem("periods", {
+      marketplace_name: "",
+      valid_from: "",
+      valid_to: null,
+      fee_rate_percent: "",
+    });
   }
   function removePeriod(index: number) {
-    if (index === form.periods.length - 1)
+    if (index === values.periods.length - 1)
       pendingPeriodFocus.current = index === 0 ? "add" : index - 1;
-    changePeriods((periods) => periods.filter((_, position) => position !== index), index);
+    onEditingChange((current) => ({
+      ...current,
+      rateChange: rateChangeAfterPeriodRemoval(current.rateChange, index),
+    }));
+    form.removeListItem("periods", index);
   }
   return (
     <Drawer
@@ -208,7 +187,7 @@ export function SkuConfigurationEditor({
                 mt="sm"
                 variant="light"
                 onClick={() => {
-                  setForm(createSkuDraft(item));
+                  replaceDraft(createSkuDraft(item));
                 }}
               >
                 Load latest saved settings
@@ -220,19 +199,15 @@ export function SkuConfigurationEditor({
               ref={skuInput}
               label="SKU"
               description="Type a SKU prefix to find existing settings, or enter a new exact SKU. Spelling and spaces are preserved."
-              value={form.sku}
+              {...form.getInputProps("sku", { withError: false })}
               data={
-                form.sku
+                values.sku
                   ? knownSkus
-                      .filter((sku) => sku.toLowerCase().startsWith(form.sku.toLowerCase()))
+                      .filter((sku) => sku.toLowerCase().startsWith(values.sku.toLowerCase()))
                       .slice(0, 20)
                   : []
               }
               filter={({ options }) => options}
-              onChange={(sku) => {
-                setSubmitError(null);
-                setForm({ ...form, sku });
-              }}
               error={submitError}
               data-autofocus
             />
@@ -244,7 +219,7 @@ export function SkuConfigurationEditor({
                 mt="sm"
                 variant="light"
                 onClick={() => {
-                  onEditExisting(form.sku);
+                  onEditExisting(values.sku);
                 }}
               >
                 Edit existing SKU
@@ -261,20 +236,20 @@ export function SkuConfigurationEditor({
             <NativeSelect
               aria-label="Company"
               data-autofocus={initialIssue?.field === "company_id" || undefined}
-              value={unavailableCompany ? "" : (form.company_id ?? "")}
+              value={unavailableCompany ? "" : (values.company_id ?? "")}
               data={[
                 { value: "", label: "Choose a company" },
                 ...companies.map((company) => ({ value: company.id, label: company.name })),
               ]}
               onChange={(event) => {
-                setForm({ ...form, company_id: event.currentTarget.value || null });
+                form.setFieldValue("company_id", event.currentTarget.value || null);
               }}
               error={issues.find((issue) => issue.field === "company_id")?.message}
             />
           </Stack>
           <Divider />
           <Stack gap={4}>
-            <Title order={4} className="sku-configuration-section-title">
+            <Title order={3} size="h4" className="sku-configuration-section-title">
               Marketplace fee periods
             </Title>
             <Text size="sm" c="dimmed">
@@ -282,15 +257,15 @@ export function SkuConfigurationEditor({
               ongoing rate. Enter 0 only when the agreed fee is zero.
             </Text>
           </Stack>
-          {form.periods.length === 0 ? (
+          {values.periods.length === 0 ? (
             <Text size="sm">
               No fee periods. Add a period when this SKU has transactions that require a fee.
             </Text>
           ) : null}
-          {form.periods.map((period, index) => (
+          {values.periods.map((period, index) => (
             <Fragment key={index}>
               <SkuFeePeriodEditor
-                period={period}
+                form={form}
                 index={index}
                 issues={issues}
                 initialFocusField={
@@ -301,9 +276,6 @@ export function SkuConfigurationEditor({
                   if (element) marketplaceInputs.current.set(index, element);
                   else marketplaceInputs.current.delete(index);
                 }}
-                onUpdate={(field, value) => {
-                  updatePeriod(index, field, value);
-                }}
                 onRemove={() => {
                   removePeriod(index);
                 }}
@@ -313,8 +285,8 @@ export function SkuConfigurationEditor({
               />
               {editing.rateChange?.periodIndex === index ? (
                 <SkuRateChange
-                  sku={form.sku}
-                  periods={form.periods}
+                  sku={values.sku}
+                  periods={values.periods}
                   draft={editing.rateChange}
                   onChange={(rateChange) => {
                     onEditingChange((current) => ({ ...current, rateChange }));
@@ -322,7 +294,7 @@ export function SkuConfigurationEditor({
                   onApply={(periods) => {
                     const target =
                       editing.rateChange?.effectiveDate === period.valid_from ? index : index + 1;
-                    setForm({ ...form, periods });
+                    replaceDraft({ ...form.getValues(), periods });
                     requestAnimationFrame(() => marketplaceInputs.current.get(target)?.focus());
                   }}
                   onCancel={() => {

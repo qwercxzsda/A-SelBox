@@ -20,8 +20,7 @@ for (const role of ["administrator", "member"]) {
       }));
     });
     const feesToggle = page.getByRole("button", {
-      name: `Show marketplace fees for ${SKU}`,
-      exact: true,
+      name: `Show marketplace fees for ${SKU}: `,
     });
     const sku = page.getByRole("button", { name: `Show transactions for ${SKU}`, exact: true });
     await expect(feesToggle).toHaveAttribute("aria-expanded", "false");

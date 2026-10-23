@@ -51,7 +51,7 @@ test("F5 restores the fee tab, expanded SKU, unfinished editor and review reason
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("S1");
   await expect(
-    page.getByRole("button", { name: "Show marketplace fees for S1", exact: true }),
+    page.getByRole("button", { name: "Show marketplace fees for S1: " }),
   ).toHaveAttribute("aria-expanded", "true");
   await openReview(page);
   await review(page).getByLabel("Reason for changes (optional)").fill("Preserve my explanation");

@@ -16,7 +16,7 @@ const membership = (page) => page.getByRole("dialog", { name: "Company membershi
 const accountRow = (page, email) =>
   page.getByRole("row").filter({ has: page.getByText(email, { exact: true }) });
 const companyDetails = (page, name) =>
-  page.getByRole("button", { name: `Show details for ${name}`, exact: true });
+  page.getByRole("button", { name: `Show details for ${name}: ` });
 
 function addCompanies(fixture, count) {
   for (let index = 1; index <= count; index += 1) {

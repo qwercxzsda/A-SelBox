@@ -49,15 +49,12 @@ export async function setup(
   configure(fixture);
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Show marketplace fees for S1", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Show marketplace fees for S1: " })).toBeVisible();
   return fixture;
 }
 export async function openEditor(page, sku = "S1") {
   const toggle = page.getByRole("button", {
-    name: `Show marketplace fees for ${sku}`,
-    exact: true,
+    name: `Show marketplace fees for ${sku}: `,
   });
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   await page.getByRole("button", { name: `Edit ${sku}`, exact: true }).click();

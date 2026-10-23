@@ -1,38 +1,19 @@
-const ROUTE_KEYS = [
-  "tab",
-  "from",
-  "to",
-  "company",
-  "sku",
-  "currency",
-  "year",
-  "category",
-  "month",
-  "report",
-  "reportCompany",
-  "reportFrom",
-  "reportTo",
-  "reportCurrency",
-  "search",
-  "page",
-  "size",
-  "sort",
-  "order",
-  "marketplace",
-  "type",
-  "source",
-  "fee",
-  "row",
-  "health",
-  "recommendation",
-];
+import type { RegisteredRouter } from "@tanstack/react-router";
+import { WORKSPACE_SEARCH_PARAMETERS } from "./router-search.ts";
 
 export function withoutWorkspaceLocation(url: URL): URL {
   const next = new URL(url);
-  for (const key of ROUTE_KEYS) next.searchParams.delete(key);
+  for (const key of Object.keys(WORKSPACE_SEARCH_PARAMETERS)) next.searchParams.delete(key);
   return next;
 }
 
-export function clearWorkspaceLocation() {
-  window.history.replaceState(null, "", withoutWorkspaceLocation(new URL(window.location.href)));
+export function clearWorkspaceLocation(router: RegisteredRouter) {
+  const next = withoutWorkspaceLocation(
+    new URL(router.history.location.href, window.location.origin),
+  );
+  void router.navigate({
+    href: `${next.pathname}${next.search}${next.hash}`,
+    replace: true,
+    resetScroll: false,
+  });
 }

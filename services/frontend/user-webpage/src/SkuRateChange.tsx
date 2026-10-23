@@ -37,7 +37,9 @@ export function SkuRateChange({
       aria-label="Change rate from date"
     >
       <Stack gap="sm">
-        <Title order={5}>Change rate from date</Title>
+        <Title order={4} size="h5">
+          Change rate from date
+        </Title>
         <Text size="sm" c="dimmed">
           {periods[draft.periodIndex].marketplace_name}. Preview the date boundary before adding it
           to your draft. Other periods stay unchanged.

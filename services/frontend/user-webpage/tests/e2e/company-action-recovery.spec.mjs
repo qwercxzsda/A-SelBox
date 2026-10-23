@@ -51,10 +51,9 @@ test("a blocked company deletion focuses its explanation and can be cancelled by
 }) => {
   const fixture = await openCompanies(page);
   fixture.companyDeletionBlockers[unusedCompany] = [{ code: "members", count: 2 }];
-  await page.getByRole("button", { name: "Show details for Unused Company", exact: true }).click();
+  await page.getByRole("button", { name: "Show details for Unused Company: " }).click();
   const details = page.getByRole("region", {
-    name: "Show details for Unused Company",
-    exact: true,
+    name: "Show details for Unused Company: ",
   });
   await expect(details).toHaveCSS("overflow", "visible");
   await details.getByRole("button", { name: "Delete company", exact: true }).click();

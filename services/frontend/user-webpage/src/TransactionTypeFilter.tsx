@@ -36,6 +36,7 @@ function TypeGroup({
   const optionsId = useId();
   const values = group.options.map(({ value }) => value);
   const selectedCount = values.filter((value) => selected.has(value)).length;
+  const countLabel = `${selectedCount > 0 ? `${String(selectedCount)}/` : ""}${String(values.length)} ${searching ? "matching " : ""}${values.length === 1 ? "type" : "types"}`;
   return (
     <section className="type-filter-group" aria-label={group.label}>
       <div className="type-filter-group-heading">
@@ -56,17 +57,13 @@ function TypeGroup({
         </VisuallyHidden>
         <UnstyledButton
           className="type-filter-expand ui-surface-action"
-          aria-label={`${expanded ? "Hide" : "Show"} individual types in ${group.label}`}
+          aria-label={`${expanded ? "Hide" : "Show"} individual types in ${group.label}: ${countLabel}`}
           aria-expanded={expanded}
           aria-controls={optionsId}
           disabled={searching}
           onClick={onExpand}
         >
-          <span>
-            {selectedCount > 0 ? `${String(selectedCount)}/` : ""}
-            {values.length} {searching ? "matching " : ""}
-            {values.length === 1 ? "type" : "types"}
-          </span>
+          <span>{countLabel}</span>
           <span className="type-filter-chevron" aria-hidden="true" data-expanded={expanded}>
             ›
           </span>

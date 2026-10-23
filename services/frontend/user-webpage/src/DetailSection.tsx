@@ -13,6 +13,7 @@ export function DetailSection({
   children,
   ref,
   stateKey,
+  headingOrder = 4,
 }: {
   title: string;
   label?: string;
@@ -22,6 +23,7 @@ export function DetailSection({
   children: ReactNode;
   ref?: Ref<HTMLElement>;
   stateKey?: string;
+  headingOrder?: 2 | 3 | 4;
 }) {
   const [savedOpen, setOpened] = useWorkspacePreference(
     `${stateKey ?? label}:expanded`,
@@ -33,7 +35,7 @@ export function DetailSection({
   return (
     <section ref={ref} tabIndex={-1} className="detail-section" aria-label={label}>
       <Group className="detail-section-header" justify="space-between" gap="sm">
-        <Title order={4} className="detail-section-title">
+        <Title order={headingOrder} size="h4" className="detail-section-title">
           {collapsible ? (
             <UnstyledButton
               className="detail-section-toggle ui-text-action"

@@ -13,7 +13,8 @@ const UNUSED = "0198b50b-701a-7000-8000-000000000800";
 const EXTRA = "0198b50b-701a-7000-8000-000000000801";
 const button = (parent, name) => parent.getByRole("button", { name, exact: true });
 const tab = (page, name) => page.getByRole("tab", { name, exact: true });
-const toggle = (page, name = "Unused Company") => button(page, `Show details for ${name}`);
+const toggle = (page, name = "Unused Company") =>
+  page.getByRole("button", { name: `Show details for ${name}: ` });
 const company = (page, name = "Unused Company") =>
   page.locator(".mantine-Accordion-item").filter({ has: toggle(page, name) });
 const confirmation = (page, name = "Unused Company") =>
@@ -34,9 +35,10 @@ async function askToDelete(page, name = "Unused Company") {
   // During expansion, scrolling the bottom button can scroll the clipped panel;
   // its scroll offset then changes mid-click as the animated height increases.
   // Mantine restores visible overflow when the expansion has finished.
-  await expect(
-    page.getByRole("region", { name: `Show details for ${name}`, exact: true }),
-  ).toHaveCSS("overflow", "visible");
+  await expect(page.getByRole("region", { name: `Show details for ${name}: ` })).toHaveCSS(
+    "overflow",
+    "visible",
+  );
   await button(company(page, name), "Delete company").click();
   await expect(confirmation(page, name)).toBeVisible();
 }

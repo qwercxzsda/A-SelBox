@@ -102,6 +102,7 @@ function MembershipEditor({
         <Group mt="sm">
           <Badge
             color={administrator ? "blue" : account.access_role === "member" ? "teal" : "gray"}
+            c={account.access_role === "member" ? "#065f46" : undefined}
             variant="light"
           >
             {humanizeCode(account.access_role)}

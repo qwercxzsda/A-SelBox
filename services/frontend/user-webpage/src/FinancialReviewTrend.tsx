@@ -88,7 +88,7 @@ export function FinancialReviewTrend({
               type="button"
               className="financial-review-trend-month"
               style={position}
-              aria-label={`View chart details for ${label}`}
+              aria-label={`${MONTHS[monthIndex]}: View chart details for ${label}`}
               title={description}
               onClick={(event) => {
                 event.currentTarget.focus({ preventScroll: true });

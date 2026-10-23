@@ -66,6 +66,7 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     <DetailSection
       stateKey="finances:transaction-lookup"
       title="Find Amazon transaction"
+      headingOrder={2}
       collapsible
       description="Search an exact Amazon transaction ID across all retained captures. This lookup is independent of the table filters."
     >

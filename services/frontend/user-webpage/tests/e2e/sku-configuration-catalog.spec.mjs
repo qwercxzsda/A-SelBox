@@ -38,9 +38,7 @@ test("large catalogs preserve global setup diagnostics without blocking unrelate
     "of 1,205 SKUs",
   );
   await page.getByLabel("Search SKUs", { exact: true }).fill("UNASSIGNED-1204");
-  await page
-    .getByRole("button", { name: "Show marketplace fees for UNASSIGNED-1204", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Show marketplace fees for UNASSIGNED-1204: " }).click();
   await page.getByRole("button", { name: "Edit UNASSIGNED-1204", exact: true }).click();
   await editor(page).getByLabel("Company", { exact: true }).selectOption(COMPANY);
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();

@@ -181,7 +181,7 @@ export function SkuConfigurationList({
                     </Button>
                   ) : null}
                   <Accordion.Control
-                    aria-label={`Show marketplace fees for ${item.sku}`}
+                    aria-label={`Show marketplace fees for ${item.sku}: Fee periods (${String(item.periods.length)})`}
                     className="fee-sku-toggle"
                   >
                     Fee periods ({item.periods.length})

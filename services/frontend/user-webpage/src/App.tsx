@@ -74,7 +74,7 @@ function App() {
     <main className="app-shell">
       <div className="app-frame">
         <header className="topbar">
-          <p className="app-brand">A-SelBox</p>
+          <h1 className="app-brand">A-SelBox</h1>
           {session ? (
             <div className="session-panel">
               <span className="session-identity">

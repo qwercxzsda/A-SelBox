@@ -1,12 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MantineProvider } from "@mantine/core";
+import { RouterProvider } from "@tanstack/react-router";
 import { appTheme } from "./design-system";
 import "@mantine/core/styles.css";
 import "./design-system.css";
 import "./interaction-states.css";
 import "./index.css";
-import App from "./App.tsx";
+import { appRouter } from "./router";
 
 const rootElement = document.getElementById("root");
 if (rootElement === null) {
@@ -16,7 +17,7 @@ if (rootElement === null) {
 createRoot(rootElement).render(
   <StrictMode>
     <MantineProvider theme={appTheme} forceColorScheme="light">
-      <App />
+      <RouterProvider router={appRouter} />
     </MantineProvider>
   </StrictMode>,
 );

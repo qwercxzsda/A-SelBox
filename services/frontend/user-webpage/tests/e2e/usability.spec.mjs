@@ -29,8 +29,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByLabel("Search SKUs", { exact: true }).fill("GROUP-001");
   const group = page.getByRole("button", {
-    name: "Show marketplace fees for GROUP-001",
-    exact: true,
+    name: "Show marketplace fees for GROUP-001: ",
   });
   await group.click();
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
@@ -218,8 +217,7 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   const group = page.getByRole("button", {
-    name: "Show marketplace fees for GROUP-001",
-    exact: true,
+    name: "Show marketplace fees for GROUP-001: ",
   });
   await group.click();
   const rate = page.getByRole("cell", { name: "5.123456%", exact: true });
@@ -293,8 +291,10 @@ for (const role of ["member", "administrator"]) {
     await expect(companyColumn).toHaveCount(role === "administrator" ? 1 : 0);
     await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(1);
     const header = page.locator("header");
-    await expect(header.getByRole("heading")).toHaveCount(0);
-    await expect(header.getByText("A-SelBox", { exact: true })).toBeVisible();
+    await expect(header.getByRole("heading")).toHaveCount(1);
+    await expect(
+      header.getByRole("heading", { name: "A-SelBox", level: 1, exact: true }),
+    ).toBeVisible();
     const identityLabel = header.getByText(
       role === "administrator" ? "Administrator" : companyName,
       {

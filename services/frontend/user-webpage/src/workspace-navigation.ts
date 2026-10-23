@@ -1,3 +1,4 @@
+import type { RegisteredRouter } from "@tanstack/react-router";
 import type { AppAccount } from "./api/types";
 import type { createWorkspaceStore } from "./workspace-storage";
 import { locationPreference, workspaceLocation } from "./workspace-location";
@@ -6,10 +7,11 @@ import { locationPreference, workspaceLocation } from "./workspace-location";
 export function createWorkspaceNavigation(
   base: ReturnType<typeof createWorkspaceStore>,
   account: AppAccount,
+  router: RegisteredRouter,
 ) {
   const preferences = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let location = new URL(window.location.href);
+  const currentLocation = () => new URL(router.history.location.href, window.location.origin);
+  let location = currentLocation();
   let revision = 0;
   let queued = false;
   let active = true;
@@ -17,30 +19,29 @@ export function createWorkspaceNavigation(
   const commit = (replace: boolean) => {
     if (!active || suspended) return;
     const next = workspaceLocation(location, account, preferences);
-    if (next.href !== window.location.href) {
-      const beforeSearch = new URL(window.location.href);
+    const current = currentLocation();
+    if (next.href !== current.href) {
+      const beforeSearch = new URL(current);
       const afterSearch = new URL(next);
       beforeSearch.searchParams.delete("search");
       afterSearch.searchParams.delete("search");
       const replaceTyping = beforeSearch.href === afterSearch.href;
-      window.history[replace || replaceTyping ? "replaceState" : "pushState"](null, "", next);
+      void router.navigate({
+        href: `${next.pathname}${next.search}${next.hash}`,
+        replace: replace || replaceTyping,
+        resetScroll: false,
+      });
     }
     location = next;
   };
-  const pop = () => {
-    location = new URL(window.location.href);
-    revision++;
-    for (const notify of listeners) notify();
-  };
   return {
-    subscribe: (notify: () => void) => {
-      if (listeners.size === 0) window.addEventListener("popstate", pop);
-      listeners.add(notify);
-      return () => {
-        listeners.delete(notify);
-        if (listeners.size === 0) window.removeEventListener("popstate", pop);
-      };
-    },
+    subscribe: (notify: () => void) =>
+      router.history.subscribe(({ action }) => {
+        if (action.type === "PUSH" || action.type === "REPLACE") return;
+        location = currentLocation();
+        revision++;
+        notify();
+      }),
     getRevision: () => revision,
     initialize() {
       active = true;
