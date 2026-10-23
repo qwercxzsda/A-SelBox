@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Alert, Badge, Button, Drawer, Group, Select, Stack, Text, Title } from "@mantine/core";
 import type { CanonicalRow, Company } from "./api";
 import { parseAppAccount } from "./api/workspace";
 import { humanizeCode } from "./categories";
 import { companyLabel } from "./view-model";
-import { useCompanyMembership, type MembershipFeedback } from "./use-company-membership";
+import { useCompanyMembership } from "./use-company-membership";
+import type { MembershipFeedback } from "./use-membership-save-feedback";
 
 interface MembershipProps {
   accessToken: string;
@@ -18,6 +19,8 @@ export function CompanyMembership({ row, ...props }: MembershipProps) {
   const [feedback, setFeedback] = useState<(MembershipFeedback & { userId: string }) | null>(null);
   const visibleFeedback = feedback?.userId === row?.user_id ? feedback : null;
   const feedbackRef = useRef<HTMLDivElement>(null);
+  // Updated access remounts the editor; keep its pending result tied to this drawer.
+  const observedSaveRef = useRef<number | null>(null);
   useEffect(() => {
     if (visibleFeedback) feedbackRef.current?.focus();
   }, [visibleFeedback]);
@@ -49,6 +52,7 @@ export function CompanyMembership({ row, ...props }: MembershipProps) {
         <MembershipEditor
           key={`${row.user_id ?? ""}:${row.access_role ?? ""}:${row.company_id ?? ""}`}
           row={row}
+          observedSaveRef={observedSaveRef}
           {...props}
           onFeedbackChange={(feedback) => {
             setFeedback(feedback === null ? null : { ...feedback, userId: row.user_id ?? "" });
@@ -65,13 +69,15 @@ function MembershipEditor({
   companies,
   onFeedbackChange,
   onAddCompany,
+  observedSaveRef,
 }: Omit<MembershipProps, "row"> & {
   row: CanonicalRow;
   onFeedbackChange: (feedback: MembershipFeedback | null) => void;
+  observedSaveRef: RefObject<number | null>;
 }) {
   const account = parseAppAccount(row, row.user_id ?? "");
   const { companyId, setCompanyId, isSaving, confirmRevocation, setConfirmRevocation, save } =
-    useCompanyMembership({ accessToken, account, companies, onFeedbackChange });
+    useCompanyMembership({ accessToken, account, companies, onFeedbackChange, observedSaveRef });
   const confirmationRef = useRef<HTMLDivElement>(null);
   const revokeButtonRef = useRef<HTMLButtonElement>(null);
   const wasConfirmingRevocation = useRef(false);
@@ -170,7 +176,13 @@ function MembershipEditor({
                 will remain available.
               </Text>
               <Group mt="md">
-                <Button color="red" loading={isSaving} onClick={() => void save(null)}>
+                <Button
+                  color="red"
+                  loading={isSaving}
+                  onClick={() => {
+                    save(null);
+                  }}
+                >
                   Confirm revocation
                 </Button>
                 <Button
@@ -189,7 +201,9 @@ function MembershipEditor({
               <Button
                 loading={isSaving}
                 disabled={!companyId || unavailableCompany || companyId === account.company_id}
-                onClick={() => void save(companyId)}
+                onClick={() => {
+                  save(companyId);
+                }}
               >
                 Save membership
               </Button>

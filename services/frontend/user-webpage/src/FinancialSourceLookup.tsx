@@ -10,10 +10,12 @@ import type { Identity } from "./auth-session";
 import { DetailData } from "./DetailData";
 import { DetailSection } from "./DetailSection";
 import { DetailTable } from "./DetailTable";
+import { decodeDetailPage } from "./detail-view-state";
 import { FinancialSourceRecord } from "./FinancialSourceRecord";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { LookupPagination } from "./LookupPagination";
+import { revealSection } from "./reveal-section";
 
 export function FinancialSourceLookup({ identity }: { identity: Identity }) {
   const [transactionId, setTransactionId] = useWorkspacePreference(
@@ -22,7 +24,11 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     (value) => (typeof value === "string" && value.length <= 512 ? value : ""),
   );
   const [input, setInput] = useState(transactionId);
-  const [pageIndex, setPageIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useWorkspacePreference(
+    "finances:transaction-lookup-page",
+    () => 0,
+    decodeDetailPage,
+  );
   const [selection, setSelection] = useWorkspacePreference<FinancialSourceSelection | null>(
     "finances:transaction-lookup:selected",
     () => null,
@@ -46,8 +52,7 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
   const rows = query.data?.rows ?? [];
   function changePage(nextPage: number) {
     setPageIndex(nextPage);
-    resultsRef.current?.focus({ preventScroll: true });
-    resultsRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    revealSection(resultsRef.current);
   }
   const pagination = {
     label: "matches",
@@ -103,7 +108,11 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
             query={query}
             label="Amazon transaction"
             rowCount={rows.length}
-            emptyMessage="No retained source record has this exact Amazon transaction ID."
+            emptyMessage={
+              pageIndex > 0
+                ? "No matches on this page. Return to the previous page to see earlier matches."
+                : "No retained source record has this exact Amazon transaction ID."
+            }
           >
             {query.data || pageIndex > 0 ? <LookupPagination {...pagination} mb="sm" /> : null}
             {rows.length ? (

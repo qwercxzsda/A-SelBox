@@ -5,6 +5,7 @@ import { useCompanyDirectory } from "./company-directory-context";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { getErrorMessage } from "./view-model";
 import { useMountedRef } from "./use-mounted-ref";
+import { useActionFeedbackFocus } from "./use-action-feedback-focus";
 
 function creationError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -30,6 +31,10 @@ export function CompanyCreateForm({
   );
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ companyId: string; message: string } | null>(null);
+  const visibleNotice =
+    notice && companies.some(({ id }) => id === notice.companyId) ? notice : null;
+  const sectionRef = useRef<HTMLElement>(null);
+  const feedbackRef = useActionFeedbackFocus(problem ?? visibleNotice?.message ?? null, sectionRef);
   const mounted = useMountedRef();
   const pending = useRef(false);
   if (!canManage) return null;
@@ -56,7 +61,7 @@ export function CompanyCreateForm({
   }
 
   return (
-    <Paper withBorder p="md" component="section" aria-label="Add company">
+    <Paper ref={sectionRef} withBorder p="md" component="section" aria-label="Add company">
       <Stack gap="sm">
         <Title order={3} size="h5">
           Add company
@@ -93,13 +98,19 @@ export function CompanyCreateForm({
           </Group>
         </form>
         {problem ? (
-          <Alert role="alert" color="red">
+          <Alert ref={feedbackRef} tabIndex={-1} role="alert" color="red">
             {problem}
           </Alert>
         ) : null}
-        {notice && companies.some(({ id }) => id === notice.companyId) ? (
-          <Alert role="status" color="green" className="company-create-notice">
-            <Text size="sm">{notice.message}</Text>
+        {visibleNotice ? (
+          <Alert
+            ref={feedbackRef}
+            tabIndex={-1}
+            role="status"
+            color="green"
+            className="company-create-notice"
+          >
+            <Text size="sm">{visibleNotice.message}</Text>
             <Text size="sm">
               {returnLabel
                 ? `Return to ${returnLabel} and select this company to continue. Your existing draft is unchanged.`

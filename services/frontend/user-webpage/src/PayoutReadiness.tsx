@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { Alert, Badge, Button, Group, Paper, Stack, Text } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { fetchPayoutReadiness } from "./api";
@@ -7,6 +8,7 @@ import { PayoutSetupBlockers } from "./PayoutSetupBlockers";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailPage, decodeDetailStrings } from "./detail-view-state";
 import { LookupPagination } from "./LookupPagination";
+import { revealSection } from "./reveal-section";
 
 const STATUS: Partial<Record<string, { label: string; color: string; description: string }>> = {
   PENDING: {
@@ -57,6 +59,7 @@ export function PayoutReadiness({
   companyIds: string[];
   onConfigureSku?: (sku: string) => void;
 }) {
+  const listRef = useRef<HTMLElement>(null);
   const scope = `payout-readiness:${month}:${JSON.stringify([...companyIds].sort())}`;
   const [pageIndex, setPageIndex] = useWorkspacePreference(
     `${scope}:page`,
@@ -75,12 +78,19 @@ export function PayoutReadiness({
       fetchPayoutReadiness(identity.session.access_token, month, companyIds, pageIndex, signal),
     staleTime: Infinity,
   });
+  function changePage(nextPage: number) {
+    setPageIndex(nextPage);
+    revealSection(listRef.current);
+  }
   return (
     <Paper
       withBorder
       p="sm"
       mb="md"
       component="section"
+      ref={listRef}
+      tabIndex={-1}
+      style={{ scrollMarginTop: 16 }}
       aria-label={`${formatRecordMonth(month)} payout readiness`}
     >
       <Text size="sm" fw={600} mb="xs">
@@ -169,7 +179,7 @@ export function PayoutReadiness({
           pageIndex={pageIndex}
           hasNext={query.data?.hasNext ?? false}
           disabled={query.isFetching}
-          onPageChange={setPageIndex}
+          onPageChange={changePage}
         />
       ) : null}
     </Paper>

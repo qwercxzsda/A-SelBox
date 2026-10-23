@@ -1,6 +1,7 @@
 import "./PaginationBar.css";
 import { useState } from "react";
-import { Button, Group, NumberInput, Text } from "@mantine/core";
+import { Group, NumberInput, Text } from "@mantine/core";
+import { NavigationStepButton } from "./NavigationStepButton";
 
 interface PaginationBarProps {
   pageIndex: number;
@@ -13,31 +14,6 @@ interface PaginationBarProps {
   onPageChange?: (pageIndex: number) => void;
   summary: string;
   ariaLabel?: string;
-}
-
-/** Keep focus on an unavailable step without allowing another page request. */
-function PaginationStepButton({
-  label,
-  disabled,
-  onClick,
-}: {
-  label: "Previous" | "Next";
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      variant="default"
-      aria-disabled={disabled}
-      data-disabled={disabled || undefined}
-      tabIndex={disabled ? -1 : undefined}
-      onClick={() => {
-        if (!disabled) onClick();
-      }}
-    >
-      {label}
-    </Button>
-  );
 }
 
 export function PaginationBar({
@@ -85,7 +61,7 @@ export function PaginationBar({
         {summary}
       </Text>
       <div className="pagination-controls">
-        <PaginationStepButton
+        <NavigationStepButton
           label="Previous"
           disabled={!canPrevious || isBusy}
           onClick={onPrevious}
@@ -123,7 +99,7 @@ export function PaginationBar({
           />
           <span>of {pageCount ?? "—"}</span>
         </form>
-        <PaginationStepButton label="Next" disabled={!canNext || isBusy} onClick={onNext} />
+        <NavigationStepButton label="Next" disabled={!canNext || isBusy} onClick={onNext} />
       </div>
     </Group>
   );

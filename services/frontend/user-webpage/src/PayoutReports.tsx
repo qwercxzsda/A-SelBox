@@ -19,6 +19,8 @@ import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { usePayoutReportSelection } from "./use-payout-report-selection";
 import { RowsSelect } from "./RowsSelect";
 import { SearchInput } from "./SearchInput";
+import { ListPageNavigation } from "./ListPageNavigation";
+import { revealSection } from "./reveal-section";
 
 export function PayoutReports({
   identity,
@@ -38,6 +40,7 @@ export function PayoutReports({
   onConfigureSku?: (sku: string) => void;
 } & ViewStateProps<DatasetViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
     useFinanceTable(identity, "payouts", viewState, onViewStateChange, currency);
   const [history, setHistory] = useWorkspacePreference(
@@ -50,6 +53,11 @@ export function PayoutReports({
   const { pageIndex, pageSize } = table.state.pagination;
   const rows = table.getRowModel().rows.map((row) => row.original);
   const pageCount = totalCount === null ? null : table.getPageCount();
+  const canPrevious = table.getCanPreviousPage();
+  const canNext = totalCount === null ? rows.length === pageSize : table.getCanNextPage();
+  function showControls() {
+    revealSection(controlsRef.current);
+  }
   const {
     selected,
     selectedScope,
@@ -117,7 +125,20 @@ export function PayoutReports({
       <UpdateStatus active={selectedScope !== null && versionQuery.isPending}>
         Loading selected report version…
       </UpdateStatus>
-      <Group className="table-toolbar" justify="space-between" align="end">
+      <Group
+        ref={controlsRef}
+        tabIndex={-1}
+        role="group"
+        aria-label="Payout report controls"
+        className="table-toolbar"
+        justify="space-between"
+        align="end"
+        style={{
+          scrollMarginTop: fixedMonth
+            ? "calc(var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px)"
+            : 16,
+        }}
+      >
         <Group align="end" className="table-toolbar-fields">
           <SearchInput
             inputRef={searchInput}
@@ -138,8 +159,8 @@ export function PayoutReports({
         <PaginationBar
           pageIndex={pageIndex}
           pageCount={pageCount}
-          canPrevious={table.getCanPreviousPage()}
-          canNext={totalCount === null ? rows.length === pageSize : table.getCanNextPage()}
+          canPrevious={canPrevious}
+          canNext={canNext}
           isBusy={query.isFetching}
           onPrevious={() => {
             table.previousPage();
@@ -247,6 +268,25 @@ export function PayoutReports({
           </div>
         ) : null}
       </PayoutReportsTable>
+      {rows.length > 10 || pageIndex > 0 ? (
+        <ListPageNavigation
+          labels={{
+            navigation: "Payout report navigation at bottom",
+            items: "reports",
+            back: "Back to report filters",
+          }}
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          canPrevious={canPrevious}
+          canNext={canNext}
+          isBusy={query.isFetching}
+          onBackToFilters={showControls}
+          onPageChange={(index) => {
+            table.setPageIndex(index);
+            showControls();
+          }}
+        />
+      ) : null}
       <RowDetail
         stackId={fixedMonth && reviewMode ? "financial-review-snapshot" : undefined}
         onExitTransitionEnd={fixedMonth ? restoreSelectionFocus : undefined}

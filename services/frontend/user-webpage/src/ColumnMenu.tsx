@@ -85,7 +85,15 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
           </span>
         </UnstyledButton>
       </Popover.Target>
-      <Popover.Dropdown ref={dropdown} className="column-menu-dropdown" aria-labelledby={titleId}>
+      <Popover.Dropdown
+        ref={dropdown}
+        className="column-menu-dropdown"
+        aria-labelledby={titleId}
+        onFocusCapture={(event) => {
+          // Ancestor drawers inspect the focused target before this popover handles Escape.
+          event.target.setAttribute("data-mantine-stop-propagation", "true");
+        }}
+      >
         <Stack gap="sm" p="md">
           <Group className="column-menu-heading" justify="space-between" wrap="nowrap">
             <Text fw={600} size="sm" id={titleId}>

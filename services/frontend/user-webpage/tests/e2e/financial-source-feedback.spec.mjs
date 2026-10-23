@@ -64,6 +64,29 @@ test("source-record errors and unavailable versions stay visible with recovery a
   ).toBe(true);
 });
 
+test("a source error completed before the drawer mounts remains visible", async ({ page }) => {
+  await page.clock.install();
+  const { state, opener } = await openLookup(page);
+  state.status = 403;
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 1000)));
+  const settled = waitForRequestSettled(page, (request) =>
+    request.url().endsWith("/financial_source_record"),
+  );
+  try {
+    // Keep the drawer's opening frame paused while the request finishes.
+    await opener.press("Enter");
+    await settled;
+    // A browser task lets the response's promise callbacks finish before frames resume.
+    await page.evaluate(() => Promise.resolve());
+  } finally {
+    await page.clock.resume();
+  }
+  await expect(detail(page).getByRole("alert")).toContainText("Could not load source record.");
+  await expect(
+    detail(page).getByRole("button", { name: "Retry source record", exact: true }),
+  ).toBeInViewport();
+});
+
 test("a nested source failure opens above monthly review and returns to its exact record", async ({
   page,
 }) => {

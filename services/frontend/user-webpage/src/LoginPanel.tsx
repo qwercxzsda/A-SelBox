@@ -31,9 +31,13 @@ export function LoginPanel({
   const signingUp = mode === "sign-up";
   const action = signingUp ? "Create account" : "Sign in";
   const heading = useRef<HTMLHeadingElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     heading.current?.focus();
   }, [mode]);
+  useEffect(() => {
+    if (errorMessage || statusMessage) feedbackRef.current?.focus();
+  }, [errorMessage, statusMessage]);
   return (
     <div className="login-shell">
       <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
@@ -49,12 +53,12 @@ export function LoginPanel({
             </Text>
           </div>
           {errorMessage ? (
-            <Alert color="red" role="alert">
+            <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">
               {errorMessage}
             </Alert>
           ) : null}
           {statusMessage ? (
-            <Alert color="cyan" role="status" title={statusTitle}>
+            <Alert ref={feedbackRef} tabIndex={-1} color="cyan" role="status" title={statusTitle}>
               {statusMessage}
             </Alert>
           ) : null}

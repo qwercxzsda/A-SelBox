@@ -28,6 +28,7 @@ test("confirmation-required signup explains the next step without storing a sess
   await captureResponsiveReview(page, testInfo, "email-signup");
   await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Check your email");
+  await expect(page.getByRole("status")).toBeFocused();
   await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByLabel(/^Password/)).toHaveValue("");
   await expect(page.getByLabel(/^Password/)).toHaveAttribute("autocomplete", "current-password");

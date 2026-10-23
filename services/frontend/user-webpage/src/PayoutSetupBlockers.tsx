@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { Button, Text } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { fetchPayoutSetupBlockers } from "./api";
@@ -7,6 +8,7 @@ import { DetailTable } from "./DetailTable";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailPage } from "./detail-view-state";
 import { LookupPagination } from "./LookupPagination";
+import { revealSection } from "./reveal-section";
 
 export function PayoutSetupBlockers({
   identity,
@@ -19,6 +21,7 @@ export function PayoutSetupBlockers({
   month: string;
   onConfigureSku?: (sku: string) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
   const [pageIndex, setPageIndex] = useWorkspacePreference(
     `payout-setup:${companyId}:${month}`,
     () => 0,
@@ -31,8 +34,19 @@ export function PayoutSetupBlockers({
     staleTime: Infinity,
   });
   const rows = query.data?.rows ?? [];
+  function changePage(nextPage: number) {
+    setPageIndex(nextPage);
+    revealSection(listRef.current);
+  }
   return (
-    <div className="payout-setup-blockers">
+    <div
+      ref={listRef}
+      tabIndex={-1}
+      role="region"
+      aria-label="Payout setup requirements"
+      className="payout-setup-blockers"
+      style={{ scrollMarginTop: 16 }}
+    >
       <Text size="sm" mb="xs">
         These inputs prevent a complete report for this month. Correct the setup; the report will
         retry automatically.
@@ -86,7 +100,7 @@ export function PayoutSetupBlockers({
           pageIndex={pageIndex}
           hasNext={query.data?.hasNext ?? false}
           disabled={query.isFetching}
-          onPageChange={setPageIndex}
+          onPageChange={changePage}
           mt="xs"
         />
       ) : null}

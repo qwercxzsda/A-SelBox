@@ -485,7 +485,9 @@ test("token rotation cancels an old-token revision check before its late rejecti
     await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
     expect(refreshCalls()).toHaveLength(1);
-    expect(oldPoll.failure).toBe("net::ERR_ABORTED");
+    expect(["net::ERR_ABORTED", "Load request cancelled", "NS_BINDING_ABORTED"]).toContain(
+      oldPoll.failure,
+    );
     const initialRequests = fixture.revisionRequests.filter(
       ({ accessToken }) => accessToken === "initial-access",
     );

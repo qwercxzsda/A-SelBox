@@ -30,10 +30,11 @@ export function Inventory({
   const searchInput = useRef<HTMLInputElement>(null);
   const pageStart = useRef<HTMLDivElement>(null);
   const { selectedRowId, ...pageState } = viewState;
-  const { query, rows, denied, filterOptions, captures, availability, hasItems } = useInventoryData(
-    identity,
-    pageState,
-  );
+  const { query, rows, denied, filterOptions, searchReady, captures, availability, hasItems } =
+    useInventoryData(identity, pageState);
+  const isLoading = query.isPending && (searchReady || filterOptions.isPending);
+  const isUnavailable =
+    denied || (!query.data && (query.isError || (!searchReady && filterOptions.isError)));
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     // Age labels change without downloading inventory or waiting for a source revision.
@@ -87,7 +88,7 @@ export function Inventory({
     canPrevious: viewState.pageIndex > 0,
     canNext:
       pageCount === null ? rows.length === viewState.pageSize : viewState.pageIndex + 1 < pageCount,
-    isBusy: query.isFetching,
+    isBusy: isLoading || query.isFetching,
     onPrevious: () => {
       changePage(viewState.pageIndex - 1);
     },
@@ -95,10 +96,13 @@ export function Inventory({
       changePage(viewState.pageIndex + 1);
     },
     onPageChange: changePage,
-    summary:
-      totalCount === null
-        ? `${String(rows.length)} inventory items`
-        : `${String(totalCount)} inventory ${totalCount === 1 ? "item" : "items"}`,
+    summary: isUnavailable
+      ? "Inventory unavailable"
+      : isLoading
+        ? "Loading inventory…"
+        : totalCount === null
+          ? `${String(rows.length)} inventory items`
+          : `${String(totalCount)} inventory ${totalCount === 1 ? "item" : "items"}`,
   };
   return (
     <Stack gap="md" className="inventory-panel">
@@ -190,7 +194,7 @@ export function Inventory({
           {" Updates retry automatically."}
         </Alert>
       ) : null}
-      {query.isFetching ? (
+      {isLoading || query.isFetching ? (
         <Text role="status">{query.isPending ? "Loading inventory…" : "Updating inventory…"}</Text>
       ) : null}
       {availability.isError && rows.length === 0 ? (

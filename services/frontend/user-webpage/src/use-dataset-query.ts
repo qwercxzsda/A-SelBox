@@ -10,7 +10,8 @@ export function useDatasetQuery(identity: DatasetQueryIdentity, options: Dataset
   const query = useQuery(pageOptions);
   const countQuery = useQuery({
     ...countOptions,
-    enabled: query.isSuccess && !query.isFetching,
+    // A fast subscription-triggered failure must not be retried again as this observer enables.
+    enabled: (count) => query.isSuccess && !query.isFetching && count.state.status !== "error",
   });
   const pageHash = hashKey(pageOptions.queryKey);
   const acquireCount = useEffectEvent((completedPageHash: string) => {

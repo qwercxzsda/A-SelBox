@@ -1,8 +1,9 @@
-import { Badge, Button, Drawer, Group, Text, Title } from "@mantine/core";
+import { Badge, Drawer, Group, Text, Title } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { formatRecordMonth } from "./date-display";
 import { FinancialReviewMonthContent } from "./FinancialReviewMonthContent";
 import { DrawerHeading } from "./DrawerHeading";
+import { NavigationStepButton } from "./NavigationStepButton";
 import { reviewCategoryLabel, type ReviewCategory } from "./financial-review-categories";
 import "./FinancialReviewMonthDetail.css";
 
@@ -74,27 +75,26 @@ export function FinancialReviewMonthDetail({
                 </Text>
               </div>
               {months.length > 1 ? (
-                <Group component="nav" aria-label="Review months in this year" gap="xs">
-                  <Button
-                    size="xs"
-                    variant="default"
-                    disabled={!olderMonth}
-                    onClick={() => {
-                      if (olderMonth) onSelect(olderMonth);
-                    }}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="default"
-                    disabled={!newerMonth}
-                    onClick={() => {
-                      if (newerMonth) onSelect(newerMonth);
-                    }}
-                  >
-                    Next
-                  </Button>
+                <Group
+                  component="nav"
+                  aria-label="Review months in this year"
+                  className="monthly-review-navigation"
+                  gap="xs"
+                >
+                  {[
+                    { label: "Previous" as const, month: olderMonth },
+                    { label: "Next" as const, month: newerMonth },
+                  ].map(({ label, month: targetMonth }) => (
+                    <NavigationStepButton
+                      key={label}
+                      label={label}
+                      size="xs"
+                      disabled={!targetMonth}
+                      onClick={() => {
+                        if (targetMonth) onSelect(targetMonth);
+                      }}
+                    />
+                  ))}
                 </Group>
               ) : null}
             </Group>

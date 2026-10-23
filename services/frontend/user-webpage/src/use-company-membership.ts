@@ -1,22 +1,18 @@
-import { useRef, useState } from "react";
-import { useQueryClient, type Query } from "@tanstack/react-query";
-import { ApiError, setCompanyMembership, type AppAccount, type Company } from "./api";
+import { useState, type RefObject } from "react";
+import { useMutation, useQueryClient, type Query } from "@tanstack/react-query";
+import { setCompanyMembership, type AppAccount, type Company } from "./api";
 import type { PageResult } from "./api/types";
 import { useWorkspacePreference } from "./use-workspace-preference";
-import { getErrorMessage } from "./view-model";
 import { isUuid } from "./api/validation";
 import { useMountedRef } from "./use-mounted-ref";
+import { useMembershipSaveFeedback, type MembershipFeedback } from "./use-membership-save-feedback";
 
 interface MembershipOptions {
   accessToken: string;
   account: AppAccount;
   companies: Company[];
   onFeedbackChange: (feedback: MembershipFeedback | null) => void;
-}
-
-export interface MembershipFeedback {
-  kind: "success" | "error";
-  message: string;
+  observedSaveRef: RefObject<number | null>;
 }
 
 function isAccountQuery(query: Query): boolean {
@@ -26,67 +22,43 @@ function isAccountQuery(query: Query): boolean {
   );
 }
 
-function membershipError(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 403)
-      return "You cannot change this user's access. Only the database manager can change administrators.";
-    if (error.status === 409)
-      return "This user's access changed while you were editing. Review their current membership below before saving again.";
-    if (error.status === null || error.status >= 500)
-      return "Could not confirm whether membership changed. Review the current membership below before trying again.";
-  }
-  return `Could not save membership. ${getErrorMessage(error)}`;
-}
-
 export function useCompanyMembership({
   accessToken,
   account,
   companies,
   onFeedbackChange,
+  observedSaveRef,
 }: MembershipOptions) {
   const client = useQueryClient();
   const mounted = useMountedRef();
-  const saving = useRef(false);
+  const mutationKey = ["company-membership", account.user_id];
+  const { isSaving, observePendingSave } = useMembershipSaveFeedback({
+    mutationKey,
+    observedSaveRef,
+    onFeedbackChange,
+  });
   const [companyId, setCompanyId] = useWorkspacePreference<string | null>(
     `membership:${account.user_id}:${account.access_role}:${account.company_id ?? ""}`,
     () => account.company_id,
     (value) => (value === null || isUuid(value) ? value : account.company_id),
   );
-  const [isSaving, setIsSaving] = useState(false);
   const [confirmRevocation, setConfirmRevocation] = useState(false);
-
-  async function save(nextCompanyId: string | null) {
-    if (saving.current) return;
-    if (nextCompanyId !== null && !companies.some(({ id }) => id === nextCompanyId)) {
-      onFeedbackChange({
-        kind: "error",
-        message: "This company is no longer available. Choose another company.",
-      });
-      return;
-    }
-    saving.current = true;
-    setIsSaving(true);
-    onFeedbackChange(null);
-    try {
-      const updated = await setCompanyMembership({
+  const mutation = useMutation({
+    mutationKey,
+    // Preserve a single immediate attempt; reconnecting must never replay a membership write.
+    networkMode: "always",
+    retry: false,
+    mutationFn: (nextCompanyId: string | null) =>
+      setCompanyMembership({
         accessToken,
         account,
         companyId: nextCompanyId,
-      });
-      if (mounted.current) {
-        // Clear the completed draft in this original membership scope. The new
-        // scope initializes from the saved row; revisiting Unassigned after a
-        // later revocation must not restore the company we just granted.
-        setCompanyId(account.company_id);
-        setConfirmRevocation(false);
-        onFeedbackChange({
-          kind: "success",
-          message:
-            nextCompanyId === null
-              ? "Membership revoked. This user is now Unassigned."
-              : "Company membership saved.",
-        });
-      }
+      }),
+    onSuccess: (updated) => {
+      // Clear the original draft even after closing the editor, so a later
+      // revocation cannot restore a company whose assignment already completed.
+      setCompanyId(account.company_id);
+      if (mounted.current) setConfirmRevocation(false);
       // Update cached roster pages before server verification, including after the drawer closes.
       client.setQueriesData<PageResult>(
         { predicate: (query) => isAccountQuery(query) && query.queryKey[0] === "dataset" },
@@ -100,14 +72,25 @@ export function useCompanyMembership({
               }
             : page,
       );
-    } catch (error) {
-      if (mounted.current) onFeedbackChange({ kind: "error", message: membershipError(error) });
-    } finally {
+    },
+    onSettled: () => {
       // Even a failed response may have committed; verify before another change.
-      await client.invalidateQueries({ predicate: isAccountQuery });
-      saving.current = false;
-      if (mounted.current) setIsSaving(false);
+      return client.invalidateQueries({ predicate: isAccountQuery });
+    },
+  });
+
+  function save(nextCompanyId: string | null) {
+    if (client.isMutating({ mutationKey }) > 0) return;
+    if (nextCompanyId !== null && !companies.some(({ id }) => id === nextCompanyId)) {
+      onFeedbackChange({
+        kind: "error",
+        message: "This company is no longer available. Choose another company.",
+      });
+      return;
     }
+    onFeedbackChange(null);
+    mutation.mutate(nextCompanyId);
+    observePendingSave();
   }
 
   return {

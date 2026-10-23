@@ -9,6 +9,8 @@ import type { SkuFormIssue } from "./sku-configuration-form";
 import { companyLabel } from "./view-model";
 import { RowsSelect } from "./RowsSelect";
 import { SearchInput } from "./SearchInput";
+import { ListPageNavigation } from "./ListPageNavigation";
+import { revealSection } from "./reveal-section";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import "./SkuConfigurationList.css";
 
@@ -32,6 +34,7 @@ export function SkuConfigurationList({
   onShowTransactions: (sku: string) => void;
 } & ViewStateProps<FeeViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const { search, pageSize, expanded, drafts } = viewState;
   const draftSkus = new Set(drafts.map((draft) => draft.sku));
   const unfinishedSkus = new Set(
@@ -41,12 +44,24 @@ export function SkuConfigurationList({
     (item) => !viewState.onlyIncomplete || issuesBySku.has(item.sku),
   );
   const pagination = paginateFeeSkus(filtered, viewState.pageIndex, pageSize);
+  const canPrevious = pagination.pageIndex > 0;
+  const canNext = pagination.pageIndex < pagination.pageCount - 1;
   function change(patch: Partial<FeeViewState>) {
     onViewStateChange((current) => ({ ...current, ...patch }));
   }
+  function showControls() {
+    revealSection(controlsRef.current);
+  }
   return (
     <>
-      <div className="fee-list-toolbar">
+      <div
+        ref={controlsRef}
+        tabIndex={-1}
+        role="group"
+        aria-label="Fee list controls"
+        className="fee-list-toolbar"
+        style={{ scrollMarginTop: 16 }}
+      >
         <SearchInput
           inputRef={searchInput}
           className="fee-list-search"
@@ -87,8 +102,8 @@ export function SkuConfigurationList({
       <PaginationBar
         pageIndex={pagination.pageIndex}
         pageCount={pagination.pageCount}
-        canPrevious={pagination.pageIndex > 0}
-        canNext={pagination.pageIndex < pagination.pageCount - 1}
+        canPrevious={canPrevious}
+        canNext={canNext}
         summary={`${pagination.firstVisible.toLocaleString("en-US")}-${pagination.lastVisible.toLocaleString("en-US")} of ${pagination.totalCount.toLocaleString("en-US")} SKUs`}
         onPrevious={() => {
           change({ pageIndex: pagination.pageIndex - 1 });
@@ -204,6 +219,24 @@ export function SkuConfigurationList({
           ))}
         </Accordion>
       )}
+      {pagination.visibleSkus.length > 10 || pagination.pageIndex > 0 ? (
+        <ListPageNavigation
+          labels={{
+            navigation: "SKU list navigation at bottom",
+            items: "SKUs",
+            back: "Back to SKU filters",
+          }}
+          pageIndex={pagination.pageIndex}
+          pageCount={pagination.pageCount}
+          canPrevious={canPrevious}
+          canNext={canNext}
+          onBackToFilters={showControls}
+          onPageChange={(pageIndex) => {
+            change({ pageIndex });
+            showControls();
+          }}
+        />
+      ) : null}
     </>
   );
 }

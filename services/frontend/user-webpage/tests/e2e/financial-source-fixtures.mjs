@@ -81,6 +81,7 @@ export async function openSourceLookup(page, options = {}) {
   const table = page.getByRole("table", { name: "Amazon transaction matches", exact: true });
   await expect(table.locator("tbody tr")).toHaveCount(Math.min(options.count ?? 25, 25));
   return {
+    fixture,
     state,
     table,
     opener: table.getByRole("button", { name: "View source record" }).first(),

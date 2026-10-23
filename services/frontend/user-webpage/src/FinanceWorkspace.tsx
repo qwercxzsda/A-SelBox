@@ -26,7 +26,7 @@ import {
 } from "./workspace-view-codec";
 import { normalizeDatasetFilters } from "./dataset-filters";
 import { Companies } from "./Companies";
-import { useWorkspaceHistoryFocus } from "./use-workspace-history-focus";
+import { useWorkspaceNavigationFocus } from "./use-workspace-navigation-focus";
 
 interface WorkspaceProps {
   identity: Identity;
@@ -36,7 +36,6 @@ interface WorkspaceProps {
 }
 
 export function FinanceWorkspace(props: WorkspaceProps) {
-  const activeTab = useWorkspaceHistoryFocus();
   const [selectedSummaryCurrency, setSelectedSummaryCurrency] = useWorkspacePreference<
     string | null
   >(
@@ -51,6 +50,7 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     () => "live",
     (value) => decodeWorkspaceTab(value, props.identity.account),
   );
+  const activeTab = useWorkspaceNavigationFocus(dataset);
   const [companyReturnTo, setCompanyReturnTo] = useWorkspacePreference<"fees" | "accounts" | null>(
     "companies:return-to",
     () => null,

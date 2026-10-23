@@ -35,9 +35,10 @@ export function useInventoryData(
   const searchValues = filterOptions.data
     ? resolveInventorySearch(search, filterOptions.data)
     : null;
+  const searchReady = !search || Boolean(filterOptions.data);
   const query = useQuery({
     queryKey: ["inventory", ...scope, queryState, searchValues],
-    enabled: !search || Boolean(filterOptions.data),
+    enabled: searchReady,
     queryFn: ({ signal }) =>
       fetchInventoryPage({
         ...queryState,
@@ -72,6 +73,7 @@ export function useInventoryData(
     rows,
     denied,
     filterOptions,
+    searchReady,
     captures,
     availability,
     hasItems: itemFiltered

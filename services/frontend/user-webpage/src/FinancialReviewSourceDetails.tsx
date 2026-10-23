@@ -12,12 +12,7 @@ import {
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { FinancialReviewFamilies } from "./FinancialReviewFamilies";
 import { DetailSection } from "./DetailSection";
-
-function revealSection(section: HTMLElement | null) {
-  if (!section) return;
-  section.focus({ preventScroll: true });
-  section.scrollIntoView({ block: "start", behavior: "instant" });
-}
+import { revealSection } from "./reveal-section";
 
 export function FinancialReviewSourceDetails({
   identity,

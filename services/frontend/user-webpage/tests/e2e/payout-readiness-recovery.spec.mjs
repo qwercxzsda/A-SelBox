@@ -6,7 +6,7 @@ const companyId = (index) => `0198b50b-701a-7000-8000-${String(index + 1).padSta
 const readiness = (page) =>
   page.getByRole("region", { name: "April 2026 payout readiness", exact: true });
 
-async function openReadiness(page, companyCount = 1) {
+async function openReadiness(page, companyCount = 1, requirementCount = 26) {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.payoutReadinessRows = Array.from({ length: companyCount }, (_, index) => ({
@@ -19,7 +19,7 @@ async function openReadiness(page, companyCount = 1) {
     last_success_at: null,
     next_attempt_at: null,
   }));
-  fixture.payoutSetupBlockers = Array.from({ length: 26 }, (_, index) => ({
+  fixture.payoutSetupBlockers = Array.from({ length: requirementCount }, (_, index) => ({
     company_id: companyId(0),
     month: "2026-04-01",
     sku: `BLOCKED-${String(index).padStart(2, "0")}`,
@@ -74,4 +74,38 @@ test("a failed later setup page keeps a route back to cached requirements", asyn
   await previous.click();
   await expect(table.locator("tbody tr")).toHaveCount(25);
   await expect(table).toContainText("BLOCKED-00");
+});
+
+test("cached readiness pages return to the first company with keyboard context", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await openReadiness(page, 55);
+  const region = readiness(page);
+  await region.getByRole("button", { name: "Next companies", exact: true }).click();
+  await expect(region.getByText("Company 26", { exact: true })).toBeVisible();
+  await region.getByRole("button", { name: "Previous companies", exact: true }).click();
+  await expect(region.getByText("Company 01", { exact: true })).toBeInViewport();
+  await expect(region).toBeFocused();
+});
+
+test("cached setup pages return to the first requirement with keyboard context", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await openReadiness(page, 1, 55);
+  await readiness(page)
+    .getByRole("button", { name: "View setup requirements", exact: true })
+    .click();
+  const table = readiness(page).getByRole("table", {
+    name: "Payout setup requirements",
+    exact: true,
+  });
+  await readiness(page).getByRole("button", { name: "Next requirements", exact: true }).click();
+  await expect(table).toContainText("BLOCKED-25");
+  await readiness(page).getByRole("button", { name: "Previous requirements", exact: true }).click();
+  await expect(table.locator("tbody tr").first()).toBeInViewport();
+  await expect(
+    readiness(page).getByRole("region", { name: "Payout setup requirements", exact: true }),
+  ).toBeFocused();
 });

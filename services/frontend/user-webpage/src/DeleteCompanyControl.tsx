@@ -4,6 +4,7 @@ import { ApiError, CompanyDeletionBlockedError, type Company } from "./api";
 import type { CompanyDeletionReason } from "./api/company-errors";
 import { useCompanyDirectory } from "./company-directory-context";
 import { useMountedRef } from "./use-mounted-ref";
+import { useActionFeedbackFocus } from "./use-action-feedback-focus";
 
 const REASON_LABELS: Record<CompanyDeletionReason["code"], string> = {
   members: "Members",
@@ -30,6 +31,11 @@ export function DeleteCompanyControl({
   const { canManage, isMutating, deletingId, remove } = useCompanyDirectory();
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | CompanyDeletionBlockedError | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const feedbackRef = useActionFeedbackFocus(
+    problem instanceof CompanyDeletionBlockedError ? problem.message : problem,
+    sectionRef,
+  );
   const trigger = useRef<HTMLButtonElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
   const mounted = useMountedRef();
@@ -56,7 +62,13 @@ export function DeleteCompanyControl({
   }
 
   return confirming ? (
-    <Paper withBorder p="md" component="section" aria-label={`Delete ${company.name}`}>
+    <Paper
+      ref={sectionRef}
+      withBorder
+      p="md"
+      component="section"
+      aria-label={`Delete ${company.name}`}
+    >
       <Stack gap="sm">
         <Text size="sm" fw={600} className="company-list-name">
           Permanently delete {company.name}?
@@ -66,7 +78,13 @@ export function DeleteCompanyControl({
           deleted. This cannot be undone.
         </Text>
         {problem instanceof CompanyDeletionBlockedError ? (
-          <Alert color="red" role="alert" title="Company cannot be deleted">
+          <Alert
+            ref={feedbackRef}
+            tabIndex={-1}
+            color="red"
+            role="alert"
+            title="Company cannot be deleted"
+          >
             <Text size="sm">The company still has these linked records:</Text>
             <ul className="company-deletion-reasons">
               {problem.reasons.map(({ code, count }) => (
@@ -79,7 +97,7 @@ export function DeleteCompanyControl({
             <Text size="sm">No records were deleted or unassigned.</Text>
           </Alert>
         ) : problem ? (
-          <Alert color="red" role="alert">
+          <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">
             {problem}
           </Alert>
         ) : null}

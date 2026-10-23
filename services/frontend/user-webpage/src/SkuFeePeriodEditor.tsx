@@ -13,6 +13,7 @@ export function SkuFeePeriodEditor({
   onRemove,
   onChangeRate,
   rateChangeOpen,
+  initialFocusField,
 }: {
   period: SkuConfigurationPeriod;
   index: number;
@@ -22,6 +23,7 @@ export function SkuFeePeriodEditor({
   onRemove: () => void;
   onChangeRate: () => void;
   rateChangeOpen: boolean;
+  initialFocusField?: keyof SkuConfigurationPeriod;
 }) {
   const number = String(index + 1);
   const errorFor = (field: keyof SkuConfigurationPeriod) =>
@@ -64,6 +66,7 @@ export function SkuFeePeriodEditor({
         <div className="sku-fee-period-fields">
           <NativeSelect
             ref={marketplaceRef}
+            data-autofocus={initialFocusField === "marketplace_name" || undefined}
             label={`Marketplace ${number}`}
             value={period.marketplace_name}
             data={[{ value: "", label: "Choose a marketplace" }, ...marketplaces]}
@@ -74,6 +77,7 @@ export function SkuFeePeriodEditor({
           />
           <TextInput
             label={`Fee rate ${number} (%)`}
+            data-autofocus={initialFocusField === "fee_rate_percent" || undefined}
             inputMode="decimal"
             value={period.fee_rate_percent}
             onChange={(event) => {
@@ -83,6 +87,7 @@ export function SkuFeePeriodEditor({
           />
           <TextInput
             label={`Start date ${number} (inclusive)`}
+            data-autofocus={initialFocusField === "valid_from" || undefined}
             type="date"
             value={period.valid_from}
             onChange={(event) => {
@@ -92,6 +97,7 @@ export function SkuFeePeriodEditor({
           />
           <TextInput
             label={`End date ${number} (exclusive)`}
+            data-autofocus={initialFocusField === "valid_to" || undefined}
             type="date"
             value={period.valid_to ?? ""}
             onChange={(event) => {

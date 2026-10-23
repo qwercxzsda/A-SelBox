@@ -61,6 +61,8 @@ for (const role of ["administrator", "member"]) {
       "aria-selected",
       "true",
     );
+    await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeFocused();
+    await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeInViewport();
     await expect(transactions.getByRole("cell", { name: SKU, exact: true })).toHaveCount(30);
     await expect(transactions.getByRole("cell", { name: `${SKU}-EXTRA`, exact: true })).toHaveCount(
       0,

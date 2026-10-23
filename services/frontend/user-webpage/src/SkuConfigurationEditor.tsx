@@ -103,6 +103,12 @@ export function SkuConfigurationEditor({
   }
   const knownCompanyIds = new Set(companies.map(({ id }) => id));
   const issues = validateSkuItem({ ...item, ...form }, knownCompanyIds);
+  const initialIssue =
+    editing.rateChange === null ? issues.find((issue) => issue.field) : undefined;
+  const initialPeriodField =
+    initialIssue?.field === "company_id" || initialIssue?.field === "sku"
+      ? undefined
+      : initialIssue?.field;
   const unavailableCompany = form.company_id !== null && !knownCompanyIds.has(form.company_id);
   const stale = form.expected_current_version_id !== item.terms_version_id;
   const existingSku = isNew && knownSkus.includes(form.sku);
@@ -176,7 +182,20 @@ export function SkuConfigurationEditor({
       }}
       closeButtonProps={{ "aria-label": "Close SKU editor" }}
     >
-      <form className="sku-configuration-drawer-layout" onSubmit={stageDraft}>
+      <form
+        className="sku-configuration-drawer-layout"
+        onSubmit={stageDraft}
+        onFocusCapture={(event) => {
+          const target = event.target;
+          if (
+            target.hasAttribute("data-autofocus") &&
+            target.getAttribute("aria-invalid") === "true"
+          )
+            requestAnimationFrame(() => {
+              if (document.activeElement === target) target.scrollIntoView({ block: "center" });
+            });
+        }}
+      >
         <Stack gap="md" className="sku-configuration-drawer-scroll">
           <Text size="sm" c="dimmed">
             Closing keeps unfinished edits here. Choose Keep draft when ready to review, then save
@@ -241,6 +260,7 @@ export function SkuConfigurationEditor({
             </Group>
             <NativeSelect
               aria-label="Company"
+              data-autofocus={initialIssue?.field === "company_id" || undefined}
               value={unavailableCompany ? "" : (form.company_id ?? "")}
               data={[
                 { value: "", label: "Choose a company" },
@@ -273,6 +293,9 @@ export function SkuConfigurationEditor({
                 period={period}
                 index={index}
                 issues={issues}
+                initialFocusField={
+                  initialIssue?.periodIndex === index ? initialPeriodField : undefined
+                }
                 rateChangeOpen={editing.rateChange !== null}
                 marketplaceRef={(element) => {
                   if (element) marketplaceInputs.current.set(index, element);

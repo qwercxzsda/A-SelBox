@@ -146,6 +146,7 @@ export function EstimatedSummaries({
           setChoosingDates(false);
         }}
         title="Choose summary dates"
+        closeButtonProps={{ "aria-label": "Close summary dates" }}
         centered
       >
         <DateFilter

@@ -105,6 +105,41 @@ test("financial counts survive page and sort changes and unchanged revision poll
   expect(fixture.countRequests).toHaveLength(1);
 });
 
+for (const recovery of ["revision", "forced refresh"]) {
+  test(`a failed cached count recovers through ${recovery} after its rows settle`, async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const fixture = await mockSupabase(page);
+    await signIn(page);
+    await expect(pagination(page, 1, 2)).toBeVisible();
+    fixture.countStatusForRequest = () => 403;
+    fixture.revisions.finances = "1";
+    await page.clock.fastForward(60_000);
+    await expect(page.getByRole("button", { name: "Retry count", exact: true })).toBeVisible();
+    await expect(pagination(page, 1, "—")).toBeVisible();
+    await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+    expect(fixture.countRequests).toHaveLength(2);
+    fixture.totalCount = 60;
+    fixture.countStatusForRequest = () => 200;
+    if (recovery === "revision") {
+      fixture.revisions.finances = "2";
+      await page.clock.fastForward(60_000);
+    } else {
+      fixture.revisionStatus = 503;
+      await page.clock.fastForward(60_000);
+      const retry = page.getByRole("button", { name: "Retry update", exact: true });
+      await expect(retry).toBeVisible();
+      fixture.revisionStatus = 200;
+      await retry.click();
+    }
+    await expect(pagination(page, 1, 3)).toBeVisible();
+    await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry count", exact: true })).toHaveCount(0);
+    expect(fixture.countRequests).toHaveLength(3);
+  });
+}
+
 test("an older unfiltered count cannot replace the selected SKU count", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = Array.from({ length: 60 }, (_, index) => liveRow("ALPHA", index + 1));

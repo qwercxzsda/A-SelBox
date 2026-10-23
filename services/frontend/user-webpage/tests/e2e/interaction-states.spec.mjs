@@ -37,12 +37,38 @@ async function prepareHover(page, locator) {
   await locator.hover();
   await page.mouse.move(0, 0);
   await expect.poll(() => locator.evaluate((element) => element.matches(":hover"))).toBe(false);
-  await waitForAnimations(locator);
   await locator.scrollIntoViewIfNeeded();
+  await waitForAnimations(locator);
+}
+
+// Hover may legitimately scroll a window or nested panel. Measure visual geometry
+// in its scroll content so translation/size changes still fail, but scrolling does not.
+async function layoutBounds(locator) {
+  return locator.evaluate((element) => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    let scrollX = 0;
+    let scrollY = 0;
+    let fixed = false;
+    for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor !== element && ancestor !== globalThis.document.scrollingElement) {
+        scrollX += ancestor.scrollLeft;
+        scrollY += ancestor.scrollTop;
+      }
+      if (globalThis.getComputedStyle(ancestor).position === "fixed") {
+        fixed = true;
+        break;
+      }
+    }
+    if (!fixed) {
+      scrollX += globalThis.scrollX;
+      scrollY += globalThis.scrollY;
+    }
+    return { x: x + scrollX, y: y + scrollY, width, height };
+  });
 }
 
 async function expectStableBounds(locator, before) {
-  const after = await locator.boundingBox();
+  const after = await layoutBounds(locator);
   expect(after.width).toBeCloseTo(before.width, 1);
   expect(after.height).toBeCloseTo(before.height, 1);
   expect(after.x).toBeCloseTo(before.x, 1);
@@ -52,7 +78,7 @@ async function expectStableBounds(locator, before) {
 async function hoverChangesShade(page, locator) {
   await prepareHover(page, locator);
   const before = await appearance(locator);
-  const bounds = await locator.boundingBox();
+  const bounds = await layoutBounds(locator);
   await locator.hover();
   await expect.poll(() => appearance(locator)).not.toEqual(before);
   await expectStableBounds(locator, bounds);
@@ -61,7 +87,7 @@ async function hoverChangesShade(page, locator) {
 async function hoverEmphasizesText(page, locator) {
   await prepareHover(page, locator);
   const before = await appearance(locator);
-  const bounds = await locator.boundingBox();
+  const bounds = await layoutBounds(locator);
   await expect(locator).toHaveCSS("text-decoration-line", "underline");
   await expect(locator).not.toHaveCSS("text-decoration-thickness", "2px");
   await locator.hover();

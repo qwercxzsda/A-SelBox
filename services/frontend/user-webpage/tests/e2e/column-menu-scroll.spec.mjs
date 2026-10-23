@@ -47,9 +47,30 @@ async function wheel(page, deltaY) {
   );
 }
 
+async function wheelToEdge(page, menu, direction) {
+  const remaining = () =>
+    menu.evaluate(
+      (element, direction) =>
+        direction < 0
+          ? element.scrollTop
+          : element.scrollHeight - element.clientHeight - element.scrollTop,
+      direction,
+    );
+  const step = await menu.evaluate((element) =>
+    Math.max(1, Math.floor(element.clientHeight * 0.8)),
+  );
+  // Engines can cap a wheel event to less than one screen, even with a huge delta.
+  // Reach the edge using native gestures without clicking, refocusing, or setting scrollTop.
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if ((await remaining()) <= 1) return;
+    await wheel(page, direction * step);
+  }
+  await expect.poll(remaining).toBeLessThanOrEqual(1);
+}
+
 async function toTop(page, menu) {
   await pointAt(page, menu.getByText(/^(SKU|Type) options$/, { exact: true }));
-  await wheel(page, -100_000);
+  await wheelToEdge(page, menu, -1);
   await expect.poll(() => position(menu)).toBe(0);
 }
 
@@ -99,7 +120,7 @@ async function assertHoverScrolling(page, menu, column) {
     await expect(search).toBeFocused();
   }
   await pointAt(page, menu.getByText(`${column} options`, { exact: true }));
-  await wheel(page, 100_000);
+  await wheelToEdge(page, menu, 1);
   await expect
     .poll(() =>
       menu.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop),
