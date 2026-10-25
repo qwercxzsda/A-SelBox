@@ -83,12 +83,7 @@ function StandardFinanceDataset({
           ) : undefined
         }
       />
-      {dataset === "finances" ? (
-        <>
-          <ActivityEligibilityHelp />
-          <FinancialSourceLookup identity={identity} />
-        </>
-      ) : null}
+      {dataset === "finances" ? <ActivityEligibilityHelp /> : null}
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -129,6 +124,7 @@ function StandardFinanceDataset({
               table.setPagination({ pageIndex: 0, pageSize });
             }}
           />
+          {dataset === "finances" ? <FinancialSourceLookup identity={identity} /> : null}
         </Group>
         <PaginationBar
           pageIndex={pageIndex}

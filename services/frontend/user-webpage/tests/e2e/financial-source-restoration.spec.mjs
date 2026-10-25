@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { deferred } from "./fixtures.mjs";
-import { openSourceLookup, sourceDetail } from "./financial-source-fixtures.mjs";
+import { openSourceLookup, sourceDetail, sourceLookup } from "./financial-source-fixtures.mjs";
 
 async function secondPage(page) {
   const lookup = await openSourceLookup(page, {
@@ -16,14 +16,33 @@ async function secondPage(page) {
   return lookup;
 }
 
-test("source lookup preserves its page across workspace tabs and reloads", async ({
+test("source lookup preserves its submitted ID and page across closing, tabs and reloads", async ({
   page,
 }, testInfo) => {
-  const { table } = await secondPage(page);
+  const { table, lookup, trigger } = await secondPage(page);
+  const submittedId = await lookup
+    .getByRole("textbox", { name: "Amazon transaction ID", exact: true })
+    .inputValue();
+  await lookup.getByRole("button", { name: "Close transaction lookup", exact: true }).click();
+  await expect(lookup).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await expect(table.locator("tbody tr").first()).toContainText("26.00");
+  await page.keyboard.press("Escape");
+  await expect(lookup).toBeHidden();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await expect(lookup).toBeHidden();
+  await trigger.click();
+  await expect(
+    lookup.getByRole("textbox", { name: "Amazon transaction ID", exact: true }),
+  ).toHaveValue(submittedId);
   await expect(table.locator("tbody tr").first()).toContainText("26.00");
   await page.reload();
+  await expect(lookup).toBeVisible();
+  await expect(
+    lookup.getByRole("textbox", { name: "Amazon transaction ID", exact: true }),
+  ).toHaveValue(submittedId);
   await expect(table.locator("tbody tr").first()).toContainText("26.00");
   await page
     .getByRole("region", { name: "Amazon transaction results", exact: true })
@@ -34,6 +53,27 @@ test("source lookup preserves its page across workspace tabs and reloads", async
   });
 });
 
+test("Escape closes nested source details before lookup and restores each keyboard opener", async ({
+  page,
+}) => {
+  const { lookup, trigger, table, opener } = await secondPage(page);
+  await opener.focus();
+  await opener.press("Enter");
+  await expect(sourceDetail(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sourceDetail(page)).toBeHidden();
+  await expect(lookup).toBeVisible();
+  await expect(opener).toBeFocused();
+  await expect(table.locator("tbody tr").first()).toContainText("26.00");
+  await page.keyboard.press("Escape");
+  await expect(lookup).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await trigger.press("Enter");
+  await expect(lookup).toBeVisible();
+  await expect(table.locator("tbody tr").first()).toContainText("26.00");
+  await expect(sourceDetail(page)).toBeHidden();
+});
+
 test("closing a restored source record keeps the original lookup page", async ({ page }) => {
   const { table, opener } = await secondPage(page);
   await opener.click();
@@ -41,6 +81,7 @@ test("closing a restored source record keeps the original lookup page", async ({
   await page.reload();
   await expect(sourceDetail(page)).toBeVisible();
   await sourceDetail(page).getByRole("button", { name: "Close row details", exact: true }).click();
+  await expect(sourceLookup(page)).toBeVisible();
   await expect(table.locator("tbody tr").first()).toContainText("26.00");
 });
 

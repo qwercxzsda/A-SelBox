@@ -157,11 +157,15 @@ bounded yearly overview and chart show fully mature months, monthly differences,
 running difference. Monthly details retain that scope for type comparisons, source records, and
 saved snapshots. Related fee families are browsing aids; uncertain types remain separate.
 
-Source drilldowns retain exact row/version provenance. The Finances transaction-ID lookup searches
-all retained captures and preserves its page. An unavailable exact version is reported explicitly,
-without substituting a different capture. Retained components are separate observations, not values
-to sum across captures. See the [Financial review contract](../../../docs/financial_review.md) for
-source eligibility, comparison scope, and saved account controls.
+Source drilldowns retain exact row/version provenance. Finances keeps the main Search focused on
+filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID
+lookup drawer across all retained captures, independently of table filters. Its submitted ID and
+page survive closing, tab changes, and reloads; source details open in a nested drawer and retain
+their exact version on reload. Closing returns keyboard focus to the previous action. An unavailable
+exact version is reported explicitly, without substituting a different capture. Retained components
+are separate observations, not values to sum across captures. See the
+[Financial review contract](../../../docs/financial_review.md) for source eligibility, comparison
+scope, and saved account controls.
 
 ## Design conventions
 

@@ -8,6 +8,10 @@ export const recordId = (index) =>
   `0198b50b-701a-7000-8000-${String(index + 100).padStart(12, "0")}`;
 export const sourceDetail = (page) =>
   page.getByRole("dialog", { name: "Selected row details", exact: true });
+export const sourceLookup = (page) =>
+  page.getByRole("dialog", { name: "Find Amazon transaction", exact: true });
+export const sourceLookupTrigger = (page) =>
+  page.getByRole("button", { name: "Find by transaction ID…", exact: true });
 
 function sourceRow(index = 0, nativeId = transaction) {
   return datasetRecord("finances", {
@@ -73,16 +77,21 @@ export async function openSourceLookup(page, options = {}) {
   options.configure?.(state);
   await signIn(page);
   await page.getByRole("tab", { name: "Finances", exact: true }).click();
-  await page.getByRole("button", { name: "Find Amazon transaction", exact: true }).click();
-  await page
+  const trigger = sourceLookupTrigger(page);
+  await trigger.click();
+  const lookup = sourceLookup(page);
+  await expect(lookup).toBeVisible();
+  await lookup
     .getByRole("textbox", { name: "Amazon transaction ID", exact: true })
     .fill(options.nativeId ?? transaction);
-  await page.getByRole("button", { name: "Find transaction", exact: true }).click();
-  const table = page.getByRole("table", { name: "Amazon transaction matches", exact: true });
+  await lookup.getByRole("button", { name: "Find transaction", exact: true }).click();
+  const table = lookup.getByRole("table", { name: "Amazon transaction matches", exact: true });
   await expect(table.locator("tbody tr")).toHaveCount(Math.min(options.count ?? 25, 25));
   return {
     fixture,
     state,
+    lookup,
+    trigger,
     table,
     opener: table.getByRole("button", { name: "View source record" }).first(),
   };

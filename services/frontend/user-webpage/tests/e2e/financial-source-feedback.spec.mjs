@@ -14,7 +14,7 @@ for (const width of [390, 1280]) {
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 800 });
-    const { state, opener } = await openLookup(page);
+    const { state, opener, lookup, trigger } = await openLookup(page);
     const response = deferred();
     state.wait = response.promise;
     const settled = waitForRequestSettled(page, (request) =>
@@ -33,9 +33,13 @@ for (const width of [390, 1280]) {
       await page.keyboard.press("Escape");
       await expect(detail(page)).toBeHidden();
       await expect(opener).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(lookup).toBeHidden();
+      await expect(trigger).toBeFocused();
       response.resolve();
       await settled;
       await expect(detail(page)).toBeHidden();
+      await expect(lookup).toBeHidden();
     } finally {
       response.resolve();
     }

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./accessibility-fixture.mjs";
 import { openSourceLookup, sourceDetail } from "./financial-source-fixtures.mjs";
 
 for (const width of [390, 1280]) {
@@ -30,10 +30,18 @@ for (const width of [390, 1280]) {
 
 test("long exact transaction identifiers remain contained on a phone", async ({
   page,
+  expectAccessible,
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 800 });
   const nativeId = "N".repeat(512);
-  await openSourceLookup(page, { nativeId });
+  const { lookup } = await openSourceLookup(page, { nativeId });
+  await expect(
+    lookup.getByRole("button", { name: "Close transaction lookup", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    lookup.getByRole("button", { name: "Find transaction", exact: true }),
+  ).toBeInViewport();
+  expect(await lookup.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   const summary = page.getByText(`Showing ${nativeId}.`, { exact: false });
   await expect(summary).toBeVisible();
   expect(
@@ -44,6 +52,7 @@ test("long exact transaction identifiers remain contained on a phone", async ({
     path: testInfo.outputPath("source-lookup-long-id-phone.png"),
     animations: "disabled",
   });
+  await expectAccessible("transaction-lookup-phone");
 });
 
 test("a long SKU stays inside its source detail panel", async ({ page }, testInfo) => {

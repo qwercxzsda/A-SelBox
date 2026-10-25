@@ -55,6 +55,10 @@
   .search-field {
     width: 100%;
   }
+  .transaction-lookup-action {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
   .table-toolbar .pagination-bar {
     width: 100%;
   }

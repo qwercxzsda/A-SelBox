@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Group, Text, TextInput } from "@mantine/core";
+import { Button, Drawer, Group, Text, TextInput } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialSourceTransactions } from "./api";
 import {
@@ -8,9 +8,8 @@ import {
 } from "./api/financial-source";
 import type { Identity } from "./auth-session";
 import { DetailData } from "./DetailData";
-import { DetailSection } from "./DetailSection";
 import { DetailTable } from "./DetailTable";
-import { decodeDetailPage } from "./detail-view-state";
+import { decodeDetailOpen, decodeDetailPage } from "./detail-view-state";
 import { FinancialSourceRecord } from "./FinancialSourceRecord";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { useWorkspacePreference } from "./use-workspace-preference";
@@ -18,6 +17,11 @@ import { LookupPagination } from "./LookupPagination";
 import { revealSection } from "./reveal-section";
 
 export function FinancialSourceLookup({ identity }: { identity: Identity }) {
+  const [opened, setOpened] = useWorkspacePreference(
+    "finances:transaction-lookup:expanded",
+    () => false,
+    decodeDetailOpen,
+  );
   const [transactionId, setTransactionId] = useWorkspacePreference(
     "finances:transaction-lookup",
     () => "",
@@ -35,8 +39,10 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     decodeFinancialSourceSelection,
   );
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
-  const focus = useDrawerFocusReturn({ opened: selection !== null, fallbackRef: inputRef });
+  const lookupFocus = useDrawerFocusReturn({ opened, fallbackRef: triggerRef });
+  const recordFocus = useDrawerFocusReturn({ opened: selection !== null, fallbackRef: inputRef });
   const query = useQuery({
     queryKey: ["financial-source-lookup", identity.session.user.id, transactionId, pageIndex],
     queryFn: ({ signal }) =>
@@ -46,7 +52,7 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
         pageIndex,
         signal,
       ),
-    enabled: transactionId.length > 0 && identity.account.access_role === "administrator",
+    enabled: opened && transactionId.length > 0 && identity.account.access_role === "administrator",
     staleTime: Infinity,
   });
   const rows = query.data?.rows ?? [];
@@ -63,107 +69,138 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
   };
   if (identity.account.access_role !== "administrator") return null;
   return (
-    <DetailSection
-      stateKey="finances:transaction-lookup"
-      title="Find Amazon transaction"
-      headingOrder={2}
-      collapsible
-      description="Search an exact Amazon transaction ID across all retained captures. This lookup is independent of the table filters."
-    >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          setTransactionId(input.trim());
-          setPageIndex(0);
-          setSelection(null);
+    <>
+      <Button
+        ref={triggerRef}
+        className="transaction-lookup-action"
+        variant="subtle"
+        aria-haspopup="dialog"
+        onClick={(event) => {
+          event.currentTarget.focus();
+          lookupFocus.rememberOpener();
+          setOpened(true);
         }}
       >
-        <Group align="end" mb="sm">
-          <TextInput
-            ref={inputRef}
-            label="Amazon transaction ID"
-            value={input}
-            maxLength={512}
-            style={{ flex: 1, minWidth: 220 }}
-            onChange={(event) => {
-              setInput(event.currentTarget.value);
-            }}
-          />
-          <Button type="submit" disabled={!input.trim()}>
-            Find transaction
-          </Button>
-        </Group>
-      </form>
-      {transactionId ? (
-        <section
-          ref={resultsRef}
-          tabIndex={-1}
-          className="detail-data"
-          aria-label="Amazon transaction results"
+        Find by transaction ID…
+      </Button>
+      <Drawer.Stack>
+        <Drawer
+          stackId="financial-source-lookup"
+          inert={selection !== null}
+          aria-hidden={selection !== null || undefined}
+          opened={opened}
+          onClose={() => {
+            setOpened(false);
+          }}
+          onExitTransitionEnd={lookupFocus.restoreFocus}
+          position="right"
+          size="min(1000px, 100vw)"
+          padding="lg"
+          title="Find Amazon transaction"
+          closeButtonProps={{ "aria-label": "Close transaction lookup" }}
         >
-          <Text size="xs" c="dimmed" mb="sm" style={{ overflowWrap: "anywhere" }}>
-            Showing {transactionId}. Each row is one amount component. Current and retained captures
-            are separate observations; do not add them together.
+          <Text size="sm" c="dimmed" mb="md">
+            Enter an exact Amazon transaction ID. Searches all retained captures; table filters do
+            not apply.
           </Text>
-          <DetailData
-            query={query}
-            label="Amazon transaction"
-            rowCount={rows.length}
-            emptyMessage={
-              pageIndex > 0
-                ? "No matches on this page. Return to the previous page to see earlier matches."
-                : "No retained source record has this exact Amazon transaction ID."
-            }
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setTransactionId(input.trim());
+              setPageIndex(0);
+              setSelection(null);
+            }}
           >
-            {query.data || pageIndex > 0 ? <LookupPagination {...pagination} mb="sm" /> : null}
-            {rows.length ? (
-              <DetailTable
-                label="Amazon transaction matches"
-                minWidth={850}
-                rows={rows}
-                rowKey={(row) => row.id ?? ""}
-                columns={[
-                  { key: "posted_date", label: "Date", kind: "date" },
-                  { key: "capture_status", label: "Capture" },
-                  { key: "marketplace_name", label: "Marketplace" },
-                  { key: "component_type", label: "Type", kind: "type" },
-                  { key: "amount", label: "Amount", kind: "amount" },
-                  { key: "currency", label: "Currency" },
-                  { key: "details", label: "Details" },
-                ]}
-                renderCell={(row, column) =>
-                  column.key === "details" ? (
-                    <Button
-                      variant="subtle"
-                      size="compact-xs"
-                      onClick={(event) => {
-                        event.currentTarget.focus();
-                        focus.rememberOpener();
-                        setSelection({
-                          source: "FINANCES",
-                          rowId: row.id ?? "",
-                          versionId: row.version_id ?? "",
-                        });
-                      }}
-                    >
-                      View source record
-                    </Button>
-                  ) : undefined
-                }
+            <Group align="end" mb="sm">
+              <TextInput
+                ref={inputRef}
+                data-autofocus
+                label="Amazon transaction ID"
+                value={input}
+                maxLength={512}
+                style={{ flex: 1, minWidth: 220 }}
+                onChange={(event) => {
+                  setInput(event.currentTarget.value);
+                }}
               />
-            ) : null}
-            {rows.length > 10 ? <LookupPagination {...pagination} bottom /> : null}
-          </DetailData>
-        </section>
-      ) : null}
-      <FinancialSourceRecord
-        identity={identity}
-        selection={selection}
-        onClose={() => {
-          setSelection(null);
-        }}
-        onExitTransitionEnd={focus.restoreFocus}
-      />
-    </DetailSection>
+              <Button type="submit" disabled={!input.trim()}>
+                Find transaction
+              </Button>
+            </Group>
+          </form>
+          {transactionId ? (
+            <section
+              ref={resultsRef}
+              tabIndex={-1}
+              className="detail-data"
+              aria-label="Amazon transaction results"
+            >
+              <Text size="xs" c="dimmed" mb="sm" style={{ overflowWrap: "anywhere" }}>
+                Showing {transactionId}. Each row is one amount component. Current and retained
+                captures are separate observations; do not add them together.
+              </Text>
+              <DetailData
+                query={query}
+                label="Amazon transaction"
+                rowCount={rows.length}
+                emptyMessage={
+                  pageIndex > 0
+                    ? "No matches on this page. Return to the previous page to see earlier matches."
+                    : "No retained source record has this exact Amazon transaction ID."
+                }
+              >
+                {query.data || pageIndex > 0 ? <LookupPagination {...pagination} mb="sm" /> : null}
+                {rows.length ? (
+                  <DetailTable
+                    label="Amazon transaction matches"
+                    minWidth={850}
+                    rows={rows}
+                    rowKey={(row) => row.id ?? ""}
+                    columns={[
+                      { key: "posted_date", label: "Date", kind: "date" },
+                      { key: "capture_status", label: "Capture" },
+                      { key: "marketplace_name", label: "Marketplace" },
+                      { key: "component_type", label: "Type", kind: "type" },
+                      { key: "amount", label: "Amount", kind: "amount" },
+                      { key: "currency", label: "Currency" },
+                      { key: "details", label: "Details" },
+                    ]}
+                    renderCell={(row, column) =>
+                      column.key === "details" ? (
+                        <Button
+                          variant="subtle"
+                          size="compact-xs"
+                          onClick={(event) => {
+                            event.currentTarget.focus();
+                            recordFocus.rememberOpener();
+                            setSelection({
+                              source: "FINANCES",
+                              rowId: row.id ?? "",
+                              versionId: row.version_id ?? "",
+                            });
+                          }}
+                        >
+                          View source record
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                ) : null}
+                {rows.length > 10 ? <LookupPagination {...pagination} bottom /> : null}
+              </DetailData>
+            </section>
+          ) : null}
+        </Drawer>
+        <FinancialSourceRecord
+          identity={identity}
+          selection={opened ? selection : null}
+          stacked
+          onClose={() => {
+            setSelection(null);
+          }}
+          onExitTransitionEnd={recordFocus.restoreFocus}
+        />
+      </Drawer.Stack>
+    </>
   );
 }
