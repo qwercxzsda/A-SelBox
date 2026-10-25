@@ -1,0 +1,22 @@
+.auth-panel-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.auth-panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.auth-panel h2[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.auth-panel .ui-button {
+  height: auto;
+  min-height: var(--button-height);
+}
+
+.auth-panel .mantine-Button-label {
+  white-space: normal;
+  padding-block: 6px;
+}

@@ -63,6 +63,8 @@
 
 .fee-sku-identity {
   min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .fee-sku-actions {

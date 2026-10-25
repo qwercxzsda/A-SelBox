@@ -87,7 +87,11 @@ for (const role of ["administrator", "member"]) {
     if (role === "administrator") {
       for (const name of ["Finances", "Data Kiosk", "User access"]) {
         await openTab(name);
-        await checkTable(financialTable(page));
+        await checkTable(
+          name === "User access"
+            ? page.getByRole("table", { name: "User accounts", exact: true })
+            : financialTable(page),
+        );
         await screenshot(name.toLowerCase().replaceAll(" ", "-"));
       }
     }

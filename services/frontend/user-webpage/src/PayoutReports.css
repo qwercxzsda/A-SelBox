@@ -18,13 +18,32 @@
 }
 
 .payout-report-history {
+  max-width: calc(100vw - 64px);
   padding: 16px;
   background: var(--ui-surface-subtle);
   border-block: 1px solid var(--ui-border);
+  scroll-margin-top: 16px;
+  outline: none;
+}
+
+.ui-drawer-content .payout-report-history {
+  scroll-margin-top: calc(
+    var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px
+  );
 }
 
 .payout-report-history p {
   white-space: normal;
+}
+
+.payout-history-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.payout-history-table-scroll:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
 }
 
 .payout-version-table {

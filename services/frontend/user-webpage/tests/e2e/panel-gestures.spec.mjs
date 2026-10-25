@@ -60,7 +60,11 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
   await closePanel(page, breakdown);
 
   await page.getByRole("tab", { name: "User access", exact: true }).click();
-  await financialTable(page).locator("tbody tr").first().click();
+  await page
+    .getByRole("table", { name: "User accounts", exact: true })
+    .locator("tbody tr")
+    .first()
+    .click();
   const membership = drawer(page, "Company membership");
   await checkPanelGestures(page, membership);
   await closePanel(page, membership);

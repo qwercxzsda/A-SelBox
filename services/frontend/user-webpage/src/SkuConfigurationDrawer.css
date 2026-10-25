@@ -57,6 +57,7 @@
   border-color: var(--ui-border);
   border-radius: var(--ui-radius);
   background: var(--ui-surface);
+  overflow-wrap: anywhere;
 }
 
 .sku-configuration-card-identity {
@@ -65,7 +66,6 @@
 }
 
 .sku-configuration-card-sku {
-  overflow-wrap: anywhere;
   font-size: var(--ui-font-data);
 }
 

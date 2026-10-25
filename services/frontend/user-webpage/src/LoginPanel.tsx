@@ -1,5 +1,6 @@
 import { useEffect, useRef, type SubmitEvent } from "react";
-import { Alert, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Button, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
+import { AuthPanel } from "./AuthPanel";
 
 interface LoginPanelProps {
   mode: "sign-in" | "sign-up";
@@ -39,87 +40,84 @@ export function LoginPanel({
     if (errorMessage || statusMessage) feedbackRef.current?.focus();
   }, [errorMessage, statusMessage]);
   return (
-    <div className="login-shell">
-      <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
+    <AuthPanel>
+      <div>
+        <Title ref={heading} tabIndex={-1} order={2} size="h3" mb="xs">
+          {action}
+        </Title>
+        <Text c="dimmed" size="sm">
+          {signingUp
+            ? "Create an account with your email. An administrator can then assign you to a company."
+            : "View transactions, payouts, fee settings, and inventory."}
+        </Text>
+      </div>
+      {errorMessage ? (
+        <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">
+          {errorMessage}
+        </Alert>
+      ) : null}
+      {statusMessage ? (
+        <Alert ref={feedbackRef} tabIndex={-1} color="cyan" role="status" title={statusTitle}>
+          {statusMessage}
+        </Alert>
+      ) : null}
+      <form onSubmit={onSubmit}>
         <Stack gap="md">
-          <div>
-            <Title ref={heading} tabIndex={-1} order={2} size="h3" mb="xs">
-              {action}
-            </Title>
-            <Text c="dimmed" size="sm">
-              {signingUp
-                ? "Create an account with your email. An administrator can then assign you to a company."
-                : "View transactions, payouts, fee settings, and inventory."}
-            </Text>
-          </div>
-          {errorMessage ? (
-            <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">
-              {errorMessage}
-            </Alert>
-          ) : null}
-          {statusMessage ? (
-            <Alert ref={feedbackRef} tabIndex={-1} color="cyan" role="status" title={statusTitle}>
-              {statusMessage}
-            </Alert>
-          ) : null}
-          <form onSubmit={onSubmit}>
-            <Stack gap="md">
-              <TextInput
-                disabled={isSubmitting}
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                inputMode="email"
-                label="Email"
-                name="email"
-                onChange={(event) => {
-                  onEmailChange(event.target.value);
-                }}
-                required
-                type="email"
-                value={email}
-              />
-              <PasswordInput
-                autoComplete={signingUp ? "new-password" : "current-password"}
-                description={signingUp ? "Use at least 8 characters." : undefined}
-                disabled={isSubmitting}
-                minLength={signingUp ? 8 : undefined}
-                label="Password"
-                name="password"
-                onChange={(event) => {
-                  onPasswordChange(event.target.value);
-                }}
-                required
-                value={password}
-              />
-              <Button loading={isSubmitting} type="submit">
-                {isSubmitting ? (signingUp ? "Creating account…" : "Signing in…") : action}
-              </Button>
-            </Stack>
-          </form>
-          {!signingUp ? (
-            <Button
-              disabled={isSubmitting}
-              variant="subtle"
-              onClick={() => {
-                onModeChange("recover");
-              }}
-            >
-              Forgot password?
-            </Button>
-          ) : null}
-          <Button
+          <TextInput
             disabled={isSubmitting}
-            onClick={() => {
-              onModeChange(signingUp ? "sign-in" : "sign-up");
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="email"
+            label="Email"
+            name="email"
+            onChange={(event) => {
+              onEmailChange(event.target.value);
             }}
-            type="button"
-            variant="subtle"
-          >
-            {signingUp ? "Already have an account? Sign in" : "New to A-SelBox? Create an account"}
+            required
+            type="email"
+            value={email}
+          />
+          <PasswordInput
+            visibilityToggleFocusable
+            autoComplete={signingUp ? "new-password" : "current-password"}
+            description={signingUp ? "Use at least 8 characters." : undefined}
+            disabled={isSubmitting}
+            minLength={signingUp ? 8 : undefined}
+            label="Password"
+            name="password"
+            onChange={(event) => {
+              onPasswordChange(event.target.value);
+            }}
+            required
+            value={password}
+          />
+          <Button loading={isSubmitting} type="submit">
+            {isSubmitting ? (signingUp ? "Creating account…" : "Signing in…") : action}
           </Button>
         </Stack>
-      </Paper>
-    </div>
+      </form>
+      {!signingUp ? (
+        <Button
+          disabled={isSubmitting}
+          variant="subtle"
+          onClick={() => {
+            onModeChange("recover");
+          }}
+        >
+          Forgot password?
+        </Button>
+      ) : null}
+      <Button
+        disabled={isSubmitting}
+        onClick={() => {
+          onModeChange(signingUp ? "sign-in" : "sign-up");
+        }}
+        type="button"
+        variant="subtle"
+      >
+        {signingUp ? "Already have an account? Sign in" : "New to A-SelBox? Create an account"}
+      </Button>
+    </AuthPanel>
   );
 }

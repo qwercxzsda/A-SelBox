@@ -222,7 +222,10 @@ export function PayoutReports({
             isError={query.countQuery.isError}
             isFetching={query.countQuery.isFetching}
             items="reports"
-            onRetry={() => void query.countQuery.refetch()}
+            onRetry={() => {
+              showControls();
+              void query.countQuery.refetch();
+            }}
           />
         }
       >

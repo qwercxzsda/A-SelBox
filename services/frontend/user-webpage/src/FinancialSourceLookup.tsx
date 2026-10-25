@@ -86,8 +86,6 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
       <Drawer.Stack>
         <Drawer
           stackId="financial-source-lookup"
-          inert={selection !== null}
-          aria-hidden={selection !== null || undefined}
           opened={opened}
           onClose={() => {
             setOpened(false);

@@ -21,14 +21,15 @@ test("administrator lists read CSV pages and independent counts without account 
   ];
   await signIn(page);
   expect(fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/app_accounts")).toBe(false);
-  const table = page.getByRole("table", { name: "Financial records", exact: true });
   await page.getByRole("tab", { name: "User access", exact: true }).click();
+  const accounts = page.getByRole("table", { name: "User accounts", exact: true });
   await expect(
-    table.getByRole("cell", { name: "member-b@example.test", exact: true }),
+    accounts.getByRole("cell", { name: "member-b@example.test", exact: true }),
   ).toBeVisible();
-  await expect(table.getByRole("cell", { name: "Company B", exact: true })).toBeVisible();
+  await expect(accounts.getByRole("cell", { name: "Company B", exact: true })).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
+  const table = page.getByRole("table", { name: "Financial records", exact: true });
   await expect(table.locator('td[data-column="company_amount"]')).toHaveText(
     "9,007,199,254,740,993.00 USD",
   );

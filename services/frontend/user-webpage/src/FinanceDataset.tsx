@@ -26,6 +26,7 @@ import { ActivityEligibilityHelp } from "./ActivityEligibilityHelp";
 import { SearchInput } from "./SearchInput";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { pageRangeSummary } from "./pagination";
+import { revealSection } from "./reveal-section";
 
 interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   identity: Identity;
@@ -69,7 +70,7 @@ function StandardFinanceDataset({
   const sort = viewState.sorting[0];
   const amountLimitExceeded = query.error instanceof AmountOrderingLimitError;
   function showControls() {
-    toolbarRef.current?.scrollIntoView({ block: "start" });
+    revealSection(toolbarRef.current);
   }
   return (
     <>
@@ -104,7 +105,15 @@ function StandardFinanceDataset({
           )}
         </Alert>
       ) : null}
-      <Group ref={toolbarRef} className="table-toolbar" justify="space-between" align="end">
+      <Group
+        ref={toolbarRef}
+        tabIndex={-1}
+        role="group"
+        aria-label={dataset === "accounts" ? "Account controls" : "Record controls"}
+        className="table-toolbar"
+        justify="space-between"
+        align="end"
+      >
         <Group align="end" className="table-toolbar-fields">
           {DATASET_CONFIG[dataset].searchColumns.length > 0 ? (
             <SearchInput
@@ -174,7 +183,10 @@ function StandardFinanceDataset({
             isError={query.countQuery.isError}
             isFetching={query.countQuery.isFetching}
             items="rows"
-            onRetry={() => void query.countQuery.refetch()}
+            onRetry={() => {
+              showControls();
+              void query.countQuery.refetch();
+            }}
           />
         }
         renderColumnHeader={(columnId) => {

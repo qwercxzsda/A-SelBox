@@ -14,6 +14,7 @@ import {
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { useFinancialReviewPeriod } from "./use-financial-review-period";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
+import { revealSection } from "./reveal-section";
 import { WorkspaceIntro } from "./WorkspaceIntro";
 import { REVIEW_CATEGORIES, type ReviewCategory } from "./financial-review-categories";
 import "./FinancialTable.css";
@@ -94,7 +95,9 @@ export function FinancialReviewMonths({
         <Text size="xs" c="dimmed" className="financial-review-scope-note">
           {latestMonth
             ? `Full mature months through ${formatRecordMonth(latestMonth)}`
-            : "Checking mature months…"}
+            : policy.isError
+              ? "Mature months unavailable"
+              : "Checking mature months…"}
           <br />
           All source accounts and companies
         </Text>
@@ -105,6 +108,7 @@ export function FinancialReviewMonths({
           <Button
             variant="subtle"
             onClick={() => {
+              revealSection(listRef.current);
               void policy.refetch();
               void bounds.refetch();
             }}
@@ -116,7 +120,13 @@ export function FinancialReviewMonths({
       {query.isError ? (
         <Alert role="alert" color="red" mb="sm">
           Could not load monthly summaries.
-          <Button variant="subtle" onClick={() => void query.refetch()}>
+          <Button
+            variant="subtle"
+            onClick={() => {
+              revealSection(listRef.current);
+              void query.refetch();
+            }}
+          >
             Retry monthly summaries
           </Button>
         </Alert>

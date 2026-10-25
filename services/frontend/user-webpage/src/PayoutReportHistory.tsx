@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, Group, Table, Text } from "@mantine/core";
 import type { CanonicalRow } from "./api";
@@ -12,6 +12,13 @@ import { UpdateStatus } from "./UpdateStatus";
 import { payoutVersionSelection } from "./payout-report-view";
 import { payoutHistoryQueryOptions } from "./payout-report-queries";
 
+function revealHistory(section: HTMLElement | null) {
+  if (!section) return;
+  section.focus({ preventScroll: true });
+  // The surrounding report table may have been scrolled to its rightmost controls.
+  section.scrollIntoView({ block: "start", inline: "start", behavior: "instant" });
+}
+
 export function PayoutReportHistory({
   identity,
   latest,
@@ -19,6 +26,8 @@ export function PayoutReportHistory({
   pageIndex,
   onPageChange,
   onSelect,
+  revealOnOpen,
+  onRevealed,
 }: {
   identity: Identity;
   latest: CanonicalRow;
@@ -26,7 +35,10 @@ export function PayoutReportHistory({
   pageIndex: number;
   onPageChange: (pageIndex: number) => void;
   onSelect: (row: CanonicalRow) => void;
+  revealOnOpen: boolean;
+  onRevealed: () => void;
 }) {
+  const sectionRef = useRef<HTMLElement>(null);
   const currency = latest.currency;
   const query = useQuery(
     payoutHistoryQueryOptions(identity, payoutVersionSelection(latest), pageIndex),
@@ -37,9 +49,31 @@ export function PayoutReportHistory({
   useEffect(() => {
     if (pageCount !== null && pageIndex >= pageCount) onPageChange(pageCount - 1);
   }, [pageCount, pageIndex, onPageChange]);
+  useEffect(() => {
+    if (revealOnOpen) {
+      revealHistory(sectionRef.current);
+      onRevealed();
+    }
+  }, [revealOnOpen, onRevealed]);
+  function showHistory() {
+    revealHistory(sectionRef.current);
+  }
+  function changePage(page: number) {
+    showHistory();
+    onPageChange(page);
+  }
+  const showPagination =
+    pageIndex > 0 ||
+    (total !== null && total > DETAIL_PAGE_SIZE) ||
+    (query.isSuccess && total === null);
 
   return (
-    <section className="payout-report-history" aria-label={`Report versions for ${label}`}>
+    <section
+      ref={sectionRef}
+      tabIndex={-1}
+      className="payout-report-history"
+      aria-label={`Report versions for ${label}`}
+    >
       <Group justify="space-between" gap="xs" mb="xs">
         <div>
           <Text fw={600} size="sm">
@@ -55,8 +89,15 @@ export function PayoutReportHistory({
       </Group>
       {query.isError ? (
         <Alert color="red" role="alert">
-          {getErrorMessage(query.error)}
-          <Button variant="subtle" onClick={() => void query.refetch()}>
+          <Text size="sm">{getErrorMessage(query.error)}</Text>
+          <Button
+            variant="subtle"
+            mt="xs"
+            onClick={() => {
+              showHistory();
+              void query.refetch();
+            }}
+          >
             Retry versions
           </Button>
         </Alert>
@@ -66,89 +107,103 @@ export function PayoutReportHistory({
         </Text>
       ) : (
         <>
-          <Table className="payout-version-table" aria-label={`Report versions for ${label}`}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th scope="col">Version · saved in UTC</Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Reported amount
-                </Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Service fee
-                </Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Company amount
-                </Table.Th>
-                <Table.Th scope="col">Details</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((row) => {
-                const isLatest = rowId(row) === rowId(latest);
-                const created = formatRecordDate(row.created_at ?? "");
-                return (
-                  <Table.Tr key={rowId(row)} data-version={isLatest ? "latest" : "previous"}>
-                    <Table.Td>
-                      <Badge size="xs" variant="light" color={isLatest ? "teal" : "gray"}>
-                        {isLatest ? "Latest" : "Previous version"}
-                      </Badge>
-                      <Text size="xs" mt={4}>
-                        <time dateTime={row.created_at ?? undefined}>{created}</time>
-                      </Text>
-                    </Table.Td>
-                    {["source_amount", "fee_amount", "company_amount"].map((field) => (
-                      <Table.Td key={field} className="numeric">
-                        {formatMoney(row[field] ?? null, currency)}
+          <div
+            className="payout-history-table-scroll"
+            role="region"
+            aria-label={`Report version amounts for ${label}`}
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Wide saved amounts remain keyboard-scrollable.
+            tabIndex={0}
+          >
+            <Table className="payout-version-table" aria-label={`Report versions for ${label}`}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th scope="col">Version · saved in UTC</Table.Th>
+                  <Table.Th scope="col" className="numeric">
+                    Reported amount
+                  </Table.Th>
+                  <Table.Th scope="col" className="numeric">
+                    Service fee
+                  </Table.Th>
+                  <Table.Th scope="col" className="numeric">
+                    Company amount
+                  </Table.Th>
+                  <Table.Th scope="col">Details</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.map((row) => {
+                  const isLatest = rowId(row) === rowId(latest);
+                  const created = formatRecordDate(row.created_at ?? "");
+                  return (
+                    <Table.Tr key={rowId(row)} data-version={isLatest ? "latest" : "previous"}>
+                      <Table.Td>
+                        <Badge size="xs" variant="light" color={isLatest ? "teal" : "gray"}>
+                          {isLatest ? "Latest" : "Previous version"}
+                        </Badge>
+                        <Text size="xs" mt={4}>
+                          <time dateTime={row.created_at ?? undefined}>{created}</time>
+                        </Text>
                       </Table.Td>
-                    ))}
-                    <Table.Td>
-                      <Button
-                        variant="light"
-                        size="compact-xs"
-                        aria-label={
-                          isLatest
-                            ? "Open latest version"
-                            : `Open previous version created ${created}`
-                        }
-                        onClick={() => {
-                          onSelect(row);
-                        }}
-                      >
-                        Open report
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+                      {["source_amount", "fee_amount", "company_amount"].map((field) => (
+                        <Table.Td key={field} className="numeric">
+                          {formatMoney(row[field] ?? null, currency)}
+                        </Table.Td>
+                      ))}
+                      <Table.Td>
+                        <Button
+                          variant="light"
+                          size="compact-xs"
+                          aria-label={
+                            isLatest
+                              ? "Open latest version"
+                              : `Open previous version created ${created}`
+                          }
+                          onClick={() => {
+                            onSelect(row);
+                          }}
+                        >
+                          Open report
+                        </Button>
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </div>
           {total === 1 ? (
             <Text size="xs" c="dimmed" mt="xs">
               No previous versions.
             </Text>
           ) : null}
-          {pageIndex > 0 || total === null || total > DETAIL_PAGE_SIZE ? (
-            <PaginationBar
-              ariaLabel={`Report version pagination for ${label}`}
-              pageIndex={pageIndex}
-              pageCount={pageCount}
-              canPrevious={pageIndex > 0}
-              canNext={
-                pageCount === null ? rows.length === DETAIL_PAGE_SIZE : pageIndex + 1 < pageCount
-              }
-              isBusy={query.isFetching}
-              onPrevious={() => {
-                onPageChange(pageIndex - 1);
-              }}
-              onNext={() => {
-                onPageChange(pageIndex + 1);
-              }}
-              onPageChange={onPageChange}
-              summary={`${String(rows.length ? pageIndex * DETAIL_PAGE_SIZE + 1 : 0)}–${String(pageIndex * DETAIL_PAGE_SIZE + rows.length)} of ${total?.toLocaleString("en-US") ?? "—"} versions`}
-            />
-          ) : null}
         </>
       )}
+      {showPagination ? (
+        <PaginationBar
+          ariaLabel={`Report version pagination for ${label}`}
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          canPrevious={pageIndex > 0}
+          canNext={
+            pageCount === null ? rows.length === DETAIL_PAGE_SIZE : pageIndex + 1 < pageCount
+          }
+          isBusy={query.isFetching}
+          onPrevious={() => {
+            changePage(pageIndex - 1);
+          }}
+          onNext={() => {
+            changePage(pageIndex + 1);
+          }}
+          onPageChange={changePage}
+          summary={
+            query.isPending
+              ? "Loading report versions…"
+              : query.isError
+                ? "Report versions unavailable"
+                : `${String(rows.length ? pageIndex * DETAIL_PAGE_SIZE + 1 : 0)}–${String(pageIndex * DETAIL_PAGE_SIZE + rows.length)} of ${total?.toLocaleString("en-US") ?? "—"} versions`
+          }
+        />
+      ) : null}
     </section>
   );
 }

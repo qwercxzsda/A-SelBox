@@ -1,5 +1,5 @@
 import { inspectableRowProps } from "./inspectable-row";
-import { Fragment, useId, useRef, type ReactNode } from "react";
+import { Fragment, useId, useRef, useState, type ReactNode } from "react";
 import { Badge, Button, Group, Paper, Table, Text } from "@mantine/core";
 import type { CanonicalRow, DatasetFilters } from "./api";
 import type { DatasetSort } from "./api/types";
@@ -54,6 +54,7 @@ export function PayoutReportsTable({
 }) {
   const scrollTarget = useRef<HTMLDivElement>(null);
   const scrollId = useId();
+  const [historyToReveal, setHistoryToReveal] = useState<string | null>(null);
   const columns = displayColumns("payouts", identity.account.access_role === "administrator");
   const reportColumns = columns.filter((column) => column.key !== "start_date");
   return (
@@ -171,6 +172,7 @@ export function PayoutReportsTable({
                                     aria-label={`${expanded ? "Hide" : "Show"} versions for ${label}`}
                                     onClick={(event) => {
                                       event.stopPropagation();
+                                      setHistoryToReveal(expanded ? null : scopeKey);
                                       onToggleHistory(scopeKey);
                                     }}
                                   >
@@ -195,6 +197,10 @@ export function PayoutReportsTable({
                                   onHistoryPageChange(scopeKey, page);
                                 }}
                                 onSelect={onSelectVersion}
+                                revealOnOpen={historyToReveal === scopeKey}
+                                onRevealed={() => {
+                                  setHistoryToReveal(null);
+                                }}
                               />
                             </Table.Td>
                           </Table.Tr>

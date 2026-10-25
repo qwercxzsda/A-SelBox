@@ -1,5 +1,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import { Button, Group, Text } from "@mantine/core";
+import "./TableScrollControls.css";
 
 /** Keep wide-table navigation reachable without scrolling to the final record. */
 export function TableScrollControls({
@@ -57,30 +58,26 @@ export function TableScrollControls({
       <Text size="xs" c="dimmed">
         Columns
       </Text>
-      <Button
-        size="compact-xs"
-        variant="subtle"
-        aria-label="Scroll table left"
-        aria-controls={targetId}
-        disabled={position.start}
-        onClick={() => {
-          scroll(-1);
-        }}
-      >
-        ← Left
-      </Button>
-      <Button
-        size="compact-xs"
-        variant="subtle"
-        aria-label="Scroll table right"
-        aria-controls={targetId}
-        disabled={position.end}
-        onClick={() => {
-          scroll(1);
-        }}
-      >
-        Right →
-      </Button>
+      {[
+        { direction: -1, name: "left", label: "← Left", disabled: position.start },
+        { direction: 1, name: "right", label: "Right →", disabled: position.end },
+      ].map(({ direction, name, label, disabled }) => (
+        <Button
+          key={name}
+          size="compact-xs"
+          variant="subtle"
+          aria-label={`Scroll table ${name}`}
+          aria-controls={targetId}
+          aria-disabled={disabled}
+          data-disabled={disabled || undefined}
+          tabIndex={disabled ? -1 : undefined}
+          onClick={() => {
+            if (!disabled) scroll(direction);
+          }}
+        >
+          {label}
+        </Button>
+      ))}
     </Group>
   );
 }

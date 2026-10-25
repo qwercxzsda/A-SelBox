@@ -1,4 +1,5 @@
-import { Alert, Button, Paper, Stack, Text } from "@mantine/core";
+import { Alert, Button, Text } from "@mantine/core";
+import { AuthPanel } from "./AuthPanel";
 
 export function SessionRestorePanel({
   pending,
@@ -12,25 +13,21 @@ export function SessionRestorePanel({
   onSignIn: () => void;
 }) {
   return (
-    <div className="login-shell">
-      <Paper component="section" p="xl" shadow="md" withBorder w="100%" maw={480}>
-        <Stack gap="md">
-          {pending ? <Text role="status">Restoring session…</Text> : null}
-          {error ? (
-            <>
-              <Alert color="red" role="alert">
-                {error}
-              </Alert>
-              <Button loading={pending} onClick={onRetry}>
-                Retry session
-              </Button>
-            </>
-          ) : null}
-          <Button variant="subtle" onClick={onSignIn}>
-            Sign in instead
+    <AuthPanel>
+      {pending ? <Text role="status">Restoring session…</Text> : null}
+      {error ? (
+        <>
+          <Alert color="red" role="alert">
+            {error}
+          </Alert>
+          <Button loading={pending} onClick={onRetry}>
+            Retry session
           </Button>
-        </Stack>
-      </Paper>
-    </div>
+        </>
+      ) : null}
+      <Button variant="subtle" onClick={onSignIn}>
+        Sign in instead
+      </Button>
+    </AuthPanel>
   );
 }

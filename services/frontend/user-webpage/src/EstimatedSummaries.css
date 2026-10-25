@@ -52,7 +52,7 @@
   text-decoration: underline;
 }
 
-.estimated-summary-card h3 {
+.estimated-summary-card:has(.estimated-summary-open) h3 {
   padding-right: 100px;
 }
 

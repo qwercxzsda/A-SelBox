@@ -6,6 +6,7 @@ import { humanizeCode } from "./categories";
 import { companyLabel } from "./view-model";
 import { useCompanyMembership } from "./use-company-membership";
 import type { MembershipFeedback } from "./use-membership-save-feedback";
+import "./CompanyMembership.css";
 
 interface MembershipProps {
   accessToken: string;
@@ -94,7 +95,7 @@ function MembershipEditor({
   );
 
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" className="company-membership-content">
       <div>
         <Title order={3} style={{ overflowWrap: "anywhere" }}>
           {row.email ?? "Email unavailable"}

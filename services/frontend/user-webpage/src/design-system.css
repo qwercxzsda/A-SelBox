@@ -109,6 +109,11 @@ body {
   overscroll-behavior-y: contain;
 }
 
+/* Background drawers must be hidden from assistive technology and keyboard navigation. */
+.ui-drawer-content[data-hidden] {
+  visibility: hidden;
+}
+
 .ui-drawer-header {
   min-height: var(--ui-drawer-header-height);
   padding: 16px 20px;
@@ -167,7 +172,7 @@ body {
 }
 
 .ui-workspace-intro-copy {
-  flex: 1;
+  flex: 1 1 20rem;
   min-width: 0;
 }
 

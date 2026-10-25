@@ -43,13 +43,13 @@ export function FinancialTable({
           ref={scrollTarget}
           className="table-horizontal-scroll"
           role="region"
-          aria-label="Financial table"
+          aria-label={dataset === "accounts" ? "Account table" : "Financial table"}
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll wide tables horizontally.
           tabIndex={0}
         >
           <Table
             highlightOnHover
-            aria-label="Financial records"
+            aria-label={dataset === "accounts" ? "User accounts" : "Financial records"}
             miw={Math.max(900, table.getAllLeafColumns().length * 120)}
           >
             <Table.Thead>

@@ -8,9 +8,9 @@ import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
 const panel = (page, name) => page.getByRole("dialog", { name, exact: true });
-const firstRecord = (page) =>
+const firstRecord = (page, tableName = "Financial records") =>
   page
-    .getByRole("table", { name: "Financial records", exact: true })
+    .getByRole("table", { name: tableName, exact: true })
     .locator("tbody tr.inspectable-row")
     .first();
 
@@ -186,7 +186,7 @@ test("workspace controls share hover feedback across every administrator tab", a
     const tab = page.getByRole("tab", { name, exact: true });
     await hoverChangesShade(page, tab);
     await tab.click();
-    const row = firstRecord(page);
+    const row = firstRecord(page, name === "User access" ? "User accounts" : "Financial records");
     await hoverChangesShade(page, row);
     await expectKeyboardFocus(page, row);
     await row.press("Enter");
