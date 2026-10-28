@@ -1,9 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchFinancialReviewBounds, fetchFinancialReviewPeriod } from "./api";
+import {
+  fetchFinancialReviewBounds,
+  fetchFinancialReviewPeriod,
+  fetchFinancialReviewPeriodTypes,
+} from "./api";
 import type { Identity } from "./auth-session";
 import type { ReviewCategory } from "./financial-review-categories";
 import { buildFinancialReviewTimeline, type ReviewScope } from "./financial-review-view";
 import { usePayoutPolicy } from "./use-payout-policy";
+import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
+import { buildFeeFamilyOptions } from "./fee-family-catalog";
 
 /** Resolve the available year and currencies without changing the saved scope. */
 export function useFinancialReviewPeriod(
@@ -33,7 +39,7 @@ export function useFinancialReviewPeriod(
   if (year && !years.includes(year)) years.push(year);
   years.sort((left, right) => right.localeCompare(left));
 
-  const query = useQuery({
+  const totalsQuery = useQuery({
     queryKey: [
       "financial-review",
       "period",
@@ -47,21 +53,53 @@ export function useFinancialReviewPeriod(
     enabled: matureCutoff !== "" && year !== "",
     staleTime: Infinity,
   });
-  const periodRows = query.data ?? [];
+  const familyQuery = useQuery({
+    queryKey: [
+      "financial-review",
+      "period-families",
+      identity.session.user.id,
+      category,
+      year,
+      scope.currency,
+      matureCutoff,
+    ],
+    queryFn: ({ signal }) =>
+      fetchFinancialReviewPeriodTypes(
+        identity.session.access_token,
+        category,
+        year,
+        scope.currency,
+        signal,
+      ),
+    enabled: matureCutoff !== "" && year !== "",
+    staleTime: Infinity,
+  });
+  const comparisonQuery = scope.families.length ? familyQuery : totalsQuery;
+  const periodRows = totalsQuery.data ?? [];
   const currencies = [...new Set([scope.currency, ...periodRows.map((row) => row.currency ?? "")])]
     .filter(Boolean)
     .sort();
-  const rows = buildFinancialReviewTimeline(periodRows, scope.currency);
+  const familyTypes = familyQuery.data ?? [];
+  const familyOptions = buildFeeFamilyOptions(familyTypes, scope.families);
+  const rows = buildFinancialReviewTimeline(
+    scope.families.length
+      ? buildFinancialReviewFamilyMonths(familyTypes, scope.families)
+      : periodRows,
+    scope.currency,
+  );
   const months = rows.map((row) => row.month?.slice(0, 7) ?? "");
   const loading =
     policy.isPending ||
     (matureCutoff !== "" && bounds.isPending) ||
-    (year !== "" && query.isPending);
+    (year !== "" && comparisonQuery.isPending);
 
   return {
     policy,
     bounds,
-    query,
+    comparisonQuery,
+    totalsQuery,
+    familyQuery,
+    familyOptions,
     matureCutoff,
     latestMonth,
     year,

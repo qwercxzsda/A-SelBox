@@ -1,5 +1,5 @@
 import { liveRow, skuAssignment } from "./api-fixtures.mjs";
-import { openColumn } from "./table-actions.mjs";
+import { openColumn, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
@@ -224,7 +224,7 @@ for (const width of [320, 390]) {
     const fixture = await mockSupabase(page);
     fixture.liveRows = filteredRows();
     await signIn(page);
-    const trigger = page.getByRole("button", { name: "Marketplace", exact: true });
+    const trigger = columnTrigger(page, "Marketplace");
     const menu = await openColumn(page, "Marketplace");
     await expect(menu.getByRole("checkbox", { name: "Amazon.com", exact: true })).toBeVisible();
     const bounds = await menu.boundingBox();

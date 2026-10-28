@@ -1,5 +1,5 @@
 import { liveRow, skuAssignments } from "./api-fixtures.mjs";
-import { applyDates } from "./table-actions.mjs";
+import { applyDates, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { summaryBucket, summaryCards, summaryAmount, typeBucket } from "./summary-fixtures.mjs";
@@ -70,7 +70,7 @@ test("breakdowns load lazily for the card dates and all types, independently of 
   expect(fixture.breakdownRequests).toHaveLength(0);
   await page.getByLabel("Search", { exact: true }).fill("TARGET");
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("TARGET");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await columnTrigger(page, "Source").click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
   await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();

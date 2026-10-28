@@ -1,16 +1,24 @@
-import type { UseQueryResult } from "@tanstack/react-query";
-import type { CanonicalRow } from "./api";
+import { useQuery } from "@tanstack/react-query";
+import { fetchPayoutReconciliationTotals } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { RECONCILIATION_TOTAL_COLUMNS } from "./reconciliation-columns";
 
 export function PayoutReconciliationTotals({
-  query,
+  accessToken,
+  reportId,
   currency,
 }: {
-  query: UseQueryResult<CanonicalRow[]>;
+  accessToken: string;
+  reportId: string;
   currency: string | null;
 }) {
+  const query = useQuery({
+    queryKey: ["payout-reconciliation-totals", reportId, currency],
+    queryFn: ({ signal }) =>
+      fetchPayoutReconciliationTotals(accessToken, reportId, signal, currency ?? undefined),
+    staleTime: Infinity,
+  });
   const rows = query.data ?? [];
   const label = "Saved account reconciliation totals";
   return (

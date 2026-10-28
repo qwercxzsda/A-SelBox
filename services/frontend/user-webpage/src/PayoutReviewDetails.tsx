@@ -1,39 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchPayoutReconciliationTotals, type CanonicalRow } from "./api";
+import type { CanonicalRow } from "./api";
 import { DetailSection } from "./DetailSection";
 import { PayoutComponents } from "./PayoutComponents";
 import { PayoutReconciliation } from "./PayoutReconciliation";
 import { PayoutReconciliationTotals } from "./PayoutReconciliationTotals";
-
-function SavedAccountReconciliation({
-  accessToken,
-  reportId,
-  currency,
-}: {
-  accessToken: string;
-  reportId: string;
-  currency: string | null;
-}) {
-  const query = useQuery({
-    queryKey: ["payout-reconciliation-totals", reportId, currency],
-    queryFn: ({ signal }) =>
-      fetchPayoutReconciliationTotals(accessToken, reportId, signal, currency ?? undefined),
-    staleTime: Infinity,
-  });
-  return (
-    <>
-      <PayoutReconciliationTotals query={query} currency={currency} />
-      <DetailSection
-        stateKey={`payout-review:${reportId}:daily`}
-        title="Saved daily source details"
-        collapsible
-        description="Daily rows separate source accounts and marketplaces. Total after adding difference equals Finances total by construction; it does not confirm that the sources agree."
-      >
-        <PayoutReconciliation accessToken={accessToken} reportId={reportId} currency={currency} />
-      </DetailSection>
-    </>
-  );
-}
 
 export function PayoutReviewDetails({
   row,
@@ -43,6 +12,7 @@ export function PayoutReviewDetails({
   accessToken: string;
 }) {
   const reportId = row.id ?? "";
+  const currency = row.currency;
   return (
     <>
       <DetailSection
@@ -51,7 +21,7 @@ export function PayoutReviewDetails({
       >
         <PayoutComponents
           reportId={reportId}
-          currency={row.currency ?? ""}
+          currency={currency ?? ""}
           accessToken={accessToken}
           authoritative={false}
         />
@@ -60,13 +30,21 @@ export function PayoutReviewDetails({
         stateKey={`payout-review:${reportId}:reconciliation`}
         title="Saved account reconciliation"
         collapsible
-        description={`Account controls saved for ${row.currency ?? "this report"}, across all companies, marketplaces and SKUs in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
+        description={`Account controls saved for ${currency ?? "this report"}, across all companies, marketplaces and SKUs in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
       >
-        <SavedAccountReconciliation
+        <PayoutReconciliationTotals
           accessToken={accessToken}
           reportId={reportId}
-          currency={row.currency}
+          currency={currency}
         />
+        <DetailSection
+          stateKey={`payout-review:${reportId}:daily`}
+          title="Saved daily source details"
+          collapsible
+          description="Daily rows separate source accounts and marketplaces. Total after adding difference equals Finances total by construction; it does not confirm that the sources agree."
+        >
+          <PayoutReconciliation accessToken={accessToken} reportId={reportId} currency={currency} />
+        </DetailSection>
       </DetailSection>
     </>
   );

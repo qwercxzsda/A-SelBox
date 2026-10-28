@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 const FINANCES_TYPES = [
   {
@@ -148,7 +149,7 @@ for (const dataset of DATASETS) {
         )
         .toBe(true);
       await details.getByRole("button", { name: "Close row details", exact: true }).click();
-      await page.getByRole("button", { name: "Type", exact: true }).click();
+      await columnTrigger(page, "Type").click();
       const menu = page.getByRole("dialog", { name: "Type options", exact: true });
       const filteredType = dataset.types[0];
       await menu.getByLabel("Search type", { exact: true }).fill(filteredType.label);

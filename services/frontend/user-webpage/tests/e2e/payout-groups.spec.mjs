@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { applyReportMonth, selectColumnOptions } from "./table-actions.mjs";
+import { applyReportMonth, selectColumnOptions, columnTrigger } from "./table-actions.mjs";
 
 const COMPANY = "0198b50b-701a-7000-8000-000000000001";
 const OTHER_COMPANY = "0198b50b-701a-7000-8000-000000000002";
@@ -95,7 +95,7 @@ for (const [role, width] of [
     expect(historyReads(fixture)).toHaveLength(0);
     if (role === "member") {
       await expect(table.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
-      await expect(table.getByRole("button", { name: "Company", exact: true })).toHaveCount(0);
+      await expect(columnTrigger(table, "Company")).toHaveCount(0);
     }
 
     const toggle = page.getByRole("button", { name: `Show versions for ${scope}`, exact: true });

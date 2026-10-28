@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openFinancialReview } from "./financial-review-actions.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 for (const focusTarget of ["checkbox", "close", "search"]) {
   test(`Escape from a nested column ${focusTarget} closes only its popover`, async ({ page }) => {
@@ -14,7 +15,7 @@ for (const focusTarget of ["checkbox", "close", "search"]) {
     await page.getByRole("button", { name: "Open review for June 2026", exact: true }).click();
     const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
     await drawer.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
-    const trigger = drawer.getByRole("button", { name: "Company", exact: true });
+    const trigger = columnTrigger(drawer, "Company");
     await trigger.click();
     const menu = page.getByRole("dialog", { name: "Company options", exact: true });
     const focus =

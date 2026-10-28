@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { applyDates, applyReportMonth, selectColumnOptions, sortBy } from "./table-actions.mjs";
+import {
+  applyDates,
+  applyReportMonth,
+  selectColumnOptions,
+  sortBy,
+  columnHeader,
+} from "./table-actions.mjs";
 
 for (const clearAll of [false, true]) {
   test(`clearing ${clearAll ? "all financial filters" : "the last financial filter"} returns keyboard focus without changing search or ordering`, async ({
@@ -28,10 +34,7 @@ for (const clearAll of [false, true]) {
     await expect(search).toBeFocused();
     await expect(search).toHaveValue("Amazon");
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-    await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-      "aria-sort",
-      "ascending",
-    );
+    await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
   });
 }
 
@@ -59,10 +62,7 @@ test("removing an inventory health chip restores keyboard focus and keeps other 
     filters.getByRole("button", { name: "Remove Search: QA", exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-  await expect(page.getByRole("columnheader", { name: "SKU", exact: true })).toHaveAttribute(
-    "aria-sort",
-    "descending",
-  );
+  await expect(columnHeader(page, "SKU")).toHaveAttribute("aria-sort", "descending");
   await expect(
     page.getByRole("button", { name: "Show transactions for QA-002", exact: true }),
   ).toBeVisible();
@@ -91,10 +91,7 @@ test("clearing the last payout month chip returns keyboard focus to its search",
   await expect(filters).toHaveCount(0);
   await expect(search).toBeFocused();
   await expect(search).toHaveValue("USD");
-  await expect(page.getByRole("columnheader", { name: "Month", exact: true })).toHaveAttribute(
-    "aria-sort",
-    "ascending",
-  );
+  await expect(columnHeader(page, "Month")).toHaveAttribute("aria-sort", "ascending");
 });
 
 test("pointer removal of a financial chip does not focus the search field", async ({ page }) => {

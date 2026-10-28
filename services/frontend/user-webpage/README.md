@@ -152,10 +152,35 @@ Headers retain company/month/currency context. Historical reports preserve their
 versions. The [payout contract](../../../docs/company_payout_reports.md) defines eligibility,
 maturity, completeness, zero reports, and agreement with estimates.
 
-Financial review shares Year and Currency across Finances, Data Kiosk, and SelBox categories. Its
-bounded yearly overview and chart show fully mature months, monthly differences, and the exact
-running difference. Monthly details retain that scope for type comparisons, source records, and
-saved snapshots. Related fee families are browsing aids; uncertain types remain separate.
+Financial review shares Year, Currency, and the **Fee families** checkbox menu across Finances, Data
+Kiosk, and SelBox categories. Its yearly totals, chart, monthly rows, and running difference use the
+selected family union; clearing the selection restores all families. A selection with no matches
+stays empty. Monthly storage, Aged storage, and Sponsored products are distinct families, with
+Finances `ADVERTISING` included in Sponsored products. Other identities retain named families rather
+than an uncertain catch-all. The optional yearly family breakdown and monthly comparison use
+complete type aggregates and preserve signed, zero, and cancelling amounts.
+
+The comparison-category caption clarifies that each category compares both sources. Source
+availability notes distinguish missing records from zero amounts and show counts for one-source
+scopes or months. Family tables rank the largest absolute differences first; yearly **Show only**
+filters directly to a family. Source-only family definitions remain distinct from missing rows in
+paired families, whose coverage counts overlapping months among months with that family's records.
+
+The family menu follows the table Company/SKU controls: changes apply immediately, longer lists are
+searchable, and Done or Escape returns focus to the button. Chart bars use stable family colors with
+separate positive and negative stacks. Subdued matching lines show each family's running difference
+alongside the stronger total line. The legend and month descriptions identify the families and
+amounts. A compact legend expands without hiding plotted families. The visible **Chart values**
+readout follows month hover/focus or the **Chart month** selector and can expand its family values.
+It starts with one family on narrow phones and three on wider screens; expanded values remain
+keyboard-scrollable. Source-only markers describe catalog membership, independently of missing rows.
+Currency and magnitude labels provide scale; month controls and **Open month details** open the
+selected month's details by mouse, touch, or keyboard.
+
+Monthly totals, exact types, and source records retain the selected families. Year, Currency,
+category, and family selections survive navigation and reloads. Saved snapshots retain their whole
+historical report scope. Family grouping aids investigation; it does not establish matching billing
+periods, coverage, or SKU allocations.
 
 Source drilldowns retain exact row/version provenance. Finances keeps the main Search focused on
 filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID

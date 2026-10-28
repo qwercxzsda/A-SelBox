@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 const details = (page) => page.getByRole("dialog", { name: "Inventory details", exact: true });
 const inventory = (page) => page.getByRole("region", { name: "Inventory items", exact: true });
@@ -255,7 +256,7 @@ test("inventory restores details only for a row on the current page and retains 
         .click(),
     async () => page.getByLabel("Search", { exact: true }).fill("SKU-25"),
     async () => {
-      await inventory(page).getByRole("button", { name: "SKU", exact: true }).click();
+      await columnTrigger(inventory(page), "SKU").click();
       await page.getByRole("button", { name: "Z to A", exact: true }).click();
     },
   ]) {

@@ -79,7 +79,12 @@ export function PayoutReports({
       onViewStateChange((current) => ({ ...current, selectedRowId }));
     },
     restoreFocus: fixedMonth,
+    fallbackRef: controlsRef,
   });
+  function restoreReportFocus() {
+    restoreSelectionFocus();
+    if (document.activeElement === controlsRef.current) revealSection(controlsRef.current);
+  }
   const sort = viewState.sorting[0];
   const visibleFilters = fixedMonth ? { ...filters, dateFrom: "", dateTo: "" } : filters;
   const hasRefinements = activeFilterCount(visibleFilters) > 0 || search.trim().length > 0;
@@ -284,7 +289,7 @@ export function PayoutReports({
       ) : null}
       <RowDetail
         stackId={fixedMonth && reviewMode ? "financial-review-snapshot" : undefined}
-        onExitTransitionEnd={fixedMonth ? restoreSelectionFocus : undefined}
+        onExitTransitionEnd={fixedMonth ? restoreReportFocus : undefined}
         accessToken={identity.session.access_token}
         isAdministrator={identity.account.access_role === "administrator"}
         companies={companies}

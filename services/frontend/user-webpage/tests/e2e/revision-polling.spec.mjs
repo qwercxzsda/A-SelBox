@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { feeRow, kioskRow, financesRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { summaryAmount, summaryBucket, summaryCards, typeBucket } from "./summary-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 const completedPolls = (fixture) => fixture.revisionRequests.filter(({ completed }) => completed);
 const financialRequests = (fixture) => ({
@@ -102,7 +103,7 @@ for (const source of ["finances", "data_kiosk"]) {
     page,
   }) => {
     const fixture = await setup(page, "administrator");
-    await page.getByRole("button", { name: "SKU", exact: true }).click();
+    await columnTrigger(page, "SKU").click();
     await expect(
       page.getByRole("dialog", { name: "SKU options", exact: true }).getByRole("checkbox").first(),
     ).toBeVisible();

@@ -1,35 +1,49 @@
-import { Group, Paper, Text } from "@mantine/core";
+import { Button, Group, Paper, Text } from "@mantine/core";
+import { useRef, useState } from "react";
 import type { CanonicalRow } from "./api";
-import { formatRecordMonth } from "./date-display";
-import { formatMoney } from "./decimal";
 import { projectFinancialReviewChart } from "./financial-review-chart";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function percentage(value: number): string {
-  return `${String(value)}%`;
-}
-
+import { FinancialReviewChartPlot } from "./FinancialReviewChartPlot";
+import { FinancialReviewChartLegend } from "./FinancialReviewChartLegend";
+import { FinancialReviewChartValues } from "./FinancialReviewChartValues";
+import { buildFinancialReviewFamilySeries } from "./financial-review-family-series";
 export function FinancialReviewTrend({
   rows,
   currency,
+  familyTypes,
+  families,
+  familyLoading,
+  familyError,
+  onRetryFamilies,
   onSelect,
 }: {
   rows: CanonicalRow[];
   currency: string;
+  familyTypes: CanonicalRow[] | null;
+  families: readonly string[];
+  familyLoading: boolean;
+  familyError: boolean;
+  onRetryFamilies: () => void;
   onSelect: (month: string) => void;
 }) {
-  const chart = projectFinancialReviewChart(rows);
+  const figure = useRef<HTMLElement>(null);
+  const [inspectedMonth, setInspectedMonth] = useState<string | null>(null);
+  const series = familyTypes ? buildFinancialReviewFamilySeries(familyTypes, rows, families) : [];
+  const familyChart = series.length ? projectFinancialReviewChart(rows, series) : null;
+  const chart = familyChart ?? projectFinancialReviewChart(rows);
   if (!chart)
     return (
       <Text size="sm" c="dimmed" mb="md">
         Chart unavailable for this range. Monthly amounts are shown below.
       </Text>
     );
-  const { months, lines, zero } = chart;
+  const points = chart.months.filter((point) => point !== null);
+  const latest = points[points.length - 1];
+  const inspected = points.find((point) => point.month === inspectedMonth) ?? latest;
 
   return (
     <Paper
+      ref={figure}
+      tabIndex={-1}
       component="figure"
       withBorder
       p="md"
@@ -43,78 +57,61 @@ export function FinancialReviewTrend({
         <Group gap="md" className="financial-review-trend-legend">
           <span>
             <i className="financial-review-monthly-key" />
-            Monthly difference
+            {familyChart ? "Monthly differences by family" : "Monthly difference"}
           </span>
           <span>
             <i className="financial-review-running-key" />
-            Running difference
+            Total running difference
           </span>
         </Group>
       </Group>
-      <div className="financial-review-trend-plot">
-        <span className="financial-review-zero-label" style={{ top: percentage(zero) }}>
-          0.00
-        </span>
-        <div className="financial-review-zero-line" style={{ top: percentage(zero) }} />
-        <svg
-          className="financial-review-trend-line"
-          viewBox="0 0 1000 200"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          focusable="false"
-        >
-          {lines.map((line, index) => (
-            <polyline key={index} points={line} fill="none" vectorEffect="non-scaling-stroke" />
-          ))}
-        </svg>
-        {months.map((point, monthIndex) => {
-          const position = {
-            left: percentage((monthIndex / months.length) * 100),
-            width: percentage(100 / months.length),
-          };
-          if (!point)
-            return (
-              <span key={monthIndex} className="financial-review-trend-gap" style={position}>
-                {MONTHS[monthIndex]}
-              </span>
-            );
-          const month = point.row.month?.slice(0, 7) ?? "";
-          const label = formatRecordMonth(month);
-          const description = `${label}: Monthly difference ${formatMoney(point.row.difference, currency)}; Running difference ${formatMoney(point.row.running_difference, currency)}`;
-          const barY = point.monthlyY;
-          return (
-            <button
-              key={month}
-              type="button"
-              className="financial-review-trend-month"
-              style={position}
-              aria-label={`${MONTHS[monthIndex]}: View chart details for ${label}`}
-              title={description}
-              onClick={(event) => {
-                event.currentTarget.focus({ preventScroll: true });
-                onSelect(month);
+      {!familyChart ? (
+        <Group justify="space-between" gap="xs" mb="sm">
+          <Text size="xs" c="dimmed" role="status">
+            {familyLoading
+              ? "Fee-family details are loading. Showing total differences."
+              : familyError
+                ? "Fee-family details are unavailable. Showing total differences."
+                : "Fee-family details do not match the current totals. Showing total differences."}
+          </Text>
+          {!familyLoading ? (
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              onClick={() => {
+                figure.current?.focus({ preventScroll: true });
+                onRetryFamilies();
               }}
             >
-              <span
-                className="financial-review-trend-bar"
-                style={{
-                  top: percentage(Math.min(zero, barY)),
-                  height: percentage(Math.abs(zero - barY)),
-                }}
-              />
-              <span
-                className="financial-review-trend-dot"
-                style={{ top: percentage(point.runningY) }}
-              />
-              <span className="financial-review-trend-month-label">{MONTHS[monthIndex]}</span>
-            </button>
-          );
-        })}
-      </div>
+              Retry family chart
+            </Button>
+          ) : null}
+        </Group>
+      ) : null}
+      <FinancialReviewChartPlot
+        chart={chart}
+        currency={currency}
+        inspected={inspected}
+        onInspect={setInspectedMonth}
+        onSelect={onSelect}
+      />
+      {familyChart ? (
+        <FinancialReviewChartLegend families={chart.families} latest={latest} />
+      ) : null}
+      <FinancialReviewChartValues
+        point={inspected}
+        points={points}
+        families={chart.families}
+        currency={currency}
+        onInspect={setInspectedMonth}
+        onSelect={onSelect}
+      />
       <Text component="figcaption" size="xs" c="dimmed" mt="lg">
-        Difference = Finances − Data Kiosk. The running difference adds the available months from
-        January. These are full mature activity months; months without source records have no
-        plotted value.
+        Bars show monthly Finances − Data Kiosk. Lines accumulate available months from January.{" "}
+        {familyChart
+          ? "Family lines are softer than the total. Positive and negative bars stack separately. "
+          : ""}
+        Months without source records remain gaps.
       </Text>
     </Paper>
   );

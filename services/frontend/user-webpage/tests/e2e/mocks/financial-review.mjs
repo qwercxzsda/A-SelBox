@@ -40,6 +40,56 @@ const DATA = {
   financial_review_records: "financialReviewRecords",
 };
 
+function splitExpressions(text) {
+  const parts = [];
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  let start = 0;
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quoted && character === "\\") escaped = true;
+    else if (character === '"') quoted = !quoted;
+    else if (!quoted) {
+      if (character === "(") depth++;
+      if (character === ")") depth--;
+      if (character === "," && depth === 0) {
+        parts.push(text.slice(start, index));
+        start = index + 1;
+      }
+    }
+  }
+  if (quoted || escaped || depth !== 0) throw new Error("Invalid review filter expression");
+  parts.push(text.slice(start));
+  return parts;
+}
+
+function matchesFamilyExpression(row, expression) {
+  for (const operator of ["and", "or"]) {
+    if (expression.startsWith(`${operator}(`) && expression.endsWith(")")) {
+      const conditions = splitExpressions(expression.slice(operator.length + 1, -1));
+      return operator === "and"
+        ? conditions.every((condition) => matchesFamilyExpression(row, condition))
+        : conditions.some((condition) => matchesFamilyExpression(row, condition));
+    }
+  }
+  if (expression.startsWith("source.eq.")) return row.source === expression.slice(10);
+  const membership = /^component_type\.in\.\(([\s\S]*)\)$/.exec(expression);
+  if (membership) {
+    const types = splitExpressions(membership[1]).map((value) => {
+      if (!value.startsWith('"') || !value.endsWith('"'))
+        throw new Error("Review family filter must quote exact type values");
+      return value.slice(1, -1).replace(/\\([\s\S])/g, "$1");
+    });
+    return types.includes(row.component_type);
+  }
+  throw new Error(`Unsupported review family filter: ${expression}`);
+}
+
 export async function respondWithFinancialReview(
   fixture,
   { request, url, user, reply, csvReply, track },
@@ -53,6 +103,8 @@ export async function respondWithFinancialReview(
   const status = fixture.financialReviewStatusForRequest?.(entry) ?? fixture.financialReviewStatus;
   if (status !== 200) return reply({}, status);
   const filters = new URLSearchParams(url.searchParams);
+  const familyFilter = filters.get("or");
+  filters.delete("or");
   const category = filters.get("p_category");
   if (category) filters.set("category", `eq.${category}`);
   const currency = filters.get("p_currency");
@@ -73,6 +125,7 @@ export async function respondWithFinancialReview(
     filters.append(field, `${operator}.${date}`);
   const rows = sortRecordRows(
     filterRecordRows(sourceRows, filters).filter((row) => {
+      if (familyFilter && !matchesFamilyExpression(row, `or${familyFilter}`)) return false;
       if ((row.activity_date ?? row.month) >= matureMonthBoundary) return false;
       if (filters.get("category") !== `eq.${row.category}`) return false;
       const before = filters.get("activity_date");

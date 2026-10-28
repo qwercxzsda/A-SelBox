@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { kioskRow, liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { applyDates, selectColumnOptions, sortBy } from "./table-actions.mjs";
+import { applyDates, selectColumnOptions, sortBy, columnHeader } from "./table-actions.mjs";
 
 for (const role of ["administrator", "member"]) {
   test(`${role} can see and remove table refinements and recover without losing ordering`, async ({
@@ -48,10 +48,7 @@ for (const role of ["administrator", "member"]) {
       page.getByRole("table", { name: "Financial records" }).locator("tbody tr"),
     ).toHaveCount(40);
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-    await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-      "aria-sort",
-      "ascending",
-    );
+    await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
   });
 }
 

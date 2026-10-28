@@ -1,5 +1,5 @@
 import { liveRow, skuAssignment } from "./api-fixtures.mjs";
-import { applyDates } from "./table-actions.mjs";
+import { applyDates, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn, waitForRequestSettled } from "./fixtures.mjs";
 import { filterRecordRows } from "./record-fixtures.mjs";
@@ -80,7 +80,7 @@ async function skuFixture(page, role = "member") {
 }
 
 async function selectValues(page, label, values, choices = SKUS) {
-  await page.getByRole("button", { name: label, exact: true }).click();
+  await columnTrigger(page, label).click();
   const menu = page.getByRole("dialog", { name: `${label} options`, exact: true });
   if (values.length === 0) {
     await menu.getByRole("button", { name: `Clear ${label.toLowerCase()}`, exact: true }).click();
@@ -252,7 +252,7 @@ test("administrator company, SKU, and marketplace selections intersect while DAT
     skuScope("Amazon.com"),
   );
   await allSku.getByRole("button", { name: "Close breakdown", exact: true }).click();
-  await page.getByRole("button", { name: "Company", exact: true }).click();
+  await columnTrigger(page, "Company").click();
   await expect(
     page
       .getByRole("dialog", { name: "Company options", exact: true })
@@ -416,7 +416,7 @@ test("signing into another member clears SKU and marketplace selections and thei
   await expect(
     cards(page).summaries.getByRole("region", { name: "Applied filters", exact: true }),
   ).toHaveText("All transactions");
-  await page.getByRole("button", { name: "SKU", exact: true }).click();
+  await columnTrigger(page, "SKU").click();
   const menu = page.getByRole("dialog", { name: "SKU options", exact: true });
   await expect(menu.getByRole("checkbox", { name: "ALPHA", exact: true })).not.toBeChecked();
   await expect(menu.getByRole("checkbox", { name: "BETA", exact: true })).not.toBeChecked();

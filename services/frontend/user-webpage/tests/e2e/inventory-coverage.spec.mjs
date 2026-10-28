@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 const capture = (overrides = {}) => ({
   capture_id: "capture-us",
@@ -25,7 +26,7 @@ async function setup(page, rows, role = "member") {
 }
 
 async function filter(page, column, value) {
-  await items(page).getByRole("button", { name: column, exact: true }).click();
+  await columnTrigger(items(page), column).click();
   const menu = page.getByRole("dialog", { name: `${column} options`, exact: true });
   await menu.getByRole("checkbox", { name: value, exact: true }).check();
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
@@ -213,7 +214,7 @@ test("sales sorting explains original currencies at the point of comparison", as
   await expect(
     items(page).getByText("Original currencies · no conversion", { exact: true }),
   ).toBeVisible();
-  await items(page).getByRole("button", { name: "Sales · last 90 days", exact: true }).click();
+  await columnTrigger(items(page), "Sales · last 90 days").click();
   await page.getByRole("button", { name: "Highest first", exact: true }).click();
   await expect(
     page.getByRole("note").filter({ hasText: "Sales ordering compares original currency amounts" }),

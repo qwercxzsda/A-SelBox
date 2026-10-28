@@ -88,8 +88,9 @@ export function SkuConfigurationEditor({
   function stageDraft(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (editing.rateChange !== null) return;
-    if (!values.sku.trim() || values.sku.includes("\0")) {
-      showSkuError("Enter a SKU.");
+    const skuIssue = issues.find((issue) => issue.field === "sku");
+    if (skuIssue) {
+      showSkuError(skuIssue.message);
       return;
     }
     if (existingSku) {

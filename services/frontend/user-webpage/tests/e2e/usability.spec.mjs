@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { feeRow, skuAssignment, liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { columnTrigger, columnHeader } from "./table-actions.mjs";
 
 test("tab roundtrips retain working filters, sorting, pages, and fee expansions until sign-out", async ({
   page,
@@ -15,15 +16,12 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   await page.getByLabel("Rows", { exact: true }).selectOption("50");
   await expect(rowWithSku(page, "ALPHA-050")).toBeVisible();
-  await page.getByRole("button", { name: "Date", exact: true }).click();
+  await columnTrigger(page, "Date").click();
   await page
     .getByRole("dialog", { name: "Date options", exact: true })
     .getByRole("button", { name: "Oldest first", exact: true })
     .click();
-  await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-    "aria-sort",
-    "ascending",
-  );
+  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
@@ -38,10 +36,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-    "aria-sort",
-    "ascending",
-  );
+  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("GROUP-001");
@@ -287,9 +282,9 @@ for (const role of ["member", "administrator"]) {
       );
     }
     const companyName = "Company A";
-    const companyColumn = page.getByRole("columnheader", { name: "Company", exact: true });
+    const companyColumn = columnHeader(page, "Company");
     await expect(companyColumn).toHaveCount(role === "administrator" ? 1 : 0);
-    await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(1);
+    await expect(columnHeader(page, "Source")).toHaveCount(1);
     const header = page.locator("header");
     await expect(header.getByRole("heading")).toHaveCount(1);
     await expect(
@@ -334,7 +329,7 @@ for (const role of ["member", "administrator"]) {
 
     if (role === "administrator") {
       await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
-      await expect(page.getByRole("columnheader", { name: "Source", exact: true })).toHaveCount(0);
+      await expect(columnHeader(page, "Source")).toHaveCount(0);
     }
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();

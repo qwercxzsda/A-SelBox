@@ -1,6 +1,6 @@
 import { requireAccessToken, type ApiTransport } from "./transport.ts";
 import { LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
-import { requireCalendarDate } from "./filters.ts";
+import { quotePostgrestText, requireCalendarDate } from "./filters.ts";
 import type { CanonicalRow } from "./types.ts";
 import marketplaces from "../generated/marketplaces.json" with { type: "json" };
 import { isJsonObject } from "./validation.ts";
@@ -109,7 +109,7 @@ function selection(value: unknown, nullable = true): (string | null)[] {
 /** Quoted PostgREST values preserve punctuation; null remains a distinct filter choice. */
 function selectionExpression(column: string, values: (string | null)[]): string {
   const text = values.filter((value): value is string => value !== null);
-  const quoted = text.map((value) => '"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"');
+  const quoted = text.map(quotePostgrestText);
   const expressions = [
     ...(text.length ? [`${column}.in.(${quoted.join(",")})`] : []),
     ...(values.includes(null) ? [`${column}.is.null`] : []),

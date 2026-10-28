@@ -10,11 +10,11 @@ Currencies remain separate in both views.
 The three category tabs use the existing allocation rules. Their labels identify a category, not
 the source of every row in that tab:
 
-| Category | Contents | Role in mature calculations |
-| --- | --- | --- |
-| Finances | Sales, refunds, and transaction fees | Finances supplies company amounts; Data Kiosk supplies a comparison. |
-| Data Kiosk | Allocated costs such as advertising and storage | Data Kiosk supplies company costs; Finances supplies account controls. |
-| SelBox | Account charges and balance movements | These source-category amounts stay with SelBox. They exclude retained service fees and the derived Data Kiosk difference. |
+| Category   | Contents                                        | Role in mature calculations                                                                                               |
+| ---------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Finances   | Sales, refunds, and transaction fees            | Finances supplies company amounts; Data Kiosk supplies a comparison.                                                      |
+| Data Kiosk | Allocated costs such as advertising and storage | Data Kiosk supplies company costs; Finances supplies account controls.                                                    |
+| SelBox     | Account charges and balance movements           | These source-category amounts stay with SelBox. They exclude retained service fees and the derived Data Kiosk difference. |
 
 Data Kiosk is the initial category. Each month/currency row compares the signed source sums:
 
@@ -32,7 +32,8 @@ decimal precision and round only the displayed result, with ties away from zero.
 the unrounded source sums, so subtracting two displayed rounded amounts can differ by a cent from
 the displayed difference. Values that round to zero display `0.00`, without a negative sign.
 
-Only the Data Kiosk category difference is the accounting reconciliation amount retained by SelBox.
+Only the complete Data Kiosk category difference is the accounting reconciliation amount retained by SelBox.
+Selecting fee families shows a diagnostic subset; it does not change saved payout reconciliation.
 Differences in the Finances and SelBox categories are diagnostic and do not create additional
 payout adjustments. A source with no matching rows has a zero sum and is identified by its zero
 record count. Source rows with zero amounts remain visible. `ANALYSIS_ONLY` rows do not enter
@@ -67,25 +68,72 @@ Only the separate monthly Summary control applies that verified grouping.
 
 ## Yearly overview and monthly details
 
-**Year** and **Currency** define one shared scope across the three category tabs. The initial year
-is the latest year with fully mature source records and the initial currency is USD. Changing the year or category
-retains the selected currency; if it has no matching records, the view stays empty rather than
+**Year**, **Currency**, and **Fee families** define one shared scope across the three category tabs.
+The **Comparison category** caption identifies Finances, Data Kiosk, and SelBox as accounting
+categories; each category compares Finances with Data Kiosk.
+The initial year is the latest year with fully mature source records and the initial currency is
+USD. Changing the year or category retains the selected currency; if it has no matching records, the view stays empty rather than
 switching currencies. The currency menu includes currencies available in the selected year and
 the current selection. Year options span the available source years, including intervening gaps.
+
+**Fee families** opens the same checkbox menu used by table Company and SKU filters. Longer lists
+include a search field; searching changes the visible choices without clearing hidden selections.
+Changes apply immediately. **Done** or Escape closes the menu and returns focus to its button.
+**Clear fee families** removes the selection. Selected families are alternatives: choosing
+Monthly storage and Sponsored products includes both, while Year, Currency, and category still
+intersect that selection. With no families selected, all families are included. Clearing the filter
+restores the complete category totals. A selection with no matching source types stays empty; it
+does not fall back to all families. Selections remain when changing year, currency, or category,
+including families absent from the new scope.
 
 The overview shows up to twelve monthly rows, January through December, without row pagination or
 a separate month filter. Each row shows the monthly source sums, monthly difference, and
 **Running difference**: the exact sum of monthly differences from the start of the selected year
 through that row. Missing months have no row; the running sum includes only returned source facts.
-Period totals and the **Monthly and running differences** chart use the same year, currency, and
-category. Offsetting differences can reduce a running total, but this does not prove that earlier
-captures converged or that individual source discrepancies were resolved.
+Period totals, the **Monthly and running differences** chart, and the monthly rows use the same year,
+currency, category, and family selection. The optional **Fee family breakdown** shows each named
+family's source sums and difference across that period. Offsetting differences can reduce a running
+total, but this does not prove that earlier captures converged or that individual source discrepancies
+were resolved.
+
+Where a source is absent in all or part of the selected scope, an overview note identifies it or
+counts the months with records from only one source, and shows each source's record count. An absent
+source contributes zero to the comparison. Missing or malformed counts remain unavailable instead
+of becoming zero.
+A zero amount can still have source records, and a zero difference can result from cancelling
+amounts; neither establishes complete source coverage.
+
+Each monthly chart bar is divided into fee-family segments. Positive family differences stack above
+zero and negative differences below zero, so opposing amounts remain visible even when their net
+monthly difference is zero. The named legend and family colors remain stable when filtering.
+Subdued lines in those colors show each family's running difference; a stronger line retains the
+total running difference. The compact legend shows up to six families, ranked by the absolute
+running difference at the latest observed month. **Show all … families** expands only the legend;
+every selected family remains plotted. The axis identifies the currency and uses compact magnitude
+labels, with unabbreviated amounts in their titles.
+
+The visible **Chart values** section starts at the latest observed month. Hovering or focusing a
+plotted month updates it, and **Chart month** provides a keyboard and touch control. The readout
+shows total monthly and running differences and initially the largest absolute monthly family
+difference on narrow phones, or the three largest on wider screens. An action exposes every family
+value in a bounded, keyboard-scrollable list. Registry-defined source-only families carry **Finances
+only** or **Data Kiosk only** markers in the legend, readout, and month descriptions. These markers
+describe the family definition rather than absence of observed rows. Clicking or activating a
+plotted month, or choosing **Open month details**, opens that month's drawer.
+
+A family absent from an otherwise populated month contributes zero and carries its running amount
+forward. A month with no source records remains a gap in every line. All arithmetic uses exact
+decimal values before display rounding; chart coordinates are only a visual approximation. If
+family aggregates cannot be reconciled with the monthly totals, the chart keeps the total series
+and explains that the family series are unavailable, with a retry action.
 
 Selecting a month opens its totals and **Amounts by type** in a drawer, with the overview's currency
-fixed throughout totals, types, source records, and the saved-report list. Choosing a type opens and
-focuses records for the same category, month, currency, source, and exact raw type. Type and record
-tables use 50-row pages. Source-filter state is saved separately for each category, month, and
-currency. Changing Year or Currency closes the monthly drawer. **Previous** and **Next** within the
+and selected families retained throughout current totals, types, and source records. The saved-report
+list retains the month and currency but each saved report keeps its complete historical scope.
+Choosing a type opens and focuses records for the same category, month, currency, selected families,
+source, and exact raw type. Type and record tables use 50-row pages. Source-filter state is saved
+separately for each category, month, currency, and selected family scope. Changing Year, Currency,
+or Fee families closes the monthly drawer. **Previous** and **Next** within the
 drawer move to older and newer available months of that year. A type's sum and count cover all
 matching records, independently of the loaded record page.
 Closing the month drawer returns focus to its opener after the exit transition, without scrolling
@@ -101,25 +149,52 @@ remains explicit. These are current
 source facts without company allocation or fee joins. A difference at account or category level
 does not attribute a discrepancy to a particular SKU, transaction, campaign, or blank marketplace.
 
-Year, currency, category, selected month, source filters, detail pages, and expanded sections survive
-reloads. Only view state is saved; amounts are fetched again. Lightweight source revision checks
+Year, currency, category, selected families, selected month, source filters, detail pages, and
+expanded sections survive reloads. Only view state is saved; amounts are fetched again. Lightweight source revision checks
 and maturity-policy changes refresh current comparisons, including an open drawer.
 
 ## Fee family comparison and source lookup
 
-The optional **Fee family comparison** groups already recognized fee identities: coupon participation
-and performance charges, deal participation and performance charges, monthly and aged storage,
-disposal, removal, labeling, inbound transportation/program charges, and subscription fees.
-The display sums each source separately with exact decimal arithmetic, then shows Finances minus
-Data Kiosk. Zero-value types remain. A missing side displays zero with an explicit missing-rows label;
-this is not evidence of complete coverage. No dates, categories, payout authority, or allocations change.
+Membership is defined once in the [fee family catalog](../services/frontend/user-webpage/src/fee-family-catalog.ts).
+Each supported source/type belongs to exactly one family. Display labels alone never determine
+membership; the registry lists exact raw types and accepted aliases.
 
-The comparison loads all types for one selected category/month/currency, capped at 1,000 groups and
-fails closed if that limit is reached. It never calculates family totals from a partial 50-row page.
-**Unpaired or uncertain types** remain visible with their original amounts. Advertising and Sponsored
-Products are not paired. Ambiguous convenience/placement labels also stay unpaired. Family grouping
-is diagnostic, not a claim that billing periods, tax treatment or SKU allocations agree. Native
-**Amounts by type** remains available below for exact type and record drilldown.
+The optional monthly **Fee family comparison** uses the same named families as the yearly filter
+and breakdown. Generalized pairs include:
+
+| Family             | Finances types      | Data Kiosk types                                                                                         |
+| ------------------ | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| Monthly storage    | `STORAGE_FEES`      | `FBA_STORAGE_FEE`, `MONTHLY_INVENTORY_STORAGE_FEE`                                                       |
+| Aged storage       | `AGED_STORAGE_FEES` | `LONG_TERM_STORAGE_FEE`, `FBA_AGED_INVENTORY_SURCHARGE`                                                  |
+| Sponsored products | `ADVERTISING`       | `SPONSORED_PRODUCT_FEE`, `SPONSORED_PRODUCTS`, `SPONSORED_PRODUCTS_CHARGE`, `SPONSORED_PRODUCTS_CHARGES` |
+
+Other explicit families cover coupon and deal participation/performance charges, disposal, removal,
+labeling, inbound transportation/program charges, subscription fees, and the remaining source
+identities. Sponsored brands and Sponsored display remain distinct from Sponsored products.
+Unrecognized types retain a separate named family for their exact source and raw type, such as
+**Future fee · Finances**. Identical unfamiliar codes from different sources are not implicitly paired.
+There is no shared unpaired/uncertain bucket, so each type remains independently inspectable and
+selectable. Exact raw types remain available in **Amounts by type** and source records.
+
+The display sums each source separately with exact decimal arithmetic, then shows Finances minus
+Data Kiosk. Both yearly and monthly family tables put the largest absolute difference first, retaining
+source signs, zero-value types, and groups whose records cancel to zero. The yearly **Show only**
+action selects that family while preserving category, year, and currency, and returns focus to the
+overview. Ranking helps investigation; it does not classify a difference as an accounting error.
+
+**Source coverage** distinguishes a **Finances-only family** or **Data Kiosk-only family**, as defined
+by the catalog, from a paired family with no rows from an expected source in this scope. Paired
+families with records from both sources use **Both sources** for a single observed month, or
+**Both sources in X of Y months** for a multi-month period. X counts months with both sources; Y is
+the number of months with records for that family. Inactive calendar months are excluded.
+These labels describe observed source presence, not agreement in billing dates, tax treatment,
+allocations, or complete coverage. Dates, categories, payout authority, and allocations do not change.
+
+Family amounts are calculated from complete type aggregates for the selected category, currency,
+and month or year, never from a partial displayed type page or downloaded raw records. Reads page
+through the existing type-total RPC using exact counts, with at most 50,000 aggregate groups and
+200 requests. Incomplete, inconsistent, invalid, or over-limit responses show a load failure rather
+than partial family totals.
 
 The administrator Finances tab also provides **Find Amazon transaction**, an explicit exact-ID lookup
 independent of SKU/type search and current table filters. It reads a bounded page across retained
@@ -138,7 +213,9 @@ month maturity, company ownership and fee configuration.
 
 Each month's expandable **Saved report snapshots** section lists saved company reports and their
 earlier versions. This section stays scoped to its month and the selected review currency, while
-preserving its company filter independently of the current category comparison.
+preserving its company filter independently of the current category comparison. The current fee-family
+selection does not alter a saved snapshot's amounts or supporting records; the section identifies
+that historical scope explicitly.
 
 Selecting a snapshot opens **Saved source details**, including **Supporting records**, saved
 account reconciliation, and input metadata captured when that report was created. These details are exclusive of the company
@@ -153,23 +230,25 @@ input manifests through the API.
 
 ## Read contract
 
-| Interface | Purpose |
-| --- | --- |
-| `public.financial_review_records` | Current mature facts in the three monetary categories, with exact source provenance. |
-| `public.financial_review_totals(p_month_from, p_month_to, p_category)` | Monthly sums, differences, and source record counts by currency. |
-| `public.financial_review_type_totals(p_month_from, p_month_to, p_category, p_currency)` | Exact sums and counts by source and raw type. |
-| `public.financial_source_record(p_source, p_row_id, p_version_id)` | Exact retained source detail, with no version substitution; administrator-only. |
+| Interface                                                                                | Purpose                                                                                                                  |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `public.financial_review_records`                                                        | Current mature facts in the three monetary categories, with exact source provenance.                                     |
+| `public.financial_review_totals(p_month_from, p_month_to, p_category)`                   | Monthly sums, differences, and source record counts by currency.                                                         |
+| `public.financial_review_type_totals(p_month_from, p_month_to, p_category, p_currency)`  | Exact sums and counts by source and raw type.                                                                            |
+| `public.financial_source_record(p_source, p_row_id, p_version_id)`                       | Exact retained source detail, with no version substitution; administrator-only.                                          |
 | `public.financial_source_transaction_lookup(p_native_transaction_id, p_limit, p_offset)` | Exact Finances native-ID component lookup across retained captures; administrator-only and bounded to 100 rows per call. |
-| `public.payout_reconciliation_totals` | Frozen account controls for one selected saved report, grouped by currency. |
-| `public.payout_report_reconciliation` | Frozen daily account controls and their source provenance. |
+| `public.payout_reconciliation_totals`                                                    | Frozen account controls for one selected saved report, grouped by currency.                                              |
+| `public.payout_report_reconciliation`                                                    | Frozen daily account controls and their source provenance.                                                               |
 
 Current-source interfaces use invoker security and an explicit administrator check. Month RPCs require
 half-open date bounds and apply those bounds before grouping, with existing fact-date indexes.
 The browser reads the earliest and latest eligible dates with one-row date anchors, then requests
 one bounded January-to-January period. The period response includes every currency to populate the
-currency menu; only the selected currency enters displayed totals and running sums. Monthly detail
-reads also filter by the selected currency. Finding the date bounds can still examine source rows;
-bounded result size is not a constant-time guarantee.
+currency menu; only the selected currency enters displayed totals and running sums. Complete type
+aggregates for that year and currency provide the family choices and breakdown. When families are
+selected, their aggregate union supplies the monthly, running, and period amounts. Monthly detail
+reads also filter by the selected currency and family source/type identities. Finding the date bounds
+can still examine source rows; bounded result size is not a constant-time guarantee.
 
 CSV responses preserve decimal strings. Aggregate RPC projections are alphabetically ordered to
 keep values aligned with headers on the deployed PostgREST CSV serializer; tests protect that

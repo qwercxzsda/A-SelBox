@@ -59,7 +59,11 @@ export function locationPreference(
   }
   if (tab !== "financial-review") return saved;
   const category = reviewCategory(p.get("category"));
-  const scope = decodeReviewScope({ year: p.get("year"), currency: p.get("currency") });
+  const scope = decodeReviewScope({
+    year: p.get("year"),
+    currency: p.get("currency"),
+    families: p.getAll("family"),
+  });
   const month = locationDate(`${p.get("month") ?? ""}-01`).slice(0, 7) || null;
   const scopedReport =
     selected?.currency === scope.currency && selected.startDate === `${month ?? ""}-01`
@@ -109,6 +113,7 @@ export function workspaceLocation(url: URL, account: AppAccount, preferences: Pr
     p.set("category", category);
     p.set("currency", scope.currency);
     if (scope.year) p.set("year", scope.year);
+    for (const family of scope.families) p.append("family", family);
     if (locationDate(`${month}-01`)) p.set("month", month);
     const snapshotKey = `financial-review:snapshots:${month}:${scope.currency}`;
     const snapshot = decodeDatasetView(preferences.get(snapshotKey), "payouts");

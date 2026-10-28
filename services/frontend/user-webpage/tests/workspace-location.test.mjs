@@ -67,6 +67,7 @@ test("review URLs preserve category year currency and month, and absence closes 
   assert.deepEqual(locationPreference(url, admin, "financial-review:scope", {}), {
     year: "2026",
     currency: "JPY",
+    families: [],
   });
   assert.deepEqual(
     locationPreference(url, admin, "financial-review:monthly-summaries:DATA_KIOSK", {}),
@@ -78,6 +79,30 @@ test("review URLs preserve category year currency and month, and absence closes 
       selectedMonth: "2026-07",
     }),
     { selectedMonth: null },
+  );
+});
+
+test("review family URLs preserve multiple families and clear them on unfiltered navigation", () => {
+  const prefs = new Map([
+    ["tab", "financial-review"],
+    ["financial-review:category", "DATA_KIOSK"],
+    [
+      "financial-review:scope",
+      { year: "2026", currency: "USD", families: ["sponsored-products", "monthly-storage"] },
+    ],
+  ]);
+  const url = workspaceLocation(origin, admin, prefs);
+  assert.deepEqual(url.searchParams.getAll("family"), ["monthly-storage", "sponsored-products"]);
+  assert.deepEqual(locationPreference(url, admin, "financial-review:scope", {}), {
+    year: "2026",
+    currency: "USD",
+    families: ["monthly-storage", "sponsored-products"],
+  });
+  url.searchParams.delete("family");
+  assert.deepEqual(
+    locationPreference(url, admin, "financial-review:scope", { families: ["monthly-storage"] })
+      .families,
+    [],
   );
 });
 

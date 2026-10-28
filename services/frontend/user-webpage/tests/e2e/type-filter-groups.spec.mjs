@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import registry from "../../src/generated/transaction-types.json" with { type: "json" };
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { openColumn } from "./table-actions.mjs";
+import { openColumn, columnTrigger } from "./table-actions.mjs";
 
 const STORAGE = "Storage & inventory";
 const EPR_TYPES = registry.filter(({ type }) => type === "EPR_FEES").map(({ type }) => type);
@@ -147,7 +147,7 @@ test("type groups support keyboard selection, disclosure, and escape focus retur
   page,
 }) => {
   const fixture = await start(page);
-  const trigger = page.getByRole("button", { name: "Type", exact: true });
+  const trigger = columnTrigger(page, "Type");
   await trigger.focus();
   await page.keyboard.press("Enter");
   const menu = page.getByRole("dialog", { name: "Type options", exact: true });

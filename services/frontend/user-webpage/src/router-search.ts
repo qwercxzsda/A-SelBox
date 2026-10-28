@@ -9,6 +9,7 @@ export const WORKSPACE_SEARCH_PARAMETERS = {
   currency: "single",
   year: "single",
   category: "single",
+  family: "multiple",
   month: "single",
   report: "single",
   reportCompany: "single",

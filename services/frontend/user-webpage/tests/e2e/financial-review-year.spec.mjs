@@ -189,7 +189,7 @@ test("chart keyboard selection opens the same currency and restores focus to its
   });
   await expect(july).toHaveAttribute(
     "title",
-    "July 2026: Monthly difference 0.00 EUR; Running difference 0.00 EUR",
+    /^July 2026: Monthly difference 0\.00 EUR; Running difference 0\.00 EUR(?:\n|$)/,
   );
   await july.focus();
   await july.press("Enter");

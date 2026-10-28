@@ -11,13 +11,14 @@ import {
   period,
   version,
 } from "./sku-configuration-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 test("F5 retains transaction ordering, pagination and the selected row using fresh reads", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
   await signIn(page);
-  await page.getByRole("button", { name: "Date", exact: true }).click();
+  await columnTrigger(page, "Date").click();
   await page.getByRole("button", { name: "Oldest first", exact: true }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await rowWithSku(page, "ALPHA-026").click();

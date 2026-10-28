@@ -1,0 +1,222 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createApiClient } from "../src/api/client.ts";
+import { SETTINGS } from "./api-fixtures.mjs";
+import { csv } from "./e2e/api-fixtures.mjs";
+import { respondWithFinancialReview } from "./e2e/mocks/financial-review.mjs";
+
+test("family type filters intersect the existing monthly source/type scope before server paging", async () => {
+  let requests = 0;
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requests++;
+    const params = new URL(url).searchParams;
+    assert.equal(
+      params.get("or"),
+      '(and(source.eq.FINANCES,component_type.in.("STORAGE_FEES","AGED_STORAGE_FEES")),and(source.eq.DATA_KIOSK,component_type.in.("FBA_STORAGE_FEE","MONTHLY_INVENTORY_STORAGE_FEE","LONG_TERM_STORAGE_FEE","FBA_AGED_INVENTORY_SURCHARGE")))',
+    );
+    assert.equal(params.get("limit"), "50");
+    assert.equal(params.get("offset"), "50");
+    assert.equal(init.headers.Prefer, "count=exact");
+    if (new URL(url).pathname.endsWith("financial_review_records")) {
+      assert.equal(params.get("category"), "eq.DATA_KIOSK");
+      assert.equal(params.get("currency"), "eq.USD");
+      assert.equal(params.get("source"), "eq.FINANCES");
+      assert.equal(params.get("component_type"), "eq.STORAGE_FEES");
+      assert.equal(
+        params.get("and"),
+        "(activity_date.gte.2026-07-01,activity_date.lte.2026-07-31)",
+      );
+    } else {
+      assert.equal(params.get("p_category"), "DATA_KIOSK");
+      assert.equal(params.get("p_currency"), "USD");
+      assert.equal(params.get("p_month_from"), "2026-07-01");
+      assert.equal(params.get("p_month_to"), "2026-08-01");
+    }
+    return new Response("amount\n", { headers: { "Content-Range": "*/0" } });
+  });
+  const families = ["monthly-storage", "aged-storage", "monthly-storage"];
+  await client.fetchFinancialReviewTypes(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    1,
+    undefined,
+    families,
+  );
+  await client.fetchFinancialReviewRecords(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    1,
+    { source: "FINANCES", type: "STORAGE_FEES" },
+    undefined,
+    families,
+  );
+  assert.equal(requests, 2);
+});
+
+test("unknown family identities escape punctuation literally and never include the other source", async () => {
+  const type = 'UNKNOWN, (fee)."quoted"\\path\nnext';
+  const id = `source:DATA_KIOSK:${encodeURIComponent(type)}`;
+  const client = createApiClient(SETTINGS, async (url) => {
+    const params = new URL(url).searchParams;
+    assert.equal(
+      params.get("or"),
+      `(and(source.eq.DATA_KIOSK,component_type.in.("${type.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}")))`,
+    );
+    return new Response("amount\n", { headers: { "Content-Range": "*/0" } });
+  });
+  await client.fetchFinancialReviewRecords(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    0,
+    {},
+    undefined,
+    [id],
+  );
+  await client.fetchFinancialReviewTypes("access", "DATA_KIOSK", "2026-07", "USD", 0, undefined, [
+    id,
+  ]);
+});
+
+test("invalid nonempty family selections never broaden to an unrestricted request", () => {
+  const client = createApiClient(SETTINGS, () => assert.fail("invalid families must not query"));
+  for (const ids of [
+    null,
+    "monthly-storage",
+    [null],
+    ["not-a-family"],
+    ["source:FINANCES:%"],
+    ["monthly-storage", "invalid"],
+  ]) {
+    assert.throws(() =>
+      client.fetchFinancialReviewTypes("access", "DATA_KIOSK", "2026-07", "USD", 0, undefined, ids),
+    );
+    assert.throws(() =>
+      client.fetchFinancialReviewRecords(
+        "access",
+        "DATA_KIOSK",
+        "2026-07",
+        "USD",
+        0,
+        {},
+        undefined,
+        ids,
+      ),
+    );
+  }
+});
+
+test("review browser fixtures apply source-specific family intersections before exact counts and paging", async () => {
+  const base = {
+    month: "2026-07-01",
+    activity_date: "2026-07-12",
+    category: "DATA_KIOSK",
+    currency: "USD",
+    source: "FINANCES",
+    component_type: "STORAGE_FEES",
+    amount: "0",
+    row_count: "1",
+  };
+  const unknown = 'FUTURE, (fee)."literal"\\path\nnext';
+  const records = [
+    ...Array.from({ length: 52 }, (_, index) => ({
+      ...base,
+      source_row_id: `ROW-${String(index).padStart(2, "0")}`,
+    })),
+    { ...base, source: "DATA_KIOSK", component_type: "FBA_STORAGE_FEE", source_row_id: "KIOSK" },
+    { ...base, source: "DATA_KIOSK", source_row_id: "WRONG-SOURCE" },
+    { ...base, currency: "EUR", source_row_id: "OTHER-CURRENCY" },
+    { ...base, category: "SELBOX", source_row_id: "OTHER-CATEGORY" },
+    { ...base, month: "2026-06-01", activity_date: "2026-06-12", source_row_id: "OTHER-MONTH" },
+    { ...base, component_type: unknown, source_row_id: "UNKNOWN-FINANCES" },
+    { ...base, component_type: unknown, source: "DATA_KIOSK", source_row_id: "UNKNOWN-KIOSK" },
+  ];
+  const fixture = {
+    roles: { admin: "administrator" },
+    financialReviewRequests: [],
+    financialReviewStatus: 200,
+    beforeFinancialReview: async () => {},
+    payoutPolicy: { mature_cutoff_date: "2027-01-27" },
+    financialReviewRecords: records,
+    financialReviewTypeTotals: [
+      { ...base, row_count: "52" },
+      { ...base, source: "DATA_KIOSK", component_type: "FBA_STORAGE_FEE" },
+      { ...base, source: "DATA_KIOSK" },
+      { ...base, month: "2026-06-01" },
+    ],
+  };
+  const client = createApiClient(SETTINGS, (url) =>
+    respondWithFinancialReview(fixture, {
+      request: {},
+      url: new URL(url),
+      user: "admin",
+      track: () => {},
+      reply: (body, status) => new Response(JSON.stringify(body), { status }),
+      csvReply: (columns, rows, total, offset) =>
+        new Response(csv(columns, rows), {
+          headers: {
+            "Content-Range": `${rows.length ? `${offset}-${offset + rows.length - 1}` : "*"}/${total}`,
+          },
+        }),
+    }),
+  );
+  const page = await client.fetchFinancialReviewRecords(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    1,
+    {},
+    undefined,
+    ["monthly-storage"],
+  );
+  assert.equal(page.totalCount, 53);
+  assert.equal(page.rows.length, 3);
+  assert.ok(
+    page.rows.every((row) => row.source === "FINANCES" && row.component_type === "STORAGE_FEES"),
+  );
+  const onlyFinances = await client.fetchFinancialReviewRecords(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    1,
+    { source: "FINANCES", type: "STORAGE_FEES" },
+    undefined,
+    ["monthly-storage"],
+  );
+  assert.equal(onlyFinances.totalCount, 52);
+  assert.equal(onlyFinances.rows.length, 2);
+  const types = await client.fetchFinancialReviewTypes(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    0,
+    undefined,
+    ["monthly-storage"],
+  );
+  assert.equal(types.totalCount, 2);
+  assert.equal(types.rows.length, 2);
+  assert.equal(
+    (await client.fetchFinancialReviewPeriodTypes("access", "DATA_KIOSK", "2026", "USD")).length,
+    4,
+  );
+  const exactUnknown = await client.fetchFinancialReviewRecords(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    0,
+    {},
+    undefined,
+    [`source:DATA_KIOSK:${encodeURIComponent(unknown)}`],
+  );
+  assert.equal(exactUnknown.totalCount, 1);
+  assert.equal(exactUnknown.rows[0].source_row_id, "UNKNOWN-KIOSK");
+});

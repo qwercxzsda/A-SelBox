@@ -1,4 +1,4 @@
-import { sortBy } from "./table-actions.mjs";
+import { sortBy, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { kioskRow, liveRow, skuAssignment } from "./api-fixtures.mjs";
@@ -155,7 +155,7 @@ test("an older unfiltered count cannot replace the selected SKU count", async ({
   try {
     await signIn(page);
     await started.promise;
-    await page.getByRole("button", { name: "SKU", exact: true }).click();
+    await columnTrigger(page, "SKU").click();
     const menu = page.getByRole("dialog", { name: "SKU options", exact: true });
     await menu.getByRole("checkbox", { name: "ALPHA-001", exact: true }).check();
     await menu.getByRole("button", { name: "Close options", exact: true }).click();

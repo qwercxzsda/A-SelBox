@@ -16,25 +16,55 @@ const row = (month, difference, currency = "USD") => ({
   data_kiosk_amount: "99.996",
 });
 
-test("review scope persists only the shared year and currency and defaults to latest year and USD", () => {
-  assert.deepEqual(createReviewScope(), { year: "", currency: "USD" });
+test("review scope persists shared year, currency and families and defaults to all families", () => {
+  assert.deepEqual(createReviewScope(), { year: "", currency: "USD", families: [] });
   assert.deepEqual(decodeReviewScope(null), createReviewScope());
   assert.deepEqual(
     decodeReviewScope({ year: "2024", currency: "JPY", rows: [row("2024-01", "999")] }),
-    { year: "2024", currency: "JPY" },
+    { year: "2024", currency: "JPY", families: [] },
   );
   for (const year of ["0001", "2026", "9999"])
-    assert.deepEqual(decodeReviewScope({ year, currency: "EUR" }), { year, currency: "EUR" });
+    assert.deepEqual(decodeReviewScope({ year, currency: "EUR" }), {
+      year,
+      currency: "EUR",
+      families: [],
+    });
 });
 
 test("invalid persisted year or currency falls back independently without becoming a query filter", () => {
   for (const year of [null, 2026, "0000", "26", "02026", "2026-01", "2026,or=(id)"])
-    assert.deepEqual(decodeReviewScope({ year, currency: "JPY" }), { year: "", currency: "JPY" });
+    assert.deepEqual(decodeReviewScope({ year, currency: "JPY" }), {
+      year: "",
+      currency: "JPY",
+      families: [],
+    });
   for (const currency of [null, 123, "", "usd", "USD,EUR", "US", "USD\0"])
     assert.deepEqual(decodeReviewScope({ year: "2026", currency }), {
       year: "2026",
       currency: "USD",
+      families: [],
     });
+});
+
+test("family scope keeps a canonical union and discards malformed saved values", () => {
+  assert.deepEqual(
+    decodeReviewScope({
+      year: "2026",
+      currency: "USD",
+      families: [
+        "sponsored-products",
+        "monthly-storage",
+        "monthly-storage",
+        "invented-family",
+        null,
+      ],
+    }),
+    {
+      year: "2026",
+      currency: "USD",
+      families: ["monthly-storage", "sponsored-products"],
+    },
+  );
 });
 
 test("monthly selection survives reload without retaining amounts or obsolete cursor state", () => {

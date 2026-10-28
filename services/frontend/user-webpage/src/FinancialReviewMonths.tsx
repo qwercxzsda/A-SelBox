@@ -16,6 +16,9 @@ import { useFinancialReviewPeriod } from "./use-financial-review-period";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { revealSection } from "./reveal-section";
 import { WorkspaceIntro } from "./WorkspaceIntro";
+import { FeeFamilyFilter, FeeFamilyScope } from "./FeeFamilyFilter";
+import { FinancialReviewFamilyBreakdown } from "./FinancialReviewFamilies";
+import { normalizeFeeFamilyIds } from "./fee-family-catalog";
 import { REVIEW_CATEGORIES, type ReviewCategory } from "./financial-review-categories";
 import "./FinancialTable.css";
 import "./FinancialReview.css";
@@ -36,7 +39,10 @@ export function FinancialReviewMonths({
   const {
     policy,
     bounds,
-    query,
+    comparisonQuery,
+    totalsQuery,
+    familyQuery,
+    familyOptions,
     matureCutoff,
     latestMonth,
     year,
@@ -66,6 +72,16 @@ export function FinancialReviewMonths({
     setView({ selectedMonth: null });
     onScopeChange(next);
   }
+  const hasSelectedFamilies = scope.families.length > 0;
+  const comparisonUnavailable = comparisonQuery.isError || bounds.isError || policy.isError;
+  const canClearFamilies = hasSelectedFamilies && !loading && !comparisonUnavailable;
+  const emptyMessage = loading
+    ? "Loading monthly summaries…"
+    : comparisonUnavailable
+      ? "Monthly summaries are unavailable."
+      : hasSelectedFamilies
+        ? `No mature source records match the selected fee families in ${scope.currency}${year ? ` for ${year}` : ""}.`
+        : `No mature source records for ${scope.currency}${year ? ` in ${year}` : ""}.`;
 
   return (
     <div ref={listRef} className="financial-review-months" tabIndex={-1}>
@@ -88,8 +104,18 @@ export function FinancialReviewMonths({
             value={scope.currency}
             data={currencies}
             onChange={(event) => {
-              changeScope({ year, currency: event.currentTarget.value });
+              changeScope({ ...scope, year, currency: event.currentTarget.value });
             }}
+          />
+          <FeeFamilyFilter
+            families={scope.families}
+            options={familyOptions}
+            loading={year !== "" && familyQuery.isPending}
+            error={familyQuery.isError}
+            onChange={(families) => {
+              changeScope({ ...scope, families: normalizeFeeFamilyIds(families) });
+            }}
+            onRetry={() => void familyQuery.refetch()}
           />
         </Group>
         <Text size="xs" c="dimmed" className="financial-review-scope-note">
@@ -102,6 +128,13 @@ export function FinancialReviewMonths({
           All source accounts and companies
         </Text>
       </Group>
+      <div className="financial-review-family-context">
+        <FeeFamilyScope families={scope.families} />
+        <Text size="xs" c="dimmed">
+          The selected families apply to period totals, monthly and running differences, and source
+          records.
+        </Text>
+      </div>
       {policy.isError || bounds.isError ? (
         <Alert color="red" role="alert" mb="sm">
           Could not load available review periods.
@@ -117,14 +150,28 @@ export function FinancialReviewMonths({
           </Button>
         </Alert>
       ) : null}
-      {query.isError ? (
+      {hasSelectedFamilies && totalsQuery.isError ? (
+        <Alert role="alert" color="red" mb="sm">
+          Could not load available currencies.
+          <Button
+            variant="subtle"
+            onClick={() => {
+              revealSection(listRef.current);
+              void totalsQuery.refetch();
+            }}
+          >
+            Retry currencies
+          </Button>
+        </Alert>
+      ) : null}
+      {comparisonQuery.isError && !hasSelectedFamilies ? (
         <Alert role="alert" color="red" mb="sm">
           Could not load monthly summaries.
           <Button
             variant="subtle"
             onClick={() => {
               revealSection(listRef.current);
-              void query.refetch();
+              void comparisonQuery.refetch();
             }}
           >
             Retry monthly summaries
@@ -134,8 +181,34 @@ export function FinancialReviewMonths({
       {rows.length ? (
         <>
           <FinancialReviewSummary rows={rows} currency={scope.currency} year={year} />
-          <FinancialReviewTrend rows={rows} currency={scope.currency} onSelect={selectMonth} />
+          <FinancialReviewTrend
+            rows={rows}
+            currency={scope.currency}
+            families={scope.families}
+            familyTypes={familyQuery.data ?? null}
+            familyLoading={
+              familyQuery.isPending || familyQuery.isFetching || totalsQuery.isFetching
+            }
+            familyError={familyQuery.isError}
+            onRetryFamilies={() => {
+              void totalsQuery.refetch();
+              void familyQuery.refetch();
+            }}
+            onSelect={selectMonth}
+          />
         </>
+      ) : null}
+      {year && matureCutoff ? (
+        <FinancialReviewFamilyBreakdown
+          query={familyQuery}
+          category={category}
+          currency={scope.currency}
+          families={scope.families}
+          onSelectFamily={(family) => {
+            changeScope({ ...scope, families: [family] });
+            revealSection(listRef.current);
+          }}
+        />
       ) : null}
       <FinancialReviewMonthTable
         category={category}
@@ -143,18 +216,21 @@ export function FinancialReviewMonths({
         rows={rows}
         selectedMonth={selectedMonth}
         onSelect={selectMonth}
-        isBusy={loading || query.isFetching}
-        emptyMessage={
-          loading
-            ? "Loading monthly summaries…"
-            : query.isError || bounds.isError || policy.isError
-              ? "Monthly summaries are unavailable."
-              : `No mature source records for ${scope.currency}${year ? ` in ${year}` : ""}.`
+        isBusy={loading || comparisonQuery.isFetching}
+        onClearFamilies={
+          canClearFamilies
+            ? () => {
+                changeScope({ ...scope, families: [] });
+                revealSection(listRef.current);
+              }
+            : undefined
         }
+        emptyMessage={emptyMessage}
       />
       <FinancialReviewMonthDetail
         category={category}
         currency={scope.currency}
+        families={scope.families}
         onRetry={onRetry}
         identity={identity}
         month={selectedMonth}

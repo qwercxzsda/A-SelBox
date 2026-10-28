@@ -1,6 +1,9 @@
 import { DATASET_CONFIG } from "./api/config.ts";
 import type { AppAccount, DatasetKey, TableDatasetKey } from "./api/types.ts";
-import type { SkuConfigurationChange } from "./api/sku-configuration-types.ts";
+import type {
+  SkuConfigurationChange,
+  SkuConfigurationPeriod,
+} from "./api/sku-configuration-types.ts";
 import { INVENTORY_SORT_COLUMNS } from "./api/inventory.ts";
 import { isJsonObject } from "./api/validation.ts";
 import { PAGE_SIZES, visibleDatasets } from "./view-model.ts";
@@ -111,7 +114,9 @@ function decodeDraft(value: unknown): SkuConfigurationChange | null {
     value.periods.length > 10000
   )
     return null;
-  const periods = value.periods.map((period: unknown) => {
+  const periods: SkuConfigurationPeriod[] = [];
+  const savedPeriods: unknown[] = value.periods;
+  for (const period of savedPeriods) {
     if (
       !isJsonObject(period) ||
       !isText(period.marketplace_name) ||
@@ -120,19 +125,18 @@ function decodeDraft(value: unknown): SkuConfigurationChange | null {
       !isText(period.fee_rate_percent)
     )
       return null;
-    return {
+    periods.push({
       marketplace_name: period.marketplace_name,
       valid_from: period.valid_from,
       valid_to: period.valid_to,
       fee_rate_percent: period.fee_rate_percent,
-    };
-  });
-  if (periods.some((period) => period === null)) return null;
+    });
+  }
   return {
     sku: value.sku,
     company_id: value.company_id,
     expected_current_version_id: value.expected_current_version_id,
-    periods: periods.filter((period) => period !== null),
+    periods,
   };
 }
 

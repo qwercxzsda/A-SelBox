@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn, captureResponsiveReview } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 for (const user of ["member", "administrator"]) {
   test(`${user} sees reported inventory groups, exact values and source dates without shipment controls`, async ({
@@ -27,11 +28,11 @@ for (const user of ["member", "administrator"]) {
     const region = page.getByRole("region", { name: "Inventory items" });
     await expect(region.getByText("ELG_Black", { exact: true })).toBeVisible();
     await expect(region.getByRole("columnheader")).toContainText([
-      "SKU↑",
-      "Sales · last 90 days↕",
+      "SKU ↑",
+      "Sales · last 90 days ↕",
       "Inventory overview",
-      "Inventory health status↕",
-      "Recommendation↕",
+      "Inventory health status ↕",
+      "Recommendation ↕",
     ]);
     await expect(region.getByText("9,007,199,254,740,993.12 USD", { exact: true })).toBeVisible();
     await expect(region.getByText("Available", { exact: true }).locator("..")).toHaveText(
@@ -154,7 +155,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await expect(page.getByText("30 inventory items", { exact: true }).first()).toBeVisible();
   const region = page.getByRole("region", { name: "Inventory items" });
   const skus = region.locator(".inventory-sku");
-  const sales = region.getByRole("button", { name: "Sales · last 90 days", exact: true });
+  const sales = columnTrigger(region, "Sales · last 90 days");
   await sales.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Highest first", exact: true })).toBeFocused();
@@ -170,19 +171,19 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
     .getByRole("button", { name: "Next", exact: true })
     .click();
   await expect(skus.last()).toHaveText("UNKNOWN");
-  await region.getByRole("button", { name: "SKU", exact: true }).click();
+  await columnTrigger(region, "SKU").click();
   await page.getByLabel("Search sku", { exact: true }).fill("RESTOCK");
   await page.getByRole("checkbox", { name: "RESTOCK", exact: true }).check();
   await page.keyboard.press("Escape");
   await expect(skus).toHaveText(["RESTOCK"]);
   expect(inventory.requests.at(-1).get("offset")).toBe("0");
   await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
-  await region.getByRole("button", { name: "Inventory health status", exact: true }).click();
+  await columnTrigger(region, "Inventory health status").click();
   await page.getByRole("checkbox", { name: "Unavailable", exact: true }).check();
   await page.keyboard.press("Escape");
   await expect(skus).toHaveText(["UNKNOWN"]);
   await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
-  await region.getByRole("button", { name: "Recommendation", exact: true }).click();
+  await columnTrigger(region, "Recommendation").click();
   await page.getByRole("checkbox", { name: "Send to FBA", exact: true }).check();
   await page.getByRole("button", { name: "Least urgent first", exact: true }).click();
   await expect(skus).toHaveText(["SEND"]);
@@ -208,7 +209,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await expect(
     page.getByText("No inventory matches these filters.", { exact: true }),
   ).toBeVisible();
-  await expect(region.getByRole("button", { name: "Recommendation", exact: true })).toBeVisible();
+  await expect(columnTrigger(region, "Recommendation")).toBeVisible();
 });
 
 test("inventory sorting keeps exact large sales values, numeric ties and nulls in server order", async ({
@@ -259,7 +260,7 @@ test("inventory sorting keeps exact large sales values, numeric ties and nulls i
     ],
   ];
   for (const [column, direction, expected] of orderCases) {
-    await region.getByRole("button", { name: column, exact: true }).click();
+    await columnTrigger(region, column).click();
     await page.getByRole("button", { name: direction, exact: true }).click();
     await expect(skus).toHaveText(expected);
   }
@@ -354,7 +355,7 @@ test("inventory debounces typing while preserving raw search immediately across 
   await page.clock.resume();
   await expect(search).toHaveValue(" restock ");
   await expect(page.locator(".inventory-sku")).toHaveText(["RESTOCK"]);
-  await page.getByRole("button", { name: "Sales · last 90 days", exact: true }).click();
+  await columnTrigger(page, "Sales · last 90 days").click();
   await page.getByRole("button", { name: "Highest first", exact: true }).click();
   await expect
     .poll(() => inventory.requests.at(-1).get("order"))

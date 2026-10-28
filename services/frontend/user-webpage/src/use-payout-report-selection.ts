@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CanonicalRow } from "./api";
 import type { Identity } from "./auth-session";
@@ -20,6 +20,7 @@ export function usePayoutReportSelection({
   setHistory,
   onSelect,
   restoreFocus,
+  fallbackRef,
 }: {
   identity: Identity;
   rows: CanonicalRow[];
@@ -28,6 +29,7 @@ export function usePayoutReportSelection({
   setHistory: Dispatch<SetStateAction<PayoutHistoryState>>;
   onSelect: (id: string | null) => void;
   restoreFocus: boolean;
+  fallbackRef: RefObject<HTMLElement | null>;
 }) {
   const client = useQueryClient();
   const selectedLatest = rows.find((row) => rowId(row) === selectedRowId) ?? null;
@@ -38,6 +40,7 @@ export function usePayoutReportSelection({
   const { rememberOpener, restoreFocus: restoreSelectionFocus } = useDrawerFocusReturn({
     opened: selected !== null,
     enabled: restoreFocus,
+    fallbackRef,
   });
   const latestOnPage = selected
     ? rows.find((row) => payoutScopeKey(row) === payoutScopeKey(selected))

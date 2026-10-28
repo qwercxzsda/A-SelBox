@@ -43,6 +43,10 @@
   color: var(--ui-text-muted);
 }
 
+.monthly-review-totals-mobile {
+  display: none;
+}
+
 .monthly-review-context {
   margin-top: 12px;
   line-height: 1.5;
@@ -50,6 +54,60 @@
 
 .financial-review-types .transaction-type {
   max-width: 360px;
+}
+
+@media (max-width: 720px) {
+  .monthly-review-totals-desktop {
+    display: none;
+  }
+
+  .monthly-review-totals-mobile {
+    display: block;
+  }
+
+  .monthly-review-totals-mobile dl {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .monthly-review-totals-mobile dl > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding: 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+  }
+
+  .monthly-review-totals-mobile dt {
+    color: var(--ui-text-muted);
+    font-size: var(--ui-font-data);
+  }
+
+  .monthly-review-totals-mobile dd {
+    max-width: 100%;
+    margin: 0 0 0 auto;
+    overflow-wrap: anywhere;
+    text-align: right;
+    font-size: var(--ui-font-section);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .monthly-review-totals-mobile dd > span {
+    display: block;
+    color: var(--ui-text-muted);
+    font-size: var(--ui-font-caption);
+    font-weight: 400;
+  }
+
+  .monthly-review-totals-mobile [data-difference] {
+    background: var(--ui-accent-soft);
+    font-weight: 600;
+  }
 }
 
 @media (max-width: 600px) {

@@ -1,4 +1,4 @@
-import { Tabs } from "@mantine/core";
+import { Tabs, Text } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { FinancialReviewMonths } from "./FinancialReviewMonths";
 import { useWorkspacePreference } from "./use-workspace-preference";
@@ -30,6 +30,9 @@ export function FinancialReview({
         setCategory(reviewCategory(value));
       }}
     >
+      <Text size="xs" c="dimmed" mb={4}>
+        Comparison category · Each category compares Finances with Data Kiosk.
+      </Text>
       <Tabs.List aria-label="Financial review">
         {REVIEW_CATEGORIES.map(({ value, label }) => (
           <Tabs.Tab key={value} value={value}>

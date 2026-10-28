@@ -3,6 +3,7 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 import { liveRow } from "./api-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { summaryBucket } from "./summary-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 for (const width of [1440, 1920, 834, 390]) {
   test(`workspace navigation stays stable and preserves financial context at ${width}px`, async ({
@@ -85,7 +86,7 @@ for (const width of [1440, 1920, 834, 390]) {
     await expect(currency).toHaveValue("EUR");
     await expect(pagination.getByRole("textbox", { name: "Page number" })).toHaveValue("2");
     await expect(table.locator("tbody tr")).toHaveCount(15);
-    const date = page.getByRole("button", { name: "Date", exact: true });
+    const date = columnTrigger(page, "Date");
     await date.focus();
     await page.keyboard.press("Enter");
     const menu = page.getByRole("dialog", { name: "Date options", exact: true });

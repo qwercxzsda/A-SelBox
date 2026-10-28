@@ -1,5 +1,5 @@
 import { liveRow, skuAssignments } from "./api-fixtures.mjs";
-import { applyDates } from "./table-actions.mjs";
+import { applyDates, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import {
@@ -46,7 +46,7 @@ test("period shortcuts reset pagination and preserve refinements after a tab rou
 
   await page.getByLabel("Search", { exact: true }).fill("TARGET");
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("TARGET");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await columnTrigger(page, "Source").click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
   await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
@@ -148,7 +148,7 @@ test("manual dates include endpoints, support open ranges, and expose currencies
   const periodRequestCount = fixture.aggregateRequests.length;
   expect(periodRequestCount).toBe(aggregateRequests + 4);
 
-  await page.getByRole("button", { name: "Date", exact: true }).click();
+  await columnTrigger(page, "Date").click();
   await page
     .getByRole("dialog", { name: "Date options", exact: true })
     .getByRole("button", { name: "Clear dates", exact: true })

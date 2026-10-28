@@ -49,6 +49,15 @@ export function localFilterValues(
   }
 }
 
+/** Menus and literal search use the same displayed labels for source and type keys. */
+export function filterOptionLabel(field: DatasetFilterField, value: string): string {
+  return field === "component_type"
+    ? transactionTypeLabel(value)
+    : field === "source"
+      ? humanizeCode(value)
+      : value;
+}
+
 /** Preserve exact keys and selected values even after assignments or registry entries change. */
 export function filterOptions(
   field: DatasetFilterField,
@@ -60,11 +69,6 @@ export function filterOptions(
     .map((value) => ({
       value,
       title: field === "component_type" ? value : undefined,
-      label:
-        field === "component_type"
-          ? transactionTypeLabel(value)
-          : field === "source"
-            ? humanizeCode(value)
-            : value,
+      label: filterOptionLabel(field, value),
     }));
 }

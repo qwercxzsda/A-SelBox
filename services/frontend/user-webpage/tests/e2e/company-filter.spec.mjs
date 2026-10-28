@@ -1,5 +1,5 @@
 import { liveRow } from "./api-fixtures.mjs";
-import { applyDates } from "./table-actions.mjs";
+import { applyDates, columnTrigger, columnHeader } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn, waitForRequestSettled } from "./fixtures.mjs";
 import { filterRecordRows } from "./record-fixtures.mjs";
@@ -58,7 +58,7 @@ async function companyFixture(page) {
 }
 
 async function chooseCompanies(page, names) {
-  await page.getByRole("button", { name: "Company", exact: true }).click();
+  await columnTrigger(page, "Company").click();
   const menu = page.getByRole("dialog", { name: "Company options", exact: true });
   await expect(menu.getByRole("checkbox")).toHaveCount(2);
   await expect(menu.getByLabel("Search company", { exact: true })).toHaveCount(0);
@@ -170,7 +170,7 @@ test("company selection resets only the page and clearing it preserves other ref
   await applyDates(page, "2026-01-01", "2026-04-30");
   await page.getByLabel("Search", { exact: true }).fill("Amazon");
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await columnTrigger(page, "Source").click();
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
   await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
@@ -287,8 +287,8 @@ test("signing in as a member removes the administrator company override and cont
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   fixture.liveRows = fixture.liveRows.filter((row) => row.company_id === COMPANY_B);
   await signIn(page, "member-b");
-  await expect(page.getByRole("button", { name: "Company", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(0);
+  await expect(columnTrigger(page, "Company")).toHaveCount(0);
+  await expect(columnHeader(page, "Company")).toHaveCount(0);
   await expect(amount(cards(page).day, "Reported amount")).toHaveText("300.00 USD");
   await expect(amount(cards(page).month, "Reported amount")).toHaveText("200.00 USD");
   await expect(cards(page).selected).toContainText("Select a date range to see totals.");

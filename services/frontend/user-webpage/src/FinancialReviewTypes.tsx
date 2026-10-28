@@ -4,10 +4,8 @@ import { fetchFinancialReviewTypes } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { TransactionTypeValue } from "./TransactionTypeValue";
-import { transactionTypeLabel } from "./categories";
+import { humanizeCode, transactionTypeLabel } from "./categories";
 import type { FinancialReviewSourceProps } from "./financial-review-source-state";
-const sourceName = (source: string | null | undefined) =>
-  source === "FINANCES" ? "Finances" : "Data Kiosk";
 
 export function FinancialReviewTypes({
   identity,
@@ -15,6 +13,7 @@ export function FinancialReviewTypes({
   month,
   matureCutoff,
   currency,
+  families,
   state,
   change,
   onSelect,
@@ -28,6 +27,7 @@ export function FinancialReviewTypes({
       month,
       matureCutoff,
       currency,
+      families,
       state.typePage,
     ],
     queryFn: ({ signal }) =>
@@ -38,6 +38,7 @@ export function FinancialReviewTypes({
         currency,
         state.typePage,
         signal,
+        families,
       ),
     staleTime: Infinity,
   });
@@ -72,7 +73,6 @@ export function FinancialReviewTypes({
           rowKey={(row) => `${row.source ?? ""}:${row.component_type ?? ""}`}
           selectedRowKey={state.type ? `${state.source}:${state.type}` : null}
           renderCell={(row, column) => {
-            if (column.key === "source") return sourceName(row.source);
             if (column.key === "component_type")
               return <TransactionTypeValue value={row.component_type ?? ""} />;
             if (column.key !== "details") return undefined;
@@ -81,7 +81,7 @@ export function FinancialReviewTypes({
                 className="ui-text-action"
                 size="compact-xs"
                 variant="subtle"
-                aria-label={`View records for ${sourceName(row.source)} · ${transactionTypeLabel(row.component_type ?? "")}`}
+                aria-label={`View records for ${humanizeCode(row.source ?? "")} · ${transactionTypeLabel(row.component_type ?? "")}`}
                 onClick={() => {
                   change({
                     source: row.source === "FINANCES" ? "FINANCES" : "DATA_KIOSK",

@@ -63,7 +63,7 @@ test("partial months stay out of totals, running sums, currencies and details un
   await expect(
     page
       .getByRole("figure", { name: "Monthly and running differences", exact: true })
-      .getByRole("button"),
+      .getByRole("button", { name: /: View chart details for / }),
   ).toHaveCount(1);
   await table(page).getByRole("button", { name: "Open review for June 2026", exact: true }).click();
   await drawer(page).getByRole("button", { name: "Source records", exact: true }).click();
@@ -131,7 +131,7 @@ test("F5 keeps a stale partial-month selection closed without reading its detail
   const detailReads = fixture.financialReviewRequests
     .slice(before)
     .filter(({ endpoint, params }) =>
-      endpoint === "financial_review_totals"
+      endpoint === "financial_review_totals" || endpoint === "financial_review_type_totals"
         ? params.get("p_month_from") !== "2026-01-01"
         : endpoint !== "financial_review_records" || params.get("select") !== "activity_date",
     );

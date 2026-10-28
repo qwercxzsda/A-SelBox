@@ -1,0 +1,20 @@
+.fee-family-filter {
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fee-family-filter .column-menu-trigger {
+  min-height: calc(2.25rem * var(--mantine-scale));
+  margin-inline: 0;
+  padding-inline: 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface);
+  font-size: var(--ui-font-control);
+  font-weight: 500;
+}
+
+.fee-family-scope {
+  overflow-wrap: anywhere;
+}

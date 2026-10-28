@@ -5,6 +5,7 @@ import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixture
 import { item, openEditor, openReview, editor } from "./sku-configuration-fixtures.mjs";
 import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 import { preventedBrowserGestures, UNPREVENTED_BROWSER_GESTURES } from "./browser-gestures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 const drawer = (page, name) => page.getByRole("dialog", { name, exact: true });
 const financialTable = (page) =>
@@ -160,7 +161,7 @@ test("column popups contain vertical scrolling without suppressing horizontal na
     ["Type", ".type-filter-groups"],
     ["SKU", ".column-menu-options"],
   ]) {
-    await page.getByRole("button", { name: column, exact: true }).click();
+    await columnTrigger(page, column).click();
     const menu = drawer(page, `${column} options`);
     const options = menu.locator(selector);
     await expect(menu).toHaveCSS("overscroll-behavior-x", "auto");

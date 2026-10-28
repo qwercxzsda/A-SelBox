@@ -1,93 +1,155 @@
 import type { CanonicalRow } from "./api/types.ts";
+import { requireCalendarDate } from "./api/filters.ts";
+import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
+import { describeFeeFamilyCoverage } from "./financial-review-coverage.ts";
+import {
+  feeFamilyTypeSelections,
+  resolveFeeFamily,
+  type FeeFamily,
+  type FeeFamilySource,
+} from "./fee-family-catalog.ts";
 
-// Explicit fee identities already recognized by the source taxonomy. These are
-// diagnostic families, not proof of equal billing dates, allocation or coverage.
-// Advertising and ambiguous convenience/placement labels deliberately stay unpaired.
-const FAMILIES = [
-  ["Coupons", ["COUPON_FEES"], ["COUPON_PARTICIPATION_FEE", "COUPON_PERFORMANCE_FEE"]],
-  ["Deals", ["DEAL_FEES"], ["DEAL_PARTICIPATION_FEE", "DEAL_PERFORMANCE_FEE"]],
-  ["Monthly storage", ["STORAGE_FEES"], ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"]],
-  [
-    "Aged storage",
-    ["AGED_STORAGE_FEES"],
-    ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE"],
-  ],
-  ["Disposal", ["DISPOSAL_FEES"], ["DISPOSAL_FEE"]],
-  ["Removal", ["REMOVAL_FEES"], ["REMOVAL_FEE"]],
-  ["Labeling", ["LABELING_FEES"], ["LABELING_FEE"]],
-  [
-    "Inbound transportation",
-    ["INBOUND_TRANSPORTATION_FEES", "INBOUND_TRANSPORTATION_PROGRAM_FEES"],
-    ["FBA_INBOUND_TRANSPORTATION_FEE", "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"],
-  ],
-  ["Subscription", ["SUBSCRIPTION_FEES"], ["SUBSCRIPTION_FEE"]],
-] as const;
-
-function exactSum(rows: CanonicalRow[]): string {
-  if (!rows.length) return "0";
-  if (rows.some((row) => typeof row.amount !== "string"))
-    throw new Error("Fee family comparison contains a missing amount");
-  const result = sumExactDecimals(rows.map((row) => row.amount));
-  if (result === null) throw new Error("Fee family comparison contains an invalid amount");
-  return result;
+interface FamilyTypeTotal {
+  family: FeeFamily;
+  source: FeeFamilySource;
+  type: string;
+  amount: string;
+  rowCount: bigint;
+  month: string;
+  category: string;
+  currency: string;
 }
 
-function negate(value: string): string {
-  return value.startsWith("-") ? value.slice(1) : `-${value}`;
-}
-
-export function buildFinancialReviewFamilies(rows: CanonicalRow[]): {
-  families: CanonicalRow[];
-  unmatched: CanonicalRow[];
-} {
+function selectTypeTotals(
+  rows: readonly CanonicalRow[],
+  ids: readonly string[],
+): FamilyTypeTotal[] {
+  // Malformed selections must never turn into an unfiltered request or comparison.
+  feeFamilyTypeSelections(ids);
+  const selected = new Set(ids);
   const seen = new Set<string>();
-  for (const row of rows) {
-    const key = `${row.source ?? ""}:${row.component_type ?? ""}`;
-    if (
-      !["FINANCES", "DATA_KIOSK"].includes(row.source ?? "") ||
-      !row.component_type ||
-      seen.has(key)
-    )
-      throw new Error("Fee family comparison contains an invalid or duplicate type");
-    seen.add(key);
-  }
-  const paired = new Set<CanonicalRow>();
-  const families = FAMILIES.flatMap(([family, financesTypes, kioskTypes]) => {
-    const finances = rows.filter(
-      (row) =>
-        row.source === "FINANCES" &&
-        (financesTypes as readonly string[]).includes(row.component_type ?? ""),
-    );
-    const kiosk = rows.filter(
-      (row) =>
-        row.source === "DATA_KIOSK" &&
-        (kioskTypes as readonly string[]).includes(row.component_type ?? ""),
-    );
-    if (!finances.length && !kiosk.length) return [];
-    for (const row of [...finances, ...kiosk]) paired.add(row);
-    const financesAmount = exactSum(finances);
-    const kioskAmount = exactSum(kiosk);
-    const difference = sumExactDecimals([financesAmount, negate(kioskAmount)]);
-    if (difference === null) throw new Error("Fee family difference cannot be represented");
-    return [
-      {
+  return rows
+    .map((row): FamilyTypeTotal => {
+      const source = row.source ?? "";
+      const type = row.component_type ?? "";
+      const family = resolveFeeFamily(source, type);
+      const month = row.month ?? "";
+      requireCalendarDate(month);
+      if (!month.endsWith("-01"))
+        throw new Error("Fee family comparison contains an invalid month");
+      const category = row.category ?? "";
+      if (!["FINANCES", "DATA_KIOSK", "SELBOX", "ANALYSIS_ONLY"].includes(category))
+        throw new Error("Fee family comparison contains an invalid category");
+      const currency = row.currency ?? "";
+      requireCurrency(currency);
+      const key = JSON.stringify([month, category, currency, source, type]);
+      if (seen.has(key)) throw new Error("Fee family comparison contains a duplicate type total");
+      seen.add(key);
+      if (typeof row.amount !== "string")
+        throw new Error("Fee family comparison contains a missing amount");
+      const amount = sumExactDecimals([row.amount]);
+      if (amount === null) throw new Error("Fee family comparison contains an invalid amount");
+      if (typeof row.row_count !== "string" || !/^(0|[1-9]\d*)$/.test(row.row_count))
+        throw new Error("Fee family comparison contains an invalid row count");
+      return {
         family,
-        finances_amount: financesAmount,
-        data_kiosk_amount: kioskAmount,
-        difference,
-        coverage: !finances.length
-          ? "No Finances rows"
-          : !kiosk.length
-            ? "No Data Kiosk rows"
-            : "Both sources",
-        finances_types: finances.map((row) => row.component_type).join(", ") || "—",
-        data_kiosk_types: kiosk.map((row) => row.component_type).join(", ") || "—",
-      },
-    ];
-  });
-  // Validate even unpaired values; no missing/malformed amount silently becomes zero.
-  const unmatched = rows.filter((row) => !paired.has(row));
-  exactSum(unmatched);
-  return { families, unmatched };
+        source: source as FeeFamilySource,
+        type,
+        amount,
+        rowCount: BigInt(row.row_count),
+        month,
+        category,
+        currency,
+      };
+    })
+    .filter((row) => selected.size === 0 || selected.has(row.family.id));
+}
+
+function sourceTotals(rows: readonly FamilyTypeTotal[], source: FeeFamilySource) {
+  const selected = rows.filter((row) => row.source === source);
+  return {
+    amount: sumExactDecimals(selected.map((row) => row.amount)) ?? "0",
+    rowCount: selected.reduce((count, row) => count + row.rowCount, 0n).toString(),
+  };
+}
+
+function sourceTypes(rows: readonly FamilyTypeTotal[], source: FeeFamilySource): string {
+  return (
+    [...new Set(rows.filter((row) => row.source === source).map((row) => row.type))]
+      .sort()
+      .join(", ") || "—"
+  );
+}
+
+function comparison(rows: readonly FamilyTypeTotal[]): CanonicalRow {
+  const finances = sourceTotals(rows, "FINANCES");
+  const kiosk = sourceTotals(rows, "DATA_KIOSK");
+  const negativeKiosk = kiosk.amount.startsWith("-") ? kiosk.amount.slice(1) : `-${kiosk.amount}`;
+  return {
+    finances_amount: finances.amount,
+    data_kiosk_amount: kiosk.amount,
+    difference: sumExactDecimals([finances.amount, negativeKiosk]),
+    finances_row_count: finances.rowCount,
+    data_kiosk_row_count: kiosk.rowCount,
+  };
+}
+
+/** Compare every observed family, including zero and source-only totals, in one currency. */
+export function buildFinancialReviewFamilies(
+  rows: readonly CanonicalRow[],
+  ids: readonly string[] = [],
+): CanonicalRow[] {
+  const selected = selectTypeTotals(rows, ids);
+  if (new Set(selected.map((row) => row.currency)).size > 1)
+    throw new Error("Fee family comparison must use one currency");
+  const groups = new Map<string, FamilyTypeTotal[]>();
+  for (const row of selected) {
+    const group = groups.get(row.family.id) ?? [];
+    group.push(row);
+    groups.set(row.family.id, group);
+  }
+  return [...groups.values()]
+    .sort(
+      (left, right) =>
+        left[0].family.label.localeCompare(right[0].family.label) ||
+        left[0].family.id.localeCompare(right[0].family.id),
+    )
+    .map((group) => ({
+      family_id: group[0].family.id,
+      family: group[0].family.label,
+      description: group[0].family.description,
+      currency: group[0].currency,
+      ...comparison(group),
+      coverage: describeFeeFamilyCoverage(group, group[0].family),
+      finances_types: sourceTypes(group, "FINANCES"),
+      data_kiosk_types: sourceTypes(group, "DATA_KIOSK"),
+    }));
+}
+
+/** Sum selected type families by their original month/category/currency; never fill source gaps. */
+export function buildFinancialReviewFamilyMonths(
+  rows: readonly CanonicalRow[],
+  ids: readonly string[] = [],
+): CanonicalRow[] {
+  const groups = new Map<string, FamilyTypeTotal[]>();
+  for (const row of selectTypeTotals(rows, ids)) {
+    const key = JSON.stringify([row.month, row.category, row.currency]);
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .map((group) => ({
+      month: group[0].month,
+      category: group[0].category,
+      currency: group[0].currency,
+      ...comparison(group),
+    }))
+    .sort(
+      (left, right) =>
+        left.month.localeCompare(right.month) ||
+        left.currency.localeCompare(right.currency) ||
+        left.category.localeCompare(right.category),
+    );
 }

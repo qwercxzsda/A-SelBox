@@ -1,4 +1,6 @@
-import { requireCalendarDate, textSelectionValues } from "./filters.ts";
+import { feeFamilyTypeSelections } from "../fee-family-catalog.ts";
+import { quotePostgrestText, requireCalendarDate, textSelectionValues } from "./filters.ts";
+import { readCompleteFinancialReviewTypes } from "./financial-review-type-reader.ts";
 import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
@@ -106,8 +108,9 @@ function typeTotalParams(
   category: FinancialReviewCategory,
   month: string,
   currency: string,
+  lastMonth = month,
 ): URLSearchParams {
-  const params = totalParams(category, month);
+  const params = totalParams(category, month, lastMonth);
   requireCurrency(currency);
   params.set("p_currency", currency);
   params.set(
@@ -124,6 +127,23 @@ function typeTotalParams(
   );
   params.set("order", "source.asc,component_type.asc");
   return params;
+}
+
+function applyFeeFamilies(params: URLSearchParams, familyIds: readonly string[]): void {
+  const selection = feeFamilyTypeSelections(familyIds);
+  if (selection === null) return;
+  const expressions = [
+    ["FINANCES", selection.financesTypes],
+    ["DATA_KIOSK", selection.dataKioskTypes],
+  ] as const;
+  const clauses = expressions.flatMap(([source, types]) => {
+    const values = textSelectionValues("component_type", types);
+    return values.length
+      ? [`and(source.eq.${source},component_type.in.(${values.map(quotePostgrestText).join(",")}))`]
+      : [];
+  });
+  if (!clauses.length) throw new Error("Choose at least one valid fee family");
+  params.set("or", `(${clauses.join(",")})`);
 }
 
 export function createFinancialReviewApi(transport: ApiTransport) {
@@ -222,6 +242,24 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       requireFinancialReviewYear(year);
       return readTotals(accessToken, category, `${year}-01`, `${year}-12`, undefined, signal);
     },
+    async fetchFinancialReviewPeriodTypes(
+      accessToken: string,
+      category: FinancialReviewCategory,
+      year: string,
+      currency: string,
+      signal?: AbortSignal,
+    ): Promise<CanonicalRow[]> {
+      requireFinancialReviewYear(year);
+      const firstMonth = `${year}-01`;
+      const lastMonth = `${year}-12`;
+      return readCompleteFinancialReviewTypes(
+        transport,
+        accessToken,
+        typeTotalParams(category, firstMonth, currency, lastMonth),
+        { category, firstMonth, lastMonth, currency },
+        signal,
+      );
+    },
     async fetchFinancialReviewTotals(
       accessToken: string,
       category: FinancialReviewCategory,
@@ -239,8 +277,10 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       currency: string,
       pageIndex = 0,
       signal?: AbortSignal,
+      familyIds: readonly string[] = [],
     ): Promise<PageResult> {
       const params = typeTotalParams(category, month, currency);
+      applyFeeFamilies(params, familyIds);
       setDetailPage(params, pageIndex);
       return transport.readCsvPage(
         accessToken,
@@ -257,23 +297,13 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       currency: string,
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
-      const params = typeTotalParams(category, month, currency);
-      params.set("limit", String(LOOKUP_PAGE_SIZE));
-      const result = await transport.readCsvPage(
+      return readCompleteFinancialReviewTypes(
+        transport,
         accessToken,
-        "rpc/financial_review_type_totals",
-        params,
-        "Financial review fee families",
+        typeTotalParams(category, month, currency),
+        { category, firstMonth: month, lastMonth: month, currency },
         signal,
-        false,
       );
-      if (result.rows.length >= LOOKUP_PAGE_SIZE)
-        throw new Error("Too many types for a complete family comparison");
-      for (const row of result.rows) {
-        if (row.month !== `${month}-01` || row.category !== category || row.currency !== currency)
-          throw new Error("Fee family comparison returned a different scope");
-      }
-      return result.rows;
     },
     fetchFinancialReviewRecords(
       accessToken: string,
@@ -283,10 +313,12 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       pageIndex: number,
       filters: FinancialReviewRecordFilters = {},
       signal?: AbortSignal,
+      familyIds: readonly string[] = [],
     ): Promise<PageResult> {
       const params = scopeParams(category);
       requireMonth(month);
       requireCurrency(currency);
+      applyFeeFamilies(params, familyIds);
       setDetailPage(params, pageIndex);
       params.set("currency", `eq.${currency}`);
       const types = textSelectionValues(

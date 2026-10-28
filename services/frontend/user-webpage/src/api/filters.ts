@@ -33,6 +33,11 @@ export function textSelectionValues(field: DatasetFilterField, selection?: strin
   return values;
 }
 
+/** Quote one literal in PostgREST logical filters without changing its characters. */
+export function quotePostgrestText(value: string): string {
+  return '"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+}
+
 export function companySelectionValues(companyIds?: string[]): string[] {
   if (companyIds === undefined) return [];
   if (!Array.isArray(companyIds) || [...companyIds].some((id) => !isUuid(id))) {

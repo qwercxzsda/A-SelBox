@@ -6,11 +6,14 @@ import { DrawerHeading } from "./DrawerHeading";
 import { NavigationStepButton } from "./NavigationStepButton";
 import { reviewCategoryLabel, type ReviewCategory } from "./financial-review-categories";
 import "./FinancialReviewMonthDetail.css";
+import { FeeFamilyScope } from "./FeeFamilyFilter";
+import { reviewFamilyStateKey } from "./financial-review-source-state";
 
 export function FinancialReviewMonthDetail({
   identity,
   category,
   currency,
+  families,
   onRetry,
   month,
   matureCutoff,
@@ -23,6 +26,7 @@ export function FinancialReviewMonthDetail({
   identity: Identity;
   category: ReviewCategory;
   currency: string;
+  families: readonly string[];
   onRetry: () => Promise<void>;
   month: string | null;
   matureCutoff: string;
@@ -73,6 +77,7 @@ export function FinancialReviewMonthDetail({
                 <Text size="sm" c="dimmed" mt={4}>
                   All source accounts · All companies · All marketplaces · All SKUs
                 </Text>
+                <FeeFamilyScope families={families} />
               </div>
               {months.length > 1 ? (
                 <Group
@@ -103,10 +108,11 @@ export function FinancialReviewMonthDetail({
               mature-month window as payout reports.
             </Text>
             <FinancialReviewMonthContent
-              key={`${category}:${month}:${currency}`}
+              key={`${category}:${month}:${currency}${reviewFamilyStateKey(families)}`}
               identity={identity}
               category={category}
               currency={currency}
+              families={families}
               onRetry={onRetry}
               month={month}
               matureCutoff={matureCutoff}

@@ -217,6 +217,14 @@ export const fetchFinancialReviewPeriod = (
   year: string,
   signal?: AbortSignal,
 ) => getDefaultClient().fetchFinancialReviewPeriod(accessToken, category, year, signal);
+export const fetchFinancialReviewPeriodTypes = (
+  accessToken: string,
+  category: FinancialReviewCategory,
+  year: string,
+  currency: string,
+  signal?: AbortSignal,
+) =>
+  getDefaultClient().fetchFinancialReviewPeriodTypes(accessToken, category, year, currency, signal);
 export const fetchFinancialReviewTotals = (
   accessToken: string,
   category: FinancialReviewCategory,
@@ -231,6 +239,7 @@ export const fetchFinancialReviewTypes = (
   currency: string,
   pageIndex = 0,
   signal?: AbortSignal,
+  familyIds: readonly string[] = [],
 ) =>
   getDefaultClient().fetchFinancialReviewTypes(
     accessToken,
@@ -239,6 +248,7 @@ export const fetchFinancialReviewTypes = (
     currency,
     pageIndex,
     signal,
+    familyIds,
   );
 export const fetchFinancialReviewRecords = (
   accessToken: string,
@@ -248,6 +258,7 @@ export const fetchFinancialReviewRecords = (
   pageIndex: number,
   filters: FinancialReviewRecordFilters = {},
   signal?: AbortSignal,
+  familyIds: readonly string[] = [],
 ) =>
   getDefaultClient().fetchFinancialReviewRecords(
     accessToken,
@@ -257,6 +268,7 @@ export const fetchFinancialReviewRecords = (
     pageIndex,
     filters,
     signal,
+    familyIds,
   );
 
 export const setCompanyMembership = (options: SetCompanyMembershipOptions) =>

@@ -80,7 +80,7 @@ test("financial review opens the exact source version and restores nested detail
   await expect(detail).toBeHidden();
 });
 
-test("fee family comparison pairs known costs while keeping advertising unpaired", async ({
+test("fee family comparison pairs coupon charges and sponsored products advertising", async ({
   page,
 }) => {
   await openFinancialReview(page, (fixture) => {
@@ -101,13 +101,28 @@ test("fee family comparison pairs known costs while keeping advertising unpaired
   await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
   await page.getByRole("button", { name: "Fee family comparison", exact: true }).click();
   const table = page.getByRole("table", { name: "Fee family comparison", exact: true });
-  await expect(table.locator("tbody tr")).toHaveCount(1);
-  await expect(table).toContainText("Coupons");
-  await expect(table).toContainText("0.00");
-  const unmatched = page.getByRole("table", { name: "Unpaired source types", exact: true });
-  await expect(unmatched.locator("tbody tr")).toHaveCount(2);
-  await expect(unmatched).toContainText("-100.00");
-  await expect(unmatched).toContainText("-90.00");
+  await expect(table.locator("tbody tr")).toHaveCount(2);
+  const coupons = table
+    .getByRole("row")
+    .filter({ has: page.getByText("Coupons", { exact: true }) });
+  await expect(coupons.locator("td:not(:first-child)")).toHaveText([
+    "-6.53",
+    "-6.53",
+    "0.00",
+    "Both sources",
+  ]);
+  const sponsored = table.getByRole("row").filter({
+    has: page.getByText("Sponsored products", { exact: true }),
+  });
+  await expect(sponsored.locator("td:not(:first-child)")).toHaveText([
+    "-100.00",
+    "-90.00",
+    "-10.00",
+    "Both sources",
+  ]);
+  await expect(page.getByRole("table", { name: "Unpaired source types", exact: true })).toHaveCount(
+    0,
+  );
 });
 
 test("Finances provides an independent exact Amazon ID lookup with current and retained captures", async ({

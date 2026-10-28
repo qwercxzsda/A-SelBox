@@ -2,6 +2,7 @@ import { Paper, Text } from "@mantine/core";
 import type { CanonicalRow } from "./api";
 import { formatMoney, sumExactDecimals } from "./decimal";
 import { formatRecordMonth } from "./date-display";
+import { FinancialReviewCoverageNote } from "./FinancialReviewCoverageNote";
 
 const TOTALS = [
   ["finances_amount", "Finances total"],
@@ -41,6 +42,7 @@ export function FinancialReviewSummary({
           </Text>
         </Paper>
       ))}
+      <FinancialReviewCoverageNote rows={rows} />
     </section>
   );
 }

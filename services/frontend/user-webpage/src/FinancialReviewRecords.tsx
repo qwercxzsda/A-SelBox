@@ -5,7 +5,10 @@ import { fetchFinancialReviewRecords } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { transactionTypeLabel } from "./categories";
-import type { FinancialReviewSourceProps } from "./financial-review-source-state";
+import {
+  reviewFamilyStateKey,
+  type FinancialReviewSourceProps,
+} from "./financial-review-source-state";
 import { FinancialSourceRecord } from "./FinancialSourceRecord";
 import {
   decodeFinancialSourceSelection,
@@ -20,11 +23,12 @@ export function FinancialReviewRecords({
   month,
   matureCutoff,
   currency,
+  families,
   state,
   change,
 }: FinancialReviewSourceProps) {
   const [selection, setSelection] = useWorkspacePreference<FinancialSourceSelection | null>(
-    `financial-review:source-detail:${category}:${month}:${currency}`,
+    `financial-review:source-detail:${category}:${month}:${currency}${reviewFamilyStateKey(families)}`,
     () => null,
     decodeFinancialSourceSelection,
   );
@@ -40,6 +44,7 @@ export function FinancialReviewRecords({
       month,
       matureCutoff,
       currency,
+      families,
       state.source,
       state.type,
       state.recordPage,
@@ -53,6 +58,7 @@ export function FinancialReviewRecords({
         state.recordPage,
         { source: state.source || undefined, type: state.type || undefined },
         signal,
+        families,
       ),
     staleTime: Infinity,
   });

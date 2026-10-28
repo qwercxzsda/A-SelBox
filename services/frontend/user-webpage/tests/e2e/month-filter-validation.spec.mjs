@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 test("invalid text in a month-input fallback stays editable and identifies the invalid field", async ({
   page,
@@ -7,7 +8,7 @@ test("invalid text in a month-input fallback stays editable and identifies the i
   await mockSupabase(page);
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByRole("button", { name: "Month", exact: true }).click();
+  await columnTrigger(page, "Month").click();
   const options = page.getByRole("dialog", { name: "Month options", exact: true });
   const month = options.getByLabel("Report month", { exact: true });
   test.skip(

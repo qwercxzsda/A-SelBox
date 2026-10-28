@@ -60,7 +60,11 @@ test("one-currency category summaries retain zero rows and defer source records 
   expect(
     currentReads(fixture).every(
       ({ endpoint, params }) =>
-        endpoint === "financial_review_totals" && categoryFilter(params) === "DATA_KIOSK",
+        (endpoint === "financial_review_totals" ||
+          (endpoint === "financial_review_type_totals" &&
+            params.get("p_month_from") === "2026-01-01" &&
+            params.get("p_month_to") === "2027-01-01")) &&
+        categoryFilter(params) === "DATA_KIOSK",
     ),
   ).toBe(true);
   await selectMonth(page);
@@ -183,7 +187,12 @@ test("long type lists page independently of source records and retain position a
   await expect(typesTable(page).locator("tbody tr")).toHaveCount(1);
   await page.reload();
   await expect(typesTable(page).locator("tbody tr")).toHaveCount(1);
-  const request = currentReads(fixture, "financial_review_type_totals").at(-1);
+  const request = currentReads(fixture, "financial_review_type_totals")
+    .filter(
+      ({ params }) =>
+        params.get("p_month_from") === "2026-07-01" && params.get("p_month_to") === "2026-08-01",
+    )
+    .at(-1);
   expect(request.params.get("offset")).toBe("50");
   expect(request.params.get("p_currency")).toBe("USD");
   expect(currentReads(fixture, "financial_review_records")).toHaveLength(0);
@@ -336,7 +345,9 @@ test("failed monthly and source reads retry locally without losing month or curr
     state.financialReviewStatusForRequest = ({ params }) =>
       params.get("limit") === "1" ? 200 : 503;
   });
-  await expect(page.getByRole("alert")).toContainText("Could not load");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Could not load monthly summaries" }),
+  ).toBeVisible();
   fixture.financialReviewStatusForRequest = null;
   await page.getByRole("button", { name: "Retry monthly summaries", exact: true }).click();
   await expect(monthTable(page)).toBeVisible();

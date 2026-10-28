@@ -8,6 +8,7 @@ import {
   signIn,
   waitForRequestSettled,
 } from "./fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 for (const activation of ["click", "Enter", "Space"]) {
   test(`${activation} inspects the chosen nonfirst row and restores focus after closing`, async ({
@@ -53,7 +54,7 @@ test("pagination, sorting, and literal search make server requests and reset the
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   expect(fixture.requests.at(-1).params.get("offset")).toBe("25");
 
-  await page.getByRole("button", { name: "Date", exact: true }).click();
+  await columnTrigger(page, "Date").click();
   await page
     .getByRole("dialog", { name: "Date options", exact: true })
     .getByRole("button", { name: "Oldest first", exact: true })

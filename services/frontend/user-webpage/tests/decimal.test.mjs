@@ -1,6 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatAmount, formatExactDecimal, formatMoney, sumExactDecimals } from "../src/decimal.ts";
+import {
+  compareAbsoluteDecimals,
+  formatAmount,
+  formatExactDecimal,
+  formatMoney,
+  sumExactDecimals,
+} from "../src/decimal.ts";
+
+test("absolute comparison ranks financial magnitudes without rounding or number precision loss", () => {
+  assert.equal(compareAbsoluteDecimals("-1.00000000000000000001", "1"), 1);
+  assert.equal(
+    compareAbsoluteDecimals("9007199254740993.00000001", "-9007199254740993.00000002"),
+    -1,
+  );
+  assert.equal(compareAbsoluteDecimals("-001.2300", "1.23"), 0);
+  assert.equal(compareAbsoluteDecimals("1e400", "9e399"), 1);
+  assert.equal(compareAbsoluteDecimals("-1e-500", "2e-500"), -1);
+  assert.equal(compareAbsoluteDecimals("-0", "0.000"), 0);
+  for (const value of [null, undefined, "invalid", "Infinity"])
+    assert.throws(() => compareAbsoluteDecimals(value, "0"));
+});
 
 test("displays every monetary amount with two decimal places, including zero and yen", () => {
   assert.equal(formatAmount("0"), "0.00");

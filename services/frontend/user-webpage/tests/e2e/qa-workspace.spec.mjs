@@ -6,6 +6,7 @@ import {
   setupFinancialReview,
   setupManyFinancialReviewRows,
 } from "./financial-review-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 test("summary currency stays chosen when filtering removes it and dates have an explicit entry point", async ({
   page,
@@ -22,7 +23,7 @@ test("summary currency stays chosen when filtering removes it and dates have an 
   const { summaries, day, selected } = summaryCards(page);
   await summaries.getByLabel("Summary currency", { exact: true }).selectOption("JPY");
   await expect(summaryAmount(day, "Reported amount")).toHaveText("100.00 JPY");
-  await page.getByRole("button", { name: "Marketplace", exact: true }).click();
+  await columnTrigger(page, "Marketplace").click();
   const menu = page.getByRole("dialog", { name: "Marketplace options", exact: true });
   await menu.getByRole("checkbox", { name: "Amazon.com", exact: true }).check();
   await menu.getByRole("button", { name: "Close options", exact: true }).click();

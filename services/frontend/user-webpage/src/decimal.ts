@@ -140,6 +140,22 @@ export function formatExactDecimal(value: string | null): string {
   return parts === null ? EM_DASH : formatParts(parts);
 }
 
+/** Compare magnitudes exactly, including values beyond JavaScript's number precision. */
+export function compareAbsoluteDecimals(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): number {
+  const a = parseDecimal(left ?? null);
+  const b = parseDecimal(right ?? null);
+  if (!a || !b) throw new Error("Cannot compare invalid decimal amounts");
+  if (a.integer.length !== b.integer.length) return a.integer.length < b.integer.length ? -1 : 1;
+  if (a.integer !== b.integer) return a.integer < b.integer ? -1 : 1;
+  const scale = Math.max(a.fraction.length, b.fraction.length);
+  const aFraction = a.fraction.padEnd(scale, "0");
+  const bFraction = b.fraction.padEnd(scale, "0");
+  return aFraction === bFraction ? 0 : aFraction < bFraction ? -1 : 1;
+}
+
 /** Round monetary display to cents, with decimal ties away from zero. */
 function roundAmount(parts: DecimalParts): DecimalParts {
   let cents = BigInt(parts.integer + parts.fraction.slice(0, 2).padEnd(2, "0"));

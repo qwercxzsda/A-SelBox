@@ -1,4 +1,4 @@
-import { sortBy } from "./table-actions.mjs";
+import { sortBy, columnHeader } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
@@ -34,10 +34,7 @@ test("Transactions use page-first REST reads and reuse counts while both date an
   expect(fixture.countRequests).toHaveLength(1);
 
   await sortBy(page, "Date", "Newest first");
-  await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-    "aria-sort",
-    "descending",
-  );
+  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "descending");
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill("Amazon");
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 for (const [tab, label] of [
   ["Transactions", "Search"],
@@ -33,7 +34,7 @@ for (const [tab, label] of [
 test("clearing a column option search keeps focus inside its input", async ({ page }) => {
   await mockSupabase(page);
   await signIn(page);
-  await page.getByRole("button", { name: "Marketplace", exact: true }).click();
+  await columnTrigger(page, "Marketplace").click();
   const menu = page.getByRole("dialog", { name: "Marketplace options", exact: true });
   const search = menu.getByRole("textbox", { name: "Search marketplace", exact: true });
   await search.fill("Amazon.co");

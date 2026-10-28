@@ -34,12 +34,20 @@ export function decodeReviewSourceState(value: unknown): ReviewSourceState {
   };
 }
 
-export interface FinancialReviewSourceProps {
+export interface FinancialReviewMonthScope {
   identity: Identity;
   category: ReviewCategory;
   month: string;
   matureCutoff: string;
   currency: string;
+  families: readonly string[];
+}
+
+export interface FinancialReviewSourceProps extends FinancialReviewMonthScope {
   state: ReviewSourceState;
   change: (patch: Partial<ReviewSourceState>) => void;
+}
+
+export function reviewFamilyStateKey(families: readonly string[]): string {
+  return families.length ? `:families:${JSON.stringify(families)}` : "";
 }

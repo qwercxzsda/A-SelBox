@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Button, Checkbox, Group, Stack, Text } from "@mantine/core";
 import type { FilterOption } from "./filter-options";
 import { SearchInput } from "./SearchInput";
@@ -61,19 +61,35 @@ export function SelectionFilter({
   label,
   filter,
   onResetScroll,
+  onClearFocusFallback,
 }: {
   label: string;
   filter: Extract<ColumnMenuFilter, { kind: "selection" }>;
   onResetScroll: () => void;
+  onClearFocusFallback: () => void;
 }) {
   const [search, setSearch] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
   const firstOption = useRef<HTMLInputElement>(null);
+  const clearFocusTarget = useRef<HTMLInputElement | null>(null);
   const searchable = filter.options.length > 8;
   const query = searchable ? search.trim().toLocaleLowerCase() : "";
   const options = filter.options.filter((option) =>
     option.label.toLocaleLowerCase().includes(query),
   );
+
+  useLayoutEffect(() => {
+    const target = clearFocusTarget.current;
+    clearFocusTarget.current = null;
+    // Clearing can remove an option retained only by its previous selection.
+    if (
+      target &&
+      !target.isConnected &&
+      (document.activeElement === document.body ||
+        document.activeElement === document.documentElement)
+    )
+      onClearFocusFallback();
+  }, [filter.value, filter.options, onClearFocusFallback]);
 
   return (
     <Stack gap="sm">
@@ -95,7 +111,12 @@ export function SelectionFilter({
           size="compact-sm"
           disabled={filter.value.length === 0}
           onClick={(event) => {
-            if (event.detail === 0) (searchable ? searchInput : firstOption).current?.focus();
+            if (event.detail === 0) {
+              const target = (searchable ? searchInput : firstOption).current;
+              clearFocusTarget.current = target;
+              if (target) target.focus();
+              else onClearFocusFallback();
+            }
             filter.onChange([]);
           }}
         >

@@ -1,7 +1,20 @@
 import { expect } from "@playwright/test";
 
+function columnName(label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped}(?: [0-9]+ selected)?$`);
+}
+
+export function columnTrigger(scope, label) {
+  return scope.getByRole("button", { name: columnName(label) });
+}
+
+export function columnHeader(scope, label) {
+  return scope.getByRole("columnheader", { name: columnName(label) });
+}
+
 export async function openColumn(page, label) {
-  await page.getByRole("button", { name: label, exact: true }).click();
+  await columnTrigger(page, label).click();
   const menu = page.getByRole("dialog", { name: `${label} options`, exact: true });
   await expect(menu).toBeVisible();
   return menu;

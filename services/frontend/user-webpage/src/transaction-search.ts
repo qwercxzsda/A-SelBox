@@ -1,6 +1,5 @@
 import type { AppAccount, TableDatasetKey, TransactionSearchValues } from "./api/types.ts";
-import { localFilterValues } from "./filter-options.ts";
-import { humanizeCode, transactionTypeLabel } from "./categories.ts";
+import { filterOptionLabel, localFilterValues } from "./filter-options.ts";
 
 /** Resolve literal, case-insensitive text locally; the database receives exact OR sets. */
 export function resolveTransactionSearch(
@@ -14,12 +13,7 @@ export function resolveTransactionSearch(
   const matches = (field: "sku" | "component_type" | "marketplace_name" | "source") => {
     const values = new Set<string>();
     for (const value of localFilterValues(field, dataset, role, skuOptions)) {
-      const label =
-        field === "component_type"
-          ? transactionTypeLabel(value)
-          : field === "source"
-            ? humanizeCode(value)
-            : value;
+      const label = filterOptionLabel(field, value);
       if (value.toLowerCase().includes(term) || label.toLowerCase().includes(term))
         values.add(value);
     }

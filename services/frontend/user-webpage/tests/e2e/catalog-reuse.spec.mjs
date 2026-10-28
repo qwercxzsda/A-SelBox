@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { skuAssignments } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
-import { openColumn, sortBy } from "./table-actions.mjs";
+import { openColumn, sortBy, columnHeader } from "./table-actions.mjs";
 
 async function setup(page, { role = "administrator", expiresIn = 90 } = {}) {
   await page.clock.install();
@@ -59,10 +59,7 @@ test("unchanged administrator renewal reuses catalog but renews credentials and 
     page.getByRole("cell", { name: "Fresh company label", exact: true }).first(),
   ).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-    "aria-sort",
-    "ascending",
-  );
+  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
   expect(fixture.optionRequests).toHaveLength(1);
   expect(fixture.requests).toHaveLength(rows);
   expect(fixture.countRequests).toHaveLength(counts);

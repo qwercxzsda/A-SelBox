@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { openColumn } from "./table-actions.mjs";
+import { openColumn, columnTrigger } from "./table-actions.mjs";
 
 for (const width of [320, 1280]) {
   test(`selection filters explain immediate changes and finish with focus restored at ${width}px`, async ({
@@ -10,7 +10,7 @@ for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 600 });
     await mockSupabase(page);
     await signIn(page);
-    const trigger = page.getByRole("button", { name: "Marketplace", exact: true });
+    const trigger = columnTrigger(page, "Marketplace");
     const menu = await openColumn(page, "Marketplace");
     await expect(menu.getByText("Changes apply immediately.", { exact: true })).toBeVisible();
     await menu.getByRole("checkbox", { name: "Amazon.com", exact: true }).check();
@@ -51,7 +51,7 @@ test("an inventory selection menu with sorting keeps both ordering and Done reac
   await expect(descending).toHaveAttribute("aria-pressed", "true");
   await menu.getByRole("checkbox", { name: "FILTER-SKU-029", exact: true }).check();
   await done.click();
-  await expect(page.getByRole("button", { name: "SKU", exact: true })).toBeFocused();
+  await expect(columnTrigger(page, "SKU")).toBeFocused();
   await expect(
     page.getByRole("button", { name: "Show transactions for FILTER-SKU-029", exact: true }),
   ).toBeVisible();

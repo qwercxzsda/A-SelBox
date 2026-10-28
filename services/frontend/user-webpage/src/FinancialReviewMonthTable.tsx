@@ -16,6 +16,7 @@ export function FinancialReviewMonthTable({
   isBusy,
   emptyMessage,
   category,
+  onClearFamilies,
 }: {
   rows: CanonicalRow[];
   currency: string;
@@ -24,6 +25,7 @@ export function FinancialReviewMonthTable({
   isBusy: boolean;
   emptyMessage: string;
   category: ReviewCategory;
+  onClearFamilies?: () => void;
 }) {
   const scrollTarget = useRef<HTMLDivElement>(null);
   const scrollId = useId();
@@ -126,6 +128,11 @@ export function FinancialReviewMonthTable({
                     >
                       {emptyMessage}
                     </Text>
+                    {onClearFamilies ? (
+                      <Button variant="light" onClick={onClearFamilies} mb="md">
+                        Show all families
+                      </Button>
+                    ) : null}
                   </Table.Td>
                 </Table.Tr>
               </Table.Tbody>

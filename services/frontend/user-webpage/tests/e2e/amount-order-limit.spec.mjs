@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { AMOUNT_ORDER_LIMIT_MESSAGE } from "../../src/api/amount-ordering.ts";
 import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
-import { openColumn, sortBy } from "./table-actions.mjs";
+import { openColumn, sortBy, columnHeader } from "./table-actions.mjs";
 
 async function prepare(page, dataset, tab) {
   const fixture = await mockSupabase(page);
@@ -85,10 +85,7 @@ for (const [dataset, tab] of [
       await expect(
         page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
       ).toHaveCount(26);
-      await expect(page.getByRole("columnheader", { name: "Date", exact: true })).toHaveAttribute(
-        "aria-sort",
-        "descending",
-      );
+      await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "descending");
     } finally {
       release.resolve();
     }

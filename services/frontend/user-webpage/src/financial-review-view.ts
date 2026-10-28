@@ -3,10 +3,12 @@ import { requireCalendarDate } from "./api/filters.ts";
 import { isCurrency, isJsonObject, requireCurrency } from "./api/validation.ts";
 import { requireFinancialReviewYear } from "./api/financial-review.ts";
 import { sumExactDecimals } from "./decimal.ts";
+import { normalizeFeeFamilyIds } from "./fee-family-catalog.ts";
 
 export interface ReviewScope {
   year: string;
   currency: string;
+  families: string[];
 }
 
 interface MonthlyReviewView {
@@ -14,7 +16,7 @@ interface MonthlyReviewView {
 }
 
 export function createReviewScope(): ReviewScope {
-  return { year: "", currency: "USD" };
+  return { year: "", currency: "USD", families: [] };
 }
 
 export function decodeReviewScope(value: unknown): ReviewScope {
@@ -29,6 +31,7 @@ export function decodeReviewScope(value: unknown): ReviewScope {
     }
   }
   if (isCurrency(value.currency)) scope.currency = value.currency;
+  scope.families = normalizeFeeFamilyIds(value.families);
   return scope;
 }
 

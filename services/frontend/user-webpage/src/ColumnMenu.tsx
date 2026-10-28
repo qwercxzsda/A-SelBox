@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type Ref } from "react";
 import { SelectionFilter, type ColumnMenuFilter } from "./ColumnFilters";
 import { DateFilter } from "./DateFilter";
 import { MonthFilter } from "./MonthFilter";
@@ -11,6 +11,7 @@ export type { ColumnMenuSort } from "./ColumnMenuFooter";
 
 interface ColumnMenuProps {
   label: string;
+  triggerRef?: Ref<HTMLButtonElement>;
   filter?: ColumnMenuFilter;
   sort?: ColumnMenuSort;
 }
@@ -28,10 +29,11 @@ function activeColumnFilterCount(filter?: ColumnMenuFilter): number {
   }
 }
 
-export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
+export function ColumnMenu({ label, triggerRef, filter, sort }: ColumnMenuProps) {
   const [opened, setOpened] = useState(false);
   const titleId = useId();
   const dropdown = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const filterCount = activeColumnFilterCount(filter);
 
   function close() {
@@ -64,14 +66,15 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
     >
       <Popover.Target>
         <UnstyledButton
+          ref={triggerRef}
           className="column-menu-trigger ui-surface-action"
-          aria-label={label}
+          aria-label={filterCount > 0 ? `${label} ${String(filterCount)} selected` : label}
           data-filtered={filterCount > 0 || undefined}
           onClick={() => {
             setOpened(!opened);
           }}
         >
-          <span>{label}</span>
+          <span>{label}</span>{" "}
           <span className="column-menu-indicators" aria-hidden="true">
             {filter ? (
               <svg viewBox="0 0 16 16" focusable="false">
@@ -99,7 +102,7 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
             <Text fw={600} size="sm" id={titleId}>
               {label} options
             </Text>
-            <CloseButton aria-label="Close options" onClick={close} />
+            <CloseButton ref={closeButton} aria-label="Close options" onClick={close} />
           </Group>
           {opened && filter?.kind === "date" ? (
             <DateFilter filter={filter} onClose={close} />
@@ -111,7 +114,12 @@ export function ColumnMenu({ label, filter, sort }: ColumnMenuProps) {
             filter.groupBy === "transaction-type" ? (
               <TransactionTypeFilter filter={filter} onResetScroll={resetScroll} />
             ) : (
-              <SelectionFilter label={label} filter={filter} onResetScroll={resetScroll} />
+              <SelectionFilter
+                label={label}
+                filter={filter}
+                onResetScroll={resetScroll}
+                onClearFocusFallback={() => closeButton.current?.focus()}
+              />
             )
           ) : null}
           <ColumnMenuFooter filterKind={filter?.kind} sort={sort} onClose={close} />

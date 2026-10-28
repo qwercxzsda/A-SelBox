@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
+import { columnTrigger } from "./table-actions.mjs";
 
 async function openInventory(page) {
   await mockSupabase(page);
@@ -39,7 +40,7 @@ test("inventory column controls reach recommendations without visiting the final
       .toBeGreaterThanOrEqual(Math.min(remaining, step * (index + 1)) - 1);
   }
   await expect(right).toBeDisabled();
-  const recommendation = region.getByRole("button", { name: "Recommendation", exact: true });
+  const recommendation = columnTrigger(region, "Recommendation");
   const bounds = await recommendation.boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
@@ -74,7 +75,7 @@ test("mobile inventory keeps marketplace readable and preserves independent filt
   await openInventory(page);
   const marketplace = page.getByLabel("Marketplace", { exact: true });
   await marketplace.selectOption("Amazon.com");
-  await page.getByRole("button", { name: "Inventory health status", exact: true }).click();
+  await columnTrigger(page, "Inventory health status").click();
   const menu = page.getByRole("dialog", { name: "Inventory health status options", exact: true });
   await menu.getByRole("checkbox", { name: "Low stock", exact: true }).check();
   await menu.getByRole("button", { name: "Done", exact: true }).click();
