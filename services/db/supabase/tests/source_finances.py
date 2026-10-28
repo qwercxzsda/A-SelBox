@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from services.db.supabase.tests.local_database import require_row
+from services.sync.src.amazon.financial_channels import FINANCIAL_CHANNELS
 from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAME_BY_ID
 from services.sync.src.amazon.marketplaces import CREDENTIAL_SCOPES
 from services.sync.src.finances.marketplaces import financial_marketplace_timezone
@@ -31,6 +32,7 @@ def acquisition(
     from services.db.supabase.tests.source_fixtures import archive_document, new_id
 
     timestamp = datetime.now(UTC).isoformat()
+    summary_available = marketplace_id not in FINANCIAL_CHANNELS
     local_start = datetime.combine(date.fromisoformat(start), time.min, ZoneInfo(time_zone))
     local_end = datetime.combine(
         date.fromisoformat(end) + timedelta(days=1), time.min, ZoneInfo(time_zone)
@@ -55,7 +57,7 @@ def acquisition(
                         "time_zone": time_zone,
                     }
                 ],
-                "summary_available": marketplace != "Non-Amazon US",
+                "summary_available": summary_available,
                 "capture_label": capture_label,
             },
             "documents": [
@@ -76,9 +78,7 @@ def acquisition(
                     "api_metadata": {},
                 }
                 for operation in (
-                    ("transactions", "summary")
-                    if marketplace != "Non-Amazon US"
-                    else ("transactions",)
+                    ("transactions", "summary") if summary_available else ("transactions",)
                 )
             ],
         },
@@ -116,7 +116,9 @@ def finances(
     representative = str(rows[0]["posted_date"]) if rows else scopes[0][0].isoformat()
     representative_market = str(rows[0]["marketplace_name"]) if rows else "Amazon.com"
     identifiers = {name: identifier for identifier, name in MARKETPLACE_NAME_BY_ID.items()}
-    identifiers["Non-Amazon US"] = "A2ZV50J4W1RKNI"
+    identifiers.update(
+        {channel.marketplace_name: identifier for identifier, channel in FINANCIAL_CHANNELS.items()}
+    )
     for month, marketplace in scopes:
         end = month.replace(day=monthrange(month.year, month.month)[1])
         selected = [
@@ -126,9 +128,10 @@ def finances(
             and row["marketplace_name"] == marketplace
         ]
         marketplace_id = identifiers[marketplace]
+        channel = FINANCIAL_CHANNELS.get(marketplace_id)
         amazon_scope = (
-            "NA"
-            if marketplace == "Non-Amazon US"
+            channel.amazon_scope
+            if channel is not None
             else next(
                 name
                 for name, scope in CREDENTIAL_SCOPES.items()

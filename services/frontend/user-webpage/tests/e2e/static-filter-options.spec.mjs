@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import marketplaces from "../../src/generated/marketplaces.json" with { type: "json" };
 import { skuAssignment } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
@@ -29,7 +30,10 @@ for (const role of ["member", "administrator"]) {
     await closeMenu(source);
 
     const marketplace = await openColumn(page, "Marketplace");
-    await expect(marketplace.getByRole("checkbox")).toHaveCount(24);
+    await expect(marketplace.getByRole("checkbox")).toHaveCount(marketplaces.length);
+    await expect(
+      marketplace.getByRole("checkbox", { name: "Non-Amazon DE", exact: true }),
+    ).toBeVisible();
     await marketplace.getByLabel("Search marketplace", { exact: true }).fill("co.za");
     await expect(marketplace.getByRole("checkbox")).toHaveCount(1);
     await marketplace.getByRole("checkbox", { name: "Amazon.co.za", exact: true }).check();
@@ -74,7 +78,7 @@ for (const role of ["member", "administrator"]) {
         await expect(rawType.getByRole("checkbox").first()).toBeVisible();
         await closeMenu(rawType);
         const rawMarketplace = await openColumn(page, "Marketplace");
-        await expect(rawMarketplace.getByRole("checkbox")).toHaveCount(24);
+        await expect(rawMarketplace.getByRole("checkbox")).toHaveCount(marketplaces.length);
         await closeMenu(rawMarketplace);
       }
       expect(fixture.optionRequests).toHaveLength(preloadRequests);

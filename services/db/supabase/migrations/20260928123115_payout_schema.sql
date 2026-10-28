@@ -21,7 +21,7 @@ create table public.company_payout_reports (
             'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
             'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
             'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
         ]::text[]
     ),
     report_name private.nonblank not null,
@@ -128,7 +128,7 @@ create table public.company_payout_report_components (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
     )),
     activity_date date not null,
     component_type private.nonblank not null,

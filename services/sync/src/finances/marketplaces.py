@@ -1,23 +1,25 @@
-"""Native financial marketplace identities, including the separate US MCF channel."""
+"""Native financial marketplace identities, including verified non-retail channels."""
 
 from collections.abc import Sequence
 from zoneinfo import ZoneInfo
 
-from ..amazon.finances.marketplaces import NON_AMAZON_US_ID
+from ..amazon.financial_channels import FINANCIAL_CHANNELS
 from ..amazon.marketplace_names import marketplace_name_from_id
 from ..amazon.marketplaces import get_marketplace_timezone
 from .acquisition_models import FinancesCoverageMarketplace, validate_coverage_scope
 
 
 def financial_marketplace_name(marketplace_id: str) -> str:
-    if marketplace_id == NON_AMAZON_US_ID:
-        return "Non-Amazon US"
+    channel = FINANCIAL_CHANNELS.get(marketplace_id)
+    if channel is not None:
+        return channel.marketplace_name
     return marketplace_name_from_id(marketplace_id)
 
 
 def financial_marketplace_timezone(marketplace_id: str) -> ZoneInfo:
-    if marketplace_id == NON_AMAZON_US_ID:
-        return ZoneInfo("America/Los_Angeles")
+    channel = FINANCIAL_CHANNELS.get(marketplace_id)
+    if channel is not None:
+        return ZoneInfo(channel.time_zone)
     return get_marketplace_timezone(marketplace_id)
 
 

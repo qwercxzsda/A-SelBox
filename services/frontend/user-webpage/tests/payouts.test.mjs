@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import marketplaces from "../src/generated/marketplaces.json" with { type: "json" };
 import { createApiClient } from "../src/api/client.ts";
 import {
   SETTINGS,
@@ -150,7 +151,7 @@ test("saved marketplace totals use the report-scoped CSV view and preserve exact
     assert.equal(new URL(url).pathname, "/rest/v1/payout_report_marketplace_totals");
     const params = new URL(url).searchParams;
     assert.equal(params.get("report_id"), `eq.${COMPANY_ID}`);
-    assert.equal(params.get("limit"), "25");
+    assert.equal(params.get("limit"), String(marketplaces.length + 1));
     assert.equal(params.get("order"), "marketplace_name.asc.nullslast");
     assert.equal(init.headers.Accept, "text/csv");
     assert.equal(init.headers.Authorization, "Bearer token");

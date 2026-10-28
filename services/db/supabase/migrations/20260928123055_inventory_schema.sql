@@ -9,7 +9,7 @@ create table private.inventory_acquisitions (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
     )),
     capture_date date not null check (isfinite(capture_date)),
     report_type text not null check (report_type = 'GET_FBA_INVENTORY_PLANNING_DATA'),

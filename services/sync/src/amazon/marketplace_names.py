@@ -1,5 +1,7 @@
 """Fixed marketplace names shared by source facts and live fee configuration."""
 
+from .financial_channels import FINANCIAL_CHANNELS
+
 MARKETPLACE_NAME_BY_ID: dict[str, str] = {
     "ATVPDKIKX0DER": "Amazon.com",
     "A2EUQ1WTGCTBG2": "Amazon.ca",
@@ -25,7 +27,9 @@ MARKETPLACE_NAME_BY_ID: dict[str, str] = {
     "A39IBJ37TRP1C6": "Amazon.com.au",
     "A19VAU5U5O7RUS": "Amazon.sg",
 }
-MARKETPLACE_NAMES: frozenset[str] = frozenset((*MARKETPLACE_NAME_BY_ID.values(), "Non-Amazon US"))
+MARKETPLACE_NAMES: frozenset[str] = frozenset(MARKETPLACE_NAME_BY_ID.values()) | frozenset(
+    channel.marketplace_name for channel in FINANCIAL_CHANNELS.values()
+)
 
 
 def validate_marketplace_name(value: str) -> str:

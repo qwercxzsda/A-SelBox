@@ -74,7 +74,8 @@ described below. Independently completed downloads stay available.
 
 Finances uses SP-API v2024-06-19 `listTransactions` and `listSummary`. It obtains the
 seller's participating marketplace roster and sends unfiltered regional requests, including all
-statuses and account types. This also preserves US merchant-fulfilled activity. `--marketplace-id`
+statuses and account types. Verified Non-Amazon US and DE channels retain their native identities
+and marketplace-local dates. `--marketplace-id`
 overrides the declared coverage roster; it does not filter the API request. Unexpected source
 marketplaces fail preprocessing. Each acquisition covers at most one calendar month, finishes
 pagination, and archives the exact decoded HTTP response bytes. Missing Summary access does not

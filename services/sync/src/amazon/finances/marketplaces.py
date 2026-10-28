@@ -7,11 +7,10 @@ from sp_api.api import Sellers
 
 from ..client import create_explicit_sp_api_client
 from ..credentials import AmazonLwaCredentials, close_quietly
+from ..financial_channels import financial_channel_ids
 from ..marketplaces import AmazonCredentialScope
 from ..sellers_participations import SellersClient, SellersParticipationRequestError
 from ..transport import sanitized_throttled_api_call
-
-NON_AMAZON_US_ID = "A2ZV50J4W1RKNI"
 
 
 class _PayloadResponse(Protocol):
@@ -21,7 +20,7 @@ class _PayloadResponse(Protocol):
 def fetch_financial_marketplace_ids(
     scope: AmazonCredentialScope, credentials: AmazonLwaCredentials
 ) -> tuple[str, ...]:
-    """Include only actual participating stores and the verified US financial channel.
+    """Include only actual participating stores and verified financial channels.
 
     Sellers can return additional non-retail marketplaces. They do not establish
     coverage until their financial identity and time zone are supported. Unknown
@@ -45,9 +44,7 @@ def fetch_financial_marketplace_ids(
 def financial_marketplace_ids(payload: object, scope: AmazonCredentialScope) -> tuple[str, ...]:
     if not isinstance(payload, list):
         raise ValueError("Sellers participation response must contain a list.")
-    allowed = set(scope.marketplace_ids)
-    if scope.name == "NA":
-        allowed.add(NON_AMAZON_US_ID)
+    allowed = set(scope.marketplace_ids) | financial_channel_ids(scope.name)
     participations: dict[str, bool] = {}
     for value in cast(list[object], payload):
         entry = _mapping(value)

@@ -40,7 +40,7 @@ arrays mean no ordinary selection restriction. Search arrays have separate NULL/
 described below. Marketplace arguments use `text[]`; clients send JSON string
 arrays. The shared validator rejects unsupported names, including mixed valid/invalid selections,
 with SQLSTATE `22023`. Stored marketplace names have `CHECK` constraints preserving the same
-24-name vocabulary validated by Python. Optional scalar nulls retain their existing meaning.
+marketplace vocabulary validated by Python. Optional scalar nulls retain their existing meaning.
 
 Row amounts, quantities, rates, aggregate sums, and counts are exact decimal strings in RPC JSON.
 Unknown financial amounts remain null. Explicit zero amounts and rates remain zero. Currency groups

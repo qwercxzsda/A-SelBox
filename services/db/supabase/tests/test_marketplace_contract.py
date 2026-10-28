@@ -9,7 +9,11 @@ from psycopg.types.json import Jsonb
 from services.db.supabase.tests import test_company_terms as terms_fixture
 from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
-from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAMES, validate_marketplace_name
+from services.sync.src.amazon.marketplace_names import (
+    MARKETPLACE_NAME_BY_ID,
+    MARKETPLACE_NAMES,
+    validate_marketplace_name,
+)
 
 _SCALAR_COLUMNS = {
     "public.sku_fee_periods": True,
@@ -70,12 +74,12 @@ class MarketplaceContractTests(SourceModelFixture):
             [
                 self.transaction("1", line) | {"marketplace_name": name}
                 for line, name in enumerate(sorted(MARKETPLACE_NAMES), 3)
-                if name != "Non-Amazon US"
+                if name in MARKETPLACE_NAME_BY_ID.values()
             ]
         )
         self.kiosk(1, [self.component()])
         for marketplace in MARKETPLACE_NAMES:
-            if marketplace == "Non-Amazon US":
+            if marketplace not in MARKETPLACE_NAME_BY_ID.values():
                 continue
             fill_payout_kiosk_month(self, marketplace=marketplace)
         payload: dict[str, object] = {
@@ -182,6 +186,44 @@ class MarketplaceContractTests(SourceModelFixture):
         ):
             with self.subTest(names=names), self.assertRaises(psycopg.errors.InvalidParameterValue):
                 self.as_user(administrator, query, (names,))
+
+    def test_non_amazon_de_keeps_native_identity_and_separate_source_filters(self) -> None:
+        self.finances(
+            [
+                self.transaction("11") | {"marketplace_name": "Non-Amazon DE"},
+                self.transaction("23", 4) | {"marketplace_name": "Amazon.de"},
+            ]
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select marketplace_name, marketplace_id, sum(total_amount)::text "
+                "from private.finances_transactions group by 1,2 order by 1"
+            ).fetchall(),
+            [
+                ("Amazon.de", "A1PA6795UKMFR9", "23"),
+                ("Non-Amazon DE", "A38D8NSA03LJTC", "11"),
+            ],
+        )
+        administrator = self.administrator()
+        query = (
+            "select public.source_transaction_count("
+            "p_dataset=>'finances',p_marketplaces=>%s::text[])"
+        )
+        for names, count in (
+            (["Amazon.de"], "1"),
+            (["Non-Amazon DE"], "1"),
+            (["Amazon.de", "Non-Amazon DE"], "2"),
+        ):
+            self.assertEqual(self.as_user(administrator, query, (names,)), [(count,)])
+        # The Sellers identity alone does not establish a Summary or Data Kiosk alias.
+        self.assertEqual(
+            self.connection.execute(
+                "select private.finances_summary_marketplace('Non-Amazon DE'), "
+                "private.finances_data_kiosk_marketplace('Non-Amazon DE')"
+            ).fetchone(),
+            ("Non-Amazon DE", "Non-Amazon DE"),
+        )
+        self.connection.execute("set constraints all immediate")
 
     def test_optional_kiosk_fact_marketplaces_keep_publication_validation(self) -> None:
         _, current = self.kiosk(1, [self.component() | {"marketplace_name": "Amazon.ca"}])

@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from ..amazon.datetimes import as_utc
 from ..amazon.finances.client import FINANCES_API_VERSION, FinancesOperation
-from ..amazon.finances.marketplaces import NON_AMAZON_US_ID
+from ..amazon.financial_channels import financial_channel_ids
 from ..amazon.identifiers import validate_marketplace_id
 from ..amazon.marketplaces import get_credential_scope
 from ..amazon.scopes import validate_amazon_scope
@@ -192,6 +192,6 @@ def validate_coverage_scope(
     scope_name: str, marketplaces: tuple[FinancesCoverageMarketplace, ...]
 ) -> None:
     scope = get_credential_scope(scope_name)
-    allowed = {*scope.marketplace_ids, *([NON_AMAZON_US_ID] if scope.name == "NA" else [])}
+    allowed = set(scope.marketplace_ids) | financial_channel_ids(scope.name)
     if any(market.marketplace_id not in allowed for market in marketplaces):
         raise ValueError("Finances coverage marketplace is outside the credential scope.")

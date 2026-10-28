@@ -13,9 +13,10 @@ test("source and marketplace menus are complete even without facts or assignment
     ]);
     const values = localFilterValues("marketplace_name", "live", role, []);
     assert.deepEqual(values, marketplaces);
-    assert.equal(new Set(values).size, 24);
+    assert.equal(new Set(values).size, marketplaces.length);
     assert.ok(values.includes("Amazon.com"));
     assert.ok(values.includes("Amazon.co.za"));
+    assert.ok(values.includes("Non-Amazon DE"));
   }
 });
 
