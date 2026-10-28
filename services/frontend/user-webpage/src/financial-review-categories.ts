@@ -8,7 +8,7 @@ export const REVIEW_CATEGORIES: { value: ReviewCategory; label: string; descript
     value: "FINANCES",
     label: "Finances",
     description:
-      "Sales, refunds and transaction fees. Mature company calculations use Finances amounts; Data Kiosk provides a source comparison.",
+      "Sales, refunds and transaction fees, grouped with their signed offsets. Mature company calculations use Finances amounts; comparison dates and coverage may differ in Data Kiosk.",
   },
   {
     value: "DATA_KIOSK",
@@ -20,7 +20,7 @@ export const REVIEW_CATEGORIES: { value: ReviewCategory; label: string; descript
     value: "SELBOX",
     label: "SelBox",
     description:
-      "Account charges and balance movements. These category amounts exclude company allocations, retained service fees and the derived Data Kiosk difference.",
+      "Seller service fees, account adjustments and balance movements. Some families have no Data Kiosk counterpart. These amounts exclude company allocations, retained service fees and the derived Data Kiosk difference.",
   },
 ];
 

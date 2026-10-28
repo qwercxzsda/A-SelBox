@@ -3,12 +3,8 @@ import { requireCalendarDate } from "./api/filters.ts";
 import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
 import { describeFeeFamilyCoverage } from "./financial-review-coverage.ts";
-import {
-  feeFamilyTypeSelections,
-  resolveFeeFamily,
-  type FeeFamily,
-  type FeeFamilySource,
-} from "./fee-family-catalog.ts";
+import { selectFeeFamilies, resolveFeeFamily } from "./fee-family-catalog.ts";
+import type { FeeFamily, FeeFamilySource } from "./fee-family-definitions.ts";
 
 interface FamilyTypeTotal {
   family: FeeFamily;
@@ -26,8 +22,7 @@ function selectTypeTotals(
   ids: readonly string[],
 ): FamilyTypeTotal[] {
   // Malformed selections must never turn into an unfiltered request or comparison.
-  feeFamilyTypeSelections(ids);
-  const selected = new Set(ids);
+  const selected = new Set(selectFeeFamilies(ids).map((family) => family.id));
   const seen = new Set<string>();
   return rows
     .map((row): FamilyTypeTotal => {
@@ -122,6 +117,8 @@ export function buildFinancialReviewFamilies(
       currency: group[0].currency,
       ...comparison(group),
       coverage: describeFeeFamilyCoverage(group, group[0].family),
+      finances_definition: group[0].family.financesTypes.join(", ") || "No counterpart defined",
+      data_kiosk_definition: group[0].family.dataKioskTypes.join(", ") || "No counterpart defined",
       finances_types: sourceTypes(group, "FINANCES"),
       data_kiosk_types: sourceTypes(group, "DATA_KIOSK"),
     }));

@@ -15,9 +15,9 @@ const overview = (month, difference, running_difference, overrides = {}) => ({
   running_difference,
   ...overrides,
 });
-const typeRow = (month, component_type, amount, source = "FINANCES") => ({
+const typeRow = (month, component_type, amount, source = "FINANCES", category = "DATA_KIOSK") => ({
   month: `${month}-01`,
-  category: "DATA_KIOSK",
+  category,
   currency: "USD",
   source,
   component_type,
@@ -213,18 +213,15 @@ test("selection uses stable family identities and colors independent of order or
 
 test("source-only family colors derive from identity and remain stable when selected alone", () => {
   const types = [
-    typeRow("2026-01", "PRODUCT_SALES", "10"),
-    typeRow("2026-01", "SHIPPING_CREDITS", "2"),
+    typeRow("2026-01", "EPR_FEES", "10", "FINANCES", "SELBOX"),
+    typeRow("2026-01", "MCF_CREDITS", "2", "FINANCES", "SELBOX"),
   ];
-  const all = buildFinancialReviewFamilySeries(types, [overview("2026-01", "12", "12")]);
+  const rows = [overview("2026-01", "12", "12", { category: "SELBOX" })];
+  const all = buildFinancialReviewFamilySeries(types, rows);
   assert.notEqual(all[0].color, all[1].color);
   for (const family of all) {
     assert.match(family.color, /^hsl\(\d+ \d+% \d+%\)$/);
-    const selected = buildFinancialReviewFamilySeries(
-      types.toReversed(),
-      [overview("2026-01", "12", "12")],
-      [family.id],
-    );
+    const selected = buildFinancialReviewFamilySeries(types.toReversed(), rows, [family.id]);
     assert.equal(selected.length, 1);
     assert.equal(selected[0].color, family.color);
     assert.equal(selected[0].dash, family.dash);
@@ -249,31 +246,78 @@ test("family projection rejects inconsistent totals without changing the aggrega
 });
 
 test("source-only chart markers reflect registry definitions rather than missing observed rows", () => {
-  const rows = [overview("2026-01", "3", "3")];
+  const rows = [overview("2026-01", "3", "3", { category: "FINANCES" })];
   const series = buildFinancialReviewFamilySeries(
     [
-      typeRow("2026-01", "PRODUCT_SALES", "10"),
-      typeRow("2026-01", "NET_PRODUCT_SALES", "8", "DATA_KIOSK"),
-      typeRow("2026-01", "STORAGE_FEES", "1"),
+      typeRow("2026-01", "SHIPPING_CREDITS", "10", "FINANCES", "FINANCES"),
+      typeRow("2026-01", "NET_PRODUCT_SALES", "8", "DATA_KIOSK", "FINANCES"),
+      typeRow("2026-01", "PRODUCT_SALES", "1", "FINANCES", "FINANCES"),
     ],
     rows,
   );
   const chart = projectFinancialReviewChart(rows, series);
   for (const families of [series, chart.families]) {
     assert.equal(
-      families.find((family) => family.id === "product-sales").sourceOnlyLabel,
+      families.find((family) => family.id === "shipping").sourceOnlyLabel,
       "Finances only",
     );
     assert.equal(
       families.find((family) => family.id === "net-product-sales").sourceOnlyLabel,
-      "Data Kiosk only",
-    );
-    assert.equal(
-      families.find((family) => family.id === "monthly-storage").sourceOnlyLabel,
       undefined,
     );
   }
   assert.equal(chart.months[0].row.difference, "3");
+  const kioskOnly = buildFinancialReviewFamilySeries(
+    [
+      typeRow("2026-01", "SPONSORED_BRANDS", "8", "DATA_KIOSK"),
+      typeRow("2026-01", "STORAGE_FEES", "1"),
+    ],
+    [overview("2026-01", "-7", "-7")],
+  );
+  assert.equal(
+    kioskOnly.find((family) => family.id === "sponsored-brands").sourceOnlyLabel,
+    "Data Kiosk only",
+  );
+  assert.equal(
+    kioskOnly.find((family) => family.id === "monthly-storage").sourceOnlyLabel,
+    undefined,
+  );
+});
+
+test("net sales plot one signed economic difference instead of separate opposing gross source lines", () => {
+  const rows = [
+    overview("2026-01", "0.000000008", "0.000000008", { category: "FINANCES" }),
+    overview("2026-02", "0", "0.000000008", { category: "FINANCES" }),
+  ];
+  const types = [
+    typeRow("2026-01", "PRODUCT_SALES", "100.000000009", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "PRODUCT_REFUNDS", "-20", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "ZERO_ACTIVITY", "0", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "NET_PRODUCT_SALES", "80.000000001", "DATA_KIOSK", "FINANCES"),
+    typeRow("2026-02", "PRODUCT_SALES", "5", "FINANCES", "FINANCES"),
+    typeRow("2026-02", "PRODUCT_REFUNDS", "-5", "FINANCES", "FINANCES"),
+    typeRow("2026-02", "ZERO_ACTIVITY", "0", "FINANCES", "FINANCES"),
+    typeRow("2026-02", "NET_PRODUCT_SALES", "0", "DATA_KIOSK", "FINANCES"),
+  ];
+  for (const ids of [
+    [],
+    ["net-product-sales"],
+    ["product-sales", "product-refunds", "zero-activity"],
+  ]) {
+    const series = buildFinancialReviewFamilySeries(types, rows, ids);
+    assert.equal(series.length, 1);
+    assert.equal(series[0].id, "net-product-sales");
+    assert.equal(series[0].sourceOnlyLabel, undefined);
+    assert.deepEqual(series[0].points, [
+      { month: "2026-01-01", difference: "0.000000008", runningDifference: "0.000000008" },
+      { month: "2026-02-01", difference: "0", runningDifference: "0.000000008" },
+    ]);
+    const chart = projectFinancialReviewChart(rows, series);
+    assert.equal(chart.families.length, 1);
+    assert.equal(chart.months[0].segments.length, 1);
+    assert.equal(chart.months[1].segments[0].difference, "0");
+    assert.equal(chart.months[1].row, rows[1]);
+  }
 });
 
 test("unprojectable amounts and invalid months return null while exact family values remain available", () => {

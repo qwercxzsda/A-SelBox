@@ -3,9 +3,9 @@ import { requireCalendarDate } from "./api/filters.ts";
 import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
 import { buildFinancialReviewFamilies } from "./financial-review-families.ts";
-import { buildFeeFamilyOptions, feeFamilyTypeSelections } from "./fee-family-catalog.ts";
+import { buildFeeFamilyOptions, selectFeeFamilies } from "./fee-family-catalog.ts";
 
-export interface FinancialReviewFamilyPoint {
+interface FinancialReviewFamilyPoint {
   month: string;
   difference: string;
   runningDifference: string;
@@ -86,7 +86,7 @@ export function buildFinancialReviewFamilySeries(
   overviewRows: readonly CanonicalRow[],
   ids: readonly string[] = [],
 ): FinancialReviewFamilySeries[] {
-  feeFamilyTypeSelections(ids);
+  const selected = new Set(selectFeeFamilies(ids).map((family) => family.id));
   if (!overviewRows.length) return [];
   const months = anchorMonths(overviewRows);
   const scope = overviewRows[0];
@@ -112,7 +112,6 @@ export function buildFinancialReviewFamilySeries(
       ),
     ]),
   );
-  const selected = new Set(ids);
   return buildFeeFamilyOptions(typeRows, ids)
     .filter((family) => !selected.size || selected.has(family.id))
     .map((family) => {

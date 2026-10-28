@@ -1,7 +1,8 @@
 import { Button, Stack, Text } from "@mantine/core";
 import { useRef } from "react";
 import { ColumnMenu } from "./ColumnMenu";
-import { buildFeeFamilyOptions, type FeeFamily } from "./fee-family-catalog";
+import { buildFeeFamilyOptions } from "./fee-family-catalog";
+import type { FeeFamily } from "./fee-family-definitions";
 import "./FeeFamilyFilter.css";
 
 export function FeeFamilyScope({ families }: { families: readonly string[] }) {

@@ -10,6 +10,34 @@ import type { FinancialReviewMonthScope } from "./financial-review-source-state"
 import { monthlyFamilyTypesQueryOptions } from "./financial-review-queries";
 import { compareAbsoluteDecimals } from "./decimal";
 
+function FamilyDefinition({ row }: { row: CanonicalRow }) {
+  return (
+    <div className="financial-review-family-definition">
+      <Text size="sm" fw={600}>
+        {row.family}
+      </Text>
+      <Text size="xs" c="dimmed">
+        {row.description}
+      </Text>
+      <details>
+        <summary>Family definition</summary>
+        <Text size="xs">Defined Finances types: {row.finances_definition ?? "Unavailable"}</Text>
+        <Text size="xs">
+          Defined Data Kiosk types: {row.data_kiosk_definition ?? "Unavailable"}
+        </Text>
+        <Text size="xs">
+          Observed Finances types:{" "}
+          {row.finances_types === "—" ? "None in this scope" : row.finances_types}
+        </Text>
+        <Text size="xs">
+          Observed Data Kiosk types:{" "}
+          {row.data_kiosk_types === "—" ? "None in this scope" : row.data_kiosk_types}
+        </Text>
+      </details>
+    </div>
+  );
+}
+
 function FeeFamilyTable({
   rows,
   currency,
@@ -29,62 +57,50 @@ function FeeFamilyTable({
   return (
     <>
       <Text size="xs" c="dimmed" mb="sm">
-        Each source type belongs to one family. Aliases are combined within that family; monthly
-        storage, aged storage and Sponsored Products stay separate. Difference = Finances − Data
-        Kiosk. A missing side contributes zero and is identified below. Family membership does not
-        guarantee matching billing dates or complete source coverage.
+        Each source type belongs to one economic family. Related charges, refunds and corrections
+        are combined using their original signs. Difference = Finances − Data Kiosk. A missing side
+        contributes zero. Source-only amounts show unmatched coverage, not confirmed errors;
+        matching family definitions do not guarantee matching dates or complete records.
       </Text>
       {rows.length ? (
-        <Text size="xs" c="dimmed" mb="sm">
-          Largest absolute difference first. Source-only families are identified separately from
-          missing rows in paired families. Month counts cover months with that family's records.
-        </Text>
+        <>
+          <Text size="xs" c="dimmed" mb="sm">
+            Largest absolute difference first. Source-only families are identified separately from
+            missing rows in paired families. Month counts cover months with that family's records.
+          </Text>
+          <DetailTable
+            label={label}
+            minWidth={onSelectFamily ? 920 : 820}
+            rows={rankedRows}
+            rowKey={(row) => row.family_id ?? ""}
+            columns={[
+              { key: "family", label: "Fee family" },
+              { key: "finances_amount", label: `Finances (${currency})`, kind: "amount" },
+              { key: "data_kiosk_amount", label: `Data Kiosk (${currency})`, kind: "amount" },
+              { key: "difference", label: `Difference (${currency})`, kind: "amount" },
+              { key: "coverage", label: "Source coverage" },
+              ...(onSelectFamily ? [{ key: "focus", label: "Investigate" }] : []),
+            ]}
+            renderCell={(row, column) =>
+              column.key === "family" ? (
+                <FamilyDefinition row={row} />
+              ) : column.key === "focus" && onSelectFamily ? (
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  aria-label={`Show only ${row.family ?? "this family"}`}
+                  onClick={() => {
+                    if (row.family_id) onSelectFamily(row.family_id);
+                  }}
+                >
+                  Show only
+                </Button>
+              ) : undefined
+            }
+          />
+          <AmountPrecisionNote />
+        </>
       ) : null}
-      {rows.length ? (
-        <DetailTable
-          label={label}
-          minWidth={onSelectFamily ? 920 : 820}
-          rows={rankedRows}
-          rowKey={(row) => row.family_id ?? ""}
-          columns={[
-            { key: "family", label: "Fee family" },
-            { key: "finances_amount", label: `Finances (${currency})`, kind: "amount" },
-            { key: "data_kiosk_amount", label: `Data Kiosk (${currency})`, kind: "amount" },
-            { key: "difference", label: `Difference (${currency})`, kind: "amount" },
-            { key: "coverage", label: "Source coverage" },
-            ...(onSelectFamily ? [{ key: "focus", label: "Investigate" }] : []),
-          ]}
-          renderCell={(row, column) =>
-            column.key === "family" ? (
-              <div className="financial-review-family-definition">
-                <Text size="sm" fw={600}>
-                  {row.family}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {row.description}
-                </Text>
-                <details>
-                  <summary>Included source types</summary>
-                  <Text size="xs">Finances: {row.finances_types}</Text>
-                  <Text size="xs">Data Kiosk: {row.data_kiosk_types}</Text>
-                </details>
-              </div>
-            ) : column.key === "focus" && onSelectFamily ? (
-              <Button
-                size="compact-xs"
-                variant="light"
-                aria-label={`Show only ${row.family ?? "this family"}`}
-                onClick={() => {
-                  if (row.family_id) onSelectFamily(row.family_id);
-                }}
-              >
-                Show only
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : null}
-      {rows.length ? <AmountPrecisionNote /> : null}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import type { FeeFamily, FeeFamilySource } from "./fee-family-catalog.ts";
+import type { FeeFamily, FeeFamilySource } from "./fee-family-definitions.ts";
 import type { CanonicalRow } from "./api/types.ts";
 
 interface FinancialReviewCoverage {

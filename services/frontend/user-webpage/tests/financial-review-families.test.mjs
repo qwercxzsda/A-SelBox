@@ -10,8 +10,8 @@ import {
   feeFamilyTypeSelections,
   normalizeFeeFamilyIds,
   resolveFeeFamily,
-  FEE_FAMILIES,
 } from "../src/fee-family-catalog.ts";
+import { FEE_FAMILIES } from "../src/fee-family-definitions.ts";
 import { sumExactDecimals } from "../src/decimal.ts";
 import { createApiClient } from "../src/api/client.ts";
 import { SETTINGS, csvRecord } from "./api-fixtures.mjs";
@@ -151,16 +151,273 @@ test("uncertain identities and unknown types receive separate named families", (
     future.find((item) => item.family.endsWith("Data Kiosk")).data_kiosk_amount,
     "3.0000000000001",
   );
-  assert.notEqual(
-    resolveFeeFamily("FINANCES", "PRODUCT_SALES").id,
-    resolveFeeFamily("DATA_KIOSK", "NET_PRODUCT_SALES").id,
-  );
-  assert.notEqual(
-    resolveFeeFamily("FINANCES", "LIQUIDATION_FEES").id,
-    resolveFeeFamily("DATA_KIOSK", "LIQUIDATION_PROCESSING_FEE").id,
-  );
   assert.deepEqual(buildFinancialReviewFamilies([]), []);
   assert.deepEqual(buildFinancialReviewFamilyMonths([]), []);
+});
+
+test("net product sales include signed refunds and zero-activity counts without absorbing promotions or tax", () => {
+  const rows = [
+    row("FINANCES", "PRODUCT_SALES", "100.123456789", { category: "FINANCES", row_count: "5" }),
+    row("FINANCES", "PRODUCT_REFUNDS", "-20.000000001", { category: "FINANCES", row_count: "2" }),
+    row("FINANCES", "ZERO_ACTIVITY", "0", { category: "FINANCES", row_count: "3" }),
+    row("DATA_KIOSK", "NET_PRODUCT_SALES", "80.123456780", {
+      category: "FINANCES",
+      row_count: "7",
+    }),
+    row("FINANCES", "PROMOTIONAL_REBATES", "-7", { category: "FINANCES" }),
+    row("FINANCES", "PRODUCT_TAX", "8", { category: "FINANCES" }),
+  ];
+  const original = structuredClone(rows);
+  for (const ids of [
+    ["net-product-sales"],
+    ["product-sales", "product-refunds", "zero-activity"],
+  ]) {
+    const families = buildFinancialReviewFamilies(rows, ids);
+    assert.equal(families.length, 1);
+    assert.equal(families[0].family_id, "net-product-sales");
+    assert.equal(families[0].finances_amount, "80.123456788");
+    assert.equal(families[0].data_kiosk_amount, "80.12345678");
+    assert.equal(families[0].difference, "0.000000008");
+    assert.equal(families[0].finances_row_count, "10");
+    assert.equal(families[0].data_kiosk_row_count, "7");
+    assert.equal(families[0].coverage, "Both sources");
+    assert.equal(families[0].finances_types, "PRODUCT_REFUNDS, PRODUCT_SALES, ZERO_ACTIVITY");
+    const months = buildFinancialReviewFamilyMonths(rows, ids);
+    assert.equal(months.length, 1);
+    assert.equal(months[0].difference, "0.000000008");
+    assert.equal(months[0].finances_row_count, "10");
+  }
+  assert.deepEqual(rows, original);
+});
+
+test("fee and reimbursement families net their reversals while preserving source signs", () => {
+  for (const [id, finances, kiosk, expectedFinances, expectedKiosk, difference] of [
+    [
+      "fba-fulfillment",
+      [
+        ["FBA_FULFILLMENT_FEES", "-50.000000009"],
+        ["FULFILLMENT_FEE_CORRECTIONS", "5"],
+        ["FULFILLMENT_FEE_REVERSALS", "2.000000001"],
+      ],
+      [["FBA_FULFILLMENT_FEE", "-43"]],
+      "-43.000000008",
+      "-43",
+      "-0.000000008",
+    ],
+    [
+      "referral",
+      [
+        ["REFERRAL_FEES", "-15"],
+        ["REFUNDED_REFERRAL_FEES", "3"],
+      ],
+      [
+        ["REFERRAL_FEE", "-8"],
+        ["REFERRAL_FEES", "-7"],
+        ["REFUNDED_REFERRAL_FEE", "3"],
+      ],
+      "-12",
+      "-12",
+      "0",
+    ],
+    [
+      "inventory-reimbursements",
+      [
+        ["INVENTORY_REIMBURSEMENTS", "20"],
+        ["INVENTORY_REIMBURSEMENT_REVERSALS", "-20"],
+      ],
+      [["FBA_INVENTORY_REIMBURSEMENT", "0"]],
+      "0",
+      "0",
+      "0",
+    ],
+    [
+      "liquidation-fees",
+      [["LIQUIDATION_FEES", "-8"]],
+      [
+        ["LIQUIDATION_PROCESSING_FEE", "-5"],
+        ["LIQUIDATION_REFERRAL_FEE", "-3"],
+      ],
+      "-8",
+      "-8",
+      "0",
+    ],
+  ]) {
+    const rows = [
+      ...finances.map(([type, amount]) => row("FINANCES", type, amount, { category: "FINANCES" })),
+      ...kiosk.map(([type, amount]) => row("DATA_KIOSK", type, amount, { category: "FINANCES" })),
+    ];
+    const families = buildFinancialReviewFamilies(rows);
+    assert.equal(families.length, 1, id);
+    assert.equal(families[0].family_id, id);
+    assert.equal(families[0].finances_amount, expectedFinances);
+    assert.equal(families[0].data_kiosk_amount, expectedKiosk);
+    assert.equal(families[0].difference, difference);
+    assert.equal(families[0].finances_row_count, String(finances.length));
+    assert.equal(families[0].data_kiosk_row_count, String(kiosk.length));
+    assert.equal(families[0].coverage, "Both sources");
+  }
+  assert.equal(resolveFeeFamily("FINANCES", "REFUND_COMMISSION").id, "refund-commission");
+  assert.equal(resolveFeeFamily("DATA_KIOSK", "REFUND_COMMISSION_FEE").id, "refund-commission");
+  assert.equal(resolveFeeFamily("FINANCES", "LIQUIDATION_PROCEEDS").id, "liquidation-proceeds");
+  for (const alias of ["FBA_FULFILLMENT_FEES", "FBA_FULFILMENT_FEE"])
+    assert.equal(resolveFeeFamily("DATA_KIOSK", alias).id, "fba-fulfillment");
+});
+
+test("source-only economic families combine related signed movements without mixing their purposes", () => {
+  for (const [id, category, components, expected] of [
+    [
+      "shipping",
+      "FINANCES",
+      [
+        ["SHIPPING_CREDITS", "10"],
+        ["SHIPPING_REFUNDS", "-3"],
+        ["SHIPPING_CHARGEBACKS", "-2"],
+      ],
+      "5",
+    ],
+    [
+      "gift-wrapping",
+      "FINANCES",
+      [
+        ["GIFT_WRAP_CREDITS", "4"],
+        ["GIFT_WRAP_CHARGEBACKS", "-1"],
+      ],
+      "3",
+    ],
+    [
+      "taxes",
+      "FINANCES",
+      [
+        ["PRODUCT_TAX", "2"],
+        ["SHIPPING_TAX", "3"],
+        ["GIFT_WRAP_TAX", "1"],
+        ["TAX_WITHHELD", "-6"],
+      ],
+      "0",
+    ],
+    [
+      "promotions",
+      "FINANCES",
+      [
+        ["PROMOTIONAL_REBATES", "-7"],
+        ["PROMOTIONAL_REFUNDS", "2"],
+        ["POINTS", "-1"],
+      ],
+      "-6",
+    ],
+    [
+      "seller-service-fees",
+      "SELBOX",
+      [
+        ["EPR_FEES", "-3"],
+        ["VINE_FEES", "-4"],
+        ["INBOUND_DEFECT_FEES", "-5"],
+      ],
+      "-12",
+    ],
+    [
+      "account-adjustments",
+      "SELBOX",
+      [
+        ["MCF_CREDITS", "7"],
+        ["OTHER_ADJUSTMENTS", "-2"],
+      ],
+      "5",
+    ],
+    [
+      "balance-movements",
+      "SELBOX",
+      [
+        ["DEBT_RECOVERY", "10"],
+        ["CROSS_ACCOUNT_ADJUSTMENTS", "-4"],
+        ["RESERVE_MOVEMENTS", "-3"],
+        ["BANK_TRANSFERS", "-3"],
+      ],
+      "0",
+    ],
+  ]) {
+    const rows = components.map(([type, amount]) => row("FINANCES", type, amount, { category }));
+    const families = buildFinancialReviewFamilies(rows);
+    assert.equal(families.length, 1, id);
+    assert.equal(families[0].family_id, id);
+    assert.equal(families[0].finances_amount, expected);
+    assert.equal(families[0].data_kiosk_amount, "0");
+    assert.equal(families[0].finances_row_count, String(components.length));
+    assert.equal(families[0].coverage, "Finances-only family");
+  }
+  assert.equal(resolveFeeFamily("FINANCES", "SUBSCRIPTION_FEES").id, "subscription");
+  assert.equal(resolveFeeFamily("DATA_KIOSK", "SUBSCRIPTION_FEE").id, "subscription");
+  assert.equal(resolveFeeFamily("FINANCES", "TAX_RECLASSIFICATION").id, "tax-reclassification");
+});
+
+test("retired family IDs migrate to a canonical union without duplicating or broadening types", () => {
+  const aliases = [
+    "product-sales",
+    "product-refunds",
+    "zero-activity",
+    "net-product-sales",
+    "refunded-referral",
+    "referral",
+  ];
+  assert.deepEqual(normalizeFeeFamilyIds([...aliases, null, "invalid"]), [
+    "net-product-sales",
+    "referral",
+  ]);
+  const selection = feeFamilyTypeSelections(aliases);
+  assert.deepEqual(
+    new Set(selection.financesTypes),
+    new Set([
+      "PRODUCT_SALES",
+      "PRODUCT_REFUNDS",
+      "ZERO_ACTIVITY",
+      "REFERRAL_FEES",
+      "REFUNDED_REFERRAL_FEES",
+    ]),
+  );
+  assert.deepEqual(
+    new Set(selection.dataKioskTypes),
+    new Set(["NET_PRODUCT_SALES", "REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"]),
+  );
+  assert.equal(selection.financesTypes.length, 5);
+  assert.equal(selection.dataKioskTypes.length, 4);
+  assert.deepEqual(
+    buildFeeFamilyOptions([], aliases)
+      .map((family) => family.id)
+      .sort(),
+    ["net-product-sales", "referral"],
+  );
+  for (const [retired, canonical] of [
+    ["fulfillment-fee-corrections", "fba-fulfillment"],
+    ["fulfillment-fee-reversals", "fba-fulfillment"],
+    ["inventory-reimbursement-reversals", "inventory-reimbursements"],
+    ["liquidation-processing", "liquidation-fees"],
+    ["liquidation-referral", "liquidation-fees"],
+    ["shipping-credits", "shipping"],
+    ["shipping-refunds", "shipping"],
+    ["shipping-chargebacks", "shipping"],
+    ["gift-wrap-credits", "gift-wrapping"],
+    ["gift-wrap-chargebacks", "gift-wrapping"],
+    ["product-tax", "taxes"],
+    ["shipping-tax", "taxes"],
+    ["gift-wrap-tax", "taxes"],
+    ["tax-withheld", "taxes"],
+    ["promotional-rebates", "promotions"],
+    ["promotional-refunds", "promotions"],
+    ["points", "promotions"],
+    ["epr", "seller-service-fees"],
+    ["vine", "seller-service-fees"],
+    ["inbound-defect", "seller-service-fees"],
+    ["mcf-credits", "account-adjustments"],
+    ["other-adjustments", "account-adjustments"],
+    ["debt-recovery", "balance-movements"],
+    ["cross-account-adjustments", "balance-movements"],
+    ["reserve-movements", "balance-movements"],
+    ["bank-transfers", "balance-movements"],
+  ]) {
+    assert.deepEqual(normalizeFeeFamilyIds([retired, canonical]), [canonical]);
+    assert.deepEqual(feeFamilyTypeSelections([retired]), feeFamilyTypeSelections([canonical]));
+  }
+  assert.throws(() => feeFamilyTypeSelections(["product-sales", "invalid"]));
 });
 
 test("native inbound convenience fees pair without including placement service fees", () => {

@@ -83,6 +83,70 @@ test("unknown family identities escape punctuation literally and never include t
   ]);
 });
 
+test("retired net-sales and referral IDs request one exact source-qualified economic union", async () => {
+  const requests = [];
+  const client = createApiClient(SETTINGS, async (url) => {
+    const params = new URL(url).searchParams;
+    requests.push(params);
+    assert.equal(
+      params.get("or"),
+      '(and(source.eq.FINANCES,component_type.in.("PRODUCT_SALES","PRODUCT_REFUNDS","ZERO_ACTIVITY","REFERRAL_FEES","REFUNDED_REFERRAL_FEES")),and(source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES","REFERRAL_FEE","REFERRAL_FEES","REFUNDED_REFERRAL_FEE")))',
+    );
+    return new Response("amount\n", { headers: { "Content-Range": "*/0" } });
+  });
+  const ids = [
+    "product-sales",
+    "product-refunds",
+    "zero-activity",
+    "net-product-sales",
+    "refunded-referral",
+    "referral",
+  ];
+  await client.fetchFinancialReviewTypes("access", "FINANCES", "2026-07", "USD", 1, undefined, ids);
+  await client.fetchFinancialReviewRecords(
+    "access",
+    "FINANCES",
+    "2026-07",
+    "USD",
+    1,
+    { source: "FINANCES", type: "PRODUCT_REFUNDS" },
+    undefined,
+    ids,
+  );
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].get("p_category"), "FINANCES");
+  assert.equal(requests[0].get("offset"), "50");
+  assert.equal(requests[1].get("category"), "eq.FINANCES");
+  assert.equal(requests[1].get("source"), "eq.FINANCES");
+  assert.equal(requests[1].get("component_type"), "eq.PRODUCT_REFUNDS");
+  assert.equal(requests[1].get("offset"), "50");
+});
+
+test("source-only balance aliases remain a Finances-only union alongside existing source filters", async () => {
+  const client = createApiClient(SETTINGS, async (url) => {
+    const params = new URL(url).searchParams;
+    assert.equal(
+      params.get("or"),
+      '(and(source.eq.FINANCES,component_type.in.("DEBT_RECOVERY","CROSS_ACCOUNT_ADJUSTMENTS","RESERVE_MOVEMENTS","BANK_TRANSFERS")))',
+    );
+    assert.equal(params.get("category"), "eq.SELBOX");
+    assert.equal(params.get("source"), "eq.DATA_KIOSK");
+    return new Response("amount\n", { headers: { "Content-Range": "*/0" } });
+  });
+  const result = await client.fetchFinancialReviewRecords(
+    "access",
+    "SELBOX",
+    "2026-07",
+    "USD",
+    0,
+    { source: "DATA_KIOSK" },
+    undefined,
+    ["debt-recovery", "bank-transfers", "balance-movements"],
+  );
+  assert.equal(result.totalCount, 0);
+  assert.deepEqual(result.rows, []);
+});
+
 test("invalid nonempty family selections never broaden to an unrestricted request", () => {
   const client = createApiClient(SETTINGS, () => assert.fail("invalid families must not query"));
   for (const ids of [
@@ -92,6 +156,7 @@ test("invalid nonempty family selections never broaden to an unrestricted reques
     ["not-a-family"],
     ["source:FINANCES:%"],
     ["monthly-storage", "invalid"],
+    ["product-sales", "invalid"],
   ]) {
     assert.throws(() =>
       client.fetchFinancialReviewTypes("access", "DATA_KIOSK", "2026-07", "USD", 0, undefined, ids),

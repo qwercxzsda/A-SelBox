@@ -81,10 +81,12 @@ include a search field; searching changes the visible choices without clearing h
 Changes apply immediately. **Done** or Escape closes the menu and returns focus to its button.
 **Clear fee families** removes the selection. Selected families are alternatives: choosing
 Monthly storage and Sponsored products includes both, while Year, Currency, and category still
-intersect that selection. With no families selected, all families are included. Clearing the filter
-restores the complete category totals. A selection with no matching source types stays empty; it
-does not fall back to all families. Selections remain when changing year, currency, or category,
-including families absent from the new scope.
+intersect that selection. An empty selection includes all families; a nonempty selection with no
+matching source types stays empty. Selections remain when changing year, currency, or category,
+including families absent from the new scope. Saved preferences and `family=` URL parameters
+resolve retired IDs to their current family, deduplicate them, and retain the filtered scope through
+reload and Back/Forward navigation. For example, `product-sales` and `product-refunds` both resolve
+to `net-product-sales`; they do not become an unrestricted selection.
 
 The overview shows up to twelve monthly rows, January through December, without row pagination or
 a separate month filter. Each row shows the monthly source sums, monthly difference, and
@@ -155,12 +157,47 @@ and maturity-policy changes refresh current comparisons, including an open drawe
 
 ## Fee family comparison and source lookup
 
-Membership is defined once in the [fee family catalog](../services/frontend/user-webpage/src/fee-family-catalog.ts).
+Membership is defined once in the [fee family catalog](../services/frontend/user-webpage/src/fee-family-definitions.ts).
 Each supported source/type belongs to exactly one family. Display labels alone never determine
-membership; the registry lists exact raw types and accepted aliases.
+membership; the registry lists exact raw types and accepted aliases. Economic families combine
+related charges, refunds, corrections, and reversals using their original signs. They do not
+change source categories, activity eligibility, dates, allocations, or payout calculations.
 
-The optional monthly **Fee family comparison** uses the same named families as the yearly filter
-and breakdown. Generalized pairs include:
+Grouped pairs in the Finances category include:
+
+| Family                   | Finances types                                                                     | Data Kiosk types                                                    |
+| ------------------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Net product sales        | `PRODUCT_SALES`, signed `PRODUCT_REFUNDS`, `ZERO_ACTIVITY`                         | `NET_PRODUCT_SALES`                                                 |
+| FBA fulfillment          | `FBA_FULFILLMENT_FEES`, `FULFILLMENT_FEE_CORRECTIONS`, `FULFILLMENT_FEE_REVERSALS` | `FBA_FULFILLMENT_FEE`, `FBA_FULFILLMENT_FEES`, `FBA_FULFILMENT_FEE` |
+| Referral fees            | `REFERRAL_FEES`, `REFUNDED_REFERRAL_FEES`                                          | `REFERRAL_FEE`, `REFERRAL_FEES`, `REFUNDED_REFERRAL_FEE`            |
+| Inventory reimbursements | `INVENTORY_REIMBURSEMENTS`, `INVENTORY_REIMBURSEMENT_REVERSALS`                    | `FBA_INVENTORY_REIMBURSEMENT`                                       |
+| Liquidation fees         | `LIQUIDATION_FEES`                                                                 | `LIQUIDATION_PROCESSING_FEE`, `LIQUIDATION_REFERRAL_FEE`            |
+
+Finances-only groups keep Shipping (credits, refunds, and chargebacks), Gift wrapping (credits and
+chargebacks), Taxes collected and withheld (product, shipping, and gift-wrap taxes plus withholding),
+and Promotions and points (rebates, refunds, and points) separate. Refund commission, restocking,
+and liquidation proceeds also retain their own families.
+
+Net product sales retains zero-activity row counts. Amazon defines Data Kiosk `netProductSales` as
+ordered sales less refunded sales, with refunds assigned by refund-request time. Finances retains
+its posted-activity dates, so related sales and refunds can fall in different months across the
+two sources. See the
+[Amazon Data Kiosk economics schema](https://github.com/amzn/selling-partner-api-models/blob/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql).
+
+The SelBox category keeps Subscription paired on its own and groups the remaining account activity:
+
+| Family                          | Finances types                                                                      | Data Kiosk types       |
+| ------------------------------- | ----------------------------------------------------------------------------------- | ---------------------- |
+| Subscription                    | `SUBSCRIPTION_FEES`                                                                 | `SUBSCRIPTION_FEE`     |
+| Seller service fees             | `EPR_FEES`, `VINE_FEES`, `INBOUND_DEFECT_FEES`                                      | No counterpart defined |
+| Account credits and adjustments | `MCF_CREDITS`, `OTHER_ADJUSTMENTS`                                                  | No counterpart defined |
+| Balance movements               | `DEBT_RECOVERY`, `CROSS_ACCOUNT_ADJUSTMENTS`, `RESERVE_MOVEMENTS`, `BANK_TRANSFERS` | No counterpart defined |
+| Tax reclassification            | `TAX_RECLASSIFICATION`                                                              | No counterpart defined |
+
+Catalog membership does not make a row eligible: bank transfers remain excluded from Financial
+review by the activity rules.
+
+Data Kiosk category pairs include:
 
 | Family             | Finances types      | Data Kiosk types                                                                                         |
 | ------------------ | ------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -169,26 +206,29 @@ and breakdown. Generalized pairs include:
 | Sponsored products | `ADVERTISING`       | `SPONSORED_PRODUCT_FEE`, `SPONSORED_PRODUCTS`, `SPONSORED_PRODUCTS_CHARGE`, `SPONSORED_PRODUCTS_CHARGES` |
 
 Other explicit families cover coupon and deal participation/performance charges, disposal, removal,
-labeling, inbound transportation/program charges, subscription fees, and the remaining source
-identities. Sponsored brands and Sponsored display remain distinct from Sponsored products.
+labeling, inbound transportation/program charges, and the remaining source identities. Sponsored
+brands and Sponsored display remain distinct from Sponsored products.
 Unrecognized types retain a separate named family for their exact source and raw type, such as
 **Future fee · Finances**. Identical unfamiliar codes from different sources are not implicitly paired.
-There is no shared unpaired/uncertain bucket, so each type remains independently inspectable and
-selectable. Exact raw types remain available in **Amounts by type** and source records.
+Selecting a family includes all its members; **Amounts by type** and source records retain each
+exact type. The yearly breakdown and monthly comparison use the same definitions. Each row's
+**Family definition** disclosure lists the complete membership from each source,
+including **No counterpart defined** where applicable, separately from the types observed in the
+selected scope. **None in this scope** means no member type was observed; it does not erase the
+family's defined counterpart.
 
-The display sums each source separately with exact decimal arithmetic, then shows Finances minus
-Data Kiosk. Both yearly and monthly family tables put the largest absolute difference first, retaining
-source signs, zero-value types, and groups whose records cancel to zero. The yearly **Show only**
-action selects that family while preserving category, year, and currency, and returns focus to the
-overview. Ranking helps investigation; it does not classify a difference as an accounting error.
+Both yearly and monthly family tables put the largest absolute difference first, retaining zero-value
+types and groups whose records cancel to zero. The yearly **Show only** action selects that family
+while preserving category, year, and currency, and returns focus to the overview.
 
 **Source coverage** distinguishes a **Finances-only family** or **Data Kiosk-only family**, as defined
 by the catalog, from a paired family with no rows from an expected source in this scope. Paired
 families with records from both sources use **Both sources** for a single observed month, or
 **Both sources in X of Y months** for a multi-month period. X counts months with both sources; Y is
 the number of months with records for that family. Inactive calendar months are excluded.
-These labels describe observed source presence, not agreement in billing dates, tax treatment,
-allocations, or complete coverage. Dates, categories, payout authority, and allocations do not change.
+Source coverage does not establish agreement in billing dates, tax treatment, allocations, or
+completeness. Source-only amounts represent unmatched coverage; neither their nonzero differences
+nor a family's ranking establish an accounting error or missing import.
 
 Family amounts are calculated from complete type aggregates for the selected category, currency,
 and month or year, never from a partial displayed type page or downloaded raw records. Reads page
