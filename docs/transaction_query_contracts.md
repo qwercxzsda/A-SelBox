@@ -54,22 +54,22 @@ zero alone never makes a row supporting detail.
 [`public.transaction_page`](../services/db/supabase/migrations/20260928123134_transaction_page.sql)
 accepts:
 
-| Parameter                  | Default | Meaning                                                           |
-| -------------------------- | ------- | ----------------------------------------------------------------- |
-| `p_limit`                  | `25`    | Integer page size, 1–1,000.                                       |
-| `p_offset`                 | `0`     | Nonnegative safe integer, at most 9,007,199,254,740,991.          |
-| `p_search_skus`, `p_search_types`, `p_search_marketplaces`, `p_search_sources` | `null` | Exact frontend-resolved search sets, combined with OR. All null disables search; empty active sets match nothing. |
-| `p_order_by`               | `date`  | Sort key: `date` or `amount` (reported amount).            |
-| `p_direction`              | `desc`  | Ordering direction: `asc` or `desc`.                              |
-| `p_date_from`, `p_date_to` | `null`  | Optional inclusive date bounds.                                   |
-| `p_company_ids`            | `null`  | Current company UUID selection.                                   |
-| `p_skus`                   | `null`  | Exact SKU text selection.                                         |
-| `p_marketplaces`           | `null`  | Exact supported marketplace text selection.                       |
-| `p_sources`                | `null`  | Source text selection.                                            |
-| `p_types`                  | `null`  | Component-type selection, including the derived administrator difference.                                     |
-| `p_include_count`          | `true`  | Whether to include an exact matching-row count.                   |
-| `p_fee_applicable`         | `null`  | `true`: applicable source Type; `false`: other Types; null: both. |
-| `p_currency`               | `null`  | Optional three-letter uppercase currency code, applied before pagination and counting. |
+| Parameter                                                                      | Default | Meaning                                                                                                           |
+| ------------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| `p_limit`                                                                      | `25`    | Integer page size, 1–1,000.                                                                                       |
+| `p_offset`                                                                     | `0`     | Nonnegative safe integer, at most 9,007,199,254,740,991.                                                          |
+| `p_search_skus`, `p_search_types`, `p_search_marketplaces`, `p_search_sources` | `null`  | Exact frontend-resolved search sets, combined with OR. All null disables search; empty active sets match nothing. |
+| `p_order_by`                                                                   | `date`  | Sort key: `date` or `amount` (reported amount).                                                                   |
+| `p_direction`                                                                  | `desc`  | Ordering direction: `asc` or `desc`.                                                                              |
+| `p_date_from`, `p_date_to`                                                     | `null`  | Optional inclusive date bounds.                                                                                   |
+| `p_company_ids`                                                                | `null`  | Current company UUID selection.                                                                                   |
+| `p_skus`                                                                       | `null`  | Exact SKU text selection.                                                                                         |
+| `p_marketplaces`                                                               | `null`  | Exact supported marketplace text selection.                                                                       |
+| `p_sources`                                                                    | `null`  | Source text selection.                                                                                            |
+| `p_types`                                                                      | `null`  | Component-type selection, including the derived administrator difference.                                         |
+| `p_include_count`                                                              | `true`  | Whether to include an exact matching-row count.                                                                   |
+| `p_fee_applicable`                                                             | `null`  | `true`: applicable source Type; `false`: other Types; null: both.                                                 |
+| `p_currency`                                                                   | `null`  | Optional three-letter uppercase currency code, applied before pagination and counting.                            |
 
 Response: `{ "rows": [...], "total_count": "123" }`. With counting disabled, `total_count` is null.
 An empty page still receives the full matching count when requested. Rows retain source identity,
@@ -192,10 +192,10 @@ against its complete option catalogs with JavaScript `toLowerCase()`. It matches
 formatted Type/Source labels. Characters such as `*`, `%`, `_`, brackets, quotes, and backslashes
 remain literal. Currency is not a searchable field on any transaction tab.
 
-| Dataset | Searchable fields |
-| --- | --- |
-| Transactions | SKU, Type, Source, Marketplace |
-| Finances / Data Kiosk | SKU, Type, Marketplace |
+| Dataset               | Searchable fields              |
+| --------------------- | ------------------------------ |
+| Transactions          | SKU, Type, Source, Marketplace |
+| Finances / Data Kiosk | SKU, Type, Marketplace         |
 
 The frontend sends matching exact strings in `p_search_skus`, `p_search_types`, and
 `p_search_marketplaces`, plus `p_search_sources` for Transactions. Search matches any supplied field
@@ -258,10 +258,10 @@ Selected dates card; Latest day and Latest month use their independently chosen 
 Type, fee-applicability, and search selections do not change these summary contracts. Period
 discovery and the Latest month rule belong to the frontend; this RPC calculates the supplied range.
 
-For one company, full mature month, and currency with complete valid inputs, the
+For one company, full mature month, exact marketplace, and currency with complete valid inputs, the
 estimate matches the latest automatically generated payout after that report has
 captured the current source and terms versions. Both aggregate across source
-namespaces. A narrowed SKU/marketplace selection represents only part of the report;
+namespaces within that marketplace. A narrowed SKU selection represents only part of the report;
 an unfiltered administrator estimate can also include seller-wide controls that are not
 company payout amounts. The browser presents amount types and their contributing
 records together for both live estimates and saved reports.
@@ -332,14 +332,14 @@ The source tables use the following optional read indexes in the
 [read access module](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql).
 Here `date` means Finances `posted_date` or Data Kiosk `activity_date`.
 
-| Key shape                       | Finances    | Data Kiosk    | Intended access                                              |
-| ------------------------------- | ------------- | ------------- | ------------------------------------------------------------ |
-| `(date, id)`                    | Full index    | Full index    | Both date directions, including raw historical/account rows. |
-| `(sku, date)`                   | Compact index | Compact index | Exact SKU selections/date ranges and distinct-SKU index seeks. |
-| `(component_type, date)`        | Compact index | Compact index | Type selections, fee-applicable Types, and date ranges.      |
-| `(marketplace_name, date)`      | Compact index | Compact index | Marketplace filtering and bounded date candidates.           |
-| Compact ownership/version keys | Partial index | —             | Finances component unfiltered and marketplace counts.  |
-| Covering count keys             | Date-leading  | Date-leading  | Date-bounded count predicates and authorization without reading full facts when visibility permits. |
+| Key shape                      | Finances      | Data Kiosk    | Intended access                                                                                     |
+| ------------------------------ | ------------- | ------------- | --------------------------------------------------------------------------------------------------- |
+| `(date, id)`                   | Full index    | Full index    | Both date directions, including raw historical/account rows.                                        |
+| `(sku, date)`                  | Compact index | Compact index | Exact SKU selections/date ranges and distinct-SKU index seeks.                                      |
+| `(component_type, date)`       | Compact index | Compact index | Type selections, fee-applicable Types, and date ranges.                                             |
+| `(marketplace_name, date)`     | Compact index | Compact index | Marketplace filtering and bounded date candidates.                                                  |
+| Compact ownership/version keys | Partial index | —             | Finances component unfiltered and marketplace counts.                                               |
+| Covering count keys            | Date-leading  | Date-leading  | Date-bounded count predicates and authorization without reading full facts when visibility permits. |
 
 The full date/ID indexes have no category or nonzero-amount predicate. Filtering and existing RLS
 still determine which rows qualify. Forward and backward scans serve the complete ascending and

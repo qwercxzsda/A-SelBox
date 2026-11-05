@@ -79,6 +79,7 @@ def publish_report(
         {
             "id": new_id(),
             "company_id": company_id,
+            "marketplace_name": "Amazon.com",
             "currency": "USD",
             "start_date": start_date,
             "end_date": end_date,
@@ -178,6 +179,7 @@ def publish_payout(fixture: SourceModelFixture, inputs: PayoutInputs, **scope: o
         {
             "id": new_id(),
             "company_id": inputs.company,
+            "marketplace_name": "Amazon.com",
             "currency": "USD",
             "start_date": "2026-06-01",
             "end_date": "2026-06-30",
@@ -221,6 +223,7 @@ def empty_report_payload(company: str) -> dict[str, object]:
     return {
         "id": new_id(),
         "company_id": company,
+        "marketplace_name": None,
         "currency": None,
         "start_date": "2026-06-01",
         "end_date": "2026-06-30",

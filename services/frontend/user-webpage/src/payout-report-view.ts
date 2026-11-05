@@ -2,9 +2,16 @@ import type { CanonicalRow } from "./api/types.ts";
 import { requireDateRange } from "./api/filters.ts";
 import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
 import { decodeDetailPage, decodeDetailStrings } from "./detail-view-state.ts";
+import { isPayoutMarketplace, payoutMarketplace } from "./payout-report-scope.ts";
 
 export function payoutScopeKey(row: CanonicalRow): string {
-  return JSON.stringify([row.company_id, row.start_date, row.end_date, row.currency]);
+  return JSON.stringify([
+    row.company_id,
+    row.start_date,
+    row.end_date,
+    payoutMarketplace(row),
+    row.currency,
+  ]);
 }
 
 export interface PayoutHistoryState {
@@ -14,6 +21,7 @@ export interface PayoutHistoryState {
 }
 
 export interface PayoutVersionSelection {
+  marketplaceName: string | null;
   companyId: string;
   startDate: string;
   endDate: string;
@@ -27,6 +35,7 @@ export function payoutVersionSelection(row: CanonicalRow): PayoutVersionSelectio
     startDate: row.start_date ?? "",
     endDate: row.end_date ?? "",
     currency: row.currency,
+    marketplaceName: payoutMarketplace(row),
     reportId: row.id ?? "",
   };
 }
@@ -44,7 +53,8 @@ function decodePayoutVersionSelection(value: unknown): PayoutVersionSelection | 
     !value.startDate ||
     typeof value.endDate !== "string" ||
     !value.endDate ||
-    !(value.currency === null || isCurrency(value.currency))
+    !(value.currency === null || isCurrency(value.currency)) ||
+    !isPayoutMarketplace(value.marketplaceName)
   )
     return null;
   try {
@@ -58,6 +68,7 @@ function decodePayoutVersionSelection(value: unknown): PayoutVersionSelection | 
     endDate: value.endDate,
     currency: value.currency,
     reportId: value.reportId,
+    marketplaceName: value.marketplaceName,
   };
 }
 

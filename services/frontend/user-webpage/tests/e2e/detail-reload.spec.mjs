@@ -24,9 +24,7 @@ function rows() {
   }));
 }
 
-test("F5 restores the selected payout, type, record page, and marketplace section", async ({
-  page,
-}) => {
+test("F5 restores the selected payout, marketplace, type, and record page", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.companyIds["member-a"] = companyId;
   fixture.companyNames[companyId] = "Reload Company";
@@ -58,7 +56,6 @@ test("F5 restores the selected payout, type, record page, and marketplace sectio
   await expect(drawer.getByRole("region", { name: "Amount records", exact: true })).toContainText(
     "Page 2",
   );
-  await drawer.getByRole("button", { name: "Marketplace breakdown", exact: true }).click();
   await page.reload();
   drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
   await expect(drawer).toBeVisible();
@@ -69,9 +66,7 @@ test("F5 restores the selected payout, type, record page, and marketplace sectio
   await expect(
     drawer.getByRole("button", { name: "Sales and refunds details", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
-  await expect(
-    drawer.getByRole("button", { name: "Marketplace breakdown", exact: true }),
-  ).toHaveAttribute("aria-expanded", "true");
+  await expect(drawer.locator(".detail-drawer-context")).toContainText("Amazon.com · USD");
   await expect(drawer.getByRole("region", { name: "Amount records", exact: true })).toContainText(
     "Page 2",
   );

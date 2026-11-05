@@ -40,6 +40,7 @@ export interface FinancialReviewMonthScope {
   month: string;
   matureCutoff: string;
   currency: string;
+  marketplace: string;
   families: readonly string[];
 }
 

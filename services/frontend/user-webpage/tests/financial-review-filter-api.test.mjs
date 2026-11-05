@@ -5,6 +5,24 @@ import { SETTINGS } from "./api-fixtures.mjs";
 import { csv } from "./e2e/api-fixtures.mjs";
 import { respondWithFinancialReview } from "./e2e/mocks/financial-review.mjs";
 
+function mockReviewClient(fixture) {
+  return createApiClient(SETTINGS, (url) =>
+    respondWithFinancialReview(fixture, {
+      request: {},
+      url: new URL(url),
+      user: "admin",
+      track: () => {},
+      reply: (body, status) => new Response(JSON.stringify(body), { status }),
+      csvReply: (columns, rows, total, offset) =>
+        new Response(csv(columns, rows), {
+          headers: {
+            "Content-Range": `${rows.length ? `${offset}-${offset + rows.length - 1}` : "*"}/${total}`,
+          },
+        }),
+    }),
+  );
+}
+
 test("family type filters intersect the existing monthly source/type scope before server paging", async () => {
   let requests = 0;
   const client = createApiClient(SETTINGS, async (url, init) => {
@@ -19,6 +37,7 @@ test("family type filters intersect the existing monthly source/type scope befor
     assert.equal(init.headers.Prefer, "count=exact");
     if (new URL(url).pathname.endsWith("financial_review_records")) {
       assert.equal(params.get("category"), "eq.DATA_KIOSK");
+      assert.equal(params.get("marketplace_name"), "eq.Amazon.com");
       assert.equal(params.get("currency"), "eq.USD");
       assert.equal(params.get("source"), "eq.FINANCES");
       assert.equal(params.get("component_type"), "eq.STORAGE_FEES");
@@ -28,6 +47,7 @@ test("family type filters intersect the existing monthly source/type scope befor
       );
     } else {
       assert.equal(params.get("p_category"), "DATA_KIOSK");
+      assert.equal(params.get("p_marketplace"), "Amazon.com");
       assert.equal(params.get("p_currency"), "USD");
       assert.equal(params.get("p_month_from"), "2026-07-01");
       assert.equal(params.get("p_month_to"), "2026-08-01");
@@ -40,6 +60,7 @@ test("family type filters intersect the existing monthly source/type scope befor
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     1,
     undefined,
     families,
@@ -49,6 +70,7 @@ test("family type filters intersect the existing monthly source/type scope befor
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     1,
     { source: "FINANCES", type: "STORAGE_FEES" },
     undefined,
@@ -73,14 +95,22 @@ test("unknown family identities escape punctuation literally and never include t
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     0,
     {},
     undefined,
     [id],
   );
-  await client.fetchFinancialReviewTypes("access", "DATA_KIOSK", "2026-07", "USD", 0, undefined, [
-    id,
-  ]);
+  await client.fetchFinancialReviewTypes(
+    "access",
+    "DATA_KIOSK",
+    "2026-07",
+    "USD",
+    "Amazon.com",
+    0,
+    undefined,
+    [id],
+  );
 });
 
 test("retired net-sales and referral IDs request one exact source-qualified economic union", async () => {
@@ -102,12 +132,22 @@ test("retired net-sales and referral IDs request one exact source-qualified econ
     "refunded-referral",
     "referral",
   ];
-  await client.fetchFinancialReviewTypes("access", "FINANCES", "2026-07", "USD", 1, undefined, ids);
+  await client.fetchFinancialReviewTypes(
+    "access",
+    "FINANCES",
+    "2026-07",
+    "USD",
+    "Amazon.com",
+    1,
+    undefined,
+    ids,
+  );
   await client.fetchFinancialReviewRecords(
     "access",
     "FINANCES",
     "2026-07",
     "USD",
+    "Amazon.com",
     1,
     { source: "FINANCES", type: "PRODUCT_REFUNDS" },
     undefined,
@@ -138,6 +178,7 @@ test("source-only balance aliases remain a Finances-only union alongside existin
     "SELBOX",
     "2026-07",
     "USD",
+    "Amazon.com",
     0,
     { source: "DATA_KIOSK" },
     undefined,
@@ -159,7 +200,16 @@ test("invalid nonempty family selections never broaden to an unrestricted reques
     ["product-sales", "invalid"],
   ]) {
     assert.throws(() =>
-      client.fetchFinancialReviewTypes("access", "DATA_KIOSK", "2026-07", "USD", 0, undefined, ids),
+      client.fetchFinancialReviewTypes(
+        "access",
+        "DATA_KIOSK",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+        0,
+        undefined,
+        ids,
+      ),
     );
     assert.throws(() =>
       client.fetchFinancialReviewRecords(
@@ -167,6 +217,7 @@ test("invalid nonempty family selections never broaden to an unrestricted reques
         "DATA_KIOSK",
         "2026-07",
         "USD",
+        "Amazon.com",
         0,
         {},
         undefined,
@@ -181,6 +232,7 @@ test("review browser fixtures apply source-specific family intersections before 
     month: "2026-07-01",
     activity_date: "2026-07-12",
     category: "DATA_KIOSK",
+    marketplace_name: "Amazon.com",
     currency: "USD",
     source: "FINANCES",
     component_type: "STORAGE_FEES",
@@ -196,6 +248,7 @@ test("review browser fixtures apply source-specific family intersections before 
     { ...base, source: "DATA_KIOSK", component_type: "FBA_STORAGE_FEE", source_row_id: "KIOSK" },
     { ...base, source: "DATA_KIOSK", source_row_id: "WRONG-SOURCE" },
     { ...base, currency: "EUR", source_row_id: "OTHER-CURRENCY" },
+    { ...base, marketplace_name: "Amazon.ca", source_row_id: "OTHER-MARKETPLACE" },
     { ...base, category: "SELBOX", source_row_id: "OTHER-CATEGORY" },
     { ...base, month: "2026-06-01", activity_date: "2026-06-12", source_row_id: "OTHER-MONTH" },
     { ...base, component_type: unknown, source_row_id: "UNKNOWN-FINANCES" },
@@ -215,26 +268,13 @@ test("review browser fixtures apply source-specific family intersections before 
       { ...base, month: "2026-06-01" },
     ],
   };
-  const client = createApiClient(SETTINGS, (url) =>
-    respondWithFinancialReview(fixture, {
-      request: {},
-      url: new URL(url),
-      user: "admin",
-      track: () => {},
-      reply: (body, status) => new Response(JSON.stringify(body), { status }),
-      csvReply: (columns, rows, total, offset) =>
-        new Response(csv(columns, rows), {
-          headers: {
-            "Content-Range": `${rows.length ? `${offset}-${offset + rows.length - 1}` : "*"}/${total}`,
-          },
-        }),
-    }),
-  );
+  const client = mockReviewClient(fixture);
   const page = await client.fetchFinancialReviewRecords(
     "access",
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     1,
     {},
     undefined,
@@ -250,6 +290,7 @@ test("review browser fixtures apply source-specific family intersections before 
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     1,
     { source: "FINANCES", type: "STORAGE_FEES" },
     undefined,
@@ -262,6 +303,7 @@ test("review browser fixtures apply source-specific family intersections before 
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     0,
     undefined,
     ["monthly-storage"],
@@ -269,7 +311,15 @@ test("review browser fixtures apply source-specific family intersections before 
   assert.equal(types.totalCount, 2);
   assert.equal(types.rows.length, 2);
   assert.equal(
-    (await client.fetchFinancialReviewPeriodTypes("access", "DATA_KIOSK", "2026", "USD")).length,
+    (
+      await client.fetchFinancialReviewPeriodTypes(
+        "access",
+        "DATA_KIOSK",
+        "2026",
+        "USD",
+        "Amazon.com",
+      )
+    ).length,
     4,
   );
   const exactUnknown = await client.fetchFinancialReviewRecords(
@@ -277,6 +327,7 @@ test("review browser fixtures apply source-specific family intersections before 
     "DATA_KIOSK",
     "2026-07",
     "USD",
+    "Amazon.com",
     0,
     {},
     undefined,
@@ -284,4 +335,85 @@ test("review browser fixtures apply source-specific family intersections before 
   );
   assert.equal(exactUnknown.totalCount, 1);
   assert.equal(exactUnknown.rows[0].source_row_id, "UNKNOWN-KIOSK");
+});
+
+test("Germany and France using EUR stay separate before family counts, records and type paging", async () => {
+  const base = {
+    month: "2026-07-01",
+    activity_date: "2026-07-12",
+    category: "DATA_KIOSK",
+    currency: "EUR",
+    source: "FINANCES",
+    component_type: "STORAGE_FEES",
+  };
+  const markets = [
+    ["Amazon.de", 52],
+    ["Amazon.fr", 57],
+  ];
+  const fixture = {
+    roles: { admin: "administrator" },
+    financialReviewRequests: [],
+    financialReviewStatus: 200,
+    beforeFinancialReview: async () => {},
+    payoutPolicy: { mature_cutoff_date: "2027-01-27" },
+    financialReviewRecords: markets.flatMap(([marketplace_name, count]) =>
+      Array.from({ length: count }, (_, index) => ({
+        ...base,
+        marketplace_name,
+        amount: "1",
+        source_row_id: `${marketplace_name}-${index}`,
+      })),
+    ),
+    financialReviewTypeTotals: markets.map(([marketplace_name, count]) => ({
+      ...base,
+      marketplace_name,
+      amount: String(count),
+      row_count: String(count),
+    })),
+    financialReviewTotals: markets.map(([marketplace_name, count]) => ({
+      ...base,
+      marketplace_name,
+      finances_amount: String(count),
+      data_kiosk_amount: "0",
+      difference: String(count),
+      finances_row_count: String(count),
+      data_kiosk_row_count: "0",
+    })),
+  };
+  const client = mockReviewClient(fixture);
+  for (const [marketplace, count] of markets) {
+    const page = await client.fetchFinancialReviewRecords(
+      "access",
+      "DATA_KIOSK",
+      "2026-07",
+      "EUR",
+      marketplace,
+      1,
+      {},
+      undefined,
+      ["monthly-storage"],
+    );
+    assert.equal(page.totalCount, count);
+    assert.equal(page.rows.length, count - 50);
+    assert.ok(page.rows.every((row) => row.marketplace_name === marketplace));
+    const types = await client.fetchFinancialReviewPeriodTypes(
+      "access",
+      "DATA_KIOSK",
+      "2026",
+      "EUR",
+      marketplace,
+    );
+    assert.equal(types.length, 1);
+    assert.equal(types[0].marketplace_name, marketplace);
+    assert.equal(types[0].amount, String(count));
+    const totals = await client.fetchFinancialReviewPeriod(
+      "access",
+      "DATA_KIOSK",
+      "2026",
+      marketplace,
+    );
+    assert.equal(totals.length, 1);
+    assert.equal(totals[0].marketplace_name, marketplace);
+    assert.equal(totals[0].difference, String(count));
+  }
 });

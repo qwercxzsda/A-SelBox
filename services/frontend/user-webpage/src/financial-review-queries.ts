@@ -9,6 +9,7 @@ export function monthlyFamilyTypesQueryOptions({
   month,
   matureCutoff,
   currency,
+  marketplace,
 }: Omit<FinancialReviewMonthScope, "families">) {
   return queryOptions({
     queryKey: [
@@ -19,6 +20,7 @@ export function monthlyFamilyTypesQueryOptions({
       month,
       matureCutoff,
       currency,
+      marketplace,
     ],
     queryFn: ({ signal }) =>
       fetchFinancialReviewFamilyTypes(
@@ -26,6 +28,7 @@ export function monthlyFamilyTypesQueryOptions({
         category,
         month,
         currency,
+        marketplace,
         signal,
       ),
     staleTime: Infinity,

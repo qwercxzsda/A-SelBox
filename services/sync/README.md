@@ -240,17 +240,19 @@ the payout worker never contacts Amazon.
 
 `src/database/payout_reports.py` retains the low-level
 `publish_company_payout_report()` helper for trusted internal integration and verification.
-It publishes one company/currency aggregate for a complete calendar month. The
+It publishes one company/marketplace/currency aggregate for a complete calendar month. The
 database discovers every source namespace, selects current versions, validates
 inputs, computes amounts, and returns a saved report UUID. Callers supply neither
-source selections nor calculated totals. This helper is not the application workflow.
+source selections nor calculated totals. An explicit `marketplace_name` argument selects the
+report marketplace; null represents an unspecified marketplace. This helper is not the application workflow.
 The database rejects publication without a current SKU assignment, including when
 historical reports or assignments exist.
 
 `load_company_payout_report()` and `load_company_payout_report_components()` read frozen
 values without recalculating current inputs. The header reader also supports the
-null currency produced for an eligible company/month when no currency scope is known.
-Those totals are zero. Namespace and preprocessing provenance belong to the pinned
+null marketplace and currency produced for an eligible company/month with no monetary scope.
+Those totals are zero. Marketplace is a separate header identity from currency; source namespaces
+and preprocessing provenance belong to the pinned
 source manifests rather than the company report header.
 
 Application users only read reports. See the [payout contract](../../docs/company_payout_reports.md)

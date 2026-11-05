@@ -42,7 +42,7 @@ export function FinancialReview({
       </Tabs.List>
       <Tabs.Panel value={category} pt="md">
         <FinancialReviewMonths
-          key={`${category}:${scope.year}:${scope.currency}`}
+          key={category}
           category={category}
           scope={scope}
           onScopeChange={setScope}

@@ -3,20 +3,23 @@ import { requireCalendarDate } from "./api/filters.ts";
 import { isCurrency, isJsonObject, requireCurrency } from "./api/validation.ts";
 import { requireFinancialReviewYear } from "./api/financial-review.ts";
 import { sumExactDecimals } from "./decimal.ts";
+import { isMarketplace, requireMarketplace } from "./api/marketplaces.ts";
 import { normalizeFeeFamilyIds } from "./fee-family-catalog.ts";
 
 export interface ReviewScope {
   year: string;
+  marketplace: string;
   currency: string;
   families: string[];
 }
 
 interface MonthlyReviewView {
   selectedMonth: string | null;
+  currency?: string;
 }
 
 export function createReviewScope(): ReviewScope {
-  return { year: "", currency: "USD", families: [] };
+  return { year: "", marketplace: "Amazon.com", currency: "", families: [] };
 }
 
 export function decodeReviewScope(value: unknown): ReviewScope {
@@ -30,7 +33,10 @@ export function decodeReviewScope(value: unknown): ReviewScope {
       // Invalid saved years return to the latest available year.
     }
   }
-  if (isCurrency(value.currency)) scope.currency = value.currency;
+  if (isMarketplace(value.marketplace)) {
+    scope.marketplace = value.marketplace;
+    if (isCurrency(value.currency)) scope.currency = value.currency;
+  }
   scope.families = normalizeFeeFamilyIds(value.families);
   return scope;
 }
@@ -53,6 +59,7 @@ function isMonth(value: unknown): value is string {
 export function decodeMonthlyReviewView(value: unknown): MonthlyReviewView {
   return {
     selectedMonth: isJsonObject(value) && isMonth(value.selectedMonth) ? value.selectedMonth : null,
+    ...(isJsonObject(value) && isCurrency(value.currency) ? { currency: value.currency } : {}),
   };
 }
 
@@ -64,9 +71,14 @@ export function buildFinancialReviewTimeline(
   requireCurrency(currency);
   const months = new Set<string>();
   let year: string | null = null;
+  let marketplace: string | null = null;
   const selected = rows
     .filter((row) => row.currency === currency)
     .map((row) => {
+      requireMarketplace(row.marketplace_name);
+      marketplace ??= row.marketplace_name;
+      if (row.marketplace_name !== marketplace)
+        throw new Error("Financial review timeline must use one marketplace");
       const month = row.month;
       if (!month || !isMonth(month.slice(0, 7)) || month !== `${month.slice(0, 7)}-01`)
         throw new Error("Financial review returned an invalid month");

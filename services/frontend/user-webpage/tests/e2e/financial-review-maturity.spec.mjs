@@ -53,7 +53,8 @@ test("partial months stay out of totals, running sums, currencies and details un
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveText([
     "June 2026",
   ]);
-  await expect(currency(page).locator("option")).toHaveText(["USD"]);
+  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
+  await expect(currency(page)).toHaveCount(0);
   await expect(totals(page)).toContainText("-100.25 USD");
   await expect(totals(page)).toContainText("-112.75 USD");
   await expect(totals(page)).toContainText("12.50 USD");
@@ -79,7 +80,8 @@ test("partial months stay out of totals, running sums, currencies and details un
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveText([
     "June 2026",
   ]);
-  await expect(currency(page).locator("option")).toHaveText(["USD"]);
+  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
+  await expect(currency(page)).toHaveCount(0);
   await expect(totals(page)).toContainText("12.50 USD");
 
   setPolicy(fixture, "2026-08-01", "2026-07-01");
@@ -127,7 +129,8 @@ test("F5 keeps a stale partial-month selection closed without reading its detail
   ]);
   await expect(drawer(page)).toHaveCount(0);
   await expect(year(page)).toHaveValue("2026");
-  await expect(currency(page)).toHaveValue("USD");
+  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
+  await expect(currency(page)).toHaveCount(0);
   const detailReads = fixture.financialReviewRequests
     .slice(before)
     .filter(({ endpoint, params }) =>
@@ -151,7 +154,8 @@ test("a partially mature January does not create a new year or currency choice",
   });
   await expect(year(page)).toHaveValue("2025");
   await expect(year(page).locator("option")).toHaveText(["2025"]);
-  await expect(currency(page).locator("option")).toHaveText(["USD"]);
+  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
+  await expect(currency(page)).toHaveCount(0);
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveText([
     "December 2025",
   ]);
@@ -159,7 +163,8 @@ test("a partially mature January does not create a new year or currency choice",
   await checkFinancialReviewUpdates(page, fixture);
   await expect(year(page)).toHaveValue("2026");
   await expect(year(page).locator("option")).toHaveText(["2026", "2025"]);
-  await currency(page).selectOption("JPY");
+  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
+  await expect(currency(page)).toHaveCount(0);
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveText([
     "January 2026",
   ]);

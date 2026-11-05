@@ -29,7 +29,12 @@ for (const width of [320, 390]) {
   }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     await openFinancialReview(page, (fixture) => {
-      const common = { month: "2026-07-01", category: "DATA_KIOSK", currency: "USD" };
+      const common = {
+        month: "2026-07-01",
+        category: "DATA_KIOSK",
+        marketplace_name: "Amazon.com",
+        currency: "USD",
+      };
       fixture.financialReviewTypeTotals = [
         {
           ...common,

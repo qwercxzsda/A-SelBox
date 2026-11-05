@@ -1,5 +1,6 @@
 import type { CanonicalRow } from "./api/types.ts";
 import { requireCalendarDate } from "./api/filters.ts";
+import { requireMarketplace } from "./api/marketplaces.ts";
 import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
 import { buildFinancialReviewFamilies } from "./financial-review-families.ts";
@@ -60,6 +61,7 @@ export function feeFamilyVisual(id: string): FamilyVisual {
 function anchorMonths(rows: readonly CanonicalRow[]): string[] {
   const first = rows[0];
   const currency = first.currency ?? "";
+  requireMarketplace(first.marketplace_name);
   requireCurrency(currency);
   const months = new Set<string>();
   let year = "";
@@ -71,6 +73,7 @@ function anchorMonths(rows: readonly CanonicalRow[]): string[] {
       !month.endsWith("-01") ||
       month.slice(0, 4) !== year ||
       row.currency !== currency ||
+      row.marketplace_name !== first.marketplace_name ||
       row.category !== first.category ||
       months.has(month)
     )
@@ -95,6 +98,7 @@ export function buildFinancialReviewFamilySeries(
   for (const row of typeRows) {
     if (
       row.currency !== scope.currency ||
+      row.marketplace_name !== scope.marketplace_name ||
       row.category !== scope.category ||
       row.month?.slice(0, 4) !== year
     )

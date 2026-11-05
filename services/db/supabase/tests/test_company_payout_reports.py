@@ -17,6 +17,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
             {
                 "id": new_id(),
                 "company_id": company,
+                "marketplace_name": "Amazon.com",
                 "currency": "USD",
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",
@@ -180,13 +181,8 @@ class CompanyPayoutReportTests(SourceModelFixture):
     def test_incomplete_ownership_fees_and_source_coverage_fail_atomically(self) -> None:
         company, identity = self.owner()
         self.finances([self.transaction("100")])
-        for scope in ({}, {"marketplace_names": ["Amazon.com"]}):
-            with (
-                self.subTest(scope=scope),
-                self.assertRaises(psycopg.errors.CheckViolation),
-                self.connection.transaction(),
-            ):
-                self.report(company, **scope)
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+            self.report(company)
         self.reassign(identity, None)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.report(company)
@@ -195,7 +191,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         for scope in (
             {"preprocess_version": "another-version"},
             {"finances_day_ids": [new_id()]},
-            {"marketplace_names": ["Amazon.com", "Amazon.com"]},
+            {"marketplace_name": "Unsupported marketplace"},
         ):
             with (
                 self.subTest(scope=scope),

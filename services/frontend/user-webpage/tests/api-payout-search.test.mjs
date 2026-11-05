@@ -21,3 +21,27 @@ test("payout page and count search the visible month label with the same literal
     assert.ok(page.url.searchParams.get("or").includes(`report_name.imatch."${search}"`));
   }
 });
+
+test("payout pages and counts keep marketplace and amount-unit scope identical", async () => {
+  const requests = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requests.push(new URL(url));
+    return new Response(init.method === "HEAD" ? null : "id\n", {
+      headers: { "Content-Range": "*/0" },
+    });
+  });
+  const options = pageRequest("payouts", {
+    currency: "EUR",
+    filters: { marketplaces: ["Amazon.de", "Amazon.fr"] },
+  });
+  await client.fetchDatasetPage(options);
+  await client.fetchDatasetCount(options);
+  for (const request of requests) {
+    assert.equal(request.searchParams.get("marketplace_name"), 'in.("Amazon.de","Amazon.fr")');
+    assert.equal(request.searchParams.get("currency"), "eq.EUR");
+  }
+  assert.equal(
+    requests[0].searchParams.get("order"),
+    "start_date.desc.nullslast,company_id.asc,marketplace_name.asc.nullslast,currency.asc,id.asc",
+  );
+});

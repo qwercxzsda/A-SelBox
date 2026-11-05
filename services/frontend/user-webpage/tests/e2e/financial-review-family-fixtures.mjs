@@ -4,7 +4,7 @@ export function setupFamilies(fixture, { extraFamilies = 0, offsettingMarch = fa
   fixture.financialReviewTypeTotals = [];
   fixture.financialReviewRecords = [];
   function period(month, currency, amounts, groups, category = "DATA_KIOSK") {
-    const common = { month, currency, category };
+    const common = { month, currency, category, marketplace_name: "Amazon.com" };
     const counts = { FINANCES: 0, DATA_KIOSK: 0 };
     for (const [source, component_type, amount, values = [amount]] of groups) {
       counts[source] += values.length;

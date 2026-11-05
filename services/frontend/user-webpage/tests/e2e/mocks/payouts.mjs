@@ -1,4 +1,4 @@
-import { PAYOUT_COMPONENT_COLUMNS, PAYOUT_MARKETPLACE_COLUMNS } from "../../../src/api/payouts.ts";
+import { PAYOUT_COMPONENT_COLUMNS } from "../../../src/api/payouts.ts";
 import { PAYOUT_RECONCILIATION_COLUMNS } from "../../../src/api/reconciliation.ts";
 import { sumExactDecimals } from "../../../src/decimal.ts";
 import { filterRecordRows } from "../record-fixtures.mjs";
@@ -56,15 +56,6 @@ export async function respondWithPayouts(fixture, { url, request, user, reply, c
       rows: totals.slice(totalsArgs.p_offset, totalsArgs.p_offset + totalsArgs.p_limit),
       next_offset: null,
     });
-  }
-  if (url.pathname.endsWith("/payout_report_marketplace_totals")) {
-    await fixture.beforePayoutMarketplaceTotals?.();
-    if (fixture.payoutMarketplaceTotalsStatus)
-      return reply({}, fixture.payoutMarketplaceTotalsStatus);
-    const rows = (fixture.payoutMarketplaceTotals ?? []).filter(
-      (row) => visible && row.report_id === reportId,
-    );
-    return csvReply(PAYOUT_MARKETPLACE_COLUMNS, rows.slice(0, 25), rows.length);
   }
   const authoritative = url.searchParams.get("authoritative").slice(3);
   fixture.payoutComponentRequests.push({ reportId, authoritative, user, params: url.searchParams });

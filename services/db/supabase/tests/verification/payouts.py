@@ -78,6 +78,7 @@ def independent_payout_totals(connection: Connection, report_id: str) -> tuple[A
             left join public.sku_fee_periods p on p.terms_version_id=v.id
                 and p.marketplace_name=t.marketplace_name and p.valid_period @> t.day
             where r.id=%s and t.currency=r.currency
+                and t.marketplace_name is not distinct from r.marketplace_name
                 and t.day between r.start_date and r.end_date
         ) select coalesce(sum(amount),0),coalesce(sum(fee),0),coalesce(sum(amount+fee),0)
         from assigned

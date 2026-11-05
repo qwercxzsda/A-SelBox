@@ -163,7 +163,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
                 "from public.company_payout_reports where id=%s",
                 (report,),
             ).fetchone(),
-            (Decimal(90), Decimal(-5), Decimal(85), 2),
+            (Decimal(90), Decimal(-5), Decimal(85), 1),
         )
         self.assertEqual(
             self.as_user(
@@ -176,16 +176,6 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
                 (report,),
             ),
             [
-                (
-                    "Amazon.ca",
-                    Decimal(0),
-                    Decimal(0),
-                    Decimal(-2),
-                    Decimal(0),
-                    Decimal(-2),
-                    Decimal(-2),
-                    Decimal(-2),
-                ),
                 (
                     "Amazon.com",
                     Decimal(100),

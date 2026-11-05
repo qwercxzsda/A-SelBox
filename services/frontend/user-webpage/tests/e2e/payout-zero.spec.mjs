@@ -19,6 +19,7 @@ test("a saved zero report displays without a currency and remains readable durin
       end_date: "2026-06-30",
       created_at: "2026-09-27T00:00:00Z",
       seller_namespace: null,
+      marketplace_name: null,
       currency: null,
       source_amount: "0",
       fee_amount: "0",
@@ -40,8 +41,6 @@ test("a saved zero report displays without a currency and remains readable durin
   await expect(
     drawer.getByRole("region", { name: "Breakdown total" }).getByText("0.00", { exact: true }),
   ).toHaveCount(3);
-  await drawer.getByText("Marketplace breakdown", { exact: true }).first().click();
-  await expect(drawer.getByText("No saved marketplace amounts.", { exact: true })).toBeVisible();
   await expect(
     drawer.getByText("No records match this selection.", { exact: true }).first(),
   ).toBeVisible();

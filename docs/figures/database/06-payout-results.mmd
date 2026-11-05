@@ -11,11 +11,11 @@ erDiagram
     public_company_payout_reports["public.company_payout_reports"] {
         local_uuid id PK "NN"
         local_uuid company_id FK "NN"
+        text marketplace_name "NULL"
         text currency "NULL"
         date start_date "NN"
         date end_date "NN"
         text dataset_key "NN"
-        text[] marketplace_names "NN"
         nonblank report_name "NN"
         nonblank change_reason "NN"
         text calculation_version "NN"

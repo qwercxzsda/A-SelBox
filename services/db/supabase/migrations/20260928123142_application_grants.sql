@@ -5,8 +5,8 @@ revoke all on function public.payout_report_policy(), public.sku_configuration()
 public.publish_sku_configuration(jsonb, text),
 public.create_company(text), public.delete_company(uuid),
 public.account_directory(), public.set_company_membership(uuid, uuid, public.app_access_role, uuid),
-public.financial_review_totals(date, date, public.allocation_category),
-public.financial_review_type_totals(date, date, public.allocation_category, text)
+public.financial_review_totals(date, date, public.allocation_category, text),
+public.financial_review_type_totals(date, date, public.allocation_category, text, text)
 from public, anon, authenticated, service_role;
 grant usage on schema private to authenticated;
 grant select on public.app_accounts, public.companies, public.skus,
@@ -34,7 +34,7 @@ grant select on public.finances_preprocess_results, public.data_kiosk_preprocess
 public.finances_preprocess_entries, public.data_kiosk_preprocess_entries,
 public.live_company_components, private.live_company_component_inputs to authenticated;
 grant select on public.company_payout_reports, public.company_payout_report_components,
-public.payout_report_marketplace_totals, public.latest_company_payout_reports,
+public.latest_company_payout_reports,
 private.payout_report_finances_versions, private.payout_report_data_kiosk_versions,
 private.payout_report_terms_versions, public.payout_report_finances_versions,
 public.payout_report_data_kiosk_versions, public.payout_report_terms_versions,
@@ -57,9 +57,9 @@ private.read_data_kiosk_preprocess_results(),
 private.resolve_company_components(uuid[], uuid[], uuid[]),
 private.resolve_source_reconciliation(uuid[], uuid[]) to authenticated;
 grant execute on function private.validate_financial_review_scope(
-    date, date, public.allocation_category
-), public.financial_review_totals(date, date, public.allocation_category),
-public.financial_review_type_totals(date, date, public.allocation_category, text)
+    date, date, public.allocation_category, text
+), public.financial_review_totals(date, date, public.allocation_category, text),
+public.financial_review_type_totals(date, date, public.allocation_category, text, text)
 to authenticated;
 grant execute on function public.financial_source_record(text, uuid, uuid),
 public.financial_source_transaction_lookup(text, integer, bigint) to authenticated;

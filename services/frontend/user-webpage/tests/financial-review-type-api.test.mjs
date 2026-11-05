@@ -6,6 +6,7 @@ import { SETTINGS, csvRecord } from "./api-fixtures.mjs";
 const typeGroup = (overrides = {}) => ({
   month: "2026-07-01",
   category: "DATA_KIOSK",
+  marketplace_name: "Amazon.com",
   currency: "USD",
   source: "FINANCES",
   component_type: "STORAGE_FEES",
@@ -26,7 +27,14 @@ function pageResponse(rows, count, offset = 0) {
 }
 
 const readYear = (client, signal) =>
-  client.fetchFinancialReviewPeriodTypes("access", "DATA_KIOSK", "2026", "USD", signal);
+  client.fetchFinancialReviewPeriodTypes(
+    "access",
+    "DATA_KIOSK",
+    "2026",
+    "USD",
+    "Amazon.com",
+    signal,
+  );
 
 test("complete year type totals traverse beyond 1000 groups without losing decimal or count precision", async () => {
   const expected = Array.from({ length: 1001 }, (_, index) =>
@@ -40,6 +48,7 @@ test("complete year type totals traverse beyond 1000 groups without losing decim
     const params = parsed.searchParams;
     assert.equal(parsed.pathname, "/rest/v1/rpc/financial_review_type_totals");
     assert.equal(params.get("p_category"), "DATA_KIOSK");
+    assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("p_month_from"), "2026-01-01");
     assert.equal(params.get("p_month_to"), "2027-01-01");
     assert.equal(params.get("p_currency"), "USD");
@@ -95,7 +104,15 @@ test("monthly family comparisons reuse complete count-aware paging", async () =>
     return pageResponse(rows.slice(offset, offset + 1), rows.length, offset);
   });
   assert.equal(
-    (await client.fetchFinancialReviewFamilyTypes("access", "DATA_KIOSK", "2026-07", "USD")).length,
+    (
+      await client.fetchFinancialReviewFamilyTypes(
+        "access",
+        "DATA_KIOSK",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+      )
+    ).length,
     2,
   );
   assert.deepEqual(offsets, [0, 1]);
@@ -144,6 +161,8 @@ test("scope, source, exact amount and positive safe record counts are validated 
     { month: "2026-07-02" },
     { month: null },
     { category: "SELBOX" },
+    { marketplace_name: "Amazon.de" },
+    { marketplace_name: null },
     { currency: "JPY" },
     { currency: null },
     { source: "SELBOX" },
@@ -196,7 +215,7 @@ test("empty complete reads and calendar endpoints stay bounded", async () => {
       return pageResponse([], 0);
     });
     assert.deepEqual(
-      await client.fetchFinancialReviewPeriodTypes("access", "FINANCES", year, "USD"),
+      await client.fetchFinancialReviewPeriodTypes("access", "FINANCES", year, "USD", "Amazon.com"),
       [],
     );
   }
@@ -215,7 +234,7 @@ test("invalid complete-read inputs never query; permission and cancellation erro
     ["FINANCES", "2026", "usd"],
   ])
     await assert.rejects(
-      invalid.fetchFinancialReviewPeriodTypes("access", category, year, currency),
+      invalid.fetchFinancialReviewPeriodTypes("access", category, year, currency, "Amazon.com"),
     );
   assert.equal(requests, 0);
   const denied = createApiClient(

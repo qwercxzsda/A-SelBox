@@ -130,19 +130,23 @@ test("year and currency stay shared across categories and reloads, including una
   await expect(table(page).locator("tbody tr")).toHaveCount(12);
   await category(page, "SelBox").click();
   await expect(year(page)).toHaveValue("2025");
-  await expect(currency(page)).toHaveValue("EUR");
-  await expect(table(page)).toContainText("No mature source records for EUR in 2025.");
+  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
+  await expect(table(page)).toContainText(
+    "No mature source records for Amazon.com in EUR in 2025.",
+  );
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
   await page.reload();
   await expect(category(page, "SelBox")).toHaveAttribute("aria-selected", "true");
   await expect(year(page)).toHaveValue("2025");
-  await expect(currency(page)).toHaveValue("EUR");
+  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
   await category(page, "Data Kiosk").click();
   await expect(table(page).locator("tbody tr")).toHaveCount(12);
   await year(page).selectOption("2024");
-  await expect(table(page)).toContainText("No mature source records for EUR in 2024.");
+  await expect(table(page)).toContainText(
+    "No mature source records for Amazon.com in EUR in 2024.",
+  );
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
-  await expect(currency(page)).toHaveValue("EUR");
+  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
   await year(page).selectOption("2020");
   await expect(currency(page)).toHaveValue("EUR");
   await expect(currency(page).locator("option")).toContainText(["EUR", "USD"]);
@@ -152,7 +156,7 @@ test("year and currency stay shared across categories and reloads, including una
   await expect(row(page, "January 2020").getByRole("cell").last()).toHaveText("1.25");
 });
 
-test("default USD is retained when a year only has yen, and zero differences remain visible", async ({
+test("a marketplace with only yen derives its unit and keeps zero differences visible", async ({
   page,
 }) => {
   await openFinancialReview(page, (fixture) => {
@@ -165,15 +169,13 @@ test("default USD is retained when a year only has yen, and zero differences rem
     ];
   });
   await expect(year(page)).toHaveValue("2025");
-  await expect(currency(page)).toHaveValue("USD");
-  await expect(table(page)).toContainText("No mature source records for USD in 2025.");
-  await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
-  await currency(page).selectOption("JPY");
+  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
+  await expect(currency(page)).toHaveCount(0);
   await expect(row(page, "December 2025")).toContainText("-100.00");
   await expect(row(page, "December 2025").getByRole("cell").last()).toHaveText("0.00");
   await page.reload();
   await expect(year(page)).toHaveValue("2025");
-  await expect(currency(page)).toHaveValue("JPY");
+  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
   await expect(row(page, "December 2025")).toBeVisible();
 });
 

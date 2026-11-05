@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mockSupabase, signIn, captureResponsiveReview, deferred } from "./fixtures.mjs";
+import { mockSupabase, signIn, captureResponsiveReview } from "./fixtures.mjs";
 import { applyReportMonth, selectColumnOptions } from "./table-actions.mjs";
 
 const company = "0198b50b-701a-7000-8000-000000000001";
@@ -119,42 +119,14 @@ test("members see both company amount sources without supporting or account cont
       company_amount: "2",
     },
   );
-  fixture.payoutMarketplaceTotals = [
-    {
-      report_id: report,
-      marketplace_name: "Amazon.com",
-      source_amount: "100",
-      fee_amount: "-5",
-      company_amount: "95",
-    },
-    {
-      report_id: report,
-      marketplace_name: null,
-      source_amount: "-8",
-      fee_amount: "0",
-      company_amount: "-8",
-    },
-    {
-      report_id: "other-report",
-      marketplace_name: "Amazon.co.jp",
-      source_amount: "999",
-      fee_amount: "0",
-      company_amount: "999",
-    },
-  ];
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await expect(page.getByRole("button", { name: "Generate payout reports" })).toHaveCount(0);
   await expect(page.getByLabel("Report company")).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
   await page.getByRole("cell", { name: "87.00 USD", exact: true }).click();
-  await page.getByText("Marketplace breakdown", { exact: true }).first().click();
-  const breakdown = page.getByRole("table", { name: "Payout marketplace breakdown" });
-  await expect(breakdown).toBeVisible();
-  await expect(breakdown.getByRole("columnheader", { name: "Company amount (USD)" })).toBeVisible();
-  await expect(breakdown.getByRole("cell", { name: "Not specified", exact: true })).toBeVisible();
-  await expect(breakdown.getByRole("cell", { name: "-8.00", exact: true })).toHaveCount(2);
-  await expect(breakdown.getByRole("cell", { name: "999.00", exact: true })).toHaveCount(0);
+  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  await expect(drawer.locator(".detail-drawer-context")).toContainText("Amazon.com · USD");
   await expect(page.getByRole("table", { name: "Amount records", exact: true })).toBeVisible();
   await expect(
     page
@@ -162,52 +134,18 @@ test("members see both company amount sources without supporting or account cont
       .getByRole("cell", { name: "Data Kiosk", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "OUTSIDE-FIRST-PAGE", exact: true })).toHaveCount(0);
-  await captureResponsiveReview(page, testInfo, "payout-marketplace-breakdown");
+  await captureResponsiveReview(page, testInfo, "payout-records");
   await expect(page.getByText("Seller reconciliation", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(0);
   await expect(page.getByText("Saved source details", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Reconciliation", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "102.00", exact: true })).toHaveCount(0);
-  await expect(breakdown.getByRole("cell", { name: "102.00", exact: true })).toHaveCount(0);
-  await expect(breakdown.getByRole("cell", { name: "-8.00", exact: true })).toHaveCount(2);
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
   ).toBe(false);
   expect(
     fixture.payoutComponentRequests.every(({ authoritative }) => authoritative === "true"),
   ).toBe(true);
-});
-
-test("marketplace breakdown loads independently and retries an error into an empty result", async ({
-  page,
-}) => {
-  const fixture = await mockSupabase(page);
-  fixture.companyIds["member-a"] = company;
-  fixture.companyNames[company] = "Monthly Company";
-  fixture.payoutRows = [
-    {
-      id: report,
-      company_id: company,
-      currency: "USD",
-      company_amount: "85",
-      start_date: "2026-06-01",
-      end_date: "2026-06-30",
-    },
-  ];
-  const pending = deferred();
-  fixture.beforePayoutMarketplaceTotals = () => pending.promise;
-  fixture.payoutMarketplaceTotalsStatus = 400;
-  await signIn(page);
-  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await page.getByRole("cell", { name: "85.00 USD", exact: true }).click();
-  await page.getByText("Marketplace breakdown", { exact: true }).first().click();
-  await expect(page.getByText("Loading marketplace breakdown…", { exact: true })).toBeVisible();
-  await expect(page.getByText("No records match this selection.").first()).toBeVisible();
-  pending.resolve();
-  await expect(page.getByRole("alert")).toContainText("Could not load marketplace breakdown.");
-  fixture.payoutMarketplaceTotalsStatus = 0;
-  await page.getByRole("button", { name: "Retry marketplace breakdown" }).click();
-  await expect(page.getByText("No saved marketplace amounts.", { exact: true })).toBeVisible();
 });
 
 test("administrator payout drawers contain only their payout amounts and records", async ({

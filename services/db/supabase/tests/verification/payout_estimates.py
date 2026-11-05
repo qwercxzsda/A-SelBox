@@ -33,6 +33,8 @@ def verify_record_parity(
 ) -> tuple[int, int]:
     """Every paginated live record must have the same saved source and amounts."""
     report_id, company, start, end, currency, *_ = report
+    marketplace = report[8]
+    require(marketplace is not None, "Monetary estimate comparison requires a named marketplace")
     expected = {
         (
             source,
@@ -61,9 +63,9 @@ def verify_record_parity(
             connection,
             user,
             "select public.transaction_page(p_date_from=>%s,p_date_to=>%s,"
-            "p_company_ids=>array[%s]::uuid[],p_currency=>%s,"
+            "p_company_ids=>array[%s]::uuid[],p_currency=>%s,p_marketplaces=>array[%s]::text[],"
             "p_limit=>1000,p_offset=>%s,p_include_count=>true)",
-            (start, end, company, currency, offset),
+            (start, end, company, currency, marketplace, offset),
         )[0][0]
         require(int(page["total_count"]) == len(expected), "Estimate record count differs")
         for row in page["rows"]:
@@ -91,7 +93,8 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
     """Match latest complete monthly reports, types, and records for both roles."""
     reports = connection.execute(
         "select id,company_id,start_date,end_date,currency,source_amount,fee_amount,"
-        "company_amount from public.latest_company_payout_reports where currency is not null"
+        "company_amount,marketplace_name from public.latest_company_payout_reports "
+        "where currency is not null"
     ).fetchall()
     require(bool(reports), "No monetary reports were available for estimate comparison")
     members = dict(
@@ -103,7 +106,10 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
     zero_amount_records = 0
     type_groups = 0
     for report in reports:
-        report_id, company, start, end, currency, *header_amounts = report
+        report_id, company, start, end, currency, source, fee, amount, marketplace = report
+        require(
+            marketplace is not None, "Monetary estimate comparison requires a named marketplace"
+        )
         for user in (administrator, members[company]):
             for grouped in (False, True):
                 frozen = as_user(
@@ -116,8 +122,9 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
                     connection,
                     user,
                     "select public.transaction_totals(p_date_from=>%s,p_date_to=>%s,"
-                    "p_company_ids=>array[%s]::uuid[],p_currency=>%s,p_group_by_type=>%s)",
-                    (start, end, company, currency, grouped),
+                    "p_company_ids=>array[%s]::uuid[],p_currency=>%s,"
+                    "p_marketplaces=>array[%s]::text[],p_group_by_type=>%s)",
+                    (start, end, company, currency, marketplace, grouped),
                 )[0][0]
                 require(
                     normalized_totals(live) == normalized_totals(frozen),
@@ -128,14 +135,16 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
                         sum((Decimal(row[key]) for row in frozen["rows"]), Decimal(0))
                         for key in ("reported_amount", "service_fee", "company_amount")
                     ]
-                    require(amounts == header_amounts, "Type totals differ from the saved header")
+                    require(
+                        amounts == [source, fee, amount], "Type totals differ from the saved header"
+                    )
             if user == administrator:
                 type_groups += len(frozen["rows"])
         record_count, zero_count = verify_record_parity(connection, members[company], report)
         records += record_count
         zero_amount_records += zero_count
     return {
-        "company_currency_reports": len(reports),
+        "company_marketplace_currency_reports": len(reports),
         "type_groups": type_groups,
         "records": records,
         "zero_amount_records": zero_amount_records,

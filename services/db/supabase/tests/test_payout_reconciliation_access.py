@@ -46,9 +46,8 @@ class PayoutReconciliationAccessTests(SourceModelFixture):
             "from public.payout_reconciliation_totals order by report_id,currency"
         )
         expected = [
-            (report_id, currency, sales, 0, costs, -costs, sales, sales, 1)
+            (report_id, "USD", 100, 0, -17, 17, 100, 100, 1)
             for report_id in sorted((report, other_report))
-            for currency, sales, costs in (("EUR", 0, -3), ("USD", 100, -17))
         ]
         self.assertEqual(self.as_user(administrator, query), expected)
         for user in (self.member(inputs.company), self.member(other_company), self.auth_user()):
@@ -59,7 +58,7 @@ class PayoutReconciliationAccessTests(SourceModelFixture):
             self.as_user(
                 administrator,
                 "select currency,difference from public.financial_review_totals("
-                "'2026-06-01','2026-07-01','DATA_KIOSK')",
+                "'2026-06-01','2026-07-01','DATA_KIOSK','Amazon.com')",
             ),
             [("USD", Decimal(100))],
         )

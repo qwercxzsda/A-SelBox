@@ -15,6 +15,7 @@ interface TypeScope {
   firstMonth: string;
   lastMonth: string;
   currency: string;
+  marketplace: string;
 }
 
 function requireTypeGroup(row: CanonicalRow, scope: TypeScope): string {
@@ -26,6 +27,7 @@ function requireTypeGroup(row: CanonicalRow, scope: TypeScope): string {
     month < `${scope.firstMonth}-01` ||
     month > `${scope.lastMonth}-01` ||
     row.category !== scope.category ||
+    row.marketplace_name !== scope.marketplace ||
     row.currency !== scope.currency
   )
     throw new Error(`${OPERATION} returned a different scope`);

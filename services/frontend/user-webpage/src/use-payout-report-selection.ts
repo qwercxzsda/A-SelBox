@@ -48,10 +48,12 @@ export function usePayoutReportSelection({
   const latestQuery = useQuery({
     ...payoutHistoryQueryOptions(
       identity,
-      selectedScope ?? { companyId: "", startDate: "", endDate: "", currency: null },
+      selected
+        ? payoutVersionSelection(selected)
+        : { companyId: "", startDate: "", endDate: "", currency: null, marketplaceName: null },
       0,
     ),
-    enabled: selectedScope !== null && latestOnPage === undefined,
+    enabled: selectedScope !== null && selected !== null && latestOnPage === undefined,
   });
   const latestForSelection =
     latestOnPage ?? (selectedScope ? latestQuery.data?.rows.at(0) : undefined);

@@ -181,7 +181,13 @@ class SourceModelFixture(DatabaseTestCase):
         }
 
     def kiosk_acquisition(
-        self, observation: int, *, start: str = "2026-06-15", end: str | None = None
+        self,
+        observation: int,
+        *,
+        start: str = "2026-06-15",
+        end: str | None = None,
+        marketplace_id: str = "ATVPDKIKX0DER",
+        amazon_scope: str = "NA",
     ) -> str:
         query_id, document_id = new_id(), new_id()
         created = f"2026-09-{observation:02d}T00:00:00Z"
@@ -197,12 +203,12 @@ class SourceModelFixture(DatabaseTestCase):
             {
                 "id": new_id(),
                 "seller_namespace": self.seller,
-                "amazon_scope": "NA",
+                "amazon_scope": amazon_scope,
                 "root_query_id": query_id,
                 "root_query_created_at": created,
                 "schema_version": "analytics_economics_2024_03_15",
                 "query_definition": "economics complete DAY",
-                "marketplace_ids": ["ATVPDKIKX0DER"],
+                "marketplace_ids": [marketplace_id],
                 "query_start_date": start,
                 "query_end_date": end or start,
                 "api_metadata": metadata,

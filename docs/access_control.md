@@ -69,34 +69,34 @@ key is not a PostgreSQL login and cannot perform this administration.
 
 ## Permission matrix
 
-| Capability                                              | DB manager              | Administrator                             | Member                                  | Unassigned |
-| ------------------------------------------------------- | ----------------------- | ------------------------------------ | ----------------------------------------------- | --- |
-| Read application accounts                               | All                     | All accounts            | Own account only                                | Own account only |
-| Read companies                                          | All                     | All                                  | Own assigned company                            | No |
-| Create companies | Python/SQL | Guarded REST RPC | No | No |
-| Assign/revoke company membership or change company  | Yes                     | Yes                                  | No                                              | No |
-| Manage Administrator access                                | Yes                     | No                                   | No                                              | No |
-| Read company assignments and fee periods                | All versions            | All versions                         | Current terms for own company's SKUs            | No |
-| Publish a complete SKU terms version             | Python/SQL              | REST RPC                             | No                                              | No |
-| Read source preprocessing facts                         | All retained versions   | All retained versions and categories | Current versions of permitted own-company facts | No |
-| Read narrow report/day/version references               | All                     | All, including historical versions   | All current references across companies         | No |
-| Read full preprocessing headers and diagnostics         | Yes                     | Yes                                  | No                                              | No |
-| Read payout reports, latest reports, authoritative components, and totals | All | All | Own saved company only | No |
-| Read current Financial review and frozen payout comparisons/reconciliation | All | All, in Financial review | No | No |
-| Read payout input references | All | All | No | No |
-| Read current inventory and filter catalogs | All | All current items, including unassigned SKUs | Current items for owned SKUs only | No |
-| Publish acquisitions and source results | Python/SQL | No | No | No |
-| Inspect payout refresh state and scheduler | SQL | No | No | No |
-| Run Finances and Data Kiosk pruning                                  | Python/SQL              | No                                   | No                                              | No |
-| Read native transaction parents and Summary control manifests | Trusted SQL | No direct endpoint | No | No |
-| Read raw document archives                              | Trusted archive service | No                                   | No                                              | No |
+| Capability                                                                 | DB manager              | Administrator                                | Member                                          | Unassigned       |
+| -------------------------------------------------------------------------- | ----------------------- | -------------------------------------------- | ----------------------------------------------- | ---------------- |
+| Read application accounts                                                  | All                     | All accounts                                 | Own account only                                | Own account only |
+| Read companies                                                             | All                     | All                                          | Own assigned company                            | No               |
+| Create companies                                                           | Python/SQL              | Guarded REST RPC                             | No                                              | No               |
+| Assign/revoke company membership or change company                         | Yes                     | Yes                                          | No                                              | No               |
+| Manage Administrator access                                                | Yes                     | No                                           | No                                              | No               |
+| Read company assignments and fee periods                                   | All versions            | All versions                                 | Current terms for own company's SKUs            | No               |
+| Publish a complete SKU terms version                                       | Python/SQL              | REST RPC                                     | No                                              | No               |
+| Read source preprocessing facts                                            | All retained versions   | All retained versions and categories         | Current versions of permitted own-company facts | No               |
+| Read narrow report/day/version references                                  | All                     | All, including historical versions           | All current references across companies         | No               |
+| Read full preprocessing headers and diagnostics                            | Yes                     | Yes                                          | No                                              | No               |
+| Read payout reports, latest reports, authoritative components, and totals  | All                     | All                                          | Own saved company only                          | No               |
+| Read current Financial review and frozen payout comparisons/reconciliation | All                     | All, in Financial review                     | No                                              | No               |
+| Read payout input references                                               | All                     | All                                          | No                                              | No               |
+| Read current inventory and filter catalogs                                 | All                     | All current items, including unassigned SKUs | Current items for owned SKUs only               | No               |
+| Publish acquisitions and source results                                    | Python/SQL              | No                                           | No                                              | No               |
+| Inspect payout refresh state and scheduler                                 | SQL                     | No                                           | No                                              | No               |
+| Run Finances and Data Kiosk pruning                                        | Python/SQL              | No                                           | No                                              | No               |
+| Read native transaction parents and Summary control manifests              | Trusted SQL             | No direct endpoint                           | No                                              | No               |
+| Read raw document archives                                                 | Trusted archive service | No                                           | No                                              | No               |
 
 Monthly payout reports are generated by the private scheduled worker. Application
 roles have no generation RPC or execution grant on the worker or internal publisher.
 
 [Financial review](financial_review.md) is an administrator-only workspace. Its three category summaries group current mature
-source facts across all namespaces and marketplaces by month and currency. Bounded invoker RPCs
-aggregate the administrator-gated `financial_review_records` view; member roles cannot read either source
+source facts across all namespaces for one exact marketplace, by month and currency. Bounded invoker RPCs
+require `p_marketplace` and aggregate the administrator-gated `financial_review_records` view; member roles cannot read either source
 fragments or aggregate amounts through these interfaces. Opening a month shows source/type totals
 and optional exact source rows. Saved report snapshots remain available inside the month and retain
 their original company/report scope. Member reads of payout components
@@ -256,12 +256,12 @@ incomplete settings remain visible in configuration diagnostics without blocking
 A stale edit returns HTTP 409. A successful response contains `published`, an array of
 `{sku, terms_version_id}` entries, and `changed_count`.
 
-| Publication result | SQLSTATE | Response |
-| --- | --- | --- |
-| Caller is not an administrator | `42501` | Access denied before validating the submitted configuration. |
-| Stale selected terms | `PT409` | `SKU configuration changed while editing`; no changes published. |
-| Missing owner or applicable fee | `23514` | `SKU configuration is incomplete`; `DETAIL` contains JSON `{issues: [...]}`. |
-| Malformed or invalid configuration | `23514` | `Invalid SKU configuration`; no changes published. |
+| Publication result                 | SQLSTATE | Response                                                                     |
+| ---------------------------------- | -------- | ---------------------------------------------------------------------------- |
+| Caller is not an administrator     | `42501`  | Access denied before validating the submitted configuration.                 |
+| Stale selected terms               | `PT409`  | `SKU configuration changed while editing`; no changes published.             |
+| Missing owner or applicable fee    | `23514`  | `SKU configuration is incomplete`; `DETAIL` contains JSON `{issues: [...]}`. |
+| Malformed or invalid configuration | `23514`  | `Invalid SKU configuration`; no changes published.                           |
 
 Each completeness issue has `sku`, `kind` (`missing_company` or `missing_fee`),
 `marketplace_name`, `valid_from`, and `valid_to`. Missing-company issues use null marketplace
@@ -281,24 +281,23 @@ shape above. The response contains no namespace fields. Imported-only SKUs have 
 or terms UUID until assigned. Members receive only their currently assigned SKUs,
 including any fee gaps caused by later source imports.
 
-| Read endpoint under `/rest/v1/`                                                                          | Administrator                                        | Member                     |
-| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------- |
-| `skus`, `sku_terms_versions`, `sku_fee_periods`                                                   | All identities and revisions                    | Own company's selected terms       |
-| `company_skus`, `current_sku_fee_periods`                                                                | Current projections across companies            | Own company current projections    |
-| `rpc/sku_configuration` | All known SKUs, current terms, and coverage gaps | Own assigned SKUs and current coverage only |
-| `rpc/sku_filter_options`                                                                                | Complete distinct SKU catalog                   | Denied (`42501`)                   |
-| `finances_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                        | Permitted current own-company rows |
-| `finances_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                 | Denied                             |
-| `live_company_components`                                                                                | Current data permitted by the view's definition | Current own-company data           |
-| `company_payout_reports`, `company_payout_report_components` | All saved reports and components | Own saved company reports and components |
-| `latest_company_payout_reports` | Latest saved report per company/month/currency | Latest saved own-company reports |
-| `rpc/payout_report_totals` | All saved report totals and Type breakdowns | Own saved company report totals and Type breakdowns |
-| `payout_report_marketplace_totals` | Marketplace totals for all saved reports | Marketplace totals for own saved company reports |
-| `payout_report_finances_versions`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                      | No rows                            |
-| `payout_report_reconciliation` | Saved daily seller controls | No rows |
-| `financial_review_records` | Current mature source facts in each monetary category | No rows |
-| `rpc/financial_review_totals`, `rpc/financial_review_type_totals` | Current category/month/currency and source/type comparisons | No rows |
-| `payout_reconciliation_totals` | Saved account controls by report/currency | No rows |
+| Read endpoint under `/rest/v1/`                                                                        | Administrator                                                           | Member                                              |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------- |
+| `skus`, `sku_terms_versions`, `sku_fee_periods`                                                        | All identities and revisions                                            | Own company's selected terms                        |
+| `company_skus`, `current_sku_fee_periods`                                                              | Current projections across companies                                    | Own company current projections                     |
+| `rpc/sku_configuration`                                                                                | All known SKUs, current terms, and coverage gaps                        | Own assigned SKUs and current coverage only         |
+| `rpc/sku_filter_options`                                                                               | Complete distinct SKU catalog                                           | Denied (`42501`)                                    |
+| `finances_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                                                | Permitted current own-company rows                  |
+| `finances_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                                         | Denied                                              |
+| `live_company_components`                                                                              | Current data permitted by the view's definition                         | Current own-company data                            |
+| `company_payout_reports`, `company_payout_report_components`                                           | All saved reports and components                                        | Own saved company reports and components            |
+| `latest_company_payout_reports`                                                                        | Latest saved report per company/month/marketplace/currency              | Latest saved own-company reports                    |
+| `rpc/payout_report_totals`                                                                             | All saved report totals and Type breakdowns                             | Own saved company report totals and Type breakdowns |
+| `payout_report_finances_versions`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                                              | No rows                                             |
+| `payout_report_reconciliation`                                                                         | Saved daily seller controls                                             | No rows                                             |
+| `financial_review_records`                                                                             | Current mature source facts in each monetary category                   | No rows                                             |
+| `rpc/financial_review_totals`, `rpc/financial_review_type_totals`                                      | Current marketplace/category/month/currency and source/type comparisons | No rows                                             |
+| `payout_reconciliation_totals`                                                                         | Saved account controls by report/currency                               | No rows                                             |
 
 ## How RLS enforces this
 
@@ -310,11 +309,7 @@ runs with its owner at commit so authenticated publication can verify protected 
 callers have no direct execute grant on that trigger function. REST views and public RPC
 wrappers use invoker security.
 
-`payout_report_marketplace_totals` is a read-only invoker view over frozen
-authoritative company components. It follows their saved-report RLS and does not
-expose the administrator-only seller reconciliation or SelBox difference.
-
-`latest_company_payout_reports` and `payout_report_totals` also use invoker
+`latest_company_payout_reports` and `payout_report_totals` use invoker
 security over the saved report company. A report identifier never grants access
 to another company's amounts. Both aggregates combine source namespaces while
 retaining separate currencies.

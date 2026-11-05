@@ -1,23 +1,25 @@
 # Monthly company payout reports
 
-Payout reports freeze one company and one full calendar month, aggregating every
-source namespace and separating only currencies. New reports require at least one
-currently assigned SKU. An eligible company/month with no known currency still
-produces an aggregate of zero without inventing a currency.
+Payout reports freeze one company, one full calendar month, and one exact marketplace,
+aggregating every source namespace within that scope. Currencies remain separate amount units;
+they never identify a marketplace. New reports require at least one currently assigned SKU.
+An eligible company/month with no monetary scope produces a zero report with no marketplace
+or currency invented.
 The month end must be strictly before `mature_cutoff_date`, calculated from the
 database UTC date and `mature_cutoff_months = 2`. The
 [source policy](source_allocation.md) defines the boundary and applies identically
 to mature live reads.
 
 The database generates reports automatically. Administrators browse every company's
-saved reports and filter by company/month; members read only their own headers,
-authoritative components, and marketplace totals. Neither role creates reports.
-Each known currency report includes a marketplace breakdown. Saved comparison rows,
+saved reports and filter by company/month/marketplace; members read only their own headers,
+authoritative components, and Type totals. Neither role creates reports. Saved comparison rows,
 account reconciliation, and input manifests remain administrator-only in the month's
 **Saved report snapshots** section of [Financial review](financial_review.md).
 
-The default list uses `public.latest_company_payout_reports`, which selects the
-newest saved report per company, month, and currency. Its derived `month_label` is the English
+The list uses `public.latest_company_payout_reports`, which selects the newest saved report per
+company, month, nullable `marketplace_name`, and currency. A null marketplace is a distinct
+**Not specified** scope.
+Its derived `month_label` is the English
 month/year of `start_date`, allowing Search to match the displayed month independently of a report
 name. Search also retains report-name and currency matching; company access stays enforced by the
 security-invoker view and underlying RLS. The complete
@@ -73,13 +75,13 @@ while the scheduler continues running.
 The database derives source scope and computes amounts. It accepts no calculated
 client amounts or caller-selected historical versions. A company/month reuses
 reports whose latest scope and input versions still match, and creates only missing
-or outdated reports. All currencies for one company/month succeed atomically, including
+or outdated reports. All marketplace/currency scopes for one company/month succeed atomically, including
 deferred integrity checks. Incomplete Data Kiosk coverage, unresolved ownership,
 missing fees, or invalid inputs block that month and are retried with backoff.
-Other months can still complete. The worker includes every
-currency in current data or previous reports for that company/month.
-A company with only Data Kiosk costs has a valid scope. Previous currencies remain when
-their amounts disappear; with no known currency, the company/month itself is the scope.
+Other months can still complete. The worker includes marketplace/currency scopes in current
+company data or previous reports for that company/month. A company with only
+Data Kiosk costs has a valid scope. Previously reported scopes remain as zero reports when their
+amounts disappear.
 
 `public.payout_report_policy()` is read-only and returns `mature_cutoff_date`,
 `latest_month`, and `mature_cutoff_months`. Saved results refresh in the browser
@@ -91,6 +93,8 @@ required seller/marketplace pairs; callers cannot restrict a report to a namespa
 or choose its source versions. Preprocessing must be compatible within each
 namespace. Separate namespaces can use different preprocessing versions, retained
 through their pinned input manifests.
+Trusted publication requires an explicit `marketplace_name` field, which may be null.
+Missing marketplace metadata is rejected.
 
 The eligibility rule also applies to trusted direct publication. The internal monthly
 generator returns no reports for a company without current SKU assignments; the
@@ -100,13 +104,12 @@ or previous reports alone do not make a company eligible.
 
 ## Comparing estimates and saved reports
 
-Select the same company, full mature calendar month, and currency to compare a
-live estimate with its latest payout report. When the company has current SKU
+Select the same company, full mature calendar month, exact marketplace, and currency to compare a
+live estimate with its latest marketplace payout report. When the company has current SKU
 assignments, coverage is complete, ownership and fees resolve, and automatic
 generation has caught up to the current inputs,
 their company amount, source amount, service fee, amount types, and contributing
-records agree across all source namespaces. SKU or marketplace filters narrow
-an estimate and no longer represent the whole company report.
+records agree across all source namespaces. A SKU filter narrows the estimate further.
 
 Estimates use current inputs; reports freeze the versions used when saved. A
 source or fee change can therefore change an estimate before the scheduled worker
@@ -118,11 +121,11 @@ has not yet reached maturity. The two views use the same amount-by-type and reco
 layout so their monetary results can be inspected in the same way.
 
 Both drawers start with **Total** (Reported amount, Service fee, Company amount),
-then **Amounts by type**, then **Records**. Saved reports place the expandable **Marketplace
-breakdown** between types and records, so it is reachable before the long record list. Selecting a category or Type's record
+then **Amounts by type**, then **Records**. Selecting a category or Type's record
 count narrows the records below; **Show all records** clears that selection.
 Records share date, SKU, marketplace, source, Type, quantity, and amount columns,
-with 50-row pages. Payout drawer headings retain company, month, and currency while scrolling.
+with 50-row pages. Payout drawer headings retain company, month, marketplace scope, and currency
+while scrolling.
 The Total and Amounts by type use the same amount columns; the breakdown's
 total row repeats the complete sum so category subtotals can be compared with it.
 Displayed amounts are independently rounded to two decimals; totals use original precision, so
@@ -132,7 +135,7 @@ in the administrator's [Financial review](financial_review.md#saved-report-snaps
 
 `public.payout_report_totals(p_report_id, p_group_by_type, p_limit, p_offset)`
 returns the same exact-string amount and count fields as `transaction_totals`.
-Grouping by Type combines all namespaces and marketplaces in that report.
+Grouping by Type combines all namespaces within that report's saved marketplace scope.
 The total and contributing-record count include every authoritative row, including
 zero amounts. A zero amount does not change a row's authority or turn it into a
 comparison row. Ownership, coverage, and applicable fee rules still apply.
@@ -175,12 +178,14 @@ An assignment has no namespace of its own. Available source versions, including 
 are retained as snapshot inputs. Unknown ownership within this source scope remains
 an error. A company with no identifiable seller can have an empty input inventory.
 
-If there is no known currency, the header's `currency` is null. Its totals are zero and it has no component or
-account-reconciliation rows; available source/terms manifests can still be present.
-A known currency remains in the header even when its aggregate is zero.
+With no monetary scope, the header has null `marketplace_name` and `currency`.
+Its totals are zero and it has no component or
+account-reconciliation rows; available source/terms manifests can still be present. A known
+marketplace/currency remains in its header even when its aggregate becomes zero. A null
+marketplace with a known currency is a distinct unspecified-marketplace monetary scope.
 
 While the company remains eligible, later refreshes can save zero totals for a
-previous currency scope whose amounts disappeared. Existing snapshots remain immutable.
+previous marketplace/currency scope whose amounts disappeared. Existing snapshots remain immutable.
 
 ## Amazon Summary controls
 
@@ -209,8 +214,8 @@ cost-allocation policy or certify its SKU amounts.
 ## Reuse unchanged reports
 
 Both publication paths compare only the latest report by save time for the same
-company, currency, and calendar month. Reuse requires the same calculation version,
-derived marketplace scope, and exact sets of selected Finances, Data Kiosk, and
+company, calendar month, marketplace, and currency. Reuse requires the same calculation version,
+scope, and exact sets of selected Finances, Data Kiosk, and
 SKU terms versions across all namespaces. The pinned source versions retain their
 individual preprocessing labels. The dataset is `economics`.
 
@@ -232,6 +237,9 @@ does not reclassify them. Saved company amounts combine:
 - Data Kiosk amounts in the Data Kiosk category, assigned through exact SKU ownership.
 - Applicable signed service fees.
 
+Company components are limited to the header's exact marketplace
+and currency. The complete required source and terms manifests remain pinned for validation;
+they are not narrowed to only the rows contributing money to this report.
 Only components marked `authoritative = true` contribute to report header totals.
 Comparison and analysis components can retain source detail with null company/fee
 contributions. The payout drawer's Records section shows authoritative rows from
@@ -242,53 +250,37 @@ supporting rows even by requesting them directly through the API. Zero amounts
 do not determine authority: authoritative zero rows remain ordinary payout
 records. Values remain exact decimal strings in the browser and `Decimal` in Python.
 
-## Marketplace breakdown
-
-Each report's marketplace breakdown uses the read-only, security-invoker view
-`public.payout_report_marketplace_totals`. It groups the report's frozen components
-with `authoritative = true` by `report_id` and `marketplace_name`, returning exact
-`source_amount`, `fee_amount`, and `company_amount` sums. It includes every matching
-component, independently of which component page the browser has loaded.
-
-A null marketplace remains one distinct group and is displayed as **Not specified**.
-Summing each amount column across the marketplace groups reproduces the corresponding
-report header total. Each currency report keeps its currency separate. A report with
-no authoritative components has no marketplace rows. The view follows the saved report's access rules.
-
-The header's `marketplace_names` is the distinct union of named marketplaces on
-the saved authoritative company components. Coverage is checked separately for
-every required seller/marketplace pair; empty day inputs remain in the pinned
-manifests even when they add no marketplace to this monetary summary. The
-breakdown also includes the separate null-marketplace group. SelBox amounts
-and the reconciliation difference remain in the separate administrator-only account
-reconciliation. The view derives its totals from saved components.
-
 ## Administrator financial review
 
 [Financial review](financial_review.md) compares current source facts in the
-Finances, Data Kiosk, and SelBox categories for one selected year and currency across the entire
-account. It includes only fully mature months, using the same month boundary as payout reports,
+Finances, Data Kiosk, and SelBox categories for one selected marketplace and year, across all
+source accounts and companies. Currency is a separate amount unit. It includes only fully mature
+months, using the same month boundary as payout reports,
 and shows monthly and running differences. Its source records explain the current type subtotals
 without repeated company-report snapshots. Only the Data Kiosk difference is the accounting
 reconciliation amount; the other category differences are diagnostic.
 
-The month's **Saved report snapshots** section lists reports for the selected review currency and
-retains the selected report's comparison rows and frozen account controls. The UI filters both
-saved control totals and daily details to that currency. Controls can still include other companies,
-so their account scope stays separate from the report's company scope. The stored snapshot is
-unchanged: `public.payout_reconciliation_totals` groups it by currency, and optional daily rows
-preserve source provenance. Report diagnostics remain exclusive of the company payout amount.
+The month's **Saved report snapshots** section lists only marketplace reports for the selected market
+and amount unit. Selected reports retain their own comparison rows and frozen account controls.
+Reports save reconciliation only for their exact marketplace/currency. Controls
+can still include other companies, so their account scope stays separate from the report's company
+scope. `public.payout_reconciliation_totals` groups saved controls by currency, and optional daily
+rows preserve source provenance. Report diagnostics remain exclusive of the company payout amount.
+
+Saved links require the report ID, company, dates, currency, and `reportMarketplace`.
+An empty marketplace value explicitly selects the unspecified scope; omission is invalid.
+Currency never supplies a guessed marketplace.
 
 ## Saved account reconciliation
 
 For each seller, currency, day, and marketplace, save these exact amounts:
 
-| Field | Meaning |
-| --- | --- |
-| `finances_category_amount` | Finances activity amounts in the Finances category |
-| `selbox_category_amount` | Finances activity amounts in the SelBox category |
+| Field                         | Meaning                                              |
+| ----------------------------- | ---------------------------------------------------- |
+| `finances_category_amount`    | Finances activity amounts in the Finances category   |
+| `selbox_category_amount`      | Finances activity amounts in the SelBox category     |
 | `data_kiosk_finances_control` | Finances activity amounts in the Data Kiosk category |
-| `data_kiosk_category_amount` | Data Kiosk amounts in the Data Kiosk category |
+| `data_kiosk_category_amount`  | Data Kiosk amounts in the Data Kiosk category        |
 
 The named fields keep the source and category distinct. Their relationship is:
 
@@ -299,7 +291,9 @@ accounted_total = finances_category_amount + selbox_category_amount
                 = finances_total
 ```
 
-One-sided groups are retained under their native marketplace identity.
+Reports retain groups only for their exact marketplace and currency, including
+one-sided groups under their native identity. Full required capture, terms, and Summary evidence
+remains pinned for validation.
 These daily Data Kiosk controls are distinct from the grouped monthly Amazon
 Summary check; only that separate check combines the Non-Amazon US channel.
 Amounts in the SelBox category and the difference remain with SelBox. The
@@ -313,7 +307,7 @@ reports. Members cannot read them or the source manifests.
 Reports, company components, reconciliation rows, and complete source/terms
 manifests are immutable. Integrity checks verify provenance, exact sums, complete
 inventories, and the reconciliation identity against frozen versions. A null currency
-is restricted to an empty company/month aggregate. The worker, direct monthly generator,
+is restricted to an empty aggregate. The worker, direct monthly generator,
 and single-report publisher acquire the exclusive payout-input transaction advisory
 guard before locking company/month, capturing its related seller set, and locking
 seller/month and source days in order. The worker skips its run if the guard is busy;
@@ -344,14 +338,14 @@ The existing `private.payout_report_refresh_state` table holds the pending work;
 no additional application table is needed. It is mutable operational metadata,
 separate from immutable saved reports:
 
-| Columns | Purpose |
-| --- | --- |
-| `company_id`, `month` | Identify one company and calendar month. |
-| `requested_revision`, `completed_revision` | A larger requested revision means generation is pending. |
-| `next_attempt_at` | Earliest attempt time, including retry backoff. Maturity is checked separately. |
-| `failure_count` | Consecutive failures since the last success or changed inputs. |
-| `last_attempt_at`, `last_success_at` | Latest attempt and latest successful generation or reuse. |
-| `last_error_sqlstate`, `last_error_message` | Latest failure, cleared after successful generation or reuse. |
+| Columns                                     | Purpose                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------- |
+| `company_id`, `month`                       | Identify one company and calendar month.                                        |
+| `requested_revision`, `completed_revision`  | A larger requested revision means generation is pending.                        |
+| `next_attempt_at`                           | Earliest attempt time, including retry backoff. Maturity is checked separately. |
+| `failure_count`                             | Consecutive failures since the last success or changed inputs.                  |
+| `last_attempt_at`, `last_success_at`        | Latest attempt and latest successful generation or reuse.                       |
+| `last_error_sqlstate`, `last_error_message` | Latest failure, cleared after successful generation or reuse.                   |
 
 The table and worker are DB-administrator capabilities, unavailable to application
 roles. These read-only queries inspect progress and the schedule:
@@ -379,7 +373,7 @@ change requests work.
 
 The disposable database suite covers category authority, exact boundary dates,
 monthly eligibility, reconciliation, tenant isolation, immutable snapshots,
-marketplace totals, unchanged-input reuse, concurrent publication, and retention.
+marketplace isolation, unchanged-input reuse, concurrent publication, and retention.
 Automatic refresh tests cover maturity discovery, targeted invalidation, idle runs,
 first-SKU activation, last-SKU removal, assigned SKUs without activity,
 blocked-month recovery, retry backoff, concurrent publication, and denied application
@@ -404,7 +398,8 @@ and the retail store's complete Data Kiosk month.
 ## Automatic report readiness
 
 The payout list and Financial review's saved snapshots show readiness for one selected mature month
-(or the latest mature month by default), scoped to selected companies. Statuses distinguish Pending,
+(or the latest mature month by default), scoped to selected companies across all marketplaces.
+Marketplace filters narrow the report list, not readiness. Statuses distinguish Pending,
 Updating (new inputs pending while a previous report exists), Blocked, Complete, No activity,
 Not scheduled (no current SKU assignment and no report), and Not mature. A zero-valued record still
 counts as activity; No activity means the saved report contains no components.

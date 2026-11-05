@@ -184,7 +184,9 @@ test("family scope survives year, currency, category, history and reload without
   await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Fee family breakdown", exact: true }),
-  ).toContainText("No source types match these fee families for this year and currency.");
+  ).toContainText(
+    "No source types match these fee families for Amazon.com in this year and currency.",
+  );
   await expect(
     page.getByRole("table", { name: "Yearly fee family breakdown", exact: true }),
   ).toHaveCount(0);
@@ -337,7 +339,7 @@ test("an empty review without a resolved year settles without requesting or load
     state.financialReviewTypeTotals = [];
     state.financialReviewRecords = [];
   });
-  await expect(overview(page)).toContainText("No mature source records for USD.");
+  await expect(overview(page)).toContainText("No mature source records for Amazon.com.");
   await expect(year(page)).toBeDisabled();
   await expect(year(page).locator("option")).toHaveText(["No years"]);
   await expect(familyTrigger(page)).toBeEnabled();
@@ -374,8 +376,7 @@ test("currency discovery failures remain recoverable without changing the select
   await expect(page.getByRole("alert").filter({ has: retry })).toContainText(
     "Could not load available currencies.",
   );
-  await expect(currency(page)).toHaveValue("USD");
-  await expect(currency(page).locator("option")).toHaveText(["USD"]);
+  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
   await expectPeriod(page, ["-49.02 USD", "-44.00 USD", "-5.01 USD"]);
   fixture.financialReviewStatusForRequest = null;
   await retry.press("Enter");

@@ -1,8 +1,8 @@
 -- Capture current inputs, reuse the latest matching report, or save one immutable aggregate.
 -- noqa: disable=AM04
 -- Equal totals alone are insufficient: reuse requires the same immutable inputs.
--- Calendar validation fixes the end date and dataset. Incomplete empty scopes
--- need declared marketplace equality as well as identical available versions.
+-- Calendar validation fixes the end date and dataset; reuse matches the exact
+-- marketplace and currency as well as every available immutable input version.
 create function private.matching_latest_payout_report(
     p_report public.company_payout_reports,
     p_finances_versions uuid[], p_kiosk_versions uuid[], p_terms_versions uuid[]
@@ -10,14 +10,13 @@ create function private.matching_latest_payout_report(
     with latest as (
         select r.* from public.company_payout_reports r
         where r.company_id = (p_report).company_id
+            and r.marketplace_name is not distinct from (p_report).marketplace_name
             and r.currency is not distinct from (p_report).currency
             and r.start_date = (p_report).start_date
         order by r.created_at desc, r.id desc limit 1
     )
     select r.id from latest r
     where r.calculation_version = 'v1'
-        and r.marketplace_names @> (p_report).marketplace_names
-        and r.marketplace_names <@ (p_report).marketplace_names
         and r.finances_version_count = cardinality(p_finances_versions)
         and r.data_kiosk_version_count = cardinality(p_kiosk_versions)
         and r.terms_version_count = cardinality(p_terms_versions)
@@ -44,9 +43,9 @@ declare report_input public.company_payout_reports; finances_day_ids uuid[];
 begin
     perform private.require_read_committed();
     if jsonb_typeof(p_payload) is distinct from 'object'
-        or not p_payload ?& array['id','company_id','currency','start_date','end_date',
+        or not p_payload ?& array['id','company_id','marketplace_name','currency','start_date','end_date',
             'dataset_key','report_name','change_reason']
-        or p_payload ?| array['seller_namespace','preprocess_version','finances_day_ids','marketplace_names'] then
+        or p_payload ?| array['seller_namespace','preprocess_version','finances_day_ids'] then
         raise exception 'Complete payout publication scope required' using errcode = '23514';
     end if;
     report_input := jsonb_populate_record(null::public.company_payout_reports,p_payload);
@@ -160,11 +159,13 @@ begin
     if exists (select 1 from pg_temp.payout_resolved_components
                where authoritative and (company_id is null
                    or (company_id = report_input.company_id and currency = report_input.currency
+                       and marketplace_name is not distinct from report_input.marketplace_name
                        and resolution_status not in ('APPLIED','NOT_APPLICABLE')))) then
         raise exception 'Unresolved ownership or fee coverage prevents a complete payout report' using errcode = '23514';
     end if;
     select exists(select 1 from pg_temp.payout_resolved_components
         where authoritative and company_id = report_input.company_id
+            and marketplace_name is not distinct from report_input.marketplace_name
             and (report_input.currency is null or currency = report_input.currency)) into has_amounts;
     if report_input.currency is null and has_amounts then
         raise exception 'Company amounts require a currency scope' using errcode = '23514';
@@ -175,10 +176,6 @@ begin
     select case when has_amounts
         then coalesce(array_agg(distinct terms_version_id),'{}'::uuid[]) else terms_versions end
         into used_terms from pg_temp.payout_resolved_components;
-    select coalesce(array_agg(distinct marketplace_name order by marketplace_name),'{}'::text[])
-        into report_input.marketplace_names from pg_temp.payout_resolved_components
-        where company_id = report_input.company_id and currency = report_input.currency
-            and authoritative and marketplace_name is not null;
     existing_report_id := private.matching_latest_payout_report(
         report_input,finances_versions,kiosk_versions,used_terms);
     if existing_report_id is not null then
@@ -187,15 +184,17 @@ begin
     drop table if exists pg_temp.payout_reconciliation;
     create temporary table payout_reconciliation on commit drop as
         select r.* from private.resolve_source_reconciliation(finances_versions,kiosk_versions) r
-        where report_input.currency is not null and r.activity_date between report_input.start_date and report_input.end_date;
+        where report_input.currency is not null and r.activity_date between report_input.start_date and report_input.end_date
+            and r.marketplace_name is not distinct from report_input.marketplace_name
+            and r.currency = report_input.currency;
     insert into public.company_payout_reports (
-        id,company_id,currency,start_date,end_date,dataset_key,
-        marketplace_names,report_name,change_reason,calculation_version,component_count,reconciliation_count,
+        id,company_id,marketplace_name,currency,start_date,end_date,dataset_key,
+        report_name,change_reason,calculation_version,component_count,reconciliation_count,
         finances_version_count,data_kiosk_version_count,terms_version_count,
         source_amount,fee_amount,company_amount
-    ) select report_input.id,report_input.company_id,report_input.currency,
+    ) select report_input.id,report_input.company_id,report_input.marketplace_name,report_input.currency,
         report_input.start_date,report_input.end_date,report_input.dataset_key,
-        report_input.marketplace_names,report_input.report_name,report_input.change_reason,'v1',
+        report_input.report_name,report_input.change_reason,'v1',
         count(*)::integer,
         (select count(*)::integer from pg_temp.payout_reconciliation),
         cardinality(finances_versions),cardinality(kiosk_versions),cardinality(used_terms),
@@ -203,7 +202,8 @@ begin
         coalesce(sum(fee_amount) filter (where authoritative),0),
         coalesce(sum(company_amount) filter (where authoritative),0)
         from pg_temp.payout_resolved_components
-        where company_id = report_input.company_id and currency = report_input.currency;
+        where company_id = report_input.company_id and currency = report_input.currency
+            and marketplace_name is not distinct from report_input.marketplace_name;
     insert into private.payout_report_finances_versions(report_id,day_id,version_id)
         select report_input.id,v.day_id,v.id from private.finances_preprocess_versions v
         where v.id = any(finances_versions);
@@ -226,7 +226,8 @@ begin
         fee_period_id,sku,marketplace_name,activity_date,component_type,source_amount,quantity,
         fee_base,fee_rate_percent,fee_amount,company_amount,resolution_status
         from pg_temp.payout_resolved_components
-        where company_id = report_input.company_id and currency = report_input.currency;
+        where company_id = report_input.company_id and currency = report_input.currency
+            and marketplace_name is not distinct from report_input.marketplace_name;
     insert into private.payout_report_reconciliation (
         report_id,row_number,seller_namespace,activity_date,marketplace_name,currency,
         finances_category_amount,selbox_category_amount,data_kiosk_finances_control,data_kiosk_category_amount,difference,

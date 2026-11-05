@@ -6,6 +6,14 @@ check (value::text not in ('NaN', 'Infinity', '-Infinity'));
 create table public.company_payout_reports (
     id public.local_uuid primary key default private.uuid7(),
     company_id public.local_uuid not null references public.companies (id),
+    -- A null name represents an unspecified or empty marketplace scope.
+    marketplace_name text check (marketplace_name in (
+        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
+    )),
     currency text check (currency ~ '^[A-Z]{3}$'),
     start_date date not null check (isfinite(start_date)),
     end_date date not null check (isfinite(end_date) and end_date >= start_date),
@@ -14,16 +22,6 @@ create table public.company_payout_reports (
         and end_date = (start_date + interval '1 month - 1 day')::date
     ),
     dataset_key text not null check (dataset_key = 'economics'),
-    marketplace_names text[] not null check (
-        array_position(marketplace_names, null) is null
-        and marketplace_names <@ array[
-            'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-            'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-            'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-            'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
-        ]::text[]
-    ),
     report_name private.nonblank not null,
     change_reason private.nonblank not null,
     calculation_version text not null check (calculation_version = 'v1'),
@@ -46,7 +44,7 @@ create table public.company_payout_reports (
 -- Scope lookup supports reuse and the leading company key supports FK checks.
 create index company_payout_reports_scope_idx
 on public.company_payout_reports (
-    company_id, start_date, currency, created_at desc, id desc
+    company_id, start_date, marketplace_name, currency, created_at desc, id desc
 );
 create index company_payout_reports_created_idx
 on public.company_payout_reports (created_at desc nulls last, id asc);

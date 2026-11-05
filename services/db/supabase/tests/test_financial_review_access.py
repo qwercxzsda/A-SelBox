@@ -2,21 +2,23 @@
 
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import LiteralString
+from typing import LiteralString, cast
 
 from psycopg.errors import InvalidParameterValue
 
-from services.db.supabase.tests.source_fixtures import SourceModelFixture
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 _TOTALS_FROM: LiteralString = (
     "from unnest(array['FINANCES','DATA_KIOSK','SELBOX']::public.allocation_category[]) c(k) "
-    "cross join lateral public.financial_review_totals('2026-06-01','2026-08-01',c.k) t "
+    "cross join (select distinct marketplace_name from public.financial_review_records) m "
+    "cross join lateral public.financial_review_totals("
+    "'2026-06-01','2026-08-01',c.k,m.marketplace_name) t "
 )
 _TOTALS: LiteralString = (
-    "select month,category::text,currency,finances_amount,data_kiosk_amount,"
+    "select month,category::text,t.marketplace_name,currency,finances_amount,data_kiosk_amount,"
     "difference,finances_row_count,data_kiosk_row_count "
     + _TOTALS_FROM
-    + "order by month,category::text,currency"
+    + "order by month,category::text,t.marketplace_name,currency"
 )
 _REVIEW_CATEGORIES = ("FINANCES", "DATA_KIOSK", "SELBOX")
 
@@ -92,7 +94,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
                             administrator,
                             "select month,finances_amount,data_kiosk_amount,difference,"
                             "finances_row_count,data_kiosk_row_count "
-                            "from public.financial_review_totals(%s,%s,%s)",
+                            "from public.financial_review_totals(%s,%s,%s,'Amazon.com')",
                             (latest_month, period_end, category),
                         ),
                         [
@@ -110,7 +112,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
                         self.as_user(
                             administrator,
                             "select month,source,amount,row_count "
-                            "from public.financial_review_type_totals(%s,%s,%s,'USD') "
+                            "from public.financial_review_type_totals(%s,%s,%s,'USD','Amazon.com') "
                             "order by source",
                             (latest_month, period_end, category),
                         ),
@@ -208,9 +210,9 @@ class FinancialReviewAccessTests(SourceModelFixture):
         query: LiteralString = (
             "select 'records',count(*) from public.financial_review_records "
             "union all select 'totals',count(*) from public.financial_review_totals("
-            "'2026-06-01','2026-07-01','DATA_KIOSK') "
+            "'2026-06-01','2026-07-01','DATA_KIOSK','Amazon.com') "
             "union all select 'types',count(*) from public.financial_review_type_totals("
-            "'2026-06-01','2026-07-01','DATA_KIOSK','USD')"
+            "'2026-06-01','2026-07-01','DATA_KIOSK','USD','Amazon.com')"
         )
         self.assertEqual(
             self.as_user(self.administrator(), query), [("records", 2), ("totals", 1), ("types", 1)]
@@ -254,21 +256,26 @@ class FinancialReviewAccessTests(SourceModelFixture):
         self.kiosk(1, [self.component("0", category="SELBOX") | {"sku": None}])
         administrator = self.administrator()
         expected = [
-            (date(2026, 6, 1), "DATA_KIOSK", "EUR", 0, -4, 4, 0, 1),
+            (date(2026, 6, 1), "DATA_KIOSK", "Amazon.com", "EUR", 0, -4, 4, 0, 1),
             (
                 date(2026, 6, 1),
                 "DATA_KIOSK",
+                "Amazon.com",
                 "USD",
-                -25,
+                0,
                 Decimal("-15.000000001"),
-                Decimal("-9.999999999"),
-                2,
+                Decimal("15.000000001"),
+                0,
                 2,
             ),
-            (date(2026, 6, 1), "SELBOX", "USD", -3, 0, -3, 1, 1),
+            (date(2026, 6, 1), "DATA_KIOSK", "Non-Amazon US", "USD", -20, 0, -20, 1, 0),
+            (date(2026, 6, 1), "DATA_KIOSK", "Amazon.ca", "USD", -5, 0, -5, 1, 0),
+            (date(2026, 6, 1), "SELBOX", "Non-Amazon US", "USD", -3, 0, -3, 1, 0),
+            (date(2026, 6, 1), "SELBOX", "Amazon.com", "USD", 0, 0, 0, 0, 1),
             (
                 date(2026, 6, 1),
                 "FINANCES",
+                "Amazon.com",
                 "USD",
                 Decimal("100.123456789"),
                 Decimal("97.123456788"),
@@ -276,9 +283,9 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 2,
                 1,
             ),
-            (date(2026, 7, 1), "DATA_KIOSK", "USD", 0, -2, 2, 0, 1),
+            (date(2026, 7, 1), "DATA_KIOSK", "Amazon.com", "USD", 0, -2, 2, 0, 1),
         ]
-        expected.sort(key=lambda row: (row[0], row[1], row[2]))
+        expected.sort(key=lambda row: row[:4])
         self.assertEqual(self.as_user(administrator, _TOTALS), expected)
         self.assertEqual(
             self.as_user(
@@ -293,17 +300,16 @@ class FinancialReviewAccessTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select t.month,t.category::text,t.currency "
-                "from unnest(array['FINANCES','DATA_KIOSK','SELBOX']::"
-                "public.allocation_category[]) c(k) cross join lateral "
-                "public.financial_review_totals('2026-06-01','2026-08-01',c.k) t "
-                "cross join lateral (select "
+                # The shared FROM clause is a repository-owned LiteralString.
+                "select t.month,t.category::text,t.marketplace_name,t.currency "  # noqa: S608
+                + _TOTALS_FROM
+                + "cross join lateral (select "
                 "coalesce(sum(amount) filter(where source='FINANCES'),0) s,"
                 "coalesce(sum(amount) filter(where source='DATA_KIOSK'),0) d,"
                 "coalesce(sum(row_count) filter(where source='FINANCES'),0) sc,"
                 "coalesce(sum(row_count) filter(where source='DATA_KIOSK'),0) dc "
                 "from public.financial_review_type_totals(t.month,"
-                "(t.month + interval '1 month')::date,t.category,t.currency)) a "
+                "(t.month + interval '1 month')::date,t.category,t.currency,t.marketplace_name)) a "
                 "where (t.finances_amount,t.data_kiosk_amount,t.difference,"
                 "t.finances_row_count,t.data_kiosk_row_count) is distinct from "
                 "(a.s,a.d,a.s-a.d,a.sc,a.dc)",
@@ -324,7 +330,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
         self.connection.execute("set constraints all immediate")
 
     def test_summaries_require_explicit_valid_month_and_category_scope(self) -> None:
-        query: LiteralString = "select * from public.financial_review_totals(%s,%s,%s)"
+        query: LiteralString = "select * from public.financial_review_totals(%s,%s,%s,'Amazon.com')"
         administrator = self.administrator()
         for scope in (
             (None, "2026-07-01", "DATA_KIOSK"),
@@ -344,7 +350,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 self.as_user(
                     administrator,
                     "select * from public.financial_review_type_totals("
-                    "'2026-06-01','2026-07-01','DATA_KIOSK',%s)",
+                    "'2026-06-01','2026-07-01','DATA_KIOSK',%s,'Amazon.com')",
                     (currency,),
                 )
 
@@ -379,6 +385,100 @@ class FinancialReviewAccessTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
+    def test_same_euro_marketplaces_remain_separate_in_totals_types_and_records(self) -> None:
+        self.set_mature_cutoff_date(date(2026, 8, 1))
+        self.finances(
+            [
+                self.transaction("100.123456789")
+                | {"marketplace_name": "Amazon.de", "currency": "EUR"},
+                self.transaction("0", 4) | {"marketplace_name": "Amazon.de", "currency": "EUR"},
+                self.transaction("20.123456789", 5)
+                | {"marketplace_name": "Amazon.fr", "currency": "EUR"},
+            ]
+        )
+        for market, identifier, amount in (
+            ("Amazon.de", "A1PA6795UKMFR9", "90.123456780"),
+            ("Amazon.fr", "A13V1IB3VIYZZH", "18.123456780"),
+        ):
+            self.call(
+                "publish_data_kiosk_preprocess",
+                {
+                    "id": new_id(),
+                    "acquisition_id": self.kiosk_acquisition(
+                        1, marketplace_id=identifier, amazon_scope="EU"
+                    ),
+                    "preprocess_version": "v0",
+                    "dataset_key": "economics",
+                    "days": [
+                        {
+                            "id": new_id(),
+                            "marketplace_name": market,
+                            "activity_date": "2026-06-15",
+                            "expected_current_version_id": None,
+                            "content_sha256": "c" * 64,
+                            "transactions": [
+                                self.component(amount, category="FINANCES")
+                                | {"currency": "EUR", "component_type": "NET_PRODUCT_SALES"}
+                            ],
+                        }
+                    ],
+                },
+            )
+        administrator = self.administrator()
+        for market, difference, finances_count in (
+            ("Amazon.de", Decimal("10.000000009"), 2),
+            ("Amazon.fr", Decimal("2.000000009"), 1),
+        ):
+            with self.subTest(market=market):
+                self.assertEqual(
+                    self.as_user(
+                        administrator,
+                        "select marketplace_name,currency,difference,"
+                        "finances_row_count,data_kiosk_row_count "
+                        "from public.financial_review_totals("
+                        "'2026-06-01','2026-07-01','FINANCES',%s)",
+                        (market,),
+                    ),
+                    [(market, "EUR", difference, finances_count, 1)],
+                )
+                types = self.as_user(
+                    administrator,
+                    "select marketplace_name,currency,source,amount,row_count "
+                    "from public.financial_review_type_totals("
+                    "'2026-06-01','2026-07-01','FINANCES','EUR',%s) order by source",
+                    (market,),
+                )
+                self.assertEqual(len(types), 2)
+                self.assertTrue(all(row[:2] == (market, "EUR") for row in types))
+                self.assertEqual(
+                    cast(Decimal, types[1][3]) - cast(Decimal, types[0][3]), difference
+                )
+                self.assertEqual([row[4] for row in types], [1, finances_count])
+                self.assertEqual(
+                    self.as_user(
+                        administrator,
+                        "select marketplace_name,currency,count(*) "
+                        "from public.financial_review_records "
+                        "where marketplace_name=%s and category='FINANCES' "
+                        "group by marketplace_name,currency",
+                        (market,),
+                    ),
+                    [(market, "EUR", finances_count + 1)],
+                )
+        self.connection.execute("set constraints all immediate")
+
+    def test_marketplace_is_explicit_and_cannot_be_inferred_or_widened(self) -> None:
+        administrator = self.administrator()
+        for market in (None, "", "Germany", "Amazon.de,Amazon.fr", "Amazon.de' or true--"):
+            for query in (
+                "select * from public.financial_review_totals("
+                "'2026-06-01','2026-07-01','FINANCES',%s)",
+                "select * from public.financial_review_type_totals("
+                "'2026-06-01','2026-07-01','FINANCES','EUR',%s)",
+            ):
+                with self.subTest(market=market), self.assertRaises(InvalidParameterValue):
+                    self.as_user(administrator, query, (market,))
+
     def test_category_summaries_keep_zero_records_without_inventing_empty_categories(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         self.finances(
@@ -392,7 +492,8 @@ class FinancialReviewAccessTests(SourceModelFixture):
             self.assertEqual(
                 self.as_user(
                     administrator,
-                    "select * from public.financial_review_totals('2026-06-01','2026-07-01',%s)",
+                    "select * from public.financial_review_totals("
+                    "'2026-06-01','2026-07-01',%s,'Amazon.com')",
                     (category,),
                 ),
                 [],
@@ -402,7 +503,8 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 administrator,
                 "select finances_amount,data_kiosk_amount,difference,"
                 "finances_row_count,data_kiosk_row_count "
-                "from public.financial_review_totals('2026-06-01','2026-07-01','SELBOX')",
+                "from public.financial_review_totals("
+                "'2026-06-01','2026-07-01','SELBOX','Amazon.com')",
             ),
             [(0, 0, 0, 2, 0)],
         )

@@ -50,7 +50,12 @@ test("a zero-valued one-source period explains availability before its chart", a
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openFinancialReview(page, (fixture) => {
-    const common = { category: "SELBOX", currency: "MXN", month: "2026-01-01" };
+    const common = {
+      category: "SELBOX",
+      marketplace_name: "Amazon.com",
+      currency: "MXN",
+      month: "2026-01-01",
+    };
     fixture.financialReviewTotals = [
       {
         ...common,
@@ -73,7 +78,8 @@ test("a zero-valued one-source period explains availability before its chart", a
     fixture.financialReviewRecords = [];
   });
   await categories(page).getByRole("tab", { name: "SelBox", exact: true }).click();
-  await page.getByRole("combobox", { name: "Currency", exact: true }).selectOption("MXN");
+  await expect(page.getByLabel("Amount currency: MXN", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveCount(0);
   await expect(summary(page).locator(".financial-review-summary-value")).toHaveText([
     "0.00 MXN",
     "0.00 MXN",

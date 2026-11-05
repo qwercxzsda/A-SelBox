@@ -5,7 +5,7 @@ const reportId = "0198b50b-701a-7000-8000-000000000002";
 const companyId = "0198b50b-701a-7000-8000-000000000001";
 
 for (const width of [1440, 1920]) {
-  test(`payout amount sections share desktop tables and disclosures at ${width}px`, async ({
+  test(`payout type and record sections use consistent desktop tables at ${width}px`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -40,15 +40,6 @@ for (const width of [1440, 1920]) {
       company_amount: "95",
     };
     fixture.payoutComponents = [{ ...record, id: "amount", authoritative: "true" }];
-    fixture.payoutMarketplaceTotals = [
-      {
-        report_id: reportId,
-        marketplace_name: "Amazon.com",
-        source_amount: "100",
-        fee_amount: "-5",
-        company_amount: "95",
-      },
-    ];
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await page.getByRole("cell", { name: "95.00 USD", exact: true }).click();
@@ -56,51 +47,23 @@ for (const width of [1440, 1920]) {
     const records = drawer.getByRole("table", { name: "Amount records", exact: true });
     await expect(records).toBeVisible();
     await expect(drawer.getByRole("note")).toContainText("Totals use original precision");
-    await expect(drawer.locator(".detail-drawer-context")).toContainText("June 2026 · USD");
-    expect(
-      await drawer.evaluate((element) => {
-        const marketplace = [...element.querySelectorAll("button")].find(
-          (button) => button.textContent === "Marketplace breakdown",
-        );
-        const records = element.querySelector('[aria-label="Amount records"]');
-        return Boolean(
-          marketplace.compareDocumentPosition(records) &
-          globalThis.Node.DOCUMENT_POSITION_FOLLOWING,
-        );
-      }),
-    ).toBe(true);
+    await expect(drawer.locator(".detail-drawer-context")).toContainText(
+      "June 2026 · Amazon.com · USD",
+    );
+    const headings = await drawer.getByRole("heading").allTextContents();
+    expect(headings.indexOf("Amounts by type")).toBeLessThan(headings.indexOf("Records"));
     await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
     const typeTable = drawer.getByRole("table", { name: "Transaction type amounts", exact: true });
     expect(
-      fixture.events.some(({ endpoint }) => endpoint.endsWith("/payout_report_marketplace_totals")),
-    ).toBe(false);
-    expect(
       fixture.events.some(({ endpoint }) => endpoint.endsWith("/payout_report_reconciliation")),
     ).toBe(false);
-    for (const label of ["Marketplace breakdown"]) {
-      const toggle = drawer.getByRole("button", { name: label, exact: true });
-      await expect(toggle).toHaveAttribute("aria-expanded", "false");
-      expect(
-        await toggle.evaluate((element) =>
-          Boolean(element.ownerDocument.getElementById(element.getAttribute("aria-controls"))),
-        ),
-      ).toBe(true);
-      await toggle.focus();
-      await toggle.press("Enter");
-      await expect(toggle).toHaveAttribute("aria-expanded", "true");
-      await expect(drawer.getByRole("heading", { name: label, exact: true })).toHaveCount(1);
-    }
-    const marketplace = drawer.getByRole("table", {
-      name: "Payout marketplace breakdown",
-      exact: true,
-    });
     await records.scrollIntoViewIfNeeded();
     await expect(drawer.locator(".detail-drawer-context")).toBeInViewport();
     await expect(
-      marketplace.getByRole("columnheader", { name: "Reported amount (USD)", exact: true }),
+      typeTable.getByRole("columnheader", { name: "Reported amount", exact: true }),
     ).toBeVisible();
     await expect(
-      marketplace.getByRole("columnheader", { name: "Company amount (USD)", exact: true }),
+      typeTable.getByRole("columnheader", { name: "Company amount", exact: true }),
     ).toBeVisible();
     await expect(
       drawer.getByRole("button", { name: "Saved source details", exact: true }),
@@ -109,7 +72,7 @@ for (const width of [1440, 1920]) {
       0,
     );
     const styles = [];
-    for (const table of [records, marketplace, typeTable]) {
+    for (const table of [records, typeTable]) {
       styles.push(
         await table.evaluate((element) => {
           const styleWindow = element.ownerDocument.defaultView;

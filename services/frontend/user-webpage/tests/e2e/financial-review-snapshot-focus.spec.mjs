@@ -54,7 +54,7 @@ for (const width of [390, 1440]) {
     await expect(controls).toBeFocused();
     await expectFullyInViewport(controls);
     await expect(monthly.locator(".detail-drawer-context")).toHaveText(
-      "June 2026 · USD · Data Kiosk category · All companies",
+      "June 2026 · Amazon.com · USD · Data Kiosk category · All companies",
     );
     await expect(page.getByRole("dialog")).toHaveCount(1);
   });

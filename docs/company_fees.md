@@ -31,7 +31,7 @@ rule described in the source policy.
 
 | Table                | Purpose                                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `skus`        | Stable exact SKU identity and selected `current_terms_version_id`.                                         |
+| `skus`               | Stable exact SKU identity and selected `current_terms_version_id`.                                                |
 | `sku_terms_versions` | Immutable company assignment or explicit unassignment, revision number, reason, and complete fee inventory count. |
 | `sku_fee_periods`    | Marketplace-specific effective periods and rates belonging to one terms version.                                  |
 
@@ -63,10 +63,10 @@ coverage requirements. Saving a valid correction does not declare the whole cata
 
 Required fee dates come from the selected current source versions:
 
-| Source | Rows requiring coverage | Effective date |
-| --- | --- | --- |
-| Finances | Activity-eligible category `FINANCES` components with a nonnull signed `fee_base` | Marketplace-local `posted_date` |
-| Data Kiosk | Category other than `SELBOX` with a nonnull `fee_base` | `activity_date` |
+| Source     | Rows requiring coverage                                                           | Effective date                  |
+| ---------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| Finances   | Activity-eligible category `FINANCES` components with a nonnull signed `fee_base` | Marketplace-local `posted_date` |
+| Data Kiosk | Category other than `SELBOX` with a nonnull `fee_base`                            | `activity_date`                 |
 
 Both sources contribute requirements independently of today's maturity boundary, including
 zero bases. Historical source versions contribute known SKU names but no required fee dates.
@@ -276,7 +276,7 @@ reconciliation rows have no company ownership, require no fee configuration, and
 to company amounts. Company and SKU selections exclude those account rows. See the
 [summary API](transaction_query_contracts.md#period-totals-and-type-breakdowns) for request scope.
 
-For the same company, full mature month, and currency, a complete estimate and the
+For the same company, full mature month, exact marketplace, and currency, a complete estimate and the
 latest payout report agree after automatic generation has captured the current
 inputs. Both combine all source namespaces. Reports retain their saved ownership
 and fee versions; a newer live correction appears in the next successful refresh.

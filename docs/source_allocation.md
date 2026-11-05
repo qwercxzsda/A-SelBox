@@ -29,12 +29,12 @@ the boundary date and later dates are recent. Calendar arithmetic clamps an
 unavailable day to the month's end. This is an application maturity policy,
 not a guarantee that Amazon will never revise a record.
 
-| Category | Mature activity | Recent activity |
-| --- | --- | --- |
-| `FINANCES` | Finances components supply amounts; Data Kiosk counterparts are comparison detail. | Data Kiosk supplies amounts. |
-| `SELBOX` | Finances components belong to SelBox. | Data Kiosk amounts belong to SelBox. |
-| `DATA_KIOSK` | Data Kiosk supplies company costs; Finances supplies account controls. | Data Kiosk supplies company costs. |
-| `ANALYSIS_ONLY` | Diagnostic detail; never additive. | Diagnostic detail; never additive. |
+| Category        | Mature activity                                                                    | Recent activity                      |
+| --------------- | ---------------------------------------------------------------------------------- | ------------------------------------ |
+| `FINANCES`      | Finances components supply amounts; Data Kiosk counterparts are comparison detail. | Data Kiosk supplies amounts.         |
+| `SELBOX`        | Finances components belong to SelBox.                                              | Data Kiosk amounts belong to SelBox. |
+| `DATA_KIOSK`    | Data Kiosk supplies company costs; Finances supplies account controls.             | Data Kiosk supplies company costs.   |
+| `ANALYSIS_ONLY` | Diagnostic detail; never additive.                                                 | Diagnostic detail; never additive.   |
 
 For each mature seller, native marketplace, local activity day and currency:
 
@@ -88,15 +88,15 @@ An exact Summary match validates the Finances account calculation. It does not
 prove Data Kiosk's SKU cost allocation is correct. The Data Kiosk residual can
 remain nonzero even when the Finances/Summary difference is zero.
 
-[Payout reports](company_payout_reports.md) cover a full calendar month whose end
-is mature. Nonempty company scopes require complete compatible Data Kiosk and
+[Payout reports](company_payout_reports.md) cover one company, exact marketplace, currency, and full
+calendar month whose end is mature. Nonempty company scopes require complete compatible Data Kiosk and
 Finances coverage, resolved ownership/fees, and matched Summary checks for the
 exact Finances versions. Valid daily observations may be published before
 reconciliation succeeds. Missing or mismatched controls block a new payout while
 preserving the previous successful report.
 
 Empty assigned companies can retain explicit zero reports without inventing a
-currency or claiming that an unobserved seller was inactive. Source publications
+marketplace or currency, or claiming that an unobserved seller was inactive. Source publications
 and fee changes enqueue automatic refreshes. Snapshot pins preserve empty days,
 financial components, and their Summary evidence; retention never removes pinned
 payloads. See [company fees](company_fees.md), [native type rules](transaction_type_registry.md),

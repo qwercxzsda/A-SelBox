@@ -4,6 +4,7 @@ const COLUMNS = {
   financial_review_totals: [
     "month",
     "category",
+    "marketplace_name",
     "currency",
     "finances_amount",
     "data_kiosk_amount",
@@ -14,6 +15,7 @@ const COLUMNS = {
   financial_review_type_totals: [
     "month",
     "category",
+    "marketplace_name",
     "currency",
     "source",
     "component_type",
@@ -109,6 +111,8 @@ export async function respondWithFinancialReview(
   if (category) filters.set("category", `eq.${category}`);
   const currency = filters.get("p_currency");
   if (currency) filters.set("currency", `eq.${currency}`);
+  const marketplace = filters.get("p_marketplace");
+  if (marketplace) filters.set("marketplace_name", `eq.${marketplace}`);
   const from = filters.get("p_month_from");
   const to = filters.get("p_month_to");
   if (from) filters.append("month", `gte.${from}`);

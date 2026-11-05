@@ -1,5 +1,6 @@
 import type { CanonicalRow } from "./api/types.ts";
 import { requireCalendarDate } from "./api/filters.ts";
+import { requireMarketplace } from "./api/marketplaces.ts";
 import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
 import { describeFeeFamilyCoverage } from "./financial-review-coverage.ts";
@@ -15,6 +16,7 @@ interface FamilyTypeTotal {
   month: string;
   category: string;
   currency: string;
+  marketplace: string;
 }
 
 function selectTypeTotals(
@@ -36,9 +38,11 @@ function selectTypeTotals(
       const category = row.category ?? "";
       if (!["FINANCES", "DATA_KIOSK", "SELBOX", "ANALYSIS_ONLY"].includes(category))
         throw new Error("Fee family comparison contains an invalid category");
+      const marketplace = row.marketplace_name;
+      requireMarketplace(marketplace);
       const currency = row.currency ?? "";
       requireCurrency(currency);
-      const key = JSON.stringify([month, category, currency, source, type]);
+      const key = JSON.stringify([month, category, marketplace, currency, source, type]);
       if (seen.has(key)) throw new Error("Fee family comparison contains a duplicate type total");
       seen.add(key);
       if (typeof row.amount !== "string")
@@ -56,6 +60,7 @@ function selectTypeTotals(
         month,
         category,
         currency,
+        marketplace,
       };
     })
     .filter((row) => selected.size === 0 || selected.has(row.family.id));
@@ -96,6 +101,8 @@ export function buildFinancialReviewFamilies(
   ids: readonly string[] = [],
 ): CanonicalRow[] {
   const selected = selectTypeTotals(rows, ids);
+  if (new Set(selected.map((row) => row.marketplace)).size > 1)
+    throw new Error("Fee family comparison must use one marketplace");
   if (new Set(selected.map((row) => row.currency)).size > 1)
     throw new Error("Fee family comparison must use one currency");
   const groups = new Map<string, FamilyTypeTotal[]>();
@@ -115,6 +122,7 @@ export function buildFinancialReviewFamilies(
       family: group[0].family.label,
       description: group[0].family.description,
       currency: group[0].currency,
+      marketplace_name: group[0].marketplace,
       ...comparison(group),
       coverage: describeFeeFamilyCoverage(group, group[0].family),
       finances_definition: group[0].family.financesTypes.join(", ") || "No counterpart defined",
@@ -131,7 +139,7 @@ export function buildFinancialReviewFamilyMonths(
 ): CanonicalRow[] {
   const groups = new Map<string, FamilyTypeTotal[]>();
   for (const row of selectTypeTotals(rows, ids)) {
-    const key = JSON.stringify([row.month, row.category, row.currency]);
+    const key = JSON.stringify([row.month, row.category, row.marketplace, row.currency]);
     const group = groups.get(key) ?? [];
     group.push(row);
     groups.set(key, group);
@@ -141,11 +149,13 @@ export function buildFinancialReviewFamilyMonths(
       month: group[0].month,
       category: group[0].category,
       currency: group[0].currency,
+      marketplace_name: group[0].marketplace,
       ...comparison(group),
     }))
     .sort(
       (left, right) =>
         left.month.localeCompare(right.month) ||
+        left.marketplace_name.localeCompare(right.marketplace_name) ||
         left.currency.localeCompare(right.currency) ||
         left.category.localeCompare(right.category),
     );

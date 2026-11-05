@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import marketplaces from "../src/generated/marketplaces.json" with { type: "json" };
 import { createApiClient } from "../src/api/client.ts";
+import { createDatasetScope } from "../src/dataset-query-cache.ts";
 import {
   SETTINGS,
   COMPANY_ID,
@@ -21,7 +21,7 @@ test("payout list and count share company and monthly filters", async () => {
     if (init.method !== "HEAD")
       assert.equal(
         params.get("order"),
-        "start_date.desc.nullslast,company_id.asc,currency.asc,id.asc",
+        "start_date.desc.nullslast,company_id.asc,marketplace_name.asc.nullslast,currency.asc,id.asc",
       );
     calls.push(init.method ?? "GET");
     return new Response("id\n", { headers: { "Content-Range": "*/0" } });
@@ -51,6 +51,29 @@ test("payout pages and counts list only the latest version of each report", asyn
     ["/rest/v1/latest_company_payout_reports", "GET"],
     ["/rest/v1/latest_company_payout_reports", "HEAD"],
   ]);
+});
+
+test("payout cache does not reuse another marketplace or amount unit", () => {
+  const identity = {
+    session: { user: { id: "member" } },
+    account: { access_role: "member", company_id: COMPANY_ID },
+    skuOptions: [],
+  };
+  const options = {
+    dataset: "payouts",
+    search: "",
+    currency: "EUR",
+    filters: datasetFilters({ marketplaces: ["Amazon.de"] }),
+  };
+  const base = createDatasetScope(identity, options);
+  for (const patch of [
+    { currency: "USD" },
+    { filters: datasetFilters({ marketplaces: ["Amazon.fr"] }) },
+  ]) {
+    const other = createDatasetScope(identity, { ...options, ...patch });
+    assert.notDeepEqual(other.key, base.key);
+    assert.notDeepEqual(other.countKey, base.countKey);
+  }
 });
 
 test("saved elaboration is selected separately and preserves decimal strings", async () => {
@@ -141,36 +164,4 @@ test("saved seller reconciliation uses its separate report-scoped endpoint and e
   const result = await client.fetchPayoutReconciliation("token", COMPANY_ID, 1);
   assert.equal(result.rows[0].difference, "-0.000000000000000123");
   assert.equal(result.rows[0].marketplace_name, null);
-});
-
-test("saved marketplace totals use the report-scoped CSV view and preserve exact amounts", async () => {
-  const controller = new AbortController();
-  let requests = 0;
-  const client = createApiClient(SETTINGS, async (url, init) => {
-    requests += 1;
-    assert.equal(new URL(url).pathname, "/rest/v1/payout_report_marketplace_totals");
-    const params = new URL(url).searchParams;
-    assert.equal(params.get("report_id"), `eq.${COMPANY_ID}`);
-    assert.equal(params.get("limit"), String(marketplaces.length + 1));
-    assert.equal(params.get("order"), "marketplace_name.asc.nullslast");
-    assert.equal(init.headers.Accept, "text/csv");
-    assert.equal(init.headers.Authorization, "Bearer token");
-    assert.ok(init.signal instanceof AbortSignal);
-    return new Response(
-      csvRecord({
-        report_id: COMPANY_ID,
-        marketplace_name: null,
-        source_amount: "9007199254740993.123456789",
-        fee_amount: "-0.000000001",
-        company_amount: "9007199254740993.123456788",
-      }),
-    );
-  });
-  const [row] = await client.fetchPayoutMarketplaceTotals("token", COMPANY_ID, controller.signal);
-  assert.equal(row.marketplace_name, null);
-  assert.equal(row.source_amount, "9007199254740993.123456789");
-  assert.equal(row.fee_amount, "-0.000000001");
-  assert.equal(row.company_amount, "9007199254740993.123456788");
-  await assert.rejects(client.fetchPayoutMarketplaceTotals("token", "invalid"), /report ID/);
-  assert.equal(requests, 1);
 });

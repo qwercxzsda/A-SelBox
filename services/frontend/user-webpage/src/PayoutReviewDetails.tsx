@@ -3,6 +3,7 @@ import { DetailSection } from "./DetailSection";
 import { PayoutComponents } from "./PayoutComponents";
 import { PayoutReconciliation } from "./PayoutReconciliation";
 import { PayoutReconciliationTotals } from "./PayoutReconciliationTotals";
+import { payoutMarketplaceLabel } from "./payout-report-scope";
 
 export function PayoutReviewDetails({
   row,
@@ -13,11 +14,12 @@ export function PayoutReviewDetails({
 }) {
   const reportId = row.id ?? "";
   const currency = row.currency;
+  const marketplace = payoutMarketplaceLabel(row);
   return (
     <>
       <DetailSection
         title="Supporting records"
-        description="Saved comparison and analysis rows for this company and report currency. Their amounts are exclusive of the company payout."
+        description={`Saved comparison and analysis rows for this company, ${marketplace}, and ${currency ?? "no currency"}. Their amounts are exclusive of the company payout.`}
       >
         <PayoutComponents
           reportId={reportId}
@@ -30,7 +32,7 @@ export function PayoutReviewDetails({
         stateKey={`payout-review:${reportId}:reconciliation`}
         title="Saved account reconciliation"
         collapsible
-        description={`Account controls saved for ${currency ?? "this report"}, across all companies, marketplaces and SKUs in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
+        description={`Account controls saved for ${currency ?? "this report"} and ${marketplace}, across all companies and SKUs in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
       >
         <PayoutReconciliationTotals
           accessToken={accessToken}

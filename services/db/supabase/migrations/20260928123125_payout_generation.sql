@@ -47,35 +47,37 @@ begin
     end if;
     for scope in
         with company_sources as (
-            select t.seller_namespace,t.sku,t.currency
+            select t.seller_namespace,t.sku,t.marketplace_name,t.currency
             from private.finances_activity_components t
             join private.finances_days s on s.current_version_id = t.version_id
             where t.posted_date between p_month and month_end and t.category = 'FINANCES'
                 and t.seller_namespace = any(seller_namespaces)
             union all
-            select t.seller_namespace,t.sku,t.currency
+            select t.seller_namespace,t.sku,t.marketplace_name,t.currency
             from private.data_kiosk_transactions t
             join private.data_kiosk_days d on d.current_version_id = t.version_id
             where t.activity_date between p_month and month_end and t.category = 'DATA_KIOSK'
                 and t.seller_namespace = any(seller_namespaces)
         ), scopes as (
-            select t.currency
+            select t.marketplace_name,t.currency
             from company_sources t
             join private.current_sku_terms o on o.sku = t.sku
             where o.company_id = p_company_id
             union
             -- A removed scope needs a new zero aggregate, not a stale nonzero latest report.
-            select r.currency from public.company_payout_reports r
-            where r.company_id = p_company_id and r.start_date = p_month and r.currency is not null
+            select r.marketplace_name,r.currency from public.company_payout_reports r
+            where r.company_id = p_company_id and r.start_date = p_month
+                and r.currency is not null
         )
         -- An assigned company still has an empty scope before its first sale.
-        select scopes.currency
+        select scopes.marketplace_name,scopes.currency
         from (values (p_company_id)) company(id) left join scopes on true
-        order by scopes.currency
+        order by scopes.marketplace_name nulls first,scopes.currency
     loop
         requested_report_id := private.uuid7();
         report_id := private.publish_company_payout_report(jsonb_build_object(
             'id',requested_report_id,'company_id',p_company_id,
+            'marketplace_name',scope.marketplace_name,
             'currency',scope.currency,'start_date',p_month,'end_date',month_end,
             'dataset_key','economics','captured_seller_namespaces',seller_namespaces,
             'report_name',to_char(p_month,'YYYY-MM') || ' payout report',

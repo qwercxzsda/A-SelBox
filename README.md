@@ -5,8 +5,8 @@ those saved inputs into complete source versions, and calculates company amounts
 and fees through live PostgreSQL views. Monthly payout reports are generated
 automatically for companies with currently assigned SKUs as dates mature and source or
 fee inputs change. Immutable reports
-save exact amounts across all source namespaces, separately by currency, and retain
-the versions used. A full mature company/month estimate matches the latest report
+save exact amounts across all source namespaces for each marketplace and currency, and retain
+the versions used. A full mature company/month/marketplace estimate in the same currency matches the latest report
 once automatic generation has captured the current inputs for an eligible company.
 Removing a company's last SKU stops new reports while preserving its saved history.
 
@@ -82,7 +82,7 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
   administration, and row-level security.
 - [Source allocation](docs/source_allocation.md).
 - [Payout reports](docs/company_payout_reports.md): publication and saved evidence.
-- [Financial review](docs/financial_review.md): category/month comparisons, exact source records,
+- [Financial review](docs/financial_review.md): marketplace/category/month comparisons, exact source records,
   and saved report diagnostics.
 - [Database schema and figures](docs/database_schema.md): current tables, keys, and read views.
 - [Daily inventory pipeline](docs/inventory_daily_captures.md): archived daily replenishment

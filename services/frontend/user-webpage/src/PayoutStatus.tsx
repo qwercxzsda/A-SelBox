@@ -49,6 +49,7 @@ export function PayoutStatus({
           identity={identity}
           month={month}
           companyIds={filters.companyIds}
+          marketplaceFiltered={filters.marketplaces.length > 0}
           onConfigureSku={onConfigureSku}
         />
       ) : null}

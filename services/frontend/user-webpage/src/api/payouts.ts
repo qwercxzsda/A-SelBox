@@ -1,18 +1,9 @@
-import marketplaces from "../generated/marketplaces.json" with { type: "json" };
 import { requireCalendarDate, textSelectionValues } from "./filters.ts";
 import { decodeTypeTotals } from "./aggregates.ts";
 import { readOffsetRpcRows } from "./rpc-pagination.ts";
 import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import { isJsonObject, requireUuid } from "./validation.ts";
 import type { ApiTransport } from "./transport.ts";
-
-export const PAYOUT_MARKETPLACE_COLUMNS = [
-  "report_id",
-  "marketplace_name",
-  "source_amount",
-  "fee_amount",
-  "company_amount",
-] as const;
 
 export const PAYOUT_COMPONENT_COLUMNS = [
   "id",
@@ -61,28 +52,6 @@ export function createPayoutApi(transport: ApiTransport) {
         latest_month: value.latest_month,
         mature_cutoff_months: value.mature_cutoff_months,
       };
-    },
-    async fetchPayoutMarketplaceTotals(
-      accessToken: string,
-      reportId: string,
-      signal?: AbortSignal,
-    ) {
-      requireUuid(reportId, "report");
-      const result = await transport.readCsvPage(
-        accessToken,
-        "payout_report_marketplace_totals",
-        new URLSearchParams({
-          select: PAYOUT_MARKETPLACE_COLUMNS.join(","),
-          report_id: `eq.${reportId}`,
-          order: "marketplace_name.asc.nullslast",
-          // The canonical catalog plus the unspecified-marketplace group.
-          limit: String(marketplaces.length + 1),
-        }),
-        "Payout marketplace breakdown",
-        signal,
-        false,
-      );
-      return result.rows;
     },
     async fetchPayoutComponents(
       accessToken: string,

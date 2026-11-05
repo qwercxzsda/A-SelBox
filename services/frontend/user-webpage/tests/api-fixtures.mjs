@@ -24,6 +24,7 @@ export function responseJson(body, status = 200) {
 export function datasetRecord(dataset, overrides = {}) {
   return Object.assign(
     Object.fromEntries(DATASET_CONFIG[dataset].selectColumns.map((column) => [column, column])),
+    dataset === "payouts" ? { marketplace_name: "Amazon.com" } : {},
     overrides,
   );
 }

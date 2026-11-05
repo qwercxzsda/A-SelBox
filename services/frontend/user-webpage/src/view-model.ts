@@ -64,7 +64,7 @@ export const DATASET_PRESENTATION = {
     label: "Payout reports",
     description:
       "Monthly payouts preserve company amounts in the Finances and Data Kiosk categories, plus service fees. The SelBox category and reconciliation difference stay with SelBox.",
-    searchPlaceholder: "Month, year, report name or currency",
+    searchPlaceholder: "Month, marketplace, or report name",
     emptyMessage: "No payout reports match this view.",
   },
   accounts: {
@@ -125,7 +125,7 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
   payouts: [
     column("start_date", "Month", "month"),
     column("company_id", "Company", "company"),
-    column("currency", "Currency"),
+    column("marketplace_name", "Marketplace"),
     column("created_at", "Updated", "date"),
     column("source_amount", "Reported amount", "money"),
     column("fee_amount", "Service fee", "money"),

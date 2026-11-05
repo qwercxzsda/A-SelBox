@@ -26,6 +26,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             publish_company_payout_report(
                 database,
                 company_id=company,
+                marketplace_name=None,
                 currency=None,
                 start_date=date(2026, 6, 1),
                 end_date=date(2026, 6, 30),
@@ -94,6 +95,7 @@ class FinancialRepositoryTests(SourceModelFixture):
         report_id = publish_company_payout_report(
             database,
             company_id=company,
+            marketplace_name="Amazon.com",
             currency="USD",
             start_date=date(2026, 6, 1),
             end_date=date(2026, 6, 30),
@@ -106,7 +108,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             self.fail("Expected saved report.")
         self.assertEqual(before.fee_amount, Decimal("-5.123456"))
         self.assertEqual(before.company_amount, Decimal("94.876544"))
-        self.assertEqual(before.marketplace_names, ("Amazon.com",))
+        self.assertEqual(before.marketplace_name, "Amazon.com")
         self.assertEqual(components[0].terms_version_id, terms)
         publish_sku_terms(
             database,

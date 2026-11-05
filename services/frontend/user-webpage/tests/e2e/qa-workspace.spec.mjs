@@ -117,7 +117,7 @@ test("workspace URLs restore filters and support Back and Forward without storin
   );
 });
 
-test("Financial review retains category, year and currency after reloading another tab", async ({
+test("Financial review retains marketplace, category, year and amount unit after reloading another tab", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -132,7 +132,8 @@ test("Financial review retains category, year and currency after reloading anoth
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await page.reload();
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await expect(page.getByLabel("Currency", { exact: true })).toHaveValue("JPY");
+  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Marketplace", { exact: true })).toHaveValue("Amazon.com");
   await expect(page.getByLabel("Year", { exact: true })).toHaveValue("2025");
   await expect(categories.getByRole("tab", { name: "Finances", exact: true })).toHaveAttribute(
     "aria-selected",

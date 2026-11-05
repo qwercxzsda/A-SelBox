@@ -75,6 +75,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         report_id = publish_company_payout_report(
             self.database,
             company_id=company,
+            marketplace_name="Amazon.com",
             currency="USD",
             start_date=START,
             end_date=month_end,
@@ -94,7 +95,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         )
         self.assertEqual(len(header), 1)
         self.assertEqual(header[0]["company_amount"], -10)
-        self.assertEqual(header[0]["marketplace_names"], ["Amazon.com"])
+        self.assertEqual(header[0]["marketplace_name"], "Amazon.com")
         self.assertEqual(len(components), 6)
         self.assertEqual(sum(row["authoritative"] is True for row in components), 4)
         member_components = [row for row in components if row["authoritative"]]

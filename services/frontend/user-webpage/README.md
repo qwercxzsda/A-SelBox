@@ -140,24 +140,28 @@ inventory rows or counts. Recommendations are informational, with no shipment or
 
 ## Payout reports and Financial review
 
-Payout reports group the latest saved company/month/currency snapshots. Month and Company filters,
-visible month/year search, and on-demand Versions history support browsing. Source or fee changes
-may leave the preceding snapshot visible until the automatic worker publishes its replacement. The
-browser never generates reports. Selected-month readiness distinguishes incomplete setup, pending
-work, completed reports, and no activity; administrators can inspect setup requirements and open the
-affected SKU in Current fees.
+Payout reports group the latest saved company/month/marketplace snapshots, keeping currencies
+separate as amount units. Month, Marketplace, and Company filters, visible month/year search, and
+on-demand Versions history support browsing. Source or fee changes may leave the preceding snapshot
+visible until the automatic worker publishes its replacement. The browser never generates reports.
+Selected-month readiness distinguishes incomplete setup, pending work, completed reports, and no
+activity; administrators can inspect setup requirements and open the affected SKU in Current fees.
 
-Saved report details contain Total, Amounts by type, Marketplace breakdown, and paginated Records.
-Headers retain company/month/currency context. Historical reports preserve their original values and
-versions. The [payout contract](../../../docs/company_payout_reports.md) defines eligibility,
-maturity, completeness, zero reports, and agreement with estimates.
+Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
+company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.
+Readiness covers the whole company/month even when the list is filtered to a marketplace. Historical
+reports preserve their original values and versions. The
+[payout contract](../../../docs/company_payout_reports.md) defines eligibility, maturity,
+completeness, zero reports, and agreement with estimates.
 
-Financial review shares Year, Currency, and the **Fee families** checkbox menu across Finances, Data
-Kiosk, and SelBox categories. Its yearly totals, chart, monthly rows, and running difference use the
-selected family union; clearing restores all families, while a selection with no matches stays
-empty. The menu follows the table Company/SKU controls: changes apply immediately, longer lists are
-searchable, and Done or Escape returns focus to the button. Scope survives navigation and reloads;
-retired family IDs in saved links and preferences resolve to their current groups.
+Financial review shares Marketplace, Year, and the **Fee families** checkbox menu across Finances,
+Data Kiosk, and SelBox categories. Its yearly totals, chart, monthly rows, and running difference
+use the selected family union; clearing restores all families, while a selection with no matches
+stays empty. The menu follows the table Company/SKU controls: changes apply immediately, longer
+lists are searchable, and Done or Escape returns focus to the button. Scope survives navigation and
+reloads; retired family IDs in saved links and preferences resolve to their current groups. Currency
+is resolved from that marketplace's period rows and shown as the amount unit, with a secondary
+selector when several units exist. Changing marketplace clears the unit and open month.
 
 Family comparisons net related charges and signed offsets without changing category, date, or payout
 rules. Tables rank absolute differences, **Show only** isolates a family, and **Family definition**
@@ -171,6 +175,10 @@ the selected families through its totals, exact types, and source records; saved
 their complete historical scope. See the
 [overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details) for
 chart, coverage, and drawer behavior.
+
+Review links use `reviewMarketplace`, separately from repeated table `marketplace` filters. Report
+links require their exact ID, company, dates, currency, and `reportMarketplace`; an empty
+marketplace value denotes an unspecified market. Currency never infers a marketplace.
 
 Source drilldowns retain exact row/version provenance. Finances keeps the main Search focused on
 filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID

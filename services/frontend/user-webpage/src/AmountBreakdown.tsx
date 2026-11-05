@@ -28,7 +28,6 @@ export function AmountBreakdown({
   onRetry,
   renderRecords,
   stateKey,
-  additionalBreakdown,
 }: {
   currency: string;
   totals: TransactionTypeTotal[] | undefined;
@@ -38,7 +37,6 @@ export function AmountBreakdown({
   onRetry: () => void;
   renderRecords: (selection: RecordSelection) => ReactNode;
   stateKey: string;
-  additionalBreakdown?: ReactNode;
 }) {
   const [selection, setSelection] = useWorkspacePreference<RecordSelection>(
     `${stateKey}:record-selection`,
@@ -137,7 +135,6 @@ export function AmountBreakdown({
           <Text c="dimmed">No amounts for this period{currency ? ` in ${currency}` : ""}.</Text>
         ) : null}
       </DetailSection>
-      {additionalBreakdown}
       <DetailSection
         ref={recordsRef}
         title="Records"

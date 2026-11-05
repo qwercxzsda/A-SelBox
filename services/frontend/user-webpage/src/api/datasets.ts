@@ -56,6 +56,11 @@ function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchPara
     params.set("currency", `eq.${options.currency}`);
   }
   if (dataset === "payouts") {
+    if (values.selections.marketplace_name.length)
+      params.set(
+        "marketplace_name",
+        `in.(${values.selections.marketplace_name.map((value) => JSON.stringify(value)).join(",")})`,
+      );
     if (values.dateFrom) params.append("start_date", `gte.${values.dateFrom}`);
     if (values.dateTo) params.append("start_date", `lte.${values.dateTo}`);
   }
@@ -67,7 +72,9 @@ function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
   const config = DATASET_CONFIG[dataset];
   const order = [
     `${sort.column}.${sort.direction}.nullslast`,
-    ...(dataset === "payouts" ? ["company_id.asc", "currency.asc"] : []),
+    ...(dataset === "payouts"
+      ? ["company_id.asc", "marketplace_name.asc.nullslast", "currency.asc"]
+      : []),
     ...config.idColumns.filter((column) => column !== sort.column).map((column) => `${column}.asc`),
   ];
   const params = buildMembershipParams(options);

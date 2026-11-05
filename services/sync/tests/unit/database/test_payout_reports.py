@@ -27,6 +27,7 @@ class TestPayoutReports(unittest.TestCase):
             result = publish_company_payout_report(
                 database,
                 company_id=company_id,
+                marketplace_name="Amazon.com",
                 currency="USD",
                 start_date=date(2026, 1, 1),
                 end_date=date(2026, 1, 31),
@@ -43,6 +44,7 @@ class TestPayoutReports(unittest.TestCase):
             {
                 "id": str(requested_id),
                 "company_id": company_id,
+                "marketplace_name": "Amazon.com",
                 "currency": "USD",
                 "start_date": "2026-01-01",
                 "end_date": "2026-01-31",
@@ -58,6 +60,7 @@ class TestPayoutReports(unittest.TestCase):
         result = publish_company_payout_report(
             database,
             company_id=str(uuid7()),
+            marketplace_name=None,
             currency=None,
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 31),
@@ -68,7 +71,7 @@ class TestPayoutReports(unittest.TestCase):
         payload = cast(dict[str, object], cast(Jsonb, database.execute_calls[0][1]["payload"]).obj)
         self.assertIsNone(payload["currency"])
 
-    def test_saved_header_retains_exact_totals_and_declared_marketplaces(self) -> None:
+    def test_saved_header_retains_exact_totals_and_marketplace(self) -> None:
         report_id, company_id = str(uuid7()), str(uuid7())
         header = (
             report_id,
@@ -77,7 +80,7 @@ class TestPayoutReports(unittest.TestCase):
             date(2026, 1, 1),
             date(2026, 1, 31),
             "economics",
-            ["Amazon.co.jp"],
+            "Amazon.co.jp",
             "January",
             "Initial",
             "v1",
@@ -97,7 +100,7 @@ class TestPayoutReports(unittest.TestCase):
             self.fail("Expected saved report.")
         self.assertEqual(report.source_amount, Decimal("1e1000"))
         self.assertEqual(report.fee_amount, Decimal("-0.123456789123456789"))
-        self.assertEqual(report.marketplace_names, ("Amazon.co.jp",))
+        self.assertEqual(report.marketplace_name, "Amazon.co.jp")
         self.assertNotIn("current_", database.execute_calls[0][0])
         self.assertEqual(report.calculation_version, "v1")
         unsupported = (*header[:9], "v0", *header[10:])
@@ -106,7 +109,6 @@ class TestPayoutReports(unittest.TestCase):
 
     def test_currencyless_header_must_be_an_empty_aggregate(self) -> None:
         report_id, company_id = str(uuid7()), str(uuid7())
-        marketplace_names: list[str] = []
         header = (
             report_id,
             company_id,
@@ -114,7 +116,7 @@ class TestPayoutReports(unittest.TestCase):
             date(2026, 6, 1),
             date(2026, 6, 30),
             "economics",
-            marketplace_names,
+            None,
             "June empty report",
             "Explicit request",
             "v1",
@@ -132,12 +134,12 @@ class TestPayoutReports(unittest.TestCase):
         if report is None:
             self.fail("Expected saved empty report.")
         self.assertIsNone(report.currency)
+        self.assertIsNone(report.marketplace_name)
         self.assertEqual(
             (report.source_amount, report.fee_amount, report.company_amount),
             (Decimal(0), Decimal(0), Decimal(0)),
         )
         for index, value in (
-            (6, ["Amazon.com"]),
             (10, 1),
             (11, 1),
             (15, Decimal(1)),
@@ -241,6 +243,7 @@ class TestPayoutReports(unittest.TestCase):
                 publish_company_payout_report(
                     database,
                     company_id=str(uuid7()),
+                    marketplace_name="Amazon.com",
                     currency=currency,
                     start_date=start,
                     end_date=end,

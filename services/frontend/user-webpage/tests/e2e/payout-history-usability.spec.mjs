@@ -3,7 +3,7 @@ import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { expectFullyInViewport } from "./viewport-assertions.mjs";
 
 const COMPANY = "0198b50b-701a-7000-8000-000000000081";
-const scope = "History Company · June 2026 · USD";
+const scope = "History Company · June 2026 · Amazon.com · USD";
 
 async function openHistory(page) {
   const fixture = await mockSupabase(page);

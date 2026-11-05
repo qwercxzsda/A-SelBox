@@ -9,6 +9,7 @@ import { DetailSection } from "./DetailSection";
 import { DetailTable } from "./DetailTable";
 import { formatRecordDate } from "./date-display";
 import { formatAmount } from "./decimal";
+import { payoutMarketplaceLabel } from "./payout-report-scope";
 import {
   DATASET_PRESENTATION,
   TABLE_COLUMNS,
@@ -54,7 +55,7 @@ export function RowDetailContent({
       </Title>
       <Text c="dimmed" size="sm" mb="lg">
         {dataset === "payouts"
-          ? `${companies.get(row.company_id ?? "") ?? "Company"} · ${row.start_date ?? ""} – ${row.end_date ?? ""}${row.currency ? ` · ${row.currency}` : ""}`
+          ? `${companies.get(row.company_id ?? "") ?? "Company"} · ${row.start_date ?? ""} – ${row.end_date ?? ""} · ${payoutMarketplaceLabel(row)}${row.currency ? ` · ${row.currency}` : ""}`
           : "Details for this record."}
       </Text>
       {dataset === "finances" && row.activity_eligible === "false" ? (

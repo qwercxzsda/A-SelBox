@@ -1,7 +1,7 @@
 # Financial review
 
 Financial review is an administrator-only comparison of current facts from fully mature months
-across all source namespaces, companies, marketplaces, and SKUs. It explains source differences; it is not a
+for one exact marketplace across all source namespaces, companies, and SKUs. It explains source differences; it is not a
 company payout. [Payout reports](company_payout_reports.md) freeze company amounts separately.
 Currencies remain separate in both views.
 
@@ -16,7 +16,7 @@ the source of every row in that tab:
 | Data Kiosk | Allocated costs such as advertising and storage | Data Kiosk supplies company costs; Finances supplies account controls.                                                    |
 | SelBox     | Account charges and balance movements           | These source-category amounts stay with SelBox. They exclude retained service fees and the derived Data Kiosk difference. |
 
-Data Kiosk is the initial category. Each month/currency row compares the signed source sums:
+Data Kiosk is the initial category. Each marketplace/month/currency row compares the signed source sums:
 
 ```text
 difference = finances_amount - data_kiosk_amount
@@ -68,32 +68,40 @@ Only the separate monthly Summary control applies that verified grouping.
 
 ## Yearly overview and monthly details
 
-**Year**, **Currency**, and **Fee families** define one shared scope across the three category tabs.
+**Marketplace**, **Year**, and **Fee families** define one shared scope across the three category tabs.
 The **Comparison category** caption identifies Finances, Data Kiosk, and SelBox as accounting
 categories; each category compares Finances with Data Kiosk.
-The initial year is the latest year with fully mature source records and the initial currency is
-USD. Changing the year or category retains the selected currency; if it has no matching records, the view stays empty rather than
-switching currencies. The currency menu includes currencies available in the selected year and
-the current selection. Year options span the available source years, including intervening gaps.
+The initial marketplace is Amazon.com and the initial year is the latest year with fully mature
+records for that marketplace/category. Native channels such as Non-Amazon US and Non-Amazon DE
+remain separate. Currency is an amount unit derived from the selected marketplace's actual period
+rows, never a way to infer the marketplace. With one unit it is shown as a label; a secondary currency
+selector appears when multiple units are available. An explicit unit remains selected even if its
+scope becomes empty. Changing marketplace clears the unit and open month. Automatic selection
+prefers USD when available, then another available unit; it does not add a navigation-history step.
+Opening a month records its actual unit in the same action so its URL and nested selections retain
+that period. Year options span available source years, including gaps.
 
 **Fee families** opens the same checkbox menu used by table Company and SKU filters. Longer lists
 include a search field; searching changes the visible choices without clearing hidden selections.
 Changes apply immediately. **Done** or Escape closes the menu and returns focus to its button.
 **Clear fee families** removes the selection. Selected families are alternatives: choosing
-Monthly storage and Sponsored products includes both, while Year, Currency, and category still
+Monthly storage and Sponsored products includes both, while Marketplace, Year, amount unit, and category still
 intersect that selection. An empty selection includes all families; a nonempty selection with no
-matching source types stays empty. Selections remain when changing year, currency, or category,
+matching source types stays empty. Selections remain when changing marketplace, year, currency, or category,
 including families absent from the new scope. Saved preferences and `family=` URL parameters
 resolve retired IDs to their current family, deduplicate them, and retain the filtered scope through
 reload and Back/Forward navigation. For example, `product-sales` and `product-refunds` both resolve
 to `net-product-sales`; they do not become an unrestricted selection.
+`reviewMarketplace` is a scalar URL field, separate from repeated transaction marketplace filters.
+Saved report links additionally require their exact marketplace, company, dates, currency, and ID.
+Currency never implies a marketplace.
 
 The overview shows up to twelve monthly rows, January through December, without row pagination or
 a separate month filter. Each row shows the monthly source sums, monthly difference, and
 **Running difference**: the exact sum of monthly differences from the start of the selected year
 through that row. Missing months have no row; the running sum includes only returned source facts.
 Period totals, the **Monthly and running differences** chart, and the monthly rows use the same year,
-currency, category, and family selection. The optional **Fee family breakdown** shows each named
+marketplace, currency, category, and family selection. The optional **Fee family breakdown** shows each named
 family's source sums and difference across that period. Offsetting differences can reduce a running
 total, but this does not prove that earlier captures converged or that individual source discrepancies
 were resolved.
@@ -129,12 +137,12 @@ decimal values before display rounding; chart coordinates are only a visual appr
 family aggregates cannot be reconciled with the monthly totals, the chart keeps the total series
 and explains that the family series are unavailable, with a retry action.
 
-Selecting a month opens its totals and **Amounts by type** in a drawer, with the overview's currency
+Selecting a month opens its totals and **Amounts by type** in a drawer, with the overview's marketplace, currency
 and selected families retained throughout current totals, types, and source records. The saved-report
-list retains the month and currency but each saved report keeps its complete historical scope.
-Choosing a type opens and focuses records for the same category, month, currency, selected families,
+list retains the month, marketplace, and currency but each saved report keeps its complete historical scope.
+Choosing a type opens and focuses records for the same category, month, marketplace, currency, selected families,
 source, and exact raw type. Type and record tables use 50-row pages. Source-filter state is saved
-separately for each category, month, currency, and selected family scope. Changing Year, Currency,
+separately for each category, month, marketplace, currency, and selected family scope. Changing Marketplace, Year, Currency,
 or Fee families closes the monthly drawer. **Previous** and **Next** within the
 drawer move to older and newer available months of that year. A type's sum and count cover all
 matching records, independently of the loaded record page.
@@ -151,7 +159,7 @@ remains explicit. These are current
 source facts without company allocation or fee joins. A difference at account or category level
 does not attribute a discrepancy to a particular SKU, transaction, campaign, or blank marketplace.
 
-Year, currency, category, selected families, selected month, source filters, detail pages, and
+Marketplace, year, currency, category, selected families, selected month, source filters, detail pages, and
 expanded sections survive reloads. Only view state is saved; amounts are fetched again. Lightweight source revision checks
 and maturity-policy changes refresh current comparisons, including an open drawer.
 
@@ -219,7 +227,7 @@ family's defined counterpart.
 
 Both yearly and monthly family tables put the largest absolute difference first, retaining zero-value
 types and groups whose records cancel to zero. The yearly **Show only** action selects that family
-while preserving category, year, and currency, and returns focus to the overview.
+while preserving marketplace, category, year, and currency, and returns focus to the overview.
 
 **Source coverage** distinguishes a **Finances-only family** or **Data Kiosk-only family**, as defined
 by the catalog, from a paired family with no rows from an expected source in this scope. Paired
@@ -230,7 +238,7 @@ Source coverage does not establish agreement in billing dates, tax treatment, al
 completeness. Source-only amounts represent unmatched coverage; neither their nonzero differences
 nor a family's ranking establish an accounting error or missing import.
 
-Family amounts are calculated from complete type aggregates for the selected category, currency,
+Family amounts are calculated from complete type aggregates for the selected marketplace, category, currency,
 and month or year, never from a partial displayed type page or downloaded raw records. Reads page
 through the existing type-total RPC using exact counts, with at most 50,000 aggregate groups and
 200 requests. Incomplete, inconsistent, invalid, or over-limit responses show a load failure rather
@@ -252,16 +260,16 @@ month maturity, company ownership and fee configuration.
 ## Saved report snapshots
 
 Each month's expandable **Saved report snapshots** section lists saved company reports and their
-earlier versions. This section stays scoped to its month and the selected review currency, while
+earlier versions. This section stays scoped to its month, marketplace, and selected amount unit, while
 preserving its company filter independently of the current category comparison. The current fee-family
 selection does not alter a saved snapshot's amounts or supporting records; the section identifies
-that historical scope explicitly.
+that historical scope explicitly. This list remains limited to the selected marketplace.
 
 Selecting a snapshot opens **Saved source details**, including **Supporting records**, saved
 account reconciliation, and input metadata captured when that report was created. These details are exclusive of the company
-payout amount. Account controls can include other companies from the source accounts; the selected
-review currency filters their totals and daily details, while their account scope remains separate
-from the report's company scope.
+payout amount. Account controls can include other companies from the source accounts. Reports
+save controls for their exact marketplace/currency. Details use the selected report's own currency, while account scope remains
+separate from the report's company scope.
 
 Saved account controls remain immutable. The same controls can appear beside several company
 reports, so they must not be added across reports. The [saved reconciliation contract](company_payout_reports.md#saved-account-reconciliation)
@@ -270,24 +278,24 @@ input manifests through the API.
 
 ## Read contract
 
-| Interface                                                                                | Purpose                                                                                                                  |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `public.financial_review_records`                                                        | Current mature facts in the three monetary categories, with exact source provenance.                                     |
-| `public.financial_review_totals(p_month_from, p_month_to, p_category)`                   | Monthly sums, differences, and source record counts by currency.                                                         |
-| `public.financial_review_type_totals(p_month_from, p_month_to, p_category, p_currency)`  | Exact sums and counts by source and raw type.                                                                            |
-| `public.financial_source_record(p_source, p_row_id, p_version_id)`                       | Exact retained source detail, with no version substitution; administrator-only.                                          |
-| `public.financial_source_transaction_lookup(p_native_transaction_id, p_limit, p_offset)` | Exact Finances native-ID component lookup across retained captures; administrator-only and bounded to 100 rows per call. |
-| `public.payout_reconciliation_totals`                                                    | Frozen account controls for one selected saved report, grouped by currency.                                              |
-| `public.payout_report_reconciliation`                                                    | Frozen daily account controls and their source provenance.                                                               |
+| Interface                                                                                              | Purpose                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `public.financial_review_records`                                                                      | Current mature facts in the three monetary categories, filtered by exact marketplace with source provenance.             |
+| `public.financial_review_totals(p_month_from, p_month_to, p_category, p_marketplace)`                  | Monthly sums, differences, and source record counts by currency within one marketplace.                                  |
+| `public.financial_review_type_totals(p_month_from, p_month_to, p_category, p_currency, p_marketplace)` | Exact sums and counts by source and raw type within one marketplace.                                                     |
+| `public.financial_source_record(p_source, p_row_id, p_version_id)`                                     | Exact retained source detail, with no version substitution; administrator-only.                                          |
+| `public.financial_source_transaction_lookup(p_native_transaction_id, p_limit, p_offset)`               | Exact Finances native-ID component lookup across retained captures; administrator-only and bounded to 100 rows per call. |
+| `public.payout_reconciliation_totals`                                                                  | Frozen account controls for one selected saved report, grouped by currency.                                              |
+| `public.payout_report_reconciliation`                                                                  | Frozen daily account controls and their source provenance.                                                               |
 
 Current-source interfaces use invoker security and an explicit administrator check. Month RPCs require
-half-open date bounds and apply those bounds before grouping, with existing fact-date indexes.
+half-open date bounds and an exact marketplace, applied before grouping with existing fact-date indexes.
 The browser reads the earliest and latest eligible dates with one-row date anchors, then requests
-one bounded January-to-January period. The period response includes every currency to populate the
-currency menu; only the selected currency enters displayed totals and running sums. Complete type
-aggregates for that year and currency provide the family choices and breakdown. When families are
+one bounded January-to-January period for the selected marketplace. The period response includes
+its currencies to resolve the amount unit; only that unit enters displayed totals and running sums. Complete type
+aggregates for that marketplace, year, and currency provide the family choices and breakdown. When families are
 selected, their aggregate union supplies the monthly, running, and period amounts. Monthly detail
-reads also filter by the selected currency and family source/type identities. Finding the date bounds
+reads also filter by the exact marketplace, currency, and family source/type identities. Finding the date bounds
 can still examine source rows; bounded result size is not a constant-time guarantee.
 
 CSV responses preserve decimal strings. Aggregate RPC projections are alphabetically ordered to

@@ -21,8 +21,8 @@ _SCALAR_COLUMNS = {
     "private.data_kiosk_days": True,
     "private.data_kiosk_transactions": True,
     "public.company_payout_report_components": False,
+    "public.company_payout_reports": False,
 }
-_REPORTS = "public.company_payout_reports"
 _INVALID_LABELS = ("Unknown marketplace", "", " ", "amazon.com", " Amazon.com", "Amazon.com ")
 
 
@@ -30,13 +30,13 @@ class MarketplaceContractTests(SourceModelFixture):
     publish_terms = terms_fixture.CompanyTermsTests.publish_terms
 
     def test_text_columns_and_checks_match_python_labels_and_nullability(self) -> None:
-        relations = [*_SCALAR_COLUMNS, _REPORTS]
+        relations = list(_SCALAR_COLUMNS)
         columns = self.connection.execute(
             "select n.nspname||'.'||c.relname,a.attname,format_type(a.atttypid,a.atttypmod),"
             "a.attnotnull from pg_attribute a join pg_class c on c.oid=a.attrelid "
             "join pg_namespace n on n.oid=c.relnamespace "
             "where c.oid=any(%s::regclass[]) "
-            "and a.attname in ('marketplace_name','marketplace_names')",
+            "and a.attname='marketplace_name'",
             (relations,),
         ).fetchall()
         self.assertCountEqual(
@@ -44,15 +44,14 @@ class MarketplaceContractTests(SourceModelFixture):
             [
                 (relation, "marketplace_name", "text", required)
                 for relation, required in _SCALAR_COLUMNS.items()
-            ]
-            + [(_REPORTS, "marketplace_names", "text[]", True)],
+            ],
         )
         for relation in relations:
             checks = self.connection.execute(
                 "select pg_get_expr(c.conbin,c.conrelid) from pg_constraint c "
                 "join pg_attribute a on a.attrelid=c.conrelid and c.conkey=array[a.attnum] "
                 "where c.conrelid=%s::regclass and c.contype='c' "
-                "and a.attname in ('marketplace_name','marketplace_names')",
+                "and a.attname='marketplace_name'",
                 (relation,),
             ).fetchall()
             labels = {
@@ -85,6 +84,7 @@ class MarketplaceContractTests(SourceModelFixture):
         payload: dict[str, object] = {
             "id": new_id(),
             "company_id": company,
+            "marketplace_name": "Amazon.com",
             "currency": "USD",
             "start_date": "2026-06-01",
             "end_date": "2026-06-30",
@@ -96,43 +96,27 @@ class MarketplaceContractTests(SourceModelFixture):
         return payload
 
     def assert_stored_marketplace_constraints(self, relation: str) -> None:
-        column = "marketplace_names" if relation == _REPORTS else "marketplace_name"
+        column = "marketplace_name"
         query = sql.SQL(
             "insert into {relation} select r.* from {relation} t, lateral "
             "jsonb_populate_record(null::{relation},to_jsonb(t)||%s::jsonb) r limit 1 "
             "returning {column}"
         ).format(relation=sql.Identifier(*relation.split(".")), column=sql.Identifier(column))
         for name in _INVALID_LABELS:
-            value = [name] if relation == _REPORTS else name
+            value = name
             with (
                 self.subTest(relation=relation, value=value),
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
                 self.connection.execute(query, (Jsonb({"id": new_id(), column: value}),))
-        if _SCALAR_COLUMNS.get(relation, True):
+        if _SCALAR_COLUMNS[relation]:
             with (
                 self.subTest(relation=relation, value=None),
                 self.assertRaises(psycopg.errors.NotNullViolation),
                 self.connection.transaction(),
             ):
                 self.connection.execute(query, (Jsonb({"id": new_id(), column: None}),))
-        if relation == _REPORTS:
-            for values in ([None], ["Amazon.com", None]):
-                with (
-                    self.subTest(values=values),
-                    self.assertRaises(psycopg.errors.CheckViolation),
-                    self.connection.transaction(),
-                ):
-                    self.connection.execute(query, (Jsonb({"id": new_id(), column: values}),))
-            for values in ([], sorted(MARKETPLACE_NAMES)):
-                with self.subTest(values=values), self.connection.transaction(force_rollback=True):
-                    self.assertEqual(
-                        self.connection.execute(
-                            query, (Jsonb({"id": new_id(), column: values}),)
-                        ).fetchone(),
-                        (values,),
-                    )
 
     def test_publication_and_direct_storage_preserve_marketplace_boundaries(self) -> None:
         payload = self.publish_marketplace_report()
@@ -148,17 +132,17 @@ class MarketplaceContractTests(SourceModelFixture):
                 ).fetchone(),
                 (0,),
             )
-        for relation in (*_SCALAR_COLUMNS, _REPORTS):
+        for relation in _SCALAR_COLUMNS:
             self.assert_stored_marketplace_constraints(relation)
-        for names in ([None], ["Amazon.com", None], *([name] for name in _INVALID_LABELS)):
+        for name in _INVALID_LABELS:
             with (
-                self.subTest(payout_marketplaces=names),
+                self.subTest(payout_marketplace=name),
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
                 self.call(
                     "publish_company_payout_report",
-                    payload | {"id": new_id(), "marketplace_names": names},
+                    payload | {"id": new_id(), "marketplace_name": name},
                 )
         self.connection.execute("set constraints all immediate")
 

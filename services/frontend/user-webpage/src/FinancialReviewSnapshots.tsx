@@ -1,3 +1,4 @@
+import { reviewPeriodKey } from "./financial-review-scope-key";
 import type { Identity } from "./auth-session";
 import { PayoutReports } from "./PayoutReports";
 import { useWorkspacePreference } from "./use-workspace-preference";
@@ -8,21 +9,28 @@ export function FinancialReviewSnapshots({
   identity,
   month,
   currency,
+  marketplace,
   onRetry,
 }: {
   identity: Identity;
   month: string;
   currency: string;
+  marketplace: string;
   onRetry: () => Promise<void>;
 }) {
   const [view, setView] = useWorkspacePreference(
-    `financial-review:snapshots:${month}:${currency}`,
+    `financial-review:snapshots:${reviewPeriodKey(month, marketplace, currency)}`,
     () => createDatasetViewState("payouts"),
     (value) => decodeDatasetView(value, "payouts"),
   );
   const scoped = (state: DatasetViewState): DatasetViewState => ({
     ...state,
-    filters: { ...state.filters, dateFrom: `${month}-01`, dateTo: `${month}-01` },
+    filters: {
+      ...state.filters,
+      marketplaces: [marketplace],
+      dateFrom: `${month}-01`,
+      dateTo: `${month}-01`,
+    },
   });
   return (
     <PayoutReports
@@ -37,6 +45,7 @@ export function FinancialReviewSnapshots({
       reviewMode
       fixedMonth
       currency={currency}
+      marketplace={marketplace}
     />
   );
 }

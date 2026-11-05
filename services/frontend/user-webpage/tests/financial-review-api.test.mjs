@@ -6,6 +6,7 @@ import { SETTINGS, csvRecord } from "./api-fixtures.mjs";
 const totals = (month = "2026-07-01", currency = "USD") => ({
   month,
   category: "DATA_KIOSK",
+  marketplace_name: "Amazon.com",
   currency,
   finances_amount: "9007199254740993.123456789",
   data_kiosk_amount: "9007199254740993.123456790",
@@ -25,6 +26,7 @@ test("RPC projections align alphabetized CSV headers with exact field values", a
   const type = {
     month: "2026-07-01",
     category: "DATA_KIOSK",
+    marketplace_name: "Amazon.com",
     currency: "AUD",
     source: "FINANCES",
     component_type: "ADVERTISING",
@@ -41,16 +43,36 @@ test("RPC projections align alphabetized CSV headers with exact field values", a
     return new Response(header + "\n" + values, { headers: { "Content-Range": "0-0/1" } });
   });
   assert.deepEqual(
-    { ...(await client.fetchFinancialReviewTotals("access", "DATA_KIOSK", "2026-07", "AUD"))[0] },
-    total,
-  );
-  assert.deepEqual(
-    { ...(await client.fetchFinancialReviewPeriod("access", "DATA_KIOSK", "2026"))[0] },
+    {
+      ...(
+        await client.fetchFinancialReviewTotals(
+          "access",
+          "DATA_KIOSK",
+          "2026-07",
+          "AUD",
+          "Amazon.com",
+        )
+      )[0],
+    },
     total,
   );
   assert.deepEqual(
     {
-      ...(await client.fetchFinancialReviewTypes("access", "DATA_KIOSK", "2026-07", "AUD")).rows[0],
+      ...(await client.fetchFinancialReviewPeriod("access", "DATA_KIOSK", "2026", "Amazon.com"))[0],
+    },
+    total,
+  );
+  assert.deepEqual(
+    {
+      ...(
+        await client.fetchFinancialReviewTypes(
+          "access",
+          "DATA_KIOSK",
+          "2026-07",
+          "AUD",
+          "Amazon.com",
+        )
+      ).rows[0],
     },
     type,
   );
@@ -65,6 +87,7 @@ test("bounds read only the first and last activity date across currencies withou
     requests.push(Object.fromEntries(params));
     assert.equal(parsed.pathname, "/rest/v1/financial_review_records");
     assert.equal(params.get("category"), "eq.DATA_KIOSK");
+    assert.equal(params.get("marketplace_name"), "eq.Amazon.com");
     assert.equal(params.get("select"), "activity_date");
     assert.equal(params.get("limit"), "1");
     assert.equal(params.has("currency"), false);
@@ -77,7 +100,12 @@ test("bounds read only the first and last activity date across currencies withou
     );
   });
   assert.deepEqual(
-    await client.fetchFinancialReviewBounds("access", "DATA_KIOSK", controller.signal),
+    await client.fetchFinancialReviewBounds(
+      "access",
+      "DATA_KIOSK",
+      "Amazon.com",
+      controller.signal,
+    ),
     {
       firstMonth: "2024-02",
       lastMonth: "2026-10",
@@ -99,6 +127,7 @@ test("year reads make one bounded request for all currencies while preserving de
     const params = parsed.searchParams;
     assert.equal(parsed.pathname, "/rest/v1/rpc/financial_review_totals");
     assert.equal(params.get("p_category"), "DATA_KIOSK");
+    assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("p_month_from"), "2026-01-01");
     assert.equal(params.get("p_month_to"), "2027-01-01");
     assert.equal(params.get("order"), "month.asc,currency.asc");
@@ -123,6 +152,7 @@ test("year reads make one bounded request for all currencies while preserving de
     "access",
     "DATA_KIOSK",
     "2026",
+    "Amazon.com",
     controller.signal,
   );
   assert.deepEqual(
@@ -136,13 +166,24 @@ test("month totals use the selected currency output filter without inventing an 
   const client = createApiClient(SETTINGS, async (url) => {
     const params = new URL(url).searchParams;
     assert.equal(params.get("p_month_from"), "2026-07-01");
+    assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("p_month_to"), "2026-08-01");
     assert.equal(params.get("currency"), "eq.USD");
     assert.equal(params.has("p_currency"), false);
     return new Response(csvRecord(totals()));
   });
   assert.deepEqual(
-    { ...(await client.fetchFinancialReviewTotals("access", "DATA_KIOSK", "2026-07", "USD"))[0] },
+    {
+      ...(
+        await client.fetchFinancialReviewTotals(
+          "access",
+          "DATA_KIOSK",
+          "2026-07",
+          "USD",
+          "Amazon.com",
+        )
+      )[0],
+    },
     totals(),
   );
 });
@@ -153,6 +194,7 @@ test("type breakdown paginates both sources without merging types or rounding", 
     const params = parsed.searchParams;
     assert.equal(parsed.pathname, "/rest/v1/rpc/financial_review_type_totals");
     assert.equal(params.get("p_category"), "SELBOX");
+    assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("p_month_from"), "2026-07-01");
     assert.equal(params.get("p_month_to"), "2026-08-01");
     assert.equal(params.get("p_currency"), "GBP");
@@ -171,7 +213,14 @@ test("type breakdown paginates both sources without merging types or rounding", 
       { headers: { "Content-Range": "50-50/51" } },
     );
   });
-  const page = await client.fetchFinancialReviewTypes("access", "SELBOX", "2026-07", "GBP", 1);
+  const page = await client.fetchFinancialReviewTypes(
+    "access",
+    "SELBOX",
+    "2026-07",
+    "GBP",
+    "Amazon.com",
+    1,
+  );
   assert.equal(page.totalCount, 51);
   assert.equal(page.rows[0].amount, "-0.0000000001");
   assert.equal(page.rows[0].row_count, "71");
@@ -185,6 +234,7 @@ test("record filters preserve provenance, zero amounts, and leap-month scope", a
     const params = parsed.searchParams;
     assert.equal(parsed.pathname, "/rest/v1/financial_review_records");
     assert.equal(params.get("category"), "eq.SELBOX");
+    assert.equal(params.get("marketplace_name"), "eq.Amazon.com");
     assert.equal(params.get("currency"), "eq.GBP");
     assert.equal(params.get("and"), "(activity_date.gte.2028-02-01,activity_date.lte.2028-02-29)");
     assert.equal(params.get("source"), "eq.FINANCES");
@@ -192,14 +242,7 @@ test("record filters preserve provenance, zero amounts, and leap-month scope", a
     assert.equal(params.get("order"), "activity_date.desc,source.asc,source_row_id.asc");
     assert.equal(params.get("limit"), "50");
     assert.equal(params.get("offset"), "100");
-    for (const key of [
-      "month",
-      "amount",
-      "sku",
-      "company_id",
-      "seller_namespace",
-      "marketplace_name",
-    ])
+    for (const key of ["month", "amount", "sku", "company_id", "seller_namespace"])
       assert.equal(params.has(key), false);
     assert.ok(init.signal instanceof AbortSignal);
     assert.equal(init.headers.Prefer, "count=exact");
@@ -222,6 +265,7 @@ test("record filters preserve provenance, zero amounts, and leap-month scope", a
     "SELBOX",
     "2028-02",
     "GBP",
+    "Amazon.com",
     2,
     { source: "FINANCES", type },
     controller.signal,
@@ -249,14 +293,22 @@ test("record requests may include all contributing sources and types without exc
       "sku",
       "company_id",
       "seller_namespace",
-      "marketplace_name",
     ])
       assert.equal(params.has(key), false);
+    assert.equal(params.get("marketplace_name"), "eq.Amazon.com");
     return new Response("amount\n0\n", { headers: { "Content-Range": "0-0/1" } });
   });
   assert.equal(
-    (await client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "USD", 0)).rows[0]
-      .amount,
+    (
+      await client.fetchFinancialReviewRecords(
+        "access",
+        "FINANCES",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+        0,
+      )
+    ).rows[0].amount,
     "0",
   );
 });
@@ -268,41 +320,101 @@ test("invalid categories, years, months, currencies, record filters and page ind
     return new Response("month\n");
   });
   for (const category of ["ANALYSIS_ONLY", "", "FINANCES,category.eq.SELBOX", null]) {
-    await assert.rejects(client.fetchFinancialReviewBounds("access", category));
-    await assert.rejects(client.fetchFinancialReviewPeriod("access", category, "2026"));
-    await assert.rejects(client.fetchFinancialReviewTotals("access", category, "2026-07", "USD"));
-    assert.throws(() => client.fetchFinancialReviewTypes("access", category, "2026-07", "USD"));
-  }
-  for (const year of [null, undefined, 2026, "", "0000", "26", "02026", "2026-01", "2026,or=(id)"])
-    await assert.rejects(client.fetchFinancialReviewPeriod("access", "FINANCES", year));
-  for (const month of ["2026-13", "2026-7", "2026-07-01", "0000-01", "2026-07,or=(id)"])
-    await assert.rejects(client.fetchFinancialReviewTotals("access", "FINANCES", month, "USD"));
-  for (const currency of [null, undefined, "usd", "", "US", "USD,EUR"]) {
+    await assert.rejects(client.fetchFinancialReviewBounds("access", category, "Amazon.com"));
     await assert.rejects(
-      client.fetchFinancialReviewTotals("access", "FINANCES", "2026-07", currency),
+      client.fetchFinancialReviewPeriod("access", category, "2026", "Amazon.com"),
+    );
+    await assert.rejects(
+      client.fetchFinancialReviewTotals("access", category, "2026-07", "USD", "Amazon.com"),
     );
     assert.throws(() =>
-      client.fetchFinancialReviewTypes("access", "FINANCES", "2026-07", currency),
+      client.fetchFinancialReviewTypes("access", category, "2026-07", "USD", "Amazon.com"),
+    );
+  }
+  for (const year of [null, undefined, 2026, "", "0000", "26", "02026", "2026-01", "2026,or=(id)"])
+    await assert.rejects(
+      client.fetchFinancialReviewPeriod("access", "FINANCES", year, "Amazon.com"),
+    );
+  for (const month of ["2026-13", "2026-7", "2026-07-01", "0000-01", "2026-07,or=(id)"])
+    await assert.rejects(
+      client.fetchFinancialReviewTotals("access", "FINANCES", month, "USD", "Amazon.com"),
+    );
+  for (const currency of [null, undefined, "usd", "", "US", "USD,EUR"]) {
+    await assert.rejects(
+      client.fetchFinancialReviewTotals("access", "FINANCES", "2026-07", currency, "Amazon.com"),
+    );
+    assert.throws(() =>
+      client.fetchFinancialReviewTypes("access", "FINANCES", "2026-07", currency, "Amazon.com"),
     );
   }
   for (const page of [-1, 0.5, Number.MAX_SAFE_INTEGER])
     assert.throws(() =>
-      client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "USD", page),
+      client.fetchFinancialReviewRecords(
+        "access",
+        "FINANCES",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+        page,
+      ),
     );
   for (const filters of [{ source: "SELBOX" }, { type: "" }, { type: "hello\0world" }])
     assert.throws(() =>
-      client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "USD", 0, filters),
+      client.fetchFinancialReviewRecords(
+        "access",
+        "FINANCES",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+        0,
+        filters,
+      ),
     );
   assert.equal(requests, 0);
 });
 
 test("empty bounds and years remain empty without invented months", async () => {
   const empty = createApiClient(SETTINGS, async () => new Response("activity_date\n"));
-  assert.deepEqual(await empty.fetchFinancialReviewBounds("access", "SELBOX"), {
+  assert.deepEqual(await empty.fetchFinancialReviewBounds("access", "SELBOX", "Amazon.com"), {
     firstMonth: null,
     lastMonth: null,
   });
-  assert.deepEqual(await empty.fetchFinancialReviewPeriod("access", "SELBOX", "2026"), []);
+  assert.deepEqual(
+    await empty.fetchFinancialReviewPeriod("access", "SELBOX", "2026", "Amazon.com"),
+    [],
+  );
+});
+
+test("a marketplace must be explicit and valid for every review read", async () => {
+  const client = createApiClient(SETTINGS, () => assert.fail("Invalid scope must not query"));
+  for (const marketplace of [
+    undefined,
+    null,
+    "",
+    "Germany",
+    "Amazon.de,Amazon.fr",
+    "Amazon.de\0",
+  ]) {
+    await assert.rejects(client.fetchFinancialReviewBounds("access", "FINANCES", marketplace));
+    await assert.rejects(
+      client.fetchFinancialReviewPeriod("access", "FINANCES", "2026", marketplace),
+    );
+    await assert.rejects(
+      client.fetchFinancialReviewTotals("access", "FINANCES", "2026-07", "EUR", marketplace),
+    );
+    await assert.rejects(
+      client.fetchFinancialReviewPeriodTypes("access", "FINANCES", "2026", "EUR", marketplace),
+    );
+    await assert.rejects(
+      client.fetchFinancialReviewFamilyTypes("access", "FINANCES", "2026-07", "EUR", marketplace),
+    );
+    assert.throws(() =>
+      client.fetchFinancialReviewTypes("access", "FINANCES", "2026-07", "EUR", marketplace),
+    );
+    assert.throws(() =>
+      client.fetchFinancialReviewRecords("access", "FINANCES", "2026-07", "EUR", marketplace, 0),
+    );
+  }
 });
 
 test("malformed, inconsistent or oversized date anchors fail closed", async () => {
@@ -321,7 +433,7 @@ test("malformed, inconsistent or oversized date anchors fail closed", async () =
             (new URL(url).searchParams.get("order") === "activity_date.asc" ? first : last),
         ),
     );
-    await assert.rejects(client.fetchFinancialReviewBounds("access", "FINANCES"));
+    await assert.rejects(client.fetchFinancialReviewBounds("access", "FINANCES", "Amazon.com"));
   }
 });
 
@@ -334,16 +446,20 @@ test("year and month results reject wrong scope, duplicate currencies, invalid d
     [totals("not-a-date")],
     [totals("2026-07-01", "usd")],
     [totals("2026-07-01", null)],
+    [{ ...totals(), marketplace_name: "Amazon.ca" }],
+    [{ ...totals(), marketplace_name: null }],
     [totals(), totals()],
     Array.from({ length: 1000 }, () => totals()),
   ]) {
     const client = createApiClient(SETTINGS, async () => new Response(csvRows(rows)));
-    await assert.rejects(client.fetchFinancialReviewPeriod("access", "DATA_KIOSK", "2026"));
+    await assert.rejects(
+      client.fetchFinancialReviewPeriod("access", "DATA_KIOSK", "2026", "Amazon.com"),
+    );
   }
   for (const row of [totals("2026-06-01"), totals("2026-07-01", "JPY")]) {
     const client = createApiClient(SETTINGS, async () => new Response(csvRecord(row)));
     await assert.rejects(
-      client.fetchFinancialReviewTotals("access", "DATA_KIOSK", "2026-07", "USD"),
+      client.fetchFinancialReviewTotals("access", "DATA_KIOSK", "2026-07", "USD", "Amazon.com"),
     );
   }
 });
@@ -359,7 +475,10 @@ test("year endpoints remain bounded at the supported calendar limits", async () 
       assert.equal(params.get("p_month_to"), end);
       return new Response("month,currency\n");
     });
-    assert.deepEqual(await client.fetchFinancialReviewPeriod("access", "FINANCES", year), []);
+    assert.deepEqual(
+      await client.fetchFinancialReviewPeriod("access", "FINANCES", year, "Amazon.com"),
+      [],
+    );
   }
 });
 
@@ -369,7 +488,7 @@ test("new bounded reads preserve permission and cancellation errors", async () =
     async () => new Response("private server details", { status: 403 }),
   );
   await assert.rejects(
-    denied.fetchFinancialReviewPeriod("access", "FINANCES", "2026"),
+    denied.fetchFinancialReviewPeriod("access", "FINANCES", "2026", "Amazon.com"),
     (error) => error.status === 403 && !error.message.includes("private server details"),
   );
   const controller = new AbortController();
@@ -378,11 +497,18 @@ test("new bounded reads preserve permission and cancellation errors", async () =
     init.signal.throwIfAborted();
   });
   await assert.rejects(
-    cancelled.fetchFinancialReviewBounds("access", "FINANCES", controller.signal),
+    cancelled.fetchFinancialReviewBounds("access", "FINANCES", "Amazon.com", controller.signal),
     (error) => error.name === "AbortError",
   );
   await assert.rejects(
-    cancelled.fetchFinancialReviewTotals("access", "FINANCES", "2026-07", "USD", controller.signal),
+    cancelled.fetchFinancialReviewTotals(
+      "access",
+      "FINANCES",
+      "2026-07",
+      "USD",
+      "Amazon.com",
+      controller.signal,
+    ),
     (error) => error.name === "AbortError",
   );
 });

@@ -1,3 +1,4 @@
+import { reviewPeriodKey } from "./financial-review-scope-key";
 import { useRef } from "react";
 import { Button, Group, NativeSelect } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
@@ -23,12 +24,13 @@ export function FinancialReviewRecords({
   month,
   matureCutoff,
   currency,
+  marketplace,
   families,
   state,
   change,
 }: FinancialReviewSourceProps) {
   const [selection, setSelection] = useWorkspacePreference<FinancialSourceSelection | null>(
-    `financial-review:source-detail:${category}:${month}:${currency}${reviewFamilyStateKey(families)}`,
+    `financial-review:source-detail:${category}:${reviewPeriodKey(month, marketplace, currency)}${reviewFamilyStateKey(families)}`,
     () => null,
     decodeFinancialSourceSelection,
   );
@@ -44,6 +46,7 @@ export function FinancialReviewRecords({
       month,
       matureCutoff,
       currency,
+      marketplace,
       families,
       state.source,
       state.type,
@@ -55,6 +58,7 @@ export function FinancialReviewRecords({
         category,
         month,
         currency,
+        marketplace,
         state.recordPage,
         { source: state.source || undefined, type: state.type || undefined },
         signal,

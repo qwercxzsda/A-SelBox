@@ -5,7 +5,7 @@ import { applyReportMonth, selectColumnOptions, columnTrigger } from "./table-ac
 const COMPANY = "0198b50b-701a-7000-8000-000000000001";
 const OTHER_COMPANY = "0198b50b-701a-7000-8000-000000000002";
 const COMPANY_NAME = "Monthly Company";
-const scope = `${COMPANY_NAME} · June 2026 · USD`;
+const scope = `${COMPANY_NAME} · June 2026 · Amazon.com · USD`;
 const historyReads = (fixture) =>
   fixture.requests.filter(({ endpoint }) => endpoint === "/rest/v1/company_payout_reports");
 
@@ -236,8 +236,15 @@ test("currency-free zero reports load only currency-free history", async ({ page
   fixture.companyIds["member-a"] = COMPANY;
   fixture.companyNames[COMPANY] = COMPANY_NAME;
   fixture.payoutRows = [
-    report(1, { currency: null, source_amount: "0", fee_amount: "0", company_amount: "0" }),
+    report(1, {
+      marketplace_name: null,
+      currency: null,
+      source_amount: "0",
+      fee_amount: "0",
+      company_amount: "0",
+    }),
     report(2, {
+      marketplace_name: null,
       currency: null,
       source_amount: "0",
       fee_amount: "0",
@@ -248,7 +255,7 @@ test("currency-free zero reports load only currency-free history", async ({ page
   ];
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  const zeroScope = `${COMPANY_NAME} · June 2026 · No currency`;
+  const zeroScope = `${COMPANY_NAME} · June 2026 · Not specified · No currency`;
   await page.getByRole("button", { name: `Show versions for ${zeroScope}`, exact: true }).click();
   const history = page.getByRole("region", {
     name: `Report versions for ${zeroScope}`,

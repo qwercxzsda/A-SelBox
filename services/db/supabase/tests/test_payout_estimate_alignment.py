@@ -28,12 +28,19 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         )
 
     def assert_same_basis(self, company: str, user: str, report: str, currency: str) -> None:
+        scope = self.connection.execute(
+            "select marketplace_name from public.company_payout_reports where id=%s", (report,)
+        ).fetchone()
+        self.assertIsNotNone(scope)
+        marketplace = cast(tuple[str], scope)[0]
+        self.assertIsNotNone(marketplace)
         for grouped in (False, True):
             estimate = self.as_user(
                 user,
                 "select public.transaction_totals('2026-06-01','2026-06-30',"
-                "array[%s]::uuid[],p_currency=>%s,p_group_by_type=>%s)",
-                (company, currency, grouped),
+                "array[%s]::uuid[],p_marketplaces=>array[%s]::text[],"
+                "p_currency=>%s,p_group_by_type=>%s)",
+                (company, marketplace, currency, grouped),
             )[0][0]
             self.assertEqual(self.read_payout_totals(user, report, grouped=grouped), estimate)
         page = cast(
@@ -41,8 +48,9 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             self.as_user(
                 user,
                 "select public.transaction_page(p_limit=>1000,p_date_from=>'2026-06-01',"
-                "p_date_to=>'2026-06-30',p_company_ids=>array[%s]::uuid[],p_currency=>%s)",
-                (company, currency),
+                "p_date_to=>'2026-06-30',p_company_ids=>array[%s]::uuid[],"
+                "p_marketplaces=>array[%s]::text[],p_currency=>%s)",
+                (company, marketplace, currency),
             )[0][0],
         )
         live = {
@@ -105,7 +113,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
                 "where report_id=%s",
                 (headers[1][0],),
             ).fetchone(),
-            (3,),
+            (2,),
         )
         other, _ = self.owner("OTHER")
         self.assertEqual(self.read_payout_totals(self.member(other), headers[0][0])["rows"], [])
@@ -146,16 +154,19 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.publish_market_month("Amazon.com")
         self.seller = "seller-japan"
         self.publish_market_month("Amazon.co.jp", version="v2")
-        report = generate_payout_reports(self, company)[0][0]
-        self.assertEqual(
-            self.connection.execute(
-                "select source_amount,data_kiosk_version_count,marketplace_names "
-                "from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone(),
-            (Decimal(-2), 60, ["Amazon.co.jp", "Amazon.com"]),
-        )
-        self.assert_same_basis(company, self.member(company), report, "USD")
+        reports = generate_payout_reports(self, company)
+        self.assertEqual(len(reports), 2)
+        member = self.member(company)
+        for (report, _), marketplace in zip(reports, ("Amazon.co.jp", "Amazon.com"), strict=True):
+            self.assertEqual(
+                self.connection.execute(
+                    "select source_amount,data_kiosk_version_count,marketplace_name "
+                    "from public.company_payout_reports where id=%s",
+                    (report,),
+                ).fetchone(),
+                (Decimal(-1), 60, marketplace),
+            )
+            self.assert_same_basis(company, member, report, "USD")
         self.connection.execute("set constraints all immediate")
 
     def test_incomplete_namespace_cannot_hide_behind_another_complete_namespace(self) -> None:

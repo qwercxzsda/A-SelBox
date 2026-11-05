@@ -62,9 +62,6 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         )
         other = self.member(self.company_without_skus())
         self.assertEqual(self.as_user(other, "select * from public.company_payout_reports"), [])
-        self.assertEqual(
-            self.as_user(member, "select * from public.payout_report_marketplace_totals"), []
-        )
         self.connection.execute("set constraints all immediate")
 
     def test_available_empty_versions_and_terms_are_pinned_until_generation_runs(

@@ -109,12 +109,14 @@ export function FinancialReviewFamilyBreakdown({
   query,
   category,
   currency,
+  marketplace,
   families,
   onSelectFamily,
 }: {
   query: UseQueryResult<CanonicalRow[]>;
   category: string;
   currency: string;
+  marketplace: string;
   families: readonly string[];
   onSelectFamily: (family: string) => void;
 }) {
@@ -130,7 +132,7 @@ export function FinancialReviewFamilyBreakdown({
         query={query}
         label="fee family breakdown"
         rowCount={rows.length}
-        emptyMessage="No source types match these fee families for this year and currency."
+        emptyMessage={`No source types match these fee families for ${marketplace} in this year and currency.`}
       >
         <FeeFamilyTable
           rows={rows}
@@ -149,6 +151,7 @@ export function FinancialReviewFamilies({
   month,
   matureCutoff,
   currency,
+  marketplace,
   families,
 }: FinancialReviewMonthScope) {
   const query = useQuery({
@@ -158,6 +161,7 @@ export function FinancialReviewFamilies({
       month,
       matureCutoff,
       currency,
+      marketplace,
     }),
     select: (rows) => buildFinancialReviewFamilies(rows, families),
   });

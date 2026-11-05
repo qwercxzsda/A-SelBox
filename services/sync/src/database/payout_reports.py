@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import cast
 from uuid import uuid7
 
 from ..amazon.marketplace_names import validate_marketplace_name
@@ -23,7 +22,7 @@ from .values import normalize_uuid, required_date, required_text
 
 @dataclass(frozen=True, slots=True)
 class CompanyPayoutReport:
-    """One saved company/month aggregate across sources, separated only by currency."""
+    """One exact company/month/marketplace snapshot with a separate currency unit."""
 
     id: str
     company_id: str
@@ -31,7 +30,7 @@ class CompanyPayoutReport:
     start_date: date
     end_date: date
     dataset_key: str
-    marketplace_names: tuple[str, ...]
+    marketplace_name: str | None
     report_name: str
     change_reason: str
     calculation_version: str
@@ -97,6 +96,7 @@ def publish_company_payout_report(
     database: DatabaseConnection,
     *,
     company_id: str,
+    marketplace_name: str | None,
     currency: str | None,
     start_date: date,
     end_date: date,
@@ -106,7 +106,9 @@ def publish_company_payout_report(
 ) -> str:
     """Save or reuse monetary amounts, supporting details, and exact source evidence.
 
-    The database discovers all company source namespaces and validates coverage
+    The explicit marketplace may be null for an unspecified or empty scope.
+    Currency remains a separate unit within that marketplace. The database
+    discovers all company source namespaces and validates coverage
     before computing amounts. No source selection or amounts come from callers.
     Matching immutable inputs return the latest report's identity. A null currency
     is valid only for an empty monetary aggregate with no known currency. At least
@@ -125,6 +127,9 @@ def publish_company_payout_report(
     payload = {
         "id": str(uuid7()),
         "company_id": normalize_uuid(company_id, "company_id"),
+        "marketplace_name": (
+            None if marketplace_name is None else validate_marketplace_name(marketplace_name)
+        ),
         "currency": None if currency is None else financial_currency(currency),
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
@@ -147,7 +152,7 @@ def load_company_payout_report(
         cursor.execute(
             """
             select id, company_id, currency, start_date, end_date,
-                dataset_key, marketplace_names, report_name,
+                dataset_key, marketplace_name, report_name,
                 change_reason, calculation_version, component_count, reconciliation_count,
                 finances_version_count, data_kiosk_version_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at
@@ -207,6 +212,11 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
     calculation_version = required_text(row[9], "calculation_version")
     if calculation_version != "v1":
         raise RuntimeError("Unsupported payout calculation version.")
+    marketplace_name = (
+        None
+        if row[6] is None
+        else validate_marketplace_name(required_text(row[6], "marketplace_name"))
+    )
     report = CompanyPayoutReport(
         id=normalize_uuid(row[0], "id"),
         company_id=normalize_uuid(row[1], "company_id"),
@@ -214,7 +224,7 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
         start_date=required_date(row[3], "start_date"),
         end_date=required_date(row[4], "end_date"),
         dataset_key=required_text(row[5], "dataset_key"),
-        marketplace_names=_marketplaces(row[6]),
+        marketplace_name=marketplace_name,
         report_name=required_text(row[7], "report_name"),
         change_reason=required_text(row[8], "change_reason"),
         calculation_version=calculation_version,
@@ -235,7 +245,6 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
             report.source_amount,
             report.fee_amount,
             report.company_amount,
-            report.marketplace_names,
         )
     ):
         raise RuntimeError("A payout without a currency must be an empty aggregate.")
@@ -315,13 +324,4 @@ def _reconciliation(row: Sequence[object]) -> CompanyPayoutReconciliation:
         difference=financial_amount(row[10], "difference"),
         finances_total=financial_amount(row[11], "finances_total"),
         accounted_total=financial_amount(row[12], "accounted_total"),
-    )
-
-
-def _marketplaces(value: object) -> tuple[str, ...]:
-    if not isinstance(value, list):
-        raise RuntimeError("marketplace_names must be an array.")
-    return tuple(
-        validate_marketplace_name(required_text(item, "marketplace_name"))
-        for item in cast(list[object], value)
     )

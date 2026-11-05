@@ -10,22 +10,34 @@ import {
 
 const row = (month, difference, currency = "USD") => ({
   month: `${month}-01`,
+  marketplace_name: "Amazon.com",
   currency,
   difference,
   finances_amount: "100.004",
   data_kiosk_amount: "99.996",
 });
 
-test("review scope persists shared year, currency and families and defaults to all families", () => {
-  assert.deepEqual(createReviewScope(), { year: "", currency: "USD", families: [] });
+test("review scope persists marketplace with its amount unit and defaults to automatic currency", () => {
+  assert.deepEqual(createReviewScope(), {
+    year: "",
+    marketplace: "Amazon.com",
+    currency: "",
+    families: [],
+  });
   assert.deepEqual(decodeReviewScope(null), createReviewScope());
   assert.deepEqual(
-    decodeReviewScope({ year: "2024", currency: "JPY", rows: [row("2024-01", "999")] }),
-    { year: "2024", currency: "JPY", families: [] },
+    decodeReviewScope({
+      year: "2024",
+      marketplace: "Amazon.co.jp",
+      currency: "JPY",
+      rows: [row("2024-01", "999")],
+    }),
+    { year: "2024", marketplace: "Amazon.co.jp", currency: "JPY", families: [] },
   );
   for (const year of ["0001", "2026", "9999"])
-    assert.deepEqual(decodeReviewScope({ year, currency: "EUR" }), {
+    assert.deepEqual(decodeReviewScope({ year, marketplace: "Amazon.de", currency: "EUR" }), {
       year,
+      marketplace: "Amazon.de",
       currency: "EUR",
       families: [],
     });
@@ -33,23 +45,55 @@ test("review scope persists shared year, currency and families and defaults to a
 
 test("invalid persisted year or currency falls back independently without becoming a query filter", () => {
   for (const year of [null, 2026, "0000", "26", "02026", "2026-01", "2026,or=(id)"])
-    assert.deepEqual(decodeReviewScope({ year, currency: "JPY" }), {
+    assert.deepEqual(decodeReviewScope({ year, marketplace: "Amazon.co.jp", currency: "JPY" }), {
       year: "",
+      marketplace: "Amazon.co.jp",
       currency: "JPY",
       families: [],
     });
   for (const currency of [null, 123, "", "usd", "USD,EUR", "US", "USD\0"])
-    assert.deepEqual(decodeReviewScope({ year: "2026", currency }), {
+    assert.deepEqual(decodeReviewScope({ year: "2026", marketplace: "Amazon.de", currency }), {
       year: "2026",
-      currency: "USD",
+      marketplace: "Amazon.de",
+      currency: "",
       families: [],
     });
+});
+
+test("missing or invalid marketplace scopes never infer a marketplace from currency", () => {
+  for (const marketplace of [undefined, null, "", "Germany", "Amazon.de\0", 123]) {
+    assert.deepEqual(
+      decodeReviewScope({
+        year: "2026",
+        marketplace,
+        currency: "EUR",
+        families: ["monthly-storage"],
+      }),
+      {
+        year: "2026",
+        marketplace: "Amazon.com",
+        currency: "",
+        families: ["monthly-storage"],
+      },
+    );
+  }
+  for (const marketplace of ["Amazon.de", "Amazon.fr", "Non-Amazon DE"]) {
+    assert.deepEqual(decodeReviewScope({ marketplace, currency: "EUR" }), {
+      year: "",
+      marketplace,
+      currency: "EUR",
+      families: [],
+    });
+  }
+  assert.equal(decodeReviewScope({ marketplace: "Amazon.de" }).currency, "");
+  assert.equal(decodeReviewScope({ marketplace: "Amazon.de", currency: "JPY" }).currency, "JPY");
 });
 
 test("family scope keeps a canonical union and discards malformed saved values", () => {
   assert.deepEqual(
     decodeReviewScope({
       year: "2026",
+      marketplace: "Amazon.com",
       currency: "USD",
       families: [
         "sponsored-products",
@@ -61,6 +105,7 @@ test("family scope keeps a canonical union and discards malformed saved values",
     }),
     {
       year: "2026",
+      marketplace: "Amazon.com",
       currency: "USD",
       families: ["monthly-storage", "sponsored-products"],
     },
@@ -70,6 +115,14 @@ test("family scope keeps a canonical union and discards malformed saved values",
 test("monthly selection survives reload without retaining amounts or obsolete cursor state", () => {
   assert.deepEqual(createMonthlyReviewView(), { selectedMonth: null });
   assert.deepEqual(decodeMonthlyReviewView(null), createMonthlyReviewView());
+  assert.deepEqual(decodeMonthlyReviewView({ selectedMonth: "2026-07", currency: "EUR" }), {
+    selectedMonth: "2026-07",
+    currency: "EUR",
+  });
+  for (const currency of [null, "", "eur", "EUR,USD", 123])
+    assert.deepEqual(decodeMonthlyReviewView({ selectedMonth: "2026-07", currency }), {
+      selectedMonth: "2026-07",
+    });
   assert.deepEqual(
     decodeMonthlyReviewView({
       selectedMonth: "2024-09",
@@ -140,4 +193,15 @@ test("timeline rejects malformed months, duplicate months, mixed years and unkno
   ])
     assert.throws(() => buildFinancialReviewTimeline(rows, "USD"));
   assert.throws(() => buildFinancialReviewTimeline([], "usd"));
+  assert.throws(
+    () =>
+      buildFinancialReviewTimeline(
+        [
+          { ...row("2026-01", "1", "EUR"), marketplace_name: "Amazon.de" },
+          { ...row("2026-02", "2", "EUR"), marketplace_name: "Amazon.fr" },
+        ],
+        "EUR",
+      ),
+    /marketplace/,
+  );
 });

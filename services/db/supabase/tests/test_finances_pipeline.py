@@ -7,7 +7,10 @@ from typing import cast
 import psycopg
 
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
+from services.db.supabase.tests.payout_fixtures import (
+    fill_payout_kiosk_month,
+    generate_payout_reports,
+)
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
@@ -339,35 +342,29 @@ class FinancesPipelineTests(SourceModelFixture):
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         fill_payout_kiosk_month(self)
-        report = self.call(
-            "publish_company_payout_report",
-            {
-                "id": new_id(),
-                "company_id": company,
-                "currency": "USD",
-                "start_date": "2026-06-01",
-                "end_date": "2026-06-30",
-                "dataset_key": "economics",
-                "report_name": "Native channels",
-                "change_reason": "Exact retail Summary control",
-            },
-        )
+        reports = generate_payout_reports(self, company)
+        self.assertEqual(len(reports), 2)
         self.assertEqual(
             self.connection.execute(
-                "select source_amount,fee_amount,company_amount,"
+                "select marketplace_name,source_amount,fee_amount,company_amount,"
                 "finances_version_count,data_kiosk_version_count "
-                "from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone(),
-            (Decimal("80"), Decimal("-5"), Decimal("75"), 60, 30),
+                "from public.company_payout_reports where company_id=%s order by marketplace_name",
+                (company,),
+            ).fetchall(),
+            [
+                ("Amazon.com", Decimal(100), Decimal(-5), Decimal(95), 60, 30),
+                ("Non-Amazon US", Decimal(-20), Decimal(0), Decimal(-20), 60, 30),
+            ],
         )
         self.assertEqual(
             self.connection.execute(
-                "select distinct marketplace_name from public.company_payout_report_components "
-                "where report_id=%s order by marketplace_name",
-                (report,),
+                "select distinct c.marketplace_name,r.marketplace_name "
+                "from public.company_payout_report_components c "
+                "join public.company_payout_reports r on r.id=c.report_id "
+                "where r.company_id=%s order by c.marketplace_name",
+                (company,),
             ).fetchall(),
-            [("Amazon.com",), ("Non-Amazon US",)],
+            [("Amazon.com", "Amazon.com"), ("Non-Amazon US", "Non-Amazon US")],
         )
         self.assertEqual(
             self.connection.execute(

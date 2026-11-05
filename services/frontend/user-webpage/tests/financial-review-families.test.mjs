@@ -21,6 +21,7 @@ const row = (source, component_type, amount, overrides = {}) => ({
   amount,
   month: "2026-07-01",
   category: "DATA_KIOSK",
+  marketplace_name: "Amazon.com",
   currency: "USD",
   row_count: "1",
   ...overrides,
@@ -572,6 +573,28 @@ test("monthly totals preserve independent currency and category scopes", () => {
   assert.throws(() => buildFinancialReviewFamilies(rows), /one currency/);
 });
 
+test("same-currency marketplaces retain independent monthly totals and cannot form one family comparison", () => {
+  const germany = row("FINANCES", "STORAGE_FEES", "-10.000000009", {
+    marketplace_name: "Amazon.de",
+    currency: "EUR",
+  });
+  const france = { ...germany, marketplace_name: "Amazon.fr", amount: "-2.000000001" };
+  const months = buildFinancialReviewFamilyMonths([france, germany]);
+  assert.deepEqual(
+    months.map(({ marketplace_name, currency, difference }) => [
+      marketplace_name,
+      currency,
+      difference,
+    ]),
+    [
+      ["Amazon.de", "EUR", "-10.000000009"],
+      ["Amazon.fr", "EUR", "-2.000000001"],
+    ],
+  );
+  assert.throws(() => buildFinancialReviewFamilies([germany, france]), /one marketplace/);
+  assert.equal(buildFinancialReviewFamilies([germany])[0].marketplace_name, "Amazon.de");
+});
+
 test("family aggregates fail closed on malformed values even in unselected families", () => {
   const valid = row("FINANCES", "COUPON_FEES", "1");
   for (const overrides of [
@@ -588,6 +611,8 @@ test("family aggregates fail closed on malformed values even in unselected famil
     { source: "SETTLEMENT" },
     { component_type: null },
     { category: "UNKNOWN" },
+    { marketplace_name: null },
+    { marketplace_name: "Germany" },
   ]) {
     for (const aggregate of [buildFinancialReviewFamilies, buildFinancialReviewFamilyMonths]) {
       assert.throws(() => aggregate([{ ...valid, ...overrides }]));
@@ -603,6 +628,7 @@ test("family API requests the complete single-month/currency type list with exac
     ...row("FINANCES", "COUPON_FEES", "-6.53"),
     month: "2026-07-01",
     category: "DATA_KIOSK",
+    marketplace_name: "Amazon.com",
     currency: "USD",
     row_count: "2",
   };
@@ -611,6 +637,7 @@ test("family API requests the complete single-month/currency type list with exac
     assert.equal(params.get("p_month_from"), "2026-07-01");
     assert.equal(params.get("p_month_to"), "2026-08-01");
     assert.equal(params.get("p_currency"), "USD");
+    assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("limit"), "1000");
     assert.equal(params.get("offset"), "0");
     assert.equal(params.get("order"), "month.asc,source.asc,component_type.asc");
@@ -618,8 +645,15 @@ test("family API requests the complete single-month/currency type list with exac
     return new Response(csvRecord(record), { headers: { "Content-Range": "0-0/1" } });
   });
   assert.equal(
-    (await client.fetchFinancialReviewFamilyTypes("access", "DATA_KIOSK", "2026-07", "USD"))[0]
-      .amount,
+    (
+      await client.fetchFinancialReviewFamilyTypes(
+        "access",
+        "DATA_KIOSK",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+      )
+    )[0].amount,
     "-6.53",
   );
 });
@@ -629,11 +663,13 @@ test("family API rejects truncated or differently scoped responses", async () =>
     ...row("FINANCES", "COUPON_FEES", "-6.53"),
     month: "2026-07-01",
     category: "DATA_KIOSK",
+    marketplace_name: "Amazon.com",
     currency: "USD",
     row_count: "2",
   };
   for (const body of [
     csvRecord({ ...record, currency: "EUR" }),
+    csvRecord({ ...record, marketplace_name: "Amazon.ca" }),
     csvRecord(record).split("\n")[0] +
       "\n" +
       Array(1000).fill(csvRecord(record).split("\n")[1]).join("\n"),
@@ -643,7 +679,13 @@ test("family API rejects truncated or differently scoped responses", async () =>
       async () => new Response(body, { headers: { "Content-Range": "0-0/1" } }),
     );
     await assert.rejects(
-      client.fetchFinancialReviewFamilyTypes("access", "DATA_KIOSK", "2026-07", "USD"),
+      client.fetchFinancialReviewFamilyTypes(
+        "access",
+        "DATA_KIOSK",
+        "2026-07",
+        "USD",
+        "Amazon.com",
+      ),
     );
   }
 });

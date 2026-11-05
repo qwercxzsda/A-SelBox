@@ -3,7 +3,12 @@ export function setupEconomicFamilies(fixture) {
   fixture.financialReviewTypeTotals = [];
   fixture.financialReviewRecords = [];
   function addCategory(category, amounts, groups) {
-    const scope = { category, month: "2026-01-01", currency: "USD" };
+    const scope = {
+      category,
+      month: "2026-01-01",
+      currency: "USD",
+      marketplace_name: "Amazon.com",
+    };
     const counts = { FINANCES: 0, DATA_KIOSK: 0 };
     for (const [source, component_type, amount] of groups) {
       counts[source]++;

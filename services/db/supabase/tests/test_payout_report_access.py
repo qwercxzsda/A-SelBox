@@ -31,6 +31,7 @@ class PayoutReportAccessTests(SourceModelFixture):
             {
                 "id": new_id(),
                 "company_id": company,
+                "marketplace_name": "Amazon.com",
                 "currency": "USD",
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",

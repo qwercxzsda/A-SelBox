@@ -222,22 +222,12 @@ for select to authenticated using (
         authoritative and report_id in (select r.id from public.company_payout_reports as r)
     )
 );
--- Sum the full immutable company report, independently of detail pagination.
--- Invoker security keeps the same own-company access as the underlying components.
-create view public.payout_report_marketplace_totals with (security_invoker = true) as
-select
-    report_id,
-    marketplace_name,
-    sum(source_amount) as source_amount,
-    sum(fee_amount) as fee_amount,
-    sum(company_amount) as company_amount
-from public.company_payout_report_components
-where authoritative
-group by report_id, marketplace_name;
--- One latest immutable report per company, month and currency; source namespaces
+-- One latest report per company/month/marketplace and currency. Source namespaces
 -- are provenance only. Invoker security keeps the underlying company RLS.
 create view public.latest_company_payout_reports with (security_invoker = true) as
-select distinct on (r.company_id, r.start_date, r.currency)
+select distinct on (
+    r.company_id, r.start_date, r.marketplace_name, r.currency
+)
     r.*,
     to_char(r.start_date, 'FMMonth YYYY') as month_label
 from public.company_payout_reports as r
@@ -248,7 +238,9 @@ where
             other.company_id = r.company_id and other.start_date = r.start_date
             and other.currency is not null
     )
-order by r.company_id asc, r.start_date asc, r.currency asc, r.created_at desc, r.id desc;
+order by
+    r.company_id asc, r.start_date asc, r.marketplace_name asc,
+    r.currency asc, r.created_at desc, r.id desc;
 
 create policy payout_finances_versions_read on private.payout_report_finances_versions
 for select to authenticated using ((select private.is_administrator()));
@@ -309,7 +301,7 @@ where
 -- Direct activity-date bounds are applied before aggregation. Filtering a
 -- date_trunc output in a view cannot use the source date indexes under RLS.
 create function private.validate_financial_review_scope(
-    p_month_from date, p_month_to date, p_category public.allocation_category
+    p_month_from date, p_month_to date, p_category public.allocation_category, p_marketplace text
 ) returns void
 language plpgsql immutable security invoker set search_path = '' as $$
 begin
@@ -318,25 +310,27 @@ begin
         or p_month_to <= p_month_from
         or p_month_from <> date_trunc('month',p_month_from::timestamp)::date
         or p_month_to <> date_trunc('month',p_month_to::timestamp)::date
-        or p_category is null or p_category not in ('FINANCES','DATA_KIOSK','SELBOX') then
-        raise exception 'Financial review requires a category and a valid half-open month range'
+        or p_category is null or p_category not in ('FINANCES','DATA_KIOSK','SELBOX')
+        or p_marketplace is null then
+        raise exception 'Financial review requires a marketplace, category and valid half-open month range'
             using errcode = '22023';
     end if;
+    perform private.validate_transaction_filters(null, null, null, null, array[p_marketplace]);
 end;
 $$;
 
 create function public.financial_review_totals(
-    p_month_from date, p_month_to date, p_category public.allocation_category
+    p_month_from date, p_month_to date, p_category public.allocation_category, p_marketplace text
 ) returns table (
-    month date, category public.allocation_category, currency text,
+    month date, category public.allocation_category, marketplace_name text, currency text,
     finances_amount numeric, data_kiosk_amount numeric, difference numeric,
     finances_row_count bigint, data_kiosk_row_count bigint
 )
 language plpgsql stable security invoker set search_path = '' as $$
 begin
-    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category);
+    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category,p_marketplace);
     return query
-    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency,
+    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.marketplace_name,r.currency,
         coalesce(sum(r.amount) filter (where r.source = 'FINANCES'),0),
         coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
         coalesce(sum(r.amount) filter (where r.source = 'FINANCES'),0)
@@ -345,31 +339,32 @@ begin
         count(*) filter (where r.source = 'DATA_KIOSK')
     from public.financial_review_records r
     where r.activity_date >= p_month_from and r.activity_date < p_month_to
-        and r.category = p_category
-    group by date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency;
+        and r.category = p_category and r.marketplace_name = p_marketplace
+    group by date_trunc('month',r.activity_date::timestamp)::date,r.category,r.marketplace_name,r.currency;
 end;
 $$;
 
 create function public.financial_review_type_totals(
-    p_month_from date, p_month_to date, p_category public.allocation_category, p_currency text
+    p_month_from date, p_month_to date, p_category public.allocation_category, p_currency text,
+    p_marketplace text
 ) returns table (
-    month date, category public.allocation_category, currency text,
+    month date, category public.allocation_category, marketplace_name text, currency text,
     source text, component_type text, amount numeric, row_count bigint
 )
 language plpgsql stable security invoker set search_path = '' as $$
 begin
-    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category);
+    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category,p_marketplace);
     if p_currency is null or p_currency !~ '^[A-Z]{3}$' then
         raise exception 'Financial review requires a currency' using errcode = '22023';
     end if;
     return query
-    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.currency,
+    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.marketplace_name,r.currency,
         r.source,r.component_type::text,sum(r.amount),count(*)
     from public.financial_review_records r
     where r.activity_date >= p_month_from and r.activity_date < p_month_to
-        and r.category = p_category and r.currency = p_currency
+        and r.category = p_category and r.currency = p_currency and r.marketplace_name = p_marketplace
     group by date_trunc('month',r.activity_date::timestamp)::date,
-        r.category,r.currency,r.source,r.component_type;
+        r.category,r.marketplace_name,r.currency,r.source,r.component_type;
 end;
 $$;
 

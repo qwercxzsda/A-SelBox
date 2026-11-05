@@ -42,6 +42,7 @@ export function payoutHistoryQueryOptions(
       scope.companyId,
       scope.startDate,
       scope.endDate,
+      scope.marketplaceName,
       scope.currency,
       pageIndex,
     ],

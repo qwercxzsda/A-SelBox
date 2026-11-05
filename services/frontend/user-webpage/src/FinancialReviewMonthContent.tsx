@@ -1,3 +1,4 @@
+import { reviewPeriodKey } from "./financial-review-scope-key";
 import { Group, Paper, Text, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialReviewTotals } from "./api";
@@ -21,6 +22,7 @@ export function FinancialReviewMonthContent({
   identity,
   category,
   currency,
+  marketplace,
   families,
   month,
   matureCutoff,
@@ -29,7 +31,14 @@ export function FinancialReviewMonthContent({
   const query = useQuery(
     families.length
       ? {
-          ...monthlyFamilyTypesQueryOptions({ identity, category, month, matureCutoff, currency }),
+          ...monthlyFamilyTypesQueryOptions({
+            identity,
+            category,
+            month,
+            matureCutoff,
+            currency,
+            marketplace,
+          }),
           select: (rows) => buildFinancialReviewFamilyMonths(rows, families),
         }
       : {
@@ -40,6 +49,7 @@ export function FinancialReviewMonthContent({
             category,
             month,
             currency,
+            marketplace,
             matureCutoff,
           ],
           queryFn: ({ signal }) =>
@@ -48,6 +58,7 @@ export function FinancialReviewMonthContent({
               category,
               month,
               currency,
+              marketplace,
               signal,
             ),
           staleTime: Infinity,
@@ -70,14 +81,14 @@ export function FinancialReviewMonthContent({
               : `${reviewCategoryLabel(category)} category totals`}
           </Title>
           <Text size="xs" c="dimmed">
-            {currency} · Same currency as the overview
+            {marketplace} · {currency}
           </Text>
         </Group>
         <DetailData
           query={query}
           label="account totals"
           rowCount={rows.length}
-          emptyMessage={`No source data for ${currency} in this month.`}
+          emptyMessage={`No source data for ${marketplace} in ${currency} in this month.`}
         >
           {rows.length ? <FinancialReviewMonthTotals rows={rows} category={category} /> : null}
         </DetailData>
@@ -103,6 +114,7 @@ export function FinancialReviewMonthContent({
           identity={identity}
           category={category}
           currency={currency}
+          marketplace={marketplace}
           families={families}
           month={month}
           matureCutoff={matureCutoff}
@@ -110,15 +122,16 @@ export function FinancialReviewMonthContent({
         />
       ) : null}
       <DetailSection
-        stateKey={`financial-review:snapshots:${category}:${month}:${currency}`}
+        stateKey={`financial-review:snapshots:${category}:${reviewPeriodKey(month, marketplace, currency)}`}
         title="Saved report snapshots"
         collapsible
-        description={`Saved company reports for this month in ${currency}. Each retains all categories, all fee families and its original company scope; the fee family filter applies to current source comparisons.`}
+        description={`Saved company reports for ${marketplace} this month in ${currency}. Each retains all categories, all fee families and its original company scope; the fee family filter applies to current source comparisons.`}
       >
         <FinancialReviewSnapshots
           identity={identity}
           month={month}
           currency={currency}
+          marketplace={marketplace}
           onRetry={onRetry}
         />
       </DetailSection>

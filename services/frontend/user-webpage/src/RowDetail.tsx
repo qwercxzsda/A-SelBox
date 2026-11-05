@@ -5,6 +5,7 @@ import type { CanonicalRow, TableDatasetKey } from "./api";
 import { formatRecordMonth } from "./date-display";
 import { DrawerHeading } from "./DrawerHeading";
 import { RowDetailContent } from "./RowDetailContent";
+import { payoutMarketplaceLabel } from "./payout-report-scope";
 
 export function RowDetail({
   companies,
@@ -67,7 +68,7 @@ export function RowDetail({
         dataset === "payouts" && row ? (
           <DrawerHeading
             title={isReview ? "Saved source details" : "Selected row details"}
-            context={`${companies.get(row.company_id ?? "") ?? "Company"} · ${formatRecordMonth(row.start_date ?? "")}${row.currency ? ` · ${row.currency}` : ""}`}
+            context={`${companies.get(row.company_id ?? "") ?? "Company"} · ${formatRecordMonth(row.start_date ?? "")} · ${payoutMarketplaceLabel(row)}${row.currency ? ` · ${row.currency}` : ""}`}
           />
         ) : (
           "Selected row details"

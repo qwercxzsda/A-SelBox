@@ -16,16 +16,16 @@ The [Finances contract](finances_transactions.md), [source allocation](source_al
 
 ## Persistence and naming
 
-| Object | Meaning and policy |
-| --- | --- |
-| Acquisition | One successfully archived Amazon retrieval and its complete request/page inventory. Immutable and retained indefinitely. |
-| Preprocess batch | One complete offline publication from an acquisition. Owns all covered day versions. |
-| Day | Stable seller/marketplace/local-date identity with a selected `current_version_id`. Data Kiosk additionally identifies its dataset. |
-| Preprocess version | Immutable complete contents of one day, including an explicit empty result. |
-| Native Finances transaction | Original API identity, signed control amount, status and lifecycle links within one version. |
-| Component | One member of the transaction's complete monetary partition, preserving source SKU evidence and native provenance. |
-| SKU terms version | Immutable company assignment and the complete marketplace fee inventory for an exact SKU. |
-| Payout report | Immutable company/month/currency amounts plus exact source, Summary-control and terms manifests. |
+| Object                      | Meaning and policy                                                                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Acquisition                 | One successfully archived Amazon retrieval and its complete request/page inventory. Immutable and retained indefinitely.            |
+| Preprocess batch            | One complete offline publication from an acquisition. Owns all covered day versions.                                                |
+| Day                         | Stable seller/marketplace/local-date identity with a selected `current_version_id`. Data Kiosk additionally identifies its dataset. |
+| Preprocess version          | Immutable complete contents of one day, including an explicit empty result.                                                         |
+| Native Finances transaction | Original API identity, signed control amount, status and lifecycle links within one version.                                        |
+| Component                   | One member of the transaction's complete monetary partition, preserving source SKU evidence and native provenance.                  |
+| SKU terms version           | Immutable company assignment and the complete marketplace fee inventory for an exact SKU.                                           |
+| Payout report               | Immutable company/month/marketplace/currency amounts plus exact source, Summary-control and terms manifests.                        |
 
 Successful acquisitions and preprocessing results are the only persisted acquisition/publication
 states. Running and failed attempts use logs. Imports do not create SKU configuration, assign
@@ -183,7 +183,7 @@ companies with no current SKU assignments retain history but receive no new repo
 
 Generation validates exact Finances day coverage, matching Summary controls for the selected
 versions, compatible Data Kiosk coverage and resolved company terms. It aggregates across source
-namespaces, separately by currency. Matching inputs reuse an existing result; changed inputs produce
+namespaces, separately by marketplace and currency. Matching inputs reuse an existing result; changed inputs produce
 an immutable report. Incomplete months retry with backoff. The browser does not generate reports.
 
 Company cost authority stays with Data Kiosk for its category. Equality between Finances activity
@@ -198,14 +198,14 @@ rates are 0–100 inclusive with at most six fractional digits; calculated fees 
 exact arithmetic. Finances quantities use exact numeric values. Missing quantities remain unknown.
 Frontend financial responses use decimal text and apply server-side filtering and pagination.
 
-| Failure | Outcome |
-| --- | --- |
-| Incomplete transaction retrieval | No successful acquisition; uploaded evidence remains available. |
-| Summary unavailable or unmatched | Explicit unresolved control; no invented zero or balancing amount; affected payouts remain unready. |
-| Invalid source parsing or component sums | No partial day publication; preserve archives and prior current selections. |
-| Stale concurrent publication | Reject the stale selection and retry against explicitly read current versions. |
-| Missing ownership, fees or required coverage | Show the gap; reject complete financial publication for the affected scope. |
-| Retention cleanup | Keep raw archives, current/payout-pinned versions and the distinction between pruned and empty contents. |
+| Failure                                      | Outcome                                                                                                  |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Incomplete transaction retrieval             | No successful acquisition; uploaded evidence remains available.                                          |
+| Summary unavailable or unmatched             | Explicit unresolved control; no invented zero or balancing amount; affected payouts remain unready.      |
+| Invalid source parsing or component sums     | No partial day publication; preserve archives and prior current selections.                              |
+| Stale concurrent publication                 | Reject the stale selection and retry against explicitly read current versions.                           |
+| Missing ownership, fees or required coverage | Show the gap; reject complete financial publication for the affected scope.                              |
+| Retention cleanup                            | Keep raw archives, current/payout-pinned versions and the distinction between pruned and empty contents. |
 
 [Verification evidence](evidence/README.md) distinguishes native
 Amazon checks, the implemented database pipeline and synthetic Auth/REST/browser regression tests.

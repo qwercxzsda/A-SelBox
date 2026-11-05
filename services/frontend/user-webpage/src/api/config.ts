@@ -97,6 +97,7 @@ const DATA_KIOSK_COLUMNS = [
 const PAYOUT_COLUMNS = [
   "id",
   "company_id",
+  "marketplace_name",
   "currency",
   "start_date",
   "end_date",
@@ -162,12 +163,12 @@ export const DATASET_CONFIG = {
     label: "Payout reports",
     endpoint: "latest_company_payout_reports",
     selectColumns: PAYOUT_COLUMNS,
-    searchColumns: ["month_label", "report_name", "currency"],
+    searchColumns: ["month_label", "report_name", "marketplace_name", "currency"],
     sortColumns: ["start_date"],
     defaultSort: { column: "start_date", direction: "desc" },
     idColumns: ["id"],
     dateColumn: "start_date",
-    filterColumns: [],
+    filterColumns: ["marketplace_name"],
   },
   accounts: {
     label: "User access",

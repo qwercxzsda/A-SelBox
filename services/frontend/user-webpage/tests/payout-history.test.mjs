@@ -3,7 +3,16 @@ import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { DATASET_CONFIG } from "../src/api/config.ts";
 import { DETAIL_PAGE_SIZE } from "../src/api/pagination.ts";
-import { SETTINGS, COMPANY_ID, OTHER_COMPANY_ID, csvRecord } from "./api-fixtures.mjs";
+import {
+  SETTINGS,
+  COMPANY_ID,
+  OTHER_COMPANY_ID,
+  csvRecord,
+  datasetRecord,
+  pageRequest,
+} from "./api-fixtures.mjs";
+
+const MARKET_SCOPE = { marketplace_name: "Amazon.com" };
 
 const OPTIONS = {
   accessToken: "test-access",
@@ -11,6 +20,7 @@ const OPTIONS = {
   startDate: "2026-07-01",
   endDate: "2026-07-31",
   currency: "USD",
+  marketplaceName: "Amazon.com",
   pageIndex: 0,
 };
 
@@ -25,6 +35,7 @@ test("payout history uses one exact company, period and currency scope with stab
       start_date: "eq.2026-07-01",
       end_date: "eq.2026-07-31",
       currency: "eq.USD",
+      marketplace_name: "eq.Amazon.com",
       order: "created_at.desc,id.desc",
       limit: String(DETAIL_PAGE_SIZE),
       offset: String(DETAIL_PAGE_SIZE),
@@ -34,7 +45,11 @@ test("payout history uses one exact company, period and currency scope with stab
     assert.equal(init.headers.Authorization, "Bearer test-access");
     assert.ok(init.signal instanceof AbortSignal);
     return new Response(
-      csvRecord({ id: OTHER_COMPANY_ID, company_amount: "9007199254740993.123456789" }),
+      csvRecord({
+        ...MARKET_SCOPE,
+        id: OTHER_COMPANY_ID,
+        company_amount: "9007199254740993.123456789",
+      }),
       { headers: { "Content-Range": "50-50/51" } },
     );
   });
@@ -63,6 +78,8 @@ test("payout history rejects incomplete or malformed scopes before requesting da
     [{ currency: "" }, /currency code/],
     [{ currency: "usd" }, /currency code/],
     [{ currency: 'USD",EUR' }, /currency code/],
+    [{ marketplaceName: undefined }, /marketplace/],
+    [{ marketplaceName: "" }, /marketplace/],
     [{ pageIndex: -1 }, /Page index/],
     [{ pageIndex: 0.5 }, /Page index/],
     [{ pageIndex: Number.MAX_SAFE_INTEGER }, /Page offset/],
@@ -90,9 +107,12 @@ test("empty payout history uses an explicit null currency without widening its s
     assert.equal(params.get("start_date"), "eq.2026-07-01");
     assert.equal(params.get("end_date"), "eq.2026-07-31");
     assert.equal(params.get("currency"), "is.null");
-    return new Response(csvRecord({ id: COMPANY_ID, currency: null, company_amount: "0" }), {
-      headers: { "Content-Range": "0-0/1" },
-    });
+    return new Response(
+      csvRecord({ ...MARKET_SCOPE, id: COMPANY_ID, currency: null, company_amount: "0" }),
+      {
+        headers: { "Content-Range": "0-0/1" },
+      },
+    );
   });
   const result = await client.fetchPayoutHistory({ ...OPTIONS, currency: null });
   assert.equal(result.totalCount, 1);
@@ -110,13 +130,16 @@ test("selected payout versions load directly by ID within their original scope w
       start_date: "eq.2026-07-01",
       end_date: "eq.2026-07-31",
       currency: "is.null",
+      marketplace_name: "eq.Amazon.com",
       id: `eq.${OTHER_COMPANY_ID}`,
       limit: "1",
     });
     assert.equal(init.headers.Prefer, undefined);
     assert.equal(init.headers.Authorization, "Bearer test-access");
     assert.ok(init.signal instanceof AbortSignal);
-    return new Response(csvRecord({ id: OTHER_COMPANY_ID, currency: null, company_amount: "0" }));
+    return new Response(
+      csvRecord({ ...MARKET_SCOPE, id: OTHER_COMPANY_ID, currency: null, company_amount: "0" }),
+    );
   });
   const row = await client.fetchPayoutVersion({
     ...OPTIONS,
@@ -141,4 +164,59 @@ test("selected payout versions return null when the scoped ID is unavailable and
     /company ID/,
   );
   assert.equal(requests, 1);
+});
+
+test("exact report versions reject an omitted marketplace before sending a request", async () => {
+  let requests = 0;
+  const client = createApiClient(SETTINGS, async () => {
+    requests++;
+    return new Response("id\n");
+  });
+  const incomplete = { ...OPTIONS };
+  delete incomplete.marketplaceName;
+  await assert.rejects(
+    client.fetchPayoutVersion({ ...incomplete, reportId: OTHER_COMPANY_ID }),
+    /valid payout report marketplace/,
+  );
+  await assert.rejects(client.fetchPayoutHistory(incomplete), /valid payout report marketplace/);
+  assert.equal(requests, 0);
+});
+
+test("unspecified marketplace history and exact versions use an explicit null filter", async () => {
+  const client = createApiClient(SETTINGS, async (url) => {
+    const params = new URL(url).searchParams;
+    assert.equal(params.get("marketplace_name"), "is.null");
+    assert.equal(params.get("currency"), "is.null");
+    return new Response(
+      csvRecord({
+        id: OTHER_COMPANY_ID,
+        marketplace_name: null,
+        currency: null,
+        company_amount: "0",
+      }),
+      { headers: { "Content-Range": "0-0/1" } },
+    );
+  });
+  const scope = { ...OPTIONS, marketplaceName: null, currency: null };
+  assert.equal((await client.fetchPayoutHistory(scope)).rows[0].marketplace_name, null);
+  assert.equal(
+    (await client.fetchPayoutVersion({ ...scope, reportId: OTHER_COMPANY_ID })).marketplace_name,
+    null,
+  );
+});
+
+test("payout list, history and exact-version reads reject an invalid response marketplace before rendering", async () => {
+  const client = createApiClient(
+    SETTINGS,
+    async () =>
+      new Response(csvRecord(datasetRecord("payouts", { marketplace_name: "UNKNOWN" })), {
+        headers: { "Content-Range": "0-0/1" },
+      }),
+  );
+  for (const request of [
+    () => client.fetchDatasetPage(pageRequest("payouts")),
+    () => client.fetchPayoutHistory(OPTIONS),
+    () => client.fetchPayoutVersion({ ...OPTIONS, reportId: OTHER_COMPANY_ID }),
+  ])
+    await assert.rejects(request(), /Payout report returned a missing or invalid marketplace/);
 });

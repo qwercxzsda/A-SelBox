@@ -10,6 +10,7 @@ import {
 const overview = (month, difference, running_difference, overrides = {}) => ({
   month: `${month}-01`,
   category: "DATA_KIOSK",
+  marketplace_name: "Amazon.com",
   currency: "USD",
   difference,
   running_difference,
@@ -18,6 +19,7 @@ const overview = (month, difference, running_difference, overrides = {}) => ({
 const typeRow = (month, component_type, amount, source = "FINANCES", category = "DATA_KIOSK") => ({
   month: `${month}-01`,
   category,
+  marketplace_name: "Amazon.com",
   currency: "USD",
   source,
   component_type,
@@ -347,6 +349,7 @@ test("family series reject mixed scopes and malformed inputs instead of combinin
   for (const invalidTypes of [
     [{ ...types[0], currency: "EUR" }],
     [{ ...types[0], category: "SELBOX" }],
+    [{ ...types[0], marketplace_name: "Amazon.de" }],
     [typeRow("2027-01", "STORAGE_FEES", "2")],
     [{ ...types[0], amount: null }],
     [types[0], types[0]],
@@ -356,10 +359,34 @@ test("family series reject mixed scopes and malformed inputs instead of combinin
     [rows[0], rows[0]],
     [rows[0], overview("2027-02", "2", "4")],
     [rows[0], overview("2026-02", "2", "4", { currency: "EUR" })],
+    [rows[0], overview("2026-02", "2", "4", { marketplace_name: "Amazon.fr" })],
   ])
     assert.throws(() => buildFinancialReviewFamilySeries(types, invalidRows));
   assert.throws(() => buildFinancialReviewFamilySeries(types, rows, ["invalid-id"]));
   assert.deepEqual(buildFinancialReviewFamilySeries(types, []), []);
+});
+
+test("Germany and France using EUR cannot share family series or accumulated values", () => {
+  const germanRow = overview("2026-01", "2", "2", {
+    currency: "EUR",
+    marketplace_name: "Amazon.de",
+  });
+  const germanType = {
+    ...typeRow("2026-01", "STORAGE_FEES", "2"),
+    currency: "EUR",
+    marketplace_name: "Amazon.de",
+  };
+  const frenchType = { ...germanType, marketplace_name: "Amazon.fr" };
+  assert.throws(
+    () => buildFinancialReviewFamilySeries([frenchType], [germanRow]),
+    /marketplace|scope/,
+  );
+  const frenchRow = { ...germanRow, month: "2026-02-01", marketplace_name: "Amazon.fr" };
+  assert.throws(() => buildFinancialReviewFamilySeries([germanType], [germanRow, frenchRow]));
+  assert.equal(
+    buildFinancialReviewFamilySeries([germanType], [germanRow])[0].points[0].difference,
+    "2",
+  );
 });
 
 test("magnitude ticks retain exact domain extents and avoid overlapping zero", () => {

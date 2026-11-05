@@ -195,6 +195,7 @@ begin
         select to_jsonb(jsonb_populate_record(null::public.company_payout_report_components,to_jsonb(c)))
             - array['id','report_id','row_number'] as item
         from resolved c where c.company_id = new.company_id and c.currency = new.currency
+            and c.marketplace_name is not distinct from new.marketplace_name
     ), actual as (
         select to_jsonb(c) - array['id','report_id','row_number'] as item
         from public.company_payout_report_components c where c.report_id = new.id
@@ -205,9 +206,11 @@ begin
     ) select
         (select count(distinct terms_version_id) from resolved),
         (select coalesce(bool_or(authoritative and company_id = new.company_id
+            and marketplace_name is not distinct from new.marketplace_name
             and (new.currency is null or currency = new.currency)),false) from resolved),
         (select coalesce(bool_or(authoritative and (company_id is null
             or (company_id = new.company_id and currency = new.currency
+                and marketplace_name is not distinct from new.marketplace_name
                 and resolution_status not in ('APPLIED','NOT_APPLICABLE')))),false) from resolved),
         exists(select 1 from difference)
     into used_terms, has_amounts, unresolved, differs;
@@ -234,6 +237,8 @@ begin
         select to_jsonb(r) as item
         from private.resolve_source_reconciliation(finances_versions,kiosk_versions) r
         where new.currency is not null and r.activity_date between new.start_date and new.end_date
+            and r.marketplace_name is not distinct from new.marketplace_name
+            and r.currency = new.currency
     ), actual as (
         select to_jsonb(r) - array['report_id','row_number'] as item
         from private.payout_report_reconciliation r where r.report_id = new.id

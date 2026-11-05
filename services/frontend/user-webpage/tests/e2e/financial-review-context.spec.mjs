@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { openFinancialReview } from "./financial-review-actions.mjs";
 
 for (const width of [1440, 390]) {
-  test(`financial review keeps month, currency and category in its header at ${width}px`, async ({
+  test(`financial review keeps month, marketplace, currency and category in its header at ${width}px`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -11,7 +11,9 @@ for (const width of [1440, 390]) {
     const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
     await expect(drawer.getByRole("note")).toContainText("Totals use original precision");
     const context = drawer.locator(".detail-drawer-context");
-    await expect(context).toHaveText("July 2026 · USD · Data Kiosk category · All companies");
+    await expect(context).toHaveText(
+      "July 2026 · Amazon.com · USD · Data Kiosk category · All companies",
+    );
     await drawer
       .getByRole("button", { name: "Saved report snapshots", exact: true })
       .scrollIntoViewIfNeeded();

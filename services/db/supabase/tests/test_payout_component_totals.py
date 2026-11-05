@@ -1,4 +1,4 @@
-"""Frozen marketplace summaries stay exact, complete, and scoped to saved reports."""
+"""Frozen report totals match authoritative components and retain exact marketplace units."""
 
 from decimal import Decimal
 
@@ -11,18 +11,17 @@ from services.db.supabase.tests.payout_fixtures import (
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
-class PayoutMarketplaceTotalsTests(SourceModelFixture):
-    def marketplace_totals(self, user: str, report: str | None = None) -> list[tuple[object, ...]]:
+class PayoutComponentTotalsTests(SourceModelFixture):
+    def report_totals(self, user: str, report: str | None = None) -> list[tuple[object, ...]]:
         return self.as_user(
             user,
-            "select report_id::text,marketplace_name,source_amount,fee_amount,company_amount "
-            "from public.payout_report_marketplace_totals "
-            "where %s::uuid is null or report_id=%s::uuid "
-            "order by report_id,marketplace_name nulls first",
+            "select id::text,marketplace_name,source_amount,fee_amount,company_amount "
+            "from public.company_payout_reports "
+            "where %s::uuid is null or id=%s::uuid order by id",
             (report, report),
         )
 
-    def test_full_frozen_breakdown_excludes_details_and_enforces_company_access(self) -> None:
+    def test_complete_totals_exclude_supporting_rows_and_enforce_company_access(self) -> None:
         inputs = prepare_payout(self)
         other_company, other_sku = self.owner("OTHER")
         self.fee(other_sku, [("2026-01-01", None, "5")])
@@ -48,6 +47,7 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         )
         fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         report = publish_payout(self, inputs)
+        canada_report = publish_payout(self, inputs, marketplace_name="Amazon.ca")
         other_report = publish_payout(self, inputs, company_id=other_company)
         administrator, member, other_member = (
             self.administrator(),
@@ -56,7 +56,7 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         )
         expected = [
             (
-                report,
+                canada_report,
                 "Amazon.ca",
                 Decimal("0.093456789123456789"),
                 Decimal(0),
@@ -67,11 +67,11 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         other_expected = [
             (other_report, "Amazon.com", Decimal(99), Decimal("-4.95"), Decimal("94.05"))
         ]
-        self.assertEqual(self.marketplace_totals(member), expected)
-        self.assertEqual(self.marketplace_totals(other_member), other_expected)
-        self.assertEqual(self.marketplace_totals(member, other_report), [])
-        self.assertEqual(self.marketplace_totals(other_member, report), [])
-        self.assertCountEqual(self.marketplace_totals(administrator), expected + other_expected)
+        self.assertCountEqual(self.report_totals(member), expected)
+        self.assertEqual(self.report_totals(other_member), other_expected)
+        self.assertEqual(self.report_totals(member, other_report), [])
+        self.assertEqual(self.report_totals(other_member, report), [])
+        self.assertCountEqual(self.report_totals(administrator), expected + other_expected)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) filter(where authoritative),"
@@ -81,14 +81,15 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
                 "from public.company_payout_report_components where report_id=%s",
                 (report,),
             ).fetchone(),
-            (58, 2, 2),
+            (56, 2, 2),
         )
         self.assertEqual(
             self.connection.execute(
-                "select sum(m.source_amount)=r.source_amount,sum(m.fee_amount)=r.fee_amount,"
-                "sum(m.company_amount)=r.company_amount "
-                "from public.payout_report_marketplace_totals m "
-                "join public.company_payout_reports r on r.id=m.report_id where r.id=%s "
+                "select sum(c.source_amount) filter(where c.authoritative)=r.source_amount,"
+                "sum(c.fee_amount) filter(where c.authoritative)=r.fee_amount,"
+                "sum(c.company_amount) filter(where c.authoritative)=r.company_amount "
+                "from public.company_payout_report_components c "
+                "join public.company_payout_reports r on r.id=c.report_id where r.id=%s "
                 "group by r.id",
                 (report,),
             ).fetchone(),
@@ -101,8 +102,9 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
             expected=finances_version,
         )
         self.kiosk(3, [self.component("-500")], expected=kiosk_version)
-        self.assertEqual(self.marketplace_totals(member, report), expected)
-        self.assertEqual(self.marketplace_totals(other_member, other_report), other_expected)
+        self.assertEqual(self.report_totals(member, report), [expected[1]])
+        self.assertEqual(self.report_totals(member, canada_report), [expected[0]])
+        self.assertEqual(self.report_totals(other_member, other_report), other_expected)
         self.connection.execute("set constraints all immediate")
 
     def test_company_month_generation_returns_every_currency_scope(self) -> None:
@@ -119,10 +121,9 @@ class PayoutMarketplaceTotalsTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select r.currency,m.marketplace_name,m.source_amount,"
-                "m.fee_amount,m.company_amount "
+                "select r.currency,r.marketplace_name,r.source_amount,"
+                "r.fee_amount,r.company_amount "
                 "from public.company_payout_reports r "
-                "join public.payout_report_marketplace_totals m on m.report_id=r.id "
                 "where r.company_id=%s order by r.currency",
                 (inputs.company,),
             ),

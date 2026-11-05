@@ -1,3 +1,4 @@
+import { reviewPeriodKey } from "./financial-review-scope-key";
 import { Badge, Drawer, Group, Text, Title } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { formatRecordMonth } from "./date-display";
@@ -13,6 +14,7 @@ export function FinancialReviewMonthDetail({
   identity,
   category,
   currency,
+  marketplace,
   families,
   onRetry,
   month,
@@ -26,6 +28,7 @@ export function FinancialReviewMonthDetail({
   identity: Identity;
   category: ReviewCategory;
   currency: string;
+  marketplace: string;
   families: readonly string[];
   onRetry: () => Promise<void>;
   month: string | null;
@@ -53,7 +56,7 @@ export function FinancialReviewMonthDetail({
         title={
           <DrawerHeading
             title="Monthly financial review"
-            context={`${formatRecordMonth(month ?? "")} · ${currency} · ${reviewCategoryLabel(category)} category · All companies`}
+            context={`${formatRecordMonth(month ?? "")} · ${marketplace} · ${currency} · ${reviewCategoryLabel(category)} category · All companies`}
           />
         }
         closeButtonProps={{ "aria-label": "Close monthly financial review" }}
@@ -75,7 +78,7 @@ export function FinancialReviewMonthDetail({
                   </Badge>
                 </Group>
                 <Text size="sm" c="dimmed" mt={4}>
-                  All source accounts · All companies · All marketplaces · All SKUs
+                  {marketplace} · All source accounts · All companies · All SKUs
                 </Text>
                 <FeeFamilyScope families={families} />
               </div>
@@ -108,10 +111,11 @@ export function FinancialReviewMonthDetail({
               mature-month window as payout reports.
             </Text>
             <FinancialReviewMonthContent
-              key={`${category}:${month}:${currency}${reviewFamilyStateKey(families)}`}
+              key={`${category}:${reviewPeriodKey(month, marketplace, currency)}${reviewFamilyStateKey(families)}`}
               identity={identity}
               category={category}
               currency={currency}
+              marketplace={marketplace}
               families={families}
               onRetry={onRetry}
               month={month}

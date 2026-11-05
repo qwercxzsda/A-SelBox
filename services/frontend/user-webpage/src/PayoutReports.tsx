@@ -23,6 +23,7 @@ import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
 import { DatasetCountStatus } from "./DatasetCountStatus";
 import { pageRangeSummary } from "./pagination";
+import { reviewPeriodKey } from "./financial-review-scope-key";
 
 export function PayoutReports({
   identity,
@@ -32,6 +33,7 @@ export function PayoutReports({
   reviewMode = false,
   fixedMonth = false,
   currency,
+  marketplace,
   onConfigureSku,
 }: {
   identity: Identity;
@@ -39,15 +41,28 @@ export function PayoutReports({
   reviewMode?: boolean;
   fixedMonth?: boolean;
   currency?: string;
+  marketplace?: string;
   onConfigureSku?: (sku: string) => void;
 } & ViewStateProps<DatasetViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
+  const reviewKey = reviewPeriodKey(
+    viewState.filters.dateFrom.slice(0, 7),
+    marketplace ?? "",
+    currency ?? "",
+  );
+  const scopedViewState = {
+    ...viewState,
+    filters: {
+      ...viewState.filters,
+      marketplaces: marketplace === undefined ? viewState.filters.marketplaces : [marketplace],
+    },
+  };
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
-    useFinanceTable(identity, "payouts", viewState, onViewStateChange, currency);
+    useFinanceTable(identity, "payouts", scopedViewState, onViewStateChange, currency);
   const [history, setHistory] = useWorkspacePreference(
     reviewMode
-      ? `payout-review-history${fixedMonth ? `:${viewState.filters.dateFrom}:${currency ?? ""}` : ""}`
+      ? `payout-review-history${fixedMonth ? `:${reviewKey}` : ""}`
       : "payout-report-history",
     createPayoutHistoryState,
     decodePayoutHistoryState,
@@ -86,7 +101,11 @@ export function PayoutReports({
     if (document.activeElement === controlsRef.current) revealSection(controlsRef.current);
   }
   const sort = viewState.sorting[0];
-  const visibleFilters = fixedMonth ? { ...filters, dateFrom: "", dateTo: "" } : filters;
+  const visibleFilters = {
+    ...filters,
+    ...(fixedMonth ? { dateFrom: "", dateTo: "" } : {}),
+    ...(marketplace !== undefined ? { marketplaces: [] } : {}),
+  };
   const hasRefinements = activeFilterCount(visibleFilters) > 0 || search.trim().length > 0;
 
   return (
@@ -97,6 +116,10 @@ export function PayoutReports({
           exclusive to administrators and are excluded from the company payout amount.
         </Text>
       ) : null}
+      <Text size="xs" c="dimmed" mb="sm">
+        Reports are separate for each company, month, and marketplace. Currencies remain separate
+        amount units.
+      </Text>
       <PayoutStatus
         identity={identity}
         filters={filters}
@@ -194,6 +217,7 @@ export function PayoutReports({
       />
       <PayoutReportsTable
         fixedMonth={fixedMonth}
+        fixedMarketplace={marketplace !== undefined}
         identity={identity}
         rows={rows}
         companies={companies}

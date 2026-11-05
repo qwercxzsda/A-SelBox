@@ -24,7 +24,6 @@ flowchart LR
     private_reconcile_source_amounts__["FUNCTION private.reconcile_source_amounts()"]
     private_reconciliation_group_id__["FUNCTION private.reconciliation_group_id()"]
     private_source_reconciliation_inputs["VIEW private.source_reconciliation_inputs"]
-    public_company_payout_report_components["TABLE public.company_payout_report_components"]
     public_company_payout_reports["TABLE public.company_payout_reports"]
     public_company_skus["VIEW public.company_skus"]
     public_current_sku_fee_periods["VIEW public.current_sku_fee_periods"]
@@ -40,7 +39,6 @@ flowchart LR
     public_payout_reconciliation_totals["VIEW public.payout_reconciliation_totals"]
     public_payout_report_data_kiosk_versions["VIEW public.payout_report_data_kiosk_versions"]
     public_payout_report_finances_versions["VIEW public.payout_report_finances_versions"]
-    public_payout_report_marketplace_totals["VIEW public.payout_report_marketplace_totals"]
     public_payout_report_reconciliation["VIEW public.payout_report_reconciliation"]
     public_payout_report_terms_versions["VIEW public.payout_report_terms_versions"]
     public_sku_fee_periods["TABLE public.sku_fee_periods"]
@@ -94,6 +92,5 @@ flowchart LR
     private_payout_report_reconciliation --> public_payout_reconciliation_totals
     private_payout_report_data_kiosk_versions --> public_payout_report_data_kiosk_versions
     private_payout_report_finances_versions --> public_payout_report_finances_versions
-    public_company_payout_report_components --> public_payout_report_marketplace_totals
     private_payout_report_reconciliation --> public_payout_report_reconciliation
     private_payout_report_terms_versions --> public_payout_report_terms_versions

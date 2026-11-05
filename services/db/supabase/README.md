@@ -42,38 +42,38 @@ while this baseline remains undeployed; do not retimestamp the migration set dur
 Change an existing prefix only when a real dependency requires a different installation order.
 New split modules must fit around those stable anchors. The table below follows execution order.
 
-| Module | Responsibility |
-| --- | --- |
-| [schema_primitives](migrations/20260928123050_schema_primitives.sql) | Private schema, UUIDs, constrained types, and the common immutability guard. |
-| [identity_schema](migrations/20260928123051_identity_schema.sql) | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms. |
-| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql) | Finances and Data Kiosk acquisitions, daily version pointers, native transactions, components, Summary controls, and facts. |
-| [inventory_schema](migrations/20260928123055_inventory_schema.sql) | Daily inventory acquisitions, captures, items, constraints, and indexes. |
-| [archive_publications](migrations/20260928123056_archive_publications.sql) | Immutable archive validation and acquisition publication for Finances, Data Kiosk, and Inventory. |
-| [source_publications](migrations/20260928123102_source_publications.sql) | Atomic financial preprocessing and same-day inventory capture replacement. |
-| [application_identity](migrations/20260928123104_application_identity.sql) | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views. |
-| [financial_rules](migrations/20260928123106_financial_rules.sql) | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs. |
-| [financial_components](migrations/20260928123111_financial_components.sql) | Current and explicit-version company components with ownership and fees. |
-| [financial_reads](migrations/20260928123113_financial_reads.sql) | Strict complete and partial financial reads with declared source coverage. |
-| [payout_schema](migrations/20260928123115_payout_schema.sql) | Frozen payout headers, components, source manifests, reconciliation records, and private refresh state. |
-| [publication_integrity](migrations/20260928123116_publication_integrity.sql) | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
-| [payout_validation](migrations/20260928123117_payout_validation.sql) | Frozen-input integrity, coverage, provenance, and totals validation. |
-| [payout_publication](migrations/20260928123119_payout_publication.sql) | Locked source capture across namespaces, company/currency aggregation, and latest-report reuse. |
-| [source_retention](migrations/20260928123121_source_retention.sql) | Payout-aware pruning, pin guards, and observation comparison. |
-| [application_access](migrations/20260928123123_application_access.sql) | Account, financial, payout, and inventory RLS policies and authorized REST projections. |
-| [payout_generation](migrations/20260928123125_payout_generation.sql) | Atomic company/month generation, maturity policy, bounded readiness, and administrator setup diagnostics. |
-| [payout_refresh](migrations/20260928123126_payout_refresh.sql) | Pending revision requests, maturity discovery, bounded processing, and retry backoff. |
-| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql) | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling. |
-| [payout_invalidation](migrations/20260928123128_payout_invalidation.sql) | Transactional requests after source or terms changes, scope expansion, and pruning. |
-| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql) | Read indexes, shared filter/pagination validation, and current-policy eligibility. |
-| [transaction_counts](migrations/20260928123132_transaction_counts.sql) | Exact authorized live and raw source counts. |
-| [transaction_page](migrations/20260928123134_transaction_page.sql) | Bounded live row selection before ownership and fee projection. |
-| [source_transaction_page](migrations/20260928123136_source_transaction_page.sql) | Bounded raw source pages, exact row/version detail, and indexed native transaction lookup retaining historical visibility. |
-| [transaction_totals](migrations/20260928123138_transaction_totals.sql) | Currency/Type totals with grouping before fee lookup. |
-| [payout_schedule](migrations/20260928123139_payout_schedule.sql) | Five-minute pg_cron registration in the configured scheduler database. |
-| [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql) | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics. |
-| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic administrator batches, and stale-write checks. |
-| [application_grants](migrations/20260928123142_application_grants.sql) | Final explicit table, column, and function allowlist for the entire application. |
-| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql) | Disable generated REST aggregation and issue the single final schema reload. |
+| Module                                                                                       | Responsibility                                                                                                               |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [schema_primitives](migrations/20260928123050_schema_primitives.sql)                         | Private schema, UUIDs, constrained types, and the common immutability guard.                                                 |
+| [identity_schema](migrations/20260928123051_identity_schema.sql)                             | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms.                                    |
+| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql)             | Finances and Data Kiosk acquisitions, daily version pointers, native transactions, components, Summary controls, and facts.  |
+| [inventory_schema](migrations/20260928123055_inventory_schema.sql)                           | Daily inventory acquisitions, captures, items, constraints, and indexes.                                                     |
+| [archive_publications](migrations/20260928123056_archive_publications.sql)                   | Immutable archive validation and acquisition publication for Finances, Data Kiosk, and Inventory.                            |
+| [source_publications](migrations/20260928123102_source_publications.sql)                     | Atomic financial preprocessing and same-day inventory capture replacement.                                                   |
+| [application_identity](migrations/20260928123104_application_identity.sql)                   | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views.                                            |
+| [financial_rules](migrations/20260928123106_financial_rules.sql)                             | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs.                        |
+| [financial_components](migrations/20260928123111_financial_components.sql)                   | Current and explicit-version company components with ownership and fees.                                                     |
+| [financial_reads](migrations/20260928123113_financial_reads.sql)                             | Strict complete and partial financial reads with declared source coverage.                                                   |
+| [payout_schema](migrations/20260928123115_payout_schema.sql)                                 | Frozen payout headers, components, source manifests, reconciliation records, and private refresh state.                      |
+| [publication_integrity](migrations/20260928123116_publication_integrity.sql)                 | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
+| [payout_validation](migrations/20260928123117_payout_validation.sql)                         | Frozen-input integrity, coverage, provenance, and totals validation.                                                         |
+| [payout_publication](migrations/20260928123119_payout_publication.sql)                       | Locked source capture across namespaces, company/marketplace/currency aggregation, and latest-report reuse.                  |
+| [source_retention](migrations/20260928123121_source_retention.sql)                           | Payout-aware pruning, pin guards, and observation comparison.                                                                |
+| [application_access](migrations/20260928123123_application_access.sql)                       | Account, financial, payout, and inventory RLS policies and authorized REST projections.                                      |
+| [payout_generation](migrations/20260928123125_payout_generation.sql)                         | Atomic company/month generation, maturity policy, bounded readiness, and administrator setup diagnostics.                    |
+| [payout_refresh](migrations/20260928123126_payout_refresh.sql)                               | Pending revision requests, maturity discovery, bounded processing, and retry backoff.                                        |
+| [workspace_revisions](migrations/20260928123127_workspace_revisions.sql)                     | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling.            |
+| [payout_invalidation](migrations/20260928123128_payout_invalidation.sql)                     | Transactional requests after source or terms changes, scope expansion, and pruning.                                          |
+| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Read indexes, shared filter/pagination validation, and current-policy eligibility.                                           |
+| [transaction_counts](migrations/20260928123132_transaction_counts.sql)                       | Exact authorized live and raw source counts.                                                                                 |
+| [transaction_page](migrations/20260928123134_transaction_page.sql)                           | Bounded live row selection before ownership and fee projection.                                                              |
+| [source_transaction_page](migrations/20260928123136_source_transaction_page.sql)             | Bounded raw source pages, exact row/version detail, and indexed native transaction lookup retaining historical visibility.   |
+| [transaction_totals](migrations/20260928123138_transaction_totals.sql)                       | Currency/Type totals with grouping before fee lookup.                                                                        |
+| [payout_schedule](migrations/20260928123139_payout_schedule.sql)                             | Five-minute pg_cron registration in the configured scheduler database.                                                       |
+| [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql)             | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics.                                        |
+| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic administrator batches, and stale-write checks.              |
+| [application_grants](migrations/20260928123142_application_grants.sql)                       | Final explicit table, column, and function allowlist for the entire application.                                             |
+| [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql)               | Disable generated REST aggregation and issue the single final schema reload.                                                 |
 
 ## Application reads
 
@@ -185,8 +185,8 @@ DB managers bootstrap administrators; administrators create companies and manage
 Application accounts use the `administrator`, `member`, and `unassigned` roles stored in the
 database; user-editable Auth metadata cannot grant access. Members read
 permitted current facts and terms plus their own saved payout headers, components,
-and marketplace/Type totals. The latest-report view groups only by company, month,
-and currency; source namespaces remain input provenance. Payout manifests and
+and Type totals. The latest-report view groups by company, month,
+marketplace, and currency; source namespaces remain input provenance. Payout manifests and
 seller reconciliation are administrator-only.
 The [permission matrix](../../../docs/access_control.md#permission-matrix) defines all access.
 

@@ -84,7 +84,13 @@ test("fee family comparison pairs coupon charges and sponsored products advertis
   page,
 }) => {
   await openFinancialReview(page, (fixture) => {
-    const common = { month: "2026-07-01", category: "DATA_KIOSK", currency: "USD", row_count: "1" };
+    const common = {
+      month: "2026-07-01",
+      category: "DATA_KIOSK",
+      marketplace_name: "Amazon.com",
+      currency: "USD",
+      row_count: "1",
+    };
     fixture.financialReviewTypeTotals = [
       { ...common, source: "FINANCES", component_type: "COUPON_FEES", amount: "-6.53" },
       { ...common, source: "DATA_KIOSK", component_type: "COUPON_PARTICIPATION_FEE", amount: "-5" },

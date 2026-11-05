@@ -91,7 +91,8 @@ test("one-currency category summaries retain zero rows and defer source records 
   );
   expect(request.params.get("category")).toBe("eq.DATA_KIOSK");
   expect(request.params.get("currency")).toBe("eq.USD");
-  for (const field of ["sku", "company_id", "seller_namespace", "marketplace_name"])
+  expect(request.params.get("marketplace_name")).toBe("eq.Amazon.com");
+  for (const field of ["sku", "company_id", "seller_namespace"])
     expect(request.params.has(field)).toBe(false);
 });
 
@@ -368,8 +369,10 @@ test("empty categories keep controls reachable and members never fetch review da
   const fixture = await openFinancialReview(page, (state) => {
     state.financialReviewTotals = [];
   });
-  await expect(page.getByText(/No mature source records for USD/)).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveValue("USD");
+  await expect(page.getByText(/No mature source records for Amazon.com/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Marketplace", exact: true })).toHaveValue(
+    "Amazon.com",
+  );
   await expect(page.getByRole("combobox", { name: "Year", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: /^Monthly summaries pagination/ })).toHaveCount(
     0,

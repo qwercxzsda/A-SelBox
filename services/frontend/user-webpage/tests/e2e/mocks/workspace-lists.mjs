@@ -20,10 +20,13 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
   (counting ? fixture.countRequests : fixture.requests).push(entry);
   let source =
     dataset === "payouts"
-      ? fixture.payoutRows.filter(
-          (row) =>
-            fixture.roles[user] === "administrator" || row.company_id === fixture.companyIds[user],
-        )
+      ? fixture.payoutRows
+          .filter(
+            (row) =>
+              fixture.roles[user] === "administrator" ||
+              row.company_id === fixture.companyIds[user],
+          )
+          .map((row) => ({ marketplace_name: "Amazon.com", ...row }))
       : Object.keys(fixture.roles).map((id) => ({
           user_id: id,
           email: fixture.accountEmails[id] ?? `${id}@example.test`,
@@ -41,10 +44,23 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
     source = [
       ...new Map(
         sorted
-          .map((row) => [JSON.stringify([row.company_id, row.start_date, row.currency]), row])
+          .map((row) => [
+            JSON.stringify([
+              row.company_id,
+              row.start_date,
+              row.end_date,
+              row.marketplace_name,
+              row.currency,
+            ]),
+            row,
+          ])
           .reverse(),
       ).values(),
     ];
+  }
+  if (dataset === "payouts") {
+    if (url.searchParams.get("marketplace_name") === "is.null")
+      source = source.filter((row) => row.marketplace_name === null);
   }
   const rows = sortRecordRows(filterRecordRows(source, url.searchParams), url.searchParams);
   const offset = Number(url.searchParams.get("offset"));

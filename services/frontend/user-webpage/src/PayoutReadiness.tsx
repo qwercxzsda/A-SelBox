@@ -53,11 +53,13 @@ export function PayoutReadiness({
   month,
   companyIds,
   onConfigureSku,
+  marketplaceFiltered = false,
 }: {
   identity: Identity;
   month: string;
   companyIds: string[];
   onConfigureSku?: (sku: string) => void;
+  marketplaceFiltered?: boolean;
 }) {
   const listRef = useRef<HTMLElement>(null);
   const scope = `payout-readiness:${month}:${JSON.stringify([...companyIds].sort())}`;
@@ -96,6 +98,11 @@ export function PayoutReadiness({
       <Text size="sm" fw={600} mb="xs">
         {formatRecordMonth(month)} readiness
       </Text>
+      {marketplaceFiltered ? (
+        <Text size="xs" c="dimmed" mb="xs">
+          Readiness covers all marketplaces for each company and month.
+        </Text>
+      ) : null}
       {query.isPending ? (
         <Text size="sm" role="status">
           Checking payout readiness…

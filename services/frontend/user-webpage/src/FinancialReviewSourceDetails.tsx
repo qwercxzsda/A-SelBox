@@ -1,3 +1,4 @@
+import { reviewPeriodKey } from "./financial-review-scope-key";
 import { useId, useRef } from "react";
 import { Button, Group, Text, Title, UnstyledButton } from "@mantine/core";
 import type { CanonicalRow } from "./api";
@@ -21,11 +22,12 @@ export function FinancialReviewSourceDetails({
   month,
   matureCutoff,
   currency,
+  marketplace,
   families,
   total,
 }: FinancialReviewMonthScope & { total: CanonicalRow }) {
   const [state, setSaved] = useWorkspacePreference(
-    `financial-review:sources:${category}:${month}:${currency}${reviewFamilyStateKey(families)}`,
+    `financial-review:sources:${category}:${reviewPeriodKey(month, marketplace, currency)}${reviewFamilyStateKey(families)}`,
     createReviewSourceState,
     decodeReviewSourceState,
   );
@@ -35,15 +37,26 @@ export function FinancialReviewSourceDetails({
   function change(patch: Partial<ReviewSourceState>) {
     setSaved((current) => ({ ...current, ...patch }));
   }
-  const props = { identity, category, month, matureCutoff, currency, families, state, change };
+  const props = {
+    identity,
+    category,
+    month,
+    matureCutoff,
+    currency,
+    marketplace,
+    families,
+    state,
+    change,
+  };
   return (
     <>
       <Text size="xs" c="dimmed" mt="lg" mb="sm">
-        Records in {currency} · Finances: {total.finances_row_count ?? "Unavailable"} · Data Kiosk:{" "}
+        {marketplace} · Records in {currency} · Finances:{" "}
+        {total.finances_row_count ?? "Unavailable"} · Data Kiosk:{" "}
         {total.data_kiosk_row_count ?? "Unavailable"}
       </Text>
       <DetailSection
-        stateKey={`financial-review:families:${category}:${month}:${currency}`}
+        stateKey={`financial-review:families:${category}:${reviewPeriodKey(month, marketplace, currency)}`}
         title="Fee family comparison"
         collapsible
       >
@@ -53,13 +66,14 @@ export function FinancialReviewSourceDetails({
           month={month}
           matureCutoff={matureCutoff}
           currency={currency}
+          marketplace={marketplace}
           families={families}
         />
       </DetailSection>
       <DetailSection
         ref={amountsRef}
         title="Amounts by type"
-        description="Select a type to inspect its exact source records for this category, month and currency."
+        description="Select a type to inspect its exact source records for this marketplace, category, month and currency."
       >
         <FinancialReviewTypes
           {...props}

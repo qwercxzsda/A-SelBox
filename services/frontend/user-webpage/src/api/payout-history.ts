@@ -4,8 +4,10 @@ import { DETAIL_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
 import { requireCurrency, requireUuid } from "./validation.ts";
+import { isPayoutMarketplace, payoutMarketplace } from "../payout-report-scope.ts";
 
 interface PayoutScopeOptions {
+  marketplaceName: string | null;
   accessToken: string;
   companyId: string;
   startDate: string;
@@ -27,18 +29,22 @@ function payoutScopeParams({
   startDate,
   endDate,
   currency,
+  marketplaceName,
 }: PayoutScopeOptions): URLSearchParams {
   requireUuid(companyId, "company");
   requireCalendarDate(startDate);
   requireCalendarDate(endDate);
   if (startDate > endDate) throw new Error("The start date must be on or before the end date");
   if (currency !== null) requireCurrency(currency);
+  if (!isPayoutMarketplace(marketplaceName))
+    throw new Error("Choose a valid payout report marketplace");
   return new URLSearchParams({
     select: DATASET_CONFIG.payouts.selectColumns.join(","),
     company_id: `eq.${companyId}`,
     start_date: `eq.${startDate}`,
     end_date: `eq.${endDate}`,
     currency: currency === null ? "is.null" : `eq.${currency}`,
+    marketplace_name: marketplaceName === null ? "is.null" : `eq.${marketplaceName}`,
   });
 }
 
@@ -52,7 +58,7 @@ export function createPayoutHistoryApi(transport: ApiTransport) {
       params.set("limit", String(DETAIL_PAGE_SIZE));
       params.set("offset", String(pageIndex * DETAIL_PAGE_SIZE));
 
-      return transport.readCsvPage(
+      const result = await transport.readCsvPage(
         accessToken,
         "company_payout_reports",
         params,
@@ -60,6 +66,8 @@ export function createPayoutHistoryApi(transport: ApiTransport) {
         signal,
         true,
       );
+      result.rows.forEach(payoutMarketplace);
+      return result;
     },
     async fetchPayoutVersion(options: FetchPayoutVersionOptions): Promise<CanonicalRow | null> {
       const { accessToken, reportId, signal } = options;
@@ -75,7 +83,9 @@ export function createPayoutHistoryApi(transport: ApiTransport) {
         signal,
         false,
       );
-      return result.rows[0] ?? null;
+      const row = result.rows.at(0) ?? null;
+      if (row) payoutMarketplace(row);
+      return row;
     },
   };
 }

@@ -17,6 +17,7 @@ function reconciliationAmounts(overrides = {}) {
 export function reviewAmounts(overrides = {}) {
   return {
     category: "DATA_KIOSK",
+    marketplace_name: "Amazon.com",
     finances_amount: "-100.25",
     data_kiosk_amount: "-101.5",
     difference: "1.25",
@@ -128,6 +129,7 @@ function setupCurrentReview(fixture) {
       fixture.financialReviewTypeTotals.push({
         month: total.month,
         category: total.category,
+        marketplace_name: total.marketplace_name,
         currency: total.currency,
         source,
         component_type,
@@ -144,7 +146,7 @@ function setupCurrentReview(fixture) {
           source_version_id: `current-${source.toLowerCase()}-version`,
           activity_date: `${total.month.slice(0, 7)}-${String((index % 25) + 1).padStart(2, "0")}`,
           seller_namespace: index % 2 ? "seller-east" : "seller-west",
-          marketplace_name: index % 2 ? "Amazon.com" : null,
+          marketplace_name: total.marketplace_name,
           sku: total.category === "SELBOX" ? null : `REVIEW-${String(index).padStart(2, "0")}`,
           amount: index === 0 ? total[`${key}_amount`] : "0",
         });

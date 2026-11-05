@@ -12,6 +12,7 @@ import { TableScrollControls } from "./TableScrollControls";
 import { formatRecordMonth } from "./date-display";
 import { companyLabel, displayColumns, rowId } from "./view-model";
 import { groupPayoutReports, payoutScopeKey, type PayoutHistoryState } from "./payout-report-view";
+import { payoutMarketplaceLabel } from "./payout-report-scope";
 
 export function PayoutReportsTable({
   identity,
@@ -32,6 +33,7 @@ export function PayoutReportsTable({
   status,
   children,
   fixedMonth = false,
+  fixedMarketplace = false,
 }: {
   identity: Identity;
   rows: CanonicalRow[];
@@ -51,6 +53,7 @@ export function PayoutReportsTable({
   status: ReactNode;
   children: ReactNode;
   fixedMonth?: boolean;
+  fixedMarketplace?: boolean;
 }) {
   const scrollTarget = useRef<HTMLDivElement>(null);
   const scrollId = useId();
@@ -63,7 +66,7 @@ export function PayoutReportsTable({
         <Text size="xs" c="dimmed">
           {fixedMonth
             ? "Saved reports for this month. "
-            : `Filter by month${identity.account.access_role === "administrator" ? " or company" : ""} in the column headings. `}
+            : `Filter by month, marketplace${identity.account.access_role === "administrator" ? ", or company" : ""} in the column headings. `}
           Select a report for details, or show its previous versions.
         </Text>
         <Group gap="xs">
@@ -102,7 +105,8 @@ export function PayoutReportsTable({
                         : undefined
                     }
                   >
-                    {fixedMonth && column.key === "start_date" ? (
+                    {(fixedMonth && column.key === "start_date") ||
+                    (fixedMarketplace && column.key === "marketplace_name") ? (
                       column.label
                     ) : (
                       <FinanceColumnHeader
@@ -131,7 +135,7 @@ export function PayoutReportsTable({
                     const id = rowId(row);
                     const scopeKey = payoutScopeKey(row);
                     const expanded = history.expanded.includes(scopeKey);
-                    const label = `${companyLabel(row.company_id, companies)} · ${monthLabel} · ${row.currency ?? "No currency"}`;
+                    const label = `${companyLabel(row.company_id, companies)} · ${monthLabel} · ${payoutMarketplaceLabel(row)} · ${row.currency ?? "No currency"}`;
                     return (
                       <Fragment key={id}>
                         <Table.Tr
@@ -179,6 +183,8 @@ export function PayoutReportsTable({
                                     {expanded ? "Hide versions" : "Show versions"}
                                   </Button>
                                 </div>
+                              ) : column.key === "marketplace_name" ? (
+                                payoutMarketplaceLabel(row)
                               ) : (
                                 <TableCellValue column={column} row={row} companies={companies} />
                               )}
