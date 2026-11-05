@@ -46,7 +46,8 @@ create table public.sku_fee_periods (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
+        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
     )),
     valid_period daterange not null check (
         not isempty(valid_period) and not lower_inf(valid_period)

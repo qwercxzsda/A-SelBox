@@ -12,7 +12,8 @@ create table public.company_payout_reports (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
+        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
     )),
     currency text check (currency ~ '^[A-Z]{3}$'),
     start_date date not null check (isfinite(start_date)),
@@ -126,7 +127,8 @@ create table public.company_payout_report_components (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
+        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
     )),
     activity_date date not null,
     component_type private.nonblank not null,

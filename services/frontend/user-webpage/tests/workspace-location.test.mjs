@@ -61,6 +61,7 @@ test("report links retain exact historical identity while drafts and amounts sta
 test("saved report links require marketplace metadata and preserve an explicit unspecified market", () => {
   for (const [marketplaceName, currency] of [
     ["Amazon.de", "EUR"],
+    ["Non-Amazon IT", "EUR"],
     [null, null],
   ]) {
     const selected = {

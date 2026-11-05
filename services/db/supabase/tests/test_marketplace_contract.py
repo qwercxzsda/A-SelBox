@@ -171,11 +171,13 @@ class MarketplaceContractTests(SourceModelFixture):
             with self.subTest(names=names), self.assertRaises(psycopg.errors.InvalidParameterValue):
                 self.as_user(administrator, query, (names,))
 
-    def test_non_amazon_de_keeps_native_identity_and_separate_source_filters(self) -> None:
+    def test_native_eu_channels_keep_distinct_identities_and_source_filters(self) -> None:
         self.finances(
             [
                 self.transaction("11") | {"marketplace_name": "Non-Amazon DE"},
                 self.transaction("23", 4) | {"marketplace_name": "Amazon.de"},
+                self.transaction("13", 5) | {"marketplace_name": "Non-Amazon IT"},
+                self.transaction("29", 6) | {"marketplace_name": "Amazon.it"},
             ]
         )
         self.assertEqual(
@@ -185,7 +187,9 @@ class MarketplaceContractTests(SourceModelFixture):
             ).fetchall(),
             [
                 ("Amazon.de", "A1PA6795UKMFR9", "23"),
+                ("Amazon.it", "APJ6JRA9NG5V4", "29"),
                 ("Non-Amazon DE", "A38D8NSA03LJTC", "11"),
+                ("Non-Amazon IT", "A62U237T8HV6N", "13"),
             ],
         )
         administrator = self.administrator()
@@ -197,16 +201,21 @@ class MarketplaceContractTests(SourceModelFixture):
             (["Amazon.de"], "1"),
             (["Non-Amazon DE"], "1"),
             (["Amazon.de", "Non-Amazon DE"], "2"),
+            (["Amazon.it"], "1"),
+            (["Non-Amazon IT"], "1"),
+            (["Amazon.it", "Non-Amazon IT"], "2"),
         ):
             self.assertEqual(self.as_user(administrator, query, (names,)), [(count,)])
         # The Sellers identity alone does not establish a Summary or Data Kiosk alias.
-        self.assertEqual(
-            self.connection.execute(
-                "select private.finances_summary_marketplace('Non-Amazon DE'), "
-                "private.finances_data_kiosk_marketplace('Non-Amazon DE')"
-            ).fetchone(),
-            ("Non-Amazon DE", "Non-Amazon DE"),
-        )
+        for marketplace in ("Non-Amazon DE", "Non-Amazon IT"):
+            self.assertEqual(
+                self.connection.execute(
+                    "select private.finances_summary_marketplace(%s), "
+                    "private.finances_data_kiosk_marketplace(%s)",
+                    (marketplace, marketplace),
+                ).fetchone(),
+                (marketplace, marketplace),
+            )
         self.connection.execute("set constraints all immediate")
 
     def test_optional_kiosk_fact_marketplaces_keep_publication_validation(self) -> None:

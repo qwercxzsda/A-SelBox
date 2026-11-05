@@ -11,14 +11,14 @@ There is no fallback category based on a missing SKU or a familiar label.
 A Finances key is the exact native `transactionType` plus the ordered
 `breakdownType` path within its selected item partition. For example:
 
-| Native type and path | Stored component | Category |
-| --- | --- | --- |
-| `Shipment / ProductCharges / OurPricePrincipal` | `PRODUCT_SALES` | `FINANCES` |
-| `Refund / ProductCharges / OurPricePrincipal` | `PRODUCT_REFUNDS` | `FINANCES` |
-| `Shipment / AmazonFees / Commission / Base` | `REFERRAL_FEES` | `FINANCES` |
-| `ProductAdsPayment / Base` | `ADVERTISING` | `DATA_KIOSK` |
-| `ServiceFee / AmazonFees / Subscription / Base` | `SUBSCRIPTION_FEES` | `SELBOX` |
-| `DebtRecovery / DebtPayment` | `DEBT_RECOVERY` | `SELBOX` |
+| Native type and path                            | Stored component    | Category     |
+| ----------------------------------------------- | ------------------- | ------------ |
+| `Shipment / ProductCharges / OurPricePrincipal` | `PRODUCT_SALES`     | `FINANCES`   |
+| `Refund / ProductCharges / OurPricePrincipal`   | `PRODUCT_REFUNDS`   | `FINANCES`   |
+| `Shipment / AmazonFees / Commission / Base`     | `REFERRAL_FEES`     | `FINANCES`   |
+| `ProductAdsPayment / Base`                      | `ADVERTISING`       | `DATA_KIOSK` |
+| `ServiceFee / AmazonFees / Subscription / Base` | `SUBSCRIPTION_FEES` | `SELBOX`     |
+| `DebtRecovery / DebtPayment`                    | `DEBT_RECOVERY`     | `SELBOX`     |
 
 The complete accepted paths are in
 [finances.py](../services/sync/src/transaction_types/finances.py). A registered leaf
@@ -28,11 +28,11 @@ The registry is an application contract, not a claim that Amazon's vocabulary is
 
 ## Component categories
 
-| Category | Accepted purpose | SKU treatment |
-| --- | --- | --- |
-| `FINANCES` | Product/shipping amounts, taxes, rebates, transaction fees, reimbursements, liquidations and reviewed corrections. | Requires a native product SKU for allocation. |
-| `DATA_KIOSK` | Advertising, storage, disposal, removal, inbound placement/transportation, labeling, coupon and deal controls. | Preserve any native SKU; company allocation still comes from Data Kiosk. |
-| `SELBOX` | Reviewed account charges, adjustments, debt/reserve movements and tax reclassification. | Preserve native SKU without assigning these amounts to a company. |
+| Category     | Accepted purpose                                                                                                   | SKU treatment                                                            |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `FINANCES`   | Product/shipping amounts, taxes, rebates, transaction fees, reimbursements, liquidations and reviewed corrections. | Requires a native product SKU for allocation.                            |
+| `DATA_KIOSK` | Advertising, storage, disposal, removal, inbound placement/transportation, labeling, coupon and deal controls.     | Preserve any native SKU; company allocation still comes from Data Kiosk. |
+| `SELBOX`     | Reviewed account charges, adjustments, debt/reserve movements and tax reclassification.                            | Preserve native SKU without assigning these amounts to a company.        |
 
 `accounting_subtype` distinguishes `OPERATING_EXPENSE`, `BALANCE_MOVEMENT` and
 `TAX_RECLASSIFICATION` where the explicit mapping supplies one. These labels do
@@ -66,8 +66,10 @@ conda run -n A-SelBox python -m services.sync.src.transaction_types.generate --c
 ```
 
 Do not edit generated JSON or maintain another source Type registry. Marketplace
-choices come from the canonical registry, including the native `Non-Amazon US`
-channel. Its Summary control grouping does not rename its stored marketplace.
+choices come from the canonical registry, including the distinct native `Non-Amazon US`,
+`Non-Amazon DE`, and `Non-Amazon IT` channels. Control grouping does not rename stored marketplaces.
+The generator also exports `marketplace-timezones.json` from the canonical retail and native-channel
+time zones so frontend inventory ages use the same calendar boundaries as source capture.
 
 Company menus omit SelBox account types. Administrator Transactions also offers
 the derived `FINANCES_KIOSK_DIFFERENCE`; raw source menus offer only their source's

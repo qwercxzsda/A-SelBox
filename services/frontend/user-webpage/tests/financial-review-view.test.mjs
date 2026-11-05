@@ -77,7 +77,7 @@ test("missing or invalid marketplace scopes never infer a marketplace from curre
       },
     );
   }
-  for (const marketplace of ["Amazon.de", "Amazon.fr", "Non-Amazon DE"]) {
+  for (const marketplace of ["Amazon.de", "Amazon.fr", "Non-Amazon DE", "Non-Amazon IT"]) {
     assert.deepEqual(decodeReviewScope({ marketplace, currency: "EUR" }), {
       year: "",
       marketplace,

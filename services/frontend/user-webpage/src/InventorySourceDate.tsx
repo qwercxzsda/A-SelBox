@@ -4,17 +4,19 @@ import { inventoryAge, inventorySourceDay } from "./inventory-coverage";
 export function InventorySourceDate({
   snapshotDate,
   reportCreatedAt,
+  marketplace,
   now,
   compact = false,
 }: {
   snapshotDate: string | null;
   reportCreatedAt: string;
+  marketplace: string;
   now: number;
   compact?: boolean;
 }) {
-  const snapshot = inventorySourceDay(snapshotDate);
-  const day = snapshot ?? inventorySourceDay(reportCreatedAt);
-  const age = inventoryAge(day, now);
+  const snapshot = inventorySourceDay(snapshotDate, marketplace);
+  const day = snapshot ?? inventorySourceDay(reportCreatedAt, marketplace);
+  const age = inventoryAge(day, now, marketplace);
   return (
     <Group gap={6} mt={4} className="inventory-source-date">
       <Text size={compact ? "xs" : "sm"} c="dimmed">

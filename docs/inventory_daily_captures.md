@@ -129,8 +129,13 @@ matches. Capture discovery is paged and contains no financial amounts or item da
 
 Report dates are visible by marketplace, and each item shows its actual snapshot date when supplied.
 A missing snapshot date is labelled explicitly, with the report date as a fallback. Source dates
-more than two UTC calendar days old are marked overdue for daily replenishment review. Local age
-updates do not request new data. Reprocessing time is shown separately and does not reset source age.
+more than two calendar days old in that marketplace are marked overdue for daily replenishment review.
+The browser uses generated IANA time zones from the same canonical marketplace definitions as capture
+creation. Calendar stock dates stay intact; fallback report timestamps convert to the marketplace's
+date. A valid next-day snapshot in Japan, Australia, or Singapore is therefore fresh before UTC
+midnight, while a date beyond the marketplace's current day still receives a future-date warning.
+On-screen age updates do not request new data. Exact report and reprocessing timestamps remain in
+UTC; reprocessing does not reset source age.
 Visible filter chips name and individually clear persisted criteria. Sales ordering remains in the
 original currencies; the heading and active-sort note explain that limitation beside the table.
 
@@ -148,13 +153,13 @@ first for "Most urgent first"; unknown labels and absent values remain last in e
 The database orders the full filtered result before pagination, with exact SKU, marketplace, and
 capture ID as stable ties. Source labels and normalized captures are unchanged.
 
-| Health priority | Rank | Recommendation priority | Rank |
-| --- | ---: | --- | ---: |
-| Out of stock | 40 | Edit listing | 50 |
-| Low stock | 30 | Restock | 40 |
-| Excess | 20 | Send to FBA | 30 |
-| Healthy | 0 | Advertise listing | 20 |
-| | | No excess inventory / No action required | 0 |
+| Health priority | Rank | Recommendation priority                  | Rank |
+| --------------- | ---: | ---------------------------------------- | ---: |
+| Out of stock    |   40 | Edit listing                             |   50 |
+| Low stock       |   30 | Restock                                  |   40 |
+| Excess          |   20 | Send to FBA                              |   30 |
+| Healthy         |    0 | Advertise listing                        |   20 |
+|                 |      | No excess inventory / No action required |    0 |
 
 Matching ignores case, spaces, and punctuation. Excess also recognizes `ExcessStock`,
 `ExcessInventory`, `HighStock`, and `Overstock`; Restock recognizes `GoToRestock` and

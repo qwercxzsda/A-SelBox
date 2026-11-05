@@ -17,6 +17,8 @@ test("source and marketplace menus are complete even without facts or assignment
     assert.ok(values.includes("Amazon.com"));
     assert.ok(values.includes("Amazon.co.za"));
     assert.ok(values.includes("Non-Amazon DE"));
+    assert.ok(values.includes("Non-Amazon IT"));
+    assert.ok(values.includes("Amazon.it"));
   }
 });
 

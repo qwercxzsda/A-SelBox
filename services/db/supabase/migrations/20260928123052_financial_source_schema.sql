@@ -46,6 +46,7 @@ create table private.finances_days (
             'Amazon.com.au',
             'Amazon.sg',
             'Non-Amazon DE',
+            'Non-Amazon IT',
             'Non-Amazon US'
         )
     ),
@@ -108,6 +109,7 @@ create table private.finances_transactions (
             'Amazon.com.au',
             'Amazon.sg',
             'Non-Amazon DE',
+            'Non-Amazon IT',
             'Non-Amazon US'
         )
     ),
@@ -193,6 +195,7 @@ create table private.finances_transaction_components (
             'Amazon.com.au',
             'Amazon.sg',
             'Non-Amazon DE',
+            'Non-Amazon IT',
             'Non-Amazon US'
         )
     ),
@@ -269,6 +272,7 @@ create table private.finances_summary_checks (
             'Amazon.com.au',
             'Amazon.sg',
             'Non-Amazon DE',
+            'Non-Amazon IT',
             'Non-Amazon US'
         )
     ),
@@ -334,7 +338,8 @@ create table private.data_kiosk_days (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
+        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
     )),
     activity_date date not null,
     dataset_key private.nonblank not null,
@@ -373,7 +378,8 @@ create table private.data_kiosk_transactions (
         'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
         'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
         'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg', 'Non-Amazon DE', 'Non-Amazon US'
+        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
+        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
     )),
     activity_date date not null,
     component_key private.nonblank not null,

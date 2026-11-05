@@ -189,8 +189,10 @@ test("coverage failures do not become a no-snapshot claim and retry with lightwe
   expect(fixture.revisionRequests.length).toBeGreaterThan(0);
 });
 
-test("age updates at midnight without reloading successful inventory pages", async ({ page }) => {
-  await page.clock.install({ time: new Date("2026-10-05T23:59:30Z") });
+test("age updates at marketplace midnight without reloading successful inventory pages", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-10-06T06:59:30Z") });
   const { inventory } = await setup(page, [
     inventoryRow("AGING", { ...capture(), snapshot_date: null }),
   ]);
@@ -204,6 +206,52 @@ test("age updates at midnight without reloading successful inventory pages", asy
   await expect(coverage(page).getByText("Overdue report", { exact: true })).toBeVisible();
   expect(inventory.requests).toHaveLength(reads);
   expect(inventory.captureRequests).toHaveLength(captureReads);
+});
+
+test("phone inventory keeps next-local-day stock fresh while warning about genuinely future dates", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.install({ time: new Date("2026-11-05T17:15:00Z") });
+  await setup(
+    page,
+    [
+      ["JP", "Amazon.co.jp"],
+      ["AU", "Amazon.com.au"],
+      ["SG", "Amazon.sg"],
+      ["US", "Amazon.com"],
+    ].map(([code, marketplace]) =>
+      inventoryRow(`LOCAL-${code}`, {
+        ...capture({ capture_id: `capture-${code}`, marketplace_name: marketplace }),
+        capture_date: code === "US" ? "2026-11-05" : "2026-11-06",
+        snapshot_date: "2026-11-06",
+        report_created_at: "2026-11-05T17:15:00Z",
+      }),
+    ),
+  );
+  for (const code of ["JP", "AU", "SG"]) {
+    const row = items(page)
+      .locator("tbody tr")
+      .filter({ hasText: `LOCAL-${code}` });
+    await expect(row).toContainText("Stock as of 2026-11-06 · Today");
+    await expect(row).not.toContainText("Future source date");
+  }
+  await expect(coverage(page)).toContainText("Report 2026-11-06 · Today");
+  const future = items(page).locator("tbody tr").filter({ hasText: "LOCAL-US" });
+  await expect(future).toContainText("Future source date — check source");
+  await page.screenshot({
+    path: testInfo.outputPath("inventory-local-day-phone.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await items(page).locator("tbody tr").filter({ hasText: "LOCAL-JP" }).click();
+  const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
+  await expect(detail).toContainText("Stock as of 2026-11-06 · Today");
+  await expect(detail).toContainText("Amazon report created 2026-11-05 17:15:00 UTC");
+  await page.screenshot({
+    path: testInfo.outputPath("inventory-local-day-details-phone.png"),
+    animations: "disabled",
+  });
 });
 
 test("sales sorting explains original currencies at the point of comparison", async ({ page }) => {

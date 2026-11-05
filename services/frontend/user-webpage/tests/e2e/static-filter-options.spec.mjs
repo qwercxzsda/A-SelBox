@@ -34,9 +34,9 @@ for (const role of ["member", "administrator"]) {
     await expect(
       marketplace.getByRole("checkbox", { name: "Non-Amazon DE", exact: true }),
     ).toBeVisible();
-    await marketplace.getByLabel("Search marketplace", { exact: true }).fill("co.za");
+    await marketplace.getByLabel("Search marketplace", { exact: true }).fill("non-amazon it");
     await expect(marketplace.getByRole("checkbox")).toHaveCount(1);
-    await marketplace.getByRole("checkbox", { name: "Amazon.co.za", exact: true }).check();
+    await marketplace.getByRole("checkbox", { name: "Non-Amazon IT", exact: true }).check();
     await marketplace.getByLabel("Search marketplace", { exact: true }).fill("NO MATCH");
     await expect(marketplace.getByText("No matching options.", { exact: true })).toBeVisible();
     await closeMenu(marketplace);
@@ -67,7 +67,7 @@ for (const role of ["member", "administrator"]) {
     await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
     expect(fixture.optionRequests).toHaveLength(preloadRequests);
     expect(fixture.requests.at(-1).args.p_types).toEqual(["PRODUCT_SALES"]);
-    expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Amazon.co.za"]);
+    expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Non-Amazon IT"]);
     expect(fixture.requests.at(-1).args.p_sources).toEqual(["DATA_KIOSK"]);
 
     if (role === "administrator") {

@@ -130,8 +130,9 @@ Health and recommendation ordering use the
 Coverage includes successful empty captures and distinguishes missing snapshots, no authorized
 items, and filters with no matches. Failed coverage reads never become a no-snapshot claim. Rows use
 the stock snapshot date when available and explicitly identify a fallback report date otherwise.
-Dates older than two UTC calendar days are overdue; a recent processing timestamp does not make an
-old source fresh.
+Dates older than two calendar days in their marketplace are overdue; a recent processing timestamp
+does not make an old source fresh. Stock dates and fallback report dates use the marketplace's time
+zone from generated source metadata. Exact report and processing timestamps remain available in UTC.
 
 Only capture/SKU identity is persisted for an open item. Its values follow the freshly loaded page;
 a changed or removed capture closes the drawer. Paging, filtering, and sorting clear selection.
@@ -178,7 +179,8 @@ chart, coverage, and drawer behavior.
 
 Review links use `reviewMarketplace`, separately from repeated table `marketplace` filters. Report
 links require their exact ID, company, dates, currency, and `reportMarketplace`; an empty
-marketplace value denotes an unspecified market. Currency never infers a marketplace.
+marketplace value denotes an unspecified market. Currency never infers a marketplace. Native
+Non-Amazon US, DE, and IT remain distinct from their retail marketplaces in menus and links.
 
 Source drilldowns retain exact row/version provenance. Finances keeps the main Search focused on
 filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID

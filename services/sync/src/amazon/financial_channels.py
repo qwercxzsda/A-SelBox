@@ -6,6 +6,7 @@ from types import MappingProxyType
 
 NON_AMAZON_US_ID = "A2ZV50J4W1RKNI"
 NON_AMAZON_DE_ID = "A38D8NSA03LJTC"
+NON_AMAZON_IT_ID = "A62U237T8HV6N"
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +20,7 @@ FINANCIAL_CHANNELS: Mapping[str, FinancialChannel] = MappingProxyType(
     {
         NON_AMAZON_US_ID: FinancialChannel("Non-Amazon US", "NA", "America/Los_Angeles"),
         NON_AMAZON_DE_ID: FinancialChannel("Non-Amazon DE", "EU", "Europe/Berlin"),
+        NON_AMAZON_IT_ID: FinancialChannel("Non-Amazon IT", "EU", "Europe/Rome"),
     }
 )
 

@@ -170,6 +170,7 @@ export function InventoryTable({
                   <InventorySourceDate
                     snapshotDate={row.snapshot_date}
                     reportCreatedAt={row.report_created_at}
+                    marketplace={row.marketplace_name}
                     now={now}
                     compact
                   />

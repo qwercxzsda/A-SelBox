@@ -19,11 +19,12 @@ export function InventoryCoverage({
       </Text>
       <Text size="xs" c="dimmed">
         Daily snapshots are expected. Source dates older than {INVENTORY_OVERDUE_DAYS} days are
-        overdue; processing an older report does not refresh its stock.
+        overdue. Ages use each marketplace's local date; processing an older report does not refresh
+        its stock.
       </Text>
       <Group gap="sm" mt="xs" align="start" className="inventory-coverage-markets">
         {reports.map(({ marketplaceName, oldestDay, newestDay }) => {
-          const age = inventoryAge(oldestDay, now);
+          const age = inventoryAge(oldestDay, now, marketplaceName);
           return (
             <Stack gap={2} key={marketplaceName}>
               <Text size="xs" fw={600}>

@@ -72,7 +72,7 @@ Only the separate monthly Summary control applies that verified grouping.
 The **Comparison category** caption identifies Finances, Data Kiosk, and SelBox as accounting
 categories; each category compares Finances with Data Kiosk.
 The initial marketplace is Amazon.com and the initial year is the latest year with fully mature
-records for that marketplace/category. Native channels such as Non-Amazon US and Non-Amazon DE
+records for that marketplace/category. Native channels Non-Amazon US, Non-Amazon DE, and Non-Amazon IT
 remain separate. Currency is an amount unit derived from the selected marketplace's actual period
 rows, never a way to infer the marketplace. With one unit it is shown as a label; a secondary currency
 selector appears when multiple units are available. An explicit unit remains selected even if its

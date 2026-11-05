@@ -104,3 +104,40 @@ class MarketplaceTests(unittest.TestCase):
                 "postedBefore": "2026-10-25T23:00:00+00:00",
             },
         )
+
+    def test_non_amazon_it_requires_active_eu_participation_and_retains_rome_days(self) -> None:
+        scope = get_credential_scope("EU")
+        retail = participation("APJ6JRA9NG5V4")
+        channel = participation("A62U237T8HV6N")
+        for payload in ([retail], [retail, participation("A62U237T8HV6N", False)]):
+            self.assertEqual(financial_marketplace_ids(payload, scope), ("APJ6JRA9NG5V4",))
+        ids = financial_marketplace_ids([retail, channel], scope)
+        self.assertEqual(
+            {
+                (m.marketplace_id, m.marketplace_name, m.time_zone)
+                for m in coverage_marketplaces("EU", ids)
+            },
+            {
+                ("APJ6JRA9NG5V4", "Amazon.it", "Europe/Rome"),
+                ("A62U237T8HV6N", "Non-Amazon IT", "Europe/Rome"),
+            },
+        )
+        self.assertEqual(validate_marketplace_name("Non-Amazon IT"), "Non-Amazon IT")
+        with self.assertRaisesRegex(ValueError, "Unsupported Amazon marketplace ID"):
+            marketplace_name_from_id("A62U237T8HV6N")
+        for other in ("NA", "JAPAN", "SINGAPORE", "AUSTRALIA"):
+            self.assertEqual(financial_marketplace_ids([channel], get_credential_scope(other)), ())
+            with self.assertRaisesRegex(ValueError, "outside the credential scope"):
+                coverage_marketplaces(other, ("A62U237T8HV6N",))
+        self.assertEqual(
+            transaction_query_parameters(
+                coverage_marketplaces("EU", ("A62U237T8HV6N",)),
+                date(2026, 10, 25),
+                date(2026, 10, 25),
+                observed_at=datetime(2026, 10, 27, tzinfo=UTC),
+            ),
+            {
+                "postedAfter": "2026-10-24T22:00:00+00:00",
+                "postedBefore": "2026-10-25T23:00:00+00:00",
+            },
+        )

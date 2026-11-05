@@ -8,7 +8,9 @@ import argparse
 import json
 from pathlib import Path
 
-from ..amazon.marketplace_names import MARKETPLACE_NAMES
+from ..amazon.financial_channels import FINANCIAL_CHANNELS
+from ..amazon.marketplace_names import MARKETPLACE_NAME_BY_ID, MARKETPLACE_NAMES
+from ..amazon.marketplaces import get_marketplace_timezone
 from .data_kiosk import DATA_KIOSK_TYPES
 from .finances import FINANCES_TYPES
 
@@ -28,9 +30,17 @@ def generated_catalogs() -> dict[str, str]:
         for item in entries
     ]
     types.sort(key=lambda item: (item["source"], item["category"], item["type"]))
+    time_zones = {
+        name: get_marketplace_timezone(identifier).key
+        for identifier, name in MARKETPLACE_NAME_BY_ID.items()
+    }
+    time_zones.update(
+        (channel.marketplace_name, channel.time_zone) for channel in FINANCIAL_CHANNELS.values()
+    )
     catalogs: dict[str, object] = {
         "transaction-types.json": types,
         "marketplaces.json": sorted(MARKETPLACE_NAMES),
+        "marketplace-timezones.json": dict(sorted(time_zones.items())),
     }
     return {
         name: json.dumps(value, ensure_ascii=False, indent=2) + "\n"

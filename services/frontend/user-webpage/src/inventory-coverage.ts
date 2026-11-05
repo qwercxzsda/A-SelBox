@@ -1,29 +1,64 @@
 import type { InventoryCapture } from "./api/inventory.ts";
 import { requireCalendarDate } from "./api/filters.ts";
 import { formatRecordDate } from "./date-display.ts";
+import timeZones from "./generated/marketplace-timezones.json" with { type: "json" };
 
 export const INVENTORY_OVERDUE_DAYS = 2;
 
-export function inventorySourceDay(value: string | null): string | null {
-  if (value === null) return null;
-  const day = formatRecordDate(value).slice(0, 10);
+const dayFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function marketplaceTimeZone(marketplace: string): string | null {
+  return Object.hasOwn(timeZones, marketplace)
+    ? timeZones[marketplace as keyof typeof timeZones]
+    : null;
+}
+
+function marketplaceDay(timestamp: number, marketplace: string): string | null {
+  const instant = new Date(timestamp);
+  const timeZone = marketplaceTimeZone(marketplace);
+  if (!Number.isFinite(instant.getTime()) || timeZone === null) return null;
+  let formatter = dayFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone,
+    });
+    dayFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year").padStart(4, "0")}-${part("month")}-${part("day")}`;
+}
+
+export function inventorySourceDay(value: string | null, marketplace: string): string | null {
+  if (value === null || marketplaceTimeZone(marketplace) === null) return null;
+  const day = value.slice(0, 10);
   try {
     requireCalendarDate(day);
-    return day;
   } catch {
     return null;
   }
+  if (value === day) return day;
+  const timestamp = formatRecordDate(value);
+  if (!timestamp.endsWith(" UTC")) return null;
+  return marketplaceDay(
+    Date.parse(`${timestamp.slice(0, 10)}T${timestamp.slice(11, 19)}Z`),
+    marketplace,
+  );
 }
 
-export function inventoryAge(day: string | null, now: number) {
-  const validDay = inventorySourceDay(day);
-  if (validDay === null) return { label: "Date unavailable", overdue: false };
-  const today = new Date(now).toISOString().slice(0, 10);
+export function inventoryAge(day: string | null, now: number, marketplace: string) {
+  const validDay = inventorySourceDay(day, marketplace);
+  const today = marketplaceDay(now, marketplace);
+  if (validDay === null || today === null) return { label: "Date unavailable", overdue: false };
   const days =
     (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${validDay}T00:00:00Z`)) / 86_400_000;
   if (days < 0) return { label: "Future source date — check source", overdue: false };
   return {
-    label: days === 0 ? "Today (UTC)" : `${String(days)} ${days === 1 ? "day" : "days"} old`,
+    label: days === 0 ? "Today" : `${String(days)} ${days === 1 ? "day" : "days"} old`,
     overdue: days > INVENTORY_OVERDUE_DAYS,
   };
 }
@@ -40,7 +75,7 @@ export function inventoryReportRanges(captures: readonly InventoryCapture[], mar
       oldestDay: null,
       newestDay: null,
     };
-    const day = inventorySourceDay(capture.report_created_at);
+    const day = inventorySourceDay(capture.report_created_at, capture.marketplace_name);
     if (day !== null) {
       if (range.oldestDay === null || day < range.oldestDay) range.oldestDay = day;
       if (range.newestDay === null || day > range.newestDay) range.newestDay = day;

@@ -24,15 +24,15 @@ midnight after the final date, using named time zones and daylight-saving rules.
 records outside those local dates are retained in the archive but do not enter the covered day
 versions. Unknown marketplace identity is rejected; currency never supplies a missing market.
 
-Native `Non-Amazon US` and `Non-Amazon DE` remain distinct from their retail marketplaces in
+Native `Non-Amazon US`, `Non-Amazon DE`, and `Non-Amazon IT` remain distinct from their retail marketplaces in
 days, transactions and components. The financial-channel registry binds these verified identities
 to their credential scope and local time zone; they do not become Data Kiosk or Inventory stores.
 Amazon's Summary combines the US channel into the US account control. The explicit
 `finances_summary_marketplace` mapping groups `Amazon.com` with `Non-Amazon US` for that comparison
 and its version manifest. This does not change source marketplace provenance or company fee matching.
 
-The DE channel retains its own Summary and Data Kiosk scope until a cross-channel correspondence
-is established. Sellers participation alone does not prove that financial controls can be merged.
+The DE and IT channels retain their own Summary and Data Kiosk scopes until cross-channel
+correspondences are established. Sellers participation alone does not prove that financial controls can be merged.
 Newly supported channels require a fresh acquisition with the complete declared roster; previously
 archived coverage manifests remain immutable.
 

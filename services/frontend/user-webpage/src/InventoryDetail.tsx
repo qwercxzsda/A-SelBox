@@ -45,6 +45,7 @@ export function InventoryDetail({
           <InventorySourceDate
             snapshotDate={row.snapshot_date}
             reportCreatedAt={row.report_created_at}
+            marketplace={row.marketplace_name}
             now={now}
           />
           <Text size="xs" c="dimmed" mt={4}>
