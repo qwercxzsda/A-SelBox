@@ -25,6 +25,7 @@ def _prune(database_url: str, name: str) -> str:
 
 def _history(connection: psycopg.Connection) -> list[str]:
     fixture = SourceModelFixture()
+    fixture.finances_acquisitions = {}
     fixture.connection = connection
     fixture.seller = "retention-seller"
     fixture.set_mature_cutoff_date(date(2026, 7, 1))
@@ -50,6 +51,7 @@ class RetentionConcurrencyTests(unittest.TestCase):
         with isolated_database() as database_url:
             with psycopg.connect(database_url) as setup:
                 fixture = SourceModelFixture()
+                fixture.finances_acquisitions = {}
                 fixture.connection = setup
                 fixture.seller = "report-source-seller"
                 fixture.set_mature_cutoff_date(date(2026, 7, 1))
@@ -70,6 +72,7 @@ class RetentionConcurrencyTests(unittest.TestCase):
                     ) as publishing:
                         publishing.execute("set statement_timeout='8s'")
                         source = SourceModelFixture()
+                        source.finances_acquisitions = {}
                         source.connection = publishing
                         source.seller = fixture.seller
                         current = first
@@ -102,6 +105,7 @@ class RetentionConcurrencyTests(unittest.TestCase):
         with isolated_database() as database_url:
             with psycopg.connect(database_url) as setup:
                 fixture = SourceModelFixture()
+                fixture.finances_acquisitions = {}
                 fixture.connection = setup
                 fixture.seller = "retention-seller"
                 company, _ = fixture.owner()
@@ -120,6 +124,7 @@ class RetentionConcurrencyTests(unittest.TestCase):
                     ) as capturing:
                         capturing.execute("set statement_timeout='8s'")
                         report_fixture = SourceModelFixture()
+                        report_fixture.finances_acquisitions = {}
                         report_fixture.connection = capturing
                         report_fixture.seller = fixture.seller
                         return publish_report(report_fixture, company)

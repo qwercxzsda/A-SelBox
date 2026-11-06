@@ -30,27 +30,21 @@ GROUPS = (
     ),
     (
         "03-finances-observations",
-        "Finances acquisitions and daily versions",
+        "Finances acquisitions and successful batch membership",
         (
             "private.finances_acquisitions",
-            "private.finances_days",
             "private.finances_preprocess_batches",
-            "private.finances_preprocess_versions",
-            "private.finances_pruned_versions",
+            "private.finances_preprocess_batch_transactions",
         ),
     ),
     (
         "03b-finances-facts",
-        "Finances native transactions and components",
+        "Finances transaction identities versions and components",
         (
             "private.finances_transactions",
+            "private.finances_transaction_versions",
             "private.finances_transaction_components",
         ),
-    ),
-    (
-        "03c-finances-summary-checks",
-        "Finances Summary controls and version manifests",
-        ("private.finances_summary_checks", "private.finances_summary_check_versions"),
     ),
     (
         "04-data-kiosk-observations",
@@ -82,10 +76,9 @@ GROUPS = (
     ),
     (
         "07-payout-manifests",
-        "Payout source Summary and terms manifests",
+        "Payout source batches day versions and terms manifests",
         (
-            "private.payout_report_finances_versions",
-            "private.payout_report_finances_summary_checks",
+            "private.payout_report_finances_batches",
             "private.payout_report_data_kiosk_versions",
             "private.payout_report_terms_versions",
         ),
@@ -284,10 +277,12 @@ def markdown(schema: dict[str, dict[str, Any]]) -> str:
         "and keys are generated from an isolated installation of the actual migrations, "
         "without reading existing financial data.",
         "",
-        "Finances and Data Kiosk use complete daily versions. Native Finances parent totals "
-        "control their component partitions; Summary checks pin the exact day versions used. "
-        "Payout manifests retain those versions, matching Summary checks and company terms. "
-        "Inventory keeps its separate one-capture-per-day model.",
+        "Finances stores stable transaction identities, immutable transaction versions and "
+        "components, and the exact versions observed by each successful preprocessing batch. "
+        "All Finance business validation runs in Python before publication; raw pages stay in "
+        "private Storage. Data Kiosk retains complete daily versions and its separate pruning "
+        "policy. Payouts pin Finance batches, Data Kiosk versions and company terms. Inventory "
+        "keeps its separate one-capture-per-day model.",
         "",
         "See [data workflows](data_workflows.md), "
         "[Finances transactions](finances_transactions.md), "

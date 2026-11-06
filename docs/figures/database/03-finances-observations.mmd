@@ -1,10 +1,9 @@
 erDiagram
     direction LR
-    private_finances_preprocess_versions o|..o| private_finances_days : "id + current_version_id"
     private_finances_acquisitions ||..o{ private_finances_preprocess_batches : "acquisition_id"
-    private_finances_preprocess_batches ||..o{ private_finances_preprocess_versions : "batch_id"
-    private_finances_days ||..o{ private_finances_preprocess_versions : "day_id"
-    private_finances_preprocess_versions ||--o| private_finances_pruned_versions : "version_id"
+    private_finances_transaction_versions ||..o{ private_finances_preprocess_batch_transactions : "transaction_id + version_id"
+    private_finances_preprocess_batches ||--o{ private_finances_preprocess_batch_transactions : "batch_id"
+    private_finances_transactions ||--o{ private_finances_preprocess_batch_transactions : "transaction_id"
 
     private_finances_acquisitions["private.finances_acquisitions"] {
         local_uuid id PK "NN"
@@ -21,35 +20,27 @@ erDiagram
         timestamp_with_time_zone created_at "NN"
     }
 
-    private_finances_days["private.finances_days"] {
-        local_uuid id PK, FK "NN"
-        nonblank seller_namespace "NN"
-        text marketplace_name "NN"
-        date activity_date "NN"
-        local_uuid current_version_id FK "NULL"
-        timestamp_with_time_zone created_at "NN"
-    }
-
     private_finances_preprocess_batches["private.finances_preprocess_batches"] {
         local_uuid id PK "NN"
         local_uuid acquisition_id FK "NN"
-        integer day_count "NN"
-        timestamp_with_time_zone created_at "NN"
-    }
-
-    private_finances_preprocess_versions["private.finances_preprocess_versions"] {
-        local_uuid id PK "NN"
-        local_uuid day_id FK "NN"
-        local_uuid batch_id FK "NN"
         nonblank preprocess_version "NN"
         integer transaction_count "NN"
-        integer row_count "NN"
-        sha256 content_sha256 "NN"
-        jsonb diagnostics "NN"
+        integer component_count "NN"
         timestamp_with_time_zone created_at "NN"
     }
 
-    private_finances_pruned_versions["private.finances_pruned_versions"] {
-        local_uuid version_id PK, FK "NN"
-        timestamp_with_time_zone created_at "NN"
+    private_finances_preprocess_batch_transactions["private.finances_preprocess_batch_transactions"] {
+        local_uuid batch_id PK, FK "NN"
+        local_uuid transaction_id PK, FK "NN"
+        local_uuid version_id FK "NN"
+        integer source_page_number "NN"
+        integer source_record_number "NN"
+    }
+
+    private_finances_transaction_versions["private.finances_transaction_versions (reference)"] {
+        local_uuid id PK "NN"
+    }
+
+    private_finances_transactions["private.finances_transactions (reference)"] {
+        local_uuid id PK, FK "NN"
     }

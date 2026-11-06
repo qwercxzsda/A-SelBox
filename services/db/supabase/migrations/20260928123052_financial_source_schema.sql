@@ -1,4 +1,4 @@
--- Immutable complete Finances observations; all accounts and currencies share a local day.
+-- Stable transaction identities select immutable revisions from successful preprocessing runs.
 create table private.finances_acquisitions (
     id public.local_uuid primary key default private.uuid7(),
     seller_namespace private.nonblank not null,
@@ -17,72 +17,36 @@ create table private.finances_acquisitions (
     ),
     created_at timestamptz not null default now()
 );
-create table private.finances_days (
-    id public.local_uuid primary key default private.uuid7(),
-    seller_namespace private.nonblank not null,
-    marketplace_name text not null check (
-        marketplace_name in (
-            'Amazon.com',
-            'Amazon.ca',
-            'Amazon.com.mx',
-            'Amazon.com.br',
-            'Amazon.co.uk',
-            'Amazon.de',
-            'Amazon.fr',
-            'Amazon.it',
-            'Amazon.es',
-            'Amazon.nl',
-            'Amazon.se',
-            'Amazon.pl',
-            'Amazon.com.be',
-            'Amazon.ie',
-            'Amazon.com.tr',
-            'Amazon.ae',
-            'Amazon.sa',
-            'Amazon.eg',
-            'Amazon.in',
-            'Amazon.co.za',
-            'Amazon.co.jp',
-            'Amazon.com.au',
-            'Amazon.sg',
-            'Non-Amazon DE',
-            'Non-Amazon IT',
-            'Non-Amazon US'
-        )
-    ),
-    activity_date date not null check (isfinite(activity_date)),
-    current_version_id public.local_uuid,
-    created_at timestamptz not null default now(),
-    unique (seller_namespace, marketplace_name, activity_date)
-);
+
 create table private.finances_preprocess_batches (
     id public.local_uuid primary key default private.uuid7(),
     acquisition_id public.local_uuid not null references private.finances_acquisitions (id),
-    day_count integer not null check (day_count > 0),
-    created_at timestamptz not null default now()
-);
-create index finances_batches_acquisition_idx on private.finances_preprocess_batches (
-    acquisition_id
-);
-create table private.finances_preprocess_versions (
-    id public.local_uuid primary key default private.uuid7(),
-    day_id public.local_uuid not null references private.finances_days (id),
-    batch_id public.local_uuid not null references private.finances_preprocess_batches (id),
     preprocess_version private.nonblank not null,
     transaction_count integer not null check (transaction_count >= 0),
-    row_count integer not null check (row_count >= 0),
-    content_sha256 private.sha256 not null,
-    diagnostics jsonb not null default '[]'::jsonb check (jsonb_typeof(diagnostics) = 'array'),
-    created_at timestamptz not null default now(),
-    unique (day_id, id), unique (batch_id, day_id)
+    component_count integer not null check (component_count >= 0),
+    created_at timestamptz not null default now()
 );
-alter table private.finances_days add constraint finances_current_version_identity
-foreign key (id, current_version_id) references private.finances_preprocess_versions (day_id, id);
+create index finances_runs_acquisition_idx on private.finances_preprocess_batches (acquisition_id);
+
 create table private.finances_transactions (
     id public.local_uuid primary key default private.uuid7(),
-    version_id public.local_uuid not null references private.finances_preprocess_versions (id),
     seller_namespace private.nonblank not null,
+    amazon_scope private.nonblank not null,
     native_transaction_id private.nonblank not null,
+    current_version_id public.local_uuid,
+    current_batch_id public.local_uuid,
+    created_at timestamptz not null default now(),
+    unique (seller_namespace, amazon_scope, native_transaction_id),
+    check ((current_version_id is null) = (current_batch_id is null))
+);
+
+create table private.finances_transaction_versions (
+    id public.local_uuid primary key default private.uuid7(),
+    transaction_id public.local_uuid not null references private.finances_transactions (id),
+    content_sha256 private.sha256 not null,
+    posted_date date not null check (isfinite(posted_date)),
+    posted_at timestamptz not null check (isfinite(posted_at)),
+    marketplace_id private.nonblank not null,
     marketplace_name text not null check (
         marketplace_name in (
             'Amazon.com',
@@ -113,54 +77,26 @@ create table private.finances_transactions (
             'Non-Amazon US'
         )
     ),
-    marketplace_id private.nonblank not null,
     account_type private.nonblank not null,
     transaction_type private.nonblank not null,
     transaction_status text not null check (
         transaction_status in ('DEFERRED', 'DEFERRED_RELEASED', 'RELEASED')
     ),
-    posted_date date not null,
-    posted_at timestamptz not null,
     deferred_transaction_id text check (length(btrim(deferred_transaction_id)) > 0),
     release_transaction_id text check (length(btrim(release_transaction_id)) > 0),
+    activity_eligible boolean not null,
     total_amount private.exact_numeric not null,
     currency text not null check (currency ~ '^[A-Z]{3}$'),
-    activity_eligible boolean not null,
-    source_page_number integer not null check (source_page_number > 0),
-    source_record_number integer not null check (source_record_number > 0),
     component_count integer not null check (component_count >= 0),
-    source_fields jsonb not null check (jsonb_typeof(source_fields) = 'object'),
     created_at timestamptz not null default now(),
-    unique (version_id, id), unique (version_id, native_transaction_id)
+    unique (transaction_id, id),
+    unique (transaction_id, content_sha256)
 );
-create index finances_transactions_native_id_idx on private.finances_transactions (
-    seller_namespace, native_transaction_id, version_id
-);
-create index finances_transactions_release_idx on private.finances_transactions
-(release_transaction_id, version_id) where release_transaction_id is not null;
--- Publication validation only: identify releases using either direction in the batch.
--- Reads use stored activity_eligible, even if an unpinned counterpart is later pruned.
-create function private.finances_activity_eligible(
-    p_kind text, p_deferred_transaction_id text, p_native_transaction_id text, p_batch_id uuid
-) returns boolean language sql stable security invoker set search_path = '' as $$
- select p_kind<>'Transfer' and p_deferred_transaction_id is null and not exists(
-  select 1 from private.finances_transactions original
-  join private.finances_preprocess_versions v on v.id=original.version_id
-  where v.batch_id=p_batch_id and original.release_transaction_id=p_native_transaction_id
- );
-$$;
 
 create table private.finances_transaction_components (
     id public.local_uuid primary key default private.uuid7(),
-    version_id public.local_uuid not null references private.finances_preprocess_versions (id),
-    transaction_id public.local_uuid not null,
-    native_transaction_id private.nonblank not null,
-    deferred_transaction_id text check (length(btrim(deferred_transaction_id)) > 0),
-    release_transaction_id text check (length(btrim(release_transaction_id)) > 0),
-    seller_namespace private.nonblank not null,
-    source_page_number integer not null check (source_page_number > 0),
-    source_record_number integer not null check (source_record_number > 0),
-    component_key private.nonblank not null,
+    version_id public.local_uuid not null references private.finances_transaction_versions (id),
+    component_number integer not null check (component_number > 0),
     category public.allocation_category not null check (
         category in ('FINANCES', 'SELBOX', 'DATA_KIOSK')
     ),
@@ -169,147 +105,101 @@ create table private.finances_transaction_components (
         accounting_subtype in ('OPERATING_EXPENSE', 'BALANCE_MOVEMENT', 'TAX_RECLASSIFICATION')
     ),
     sku text check (length(btrim(sku)) > 0),
-    marketplace_name text not null check (
-        marketplace_name in (
-            'Amazon.com',
-            'Amazon.ca',
-            'Amazon.com.mx',
-            'Amazon.com.br',
-            'Amazon.co.uk',
-            'Amazon.de',
-            'Amazon.fr',
-            'Amazon.it',
-            'Amazon.es',
-            'Amazon.nl',
-            'Amazon.se',
-            'Amazon.pl',
-            'Amazon.com.be',
-            'Amazon.ie',
-            'Amazon.com.tr',
-            'Amazon.ae',
-            'Amazon.sa',
-            'Amazon.eg',
-            'Amazon.in',
-            'Amazon.co.za',
-            'Amazon.co.jp',
-            'Amazon.com.au',
-            'Amazon.sg',
-            'Non-Amazon DE',
-            'Non-Amazon IT',
-            'Non-Amazon US'
-        )
-    ),
     amount private.exact_numeric not null,
-    currency text not null check (currency ~ '^[A-Z]{3}$'),
     quantity private.exact_numeric,
     fee_base private.exact_numeric,
-    posted_date date not null,
-    posted_at timestamptz not null,
-    transaction_type private.nonblank not null,
-    transaction_status text not null,
-    account_type private.nonblank not null,
-    activity_eligible boolean not null,
-    breakdown_path jsonb not null check (jsonb_typeof(breakdown_path) = 'array'),
-    source_fields jsonb not null check (jsonb_typeof(source_fields) = 'object'),
+    breakdown_path text[] not null,
+    item_index integer not null check (item_index >= 0),
+    breakdown_indexes integer[] not null,
     created_at timestamptz not null default now(),
-    foreign key (version_id, transaction_id) references private.finances_transactions (
-        version_id, id
-    ),
-    unique (version_id, component_key),
-    check (category <> 'FINANCES' or sku is not null)
+    unique (version_id, component_number),
+    check (array_position(breakdown_path, null) is null),
+    check (array_position(breakdown_indexes, null) is null)
 );
-create index finances_component_parent_idx
-on private.finances_transaction_components (transaction_id);
-create table private.finances_pruned_versions (
-    version_id public.local_uuid primary key references private.finances_preprocess_versions (id),
-    created_at timestamptz not null default now()
+
+create table private.finances_preprocess_batch_transactions (
+    batch_id public.local_uuid not null references private.finances_preprocess_batches (id),
+    transaction_id public.local_uuid not null references private.finances_transactions (id),
+    version_id public.local_uuid not null,
+    source_page_number integer not null check (source_page_number > 0),
+    source_record_number integer not null check (source_record_number > 0),
+    primary key (batch_id, transaction_id),
+    unique (batch_id, transaction_id, version_id),
+    foreign key (transaction_id, version_id)
+    references private.finances_transaction_versions (transaction_id, id)
 );
--- Parent totals and component amounts are separate representations of the same money.
+create index finances_preprocess_batch_transactions_revision_idx
+on private.finances_preprocess_batch_transactions (version_id, batch_id);
+alter table private.finances_transactions add constraint finances_current_observation_identity
+foreign key (current_batch_id, id, current_version_id)
+references private.finances_preprocess_batch_transactions (batch_id, transaction_id, version_id)
+deferrable initially deferred;
+create index finances_transactions_current_version_idx
+on private.finances_transactions (current_version_id);
+create index finances_transactions_current_batch_idx
+on private.finances_transactions (current_batch_id);
+
+-- One row per immutable component; observation locations belong to run membership.
+create view private.finances_component_details with (security_invoker = true) as
+select
+    c.id,
+    c.version_id,
+    r.transaction_id,
+    t.seller_namespace,
+    t.amazon_scope,
+    t.native_transaction_id,
+    t.current_batch_id,
+    r.posted_date,
+    r.posted_at,
+    r.marketplace_id,
+    r.marketplace_name,
+    r.account_type,
+    r.transaction_type,
+    r.transaction_status,
+    r.deferred_transaction_id,
+    r.release_transaction_id,
+    r.activity_eligible,
+    r.currency,
+    c.component_number,
+    c.category,
+    c.component_type,
+    c.accounting_subtype,
+    c.sku,
+    c.amount,
+    c.quantity,
+    c.fee_base,
+    c.breakdown_path,
+    c.item_index,
+    c.breakdown_indexes,
+    c.created_at,
+    r.id = t.current_version_id as is_current
+from private.finances_transaction_components as c
+inner join private.finances_transaction_versions as r on c.version_id = r.id
+inner join private.finances_transactions as t on r.transaction_id = t.id;
+
 create view private.finances_activity_components with (security_invoker = true) as
-select * from private.finances_transaction_components -- noqa: AM04
+select * from private.finances_component_details -- noqa: AM04
 where activity_eligible;
 
--- Amazon's regional Summary includes the Non-Amazon US channel in Amazon.com.
--- Native marketplace provenance stays unchanged on days, transactions and components.
-create function private.finances_summary_marketplace(p_marketplace text) returns text
-language sql immutable parallel safe security invoker as $$
- select case p_marketplace when 'Non-Amazon US' then 'Amazon.com' else p_marketplace end;
-$$;
+-- Reused revisions appear once for each successful observation that includes them.
+create view private.finances_batch_components with (security_invoker = true) as
+select -- noqa: AM04
+    d.*,
+    m.batch_id,
+    p.preprocess_version,
+    p.acquisition_id,
+    m.source_page_number,
+    m.source_record_number
+from private.finances_preprocess_batch_transactions as m
+inner join private.finances_preprocess_batches as p on m.batch_id = p.id
+inner join private.finances_component_details as d
+    on (d.transaction_id, d.version_id) = (m.transaction_id, m.version_id);
 
 -- Data Kiosk has the retail store, not a separately queryable Non-Amazon US channel.
--- This controls required coverage only; native financial attribution is unchanged.
 create function private.finances_data_kiosk_marketplace(p_marketplace text) returns text
 language sql immutable parallel safe security invoker as $$
  select case p_marketplace when 'Non-Amazon US' then 'Amazon.com' else p_marketplace end;
 $$;
-
-create table private.finances_summary_checks (
-    id public.local_uuid primary key default private.uuid7(),
-    seller_namespace private.nonblank not null,
-    marketplace_name text not null check (
-        marketplace_name in (
-            'Amazon.com',
-            'Amazon.ca',
-            'Amazon.com.mx',
-            'Amazon.com.br',
-            'Amazon.co.uk',
-            'Amazon.de',
-            'Amazon.fr',
-            'Amazon.it',
-            'Amazon.es',
-            'Amazon.nl',
-            'Amazon.se',
-            'Amazon.pl',
-            'Amazon.com.be',
-            'Amazon.ie',
-            'Amazon.com.tr',
-            'Amazon.ae',
-            'Amazon.sa',
-            'Amazon.eg',
-            'Amazon.in',
-            'Amazon.co.za',
-            'Amazon.co.jp',
-            'Amazon.com.au',
-            'Amazon.sg',
-            'Non-Amazon DE',
-            'Non-Amazon IT',
-            'Non-Amazon US'
-        )
-    ),
-    start_date date not null check (isfinite(start_date)),
-    end_date date not null check (isfinite(end_date) and end_date >= start_date),
-    account_type private.nonblank not null,
-    currency text not null check (currency ~ '^[A-Z]{3}$'),
-    summary_amount private.exact_numeric not null,
-    transaction_amount private.exact_numeric not null,
-    matched boolean generated always as (summary_amount = transaction_amount) stored, -- noqa: RF04
-    acquisition_id public.local_uuid not null references private.finances_acquisitions (id),
-    source_page_number integer not null check (source_page_number > 0),
-    source_summary_index integer not null check (source_summary_index > 0),
-    version_count integer not null check (version_count > 0),
-    created_at timestamptz not null default now()
-);
-create index finances_summary_scope_idx on private.finances_summary_checks (
-    seller_namespace,
-    marketplace_name,
-    start_date,
-    end_date,
-    account_type,
-    currency,
-    created_at desc
-);
-create table private.finances_summary_check_versions (
-    check_id public.local_uuid not null -- noqa: RF04
-    references private.finances_summary_checks (id),
-    day_id public.local_uuid not null references private.finances_days (id),
-    version_id public.local_uuid not null references private.finances_preprocess_versions (id),
-    primary key (check_id, day_id),
-    foreign key (day_id, version_id) references private.finances_preprocess_versions (day_id, id)
-);
-create index finances_summary_check_versions_version_idx
-on private.finances_summary_check_versions (
-    version_id
-);
 
 create table private.data_kiosk_acquisitions (
     id public.local_uuid primary key default private.uuid7(),

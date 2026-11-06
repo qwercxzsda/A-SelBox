@@ -26,7 +26,7 @@ test("a saved zero report displays without a currency and remains readable durin
       company_amount: "0",
       component_count: "0",
       reconciliation_count: "0",
-      finances_version_count: "2",
+      finances_batch_count: "2",
       data_kiosk_version_count: "1",
       terms_version_count: "1",
     },

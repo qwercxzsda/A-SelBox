@@ -80,14 +80,20 @@ class SkuFilterOptionsTests(SourceModelFixture):
         self.assign("OLD_KIOSK", first)
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, version = self.finances([self.transaction("1", sku="OLD")], acquisition_id=acquisition)
+        _, _version = self.finances(
+            [self.transaction("1", sku="OLD") | {"native_transaction_id": "corrected-sku"}],
+            acquisition_id=acquisition,
+        )
         _, kiosk = self.kiosk(1, [self.component("2", sku="OLD_KIOSK")])
         administrator, member_a, member_b = (
             self.administrator(),
             self.member(first),
             self.member(second),
         )
-        self.finances([self.transaction("3")], acquisition_id=acquisition, expected=version)
+        self.finances(
+            [self.transaction("3") | {"native_transaction_id": "corrected-sku"}],
+            acquisition_id=acquisition,
+        )
         self.kiosk(2, [], expected=kiosk)
         self.assertIn("OLD", cast(list[str], self.assert_matches_views(administrator)["values"]))
         # Registered, assigned SKUs remain usable menu options without current facts.

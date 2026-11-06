@@ -8,9 +8,9 @@ Unknown monetary paths fail preprocessing rather than receiving a default catego
 
 ## Activity and current versions
 
-Finances stores complete immutable versions of each seller/marketplace/local day.
-Calculations follow the day's current version. Repeated downloads and historical
-versions are never added together. Native transaction totals are controls;
+Finances stores stable seller/credential-scope/native transaction identities and immutable
+transaction versions. Calculations follow each transaction's current pointer. Repeated downloads
+reuse unchanged versions; historical versions are never added to current versions. Native transaction totals are controls;
 normalized components partition those totals and are the allocation inputs.
 Never add the parent totals and their components together.
 
@@ -82,7 +82,7 @@ Finances native totals independently reconcile to Amazon `listSummary` using the
 same seller, account type, currency and local date interval. Summary is a control,
 not a second monetary input. `Non-Amazon US` contributes to Amazon.com's Summary
 control group; raw facts and company marketplace attribution retain the native
-channel. The exact day-version manifest includes both channels when present.
+channel. The successful batch membership records both channels when present.
 
 An exact Summary match validates the Finances account calculation. It does not
 prove Data Kiosk's SKU cost allocation is correct. The Data Kiosk residual can
@@ -90,16 +90,16 @@ remain nonzero even when the Finances/Summary difference is zero.
 
 [Payout reports](company_payout_reports.md) cover one company, exact marketplace, currency, and full
 calendar month whose end is mature. Nonempty company scopes require complete compatible Data Kiosk and
-Finances coverage, resolved ownership/fees, and matched Summary checks for the
-exact Finances versions. Valid daily observations may be published before
-reconciliation succeeds. Missing or mismatched controls block a new payout while
-preserving the previous successful report.
+Finances batch coverage and resolved ownership/fees. Finance preprocessing verifies Summary
+before accepted database publication. Missing or mismatched controls reject the whole batch and
+preserve the prior accepted source state. Payout selection checks that a successful monthly batch
+contains the current transaction versions; it does not repeat the Finance business checks.
 
 Empty assigned companies can retain explicit zero reports without inventing a
 marketplace or currency, or claiming that an unobserved seller was inactive. Source publications
-and fee changes enqueue automatic refreshes. Snapshot pins preserve empty days,
-financial components, and their Summary evidence; retention never removes pinned
-payloads. See [company fees](company_fees.md), [native type rules](transaction_type_registry.md),
+and fee changes enqueue automatic refreshes. Snapshots pin successful Finance batches, including
+empty captures, Data Kiosk day versions and terms. Finance history has no retention cap; Data Kiosk
+retention never removes pinned payloads. Summary evidence remains in the acquisition archives. See [company fees](company_fees.md), [native type rules](transaction_type_registry.md),
 and the [payout contract](company_payout_reports.md).
 
 ## Data Kiosk coverage for native channels

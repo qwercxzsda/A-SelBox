@@ -130,14 +130,13 @@ class TransactionCountTests(SourceModelFixture):
         )
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        _, _finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
         for user, expected in ((administrator, "3"), (member_a, "2"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
         self.finances(
             [self.transaction("200", 3), self.transaction("300", 4)],
             acquisition_id=acquisition,
-            expected=finances,
         )
         self.kiosk(2, [self.component("0")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)

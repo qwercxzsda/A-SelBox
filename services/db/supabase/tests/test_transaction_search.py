@@ -139,8 +139,8 @@ class TransactionSearchTests(SourceModelFixture):
             self.member(company_b),
         )
         acquisition = self.acquisition()
-        _, old = self.finances([self.transaction("100")], acquisition_id=acquisition)
-        self.finances([self.transaction("200")], acquisition_id=acquisition, expected=old)
+        _, _old = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        self.finances([self.transaction("200")], acquisition_id=acquisition)
         self.kiosk(1, [self.component("-20")], activity_date=self.recent_activity_date())
         new_terms = self.assign("SKU", company_b, expected=terms)
         self.assertEqual(self.count(member_a, p_search_skus=["SKU"]), "0")
@@ -232,9 +232,9 @@ class SourceTransactionSearchTests(SourceModelFixture):
         administrator, member = self.administrator(), self.member(company)
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, finances = self.finances([self.transaction("10")], acquisition_id=acquisition)
+        _, _finances = self.finances([self.transaction("10")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("10")])
-        self.finances([self.transaction("20")], acquisition_id=acquisition, expected=finances)
+        self.finances([self.transaction("20")], acquisition_id=acquisition)
         self.kiosk(2, [self.component("0")], expected=kiosk)
         for user, dataset in product((administrator, member), ("finances", "data_kiosk")):
             result = self.assert_matches_view(user, dataset, p_search_skus=["SKU"])

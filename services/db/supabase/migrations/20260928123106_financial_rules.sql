@@ -86,7 +86,7 @@ language sql immutable parallel safe security invoker as $$
 $$;
 
 create function private.resolve_source_reconciliation(
-    p_finances_version_ids uuid[], p_data_kiosk_version_ids uuid[]
+    p_finances_batch_ids uuid[], p_data_kiosk_version_ids uuid[]
 ) returns table (
     seller_namespace text, activity_date date, marketplace_name text, currency text,
     finances_category_amount numeric,
@@ -108,7 +108,7 @@ select i.seller_namespace::text, i.activity_date, i.marketplace_name, i.currency
         as data_kiosk_finances_control,
     coalesce(sum(i.amount) filter (where i.source = 'DATA_KIOSK'),0) as data_kiosk_category_amount
 from private.source_reconciliation_inputs i
-where (i.source = 'FINANCES' and i.source_version_id = any(p_finances_version_ids))
+where (i.source = 'FINANCES' and i.source_version_id in (select m.version_id from private.finances_preprocess_batch_transactions m where m.batch_id = any(p_finances_batch_ids)))
     or (i.source = 'DATA_KIOSK' and i.source_version_id = any(p_data_kiosk_version_ids))
 group by i.seller_namespace, i.activity_date, i.marketplace_name, i.currency
 )
@@ -141,7 +141,7 @@ with grouped as (
             as data_kiosk_category_amount
     from private.source_reconciliation_inputs as i
     where (i.source = 'FINANCES' and exists (
-        select 1 from private.finances_days as s
+        select 1 from private.finances_transactions as s
         where s.current_version_id = i.source_version_id
     ))
     or (i.source = 'DATA_KIOSK' and exists (

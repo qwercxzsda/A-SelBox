@@ -17,7 +17,7 @@ from services.sync.src.amazon.marketplace_names import (
 
 _SCALAR_COLUMNS = {
     "public.sku_fee_periods": True,
-    "private.finances_transaction_components": True,
+    "private.finances_transaction_versions": True,
     "private.data_kiosk_days": True,
     "private.data_kiosk_transactions": True,
     "public.company_payout_report_components": False,
@@ -121,7 +121,7 @@ class MarketplaceContractTests(SourceModelFixture):
     def test_publication_and_direct_storage_preserve_marketplace_boundaries(self) -> None:
         payload = self.publish_marketplace_report()
         for relation in (
-            "private.finances_transaction_components",
+            "private.finances_transaction_versions",
             "public.company_payout_report_components",
         ):
             self.assertEqual(
@@ -183,7 +183,7 @@ class MarketplaceContractTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select marketplace_name, marketplace_id, sum(total_amount)::text "
-                "from private.finances_transactions group by 1,2 order by 1"
+                "from private.finances_transaction_versions group by 1,2 order by 1"
             ).fetchall(),
             [
                 ("Amazon.de", "A1PA6795UKMFR9", "23"),
@@ -210,11 +210,10 @@ class MarketplaceContractTests(SourceModelFixture):
         for marketplace in ("Non-Amazon DE", "Non-Amazon IT"):
             self.assertEqual(
                 self.connection.execute(
-                    "select private.finances_summary_marketplace(%s), "
-                    "private.finances_data_kiosk_marketplace(%s)",
-                    (marketplace, marketplace),
+                    "select private.finances_data_kiosk_marketplace(%s)",
+                    (marketplace,),
                 ).fetchone(),
-                (marketplace, marketplace),
+                (marketplace,),
             )
         self.connection.execute("set constraints all immediate")
 

@@ -102,10 +102,26 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         company, _ = self.owner("OWNED")
         self.assign("REGISTERED-ONLY", None)
         acquisition = self.acquisition()
-        _, previous = self.finances(
-            [self.transaction("10", sku="HISTORY-ONLY")], acquisition_id=acquisition
+        _, _previous = self.finances(
+            [
+                self.transaction("10", sku="HISTORY-ONLY")
+                | {"native_transaction_id": "historical-sku"}
+            ],
+            acquisition_id=acquisition,
         )
-        self.finances([], acquisition_id=acquisition, expected=previous)
+        self.finances(
+            [
+                self.transaction(
+                    "0",
+                    sku="OWNED",
+                    kind="ServiceFee",
+                    category="SELBOX",
+                    description="Subscription",
+                )
+                | {"native_transaction_id": "historical-sku"}
+            ],
+            acquisition_id=acquisition,
+        )
         administrator = self.administrator()
         self.assertEqual(
             self.save(administrator, [self.change("OWNED", company)])["changed_count"], 1

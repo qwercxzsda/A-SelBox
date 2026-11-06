@@ -32,7 +32,8 @@ class AmountOrderingScopeTests(SourceModelFixture):
         )
         finances_rows = [self.transaction(str(i), i + 2) for i in range(1, 10001)]
         finances_rows.append(
-            self.transaction("10001", 10003, sku="OTHER") | {"component_type": "FOCUS"}
+            self.transaction("10001", 10003, sku="OTHER")
+            | {"component_type": "FOCUS", "fee_base": None, "quantity": None}
         )
         kiosk_rows = [self.component(str(i)) for i in range(10000)]
         kiosk_rows.append(self.component("10001", sku="OTHER") | {"component_type": "FOCUS"})

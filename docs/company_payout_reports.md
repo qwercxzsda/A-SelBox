@@ -86,7 +86,7 @@ amounts disappear.
 through lightweight company-scoped `payouts` revision checks; unchanged report reuse does
 not rotate the token. There is no public generation RPC. The private worker and
 internal publisher use calculation version `v1`, independently of the source
-`preprocess_version`. The publisher discovers source namespaces, Finances days, and
+`preprocess_version`. The publisher discovers source namespaces, successful Finance batches, and
 required seller/marketplace pairs; callers cannot restrict a report to a namespace
 or choose its source versions. Preprocessing must be compatible within each
 namespace. Separate namespaces can use different preprocessing versions, retained
@@ -151,15 +151,14 @@ amounts that cancel each other or from authoritative zero-amount rows; those
 reports retain their component rows and ordinary coverage requirements.
 
 A scope containing authoritative company rows requires complete compatible
-Finances and Data Kiosk days, including when its total is zero. Every selected
-Finances control group also requires matched Amazon Summary evidence for its
-exact month, account/currency scopes and day-version manifest. Empty available
-Finances observations require their own verified Summary controls; missing
-Finances inputs are not invented as zero.
+successful Finance batches and Data Kiosk day versions, including when its total is zero. Finance
+preprocessing has already matched the required account/currency Summary controls before accepting
+the batch. Empty successful observations require their own controls; missing Finance inputs are
+not invented as zero.
 
 A company with no identifiable source scope can still have an explicit empty
 input inventory. Missing ownership, applicable fees, invalid available inputs,
-pruned payloads or stale Summary controls block publication before both reuse
+pruned Data Kiosk payloads or stale Finance batch membership block publication before both reuse
 and creation. SKU-less account controls never create company ownership.
 
 The declared coverage pairs use the company's discovered source namespaces. For
@@ -187,43 +186,44 @@ previous marketplace/currency scope whose amounts disappeared. Existing snapshot
 
 ## Amazon Summary controls
 
-`finances_summary_checks` records independently acquired `listSummary` values,
-the sum of eligible native transaction totals, exact scope and source-page
-provenance. `finances_summary_check_versions` pins every day used in that sum.
-The publisher validates complete local days and excludes linked releases and
-transfers before comparing exact decimals. It never inserts a balancing amount.
+Finance preprocessing compares independently acquired `listSummary` values with the exact sum of
+eligible native transaction totals for the same seller, marketplace group, account, currency and
+local-date period. It verifies component partitions and original/release eligibility before
+publishing accepted data. Missing or mismatched controls reject the entire preprocessing attempt;
+errors are local logs, and the previous accepted selection remains unchanged.
 
-The verified control grouping maps native `Non-Amazon US` to Amazon.com because
-Amazon combines those amounts in its Summary response. The check includes both
-native marketplace-day inventories when present; company components retain their
-original marketplace. Currency does not infer a channel or ownership.
+The verified control grouping maps native `Non-Amazon US` to Amazon.com. Native transactions and
+company amounts retain their original marketplace. Other channels remain separate unless a mapping
+has been established. Summary agreement validates account activity, not Data Kiosk SKU allocation.
 
-Every returned Summary account/currency must match, including a Summary scope
-with no native transaction rows. A matching account cannot conceal an unmatched
-second account. A matched check for older versions does not certify newer selected days.
-Structurally valid current observations can exist without successful Summary
-reconciliation. Missing or mismatched controls keep the company/month pending
-and preserve its previous successful payout. A report stores both its exact
-Finances version pins and `payout_report_finances_summary_checks` references.
+Raw Summary pages stay in the acquisition archives. A successful Finance batch records the exact
+observed transaction versions through `finances_preprocess_batch_transactions`; unchanged versions
+can be shared by several batches. There are no separate Summary-check tables or day-version check
+manifests. Payouts reference accepted batches through `payout_report_finances_batches`.
 
-This control validates Amazon account totals. It does not replace Data Kiosk's
-cost-allocation policy or certify its SKU amounts.
+For a new report, a selected batch must cover the required month and its exact membership must
+match current transaction versions. An old successful batch cannot certify a changed combination
+of partial observations. This is a source-selection guard: the database does not repeat component,
+lifecycle or Summary business validation. Saved reports continue using their immutable batch
+memberships and exact component IDs after current pointers change.
 
 ## Reuse unchanged reports
 
 Both publication paths compare only the latest report by save time for the same
 company, calendar month, marketplace, and currency. Reuse requires the same calculation version,
-scope, and exact sets of selected Finances, Data Kiosk, and
-SKU terms versions across all namespaces. The pinned source versions retain their
-individual preprocessing labels. The dataset is `economics`.
+scope, and exact sets of selected Finance batch IDs, Data Kiosk day-version IDs and
+SKU terms-version IDs across all namespaces. Processing labels remain on Finance batches and
+Data Kiosk versions. The dataset is `economics`.
 
 A pending request whose inputs still match adds no duplicate. A publication's UUID,
 creation time, report name, or change reason does not force a new report; a reused
 report keeps its original values for those fields.
 
 If the latest report differs or does not exist, publication creates a new snapshot.
-Changed input versions create a report even when totals are unchanged or an older
-report matches. Concurrent matching requests serialize and return the same report.
+Changed input references create a report even when totals are unchanged or an older report matches.
+A newly selected Finance batch therefore creates a new report even when it reuses every transaction
+version: the recorded observation changed. Repeated generation with the same selected batches and
+other inputs reuses the report. Concurrent matching requests serialize and return the same report.
 
 ## Company components
 
@@ -308,12 +308,13 @@ inventories, and the reconciliation identity against frozen versions. A null cur
 is restricted to an empty aggregate. The worker, direct monthly generator,
 and single-report publisher acquire the exclusive payout-input transaction advisory
 guard before locking company/month, capturing its related seller set, and locking
-seller/month and source days in order. The worker skips its run if the guard is busy;
+seller/month and Data Kiosk source days in order. The worker skips its run if the guard is busy;
 direct publication waits. Source and terms publishers acquire the shared guard before
 publication. Publications that arrive during generation wait for it to finish, then
 commit their changes and pending revisions together. This lock order protects current
 assignment eligibility and prevents publication/generation deadlocks. Capture and pruning use
-`READ COMMITTED` and pin all referenced Finances and Data Kiosk days, including empty ones. Privileged publication recreates its temporary work table
+`READ COMMITTED`. Reports retain successful Finance batches and Data Kiosk day versions, including
+empty observations. Finance versions are never pruned; Data Kiosk pins prevent payload pruning. Privileged publication recreates its temporary work table
 to prevent caller-owned temporary tables or triggers from running with its role.
 
 Reassignment corrects mistaken ownership retroactively in live calculations and
@@ -376,12 +377,9 @@ Automatic refresh tests cover maturity discovery, targeted invalidation, idle ru
 first-SKU activation, last-SKU removal, assigned SKUs without activity,
 blocked-month recovery, retry backoff, concurrent publication, and denied application
 generation access.
-Frontend tests run in Docker. The real-seed verification tool replays archived inputs into a
-disposable database without deleting account-level charges or changing their categories.
-
-```sh
-conda run -n A-SelBox python -m services.db.supabase.tests.verification.payouts --help
-```
+Frontend tests run in Docker. The [database verification guide](../services/db/supabase/README.md#verification)
+lists maintained disposable-database and Auth/REST checks. Independent payout-total oracles are
+part of those tests; there is no separate payout replay CLI.
 
 ## Data Kiosk coverage for native channels
 

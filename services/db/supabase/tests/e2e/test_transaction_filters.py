@@ -6,7 +6,6 @@ from typing import cast
 
 from services.db.supabase.tests.e2e.fixtures import archived_finances, company_with_fees
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.database.acquisitions import persist_finances_acquisition
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 
@@ -55,9 +54,7 @@ class TransactionFilterTests(LocalWorkflowCase):
         first = company_with_fees(self.database, self.seller)
         second = company_with_fees(self.database, self.seller + "-second")
         for seller in (self.seller, self.seller + "-second"):
-            acquisition = persist_finances_acquisition(
-                self.database, archived_finances(self.storage, seller)
-            )
+            acquisition = archived_finances(self.storage, seller)
             preprocess_finances_acquisition(self.database, self.storage, acquisition)
         _, member_token = self.create_member(first)
         _, administrator_token = self.create_administrator()

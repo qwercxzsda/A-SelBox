@@ -2,8 +2,7 @@
 
 import json
 import logging
-from collections.abc import Generator, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import cast
@@ -13,8 +12,6 @@ from ..amazon.finances.client import FINANCES_API_VERSION, FinancesClient, Finan
 from ..amazon.scopes import validate_amazon_scope
 from ..archives.acquisition_logging import AcquisitionLog
 from ..archives.storage import ArchiveStorage, archive_document
-from ..database.acquisitions import persist_finances_acquisition
-from ..database.connection import DatabaseConnection
 from ..database.seller_namespaces import validate_seller_namespace
 from ..source_serialization import source_json
 from .acquisition_models import (
@@ -31,7 +28,6 @@ _LOG = logging.getLogger(__name__)
 
 def download_finances_acquisition(
     client: FinancesClient,
-    database: DatabaseConnection,
     storage: ArchiveStorage,
     *,
     seller_namespace: str,
@@ -40,8 +36,8 @@ def download_finances_acquisition(
     query_start_date: date,
     query_end_date: date,
     max_pages: int = DEFAULT_MAX_FINANCES_PAGES,
-) -> str:
-    """Serialize regional captures; incomplete transaction traversal never publishes.
+) -> FinancesAcquisition:
+    """Archive a regional capture and return its local offline input manifest.
 
     Summary is an independent control. A failed Summary download leaves the
     transaction acquisition available for offline review, with an explicit
@@ -59,16 +55,13 @@ def download_finances_acquisition(
     if len({market.marketplace_id for market in marketplaces}) != len(marketplaces):
         raise ValueError("Finances coverage marketplaces must be unique.")
     validate_coverage_scope(scope, tuple(marketplaces))
-    with (
-        _capture_lock(database, seller, scope),
-        AcquisitionLog(
-            "finances",
-            seller_namespace=seller,
-            amazon_scope=scope,
-            query_start_date=query_start_date.isoformat(),
-            query_end_date=query_end_date.isoformat(),
-        ) as activity,
-    ):
+    with AcquisitionLog(
+        "finances",
+        seller_namespace=seller,
+        amazon_scope=scope,
+        query_start_date=query_start_date.isoformat(),
+        query_end_date=query_end_date.isoformat(),
+    ) as activity:
         started = datetime.now(UTC)
         identifier = uuid7()
         activity.context["candidate_acquisition_id"] = str(identifier)
@@ -124,10 +117,8 @@ def download_finances_acquisition(
                 "summary_available": summary_available,
             },
         )
-        activity.step("publication")
-        acquisition_id = persist_finances_acquisition(database, acquisition)
-        activity.published(acquisition_id)
-        return acquisition_id
+        activity.step("archive_complete")
+        return acquisition
 
 
 def _download_pages(
@@ -198,18 +189,3 @@ def _next_token(content: bytes, operation: FinancesOperation) -> str | None:
     if token is not None and (not isinstance(token, str) or not token.strip()):
         raise ValueError("Finances continuation token must be nonempty text or null.")
     return token
-
-
-@contextmanager
-def _capture_lock(database: DatabaseConnection, seller: str, scope: str) -> Generator[None]:
-    """Bound local callers to one in-flight capture per seller credential scope."""
-    key = f"finances-acquisition:{seller}:{scope}"
-    with database.connection() as connection, connection.cursor() as cursor:
-        cursor.execute("SELECT pg_try_advisory_lock(hashtextextended(%s, 0))", (key,))
-        result = cursor.fetchone()
-        if result is None or result[0] is not True:
-            raise RuntimeError("Another Finances acquisition is already running for this scope.")
-        try:
-            yield
-        finally:
-            cursor.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (key,))

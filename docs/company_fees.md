@@ -177,7 +177,7 @@ failed publications.
 
 ## Live read contract
 
-A strict read selects the declared Finances day identities for mature dates and
+A strict read selects declared successful Finance batch memberships for mature dates and
 Data Kiosk marketplace/day coverage for every date. It requires complete compatible
 source versions and applies the source policy before calculating money.
 It resolves SKU ownership independently of fee eligibility, then joins the

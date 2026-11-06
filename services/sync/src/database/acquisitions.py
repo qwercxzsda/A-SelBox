@@ -11,26 +11,11 @@ from ..archives.serialization import (
     data_kiosk_from_payload,
     data_kiosk_payload,
 )
-from ..finances.acquisition_models import FinancesAcquisition
-from ..finances.acquisition_serialization import (
-    finances_acquisition_from_payload,
-    finances_acquisition_payload,
-)
 from ..inventory.models import InventoryAcquisition
 from ..inventory.serialization import inventory_from_payload, inventory_payload
 from .connection import DatabaseConnection
 from .publication import publish_json
 from .values import normalize_uuid
-
-
-def persist_finances_acquisition(
-    database: DatabaseConnection, acquisition: FinancesAcquisition
-) -> str:
-    return publish_json(
-        database,
-        "SELECT private.publish_finances_acquisition(%(payload)s)",
-        finances_acquisition_payload(acquisition),
-    )
 
 
 def persist_data_kiosk_acquisition(
@@ -53,12 +38,6 @@ def persist_inventory_acquisition(
     )
 
 
-def load_finances_acquisition(
-    database: DatabaseConnection, acquisition_id: str | UUID
-) -> FinancesAcquisition:
-    return finances_acquisition_from_payload(_load(database, "finances", acquisition_id))
-
-
 def load_data_kiosk_acquisition(
     database: DatabaseConnection, acquisition_id: str | UUID
 ) -> DataKioskAcquisition:
@@ -73,12 +52,11 @@ def load_inventory_acquisition(
 
 def _load(
     database: DatabaseConnection,
-    source: Literal["finances", "data_kiosk", "inventory"],
+    source: Literal["data_kiosk", "inventory"],
     acquisition_id: str | UUID,
 ) -> Mapping[str, object]:
     identifier = normalize_uuid(acquisition_id, "acquisition_id")
     statement = {
-        "finances": "SELECT * FROM private.finances_acquisitions WHERE id = %s",
         "data_kiosk": "SELECT * FROM private.data_kiosk_acquisitions WHERE id = %s",
         "inventory": "SELECT * FROM private.inventory_acquisitions WHERE id = %s",
     }[source]

@@ -9,7 +9,6 @@ from services.db.supabase.tests.e2e.fixtures import (
     fixture_sku,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.database.acquisitions import persist_finances_acquisition
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 
@@ -21,9 +20,7 @@ class SummaryRpcTests(LocalWorkflowCase):
             (self.seller, fixture_sku(self.seller)),
             (self.seller + "-second", "OTHER"),
         ):
-            acquisition = persist_finances_acquisition(
-                self.database, archived_finances(self.storage, seller, sku=sku)
-            )
+            acquisition = archived_finances(self.storage, seller, sku=sku)
             preprocess_finances_acquisition(self.database, self.storage, acquisition)
         member_id, member_token = self.create_member(first)
         _, administrator_token = self.create_administrator()

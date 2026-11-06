@@ -20,7 +20,7 @@ Measurement = Callable[[str, str, str, Path, int], Record]
 def parse_fixtures(value: str) -> tuple[str, ...]:
     selected = tuple(value.split(","))
     if len(set(selected)) != len(selected) or any(name not in FIXTURES for name in selected):
-        raise argparse.ArgumentTypeError("Choose density, history, or density,history")
+        raise argparse.ArgumentTypeError("Choose the current-schema seed fixture")
     return selected
 
 
@@ -51,7 +51,7 @@ def run(description: str | None, scope: str, measure: Measurement) -> None:
         "--output-dir", type=Path, required=True, help="Fresh sanitized result directory"
     )
     parser.add_argument("--repeat", type=positive_repetitions, default=5)
-    parser.add_argument("--fixtures", type=parse_fixtures, default=("density", "history"))
+    parser.add_argument("--fixtures", type=parse_fixtures, default=("seed",))
     args = parser.parse_args()
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=False)

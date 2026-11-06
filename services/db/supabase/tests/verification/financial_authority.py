@@ -28,9 +28,9 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         """
         with facts as (
             select t.currency,t.amount
-            from private.finances_transaction_components t
-            join private.finances_days h on h.current_version_id=t.version_id
-            where t.posted_date < %s and t.activity_eligible and t.category in ('FINANCES','SELBOX')
+            from private.finances_component_details t
+            where t.is_current and t.posted_date < %s and t.activity_eligible
+                and t.category in ('FINANCES','SELBOX')
             union all
             select t.currency,t.amount
             from private.data_kiosk_transactions t
@@ -51,7 +51,7 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         values[1] += 1
         difference_count += 1
     minimum = connection.execute(
-        "select least((select min(posted_date) from private.finances_transaction_components),"
+        "select least((select min(posted_date) from private.finances_transaction_versions),"
         "(select min(activity_date) from private.data_kiosk_transactions))"
     ).fetchall()[0][0]
     actual = as_user(
@@ -67,9 +67,8 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         "daily differences, and recent Data Kiosk amounts",
     )
     excluded = connection.execute(
-        "select count(*) from private.finances_transaction_components t "
-        "join private.finances_days s on s.current_version_id=t.version_id "
-        "where t.posted_date >= %s",
+        "select count(*) from private.finances_component_details t "
+        "where t.is_current and t.posted_date >= %s",
         (mature_cutoff_date,),
     ).fetchall()[0][0]
     return mature_cutoff_date, {

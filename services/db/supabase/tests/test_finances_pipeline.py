@@ -1,465 +1,349 @@
-"""Finances captures preserve native controls and select complete immutable days."""
+"""Successful Finance observations share immutable transaction state without day copies."""
 
-from datetime import date, timedelta
+import json
+from dataclasses import replace
+from datetime import timedelta
 from decimal import Decimal
 from typing import cast
 
 import psycopg
 
+from services.db.supabase.tests.integration_support import DatabaseTestCase, TransactionDatabase
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.payout_fixtures import (
-    fill_payout_kiosk_month,
-    generate_payout_reports,
-)
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.sync.src.archives.storage import archive_document, load_document_archive
+from services.sync.src.database.company_terms import create_company, publish_sku_terms
+from services.sync.src.database.finances import publish_finances
+from services.sync.src.finances.acquisition_models import ArchivedFinancesPage, FinancesAcquisition
+from services.sync.src.finances.marketplaces import coverage_marketplaces
+from services.sync.src.finances.models import PreparedFinances
+from services.sync.src.finances.preprocess import prepare_finances_acquisition
+from services.sync.src.finances.query_windows import transaction_query_parameters
+from services.sync.src.numeric import Numeric
+from services.sync.src.source_serialization import source_json
+from services.sync.tests.support.archives import MemoryArchiveStorage
+from services.sync.tests.support.finances import finances_acquisition, native_transaction
 
 
-class FinancesPipelineTests(SourceModelFixture):
-    def payload(
-        self,
-        rows: list[dict[str, object]],
-        *,
-        start: str = "2026-06-01",
-        end: str = "2026-06-30",
-        acquisition_id: str | None = None,
-        summary_amount: str | None = "100",
-    ) -> dict[str, object]:
-        acquisition = acquisition_id or self.acquisition(start=start, end=end)
-        days: list[dict[str, object]] = []
-        activity = date.fromisoformat(start)
-        while activity <= date.fromisoformat(end):
-            current = self.connection.execute(
-                "select current_version_id from private.finances_days "
-                "where seller_namespace=%s and marketplace_name='Amazon.com' and activity_date=%s",
-                (self.seller, activity),
-            ).fetchone()
-            days.append(
-                {
-                    "id": new_id(),
-                    "marketplace_name": "Amazon.com",
-                    "marketplace_id": "ATVPDKIKX0DER",
-                    "activity_date": activity.isoformat(),
-                    "content_sha256": "a" * 64,
-                    "expected_current_version_id": str(current[0]) if current else None,
-                    "transactions": [
-                        row for row in rows if str(row["posted_at"])[:10] == activity.isoformat()
-                    ],
-                }
-            )
-            activity += timedelta(days=1)
-        return {
-            "id": new_id(),
-            "acquisition_id": acquisition,
-            "preprocess_version": "v3",
-            "days": days,
-            "summaries": []
-            if summary_amount is None
-            else [
-                {
-                    "marketplace_name": "Amazon.com",
-                    "marketplace_id": "ATVPDKIKX0DER",
-                    "account_type": "STANDARD_ORDERS",
-                    "currency": "USD",
-                    "period_start": start,
-                    "period_end": end,
-                    "net_proceeds": summary_amount,
-                    "source_page_number": 1,
-                    "source_summary_index": 1,
-                }
-            ],
-        }
+class FinancesPipelineTests(DatabaseTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.storage = MemoryArchiveStorage()
+        self.database = TransactionDatabase(self.connection)
+        self.observation = 0
 
-    @staticmethod
-    def native(
-        identity: str,
-        amount: str,
-        *,
-        day: str = "2026-06-15",
-        status: str = "DEFERRED",
-        original: str | None = None,
-        release: str | None = None,
-        kind: str = "Shipment",
-    ) -> dict[str, object]:
-        return {
-            "id": new_id(),
-            "native_transaction_id": identity,
-            "account_type": "STANDARD_ORDERS",
-            "transaction_type": kind,
-            "transaction_status": status,
-            "posted_at": day + "T12:00:00Z",
-            "total_amount": amount,
-            "currency": "USD",
-            "deferred_transaction_id": original,
-            "release_transaction_id": release,
-            "activity_eligible": original is None and kind != "Transfer",
-            "source_page_number": 1,
-            "source_record_number": 1,
-            "source_fields": {},
-            "components": [
-                {
-                    "id": new_id(),
-                    "component_key": identity + "/0",
-                    "category": "FINANCES",
-                    "component_type": "PRODUCT_SALES",
-                    "sku": "SKU",
-                    "amount": amount,
-                    "currency": "USD",
-                    "quantity": "1",
-                    "fee_base": amount,
-                    "accounting_subtype": None,
-                    "source_fields": {"breakdown_path": ["Principal"]},
-                }
-            ],
-        }
+    def capture(
+        self, rows: list[dict[str, object]], summary: str | None = "100"
+    ) -> tuple[FinancesAcquisition, PreparedFinances]:
+        acquisition = finances_acquisition(self.storage, rows, summary_amount=summary)
+        self.observation += 1
+        at = acquisition.capture_started_at + timedelta(seconds=self.observation)
+        acquisition = replace(
+            acquisition,
+            capture_started_at=at,
+            downloaded_at=at,
+            documents=tuple(
+                replace(page, requested_at=at, received_at=at) for page in acquisition.documents
+            ),
+        )
+        return acquisition, prepare_finances_acquisition(acquisition, self.storage)
 
-    def selected_versions(self) -> list[object]:
-        return [
+    def accept(self, acquisition: FinancesAcquisition, prepared: PreparedFinances) -> str:
+        result = publish_finances(self.database, acquisition, prepared)
+        self.connection.execute("set constraints all immediate")
+        self.connection.execute("set constraints all deferred")
+        return result
+
+    def counts(self) -> tuple[int, ...]:
+        row = self.connection.execute(
+            "select (select count(*) from private.finances_acquisitions),"
+            "(select count(*) from private.finances_preprocess_batches),"
+            "(select count(*) from private.finances_transactions),"
+            "(select count(*) from private.finances_transaction_versions),"
+            "(select count(*) from private.finances_transaction_components),"
+            "(select count(*) from private.finances_preprocess_batch_transactions)"
+        ).fetchone()
+        return tuple(int(value) for value in require_row(row))
+
+    def test_repeated_capture_reuses_state_and_records_its_own_observation_location(self) -> None:
+        first = self.capture([native_transaction("A"), native_transaction("B")], "200")
+        first_run = self.accept(*first)
+        original = self.connection.execute(
+            "select id,current_version_id from private.finances_transactions "
+            "order by native_transaction_id"
+        ).fetchall()
+        second_run = self.accept(
+            *self.capture([native_transaction("B"), native_transaction("A")], "200")
+        )
+        self.assertNotEqual(first_run, second_run)
+        self.assertEqual(self.counts(), (2, 2, 2, 2, 2, 4))
+        self.assertEqual(
+            original,
+            self.connection.execute(
+                "select id,current_version_id from private.finances_transactions "
+                "order by native_transaction_id"
+            ).fetchall(),
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select m.source_record_number from "
+                "private.finances_preprocess_batch_transactions m "
+                "join private.finances_transactions t on t.id=m.transaction_id "
+                "where t.native_transaction_id='A' order by m.batch_id"
+            ).fetchall(),
+            [(1,), (2,)],
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.finances_transactions where current_batch_id=%s",
+                (second_run,),
+            ).fetchone(),
+            (2,),
+        )
+
+    def test_changes_keep_every_revision_and_reverting_state_reuses_earlier_revision(self) -> None:
+        for amount in range(100, 105):
+            self.accept(*self.capture([native_transaction(amount=str(amount))], str(amount)))
+        original = self.connection.execute(
+            "select id from private.finances_transaction_versions where total_amount=100"
+        ).fetchone()
+        self.accept(*self.capture([native_transaction(amount="100.00")], "100"))
+        self.assertEqual(self.counts(), (6, 6, 1, 5, 5, 6))
+        self.assertEqual(
+            original,
+            self.connection.execute(
+                "select current_version_id from private.finances_transactions"
+            ).fetchone(),
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select total_amount from private.finances_transaction_versions "
+                "order by total_amount"
+            ).fetchall(),
+            [(Decimal(value),) for value in range(100, 105)],
+        )
+
+    def test_native_status_change_is_a_revision_even_when_money_is_unchanged(self) -> None:
+        self.accept(*self.capture([native_transaction()]))
+        self.accept(
+            *self.capture([native_transaction(status="DEFERRED_RELEASED", release="later")])
+        )
+        self.assertEqual(self.counts(), (2, 2, 1, 2, 2, 2))
+        self.assertEqual(
+            self.connection.execute(
+                "select transaction_status from "
+                "private.finances_transaction_versions order by created_at,id"
+            ).fetchall(),
+            [("DEFERRED",), ("DEFERRED_RELEASED",)],
+        )
+
+    def test_summary_missing_mismatch_or_bad_partition_leaves_no_success_rows(self) -> None:
+        unavailable = self.capture([native_transaction()], None)
+        mismatch = self.capture([native_transaction()], "99")
+        acquisition, prepared = self.capture([native_transaction()])
+        transaction = prepared.transactions[0]
+        bad = replace(
+            prepared,
+            transactions=(
+                replace(
+                    transaction,
+                    components=(replace(transaction.components[0], amount=Numeric(99)),),
+                ),
+            ),
+        )
+        for candidate in (unavailable, mismatch, (acquisition, bad)):
+            with self.subTest(candidate=candidate[0].id), self.assertRaises(ValueError):
+                self.accept(*candidate)
+            self.assertEqual(self.counts(), (0, 0, 0, 0, 0, 0))
+
+    def test_missing_accepted_transaction_is_an_error_not_a_delete(self) -> None:
+        self.accept(*self.capture([native_transaction()]))
+        before = self.counts()
+        with self.assertRaisesRegex(ValueError, "missing from complete coverage"):
+            self.accept(*self.capture([], "0"))
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(
+            self.connection.execute(
+                "select total_amount from private.finances_transaction_versions"
+            ).fetchone(),
+            (Decimal(100),),
+        )
+
+    def test_empty_success_keeps_coverage_and_prevents_older_replacement(self) -> None:
+        older = self.capture([native_transaction()])
+        self.accept(*self.capture([], "0"))
+        self.assertEqual(self.counts(), (1, 1, 0, 0, 0, 0))
+        with self.assertRaisesRegex(ValueError, "older Finances capture"):
+            self.accept(*older)
+        self.assertEqual(self.counts(), (1, 1, 0, 0, 0, 0))
+
+    def test_reprocessing_same_acquisition_adds_membership_without_copying_payload(self) -> None:
+        acquisition, prepared = self.capture([native_transaction()])
+        self.accept(acquisition, prepared)
+        publish_finances(self.database, acquisition, prepared, preprocess_version="another-parser")
+        self.connection.execute("set constraints all immediate")
+        self.assertEqual(self.counts(), (1, 2, 1, 1, 1, 2))
+
+    def test_schema_failure_after_inserts_rolls_back_acquisition_run_and_payload(self) -> None:
+        acquisition, prepared = self.capture([native_transaction()])
+        self.connection.execute("""
+            create function pg_temp.reject_test_component() returns trigger language plpgsql as $$
+            begin raise exception 'Synthetic late insertion failure' using errcode='23514'; end $$;
+            create trigger reject_test_component
+            before insert on private.finances_transaction_components
+            for each row execute function pg_temp.reject_test_component();
+        """)
+        with self.assertRaises(psycopg.errors.CheckViolation):
+            self.accept(acquisition, prepared)
+        self.assertEqual(self.counts(), (0, 0, 0, 0, 0, 0))
+
+    def test_revision_components_and_memberships_cannot_be_rewritten_or_removed(self) -> None:
+        self.accept(*self.capture([native_transaction()]))
+        statements = (
+            "update private.finances_transaction_versions set total_amount=101",
+            "delete from private.finances_transaction_versions",
+            "truncate private.finances_transaction_components",
+            "update private.finances_transaction_components set amount=101",
+            "delete from private.finances_preprocess_batch_transactions",
+            "update private.finances_preprocess_batches set transaction_count=0",
+        )
+        for statement in statements:
+            with (
+                self.subTest(statement=statement),
+                self.assertRaises(psycopg.Error),
+                self.connection.transaction(),
+            ):
+                self.connection.execute(statement)
+        self.assertEqual(self.counts(), (1, 1, 1, 1, 1, 1))
+
+    def test_revisions_have_no_originating_run_or_raw_json_columns(self) -> None:
+        columns = {
             row[0]
             for row in self.connection.execute(
-                "select current_version_id from private.finances_days order by activity_date"
+                "select column_name from information_schema.columns "
+                "where table_schema='private' and table_name='finances_transaction_versions'"
             )
-        ]
-
-    def test_original_release_and_transfer_are_not_added_to_activity(self) -> None:
-        payload = self.payload(
-            [
-                self.native("A", "100", status="DEFERRED_RELEASED", release="B"),
-                self.native("B", "100", day="2026-06-20", status="RELEASED", original="A"),
-                self.native("C", "100", day="2026-06-21", status="RELEASED", kind="Transfer"),
-            ]
+        }
+        self.assertFalse(
+            {"batch_id", "acquisition_id", "source_fields", "source_page_number"} & columns
         )
-        self.call("publish_finances_preprocess", payload)
+        self.assertIn("transaction_id", columns)
+        self.assertIn("content_sha256", columns)
+
+    def test_same_native_id_is_independent_between_sellers(self) -> None:
+        first, prepared = self.capture([native_transaction()])
+        self.accept(first, prepared)
+        second, other = self.capture([native_transaction()])
+        self.accept(replace(second, seller_namespace="another-seller"), other)
+        self.assertEqual(self.counts(), (2, 2, 2, 2, 2, 2))
+
+    def test_linked_release_and_transfer_do_not_add_new_activity(self) -> None:
+        rows = [
+            native_transaction("A", release="B"),
+            native_transaction("B", status="RELEASED", original="A"),
+        ]
+        self.accept(*self.capture(rows, "100"))
         self.assertEqual(
             self.connection.execute(
                 "select sum(total_amount),sum(total_amount) filter(where activity_eligible) "
-                "from private.finances_transactions"
+                "from private.finances_transaction_versions"
             ).fetchone(),
-            (Decimal("300"), Decimal("100")),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select transaction_amount,matched from private.finances_summary_checks"
-            ).fetchone(),
-            (Decimal("100"), True),
-        )
-        self.connection.execute("set constraints all immediate")
-
-    def test_status_revision_and_empty_replacement_preserve_old_capture(self) -> None:
-        self.call("publish_finances_preprocess", self.payload([self.native("A", "100")]))
-        old = self.selected_versions()
-        self.call(
-            "publish_finances_preprocess",
-            self.payload([self.native("A", "100", status="DEFERRED_RELEASED", release="B")]),
-        )
-        self.assertNotEqual(old, self.selected_versions())
-        self.assertEqual(
-            self.connection.execute(
-                "select sum(t.amount) from private.finances_activity_components t "
-                "join private.finances_days d on d.current_version_id=t.version_id"
-            ).fetchone(),
-            (Decimal("100"),),
-        )
-        self.call("publish_finances_preprocess", self.payload([], summary_amount="0"))
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_transactions t "
-                "join private.finances_days d on d.current_version_id=t.version_id"
-            ).fetchone(),
-            (0,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select sum(total_amount) from private.finances_transactions "
-                "where version_id=any(%s::uuid[])",
-                (old,),
-            ).fetchone(),
-            (Decimal("100"),),
-        )
-        self.connection.execute("set constraints all immediate")
-
-    def test_invalid_partition_and_partial_days_leave_selection_unchanged(self) -> None:
-        self.call("publish_finances_preprocess", self.payload([self.native("A", "100")]))
-        before = self.selected_versions()
-        wrong = self.native("A", "100")
-        cast(list[dict[str, object]], wrong["components"])[0]["amount"] = "99"
-        incomplete = self.payload([])
-        incomplete["days"] = []
-        for payload in (self.payload([wrong]), incomplete):
-            with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-                self.call("publish_finances_preprocess", payload)
-        self.assertEqual(before, self.selected_versions())
-
-    def test_summary_check_applies_only_to_its_exact_versions(self) -> None:
-        self.call("publish_finances_preprocess", self.payload([self.native("A", "100")]))
-        old = self.selected_versions()
-        self.assertTrue(
-            require_row(
-                self.connection.execute(
-                    "select cardinality(private.payout_finances_summary_ids("
-                    "%s::uuid[],'2026-06-01','2026-06-30'))",
-                    (old,),
-                ).fetchone()
-            )[0]
-        )
-        self.call(
-            "publish_finances_preprocess",
-            self.payload([self.native("A", "101")], summary_amount="100"),
-        )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "select private.payout_finances_summary_ids(%s::uuid[],'2026-06-01','2026-06-30')",
-                (self.selected_versions(),),
-            )
-        self.assertTrue(
-            require_row(
-                self.connection.execute(
-                    "select cardinality(private.payout_finances_summary_ids("
-                    "%s::uuid[],'2026-06-01','2026-06-30'))",
-                    (old,),
-                ).fetchone()
-            )[0]
+            (Decimal(200), Decimal(100)),
         )
 
-    def test_latest_three_observations_keep_history_and_prune_payload_explicitly(self) -> None:
-        first: list[object] = []
-        for observation in range(4):
-            self.call(
-                "publish_finances_preprocess",
-                self.payload([self.native("A", str(observation))], summary_amount=str(observation)),
-            )
-            if observation == 0:
-                first = self.selected_versions()
-        self.connection.execute("set constraints all immediate")
-        self.assertEqual(
-            self.connection.execute("select private.prune_finances_preprocess()").fetchone(), (30,)
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_pruned_versions "
-                "where version_id=any(%s::uuid[])",
-                (first,),
-            ).fetchone(),
-            (30,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_transactions "
-                "where version_id=any(%s::uuid[])",
-                (first,),
-            ).fetchone(),
-            (0,),
-        )
+    def test_bulk_capture_has_one_complete_membership_for_each_transaction(self) -> None:
+        rows = [native_transaction(str(index), amount="1") for index in range(1000)]
+        self.accept(*self.capture(rows, "1000"))
+        self.assertEqual(self.counts(), (1, 1, 1000, 1000, 1000, 1000))
 
-    def test_same_native_id_cannot_move_to_another_day_without_removing_old(self) -> None:
-        self.call(
-            "publish_finances_preprocess",
-            self.payload([self.native("A", "100")], start="2026-06-15", end="2026-06-15"),
+    def completed_old_month(self) -> str:
+        company = create_company(self.database, "Refresh scope company")
+        publish_sku_terms(
+            self.database,
+            sku="SKU-1",
+            company_id=company,
+            expected_current_version_id=None,
+            periods=[],
+            change_reason="Own observed SKU",
         )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.call(
-                "publish_finances_preprocess",
-                self.payload(
-                    [self.native("A", "100", day="2026-06-16")],
-                    start="2026-06-16",
-                    end="2026-06-16",
-                ),
-            )
-        self.call(
-            "publish_finances_preprocess", self.payload([self.native("A", "100", day="2026-06-16")])
+        self.connection.execute(
+            "INSERT INTO private.payout_report_refresh_state "
+            "(company_id,month,requested_revision,completed_revision) VALUES "
+            "(%s,'2026-07-01',17,17) "
+            "ON CONFLICT(company_id,month) DO UPDATE SET "
+            "requested_revision=17,completed_revision=17",
+            (company,),
         )
-        self.assertEqual(
-            self.connection.execute(
-                "select t.posted_date from private.finances_transactions t "
-                "join private.finances_days d on d.current_version_id=t.version_id"
-            ).fetchone(),
-            (date(2026, 6, 16),),
-        )
-        self.connection.execute("set constraints all immediate")
+        return company
 
-    def test_non_amazon_us_keeps_native_channel_and_joins_amazon_summary_control(self) -> None:
-        payload = self.payload([self.native("retail", "100")], summary_amount="80")
-        payload["preprocess_version"] = "v0"
-        archived = require_row(
+    def old_month_revisions(self, company: str) -> tuple[object, ...]:
+        return require_row(
             self.connection.execute(
-                "select to_jsonb(a)-'created_at' from private.finances_acquisitions a where id=%s",
-                (payload["acquisition_id"],),
+                "SELECT requested_revision,completed_revision FROM "
+                "private.payout_report_refresh_state "
+                "WHERE company_id=%s AND month='2026-07-01'",
+                (company,),
             ).fetchone()
-        )[0]
-        acquisition = cast(dict[str, object], archived)
-        acquisition["id"] = new_id()
-        acquisition["marketplace_ids"] = ["ATVPDKIKX0DER", "A2ZV50J4W1RKNI"]
-        metadata = cast(dict[str, object], acquisition["api_metadata"])
-        cast(list[dict[str, object]], metadata["coverage_marketplaces"]).append(
-            {
-                "marketplace_id": "A2ZV50J4W1RKNI",
-                "marketplace_name": "Non-Amazon US",
-                "time_zone": "America/Los_Angeles",
-            }
         )
-        payload["acquisition_id"] = self.call("publish_finances_acquisition", acquisition)
-        days = cast(list[dict[str, object]], payload["days"])
-        channel_fee = self.native("channel", "-20", status="RELEASED", kind="Shipment")
-        cast(list[dict[str, object]], channel_fee["components"])[0].update(
-            component_type="FBA_FULFILLMENT_FEES", fee_base=None, quantity=None
-        )
-        days.extend(
-            [
-                day
-                | {
-                    "id": new_id(),
-                    "marketplace_name": "Non-Amazon US",
-                    "marketplace_id": "A2ZV50J4W1RKNI",
-                    "transactions": [channel_fee] if day["activity_date"] == "2026-06-15" else [],
-                }
-                for day in list(days)
-            ]
-        )
-        self.call("publish_finances_preprocess", payload)
+
+    def test_new_native_id_with_known_sku_does_not_requeue_completed_older_months(self) -> None:
+        self.accept(*self.capture([native_transaction("A")]))
+        company = self.completed_old_month()
+        self.accept(*self.capture([native_transaction("A"), native_transaction("B")], "200"))
+        self.assertEqual(self.old_month_revisions(company), (17, 17))
         self.assertEqual(
             self.connection.execute(
-                "select marketplace_name,sum(total_amount) from private.finances_transactions "
-                "group by marketplace_name order by marketplace_name"
-            ).fetchall(),
-            [("Amazon.com", Decimal("100")), ("Non-Amazon US", Decimal("-20"))],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select marketplace_name,transaction_amount,summary_amount,matched,version_count "
-                "from private.finances_summary_checks"
-            ).fetchone(),
-            ("Amazon.com", Decimal("80"), Decimal("80"), True, 60),
-        )
-        self.assertEqual(
-            require_row(
-                self.connection.execute(
-                    "select cardinality(private.payout_finances_summary_ids("
-                    "%s::uuid[],'2026-06-01','2026-06-30'))",
-                    (self.selected_versions(),),
-                ).fetchone()
-            )[0],
-            1,
-        )
-        company, sku = self.owner()
-        self.fee(sku, [("2026-01-01", None, "5")])
-        fill_payout_kiosk_month(self)
-        reports = generate_payout_reports(self, company)
-        self.assertEqual(len(reports), 2)
-        self.assertEqual(
-            self.connection.execute(
-                "select marketplace_name,source_amount,fee_amount,company_amount,"
-                "finances_version_count,data_kiosk_version_count "
-                "from public.company_payout_reports where company_id=%s order by marketplace_name",
+                "SELECT requested_revision>completed_revision FROM "
+                "private.payout_report_refresh_state "
+                "WHERE company_id=%s AND month='2026-08-01'",
                 (company,),
-            ).fetchall(),
-            [
-                ("Amazon.com", Decimal(100), Decimal(-5), Decimal(95), 60, 30),
-                ("Non-Amazon US", Decimal(-20), Decimal(0), Decimal(-20), 60, 30),
-            ],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select distinct c.marketplace_name,r.marketplace_name "
-                "from public.company_payout_report_components c "
-                "join public.company_payout_reports r on r.id=c.report_id "
-                "where r.company_id=%s order by c.marketplace_name",
-                (company,),
-            ).fetchall(),
-            [("Amazon.com", "Amazon.com"), ("Non-Amazon US", "Non-Amazon US")],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_days "
-                "where marketplace_name='Non-Amazon US'"
             ).fetchone(),
-            (0,),
+            (True,),
         )
-        self.assertEqual(
-            self.connection.execute(
-                "select company_amount from private.company_financial_totals("
-                "%s,'2026-06-01','2026-06-30','v0',"
-                "array(select id::uuid from private.finances_days),array['Non-Amazon US'])",
-                (self.seller,),
-            ).fetchone(),
-            (Decimal("75"),),
-        )
-        self.connection.execute("set constraints all immediate")
 
-    def test_reverse_only_release_link_uses_the_same_immutable_capture(self) -> None:
-        original = self.native("A", "100", status="DEFERRED_RELEASED", release="B")
-        release = self.native("B", "100", day="2026-06-20", status="RELEASED")
-        release["activity_eligible"] = False
-        self.call("publish_finances_preprocess", self.payload([original, release]))
-        self.assertEqual(
-            self.connection.execute(
-                "select native_transaction_id,deferred_transaction_id,activity_eligible "
-                "from private.finances_transactions order by native_transaction_id"
-            ).fetchall(),
-            [("A", None, True), ("B", None, False)],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select transaction_amount,summary_amount,matched "
-                "from private.finances_summary_checks"
-            ).fetchone(),
-            (Decimal("100"), Decimal("100"), True),
-        )
-        self.connection.execute("set constraints all immediate")
+    def test_new_sku_on_existing_native_id_requeues_historical_scope(self) -> None:
+        self.accept(*self.capture([native_transaction("A")]))
+        company = self.completed_old_month()
+        changed = native_transaction("A")
+        item = cast(list[dict[str, object]], changed["items"])[0]
+        cast(list[dict[str, object]], item["contexts"])[0]["sku"] = "new-observed-sku"
+        self.accept(*self.capture([changed]))
+        self.assertEqual(self.old_month_revisions(company), (18, 17))
 
-    def test_unmatched_summary_account_without_native_records_blocks_payout(self) -> None:
-        payload = self.payload([self.native("A", "100")])
-        summaries = cast(list[dict[str, object]], payload["summaries"])
-        summaries.append(
-            summaries[0]
-            | {"account_type": "INVOICED_ORDERS", "net_proceeds": "20", "source_summary_index": 2}
+    def test_new_empty_marketplace_coverage_requeues_historical_scope(self) -> None:
+        self.accept(*self.capture([native_transaction("A")]))
+        company = self.completed_old_month()
+        acquisition, _ = self.capture([], "0")
+        market = coverage_marketplaces("NA", ("A2EUQ1WTGCTBG2",))[0]
+        documents: list[ArchivedFinancesPage] = []
+        for page in acquisition.documents:
+            if page.operation == "summary":
+                body = json.loads(load_document_archive(self.storage, page.document))
+                body["summaries"][0]["partnerMetadata"]["marketplaceId"] = market.marketplace_id
+                page = replace(
+                    page,
+                    document=archive_document(
+                        self.storage, json.dumps(body).encode(), source_compression=None
+                    ),
+                )
+            else:
+                page = replace(
+                    page,
+                    request_parameters=transaction_query_parameters(
+                        (market,),
+                        acquisition.query_start_date,
+                        acquisition.query_end_date,
+                        observed_at=acquisition.capture_started_at,
+                    ),
+                )
+            documents.append(page)
+        acquisition = replace(
+            acquisition,
+            marketplace_ids=(market.marketplace_id,),
+            api_metadata={
+                "summary_available": True,
+                "coverage_marketplaces": [source_json(market)],
+            },
+            documents=tuple(documents),
         )
-        self.call("publish_finances_preprocess", payload)
-        self.assertEqual(
-            self.connection.execute(
-                "select account_type,matched from private.finances_summary_checks "
-                "order by account_type"
-            ).fetchall(),
-            [("INVOICED_ORDERS", False), ("STANDARD_ORDERS", True)],
-        )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "select private.payout_finances_summary_ids(%s::uuid[],'2026-06-01','2026-06-30')",
-                (self.selected_versions(),),
-            )
-        self.connection.execute("set constraints all immediate")
-
-    def test_pruning_reverse_link_original_does_not_change_release_eligibility(self) -> None:
-        original = self.native("A", "100", status="DEFERRED_RELEASED", release="B")
-        release = self.native("B", "100", day="2026-06-20", status="RELEASED")
-        release["activity_eligible"] = False
-        first = self.payload([original, release])
-        self.call("publish_finances_preprocess", first)
-        for _ in range(3):
-            self.call(
-                "publish_finances_preprocess",
-                self.payload([], start="2026-06-15", end="2026-06-15", summary_amount="0"),
-            )
-        self.connection.execute("set constraints all immediate")
-        self.assertEqual(
-            self.connection.execute("select private.prune_finances_preprocess()").fetchone(), (1,)
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select native_transaction_id,activity_eligible "
-                "from private.finances_transactions order by native_transaction_id"
-            ).fetchall(),
-            [("B", False)],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_activity_components c "
-                "join private.finances_days d on d.current_version_id=c.version_id"
-            ).fetchone(),
-            (0,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_acquisitions where id=%s",
-                (first["acquisition_id"],),
-            ).fetchone(),
-            (1,),
-        )
+        self.accept(acquisition, prepare_finances_acquisition(acquisition, self.storage))
+        self.assertEqual(self.old_month_revisions(company), (18, 17))

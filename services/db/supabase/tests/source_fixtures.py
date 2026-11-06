@@ -11,6 +11,7 @@ from psycopg.types.json import Jsonb
 from services.db.supabase.tests.integration_support import DatabaseTestCase
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_finances import acquisition, finances
+from services.sync.src.finances.acquisition_models import FinancesAcquisition
 
 
 def new_id() -> str:
@@ -39,6 +40,8 @@ class SourceModelFixture(DatabaseTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.seller = "seller-one"
+        self.finances_acquisitions: dict[str, FinancesAcquisition] = {}
+        self.last_finances_batch_ids: list[str] = []
 
     def recent_activity_date(self) -> str:
         """Use the mature cutoff date for recent fixture facts."""
@@ -160,11 +163,12 @@ class SourceModelFixture(DatabaseTestCase):
     ) -> dict[str, object]:
         component_type = f"{kind}/{description}"
         fee_base = None
-        if kind in {"Shipment", "Refund"} and description == "Principal":
+        if kind in {"Shipment", "Refund"} and description == "Principal" and category == "FINANCES":
             component_type = "PRODUCT_REFUNDS" if kind == "Refund" else "PRODUCT_SALES"
-            fee_base = amount if category == "FINANCES" else None
+            fee_base = amount
         return {
             "id": new_id(),
+            "native_transaction_id": f"{activity_date}:{line}:{sku}:{kind}:{description}",
             "source_record_number": line,
             "category": category,
             "component_type": component_type,
@@ -172,12 +176,12 @@ class SourceModelFixture(DatabaseTestCase):
             "marketplace_name": "Amazon.com",
             "amount": amount,
             "currency": "USD",
-            "quantity": 1,
+            "quantity": 1 if fee_base is not None else None,
             "fee_base": fee_base,
             "posted_date": activity_date,
             "posted_at": activity_date + "T12:00:00Z",
             "transaction_type": kind,
-            "source_fields": {"breakdown_path": [description]},
+            "breakdown_path": [description],
         }
 
     def kiosk_acquisition(
@@ -291,23 +295,12 @@ class SourceModelFixture(DatabaseTestCase):
 
     def totals(
         self,
-        finances_days: list[str],
+        finances_batch_ids: list[str],
         marketplaces: list[str] | None = None,
         version: str = "v0",
     ) -> list[tuple[object, ...]]:
-        if finances_days:
-            finances_days = [
-                str(row[0])
-                for row in self.connection.execute(
-                    "select id from private.finances_days where seller_namespace=%s "
-                    "and marketplace_name in (select marketplace_name from private.finances_days "
-                    "where id=any(%s::uuid[])) "
-                    "and activity_date between '2026-06-01' and '2026-08-31'",
-                    (self.seller, finances_days),
-                ).fetchall()
-            ]
         return self.connection.execute(
             "select * from private.company_financial_totals("
             "%s,'2026-06-01','2026-08-31',%s,%s::uuid[],%s::text[])",
-            (self.seller, version, finances_days, marketplaces or []),
+            (self.seller, version, finances_batch_ids, marketplaces or []),
         ).fetchall()

@@ -48,11 +48,11 @@ class PayoutReportAccessTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select id::text,company_id::text,component_count,finances_version_count,"
+                "select id::text,company_id::text,component_count,finances_batch_count,"
                 "data_kiosk_version_count,terms_version_count,company_amount "
                 "from public.company_payout_reports",
             ),
-            [(report, company, 5, 30, 30, 2, Decimal(85))],
+            [(report, company, 5, 1, 30, 2, Decimal(85))],
         )
         queries: tuple[tuple[LiteralString, int, int], ...] = (
             ("select * from public.company_payout_reports", 1, 1),
@@ -69,10 +69,10 @@ class PayoutReportAccessTests(SourceModelFixture):
                 3,
                 0,
             ),
-            ("select * from public.payout_report_finances_versions", 30, 0),
+            ("select * from public.payout_report_finances_batches", 1, 0),
             ("select * from public.payout_report_data_kiosk_versions", 30, 0),
             ("select * from public.payout_report_terms_versions", 2, 0),
-            ("select * from private.payout_report_finances_versions", 30, 0),
+            ("select * from private.payout_report_finances_batches", 1, 0),
             ("select * from private.payout_report_data_kiosk_versions", 30, 0),
             ("select * from private.payout_report_terms_versions", 2, 0),
             ("select * from public.payout_report_reconciliation", 1, 0),

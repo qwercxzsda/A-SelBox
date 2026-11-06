@@ -51,7 +51,7 @@ class CompanyTermsTests(SourceModelFixture):
         original = self.publish_terms(
             identity, company, [self.period(), self.period("Amazon.ca", "6")]
         )
-        _, finances_version = self.finances([self.transaction("100")])
+        finances_batch, _ = self.finances([self.transaction("100")])
         second_company, _ = self.owner("OTHER")
         revised = self.publish_terms(identity, second_company, [self.period(rate="7")])
         self.assertEqual(
@@ -65,7 +65,7 @@ class CompanyTermsTests(SourceModelFixture):
             self.connection.execute(
                 "select company_id::text,terms_version_id::text,fee_amount,company_amount "
                 "from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
-                ([finances_version], [original]),
+                ([finances_batch], [original]),
             ).fetchall(),
             [(company, original, Decimal(-5), Decimal(95))],
         )
@@ -80,7 +80,7 @@ class CompanyTermsTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
                 "select * from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
-                ([finances_version], [original, revised]),
+                ([finances_batch], [original, revised]),
             )
         self.connection.execute("set constraints all immediate")
 
@@ -121,11 +121,9 @@ class CompanyTermsTests(SourceModelFixture):
         company, identity = self.owner()
         terms = self.publish_terms(identity, company, [self.period()])
         acquisition = self.acquisition()
-        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        finances_batch, _ = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, day_version = self.kiosk(1, [self.component("-10")])
-        self.finances(
-            [self.transaction("200")], acquisition_id=acquisition, expected=finances_version
-        )
+        self.finances([self.transaction("200")], acquisition_id=acquisition)
         self.kiosk(2, [self.component("-20")], expected=day_version)
         self.assertEqual(
             self.connection.execute(
@@ -137,7 +135,7 @@ class CompanyTermsTests(SourceModelFixture):
             self.connection.execute(
                 "select sum(company_amount) from private.resolve_company_components("
                 "%s::uuid[],%s::uuid[],%s::uuid[]) where authoritative",
-                ([finances_version], [day_version], [terms]),
+                ([finances_batch], [day_version], [terms]),
             ).fetchone(),
             (Decimal(85),),
         )
@@ -248,3 +246,29 @@ class CompanyTermsTests(SourceModelFixture):
             )
             self.connection.execute("set constraints all immediate")
         self.connection.execute("set constraints all immediate")
+
+    def test_overlapping_batches_never_duplicate_shared_finance_components(self) -> None:
+        company, identity = self.owner()
+        terms = self.publish_terms(identity, company, [self.period()])
+        acquisition = self.acquisition()
+        first, version = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        second, same_version = self.finances(
+            [self.transaction("100")], acquisition_id=acquisition, version="v1"
+        )
+        self.assertEqual(version, same_version)
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+            self.connection.execute(
+                "select * from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
+                ([first, second], [terms]),
+            )
+        third, _ = self.finances(
+            [self.transaction("100")], acquisition_id=acquisition, version="v1"
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*),sum(company_amount) from "
+                "private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
+                ([second, third], [terms]),
+            ).fetchone(),
+            (1, Decimal(95)),
+        )

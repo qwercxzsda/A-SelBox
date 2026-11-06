@@ -19,13 +19,16 @@ class SkuConfigurationTests(ConfigurationFixture):
         previous = self.fee(identity, [("2026-01-01", None, "9")])
         selected = self.fee(identity, [("2026-01-01", None, "5.123456")])
         acquisition = self.acquisition()
-        _, old = self.finances(
-            [self.transaction("1", sku="HISTORY-ONLY")], acquisition_id=acquisition
+        _, _old = self.finances(
+            [
+                self.transaction("1", sku="HISTORY-ONLY")
+                | {"native_transaction_id": "corrected-sku"}
+            ],
+            acquisition_id=acquisition,
         )
         self.finances(
-            [self.transaction("2", sku="IMPORT-ONLY")],
+            [self.transaction("2", sku="IMPORT-ONLY") | {"native_transaction_id": "corrected-sku"}],
             acquisition_id=acquisition,
-            expected=old,
         )
         administrator, member, other_member = (
             self.administrator(),
@@ -67,20 +70,23 @@ class SkuConfigurationTests(ConfigurationFixture):
     ) -> None:
         self.owner("S1")
         acquisition = self.acquisition()
-        _, previous = self.finances(
-            [self.transaction("100", sku="S1", activity_date="2026-06-01")],
+        _, _previous = self.finances(
+            [
+                self.transaction("100", sku="S1", activity_date="2026-06-01")
+                | {"native_transaction_id": "corrected-posting"}
+            ],
             acquisition_id=acquisition,
         )
         self.finances(
             [
-                self.transaction("0", sku="S1", activity_date="2026-06-15"),
+                self.transaction("0", sku="S1", activity_date="2026-06-15")
+                | {"native_transaction_id": "corrected-posting"},
                 self.transaction(
                     "100", 4, sku="S1", activity_date="2026-06-20", description="Shipping"
                 ),
                 self.transaction("-5", 5, sku="S1", activity_date="2026-06-20", kind="Refund")
                 | {"marketplace_name": "Amazon.ca"},
             ],
-            expected=previous,
         )
         self.seller = "seller-two"
         self.finances([self.transaction("1", sku="S1", activity_date="2026-06-16")])

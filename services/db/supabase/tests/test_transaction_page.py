@@ -314,8 +314,9 @@ class TransactionPageTests(TransactionPageFixture):
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         finances_rows = [
-            self.transaction("10") | {"component_type": "NET_PRODUCT_SALES"},
-            self.transaction("20", 4, description="Shipping") | {"component_type": "PRODUCT_SALES"},
+            self.transaction("10")
+            | {"component_type": "NET_PRODUCT_SALES", "fee_base": None, "quantity": None},
+            self.transaction("20", 4),
             self.transaction("-30", 5, kind="Refund"),
         ]
         kiosk_rows = [
@@ -325,8 +326,8 @@ class TransactionPageTests(TransactionPageFixture):
         ]
         self.finances(finances_rows)
         self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
-        # These deliberate inconsistencies are accepted by the storage schema.
-        # Filtering uses TYPE; returned financial values still use source fields.
+        # Finance inputs satisfy preprocessing rules. Similarly named types from
+        # the other source still use that source's fee-applicability definition.
         applicable_ids = {row["id"] for row in [*finances_rows[1:], kiosk_rows[1]]}
         all_ids = {row["id"] for row in [*finances_rows, *kiosk_rows]}
         for user in (self.administrator(), self.member(company), self.auth_user()):
@@ -401,11 +402,11 @@ class TransactionPageTests(TransactionPageFixture):
         )
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        _, _finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
         for user in (administrator, member_a, member_b):
             self.assert_matches_view(user)
-        self.finances([self.transaction("200")], acquisition_id=acquisition, expected=finances)
+        self.finances([self.transaction("200")], acquisition_id=acquisition)
         self.kiosk(2, [self.component("-20")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
         for user, count in ((administrator, "3"), (member_a, "0"), (member_b, "2")):

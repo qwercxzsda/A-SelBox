@@ -39,7 +39,7 @@ class TransactionReadRulesTests(SourceModelFixture):
         self.assertCountEqual(
             self.connection.execute(
                 "select component_type,fee_base from public.finances_preprocess_entries "
-                "where version_id in (select current_version_id from private.finances_days)"
+                "where is_current"
             ).fetchall(),
             [
                 ("PRODUCT_SALES", Decimal(100)),

@@ -18,32 +18,41 @@ private.delete_administrator_company(uuid), public.delete_company(uuid),
 private.set_administrator_company_membership(uuid, uuid, public.app_access_role, uuid),
 public.set_company_membership(uuid, uuid, public.app_access_role, uuid)
 to authenticated;
-grant select on private.finances_activity_components,
-private.finances_transaction_components,
+grant select on private.finances_transaction_components, private.finances_component_details,
+private.finances_activity_components, private.finances_batch_components,
+private.finances_transactions, private.finances_preprocess_batch_transactions,
 private.data_kiosk_transactions to authenticated;
--- Members can read current references across companies, never report totals.
-grant select (id, current_version_id) on private.finances_days,
-private.data_kiosk_days to authenticated;
+-- Parent totals/counts and whole-run inventories stay administrator-only.
 grant select (
-    id, day_id, preprocess_version
-) on private.finances_preprocess_versions to authenticated;
+    id, transaction_id, marketplace_id, marketplace_name, posted_date, posted_at,
+    account_type,
+    transaction_type,
+    transaction_status,
+    deferred_transaction_id,
+    release_transaction_id,
+    activity_eligible, currency, created_at
+) on private.finances_transaction_versions to authenticated;
+grant select (
+    id, acquisition_id, preprocess_version, created_at
+) on private.finances_preprocess_batches to authenticated;
+grant select (id, current_version_id) on private.data_kiosk_days to authenticated;
 grant select (
     id, day_id, preprocess_version
 ) on private.data_kiosk_preprocess_versions to authenticated;
-grant select on public.finances_preprocess_results, public.data_kiosk_preprocess_results,
-public.finances_preprocess_entries, public.data_kiosk_preprocess_entries,
+grant select on public.finances_preprocess_results, public.finances_preprocess_entries,
+public.data_kiosk_preprocess_results, public.data_kiosk_preprocess_entries,
 public.live_company_components, private.live_company_component_inputs to authenticated;
 grant select on public.company_payout_reports, public.company_payout_report_components,
 public.latest_company_payout_reports,
-private.payout_report_finances_versions, private.payout_report_data_kiosk_versions,
-private.payout_report_terms_versions, public.payout_report_finances_versions,
+private.payout_report_finances_batches, private.payout_report_data_kiosk_versions,
+private.payout_report_terms_versions, public.payout_report_finances_batches,
 public.payout_report_data_kiosk_versions, public.payout_report_terms_versions,
 private.payout_report_reconciliation, public.payout_report_reconciliation,
 public.financial_review_records,
 public.payout_reconciliation_totals,
 private.live_source_reconciliation, private.source_reconciliation_inputs to authenticated;
 grant execute on function private.is_administrator(), private.is_member(),
-private.current_owned_sku_terms(),
+private.current_owned_sku_terms(), private.current_owned_finances_revisions(),
 private.mature_cutoff_date(), private.financial_account_visible(),
 private.reconciliation_group_id(text, date, text, text),
 private.reconcile_source_amounts(numeric, numeric, numeric, numeric),

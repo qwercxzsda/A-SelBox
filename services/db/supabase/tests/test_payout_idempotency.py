@@ -52,7 +52,6 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.finances(
             [self.transaction("100")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.finances_version,
         )
         second, created = generate_payout_reports(self, inputs.company)[0]
         self.assertTrue(created)
@@ -94,7 +93,6 @@ class PayoutIdempotencyTests(SourceModelFixture):
                 | {"sku": None},
             ],
             acquisition_id=inputs.acquisition,
-            expected=inputs.finances_version,
         )
         second, created = generate_payout_reports(self, inputs.company)[0]
         self.assertTrue(created)
@@ -137,7 +135,6 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.finances(
             [self.transaction("100"), self.transaction("200", 4, sku="OTHER")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.finances_version,
         )
         first = generate_payout_reports(self, inputs.company)[0][0]
         self.fee(other, [("2026-01-01", None, "10")])
@@ -197,7 +194,6 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.finances(
             [self.transaction("100"), self.transaction("20", 4, sku="UNREGISTERED")],
             acquisition_id=invalid.acquisition,
-            expected=invalid.finances_version,
         )
         with self.assertRaises(psycopg.errors.CheckViolation):
             generate_payout_reports(self, first_scope.company)

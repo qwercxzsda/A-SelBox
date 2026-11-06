@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
-test("Finances distinguishes activity from releases and retains native daily-capture details", async ({
+test("Finances distinguishes activity from releases and retains transaction-version details", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -52,8 +52,8 @@ test("Finances distinguishes activity from releases and retains native daily-cap
   await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
   const metadata = drawer.getByRole("table", { name: "Additional record details", exact: true });
   for (const [field, value] of [
-    ["Daily version ID", "version-1"],
-    ["Day ID", "finances-day-1"],
+    ["Version ID", "version-1"],
+    ["Processing batch ID", "finances-batch-1"],
     ["Amazon transaction ID", "amazon-release-B"],
     ["Original transaction ID", "amazon-original-A"],
     ["Amazon transaction status", "RELEASED"],

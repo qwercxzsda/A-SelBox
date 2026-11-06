@@ -5,9 +5,13 @@ flowchart LR
     private_data_kiosk_preprocess_versions["TABLE private.data_kiosk_preprocess_versions"]
     private_data_kiosk_transactions["TABLE private.data_kiosk_transactions"]
     private_finances_activity_components["VIEW private.finances_activity_components"]
-    private_finances_days["TABLE private.finances_days"]
-    private_finances_preprocess_versions["TABLE private.finances_preprocess_versions"]
+    private_finances_batch_components["VIEW private.finances_batch_components"]
+    private_finances_component_details["VIEW private.finances_component_details"]
+    private_finances_preprocess_batch_transactions["TABLE private.finances_preprocess_batch_transactions"]
+    private_finances_preprocess_batches["TABLE private.finances_preprocess_batches"]
     private_finances_transaction_components["TABLE private.finances_transaction_components"]
+    private_finances_transaction_versions["TABLE private.finances_transaction_versions"]
+    private_finances_transactions["TABLE private.finances_transactions"]
     private_financial_account_visible__["FUNCTION private.financial_account_visible()"]
     private_inventory_items["TABLE private.inventory_items"]
     private_is_administrator__["FUNCTION private.is_administrator()"]
@@ -16,7 +20,7 @@ flowchart LR
     private_live_source_reconciliation["VIEW private.live_source_reconciliation"]
     private_mature_cutoff_date__["FUNCTION private.mature_cutoff_date()"]
     private_payout_report_data_kiosk_versions["TABLE private.payout_report_data_kiosk_versions"]
-    private_payout_report_finances_versions["TABLE private.payout_report_finances_versions"]
+    private_payout_report_finances_batches["TABLE private.payout_report_finances_batches"]
     private_payout_report_reconciliation["TABLE private.payout_report_reconciliation"]
     private_payout_report_terms_versions["TABLE private.payout_report_terms_versions"]
     private_read_data_kiosk_preprocess_results__["FUNCTION private.read_data_kiosk_preprocess_results()"]
@@ -38,7 +42,7 @@ flowchart LR
     public_live_company_components["VIEW public.live_company_components"]
     public_payout_reconciliation_totals["VIEW public.payout_reconciliation_totals"]
     public_payout_report_data_kiosk_versions["VIEW public.payout_report_data_kiosk_versions"]
-    public_payout_report_finances_versions["VIEW public.payout_report_finances_versions"]
+    public_payout_report_finances_batches["VIEW public.payout_report_finances_batches"]
     public_payout_report_reconciliation["VIEW public.payout_report_reconciliation"]
     public_payout_report_terms_versions["VIEW public.payout_report_terms_versions"]
     public_sku_fee_periods["TABLE public.sku_fee_periods"]
@@ -46,19 +50,24 @@ flowchart LR
     public_skus["TABLE public.skus"]
     public_sku_terms_versions --> private_current_sku_terms
     public_skus --> private_current_sku_terms
-    private_finances_transaction_components --> private_finances_activity_components
+    private_finances_component_details --> private_finances_activity_components
+    private_finances_component_details --> private_finances_batch_components
+    private_finances_preprocess_batch_transactions --> private_finances_batch_components
+    private_finances_preprocess_batches --> private_finances_batch_components
+    private_finances_transaction_components --> private_finances_component_details
+    private_finances_transaction_versions --> private_finances_component_details
+    private_finances_transactions --> private_finances_component_details
     private_current_sku_terms --> private_live_company_component_inputs
     private_data_kiosk_days --> private_live_company_component_inputs
     private_data_kiosk_preprocess_versions --> private_live_company_component_inputs
     private_data_kiosk_transactions --> private_live_company_component_inputs
     private_finances_activity_components --> private_live_company_component_inputs
-    private_finances_days --> private_live_company_component_inputs
-    private_finances_preprocess_versions --> private_live_company_component_inputs
+    private_finances_preprocess_batches --> private_live_company_component_inputs
     private_live_source_reconciliation --> private_live_company_component_inputs
     private_mature_cutoff_date__ --> private_live_company_component_inputs
     private_reconciliation_group_id__ --> private_live_company_component_inputs
     private_data_kiosk_days --> private_live_source_reconciliation
-    private_finances_days --> private_live_source_reconciliation
+    private_finances_transactions --> private_live_source_reconciliation
     private_reconcile_source_amounts__ --> private_live_source_reconciliation
     private_source_reconciliation_inputs --> private_live_source_reconciliation
     private_data_kiosk_transactions --> private_source_reconciliation_inputs
@@ -71,13 +80,13 @@ flowchart LR
     private_data_kiosk_preprocess_versions --> public_data_kiosk_preprocess_entries
     private_data_kiosk_transactions --> public_data_kiosk_preprocess_entries
     private_read_data_kiosk_preprocess_results__ --> public_data_kiosk_preprocess_results
-    private_finances_preprocess_versions --> public_finances_preprocess_entries
-    private_finances_transaction_components --> public_finances_preprocess_entries
+    private_finances_component_details --> public_finances_preprocess_entries
+    private_finances_preprocess_batch_transactions --> public_finances_preprocess_entries
+    private_finances_preprocess_batches --> public_finances_preprocess_entries
     private_read_finances_preprocess_results__ --> public_finances_preprocess_results
     private_data_kiosk_days --> public_financial_review_records
     private_data_kiosk_transactions --> public_financial_review_records
-    private_finances_days --> public_financial_review_records
-    private_finances_transaction_components --> public_financial_review_records
+    private_finances_component_details --> public_financial_review_records
     private_is_administrator__ --> public_financial_review_records
     private_mature_cutoff_date__ --> public_financial_review_records
     public_company_payout_reports --> public_latest_company_payout_reports
@@ -91,6 +100,6 @@ flowchart LR
     private_is_administrator__ --> public_payout_reconciliation_totals
     private_payout_report_reconciliation --> public_payout_reconciliation_totals
     private_payout_report_data_kiosk_versions --> public_payout_report_data_kiosk_versions
-    private_payout_report_finances_versions --> public_payout_report_finances_versions
+    private_payout_report_finances_batches --> public_payout_report_finances_batches
     private_payout_report_reconciliation --> public_payout_report_reconciliation
     private_payout_report_terms_versions --> public_payout_report_terms_versions

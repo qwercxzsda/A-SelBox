@@ -28,7 +28,6 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
         self.finances(
             [self.transaction("100"), self.transaction("40", 4, sku="OTHER")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self), (3, 3, 0, 0))
         before = {
@@ -65,7 +64,6 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
                 self.transaction("-3", 4, sku="UNREGISTERED", category="SELBOX", kind="NewFee"),
             ],
             acquisition_id=inputs.acquisition,
-            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
         before = self.requested_revision(inputs.company)

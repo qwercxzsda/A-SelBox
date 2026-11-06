@@ -21,19 +21,18 @@ class SchemaContractTests(SourceModelFixture):
         company, _ = self.owner(source_sku)
         self.finances(
             [
-                self.transaction("-11", sku=source_sku, category="SELBOX", kind="NewFee")
+                self.transaction("-11", sku=source_sku, category="SELBOX", kind="ServiceFee")
                 | {
-                    "component_type": "UNMATCHED",
-                    "source_fields": {"sku": source_sku},
+                    "component_type": "SUBSCRIPTION_FEES",
+                    "breakdown_path": ["Subscription", "Base"],
                 }
             ]
         )
         self.assertEqual(
             self.connection.execute(
-                "select category,sku,source_fields->>'sku' "
-                "from private.finances_transaction_components"
+                "select category,sku from private.finances_transaction_components"
             ).fetchone(),
-            ("SELBOX", source_sku, source_sku),
+            ("SELBOX", source_sku),
         )
         self.assertEqual(
             self.connection.execute(
@@ -53,8 +52,8 @@ class SchemaContractTests(SourceModelFixture):
         )
         self.connection.execute("reset role")
 
-    def test_allocated_finances_components_require_a_source_sku(self) -> None:
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+    def test_allocated_finances_transaction_components_require_a_source_sku(self) -> None:
+        with self.assertRaises(ValueError), self.connection.transaction():
             self.finances([self.transaction("100") | {"sku": None}])
         self.assertEqual(
             self.connection.execute(

@@ -81,32 +81,28 @@ class NonAmazonEuropeTests(unittest.TestCase):
                 prepared = prepare_finances_acquisition(
                     october_capture(storage, rows, (retail_id, channel_id)), storage
                 )
-                days = {day.marketplace_name: day for day in prepared.days}
-                self.assertEqual(set(days), {retail_name, channel_name})
-                native = days[channel_name]
-                self.assertEqual(
-                    (native.marketplace_id, native.activity_date), (channel_id, date(2026, 10, 25))
+                native = [
+                    row for row in prepared.transactions if row.marketplace_name == channel_name
+                ]
+                retail = [
+                    row for row in prepared.transactions if row.marketplace_name == retail_name
+                ]
+                self.assertTrue(
+                    all(
+                        row.marketplace_id == channel_id and row.posted_date == date(2026, 10, 25)
+                        for row in native
+                    )
                 )
                 self.assertCountEqual(
-                    [transaction.native_transaction_id for transaction in native.transactions],
+                    [row.native_transaction_id for row in native],
                     ["start", "fold-first", "fold-second", "last"],
                 )
                 self.assertEqual(
-                    sum((transaction.total_amount for transaction in native.transactions), ZERO),
-                    Numeric("4.938271564"),
+                    sum((row.total_amount for row in native), ZERO), Numeric("4.938271564")
                 )
-                self.assertTrue(all(t.currency == "EUR" for t in native.transactions))
-                self.assertTrue(
-                    all(c.currency == "EUR" for t in native.transactions for c in t.components)
-                )
-                self.assertEqual(days[retail_name].marketplace_id, retail_id)
-                self.assertEqual(
-                    [
-                        transaction.native_transaction_id
-                        for transaction in days[retail_name].transactions
-                    ],
-                    ["retail"],
-                )
+                self.assertTrue(all(row.currency == "EUR" for row in native))
+                self.assertEqual([row.native_transaction_id for row in retail], ["retail"])
+                self.assertTrue(all(row.marketplace_id == retail_id for row in retail))
                 self.assertEqual(prepared.summaries, ())
 
     def test_known_channels_still_require_declared_archive_coverage(self) -> None:

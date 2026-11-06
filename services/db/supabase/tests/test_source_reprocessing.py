@@ -144,7 +144,7 @@ class TestSourceReprocessing(DatabaseTestCase):
             start_date=date(2026, 8, 1),
             end_date=end_date,
             preprocess_version=PREPROCESS_VERSION,
-            finances_day_ids=[],
+            finances_batch_ids=[],
             marketplace_names=["Amazon.com"],
         )
 

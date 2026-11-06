@@ -11,8 +11,8 @@ from services.db.supabase.tests.local_database import require_row
 _COMPARISON: LiteralString = """
 with reference as materialized (
     select * from private.resolve_company_components(
-        array(select current_version_id::uuid from private.finances_days
-            where current_version_id is not null),
+        array(select distinct current_batch_id::uuid from private.finances_transactions
+            where current_batch_id is not null),
         array(select current_version_id::uuid from private.data_kiosk_days
             where current_version_id is not null),
         array(select current_terms_version_id::uuid from public.skus
@@ -134,12 +134,13 @@ class LiveViewEquivalenceTests(FinancialFixture):
         administrator = self.administrator()
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        old_batch, _old_finances = self.finances(
+            [self.transaction("100")], acquisition_id=acquisition
+        )
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
         _, new_finances = self.finances(
             [self.transaction("200")],
             acquisition_id=acquisition,
-            expected=old_finances,
         )
         _, new_kiosk = self.kiosk(2, [self.component("-20")], expected=old_kiosk)
         revised_terms = self.assign("SKU", company_b, rate="7", expected=terms)
@@ -166,7 +167,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 self.connection.execute(
                     "select sum(company_amount) from private.resolve_company_components("
                     "%s::uuid[],%s::uuid[],%s::uuid[])",
-                    ([old_finances], [old_kiosk], [terms]),
+                    ([old_batch], [old_kiosk], [terms]),
                 ).fetchone()
             )[0],
             Decimal(85),
@@ -203,7 +204,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             "The live view must allow filtering before the full-history resolver materializes rows",
         )
         for relation, date_column in (
-            ("finances_transaction_components", "posted_date"),
+            ("finances_transaction_versions", "posted_date"),
             ("data_kiosk_transactions", "activity_date"),
         ):
             with self.subTest(relation=relation):

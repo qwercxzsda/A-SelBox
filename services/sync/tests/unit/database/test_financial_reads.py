@@ -31,13 +31,13 @@ class TestFinancialReads(unittest.TestCase):
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 2),
             preprocess_version="v0",
-            finances_day_ids=[finances_id, finances_id],
+            finances_batch_ids=[finances_id, finances_id],
             marketplace_names=["Amazon.com"],
         )
         self.assertEqual(totals[0].company_amount, Decimal("0.0095"))
         self.assertEqual(totals[1].fee_amount, Decimal(7))
         self.assertEqual(totals[2].company_amount, Decimal("1e1000"))
-        self.assertEqual(database.execute_calls[0][1]["finances_day_ids"], [finances_id])
+        self.assertEqual(database.execute_calls[0][1]["finances_batch_ids"], [finances_id])
 
     def test_null_fee_is_never_turned_into_a_complete_total(self) -> None:
         database = FakeDatabaseConnection(
@@ -50,7 +50,7 @@ class TestFinancialReads(unittest.TestCase):
                 start_date=date(2026, 1, 1),
                 end_date=date(2026, 1, 1),
                 preprocess_version="v0",
-                finances_day_ids=[str(uuid7())],
+                finances_batch_ids=[str(uuid7())],
                 marketplace_names=[],
             )
 
@@ -101,7 +101,7 @@ class TestFinancialReads(unittest.TestCase):
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 1),
             preprocess_version="v0",
-            finances_day_ids=[],
+            finances_batch_ids=[],
             marketplace_names=[],
         )
 

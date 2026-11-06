@@ -52,7 +52,6 @@ class FinancialSourceLookupTests(SourceModelFixture):
         _, current = self.finances(
             [self.transaction("4.100000002") | {"native_transaction_id": "AMAZON-EXACT"}],
             acquisition_id=capture,
-            expected=old,
             version="v1",
         )
         administrator = self.administrator()

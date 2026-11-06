@@ -75,7 +75,6 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         self.finances(
             [self.transaction("200")],
             acquisition_id=inputs.acquisition,
-            expected=inputs.finances_version,
         )
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
         self.kiosk(2, [self.component("-20")], expected=inputs.kiosk_version)

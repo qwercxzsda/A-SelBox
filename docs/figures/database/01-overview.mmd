@@ -10,45 +10,39 @@ flowchart LR
     end
     subgraph GROUP_1["Finances observations"]
         private_finances_acquisitions["private.finances_acquisitions"]
-        private_finances_days["private.finances_days"]
         private_finances_preprocess_batches["private.finances_preprocess_batches"]
-        private_finances_preprocess_versions["private.finances_preprocess_versions"]
-        private_finances_pruned_versions["private.finances_pruned_versions"]
+        private_finances_preprocess_batch_transactions["private.finances_preprocess_batch_transactions"]
     end
     subgraph GROUP_2["Finances facts"]
         private_finances_transactions["private.finances_transactions"]
+        private_finances_transaction_versions["private.finances_transaction_versions"]
         private_finances_transaction_components["private.finances_transaction_components"]
     end
-    subgraph GROUP_3["Finances summary checks"]
-        private_finances_summary_checks["private.finances_summary_checks"]
-        private_finances_summary_check_versions["private.finances_summary_check_versions"]
-    end
-    subgraph GROUP_4["Data Kiosk observations"]
+    subgraph GROUP_3["Data Kiosk observations"]
         private_data_kiosk_acquisitions["private.data_kiosk_acquisitions"]
         private_data_kiosk_days["private.data_kiosk_days"]
         private_data_kiosk_preprocess_batches["private.data_kiosk_preprocess_batches"]
         private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions"]
     end
-    subgraph GROUP_5["Data Kiosk facts"]
+    subgraph GROUP_4["Data Kiosk facts"]
         private_data_kiosk_transactions["private.data_kiosk_transactions"]
         private_data_kiosk_pruned_versions["private.data_kiosk_pruned_versions"]
     end
-    subgraph GROUP_6["Payout results"]
+    subgraph GROUP_5["Payout results"]
         public_company_payout_reports["public.company_payout_reports"]
         public_company_payout_report_components["public.company_payout_report_components"]
         private_payout_report_reconciliation["private.payout_report_reconciliation"]
         private_payout_report_refresh_state["private.payout_report_refresh_state"]
     end
-    subgraph GROUP_7["Payout manifests"]
-        private_payout_report_finances_versions["private.payout_report_finances_versions"]
-        private_payout_report_finances_summary_checks["private.payout_report_finances_summary_checks"]
+    subgraph GROUP_6["Payout manifests"]
+        private_payout_report_finances_batches["private.payout_report_finances_batches"]
         private_payout_report_data_kiosk_versions["private.payout_report_data_kiosk_versions"]
         private_payout_report_terms_versions["private.payout_report_terms_versions"]
     end
-    subgraph GROUP_8["Revisions"]
+    subgraph GROUP_7["Revisions"]
         private_workspace_revision_tokens["private.workspace_revision_tokens"]
     end
-    subgraph GROUP_9["Daily inventory"]
+    subgraph GROUP_8["Daily inventory"]
         private_inventory_acquisitions["private.inventory_acquisitions"]
         private_inventory_daily_captures["private.inventory_daily_captures"]
         private_inventory_items["private.inventory_items"]
@@ -61,28 +55,20 @@ flowchart LR
     private_data_kiosk_pruned_versions --> private_data_kiosk_preprocess_versions
     private_data_kiosk_transactions --> private_data_kiosk_preprocess_versions
     private_finances_acquisitions -.-> ARCHIVES
-    private_finances_days --> private_finances_preprocess_versions
+    private_finances_preprocess_batch_transactions --> private_finances_transaction_versions
+    private_finances_preprocess_batch_transactions --> private_finances_preprocess_batches
+    private_finances_preprocess_batch_transactions --> private_finances_transactions
     private_finances_preprocess_batches --> private_finances_acquisitions
-    private_finances_preprocess_versions --> private_finances_preprocess_batches
-    private_finances_preprocess_versions --> private_finances_days
-    private_finances_pruned_versions --> private_finances_preprocess_versions
-    private_finances_summary_check_versions --> private_finances_summary_checks
-    private_finances_summary_check_versions --> private_finances_days
-    private_finances_summary_check_versions --> private_finances_preprocess_versions
-    private_finances_summary_check_versions --> private_finances_preprocess_versions
-    private_finances_summary_checks --> private_finances_acquisitions
-    private_finances_transaction_components --> private_finances_preprocess_versions
-    private_finances_transaction_components --> private_finances_transactions
-    private_finances_transactions --> private_finances_preprocess_versions
+    private_finances_transaction_components --> private_finances_transaction_versions
+    private_finances_transaction_versions --> private_finances_transactions
+    private_finances_transactions --> private_finances_preprocess_batch_transactions
     private_inventory_acquisitions -.-> ARCHIVES
     private_inventory_daily_captures --> private_inventory_acquisitions
     private_inventory_items --> private_inventory_daily_captures
     private_payout_report_data_kiosk_versions --> private_data_kiosk_preprocess_versions
     private_payout_report_data_kiosk_versions --> public_company_payout_reports
-    private_payout_report_finances_summary_checks --> private_finances_summary_checks
-    private_payout_report_finances_summary_checks --> public_company_payout_reports
-    private_payout_report_finances_versions --> private_finances_preprocess_versions
-    private_payout_report_finances_versions --> public_company_payout_reports
+    private_payout_report_finances_batches --> private_finances_preprocess_batches
+    private_payout_report_finances_batches --> public_company_payout_reports
     private_payout_report_reconciliation --> public_company_payout_reports
     private_payout_report_refresh_state --> public_companies
     private_payout_report_terms_versions --> public_company_payout_reports

@@ -69,8 +69,10 @@ def publish_report(
 ) -> str:
     fill_payout_kiosk_month(fixture, start_date=start_date, end_date=end_date)
     if not fixture.connection.execute(
-        "select 1 from private.finances_days where seller_namespace=%s "
-        "and activity_date between %s and %s limit 1",
+        "select 1 from private.finances_preprocess_batches p "
+        "join private.finances_acquisitions a on a.id=p.acquisition_id "
+        "where a.seller_namespace=%s and a.query_start_date<=%s "
+        "and a.query_end_date>=%s limit 1",
         (fixture.seller, start_date, end_date),
     ).fetchone():
         fixture.finances([], acquisition_id=fixture.acquisition(start=start_date, end=end_date))
@@ -118,6 +120,8 @@ def prepare_payout(fixture: SourceModelFixture, company: str | None = None) -> P
     finances, version = fixture.finances([fixture.transaction("100")], acquisition_id=acquisition)
     _, kiosk = fixture.kiosk(1, [fixture.component("-10")])
     fill_payout_kiosk_month(fixture)
+    if version is None:
+        raise AssertionError("Expected a nonempty Finance revision.")
     return PayoutInputs(company, identity, acquisition, finances, version, kiosk)
 
 
@@ -154,10 +158,8 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
             'header',to_jsonb(r),
             'components',(select jsonb_agg(to_jsonb(c) order by c.row_number)
                 from public.company_payout_report_components c where c.report_id=r.id),
-            'finances_days',(select jsonb_agg(to_jsonb(p) order by p.day_id)
-                from private.payout_report_finances_versions p where p.report_id=r.id),
-            'summary_checks',(select jsonb_agg(to_jsonb(p) order by p.check_id)
-                from private.payout_report_finances_summary_checks p where p.report_id=r.id),
+            'finances_batches',(select jsonb_agg(to_jsonb(p) order by p.batch_id)
+                from private.payout_report_finances_batches p where p.report_id=r.id),
             'kiosk',(select jsonb_agg(to_jsonb(p) order by p.day_id)
                 from private.payout_report_data_kiosk_versions p where p.report_id=r.id),
             'terms',(select jsonb_agg(to_jsonb(p) order by p.sku_id)

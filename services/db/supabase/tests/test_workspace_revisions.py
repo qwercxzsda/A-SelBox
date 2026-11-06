@@ -114,7 +114,7 @@ class WorkspaceRevisionTests(SourceModelFixture):
         acquisition = self.acquisition()
         self.connection.commit()
         self.assertEqual(self.revisions(member), initial)
-        _, version = self.finances(
+        _, _version = self.finances(
             [self.transaction("5", activity_date="2026-06-01")],
             acquisition_id=acquisition,
             version="v99",
@@ -124,7 +124,11 @@ class WorkspaceRevisionTests(SourceModelFixture):
         first = self.revisions(member)
         self.assertNotEqual(first["finances"], initial["finances"])
         self.assertEqual(first["fees"], initial["fees"])
-        self.finances([], acquisition_id=acquisition, expected=version, version="v1")
+        self.finances(
+            [self.transaction("0", activity_date="2026-06-01")],
+            acquisition_id=acquisition,
+            version="v1",
+        )
         self.connection.commit()
         self.assertNotEqual(self.revisions(member)["finances"], first["finances"])
 

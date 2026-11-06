@@ -2,7 +2,7 @@
 
 UI label rendering is covered by frontend tests. Benchmark terms deliberately use
 stored text and the two Source labels, so the independent raw-view oracle can
-verify the same rows across the old substring and current exact-array contracts.
+verify the same rows using substring matches against the resolved exact arrays.
 """
 
 from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAMES

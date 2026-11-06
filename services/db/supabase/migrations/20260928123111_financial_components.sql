@@ -4,7 +4,7 @@
 -- This payout/reference resolver uses explicit versions, never current pointers.
 -- It shares fee applicability and arithmetic rules with the current live reads.
 create function private.resolve_company_components(
-    p_finances_version_ids uuid[], p_data_kiosk_version_ids uuid[], p_terms_version_ids uuid[]
+    p_finances_batch_ids uuid[], p_data_kiosk_version_ids uuid[], p_terms_version_ids uuid[]
 ) returns table (
     source text, source_row_id uuid, source_version_id uuid, preprocess_version text,
     source_identity_id uuid, seller_namespace text, marketplace_name text,
@@ -15,14 +15,16 @@ create function private.resolve_company_components(
 )
 language plpgsql stable set search_path = '' as $$
 begin
-    if p_finances_version_ids is null or p_data_kiosk_version_ids is null or p_terms_version_ids is null
-        or array_position(p_finances_version_ids,null) is not null
+    if p_finances_batch_ids is null or p_data_kiosk_version_ids is null or p_terms_version_ids is null
+        or array_position(p_finances_batch_ids,null) is not null
         or array_position(p_data_kiosk_version_ids,null) is not null
         or array_position(p_terms_version_ids,null) is not null then
         raise exception 'Explicit nonnull version arrays required' using errcode = '23514';
     end if;
-    if exists (select 1 from private.finances_preprocess_versions v
-        where v.id = any(p_finances_version_ids) group by v.day_id having count(*) > 1)
+    if exists (select 1 from private.finances_preprocess_batch_transactions m
+        join private.finances_preprocess_batches b on b.id=m.batch_id
+        where m.batch_id = any(p_finances_batch_ids) group by m.transaction_id
+        having count(distinct m.version_id)>1 or count(distinct b.preprocess_version)>1)
         or exists (select 1 from private.data_kiosk_preprocess_versions v
             where v.id = any(p_data_kiosk_version_ids) group by v.day_id having count(*) > 1)
         or exists (select 1 from public.sku_terms_versions v
@@ -31,12 +33,12 @@ begin
     end if;
     return query
     with components as (
-    select
+    select distinct
     'FINANCES'::text as source, -- noqa: RF04
     t.id as source_row_id,
     t.version_id as source_version_id,
-    v.preprocess_version,
-    v.day_id as source_identity_id,
+    t.preprocess_version,
+    t.transaction_id as source_identity_id,
     t.seller_namespace,
     t.marketplace_name,
     t.posted_date as activity_date,
@@ -48,11 +50,10 @@ begin
     t.fee_base as fee_base,
     t.category,
     true as authoritative
-from private.finances_activity_components as t
-inner join private.finances_preprocess_versions as v on t.version_id = v.id
-where t.category in ('FINANCES', 'SELBOX')
+from private.finances_batch_components as t
+where t.activity_eligible and t.category in ('FINANCES', 'SELBOX')
     and t.posted_date < (select private.mature_cutoff_date())
-    and v.id = any(p_finances_version_ids)
+    and t.batch_id = any(p_finances_batch_ids)
 union all
 select
     'DATA_KIOSK' as source, -- noqa: RF04
@@ -81,7 +82,7 @@ select 'RECONCILIATION'::text, private.reconciliation_group_id(r.seller_namespac
     private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), r.seller_namespace,
     r.marketplace_name, r.activity_date, null::text, 'FINANCES_KIOSK_DIFFERENCE'::text,
     r.currency, r.difference, null::numeric, null::numeric, 'SELBOX'::public.allocation_category, true
-from private.resolve_source_reconciliation(p_finances_version_ids,p_data_kiosk_version_ids) r
+from private.resolve_source_reconciliation(p_finances_batch_ids,p_data_kiosk_version_ids) r
 where r.data_kiosk_finances_control <> 0 or r.data_kiosk_category_amount <> 0
 ), selected_terms as (
     select s.id as sku_id,s.sku,v.id as terms_version_id,v.company_id
@@ -144,8 +145,8 @@ with components as (
         'FINANCES'::text as source, -- noqa: RF04
         t.id as source_row_id,
         t.version_id as source_version_id,
-        v.preprocess_version,
-        v.day_id as source_identity_id,
+        p.preprocess_version,
+        t.transaction_id as source_identity_id,
         t.seller_namespace,
         t.marketplace_name,
         t.posted_date as activity_date,
@@ -158,11 +159,9 @@ with components as (
         t.category,
         true as authoritative
     from private.finances_activity_components as t
-    inner join private.finances_preprocess_versions as v on t.version_id = v.id
-    inner join private.finances_days as s
-        on v.id = s.current_version_id
+    inner join private.finances_preprocess_batches as p on t.current_batch_id = p.id
     where
-        t.category in ('FINANCES', 'SELBOX')
+        t.is_current and t.category in ('FINANCES', 'SELBOX')
         and t.posted_date < (select private.mature_cutoff_date())
     union all
     select

@@ -1,21 +1,17 @@
--- Read access paths: source provenance is not an ownership key.
--- Support global SKU ownership/version reads and exact counts. Trailing category
--- and marketplace keys cover Finances eligibility while retaining B-tree deduplication.
-create index finances_transaction_components_owner_version_idx
-on private.finances_transaction_components (
-    sku, version_id, category, marketplace_name
-)
-where category = 'FINANCES';
-
--- Lead with date to restrict the index scan to the requested period. Covering
--- filters and ownership/current-version checks enables index-only counting.
--- Retain the compact owner index for unfiltered counts.
-create index finances_transaction_components_date_count_idx
-on private.finances_transaction_components (
-    posted_date, component_type, sku, version_id,
-    category, marketplace_name
-)
-where category = 'FINANCES';
+-- Index parent metadata separately from compact monetary components.
+create index finances_revisions_date_idx on private.finances_transaction_versions (posted_date, id);
+create index finances_revisions_marketplace_date_idx on private.finances_transaction_versions (
+    marketplace_name, posted_date
+);
+create index finances_transaction_components_sku_idx on private.finances_transaction_components (
+    sku, version_id
+);
+create index finances_transaction_components_type_idx on private.finances_transaction_components (
+    component_type, version_id
+);
+create index finances_transactions_native_lookup_idx on private.finances_transactions (
+    native_transaction_id, id
+);
 
 -- Date-led coverage serves bounded-period Data Kiosk counts, including zero
 -- amounts. Cover every category and version for raw reads; queries and RLS
@@ -27,9 +23,6 @@ on private.data_kiosk_transactions (
 );
 
 -- Match each owned fact to its currently selected source version.
-create index finances_days_current_version_idx
-on private.finances_days (current_version_id)
-where current_version_id is not null;
 
 create index data_kiosk_days_current_version_idx
 on private.data_kiosk_days (current_version_id)
@@ -38,8 +31,6 @@ where current_version_id is not null;
 -- Default date pages use one B-tree per source in either direction. Full
 -- coverage also serves the raw administrator tabs, including historical/account rows;
 -- unchanged RLS and live-query predicates still enforce their respective scopes.
-create index finances_transaction_components_date_id_idx
-on private.finances_transaction_components (posted_date asc nulls last, id asc);
 
 create index data_kiosk_transactions_date_id_idx
 on private.data_kiosk_transactions (activity_date asc nulls last, id asc);
@@ -47,24 +38,18 @@ on private.data_kiosk_transactions (activity_date asc nulls last, id asc);
 -- SKU identity is global. Lead with the selected SKU; retain compact date keys
 -- and B-tree deduplication instead of appending ID.
 -- These narrow candidate scans; they need not satisfy the complete page order.
-create index finances_transaction_components_sku_date_idx
-on private.finances_transaction_components (sku, posted_date);
 
 create index data_kiosk_transactions_sku_date_idx
 on private.data_kiosk_transactions (sku, activity_date);
 
 -- Exact Type selections narrow sparse component/date scopes in either source.
 -- Use native text comparisons with the same collation as the existing filters.
-create index finances_transaction_components_type_date_idx
-on private.finances_transaction_components (component_type, posted_date);
 
 create index data_kiosk_transactions_type_date_idx
 on private.data_kiosk_transactions (component_type, activity_date);
 
 -- Compact marketplace/date access supports exact text selections. The planner
 -- still chooses its scan strategy according to visibility and filter selectivity.
-create index finances_transaction_components_marketplace_date_idx
-on private.finances_transaction_components (marketplace_name, posted_date);
 
 create index data_kiosk_transactions_marketplace_date_idx
 on private.data_kiosk_transactions (marketplace_name, activity_date);

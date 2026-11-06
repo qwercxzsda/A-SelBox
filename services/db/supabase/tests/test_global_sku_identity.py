@@ -19,7 +19,9 @@ class GlobalSkuIdentityTests(FinancialFixture):
         for seller, amount, cost in (("N1", "100", "-10"), ("N2", "200", "-20")):
             self.seller = seller
             acquisition = self.acquisition()
-            _, old = self.finances([self.transaction("1000", sku="S1")], acquisition_id=acquisition)
+            _, _old = self.finances(
+                [self.transaction("1000", sku="S1")], acquisition_id=acquisition
+            )
             self.finances(
                 [
                     self.transaction(amount, sku="S1"),
@@ -27,7 +29,6 @@ class GlobalSkuIdentityTests(FinancialFixture):
                     self.transaction("20", 5, sku="S1 "),
                 ],
                 acquisition_id=acquisition,
-                expected=old,
             )
             _, old_day = self.kiosk(1, [self.component("-1000", sku="S1")])
             self.kiosk(2, [self.component(cost, sku="S1")], expected=old_day)

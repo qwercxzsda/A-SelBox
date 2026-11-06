@@ -1,9 +1,8 @@
-# Amazon source refresh and Financial review visibility — October 18, 2026
+# Amazon source refresh — October 18, 2026
 
-The UI and maturity observations below describe the earlier paged month/currency layout and its
-partial-month eligibility. The current [Financial review](../financial_review.md) uses a selected
-year and currency, with monthly and running differences, and includes only fully mature calendar
-months matching payout reports. The source-coverage verification is unchanged.
+This dated record preserves source coverage, Summary agreement and changed Data Kiosk responses.
+The former daily Finance schema, preview UI and deployment details are not current contracts.
+The original aggregate result file retains its dated execution metadata.
 
 The database serving the public preview was refreshed from Amazon and verified to
 have daily capture coverage from **January 1 through October 16, 2026**, inclusive.
@@ -13,24 +12,17 @@ zones; October 17 was still in progress in North America.
 
 ## Fresh acquisition and publication
 
-The existing public preview routes to API port `55621` and database port `55622`.
-The refresh used that database, not another running local instance. Fresh October
-1–16 acquisitions were downloaded, preprocessed using version `v3`, archived and
-published through the normal source workflows.
+Fresh October 1–16 acquisitions were downloaded and archived from five Finances credential scopes
+and 18 Data Kiosk marketplaces. The dated comparison used preprocessing version `v3`.
 
 | Check | Finances | Data Kiosk |
 | --- | ---: | ---: |
 | Fresh acquisitions | 5 credential scopes | 18 marketplaces |
-| Selected October daily versions | 304 | 288 |
 | Current marketplace/channel coverage | 19 native scopes | 18 retail marketplaces |
-| Selected days, January 1–October 16 | 5,491 | 5,202 |
 | Current components | 811,558 | 81,621 |
-| January–September version selections preserved | 5,187 | 4,914 |
 
-Finances contains 127,549 current native transactions. All **190 current monthly
-Amazon Summary controls match**, including all 19 fresh October 1–16 controls.
-There are no missing requested daily versions, incompatible current versions, or
-activity groups lacking their expected Summary control.
+The retained Finances captures contained 127,549 native transactions. All **190 captured monthly
+Amazon Summary controls matched**, including the 19 fresh October 1–16 controls.
 
 Data Kiosk has 3,782 current October components. Every requested marketplace/day
 has a complete compatible capture; current version row counts match their stored
@@ -56,54 +48,8 @@ expected charge, or that Data Kiosk's SKU allocations are correct. The
 [deferred allocation discrepancies](sku_cost_allocation_feasibility_2026-10-18.md)
 remain unresolved. Finances/Summary agreement is a separate control.
 
-Payout scheduling remained active throughout the refresh. The independently
-checked five-minute job completed successfully at 04:10 UTC. Maturity policy,
-allocation rules, source authority, fee rates and ownership were unchanged.
-
-## Why months looked incomplete
-
-Three separate conditions explain the reported display:
-
-1. **Maturity filtering.** Financial review compares dates strictly before
-   `2026-08-18` at this observation. January–July are complete calendar months;
-   August includes August 1–17. September and October are downloaded, but not yet
-   eligible for Financial review. Their source records remain available in the
-   Finances and Data Kiosk tabs.
-2. **Currency-row pagination.** The default page contains 25 currency rows, not
-   25 whole months. The first Data Kiosk category page contains August's nine
-   currencies, July's nine, and seven of June's nine. June's remaining two
-   currencies appear on page two. All eight eligible months and all 72 rows are
-   present over three pages.
-3. **April saved payout coverage.** April is present in live Financial review,
-   including nine currencies and 1,674 Data Kiosk category source rows. Its saved
-   company payout reports are separately blocked by three historical SKU
-   identities without ownership. They affect 244 authoritative US Finances
-   components with a net amount of $15.07. No ownership was inferred or assigned.
-
-The website now states the exclusive maturity cutoff, labels the partial month
-**Mature dates only**, labels month counts **N currencies on this page**, and
-explains that a month can continue on the next page. These are presentation
-clarifications; the eligibility and pagination rules are unchanged.
-
-## Verification
-
-- 38 authenticated requests through the public preview returned HTTP 200. The
-  frontend's paginated results exactly matched the full monthly RPC results:
-  Data Kiosk 72 rows, Finances 72, SelBox 68. No rows were missing or duplicated.
-- Two further requests using the actual frontend source client retrieved October
-  16 successfully: 4,275 Finances rows and 212 Data Kiosk rows. All 25 sampled rows
-  from each source matched the requested day. These are source-view row counts,
-  not counts of native Amazon transactions.
-- A real browser walkthrough at 1440 × 1100 verified all three Data Kiosk review
-  pages, all eight eligible months and all 72 currency rows, before and after the
-  copy change. Updated labels are visible; no browser errors, failed source
-  requests or horizontal page overflow were observed.
-- 17 relevant frontend unit tests, targeted lint/format checks and the production
-  build passed. The updated build is active on the existing public preview.
-
-Sanitized aggregate results are saved in
-[the refresh verification JSON](source_refresh_2026-10-18.json). Raw acquisition
-archives, before/after version IDs, API checks and browser screenshots remain in
-ignored local output directories under `output/source-refresh-2026-10-18/` and
-`output/financial-review-month-audit-2026-10-18/`. They are not application setup
-instructions or a claim of source monetary correctness.
+Sanitized source aggregates remain in [the original result file](source_refresh_2026-10-18.json).
+Raw captures and private investigation records remain under `output/source-refresh-2026-10-18/`
+and `output/financial-review-month-audit-2026-10-18/`. Current retrieval/publication behavior is
+specified in the [Finances contract](../finances_transactions.md) and
+[Data Kiosk workflow](../data_workflows.md#data-kiosk-preprocessing).

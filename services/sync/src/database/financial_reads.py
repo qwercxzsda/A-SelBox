@@ -73,7 +73,7 @@ def load_company_financial_totals(
     start_date: date,
     end_date: date,
     preprocess_version: str,
-    finances_day_ids: Sequence[str],
+    finances_batch_ids: Sequence[str],
     marketplace_names: Sequence[str],
     dataset_key: str = "economics",
 ) -> tuple[CompanyFinancialTotal, ...]:
@@ -88,7 +88,7 @@ def load_company_financial_totals(
         start_date=start_date,
         end_date=end_date,
         preprocess_version=preprocess_version,
-        finances_day_ids=finances_day_ids,
+        finances_batch_ids=finances_batch_ids,
         marketplace_names=marketplace_names,
         dataset_key=dataset_key,
     )
@@ -98,7 +98,7 @@ def load_company_financial_totals(
             select company_id, currency, source_amount, fee_amount, company_amount
             from private.company_financial_totals(
                 %(seller_namespace)s, %(start_date)s::date, %(end_date)s::date,
-                %(preprocess_version)s, %(finances_day_ids)s::uuid[],
+                %(preprocess_version)s, %(finances_batch_ids)s::uuid[],
                 %(marketplace_names)s::text[], %(dataset_key)s
             ) order by company_id, currency
             """,
@@ -126,7 +126,7 @@ def load_company_financial_progress(
     start_date: date,
     end_date: date,
     preprocess_version: str,
-    finances_day_ids: Sequence[str],
+    finances_batch_ids: Sequence[str],
     marketplace_names: Sequence[str],
     dataset_key: str = "economics",
 ) -> tuple[CompanyFinancialProgress, ...]:
@@ -140,7 +140,7 @@ def load_company_financial_progress(
         start_date=start_date,
         end_date=end_date,
         preprocess_version=preprocess_version,
-        finances_day_ids=finances_day_ids,
+        finances_batch_ids=finances_batch_ids,
         marketplace_names=marketplace_names,
         dataset_key=dataset_key,
     )
@@ -151,7 +151,7 @@ def load_company_financial_progress(
                 known_company_amount, missing_fee_count, missing_fee_components
             from private.company_financial_progress(
                 %(seller_namespace)s, %(start_date)s::date, %(end_date)s::date,
-                %(preprocess_version)s, %(finances_day_ids)s::uuid[],
+                %(preprocess_version)s, %(finances_batch_ids)s::uuid[],
                 %(marketplace_names)s::text[], %(dataset_key)s
             ) order by company_id, currency
             """,

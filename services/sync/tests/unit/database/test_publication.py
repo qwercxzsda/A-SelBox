@@ -14,7 +14,7 @@ class TestPublication(unittest.TestCase):
             with self.subTest(row=row), self.assertRaises((TypeError, ValueError, RuntimeError)):
                 publish_json(
                     FakeDatabaseConnection([row]),
-                    "SELECT private.publish_finances_preprocess(%(payload)s)",
+                    "SELECT private.publish_data_kiosk_preprocess(%(payload)s)",
                     {"id": expected_id},
                     expected_id=expected_id,
                 )

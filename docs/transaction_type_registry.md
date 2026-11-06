@@ -68,7 +68,7 @@ conda run -n A-SelBox python -m services.sync.src.transaction_types.generate --c
 Do not edit generated JSON or maintain another source Type registry. Marketplace choices and
 `marketplace-timezones.json` come from the canonical retail and native-channel definitions.
 Inventory ages use the same calendar boundaries as source capture. The
-[Finances contract](finances_transactions.md#api-scope) defines native-channel identities and
+[Finances contract](finances_transactions.md#acquisition-scope-and-archives) defines native-channel identities and
 control grouping; grouping does not rename stored marketplaces.
 
 Company menus omit SelBox account types. Administrator Transactions also offers
@@ -79,11 +79,11 @@ catalog labels and exact keys, while database permissions authorize each result.
 ## Adding a type
 
 1. Inspect retained native evidence and determine its exact path and economic role.
-2. Add an explicit registry entry and a test for complete amount partitioning,
+1. Add an explicit registry entry and a test for complete amount partitioning,
    source identity and category treatment. Add no catch-all entry.
-3. Regenerate catalogs and run Python, database and frontend checks.
-4. Reprocess the retained capture with the current shared preprocessing definition.
+1. Regenerate catalogs and run Python, database and frontend checks.
+1. Reprocess the retained capture with the current shared preprocessing definition.
 
 Refer to [source allocation](source_allocation.md) for authority and
-[Finances transactions](finances_transactions.md) for complete daily observations,
+[Finances transactions](finances_transactions.md) for successful observations and immutable transaction versions,
 release exclusion and Amazon Summary reconciliation.

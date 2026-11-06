@@ -16,15 +16,16 @@ class LiveSourceModelTests(SourceModelFixture):
     def test_fee_corrections_refund_date_and_immutable_children(self) -> None:
         company, owner = self.owner()
         first = self.fee(owner, [("2026-01-01", "2026-07-01", "5"), ("2026-07-01", None, "7")])
-        finances, _ = self.finances(
+        self.finances(
             [
                 self.transaction("100"),
                 self.transaction("-100", 4, kind="Refund", activity_date="2026-07-01"),
                 self.transaction("12", 5, description="Shipping"),
             ]
         )
+        finance_runs = list(self.last_finances_batch_ids)
         self.assertEqual(
-            self.totals([finances]),
+            self.totals(finance_runs),
             [(UUID(company), "USD", Decimal("12"), Decimal("2"), Decimal("14"))],
         )
         self.assertEqual(
@@ -35,12 +36,12 @@ class LiveSourceModelTests(SourceModelFixture):
             (None, None, Decimal(0)),
         )
         second = self.fee(owner, [("2026-01-01", None, "6")], first)
-        self.assertEqual(self.totals([finances])[0][-2:], (Decimal("0"), Decimal("12")))
+        self.assertEqual(self.totals(finance_runs)[0][-2:], (Decimal("0"), Decimal("12")))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.finances_preprocess_versions"
+                "select count(*) from private.finances_preprocess_batches"
             ).fetchone(),
-            (61,),
+            (2,),
         )
         for statement, values in (
             ("update public.skus set sku='other' where id=%s", (owner,)),
@@ -64,7 +65,8 @@ class LiveSourceModelTests(SourceModelFixture):
     def test_nonoverlap_rates_gaps_zero_and_missing_ownership(self) -> None:
         _, owner = self.owner()
         first = self.fee(owner, [("2026-01-01", None, "0")])
-        finances, _ = self.finances([self.transaction("0")])
+        zero = self.transaction("0")
+        finances, _ = self.finances([zero])
         self.assertEqual(self.totals([finances])[0][-1], 0)
         for periods in (
             [("2026-01-01", "2026-07-02", "5"), ("2026-07-01", None, "6")],
@@ -84,35 +86,42 @@ class LiveSourceModelTests(SourceModelFixture):
         )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.totals([finances])
-        unmapped, _ = self.finances([self.transaction("1", sku="UNMAPPED")], identity="unmapped")
+        unmapped, _ = self.finances(
+            [zero, self.transaction("1", sku="UNMAPPED")], identity="unmapped"
+        )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.totals([unmapped])
 
-    def test_repeated_daily_captures_and_finances_source_authority(self) -> None:
+    def test_repeated_captures_reuse_finances_state_and_preserve_authority(self) -> None:
         _, owner = self.owner()
         self.fee(owner, [("2026-01-01", None, "5")])
-        canonical, old = self.finances(
-            [self.transaction("100"), self.transaction("-9", 4, category="DATA_KIOSK")]
-        )
+        rows = [self.transaction("100"), self.transaction("-9", 4, category="DATA_KIOSK")]
+        canonical, old = self.finances(rows)
         repeated = self.acquisition(capture_label="repeated")
-        same, latest = self.finances(
-            [self.transaction("100"), self.transaction("-9", 4, category="DATA_KIOSK")],
-            acquisition_id=repeated,
-            expected=old,
-        )
-        self.assertEqual(canonical, same)
-        self.assertEqual(self.totals([canonical])[0][-1], Decimal("95"))
+        same, latest = self.finances(rows, acquisition_id=repeated)
+        self.assertNotEqual(canonical, same)
+        self.assertEqual(old, latest)
+        self.assertEqual(self.totals([same])[0][-1], Decimal("95"))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.finances_preprocess_entries "
-                "where category='DATA_KIOSK' and version_id in "
-                "(select current_version_id from private.finances_days)"
+                "select count(*) from private.finances_component_details "
+                "where category='DATA_KIOSK' and is_current"
             ).fetchone(),
             (1,),
         )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.finances_transaction_components"
+            ).fetchone(),
+            (2,),
+        )
         changed = self.acquisition(capture_label="changed", digest="c")
-        self.finances([self.transaction("91")], acquisition_id=changed, expected=latest)
-        self.assertEqual(self.totals([canonical])[0][-1], Decimal("86.45"))
+        rows[0].update(amount="91", fee_base="91")
+        changed_run, changed_revision = self.finances(rows, acquisition_id=changed)
+        self.assertNotEqual(changed_revision, old)
+        self.assertEqual(self.totals([changed_run])[0][-1], Decimal("86.45"))
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+            self.totals([canonical])
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from private.finances_acquisitions"
@@ -254,7 +263,7 @@ class LiveSourceModelTests(SourceModelFixture):
         )
         for statement in (
             "select * from private.finances_acquisitions",
-            "select total_amount from private.finances_transactions",
+            "select total_amount from private.finances_transaction_versions",
             "update public.skus set current_terms_version_id=current_terms_version_id",
             "select private.publish_sku_terms('{}'::jsonb)",
             (

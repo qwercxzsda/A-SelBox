@@ -1,7 +1,7 @@
 # A-SelBox
 
 A-SelBox archives Amazon Finances transactions, Summary controls, and Data Kiosk documents, then
-preprocesses those inputs into complete source versions. PostgreSQL calculates company amounts and
+preprocesses those inputs into immutable transaction versions and Data Kiosk day versions. PostgreSQL calculates company amounts and
 fees from the selected sources and SKU terms. The scheduled worker saves immutable monthly
 [payout reports](docs/company_payout_reports.md) per company, marketplace, and currency, retaining
 the exact inputs used. Source and fee changes refresh eligible reports as dates mature.
@@ -27,15 +27,17 @@ One named enum category selects the allocation: `FINANCES`, `SELBOX`,
 `DATA_KIOSK`, or `ANALYSIS_ONLY`. Finances supplies direct company facts and
 account controls; selected Data Kiosk components supply company costs.
 Analysis-only components stay outside strict financial totals. Dashboard estimates
-combine all eligible transaction sources, as described in the query contract. Complete day
-versions include empty days and retain independent Amazon observation ordering.
+combine all eligible transaction sources, as described in the query contract. Finance batches
+record exact observed transaction versions and reuse unchanged contents. Data Kiosk day versions
+include empty days. Both retain independent Amazon observation ordering.
 Application accounts use three roles: Administrator (`administrator`), Member (`member`),
 and Unassigned (`unassigned`). New signups are Unassigned until an administrator assigns a
 company. Members read current own-company facts and terms; administrators also read retained
 history and all payout reports. Only the DB manager can grant or revoke Administrator access.
-Raw documents remain private. Finances and Data Kiosk retention preserve
-current versions, the latest three Amazon observations, and all payout
-dependencies. Approval, rounding, and payment execution remain deferred.
+Raw documents remain private. Finance history has no retention cap; only successful preprocessing
+enters the database, and failed attempts use local logs. Data Kiosk retention preserves current
+versions, the latest three Amazon observations, and payout dependencies. Approval, rounding, and
+payment execution remain deferred.
 
 ## Development
 
@@ -87,7 +89,7 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
   filter, and summary APIs.
 - [Database performance](docs/database_performance.md): current read design,
   measurements, and remaining scaling limits.
-- [Finances transactions](docs/finances_transactions.md): complete daily snapshots,
+- [Finances transactions](docs/finances_transactions.md): stable identities and immutable versions,
   lifecycle links, activity totals, and Summary reconciliation.
 - [Transaction type registry](docs/transaction_type_registry.md): classification,
   SKU requirements, and validation boundaries.

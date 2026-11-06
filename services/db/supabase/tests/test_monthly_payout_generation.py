@@ -145,7 +145,13 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self.finances(
             [
                 self.transaction("100"),
-                self.transaction("-3", 4, category="SELBOX") | {"sku": None},
+                self.transaction("-3", 4, kind="ServiceFee", category="SELBOX")
+                | {
+                    "sku": None,
+                    "component_type": "SUBSCRIPTION_FEES",
+                    "accounting_subtype": "OPERATING_EXPENSE",
+                    "breakdown_path": ["AmazonFees", "Subscription", "Base"],
+                },
                 self.transaction("-12", 5, kind="ServiceFee", category="DATA_KIOSK")
                 | {"sku": None},
                 self.transaction("-2", 6, kind="ServiceFee", category="DATA_KIOSK")

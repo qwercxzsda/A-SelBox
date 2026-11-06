@@ -36,7 +36,7 @@ class EvidenceIntegrityTests(SourceModelFixture):
         self.published_evidence()
         for schema, table in (
             ("private", "finances_acquisitions"),
-            ("private", "finances_preprocess_versions"),
+            ("private", "finances_transaction_versions"),
             ("public", "sku_terms_versions"),
             ("public", "sku_fee_periods"),
         ):

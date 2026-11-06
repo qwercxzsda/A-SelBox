@@ -28,7 +28,7 @@ create table public.company_payout_reports (
     calculation_version text not null check (calculation_version = 'v1'),
     component_count integer not null check (component_count >= 0),
     reconciliation_count integer not null check (reconciliation_count >= 0),
-    finances_version_count integer not null check (finances_version_count >= 0),
+    finances_batch_count integer not null check (finances_batch_count >= 0),
     data_kiosk_version_count integer not null check (data_kiosk_version_count >= 0),
     terms_version_count integer not null check (terms_version_count >= 0),
     source_amount private.calculated_amount not null,
@@ -77,14 +77,10 @@ where requested_revision > completed_revision;
 
 -- These complete manifests are also the retention pins. They include empty
 -- source versions and ownership inputs used to exclude other companies' rows.
-create table private.payout_report_finances_versions (
+create table private.payout_report_finances_batches (
     report_id public.local_uuid not null references public.company_payout_reports (id),
-    day_id public.local_uuid not null,
-    version_id public.local_uuid not null,
-    primary key (report_id, day_id),
-    unique (report_id, version_id),
-    foreign key (day_id, version_id)
-    references private.finances_preprocess_versions (day_id, id)
+    batch_id public.local_uuid not null references private.finances_preprocess_batches (id),
+    primary key (report_id, batch_id)
 );
 
 create table private.payout_report_data_kiosk_versions (
@@ -202,10 +198,4 @@ create table private.payout_report_reconciliation (
         + difference
     ),
     check (accounted_total = finances_total)
-);
-
-create table private.payout_report_finances_summary_checks (
-    report_id public.local_uuid not null references public.company_payout_reports (id),
-    check_id public.local_uuid not null references private.finances_summary_checks (id),
-    primary key (report_id, check_id)
 );

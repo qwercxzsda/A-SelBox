@@ -214,3 +214,19 @@ select
     p.fee_rate_percent
 from public.company_skus as s
 inner join public.sku_fee_periods as p on s.terms_version_id = p.terms_version_id;
+
+-- Resolve the caller's visible parent revisions without circular parent/child RLS.
+-- This private definer boundary returns only IDs for current, eligible owned facts.
+create function private.current_owned_finances_revisions() returns setof uuid
+language sql stable security definer set search_path = '' as $$
+    select distinct r.id::uuid
+    from private.finances_transactions t
+    join private.finances_transaction_versions r on r.id=t.current_version_id
+    join private.finances_transaction_components c on c.version_id=r.id
+    where private.is_member() and r.activity_eligible and c.category='FINANCES'
+        and c.sku in (select o.sku from private.current_owned_sku_terms() o);
+$$;
+revoke all on function private.current_owned_finances_revisions() from public,
+anon,
+authenticated,
+service_role;

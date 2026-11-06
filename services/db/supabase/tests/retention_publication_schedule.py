@@ -26,6 +26,7 @@ def _prepare(database_url: str) -> dict[str, object]:
     current: dict[str, str] = {}
     with psycopg.connect(database_url) as connection:
         fixture = SourceModelFixture()
+        fixture.finances_acquisitions = {}
         fixture.connection = connection
         fixture.seller = "retention-deadlock-seller"
         fixture.set_mature_cutoff_date(date(2026, 7, 1))
@@ -152,6 +153,7 @@ def report_while_pruning() -> tuple[str, str]:
         _prepare(database_url)
         with psycopg.connect(database_url) as connection:
             fixture = SourceModelFixture()
+            fixture.finances_acquisitions = {}
             fixture.connection = connection
             fixture.seller = "retention-deadlock-seller"
             company, _ = fixture.owner()

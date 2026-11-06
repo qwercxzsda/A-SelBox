@@ -16,7 +16,6 @@ from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import create_company
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
@@ -40,9 +39,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         )
 
     def import_source(self, seller: str, sku: str, *, kiosk: bool = False) -> None:
-        acquisition = persist_finances_acquisition(
-            self.database, archived_finances(self.storage, seller, sku=sku)
-        )
+        acquisition = archived_finances(self.storage, seller, sku=sku)
         preprocess_finances_acquisition(self.database, self.storage, acquisition)
         if kiosk:
             acquisition = persist_data_kiosk_acquisition(

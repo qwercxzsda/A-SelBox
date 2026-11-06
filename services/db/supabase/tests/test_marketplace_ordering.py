@@ -23,7 +23,6 @@ class MarketplaceOrderingTests(SourceModelFixture):
     def publish_marketplaces(
         self,
         version: str,
-        finances_previous: str | None = None,
         day_previous: dict[tuple[str, str], str] | None = None,
     ) -> tuple[str, dict[tuple[str, str], str]]:
         finances_rows: list[dict[str, object]] = []
@@ -63,7 +62,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
                     "transactions": components,
                 }
             )
-        _, finances = self.finances(finances_rows, version=version, expected=finances_previous)
+        _, finances = self.finances(finances_rows, version=version)
         for marketplace in _MARKETS:
             self.call(
                 "publish_data_kiosk_preprocess",
@@ -77,14 +76,16 @@ class MarketplaceOrderingTests(SourceModelFixture):
                     "days": [day for day in days if day["marketplace_name"] == marketplace],
                 },
             )
+        if finances is None:
+            raise AssertionError("The populated Finance fixture needs a version.")
         return finances, current
 
     def marketplace_fixture(self) -> tuple[str, str]:
         company, sku = self.owner()
         self.owner("OTHER")
         self.fee(sku, [("2026-01-01", None, "5")])
-        finances, days = self.publish_marketplaces("old")
-        self.publish_marketplaces("current", finances, days)
+        _finances, days = self.publish_marketplaces("old")
+        self.publish_marketplaces("current", days)
         self.connection.execute("set constraints all immediate")
         return self.administrator(), self.member(company)
 
@@ -118,7 +119,9 @@ class MarketplaceOrderingTests(SourceModelFixture):
             if dataset != "live":
                 self.assertEqual(
                     {row["preprocess_version"] for row in rows},
-                    {"old", "current"} if user == administrator else {"current"},
+                    {"old", "current"}
+                    if dataset == "data_kiosk" and user == administrator
+                    else {"current"},
                 )
                 self.assertEqual(
                     any(row["category"] == "SELBOX" for row in rows), user == administrator

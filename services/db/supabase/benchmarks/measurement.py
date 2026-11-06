@@ -58,7 +58,7 @@ def _metadata(connection: Connection, repeat: int) -> Record:
         "select (select count(*) from private.finances_transaction_components),"
         "(select count(*) from private.data_kiosk_transactions),"
         "(select count(*) from public.companies),"
-        "(select count(*) from private.finances_days),"
+        "(select count(*) from private.finances_transactions),"
         "(select count(*) from private.data_kiosk_days)"
     ).fetchone()
     if counts is None:
@@ -88,7 +88,7 @@ def _metadata(connection: Connection, repeat: int) -> Record:
                     "finances_facts",
                     "kiosk_facts",
                     "companies",
-                    "finances_headers",
+                    "finances_transactions",
                     "kiosk_headers",
                 ),
                 counts,

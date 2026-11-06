@@ -87,15 +87,40 @@ create policy periods_read on public.sku_fee_periods for select to authenticated
     )
 );
 
-create policy finances_facts_read on private.finances_transaction_components
+create policy finances_transaction_components_read on private.finances_transaction_components
 for select to authenticated using (
     (select private.is_administrator()) or (
-        category = 'FINANCES' and activity_eligible
-        and sku in (
-            select o.sku from private.current_owned_sku_terms() as o
-        )
-        and version_id in (
-            select h.current_version_id from private.finances_days as h
+        category = 'FINANCES'
+        and sku in (select o.sku from private.current_owned_sku_terms() as o)
+        and version_id in (select private.current_owned_finances_revisions())
+    )
+);
+create policy finances_transactions_read on private.finances_transactions
+for select to authenticated using (
+    (select private.is_administrator())
+    or current_version_id in (select private.current_owned_finances_revisions())
+);
+create policy finances_revisions_read on private.finances_transaction_versions
+for select to authenticated using (
+    (select private.is_administrator()) or id in (select private.current_owned_finances_revisions())
+);
+create policy finances_runs_read on private.finances_preprocess_batches
+for select to authenticated using (
+    (select private.is_administrator()) or id in (
+        select t.current_batch_id from private.finances_transactions as t
+        where t.current_version_id in (select private.current_owned_finances_revisions())
+    )
+);
+create policy finances_preprocess_batch_transactions_read
+on private.finances_preprocess_batch_transactions
+for select to authenticated using (
+    (select private.is_administrator()) or (
+        version_id in (select private.current_owned_finances_revisions())
+        and exists (
+            select 1 from private.finances_transactions as t
+            where
+                t.id = finances_preprocess_batch_transactions.transaction_id
+                and t.current_batch_id = finances_preprocess_batch_transactions.batch_id
         )
     )
 );
@@ -108,22 +133,6 @@ for select to authenticated using (
         )
         and version_id in (
             select h.current_version_id from private.data_kiosk_days as h
-        )
-    )
-);
--- Current metadata needs registration and a selected pointer, never a fact scan.
-create policy finances_selection_read on private.finances_days
-for select to authenticated using (
-    (select private.is_administrator())
-    or ((select private.is_member()) and current_version_id is not null)
-);
-create policy finances_version_reference_read on private.finances_preprocess_versions
-for select to authenticated using (
-    (select private.is_administrator()) or (
-        (select private.is_member())
-        and exists (
-            select 1 from private.finances_days as h
-            where h.current_version_id = finances_preprocess_versions.id
         )
     )
 );
@@ -146,26 +155,15 @@ for select to authenticated using (
 -- Full source headers contain account-wide amounts and inventories. Column grants
 -- cannot distinguish application roles, so only these gated helpers expose them.
 create function private.read_finances_preprocess_results() returns table (
-    id uuid,
-    day_id uuid,
-    batch_id uuid,
-    acquisition_id uuid,
-    seller_namespace text,
-    amazon_scope text,
-    marketplace_name text,
-    activity_date date,
-    preprocess_version text,
-    transaction_count integer,
-    row_count integer,
-    content_sha256 text, created_at timestamptz, is_current boolean, is_pruned boolean
+    id uuid, acquisition_id uuid, seller_namespace text, amazon_scope text,
+    query_start_date date, query_end_date date, preprocess_version text,
+    transaction_count integer, component_count integer, created_at timestamptz
 ) language plpgsql stable security definer set search_path = '' as $$
 begin
- if not private.is_administrator() then raise exception 'Administrator access required' using errcode='42501'; end if;
- return query select v.id::uuid,v.day_id::uuid,v.batch_id::uuid,b.acquisition_id::uuid,d.seller_namespace::text,a.amazon_scope::text,
- d.marketplace_name,d.activity_date,v.preprocess_version::text,v.transaction_count,v.row_count,v.content_sha256::text,
- v.created_at,v.id=d.current_version_id,exists(select 1 from private.finances_pruned_versions p where p.version_id=v.id)
- from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id
- join private.finances_preprocess_batches b on b.id=v.batch_id join private.finances_acquisitions a on a.id=b.acquisition_id;
+    if not private.is_administrator() then raise exception 'Administrator access required' using errcode='42501'; end if;
+    return query select r.id::uuid,r.acquisition_id::uuid,a.seller_namespace::text,a.amazon_scope::text,
+        a.query_start_date,a.query_end_date,r.preprocess_version::text,r.transaction_count,r.component_count,r.created_at
+        from private.finances_preprocess_batches r join private.finances_acquisitions a on a.id=r.acquisition_id;
 end;
 $$;
 create function private.read_data_kiosk_preprocess_results() returns table (
@@ -194,13 +192,27 @@ create view public.finances_preprocess_results with (security_invoker = true) as
 select * from private.read_finances_preprocess_results();
 create view public.data_kiosk_preprocess_results with (security_invoker = true) as
 select * from private.read_data_kiosk_preprocess_results();
+-- One row per immutable component, with an explicitly selected observed location.
+-- Administrators see all revisions; members see only owned current components.
 create view public.finances_preprocess_entries with (security_invoker = true) as
 select
-    t.*,
-    v.preprocess_version,
-    v.day_id
-from private.finances_transaction_components as t
-inner join private.finances_preprocess_versions as v on t.version_id = v.id;
+    d.*,
+    observation.batch_id,
+    observation.preprocess_version,
+    observation.source_page_number,
+    observation.source_record_number
+from private.finances_component_details as d
+inner join lateral (
+    select
+        m.batch_id,
+        p.preprocess_version,
+        m.source_page_number,
+        m.source_record_number
+    from private.finances_preprocess_batch_transactions as m
+    inner join private.finances_preprocess_batches as p on m.batch_id = p.id
+    where m.version_id = d.version_id
+    order by (m.batch_id = d.current_batch_id) desc, p.created_at desc, p.id desc limit 1
+) as observation on true;
 create view public.data_kiosk_preprocess_entries with (security_invoker = true) as
 select
     t.*,
@@ -242,7 +254,7 @@ order by
     r.company_id asc, r.start_date asc, r.marketplace_name asc,
     r.currency asc, r.created_at desc, r.id desc;
 
-create policy payout_finances_versions_read on private.payout_report_finances_versions
+create policy payout_finances_runs_read on private.payout_report_finances_batches
 for select to authenticated using ((select private.is_administrator()));
 create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
 for select to authenticated using ((select private.is_administrator()));
@@ -270,10 +282,9 @@ select
     t.category,
     t.currency,
     t.amount
-from private.finances_transaction_components as t
-inner join private.finances_days as h on t.version_id = h.current_version_id
+from private.finances_component_details as t
 where
-    t.activity_eligible
+    t.is_current and t.activity_eligible
     and (select private.is_administrator())
     and t.posted_date < (select date_trunc('month', private.mature_cutoff_date()::timestamp)::date)
 union all
@@ -386,8 +397,8 @@ from private.payout_report_reconciliation
 where (select private.is_administrator())
 group by report_id, currency;
 
-create view public.payout_report_finances_versions with (security_invoker = true) as
-select * from private.payout_report_finances_versions;
+create view public.payout_report_finances_batches with (security_invoker = true) as
+select * from private.payout_report_finances_batches;
 create view public.payout_report_data_kiosk_versions with (security_invoker = true) as
 select * from private.payout_report_data_kiosk_versions;
 create view public.payout_report_terms_versions with (security_invoker = true) as

@@ -30,8 +30,7 @@ begin
         with source_scopes as (
             select t.sku,t.marketplace_name,t.currency
             from private.finances_activity_components t
-            join private.finances_days s on s.current_version_id = t.version_id
-            where t.posted_date between p_month and month_end and t.category = 'FINANCES'
+            where t.is_current and t.posted_date between p_month and month_end and t.category = 'FINANCES'
                 and t.seller_namespace = any(seller_namespaces)
             union
             select t.sku,t.marketplace_name,t.currency

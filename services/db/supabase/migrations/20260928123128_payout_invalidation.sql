@@ -12,18 +12,10 @@ returns boolean language sql stable security invoker set search_path = '' as $$
     );
 $$;
 
-create function private.payout_finances_months(
-    p_versions uuid[]
-) returns date[] language sql stable set search_path
-= '' as $$
- select coalesce(array_agg(distinct date_trunc('month',d.activity_date)::date),'{}'::date[])
- from private.finances_preprocess_versions v join private.finances_days d on d.id=v.day_id where v.id=any(p_versions);
-$$;
-
 create index payout_terms_sku_idx
 on private.payout_report_terms_versions (sku_id, report_id);
-create index payout_finances_version_idx
-on private.payout_report_finances_versions (version_id, report_id);
+create index payout_finances_batch_idx
+on private.payout_report_finances_batches (batch_id, report_id);
 
 -- Empty reports capture historically owned terms even without monthly rows.
 -- Other companies can also depend on these terms to exclude another owner's
@@ -57,7 +49,8 @@ begin
             union
             select p.report_id from public.skus s
             join private.finances_activity_components t on t.sku = s.sku
-            join private.payout_report_finances_versions p on p.version_id = t.version_id
+            join private.finances_preprocess_batch_transactions m on m.version_id = t.version_id
+            join private.payout_report_finances_batches p on p.batch_id = m.batch_id
             where s.id = any(p_sku_ids)
             union
             select p.report_id from public.skus s

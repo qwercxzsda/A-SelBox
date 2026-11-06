@@ -2,14 +2,11 @@
 
 import unittest
 from collections.abc import Mapping
-from contextlib import nullcontext
 from datetime import UTC, date, datetime
-from typing import cast
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 from services.sync.src.amazon.finances.client import FinancesOperation, FinancesResponse
 from services.sync.src.archives.storage import load_document_archive
-from services.sync.src.database.connection import DatabaseConnection
 from services.sync.src.finances.acquisition import download_finances_acquisition
 from services.sync.src.finances.acquisition_models import (
     FinancesAcquisition,
@@ -55,16 +52,11 @@ class FakeClient:
 class AcquisitionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.enterContext(patch(MODULE + ".datetime")).now.return_value = NOW
-        self.enterContext(patch(MODULE + "._capture_lock", return_value=nullcontext()))
-        self.publish = self.enterContext(
-            patch(MODULE + ".persist_finances_acquisition", return_value="saved")
-        )
         self.storage = MemoryStorage()
 
     def download(self, client: FakeClient, *, max_pages: int = 1000) -> FinancesAcquisition:
         result = download_finances_acquisition(
             client,
-            Mock(),
             self.storage,
             seller_namespace="seller",
             amazon_scope="NA",
@@ -73,8 +65,8 @@ class AcquisitionTests(unittest.TestCase):
             query_end_date=date(2026, 8, 31),
             max_pages=max_pages,
         )
-        self.assertEqual(result, "saved")
-        return cast(FinancesAcquisition, self.publish.call_args.args[1])
+        self.assertIsInstance(result, FinancesAcquisition)
+        return result
 
     def test_raw_decimal_bytes_preserved_and_empty_page_does_not_end_pagination(self) -> None:
         first = b'{"payload":{"transactions":[],"nextToken":"continue"}}'
@@ -101,7 +93,6 @@ class AcquisitionTests(unittest.TestCase):
         raw = b'{"payload":{"transactions":[],"nextToken":"repeat"}}'
         with self.assertRaisesRegex(ValueError, "repeated"):
             self.download(FakeClient([raw, raw]))
-        self.publish.assert_not_called()
         self.assertEqual(len(self.storage.objects), 1)
 
     def test_page_limit_does_not_publish(self) -> None:
@@ -109,12 +100,10 @@ class AcquisitionTests(unittest.TestCase):
             self.download(
                 FakeClient([b'{"payload":{"transactions":[],"nextToken":"more"}}']), max_pages=1
             )
-        self.publish.assert_not_called()
 
     def test_malformed_success_is_archived_but_never_published(self) -> None:
         with self.assertRaises(ValueError):
             self.download(FakeClient([b"not JSON"]))
-        self.publish.assert_not_called()
         self.assertEqual(len(self.storage.objects), 1)
 
     def test_missing_summary_is_explicit_and_partial_summary_pages_are_not_published(self) -> None:
@@ -175,38 +164,3 @@ class QueryWindowTests(unittest.TestCase):
         ]:
             with self.subTest(start=start), self.assertRaises(ValueError):
                 transaction_query_parameters((US,), start, end, observed_at=NOW)
-
-
-class CaptureLockTests(unittest.TestCase):
-    def download(self, database: DatabaseConnection) -> None:
-        client = Mock()
-        client.get_page.side_effect = ValueError("failed")
-        download_finances_acquisition(
-            client,
-            database,
-            MemoryStorage(),
-            seller_namespace="seller",
-            amazon_scope="NA",
-            marketplaces=(US,),
-            query_start_date=date(2026, 8, 1),
-            query_end_date=date(2026, 8, 31),
-        )
-
-    def test_concurrent_scope_capture_fails_without_entering_download(self) -> None:
-        database = MagicMock(spec=DatabaseConnection)
-        connection = database.connection.return_value.__enter__.return_value
-        cursor = connection.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value = (False,)
-        with self.assertRaisesRegex(RuntimeError, "already running"):
-            self.download(database)
-        self.assertEqual(cursor.execute.call_count, 1)
-
-    def test_failure_releases_the_session_lock(self) -> None:
-        database = MagicMock(spec=DatabaseConnection)
-        connection = database.connection.return_value.__enter__.return_value
-        cursor = connection.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value = (True,)
-        with self.assertRaisesRegex(ValueError, "failed"):
-            self.download(database)
-        self.assertEqual(cursor.execute.call_count, 2)
-        self.assertIn("pg_advisory_unlock", cursor.execute.call_args.args[0])

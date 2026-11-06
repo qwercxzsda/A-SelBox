@@ -26,7 +26,6 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 self.transaction("0.123456789123456789", 4, kind="Adjustment")
                 | {"marketplace_name": "Amazon.ca"},
             ],
-            expected=inputs.finances_version,
         )
         fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         generated = generate_payout_reports(self, inputs.company)
@@ -132,14 +131,13 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_removed_market_gets_zero_snapshot_without_changing_its_old_report(self) -> None:
+    def test_zero_market_gets_new_snapshot_without_changing_its_old_report(self) -> None:
         inputs = prepare_payout(self)
         self.finances(
             [
                 self.transaction("100"),
                 self.transaction("12", 4, kind="Adjustment") | {"marketplace_name": "Amazon.ca"},
             ],
-            expected=inputs.finances_version,
         )
         fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         generated = generate_payout_reports(self, inputs.company)
@@ -150,7 +148,10 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
             marketplace_id="A2EUQ1WTGCTBG2",
             time_zone="America/Los_Angeles",
         )
-        self.finances([], acquisition_id=acquisition)
+        self.finances(
+            [self.transaction("0", 4, kind="Adjustment") | {"marketplace_name": "Amazon.ca"}],
+            acquisition_id=acquisition,
+        )
         replacement = generate_payout_reports(self, inputs.company)
         self.assertEqual(len(replacement), 2)
         self.assertEqual(
@@ -160,7 +161,7 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 "where company_id=%s order by marketplace_name",
                 (inputs.company,),
             ).fetchall(),
-            [("Amazon.ca", "USD", Decimal(0), 0), ("Amazon.com", "USD", Decimal(85), 2)],
+            [("Amazon.ca", "USD", Decimal(0), 1), ("Amazon.com", "USD", Decimal(85), 2)],
         )
         self.assertEqual(payout_snapshot(self, old), before)
         self.connection.execute("set constraints all immediate")

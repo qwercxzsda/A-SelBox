@@ -86,11 +86,11 @@ class PayoutRefreshConcurrencyTests(SourceModelFixture):
         ):
             source = SourceModelFixture()
             source.connection, source.seller = source_connection, self.seller
+            source.finances_acquisitions = dict(self.finances_acquisitions)
             source_connection.execute("set statement_timeout='10s'")
             source.finances(
                 [source.transaction("200")],
                 acquisition_id=inputs.acquisition,
-                expected=inputs.finances_version,
             )
 
             def change_fee() -> None:

@@ -1,182 +1,156 @@
 # Finances transactions
 
-Finances API `2024-06-19` supplies detailed financial activity through `listTransactions` and
-independent account controls through date-range `listSummary`. The implementation archives exact
-response bytes and publishes complete daily versions using the same acquisition, offline
-preprocessing and current-selection pattern as Data Kiosk.
+Finances API `2024-06-19` supplies native transactions through `listTransactions` and independent
+account totals through `listSummary`. The application archives complete response pages, validates
+an observation in Python, and atomically publishes stable transaction identities, immutable
+transaction versions, and their monetary components. Unchanged transactions reuse their existing
+versions across successful preprocessing batches.
 
 Company allocation remains separate from Amazon account reconciliation. Finances supplies mature
 Finances and SelBox category amounts. Data Kiosk supplies its allocated company-cost category at all
-ages and recent estimates for the other monetary categories. See
-[source allocation](source_allocation.md) for the maturity boundary and category rules.
+ages and recent estimates for the other monetary categories. The existing two-calendar-month
+[maturity policy](source_allocation.md) is an application cutoff, not a promise of Amazon finality.
 
-## API scope
+## Acquisition scope and archives
 
-A successful acquisition covers complete marketplace-local dates within one calendar month, all
-account types and currencies, and every declared marketplace in one seller credential scope.
-Requests use regional endpoints without marketplace, account, order, status or SKU restrictions.
-This follows Amazon's warning that marketplace filtering can omit US merchant-fulfilled activity.
-The CLI discovers active seller marketplaces unless an explicit coverage roster is supplied.
-[API reference](https://developer-docs.amazon/sp-api/reference/listtransactions).
+Each acquisition declares one seller credential scope, a date range within one calendar month,
+and its marketplace roster. Requests remain regional and unfiltered by marketplace, account,
+status, order or SKU. Marketplace filtering can omit US merchant-fulfilled activity.
+[Amazon API reference](https://developer-docs.amazon/sp-api/reference/listtransactions).
 
-The UTC request envelope contains each declared marketplace's local midnight through exclusive
-midnight after the final date, using named time zones and daylight-saving rules. Returned edge-hour
-records outside those local dates are retained in the archive but do not enter the covered day
-versions. Unknown marketplace identity is rejected; currency never supplies a missing market.
+The UTC request envelope covers each declared marketplace's local midnight through the exclusive
+midnight after the last requested date, including daylight-saving rules. Records in the envelope's
+padding remain archived but do not enter the requested local-date scope. Follow every continuation
+token, even after an empty page. Completing retrieval establishes what was fetched, not that Amazon
+has supplied every economic event or will never revise it. `postedAfter` filters posting dates,
+not modification dates; older changes require explicitly retrieving their posting periods again.
 
-Native `Non-Amazon US`, `Non-Amazon DE`, and `Non-Amazon IT` remain distinct from their retail
-marketplaces in days, transactions and components. The financial-channel registry binds these identities
-to their credential scope and local time zone; they do not become Data Kiosk or Inventory stores.
-Amazon's Summary combines the US channel into the US account control. The explicit
-`finances_summary_marketplace` mapping groups `Amazon.com` with `Non-Amazon US` for that comparison
-and its version manifest. This does not change source marketplace provenance or company fee matching.
+Raw transaction and Summary pages remain exact XZ archives in private `source-archives` Storage.
+Each manifest retains request parameters, operation/page numbers, capture times, document/archive
+hashes, lengths and object locations. Downloads write archives and a local acquisition manifest.
+Acquisition metadata enters PostgreSQL only with a successful preprocessing batch. Failed parsing,
+missing transactions or failed Summary validation produce local logs and no accepted database rows.
+The [sync guide](../services/sync/README.md) owns the executable download/replay commands.
 
-The DE and IT channels retain their own Summary and Data Kiosk scopes until cross-channel
-correspondences are established. Sellers participation alone does not prove that financial controls
-can be merged.
-Newly supported channels require a fresh acquisition with the complete declared roster; previously
-archived coverage manifests remain immutable.
+Native `Non-Amazon US`, `Non-Amazon DE`, and `Non-Amazon IT` remain distinct financial channels.
+The registry binds each to its credential scope and local time zone. They do not become Inventory
+or Data Kiosk stores. Summary comparison groups Non-Amazon US with Amazon.com; native transaction
+provenance and company fee matching keep the original channel. DE and IT retain separate scopes
+until a correspondence is established. Currency never supplies a missing marketplace.
 
-The date-span limit is 180 days; live probes additionally established a rolling two-year start-date
-limit. The downloader validates these limits and splits requested ranges by calendar month.
-Recent records can arrive later and statuses can change. A completed pagination traversal is an
-observation, not a guarantee that Amazon will never revise the period.
+The downloader splits requests at month boundaries and enforces Amazon's date-window limits.
+Historical marketplace coverage may need an explicit known roster; unsupported source markets fail
+preprocessing. Credentials stay in service configuration and never enter archive manifests.
 
-## Immutable captures and daily versions
+## Six-table model
 
-| Table | Role |
+| Table                                            | One row represents                                                                                                                                                |
 | --- | --- |
-| `private.finances_acquisitions` | Completed raw transaction/Summary retrieval, request dates, coverage roster, timestamps and archived page manifests. |
-| `private.finances_days` | Stable seller/native-marketplace/local-day identity and selected current version. |
-| `private.finances_preprocess_batches` | One atomic offline publication referencing its acquisition. |
-| `private.finances_preprocess_versions` | Complete immutable day contents, processor definition, native/component counts and comparison digest. |
-| `private.finances_transactions` | Native transaction ID, posting time, type/status, account/currency, lifecycle links, eligibility and parent control amount. |
-| `private.finances_transaction_components` | Exact normalized monetary partition with original SKU evidence, component key, native path and source page/record. |
-| `private.finances_pruned_versions` | Explicit payload-pruning marker preserving version identity and counts. |
-| `private.finances_summary_checks` | Independent Summary amount, computed native amount, scope and match result. |
-| `private.finances_summary_check_versions` | Exact complete daily versions used by one Summary check. |
-| `private.payout_report_finances_versions` | Daily versions pinned by a saved payout, including verified empty days. |
-| `private.payout_report_finances_summary_checks` | Exact matching Summary checks retained by a saved payout. |
+| `private.finances_acquisitions`                  | Archived retrieval metadata and complete page manifest, saved with its first successful preprocessing.                                                            |
+| `private.finances_preprocess_batches`            | One successful preprocessing of an acquisition, with processor version and transaction/component inventory counts.                                                |
+| `private.finances_transactions`                  | Stable `(seller_namespace, amazon_scope, native_transaction_id)` identity, selecting `current_version_id` and `current_batch_id`.                                 |
+| `private.finances_transaction_versions`          | One immutable normalized transaction state: posting details, marketplace/account, status, lifecycle links, eligibility, total/currency and content hash.          |
+| `private.finances_transaction_components`        | One immutable component within a transaction version, numbered within that version, with SKU, amount, optional quantity/fee base and native breakdown provenance. |
+| `private.finances_preprocess_batch_transactions` | One observed transaction/version in a successful batch, including that capture's source page and record numbers.                                                  |
 
-The [schema reference](database_schema.md) contains every column, key and relationship. Source children
-reference their day version; component `(version_id, transaction_id)` must identify one native
-parent in the same version. A native ID may recur in historical versions, but cannot occupy two
-current locations for the same seller. Only a complete validated publication advances current
-selections. Verified empty days have a version with zero children.
+Batch membership includes unchanged reused versions. A batch with no transactions is still a
+successful observation with a declared scope. Full source JSON remains in page archives. Components keep
+`breakdown_path`, `item_index` and `breakdown_indexes`; transaction-wide fields are stored once on
+the parent version. Page/record locations belong to batch membership because pagination can change
+without changing a transaction's normalized state.
 
-For example, an August 29 capture of the finished August 28 day contains transaction A for 100 USD
-with `DEFERRED` status. A September 6 capture of August 28 contains the same A as
-`DEFERRED_RELEASED`. Both daily versions remain immutable;
-current calculations select the later complete version and count A once. They do not combine the
-two versions or keep rows missing from the later observation.
+The transaction's current pointer selects one version observed by its current batch. Both pointers
+must identify the same membership. A version has no originating-batch field: several batches can
+observe it, and a later observation can return to a previously stored state. Content hashes cover
+normalized stored state and exclude observation locations. Processing labels remain on batches.
 
-## Activity eligibility and double counting
+For example, two captures of transaction A with unchanged amounts/status produce two batches and
+two memberships, but one transaction version and one component set. If its status or financial
+contents change, publication stores another version and moves A's pointers. Prior versions remain
+immutable. Current reads select each transaction's pointer; historical batch reads use membership,
+not whatever is current today.
 
-Within each selected version, the activity rule is:
+## Preprocessing and publication
+
+Python validates the complete candidate before writing accepted evidence:
+
+- Verify archive integrity, pagination, declared marketplace/date scope and native identities.
+- Reject conflicting duplicates and a previously accepted ID missing from the later retrieval's
+  comparable scope. Existing records outside that scope do not count as missing.
+- Validate native dates, currencies, nested amount partitions, supported monetary paths and the
+  complete component inventory.
+- Resolve original/release links using incoming and accepted identities. An affected transaction
+  outside the proposed capture cannot have its eligibility silently changed.
+- Match every required Amazon Summary account/currency scope, including zero-activity scopes.
+- Reject older acquisitions that would replace newer accepted observations.
+
+A failure leaves previous current selections intact and is logged locally. A successful publication
+locks the relevant seller/credential scope and shares the payout-input guard, then writes acquisition
+metadata, batch, new versions/components, all memberships and pointer changes in one transaction.
+It never combines unvalidated partial captures into a certified monthly result.
+
+PostgreSQL enforces keys, same-identity references, immutable records, complete child inventories,
+and atomic selection. It does not repeat the Finance amount, lifecycle or Summary checks.
+Successful source changes request payout refreshes and rotate the source revision token.
+
+## Native transactions and monetary components
+
+Normalize item breakdown leaves when items exist; otherwise use transaction-level breakdowns.
+Each nested subtotal must equal its children, each item partition must equal its item total, and
+all components must equal the native transaction total in the same currency. Parent totals are
+controls over the same money, not extra amounts to add.
+
+An $85 shipment might contain $100 of product sales and a −$15 referral fee. It has one native
+transaction version and two monetary components. Its independent $85 source total detects an
+omitted fee; the components support SKU attribution and distinct sales/fee calculations.
+
+The explicit paths in
+[`transaction_types/finances.py`](../services/sync/src/transaction_types/finances.py) map native detail
+to types such as `PRODUCT_SALES`, `REFERRAL_FEES` and `DISPOSAL_FEES`. Missing nonzero detail or an
+unknown path fails preprocessing. Source SKU text remains exact. Zero amounts and SKU-less account
+facts remain evidence; missing product attribution is never invented.
+
+Service-fee bases are signed product sales/refund amounts. Other components do not repeat shipment
+quantities. Unknown quantities differ from zero. Amounts use exact decimal arithmetic and reach the
+frontend as strings.
+
+## Activity and Summary validation
+
+Activity excludes `Transfer`, records with `DEFERRED_TRANSACTION_ID`, and records identified as
+releases by another transaction's `RELEASE_TRANSACTION_ID`. Original `DEFERRED` and
+`DEFERRED_RELEASED` activity and directly released events remain eligible. Equal amounts, orders or
+SKUs do not prove duplication. Contradictory links, self-links and unsupported statuses fail.
+
+For the same seller, mapped Summary marketplace, account type, currency and requested local dates:
 
 ```text
-eligible = transactionType != Transfer
-           and no DEFERRED_TRANSACTION_ID
-           and no original in the acquisition points to this transaction
-               through RELEASE_TRANSACTION_ID
+sum(eligible native transaction totals)
+    = sum(their normalized component amounts)
+    = listSummary.netProceeds
 ```
 
-These rules are applied before allocation categories or company ownership. Finances statuses mean:
+Summary is independently retrieved account evidence, never another company component. Missing,
+unavailable or mismatched controls reject the whole preprocessing batch. Exact Summary response
+bytes remain in the archives; successful batch membership records the precise input versions that
+passed validation. A match does not certify Data Kiosk's SKU cost allocation.
+[Amazon Summary scope](https://developer-docs.amazon/sp-api/docs/retrieve-financial-summary).
 
-| Status | Meaning |
-| --- | --- |
-| `DEFERRED` | The original activity is recorded while its funds remain held. |
-| `DEFERRED_RELEASED` | The original activity was held and its funds were later released. |
-| `RELEASED` | Released financial record; either a linked release or a directly posted event. |
+## Payouts, history and reads
 
-A separate release B can carry the same amount as original A with a different native transaction ID.
-`DEFERRED_TRANSACTION_ID` on B identifies A; `RELEASE_TRANSACTION_ID` on A can identify B. The
-preprocessor evaluates both directions across the acquisition before local-day selection. A release
-with its own link to a missing older original remains exclusive of activity totals. If only an
-out-of-period padding record supplies the reverse link and the release has no native original
-link, preprocessing rejects that unsupported dependency rather than publishing a nonreproducible
-eligibility decision. Unknown statuses, contradictory
-links and self-links fail validation. Equal amounts, orders or SKUs never establish duplication.
+Payouts pin successful Finance batches through `private.payout_report_finances_batches`, Data Kiosk
+day versions and SKU terms. Finance membership identifies the exact immutable transaction versions
+and component IDs used. Saved reports keep those inputs after later source changes. Publication
+requires a coherent successful batch covering the required monthly scope whose membership matches
+current transaction versions. An older successful batch cannot certify newly changed contents.
+This is input selection, not another Finance business-validation pass.
 
-| Example record | Amount | Monthly activity |
-| --- | ---: | --- |
-| Original A, August 28 | +100 USD | August +100 USD |
-| B releases A, September 5 | +100 USD | No additional activity |
-| Direct storage fee, September 6 | -10 USD | September -10 USD |
-| Genuine refund, September 10 | -20 USD | September -20 USD |
-| Bank transfer | 70 USD | Exclusive of net proceeds |
+Finance acquisitions, batches, memberships, transaction versions and components have no history
+cap and are not pruned. Data Kiosk retains its separate latest-three-observation pruning policy.
+Raw page archives remain indefinitely in either workflow.
 
-Directly released fees remain eligible. So do genuine refunds, reimbursements, debt recovery and
-cross-account adjustments. Excluding all released records or all balance movements would be wrong.
-Preserve zero amounts and SKU-less source entries. Amazon documents the statuses and links; the
-full integration selection rule is empirically verified against Summary output rather than
-published as Amazon's internal implementation.
-
-## Components and classification
-
-Normalize item breakdown leaves when items are present; otherwise use transaction-level detail.
-Never add both representations. Every child partition must equal its parent, every item's complete
-component partition must equal its item total, and all components must equal the native transaction
-total in the same currency. Missing nonzero detail or an unknown monetary path blocks publication.
-
-The explicit native mapping is maintained in
-[`transaction_types/finances.py`](../services/sync/src/transaction_types/finances.py). Semantic types
-such as `PRODUCT_SALES`, `FBA_FULFILLMENT_FEES`, `DISPOSAL_FEES` and `BANK_TRANSFERS` are shared with
-SQL/frontend catalogs. Source page, record, item, breakdown path/indexes and original API IDs remain
-available independently of those readable categories. A source-native SKU is preserved verbatim;
-missing product attribution cannot be invented from an account total.
-
-Service-fee bases are the signed product sales/refund amounts. Other component quantities do not
-repeat the same shipment units. Financial values remain exact decimal numbers; frontend transport
-uses strings. Unknown quantities are distinct from zero.
-
-## Summary controls and payouts
-
-Calculate each control for the same seller, mapped Summary marketplace, account type, currency and
-inclusive local-date period:
-
-```text
-computed_net_proceeds = sum(eligible native transaction totalAmount)
-component_net = sum(their complete normalized components)
-computed_net_proceeds == component_net == listSummary.netProceeds
-```
-
-Parent totals and component totals are alternative checks over the same money. `listSummary` has no
-per-SKU dimension and is never another financial row to add. The supported target is the date-range
-`netProceeds` value, not bank transfer amounts or a company payout.
-[Summary scope](https://developer-docs.amazon/sp-api/docs/retrieve-financial-summary).
-
-Each check stores its independent source location and the exact day versions used. A check for an
-older selection cannot certify newly selected versions. A missing control and a zero-valued matched
-control are different states. Structurally valid source captures may publish while their check is
-unmatched or unavailable; complete payout generation requires matching controls for its selected
-Finances inputs. No discrepancy is repaired with a synthetic monetary component.
-
-A report pins the complete required day coverage, matching controls and company terms. The worker
-retries affected months when inputs are incomplete and reacts to later source publications. The
-[payout contract](company_payout_reports.md) defines the complete scope and current-source rules.
-
-## Retention and reads
-
-Retain current versions, the latest three independent acquisitions per day, and all payout-pinned
-versions. Offline reprocessing of one acquisition is still one observation. Raw archives and
-acquisition manifests remain indefinite. Comparison digests retain financial identity, amounts,
-components and eligibility while excluding incidental status and response-location metadata.
-Identical observations are diagnostic; they do not establish permanent finality.
-
-Administrator raw source views expose retained daily versions, including linked releases and
-transfers. Their Activity eligibility column describes the record within that version. Company
-Transactions and Financial review select current versions and eligible activity. Native IDs,
-account types and source locations remain available in row details. Automatic revision checks
-refresh changed reads; there is no manual reload button.
-
-Acquisition is an explicit command with requested dates; the payout cron job does not fetch Amazon
-records. Older posting periods must be acquired again to observe their revisions. Use complete calendar
-months for payout-eligible refreshes and backfills. A partial-month publication selects new day
-versions and invalidates the prior whole-month Summary manifest; the month needs another complete
-capture before its new inputs are payout-ready. The CLI splits ranges at month boundaries but
-does not expand partial date ranges. Historical markets missing from active seller discovery need
-an explicit known `--marketplace-id` coverage roster; undeclared source markets fail closed. Credentials live
-in the service configuration and are never stored in source pages or browser settings. See the
-[workflow](data_workflows.md), [sync commands](../services/sync/README.md), and
-[verification evidence](evidence/README.md).
+Administrator source views expose retained transaction versions, including releases and transfers.
+Company Transactions and Financial review select current activity according to allocation rules.
+An acquisition is an explicit command; payout scheduling does not call Amazon. Use calendar-month
+retrievals for monthly payout refreshes. A partial capture can update transactions, but cannot
+certify a changed whole month through an older batch. The [payout contract](company_payout_reports.md)
+and [schema reference](database_schema.md) describe the exact read and reference relationships.

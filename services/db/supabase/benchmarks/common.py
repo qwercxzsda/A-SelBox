@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parents[4]
 CONTAINER = "supabase_db_aselbox_frontend_seed"
 REST_CONTAINER = "supabase_rest_aselbox_frontend_seed"
 PORT = 55422
-DATABASES = {"aselbox_opt_large", "aselbox_opt_broad"}
+DATABASES = {"aselbox_opt_large"}
 Connection = psycopg.Connection[tuple[Any, ...]]
 
 

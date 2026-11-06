@@ -8,7 +8,7 @@ from pathlib import Path
 from types import ModuleType
 from unittest.mock import patch
 
-from services.db.supabase.tests.verification import configuration, payouts
+from services.db.supabase.tests.verification import configuration
 from services.db.supabase.tests.verification.inventory import __main__ as inventory
 
 
@@ -16,7 +16,6 @@ def commands(root: Path) -> list[tuple[ModuleType, str, list[str]]]:
     seed = str(root / "seed.sql")
     return [
         (configuration, "verify", ["--seed", seed]),
-        (payouts, "verify_seed", ["--seed", seed, "--supplement-cache", str(root / "cache")]),
         (inventory, "verify", ["--env-file", seed, "--private-output", str(root / "private")]),
     ]
 

@@ -1,283 +1,154 @@
-"""Current source references are shared; source facts retain current SKU ownership."""
+"""Normalized Finance parents expose only current owned components to members."""
 
-from dataclasses import dataclass
-from typing import LiteralString
+from copy import deepcopy
+from typing import Any, cast
 
 import psycopg
 
-from services.db.supabase.tests import test_live_view_equivalence as live_fixture
+from services.db.supabase.tests.integration_support import TransactionDatabase
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
-
-_FACTS: LiteralString = """
-select 'FINANCES', id::text, version_id::text, category::text
-from private.finances_transaction_components
-union all
-select 'DATA_KIOSK', id::text, version_id::text, category::text
-from private.data_kiosk_transactions
-"""
-_REFERENCES: LiteralString = """
-select 'FINANCES', 'header', id::text, current_version_id::text, null
-from private.finances_days
-union all
-select 'DATA_KIOSK', 'header', id::text, current_version_id::text, null
-from private.data_kiosk_days
-union all
-select 'FINANCES', 'version', id::text, day_id::text, preprocess_version::text
-from private.finances_preprocess_versions
-union all
-select 'DATA_KIOSK', 'version', id::text, day_id::text, preprocess_version::text
-from private.data_kiosk_preprocess_versions
-"""
-
-
-@dataclass(frozen=True)
-class SourceVersion:
-    source: str
-    header: str
-    version: str
-    facts: tuple[tuple[str, str], ...]
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
+from services.sync.tests.support.archives import MemoryArchiveStorage
+from services.sync.tests.support.finances import finances_acquisition, native_transaction
 
 
 class SourceVersionVisibilityTests(SourceModelFixture):
-    assign = live_fixture.LiveViewEquivalenceTests.assign
+    def test_shared_parent_does_not_expose_another_companys_components(self) -> None:
+        first_company, _ = self.owner("SKU-1")
+        second_company, _ = self.owner("OTHER")
+        native = cast(dict[str, Any], native_transaction("MIXED-PARENT"))
+        second = deepcopy(native["items"][0])
+        second["contexts"][0]["sku"] = "OTHER"
+        money = {"currencyCode": "USD", "currencyAmount": "200"}
+        second["totalAmount"] = money
+        second["breakdowns"][0]["breakdownAmount"] = money
+        second["breakdowns"][0]["breakdowns"][0]["breakdownAmount"] = money
+        native["items"].append(second)
+        native["totalAmount"] = {"currencyCode": "USD", "currencyAmount": "300"}
+        storage = MemoryArchiveStorage()
+        acquisition = finances_acquisition(storage, [native], summary_amount="300")
+        preprocess_finances_acquisition(TransactionDatabase(self.connection), storage, acquisition)
+        for company, sku, amount in ((first_company, "SKU-1", 100), (second_company, "OTHER", 200)):
+            user = self.member(company)
+            self.assertEqual(
+                self.as_user(
+                    user, "select sku,amount from private.finances_transaction_components"
+                ),
+                [(sku, amount)],
+            )
+            self.assertEqual(
+                self.as_user(user, "select count(*) from private.finances_transaction_versions"),
+                [(1,)],
+            )
+        self.assertEqual(
+            self.as_user(
+                self.administrator(),
+                "select count(*),sum(amount) from private.finances_transaction_components",
+            ),
+            [(2, 300)],
+        )
 
-    def member_without_skus(self) -> str:
+    def publish_owned_history(self) -> tuple[str, str, str, str, str]:
+        company, _ = self.owner()
+        other, _ = self.owner("OTHER")
+        first = self.transaction("100")
+        second = self.transaction("40", sku="OTHER")
+        self.finances([first, second])
+        old = first["id"]
+        updated = self.transaction("120")
+        unchanged = self.transaction("40", sku="OTHER")
+        self.finances([updated, unchanged])
+        return company, other, str(old), str(updated["id"]), str(unchanged["id"])
+
+    def test_members_only_see_current_owned_facts_and_their_parent_references(self) -> None:
+        company, other, old, current, other_current = self.publish_owned_history()
+        for user, expected in (
+            (self.member(company), current),
+            (self.member(other), other_current),
+        ):
+            self.assertEqual(
+                self.as_user(user, "select id::text from private.finances_transaction_components"),
+                [(expected,)],
+            )
+            self.assertEqual(
+                self.as_user(user, "select count(*) from private.finances_transactions"), [(1,)]
+            )
+            self.assertEqual(
+                self.as_user(user, "select count(*) from private.finances_transaction_versions"),
+                [(1,)],
+            )
+            self.assertEqual(
+                self.as_user(
+                    user, "select count(*) from private.finances_preprocess_batch_transactions"
+                ),
+                [(1,)],
+            )
+        administrator = self.administrator()
+        self.assertCountEqual(
+            self.as_user(
+                administrator, "select id::text from private.finances_transaction_components"
+            ),
+            [(old,), (current,), (other_current,)],
+        )
+        self.assertEqual(
+            self.as_user(administrator, "select count(*) from public.finances_preprocess_results"),
+            [(2,)],
+        )
+        self.connection.execute("set constraints all immediate")
+
+    def test_unassigned_and_members_without_skus_have_no_finance_references(self) -> None:
+        self.publish_owned_history()
         company = new_id()
         self.connection.execute(
-            "insert into public.companies(id,name) values (%s,'Company without SKUs')", (company,)
+            "insert into public.companies(id,name) values (%s,'Empty')", (company,)
         )
-        return self.member(company)
+        for user in (self.auth_user(), self.member(company), ""):
+            for query in (
+                "select id from private.finances_transactions",
+                "select id from private.finances_transaction_versions",
+                "select id from private.finances_transaction_components",
+                "select batch_id from private.finances_preprocess_batch_transactions",
+                "select id from private.finances_preprocess_batches",
+            ):
+                with self.subTest(user=user, query=query):
+                    self.assertEqual(self.as_user(user, query), [])
 
-    def publish_pair(
-        self,
-        previous: tuple[SourceVersion, ...] | None = None,
-        *,
-        sku: str = "SKU",
-        cost_only: bool = False,
-        empty: bool = False,
-    ) -> tuple[SourceVersion, ...]:
-        finances_rows = (
-            []
-            if empty
-            else [
-                self.transaction("10", sku=sku, category="DATA_KIOSK" if cost_only else "FINANCES"),
-                self.transaction("20", 4, category="SELBOX"),
-            ]
-        )
-        kiosk_rows = [] if empty else [self.component("-20", category="SELBOX") | {"sku": None}]
-        if not (cost_only or empty):
-            kiosk_rows.extend(
-                [
-                    self.component("-1", sku=sku),
-                    self.component("2", sku=sku, category="FINANCES"),
-                    self.component("3", sku=sku, category="ANALYSIS_ONLY"),
-                ]
-            )
-        finances = self.finances(
-            finances_rows,
-            expected=None if previous is None else previous[0].version,
-            acquisition_id=self.acquisition(start="2026-06-15", end="2026-06-15"),
-        )
-        kiosk = self.kiosk(
-            1 if previous is None else 2,
-            kiosk_rows,
-            expected=None if previous is None else previous[1].version,
-        )
-        return tuple(
-            SourceVersion(
-                source,
-                header,
-                version,
-                tuple((str(row["id"]), str(row["category"])) for row in rows),
-            )
-            for source, (header, version), rows in (
-                ("FINANCES", finances, finances_rows),
-                ("DATA_KIOSK", kiosk, kiosk_rows),
-            )
-        )
-
-    def assert_facts(
-        self, user: str, owned_versions: tuple[SourceVersion, ...], *, administrator: bool = False
-    ) -> None:
-        expected: list[tuple[object, ...]] = []
-        for item in owned_versions:
-            for row_id, category in item.facts:
-                if (
-                    administrator
-                    or (item.source == "FINANCES" and category == "FINANCES")
-                    or (item.source == "DATA_KIOSK" and category != "SELBOX")
-                ):
-                    expected.append((item.source, row_id, item.version, category))
-        self.assertCountEqual(self.as_user(user, _FACTS), expected)
-
-    def assert_references(
-        self,
-        user: str,
-        current: tuple[SourceVersion, ...],
-        *,
-        historical: tuple[SourceVersion, ...] = (),
-        unselected_headers: tuple[tuple[str, str], ...] = (),
-    ) -> None:
-        expected: list[tuple[object, ...]] = [
-            (item.source, "version", item.version, item.header, "v0")
-            for item in (*current, *historical)
-        ]
-        expected.extend(
-            (item.source, "header", item.header, item.version, None) for item in current
-        )
-        expected.extend(
-            (source, "header", header, None, None) for source, header in unselected_headers
-        )
-        self.assertCountEqual(self.as_user(user, _REFERENCES), expected)
-
-    def assert_member(self, user: str, expected: bool) -> None:
-        self.assertEqual(self.as_user(user, "select private.is_member()"), [(expected,)])
-
-    def test_members_share_all_current_references_while_facts_remain_owned(self) -> None:
-        company, _ = self.owner()
-        old = self.publish_pair()
-        current = self.publish_pair(old)
-        self.seller = "other-seller"
-        other_company, _ = self.owner("OTHER")
-        other = self.publish_pair(sku="OTHER")
-        self.seller = "cost-only-seller"
-        cost_only = self.publish_pair(cost_only=True)
-        self.seller = "empty-seller"
-        empty = self.publish_pair(empty=True)
-        all_current = (*current, *other, *cost_only, *empty)
-
-        for user, owned in (
-            (self.member(company), (*current, *cost_only)),
-            (self.member(other_company), other),
-            (self.member_without_skus(), ()),
-        ):
-            self.assert_member(user, True)
-            self.assert_references(user, all_current)
-            self.assert_facts(user, owned)
-        administrator = self.administrator()
-        self.assert_member(administrator, False)
-        self.assert_references(administrator, all_current, historical=old)
-        self.assert_facts(administrator, (*all_current, *old), administrator=True)
-        for user in (self.auth_user(), ""):
-            self.assert_member(user, False)
-            self.assert_references(user, ())
-            self.assert_facts(user, ())
-        self.connection.execute("set constraints all immediate")
-
-    def test_ownership_changes_preserve_references_and_account_revocation_denies_both(self) -> None:
-        company_a, sku = self.owner()
-        company_b, _ = self.owner("OTHER")
-        terms = self.fee(sku, [])
-        current = self.publish_pair()
-        member_a, member_b = self.member(company_a), self.member(company_b)
-        for user in (member_a, member_b):
-            self.assert_references(user, current)
-        self.assert_facts(member_a, current)
-        self.assert_facts(member_b, ())
-
-        revised = self.assign("SKU", company_b, expected=terms)
-        for user in (member_a, member_b):
-            self.assert_references(user, current)
-        self.assert_facts(member_a, ())
-        self.assert_facts(member_b, current)
-        self.connection.execute(
-            "update public.app_accounts set company_id=%s where user_id=%s", (company_b, member_a)
-        )
-        self.assert_references(member_a, current)
-        self.assert_facts(member_a, current)
-        self.connection.execute("delete from public.app_accounts where user_id=%s", (member_a,))
-        self.assert_member(member_a, False)
-        self.assert_references(member_a, ())
-        self.assert_facts(member_a, ())
-        self.assign("SKU", None, expected=revised)
-        self.assert_member(member_b, True)
-        self.assert_references(member_b, current)
-        self.assert_facts(member_b, ())
-        self.connection.execute("set constraints all immediate")
-
-    def test_publication_replaces_visible_references_and_null_pointers_stay_hidden(self) -> None:
-        company, _ = self.owner()
-        member, administrator = self.member(company), self.administrator()
-        old = self.publish_pair()
-        self.assert_references(member, old)
-        self.assert_facts(member, old)
-        current = self.publish_pair(old, empty=True)
-        self.assert_references(member, current)
-        self.assert_facts(member, ())
-        self.assert_references(administrator, current, historical=old)
-        self.assert_facts(administrator, old, administrator=True)
-
-        with self.connection.transaction(force_rollback=True):
-            finances, day = new_id(), new_id()
-            self.connection.execute(
-                "insert into private.finances_days "
-                "(id,seller_namespace,marketplace_name,activity_date) "
-                "values (%s,'unselected-seller','Amazon.com','2026-06-15')",
-                (finances,),
-            )
-            self.connection.execute(
-                "insert into private.data_kiosk_days "
-                "(id,seller_namespace,marketplace_name,activity_date,dataset_key) "
-                "values (%s,'unselected-seller','Amazon.com','2026-06-15','economics')",
-                (day,),
-            )
-            self.assert_references(member, current)
-            self.assert_references(
-                administrator,
-                current,
-                historical=old,
-                unselected_headers=(("FINANCES", finances), ("DATA_KIOSK", day)),
-            )
-        self.connection.execute("set constraints all immediate")
-
-    def test_reference_columns_member_gate_and_full_metadata_remain_restricted(self) -> None:
-        company, _ = self.owner()
-        current = self.publish_pair()
-        member, no_skus, administrator = (
-            self.member(company),
-            self.member_without_skus(),
-            self.administrator(),
-        )
-        for user in (member, no_skus, administrator):
-            for statement in (
-                "select seller_namespace from private.finances_days",
-                "select seller_namespace from private.data_kiosk_days",
-                "select total_amount from private.finances_transactions",
-                "select row_count from private.finances_preprocess_versions",
-                "select row_count from private.data_kiosk_preprocess_versions",
-                "select content_sha256 from private.data_kiosk_preprocess_versions",
+    def test_parent_controls_and_batch_inventories_are_not_public_column_grants(self) -> None:
+        company, _, _, _, _ = self.publish_owned_history()
+        for user in (self.member(company), self.administrator()):
+            for query in (
+                "select total_amount from private.finances_transaction_versions",
+                "select component_count from private.finances_transaction_versions",
+                "select content_sha256 from private.finances_transaction_versions",
+                "select transaction_count from private.finances_preprocess_batches",
+                "select documents from private.finances_acquisitions",
             ):
                 with (
-                    self.subTest(user=user, statement=statement),
+                    self.subTest(query=query),
                     self.assertRaises(psycopg.errors.InsufficientPrivilege),
                 ):
-                    self.as_user(user, statement)
-        for statement in (
-            "select * from public.finances_preprocess_results",
-            "select * from public.data_kiosk_preprocess_results",
-        ):
-            for user in (member, no_skus, self.auth_user()):
-                with (
-                    self.subTest(user=user, statement=statement),
-                    self.assertRaises(psycopg.errors.InsufficientPrivilege),
-                ):
-                    self.as_user(user, statement)
-            self.assertEqual(len(self.as_user(administrator, statement)), 1)
-        with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
-            self.connection.execute("set local role anon")
-            self.connection.execute(_REFERENCES)
+                    self.as_user(user, query)
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            self.as_user(self.member(company), "select * from public.finances_preprocess_results")
+
+    def test_scope_changes_and_revocation_recompute_owned_parent_visibility(self) -> None:
+        company, other, _, current, _ = self.publish_owned_history()
+        user = self.member(company)
         self.assertEqual(
-            self.connection.execute(
-                "select p.prosecdef,p.provolatile::text,p.proleakproof,"
-                "p.proconfig @> array['search_path=\"\"'],"
-                "has_function_privilege('authenticated',p.oid,'EXECUTE'),"
-                "has_function_privilege('anon',p.oid,'EXECUTE'),"
-                "has_function_privilege('service_role',p.oid,'EXECUTE'),"
-                "exists(select 1 from "
-                "aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a "
-                "where a.grantee=0 and a.privilege_type='EXECUTE') "
-                "from pg_proc p where p.oid='private.is_member()'::regprocedure"
-            ).fetchone(),
-            (True, "s", False, True, True, False, False, False),
+            self.as_user(user, "select id::text from private.finances_transaction_components"),
+            [(current,)],
         )
-        self.assert_references(no_skus, current)
+        self.connection.execute(
+            "update public.app_accounts set company_id=%s where user_id=%s", (other, user)
+        )
+        self.assertNotEqual(
+            self.as_user(user, "select id::text from private.finances_transaction_components"),
+            [(current,)],
+        )
+        self.connection.execute("delete from public.app_accounts where user_id=%s", (user,))
+        self.assertEqual(
+            self.as_user(user, "select id from private.finances_transaction_versions"), []
+        )
+        self.assertEqual(
+            self.as_user(user, "select id from private.finances_transaction_components"), []
+        )

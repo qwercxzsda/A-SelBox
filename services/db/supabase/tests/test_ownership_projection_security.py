@@ -44,7 +44,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
 
     def seed_source_history(self) -> None:
         acquisition = self.acquisition()
-        _, old = self.finances([self.transaction("100", sku="SHARED")], acquisition_id=acquisition)
+        _, _old = self.finances([self.transaction("100", sku="SHARED")], acquisition_id=acquisition)
         self.finances(
             [
                 self.transaction("200", sku="SHARED"),
@@ -54,7 +54,6 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
                 self.transaction("600", 7, sku="IMPORT-ONLY"),
             ],
             acquisition_id=acquisition,
-            expected=old,
         )
         _, old_day = self.kiosk(1, [self.component("-1", sku="SHARED")])
         self.kiosk(

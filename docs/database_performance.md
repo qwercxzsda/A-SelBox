@@ -18,10 +18,11 @@ define API behavior; [access control](access_control.md) defines visibility.
 
 ### Authorization and current versions
 
-Source headers select complete current versions. Fact RLS checks that selection, source category,
-and current SKU ownership. Metadata policies use registered membership and current pointers;
-they do not scan facts to establish metadata ownership. Full metadata is administrator-only, while
-members share narrow current references.
+Finance identities select immutable transaction versions; Data Kiosk day headers select complete
+day versions. Fact RLS checks current selection, category and SKU ownership. Finance parent and
+batch metadata follows owned current activity, with parent totals and inventory/hash fields excluded
+from member column grants. Data Kiosk retains its narrow shared current-reference policy. Full
+source metadata is administrator-only.
 
 `private.current_owned_sku_terms()` obtains the member's current permitted identities and terms
 IDs as a set. It uses stored account state and selected pointers; it is not a persisted permission
@@ -35,27 +36,26 @@ so compatible facts from every namespace share one fee lookup. Raw rows retain t
 
 ### Indexes
 
-Each source has one reversible `(date, id)` index and compact `(sku, date)`, `(component_type, date)`,
-and `(marketplace_name, date)` indexes. Date-leading covering indexes support counts:
-Finances uses a partial index for category `FINANCES`; Data Kiosk includes all
-amounts across categories, including zero.
-Finances also has a compact ownership/version index for unbounded and marketplace counts.
-The [index map](transaction_query_contracts.md#index-access-paths) lists exact keys and consumers.
+Finance indexes follow the normalized model: date and marketplace/date indexes are on
+`finances_transaction_versions`; SKU/version and Type/version indexes are on
+`finances_transaction_components`. Stable identities have seller/scope/native-ID uniqueness, native-ID
+lookup and current-pointer indexes. Membership keys connect successful batches to immutable
+versions without copying unchanged components. Filtering a Finance date page therefore joins
+transaction metadata to components.
 
-Finances native parents have an indexed seller/native-ID lookup for current
-identity conflicts and a release-reference index for lifecycle validation.
-Components have a parent-ID index for complete partition checks. Publication
-inserts whole parent/component day inventories in bulk. Summary checks use
-exact version manifests; they are performed for pending company/month work,
-not by scanning every completed payout every five minutes.
+Data Kiosk retains its reversible date/ID, compact SKU/date, Type/date and marketplace/date indexes,
+plus the date-leading covering count index. Its zero amounts and all categories remain represented.
+The [index map](transaction_query_contracts.md#index-access-paths) lists the exact current keys.
 
-Date bounds are applied to facts before counting, grouping, or fee lookup. Leading with date limits
-the covering index's range even without a selected SKU or Type. Index-only counts depend on the
-visibility map maintained by vacuum. Totals still fetch amounts and fee inputs from source rows.
+Finance publication uploads prepared rows in batches and switches pointers atomically after Python
+source validation. Component totals and Summary controls are not queried repeatedly by the payout
+worker. Payout selection checks successful batch membership against current transaction versions.
+New versions add storage only for changed normalized state; each observation still adds compact
+membership records.
 
-A single selected marketplace uses scalar text equality. Small multi-marketplace date pages obtain
-bounded candidates per marketplace before merging. Larger candidate budgets use the ordinary
-array-filter path. This strategy changes execution, not the result limit or visible rows.
+Predicate selectivity, parent/component joins, RLS and row visibility determine actual plans.
+Index-only behavior is not promised by the schema. Measure the installed model with representative
+data before using its timings or storage estimates for capacity planning.
 
 ### Reconciliation work
 
@@ -91,12 +91,11 @@ request-time authorization.
 
 ## Measurement evidence
 
-The maintained runners below exercise authenticated reads across namespaces and different
-workload shapes using native Finances fixtures. Current verification includes live/native/Data
-Kiosk EXPLAIN paths for date and amount ordering, plus independent result comparisons.
-The [dated verification records](evidence/README.md) distinguish these regression checks from
-real API and HTTP pipeline checks. They do not establish a throughput
-or latency target for production data; measure the intended workload before capacity planning.
+The [benchmark runners](../services/db/supabase/benchmarks/README.md) exercise authenticated reads
+against current-schema seeds and synthetic transaction fixtures. Verify exact results, authorization
+and chosen plans together with timing. These local checks do not establish sustained production
+throughput or latency. The [source evidence](evidence/README.md) records Amazon observations, not
+performance targets for the application.
 
 ## Scaling limits
 

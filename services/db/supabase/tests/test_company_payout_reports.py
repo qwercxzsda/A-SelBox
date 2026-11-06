@@ -52,7 +52,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         company, identity = self.owner()
         terms = self.fee(identity, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        finances_batch, _ = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk_version = self.kiosk(1, [self.component()])
         report = self.report(company)
         before = payout_snapshot(self, report)
@@ -73,9 +73,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
             ).fetchone(),
             (terms, None, None, Decimal(0)),
         )
-        self.finances(
-            [self.transaction("200")], acquisition_id=acquisition, expected=finances_version
-        )
+        self.finances([self.transaction("200")], acquisition_id=acquisition)
         self.kiosk(2, [self.component("-20")], expected=kiosk_version)
         self.fee(identity, [("2026-01-01", None, "7")])
         self.assertEqual(
@@ -87,7 +85,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.reassign(identity, None)
         self.assertEqual(payout_snapshot(self, report), before)
         for relation, column, version in (
-            ("payout_report_finances_versions", "version_id", finances_version),
+            ("payout_report_finances_batches", "batch_id", finances_batch),
             ("payout_report_data_kiosk_versions", "version_id", kiosk_version),
             ("payout_report_terms_versions", "terms_version_id", terms),
         ):
@@ -97,7 +95,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 ),
                 (report,),
             ).fetchall()
-            if relation in {"payout_report_data_kiosk_versions", "payout_report_finances_versions"}:
+            if relation == "payout_report_data_kiosk_versions":
                 self.assertEqual(len(rows), 30)
                 self.assertIn((version,), rows)
             else:
@@ -190,7 +188,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.fee(identity, [("2026-01-01", None, "0")])
         for scope in (
             {"preprocess_version": "another-version"},
-            {"finances_day_ids": [new_id()]},
+            {"finances_batch_ids": [new_id()]},
             {"marketplace_name": "Unsupported marketplace"},
         ):
             with (
@@ -259,11 +257,11 @@ class CompanyPayoutReportTests(SourceModelFixture):
                     )
                 else:
                     self.connection.execute(
-                        "alter table private.payout_report_finances_versions "
+                        "alter table private.payout_report_finances_batches "
                         "disable trigger immutable"
                     )
                     self.connection.execute(
-                        "delete from private.payout_report_finances_versions where report_id=%s",
+                        "delete from private.payout_report_finances_batches where report_id=%s",
                         (report,),
                     )
                 self.connection.execute("set constraints all immediate")

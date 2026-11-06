@@ -92,11 +92,10 @@ posting dates, not modification dates. Original/release links must identify each
 activity contribution; statuses alone are insufficient. Missing or conflicting
 required identity/linkage information fails preprocessing instead of guessing.
 
-Finances pages and Summary responses have no common snapshot token. A valid
-complete day can be stored while Summary is unavailable or mismatched; new
-payouts require matching controls for their exact selected versions. Refreshing
-or investigating inputs is necessary to resolve a mismatch. No balancing amount
-is inserted. Matching observations do not prove permanent finality.
+Finances pages and Summary responses have no common snapshot token. Python rejects an observation
+when Summary is unavailable or mismatched; no accepted acquisition, batch, transaction version or
+membership enters PostgreSQL. Prior accepted state remains selected. A fixed maturity cutoff is a
+business eligibility rule, not proof that Amazon will never revise the period.
 
 Historical access is finite. Retain raw captures independently of Amazon's
 retrieval window, including data needed to reproduce saved reports. See the
@@ -191,7 +190,8 @@ See [query contracts](transaction_query_contracts.md) and
 Object upload and PostgreSQL publication do not share a transaction. A failed
 publication can leave an archived object without a successful acquisition header.
 Preserve it for investigation; do not infer that an uploaded object changed current
-financial facts. Publication of complete day versions and their pointers is atomic.
+financial facts. Finance batch membership, new transaction versions/components and selected pointers publish
+atomically after Python validation. Data Kiosk day-version publication remains atomic.
 
 ## Manual operational tooling
 

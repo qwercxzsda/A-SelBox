@@ -23,9 +23,7 @@ from services.sync.src.archives.models import (
 from services.sync.src.archives.storage import archive_document
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
-    load_finances_acquisition,
     persist_data_kiosk_acquisition,
-    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import (
     FeePeriod,
@@ -36,6 +34,7 @@ from services.sync.src.database.financial_reads import (
     CompanyFinancialTotal,
     load_company_financial_totals,
 )
+from services.sync.src.finances.acquisition_models import FinancesAcquisition
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 from services.sync.src.numeric import Numeric
 from services.sync.src.preprocess_version import PREPROCESS_VERSION
@@ -54,7 +53,7 @@ class TestArchiveToLive(DatabaseTestCase):
         self.storage = MemoryArchiveStorage()
         self.seller = f"archive-integration-{uuid7()}"
 
-    def test_repeated_captures_replace_days_without_adding_transactions(self) -> None:
+    def test_repeated_captures_reuse_versions_without_adding_transactions(self) -> None:
         rows = [
             native_transaction(100),
             native_transaction(-100, kind="Refund", day="2026-08-02"),
@@ -62,38 +61,36 @@ class TestArchiveToLive(DatabaseTestCase):
         ]
         for _ in range(2):
             capture = finances_capture(self.storage, rows, seller=self.seller)
-            identifier = persist_finances_acquisition(self.database, capture)
-            self.assertEqual(load_finances_acquisition(self.database, identifier), capture)
-            preprocess_finances_acquisition(self.database, self.storage, identifier)
+            preprocess_finances_acquisition(self.database, self.storage, capture)
         self.assertEqual(
-            self.connection.execute("select count(*) from private.finances_days").fetchone(), (2,)
+            self.connection.execute(
+                "select count(*) from private.finances_transactions"
+            ).fetchone(),
+            (3,),
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*),sum(amount) from public.finances_preprocess_entries "
-                "where category='DATA_KIOSK' and version_id in "
-                "(select current_version_id from private.finances_days)"
+                "select count(*),sum(amount) from private.finances_component_details "
+                "where is_current and category='DATA_KIOSK'"
             ).fetchone(),
             (1, Numeric(-10)),
         )
         self.assertEqual(
             self.connection.execute(
-                "select component_type,sku from public.finances_preprocess_entries "
-                "where category='DATA_KIOSK' and version_id in "
-                "(select current_version_id from private.finances_days)"
+                "select component_type,sku from private.finances_component_details "
+                "where is_current and category='DATA_KIOSK'"
             ).fetchone(),
             ("DISPOSAL_FEES", None),
         )
         self.assertEqual(len(self.storage.objects), 2)
 
-    def save_finances(self, *, valid: bool = True) -> str:
+    def save_finances(self, *, valid: bool = True) -> FinancesAcquisition:
         rows = [
             native_transaction(100, sku="SKU-1" if valid else None),
             native_transaction(-100, kind="Refund", day="2026-08-02"),
             native_transaction(-10, kind="ServiceFee", sku=None, day="2026-08-02"),
         ]
-        capture = finances_capture(self.storage, rows, seller=self.seller)
-        return persist_finances_acquisition(self.database, capture)
+        return finances_capture(self.storage, rows, seller=self.seller)
 
     def save_data_kiosk(self, *, ads: str = "[]") -> str:
         identifier = uuid7()
@@ -170,7 +167,7 @@ class TestArchiveToLive(DatabaseTestCase):
             start_date=date(2026, 8, 1),
             end_date=date(2026, 8, 2),
             preprocess_version=PREPROCESS_VERSION,
-            finances_day_ids=(),
+            finances_batch_ids=(),
             marketplace_names=("Amazon.com",),
         )
         self.assertEqual(len(totals), 1)
@@ -183,7 +180,9 @@ class TestArchiveToLive(DatabaseTestCase):
         preprocess_finances_acquisition(self.database, self.storage, finances_input)
         preprocess_data_kiosk_acquisition(self.database, self.storage, economics_input)
         row = self.connection.execute(
-            "select id from private.finances_days where seller_namespace = %s", (self.seller,)
+            "select distinct current_batch_id from private.finances_transactions "
+            "where seller_namespace = %s",
+            (self.seller,),
         ).fetchone()
         if row is None:
             self.fail("Canonical finances was not published.")
@@ -224,31 +223,27 @@ class TestArchiveToLive(DatabaseTestCase):
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.finances_preprocess_versions v "
-                "join private.finances_preprocess_batches b on b.id=v.batch_id "
-                "where b.acquisition_id = %s",
-                (finances_input,),
+                "select count(*) from private.finances_preprocess_batches where acquisition_id=%s",
+                (finances_input.id,),
             ).fetchone(),
-            (2,),
+            (1,),
         )
 
-    def test_failed_preprocessing_retains_the_successful_acquisition(self) -> None:
+    def test_failed_preprocessing_keeps_archives_without_success_database_rows(self) -> None:
         acquisition_id = self.save_finances(valid=False)
         with self.assertRaises(ValueError):
             preprocess_finances_acquisition(self.database, self.storage, acquisition_id)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from private.finances_acquisitions where id = %s",
-                (acquisition_id,),
+                (acquisition_id.id,),
             ).fetchone(),
-            (1,),
+            (0,),
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.finances_preprocess_versions v "
-                "join private.finances_preprocess_batches b on b.id=v.batch_id "
-                "where b.acquisition_id = %s",
-                (acquisition_id,),
+                "select count(*) from private.finances_preprocess_batches where acquisition_id=%s",
+                (acquisition_id.id,),
             ).fetchone(),
             (0,),
         )
@@ -261,7 +256,7 @@ class TestArchiveToLive(DatabaseTestCase):
             start_date=date(2026, 8, 1),
             end_date=date(2026, 8, 2),
             preprocess_version=PREPROCESS_VERSION,
-            finances_day_ids=[finances_id],
+            finances_batch_ids=[finances_id],
             marketplace_names=["Amazon.com"],
         )
 

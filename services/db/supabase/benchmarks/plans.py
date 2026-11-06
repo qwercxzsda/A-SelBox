@@ -114,30 +114,6 @@ def _marketplace_page_parts(
     )
 
 
-def _source_candidate_query(
-    bounded: bool, amount: bool, date: str, direction: str, nulls: str, tie: str
-) -> str:
-    if not bounded:
-        return (
-            "select t.* from matching as t limit 10001"
-            if amount
-            else "select t.* from matching as t"
-        )
-    # Only validated identifiers/order keywords are interpolated; filters stay parameters.
-    return f"""select market_page.*
-        from (select distinct marketplace_name
-              from unnest($4::text[]) as requested_marketplaces(marketplace_name))
-              selected_marketplaces
-        cross join lateral (
-            select t.* from matching as t
-            where t.marketplace_name = selected_marketplaces.marketplace_name
-            order by t.{date} {direction} nulls {nulls}, t.id {tie}
-            limit ($6::bigint + $7::bigint)
-        ) as market_page
-        order by market_page.{date} {direction} nulls {nulls}, market_page.id {tie}
-        limit ($6::bigint + $7::bigint)"""  # noqa: S608
-
-
 def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
     order = args.get("p_order_by", "date")
     direction = args.get("p_direction", "desc")
@@ -150,9 +126,9 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
     offset = args.get("p_offset", 0)
     materialization = "materialized" if amount else "not materialized"
     cap = "limit 10001" if amount else ""
-    marketplace_candidates = _uses_marketplace_candidates(definition, args)
     common = [("date", args.get("p_date_from")), ("date", args.get("p_date_to"))]
     if function == "transaction_page":
+        marketplace_candidates = _uses_marketplace_candidates(definition, args)
         replacements = (
             direction,
             "source_amount" if amount else "activity_date",
@@ -193,40 +169,16 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
             raise ValueError("Raw dataset must be finances or data_kiosk")
         finances = dataset == "finances"
         date = "posted_date" if finances else "activity_date"
-        projection = (
-            "p.transaction_id,p.native_transaction_id,p.deferred_transaction_id,"
-            "p.release_transaction_id,p.source_page_number::text,p.source_record_number::text,"
-            "p.accounting_subtype,p.posted_date,p.posted_at,p.component_key,p.fee_base::text,"
-            "p.transaction_type,p.transaction_status,p.account_type,p.activity_eligible::text,"
-            "p.breakdown_path::text"
-            if finances
-            else "p.source_line_number::text,p.activity_date,p.component_key,"
-            "p.fee_base::text,p.source_document_id"
-        )
-        candidate_projection = (
-            "t.transaction_id,t.native_transaction_id,t.deferred_transaction_id,"
-            "t.release_transaction_id,t.source_page_number,t.source_record_number,"
-            "t.accounting_subtype,t.posted_date,t.posted_at,t.component_key,t.fee_base,"
-            "t.transaction_type,t.transaction_status,t.account_type,t.activity_eligible,"
-            "t.breakdown_path"
-            if finances
-            else "t.source_line_number,t.activity_date,t.component_key,t.fee_base,"
-            "t.source_document_id"
-        )
         replacements = (
-            "finances_transaction_components" if finances else "data_kiosk_transactions",
+            "finances_component_details" if finances else "data_kiosk_transactions",
             date,
             "amount" if amount else date,
             direction,
-            "day_id",
-            projection,
-            dataset + "_preprocess_versions",
-            "r.amount::numeric" if amount else "r." + date,
-            materialization,
-            _source_candidate_query(marketplace_candidates, amount, date, direction, nulls, tie),
-            candidate_projection,
-            nulls,
             tie,
+            nulls,
+            dataset + "_preprocess_entries",
+            cap,
+            materialization,
         )
         values = [
             *common,

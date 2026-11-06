@@ -61,10 +61,7 @@ begin
                 and t.posted_date < (select private.mature_cutoff_date())
                 and (
                     finances_policy_is_sufficient
-                    or exists (
-                        select 1 from private.finances_days as h
-                        where h.current_version_id = t.version_id
-                    )
+                    or t.is_current
                 )
                 and (p_date_from is null or t.posted_date >= p_date_from)
                 and (p_date_to is null or t.posted_date <= p_date_to)
@@ -199,7 +196,7 @@ begin
     );
     if p_dataset = 'finances' then
         return (
-            select count(*)::text from private.finances_transaction_components as t
+            select count(*)::text from private.finances_component_details as t
             where (p_date_from is null or t.posted_date >= p_date_from)
                 and (p_date_to is null or t.posted_date <= p_date_to)
                 and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))

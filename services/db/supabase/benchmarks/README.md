@@ -8,16 +8,17 @@ Run from the repository root with the frontend seed database and REST containers
 
 ```sh
 conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.benchmark \
-  --output-dir /private/tmp/aselbox-page-results --repeat 5 --fixtures density,history
+  --output-dir /private/tmp/aselbox-page-results --repeat 5 --fixtures seed
 
 conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.aggregation_benchmark \
-  --output-dir /private/tmp/aselbox-summary-results --repeat 5 --fixtures density,history
+  --output-dir /private/tmp/aselbox-summary-results --repeat 5 --fixtures seed
 
 conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.search_benchmark \
-  --output-dir /private/tmp/aselbox-search-results --repeat 3 --fixtures density,history
+  --output-dir /private/tmp/aselbox-search-results --repeat 3 --fixtures seed
 ```
 
-The output directory must be new. `--fixtures density` or `--fixtures history` selects one workload.
+The output directory must be new. `--fixtures seed` uses an unexpanded copy of a seed installed
+from the current transaction-version baseline. It is the default fixture.
 `--help` does not contact Docker or the database. The shared runner records completion/failure and
 cleanup status and writes results atomically.
 
@@ -53,16 +54,15 @@ socket. An existing benchmark database causes refusal rather than reuse. The har
 removes only its allowlisted clones and temporary REST containers, using the installed image with
 `--pull=never` and a fresh synthetic signing key.
 
-- **Density** copies each source fact ten times with new identities and updates clone-only inventories.
-  Dates, SKUs, companies, and source versions keep their original distribution.
-- **History** creates ten dated cohorts and shifts source headers/facts together. Selected fee terms
-  extend backward; original accounts, payouts, and source rows remain intact. Foreign keys, inventories,
-  pruning rules, and ownership are checked before commit.
+The seed is copied without changing its transactions, versions, memberships, dates or terms.
+The previous daily-snapshot density/history generators were removed because they rewrote obsolete
+source inventories under disabled triggers. No synthetic expansion or trigger suppression is used.
+A schema preflight rejects an old seed before copying. Build any larger representative dataset
+through validated current preprocessing before using these measurement runners.
 
-Both fixtures derive sizes from the source rather than a saved row-count assumption and refuse
-repeated expansion. Setup-only trigger suppression ends before reads. Dumps and REST environment
-files have mode 0600 and are removed with their temporary directory. Source catalog fingerprints
-must remain unchanged.
+Dumps and REST environment files have mode 0600 and are removed with their temporary directory.
+Source catalog fingerprints must remain unchanged. Clone-only vacuum/analyze prepares the copied
+relations; no existing application database is modified.
 
 These are warm database/OS workloads with fresh reads. They do not measure browser rendering,
 application caches, sustained production concurrency, or replayable Amazon import evidence. Do not

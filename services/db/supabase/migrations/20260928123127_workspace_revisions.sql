@@ -34,7 +34,7 @@ $$;
 create function private.track_source_revision() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-    if tg_table_name in ('finances_days', 'data_kiosk_days') then
+    if tg_table_name = 'data_kiosk_days' then
         if tg_op = 'UPDATE' and new.current_version_id is not distinct from old.current_version_id then
             return null;
         end if;
@@ -49,7 +49,7 @@ $$;
 -- Delay the tiny shared-row write until the publication has finished inserting
 -- its facts. Multi-day batches rotate each source token at most once per commit.
 create constraint trigger workspace_finances_revision
-after insert or update or delete on private.finances_days
+after insert or update or delete on private.finances_transactions
 deferrable initially deferred for each row
 execute function private.track_source_revision('finances');
 create constraint trigger workspace_data_kiosk_revision
@@ -60,8 +60,8 @@ execute function private.track_source_revision('data_kiosk');
 -- Administrator raw reads include retained history. Publishing an older version
 -- or pruning its payload changes those reads without moving a current pointer.
 -- These small metadata inventories cover both events without fact-row triggers.
-create constraint trigger workspace_finances_version_revision
-after insert on private.finances_preprocess_versions
+create constraint trigger workspace_finances_run_revision
+after insert on private.finances_preprocess_batches
 deferrable initially deferred for each row
 execute function private.track_source_revision('finances');
 create constraint trigger workspace_data_kiosk_version_revision
@@ -185,9 +185,3 @@ from public, anon, authenticated, service_role;
 
 comment on function public.workspace_revisions(text[]) is
 'Opaque change tokens for published sources and authorized fees/ownership/labels/payouts.';
-
-create constraint trigger workspace_finances_pruning_revision
-after insert on private.finances_pruned_versions
-deferrable initially deferred for each row execute function private.track_source_revision(
-    'finances'
-);

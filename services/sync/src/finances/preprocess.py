@@ -1,26 +1,23 @@
-"""Replay complete Finances day versions from immutable response-page archives."""
+"""Normalize complete Finances captures from immutable response-page archives."""
 
-from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from ..amazon.finances.client import FinancesOperation
 from ..archives.storage import ArchiveStorage, load_document_archive
-from ..preprocess_version import PREPROCESS_VERSION
-from ..source_serialization import content_sha256, source_mapping
+from ..source_serialization import content_sha256
 from .acquisition_models import FinancesAcquisition
 from .components import build_components
-from .lifecycle import release_transaction_ids
+from .lifecycle import TransactionLifecycle, release_transaction_ids
 from .marketplaces import financial_marketplace_name, financial_marketplace_timezone
-from .models import FinancesDay, FinancesSummary, FinancesTransaction, PreparedFinances
+from .models import FinancesSummary, FinancesTransaction, PreparedFinances
 from .values import (
     account_type,
     array,
     decode_page,
     money,
     object_value,
-    related_ids,
     text,
     timestamp,
 )
@@ -56,8 +53,7 @@ def prepare_finances_acquisition(
 ) -> PreparedFinances:
     coverage = _coverage(acquisition)
     native, summary_records = _load_records(acquisition, storage, coverage)
-    grouped = _daily_transactions(acquisition, native, coverage)
-    days = _day_versions(acquisition, coverage, grouped)
+    transactions = _transactions(acquisition, native, coverage)
     summaries = tuple(_summary(record, acquisition, coverage) for record in summary_records)
     keys = [
         (row.marketplace_id, row.account_type, row.currency, row.period_start, row.period_end)
@@ -65,7 +61,7 @@ def prepare_finances_acquisition(
     ]
     if len(set(keys)) != len(keys):
         raise ValueError("Finances Summary repeats a scope within one observation.")
-    return PreparedFinances(days, summaries)
+    return PreparedFinances(transactions, summaries)
 
 
 def _load_records(
@@ -113,19 +109,21 @@ def _load_records(
     return native, summaries
 
 
-def _daily_transactions(
+def _transactions(
     acquisition: FinancesAcquisition,
     native: Mapping[str, _ArchivedRecord],
     coverage: Mapping[str, str],
-) -> dict[tuple[str, date], list[FinancesTransaction]]:
-    releases = release_transaction_ids(
-        {identifier: record.fields for identifier, record in native.items()}
-    )
-    grouped: defaultdict[tuple[str, date], list[FinancesTransaction]] = defaultdict(list)
-    for record in native.values():
+) -> tuple[FinancesTransaction, ...]:
+    lifecycles = {
+        identifier: TransactionLifecycle.from_native(record.fields)
+        for identifier, record in native.items()
+    }
+    releases = release_transaction_ids(lifecycles)
+    result: list[FinancesTransaction] = []
+    for identifier, record in native.items():
         row = record.fields
-        metadata = object_value(row["sellingPartnerMetadata"])
-        market = text(metadata.get("marketplaceId"))
+        lifecycle = lifecycles[identifier]
+        market = lifecycle.marketplace
         if market not in coverage:
             raise ValueError("Finances response contains a marketplace outside declared coverage.")
         posted = timestamp(row.get("postedDate"))
@@ -133,8 +131,8 @@ def _daily_transactions(
         # Regional UTC bounds include edge hours belonging to adjacent local days.
         if not acquisition.query_start_date <= local_date <= acquisition.query_end_date:
             continue
-        grouped[market, local_date].append(_transaction(record, releases))
-    included = {row.native_transaction_id: row for rows in grouped.values() for row in rows}
+        result.append(_transaction(record, identifier, lifecycle, releases, posted, local_date))
+    included = {row.native_transaction_id: row for row in result}
     included_releases = {row.release_transaction_id for row in included.values()}
     if any(
         row.native_transaction_id in releases
@@ -143,33 +141,7 @@ def _daily_transactions(
         for row in included.values()
     ):
         raise ValueError("Reverse-only Finances release requires its original in covered days.")
-    return grouped
-
-
-def _day_versions(
-    acquisition: FinancesAcquisition,
-    coverage: Mapping[str, str],
-    grouped: Mapping[tuple[str, date], Sequence[FinancesTransaction]],
-) -> tuple[FinancesDay, ...]:
-    days: list[FinancesDay] = []
-    for market, name in sorted(coverage.items()):
-        day = acquisition.query_start_date
-        while day <= acquisition.query_end_date:
-            transactions = tuple(
-                sorted(grouped.get((market, day), ()), key=lambda row: row.native_transaction_id)
-            )
-            comparable = [_comparable_transaction(row) for row in transactions]
-            digest = content_sha256(
-                {
-                    "marketplace_id": market,
-                    "activity_date": day,
-                    "preprocess_version": PREPROCESS_VERSION,
-                    "transactions": comparable,
-                }
-            )
-            days.append(FinancesDay(name, market, day, digest, transactions))
-            day += timedelta(days=1)
-    return tuple(days)
+    return tuple(sorted(result, key=lambda row: row.native_transaction_id))
 
 
 def _validate_page_scope(
@@ -184,7 +156,7 @@ def _validate_page_scope(
         else {"nextToken", "periodStart", "periodEnd"}
     )
     if set(params) - expected:
-        raise ValueError("Filtered Finances requests cannot replace a complete day.")
+        raise ValueError("Filtered Finances requests cannot establish complete capture coverage.")
     if operation == "summary":
         if (_period(params.get("periodStart")), _period(params.get("periodEnd"))) != (
             acquisition.query_start_date,
@@ -205,57 +177,39 @@ def _validate_page_scope(
         raise ValueError("Invalid Finances request window.")
 
 
-def _transaction(record: _ArchivedRecord, releases: set[str]) -> FinancesTransaction:
+def _transaction(
+    record: _ArchivedRecord,
+    identifier: str,
+    lifecycle: TransactionLifecycle,
+    releases: set[str],
+    posted: datetime,
+    local_date: date,
+) -> FinancesTransaction:
     row = record.fields
-    identifier = text(row.get("transactionId"))
-    status = text(row.get("transactionStatus"))
+    status = lifecycle.status
     if status not in {"DEFERRED", "DEFERRED_RELEASED", "RELEASED"}:
         raise ValueError("Unknown Finances transaction status.")
-    links = related_ids(row.get("relatedIdentifiers"))
-    original, released = links.get("DEFERRED_TRANSACTION_ID"), links.get("RELEASE_TRANSACTION_ID")
-    if original and (released or status != "RELEASED"):
+    original, released = lifecycle.original, lifecycle.released
+    if original and status != "RELEASED":
         raise ValueError("Conflicting Finances lifecycle state.")
-    if original == identifier or released == identifier:
-        raise ValueError("Finances lifecycle cannot refer to itself.")
-    kind = text(row.get("transactionType"))
-    total, currency = money(row.get("totalAmount"))
-    metadata = object_value(row.get("sellingPartnerMetadata"))
     return FinancesTransaction(
         identifier,
-        account_type(metadata.get("accountType")),
-        kind,
+        lifecycle.marketplace,
+        financial_marketplace_name(lifecycle.marketplace),
+        local_date,
+        lifecycle.account,
+        lifecycle.kind,
         status,
-        timestamp(row.get("postedDate")),
-        currency,
-        total,
+        posted,
+        lifecycle.currency,
+        lifecycle.amount,
         original,
         released,
-        not original and identifier not in releases and kind != "Transfer",
+        lifecycle.is_activity(identifier, releases),
         record.page_number,
         record.record_number,
-        row,
         build_components(row),
     )
-
-
-def _comparable_transaction(transaction: FinancesTransaction) -> dict[str, object]:
-    obj = source_mapping(transaction)
-    for key in (
-        "transaction_status",
-        "deferred_transaction_id",
-        "release_transaction_id",
-        "source_page_number",
-        "source_record_number",
-        "source_fields",
-    ):
-        obj.pop(key)
-    components: list[dict[str, object]] = []
-    for component in transaction.components:
-        fields = source_mapping(component)
-        fields.pop("source_fields")
-        components.append(fields)
-    obj["components"] = sorted(components, key=content_sha256)
-    return obj
 
 
 def _summary(

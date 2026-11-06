@@ -8,6 +8,7 @@ from typing import cast
 
 from services.sync.src.finances.components import build_components
 from services.sync.src.finances.preprocess import prepare_finances_acquisition
+from services.sync.src.finances.validation import revision_digest
 from services.sync.src.numeric import ZERO, Numeric
 from services.sync.tests.support.archives import MemoryArchiveStorage
 from services.sync.tests.support.finances import finances_acquisition, native_transaction
@@ -23,15 +24,14 @@ class FinancesPreprocessingTests(unittest.TestCase):
         prepared = prepare_finances_acquisition(
             finances_acquisition(storage, [original, released], summary_amount="100"), storage
         )
-        self.assertEqual(len(prepared.days), 2)
-        rows = [r for d in prepared.days for r in d.transactions]
+        rows = prepared.transactions
         self.assertEqual([r.activity_eligible for r in rows], [True, False])
         self.assertEqual(
             sum((r.total_amount for r in rows if r.activity_eligible), ZERO), Numeric(100)
         )
         self.assertEqual(prepared.summaries[0].net_proceeds, Numeric(100))
 
-    def test_status_update_creates_same_financial_content_without_mutating_old_version(
+    def test_status_update_changes_full_revision_without_mutating_old_state(
         self,
     ) -> None:
         storage = MemoryArchiveStorage()
@@ -44,25 +44,26 @@ class FinancesPreprocessingTests(unittest.TestCase):
             ),
             storage,
         )
-        self.assertEqual(first.days[0].content_sha256, second.days[0].content_sha256)
-        self.assertEqual(first.days[0].transactions[0].transaction_status, "DEFERRED")
-        self.assertEqual(second.days[0].transactions[0].transaction_status, "DEFERRED_RELEASED")
+        self.assertNotEqual(
+            revision_digest(first.transactions[0]), revision_digest(second.transactions[0])
+        )
+        self.assertEqual(first.transactions[0].transaction_status, "DEFERRED")
+        self.assertEqual(second.transactions[0].transaction_status, "DEFERRED_RELEASED")
 
-    def test_fresh_empty_day_is_complete_and_does_not_keep_an_old_row(self) -> None:
+    def test_empty_capture_has_no_invented_transactions(self) -> None:
         storage = MemoryArchiveStorage()
         first = prepare_finances_acquisition(
             finances_acquisition(storage, [native_transaction()]), storage
         )
         empty = prepare_finances_acquisition(finances_acquisition(storage), storage)
-        self.assertTrue(first.days[0].transactions)
-        self.assertEqual([d.transactions for d in empty.days], [(), ()])
-        self.assertNotEqual(first.days[0].content_sha256, empty.days[0].content_sha256)
+        self.assertTrue(first.transactions)
+        self.assertEqual(empty.transactions, ())
 
     def test_identical_repeated_record_is_counted_once_and_conflict_is_rejected(self) -> None:
         storage = MemoryArchiveStorage()
         row = native_transaction()
         prepared = prepare_finances_acquisition(finances_acquisition(storage, [row, row]), storage)
-        self.assertEqual(len(prepared.days[0].transactions), 1)
+        self.assertEqual(len(prepared.transactions), 1)
         with self.assertRaisesRegex(ValueError, "Conflicting Finances transaction"):
             prepare_finances_acquisition(
                 finances_acquisition(storage, [row, native_transaction(amount="101")]), storage
@@ -72,13 +73,13 @@ class FinancesPreprocessingTests(unittest.TestCase):
         storage = MemoryArchiveStorage()
         released = native_transaction("B", status="RELEASED", original="outside-window")
         prepared = prepare_finances_acquisition(finances_acquisition(storage, [released]), storage)
-        self.assertFalse(prepared.days[0].transactions[0].activity_eligible)
+        self.assertFalse(prepared.transactions[0].activity_eligible)
 
     def test_directly_released_activity_is_included(self) -> None:
         storage = MemoryArchiveStorage()
         row = native_transaction(status="RELEASED")
         prepared = prepare_finances_acquisition(finances_acquisition(storage, [row]), storage)
-        self.assertTrue(prepared.days[0].transactions[0].activity_eligible)
+        self.assertTrue(prepared.transactions[0].activity_eligible)
 
     def test_reverse_link_alone_identifies_a_release(self) -> None:
         storage = MemoryArchiveStorage()
@@ -87,8 +88,8 @@ class FinancesPreprocessingTests(unittest.TestCase):
             native_transaction("B", status="RELEASED"),
         ]
         result = prepare_finances_acquisition(finances_acquisition(storage, rows), storage)
-        self.assertEqual([t.activity_eligible for t in result.days[0].transactions], [True, False])
-        self.assertIsNone(result.days[0].transactions[1].deferred_transaction_id)
+        self.assertEqual([t.activity_eligible for t in result.transactions], [True, False])
+        self.assertIsNone(result.transactions[1].deferred_transaction_id)
 
     def test_conflicting_lifecycle_links_and_money_fail_complete_capture(self) -> None:
         for release in (
@@ -102,7 +103,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
                     storage,
                 )
 
-    def test_reordered_distinct_items_preserve_financial_digest(self) -> None:
+    def test_reordered_items_retain_their_changed_source_positions(self) -> None:
         storage = MemoryArchiveStorage()
         row = native_transaction(amount="30")
         row["items"] = [
@@ -112,7 +113,9 @@ class FinancesPreprocessingTests(unittest.TestCase):
         first = prepare_finances_acquisition(finances_acquisition(storage, [row]), storage)
         row["items"] = list(reversed(row["items"]))
         second = prepare_finances_acquisition(finances_acquisition(storage, [row]), storage)
-        self.assertEqual(first.days[0].content_sha256, second.days[0].content_sha256)
+        self.assertNotEqual(
+            revision_digest(first.transactions[0]), revision_digest(second.transactions[0])
+        )
 
     def test_local_midnight_edges_do_not_leak_adjacent_day_activity(self) -> None:
         storage = MemoryArchiveStorage()
@@ -121,7 +124,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
         result = prepare_finances_acquisition(
             finances_acquisition(storage, [outside, inside]), storage
         )
-        self.assertEqual([t.native_transaction_id for t in result.days[0].transactions], ["inside"])
+        self.assertEqual([t.native_transaction_id for t in result.transactions], ["inside"])
 
     def test_unknown_marketplace_cannot_be_silently_dropped(self) -> None:
         storage = MemoryArchiveStorage()
@@ -141,7 +144,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
         ]
         storage = MemoryArchiveStorage()
         result = prepare_finances_acquisition(finances_acquisition(storage, [row]), storage)
-        self.assertTrue(result.days[0].transactions[0].activity_eligible)
+        self.assertTrue(result.transactions[0].activity_eligible)
 
     def test_reverse_only_release_cannot_lose_its_outside_day_dependency(self) -> None:
         storage = MemoryArchiveStorage()
@@ -174,7 +177,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
         self.assertEqual(len(components), 1)
         self.assertEqual(sum((r.amount for r in components), ZERO), Numeric(100))
 
-    def test_legitimate_split_items_are_preserved_and_order_is_not_economic_identity(self) -> None:
+    def test_legitimate_split_items_have_distinct_component_numbers(self) -> None:
         row = native_transaction(amount="100")
         items = copy.deepcopy(cast(list[object], row["items"]))
         self.assertIsInstance(items, list)
@@ -182,7 +185,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
         row["totalAmount"] = {"currencyAmount": "200", "currencyCode": "USD"}
         components = build_components(row)
         self.assertEqual(len(components), 2)
-        self.assertEqual(len({r.component_key for r in components}), 2)
+        self.assertEqual(len({r.component_number for r in components}), 2)
         self.assertEqual(sum((r.amount for r in components), ZERO), Numeric(200))
 
     def test_zero_native_item_without_currency_is_preserved_using_parent_currency(self) -> None:
@@ -197,8 +200,9 @@ class FinancesPreprocessingTests(unittest.TestCase):
             }
         ]
         component = build_components(row)[0]
-        self.assertEqual((component.amount, component.currency), (ZERO, "USD"))
-        self.assertTrue(component.source_fields["currency_from_transaction_zero_item"])
+        self.assertEqual(component.amount, ZERO)
+        self.assertEqual(component.breakdown_path, ())
+        self.assertEqual(component.item_index, 0)
 
     def test_missing_nonzero_breakdown_is_not_replaced_by_balancing_amount(self) -> None:
         row = native_transaction()

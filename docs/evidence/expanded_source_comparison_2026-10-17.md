@@ -268,7 +268,7 @@ component-definition differences, while debt recovery, reserve movements and fai
 are account activity. A combined account-minus-product-economics gap is not a payout-error score.
 See the [earlier component and timing bridge](finances_data_kiosk_differences_2026-10-14.md).
 
-## Implementation and reproducibility
+## Source representations and reproducibility
 
 The longer Finances history exposed additional native gift-wrap, Vine, disposal-promotion,
 shipping-tax and zero-value aged-storage representations. Explicit reviewed mappings now admit
@@ -277,12 +277,7 @@ product units or commission bases; disposal promotions retain both charge and of
 fees still require monetary detail. Unknown monetary paths remain errors. The frontend type
 catalog includes readable gift-wrap labels. No reconciliation balancing rule was introduced.
 
-Validation passed: **279 Python unit tests**, Python formatting/lint/type checks, **268 frontend
-unit tests**, frontend lint and a production build. **56 authenticated REST/RPC checks** verified
-January and September browsing for US, Japan, Sweden and France, including exact monetary
-strings, filters and review arithmetic. Financial review correctly limits results to mature
-dates; September remains available in source and transaction views. The public preview's login,
-workspace and inventory HTTP checks also pass. All **47,123** raw Data Kiosk product/day rows'
+All **47,123** raw Data Kiosk product/day rows'
 net proceeds equal returned sales minus fees and ads, independently of our component signs. Internal
 arithmetic consistency cannot establish that Amazon returned every fee, as the Japan history
 and Swedish omissions demonstrate.
@@ -290,14 +285,7 @@ and Swedish omissions demonstrate.
 Reproducible private evidence is in `output/expanded-source-review-2026-10-17/`: the complete
 coverage and monthly comparison, independent analysis, Summary controls, identical-window Japan
 controls, Sweden native fee timeline, and `disposal/` operational bridges. Raw order/SKU/account
-identifiers and document locations remain in ignored private files. The refresh uses the local
-Finances preview database; the older preview database remains untouched. The payout cron job was
-temporarily paused during the bulk publications and restored after complete coverage was verified.
-The normal worker published **98 latest currency reports across 12 company/months** for January,
-February, March, May, June and July. Both companies' source revisions are acknowledged for those
-months; August–October remain pending maturity.
-
-The historical backfill also exposes an **April payout configuration blocker for both companies**:
+identifiers and document locations remain in ignored private files. The historical backfill also exposes an **April payout configuration blocker for both companies**:
 three native SKU identities have no configured ownership. Their 244 US Finances components are
 121 liquidation fees (**−$38.50**), 121 liquidation proceeds (**+$53.57**) and two offsetting tax
 rows (**+$0.01/−$0.01**), for **+$15.07 net**. Diagnostics report missing ownership, with no missing

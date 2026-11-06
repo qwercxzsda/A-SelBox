@@ -1,5 +1,7 @@
 """Current frontend projections and independently comparable source datasets."""
 
+import csv
+import json
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -32,32 +34,38 @@ FINANCES_COLUMNS = (
     "id",
     "version_id",
     "transaction_id",
+    "seller_namespace",
+    "amazon_scope",
     "native_transaction_id",
+    "current_batch_id",
+    "posted_date",
+    "posted_at",
+    "marketplace_id",
+    "marketplace_name",
+    "account_type",
+    "transaction_type",
+    "transaction_status",
     "deferred_transaction_id",
     "release_transaction_id",
-    "seller_namespace",
-    "source_page_number",
-    "source_record_number",
-    "component_key",
+    "activity_eligible",
+    "currency",
+    "component_number",
     "category",
     "component_type",
     "accounting_subtype",
     "sku",
-    "marketplace_name",
     "amount",
-    "currency",
     "quantity",
     "fee_base",
-    "posted_date",
-    "posted_at",
-    "transaction_type",
-    "transaction_status",
-    "account_type",
-    "activity_eligible",
     "breakdown_path",
+    "item_index",
+    "breakdown_indexes",
     "created_at",
+    "is_current",
+    "batch_id",
     "preprocess_version",
-    "day_id",
+    "source_page_number",
+    "source_record_number",
 )
 
 KIOSK_COLUMNS = (
@@ -131,9 +139,24 @@ def canonical_rows(rows: list[dict[str, str | None]]) -> list[dict[str, str | No
             field: datetime.fromisoformat(value).isoformat()
             if field in {"posted_at", "created_at"} and value is not None
             else {"t": "true", "f": "false"}.get(value, value)
-            if field == "activity_eligible" and value is not None
+            if field in {"activity_eligible", "is_current"} and value is not None
+            else _canonical_array(field, value)
+            if field in {"breakdown_path", "breakdown_indexes"} and value is not None
             else value
             for field, value in row.items()
         }
         for row in rows
     ]
+
+
+def _canonical_array(field: str, value: str) -> str:
+    """Compare PostgreSQL CSV array text with JSON RPC array text losslessly."""
+    if value.startswith("["):
+        return json.dumps(json.loads(value), ensure_ascii=False)
+    if value == "{}":
+        return "[]"
+    values = next(csv.reader([value[1:-1]], escapechar="\\", doublequote=False))
+    return json.dumps(
+        [int(item) for item in values] if field == "breakdown_indexes" else values,
+        ensure_ascii=False,
+    )

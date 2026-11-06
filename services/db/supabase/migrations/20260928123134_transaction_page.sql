@@ -139,10 +139,7 @@ begin
                         (select private.member_policy_covers_current_version(
                             'private.finances_transaction_components'::regclass
                         ))
-                        or exists (
-                            select 1 from private.finances_days as h
-                            where h.current_version_id = t.version_id
-                        )
+                        or t.is_current
                     )
                     and ($1::date is null or t.posted_date >= $1)
                     and ($2::date is null or t.posted_date <= $2)
@@ -284,13 +281,15 @@ begin
         page as materialized (
             select r.*,
                 case when r.source = 'RECONCILIATION' then 'reconciliation-v1'
-                    else coalesce(s.preprocess_version, k.preprocess_version) end as preprocess_version,
+                    else coalesce(fp.preprocess_version, k.preprocess_version) end as preprocess_version,
                 case when r.source = 'RECONCILIATION' then r.source_row_id
-                    else coalesce(s.day_id, k.day_id) end as source_identity_id,
+                    else coalesce(s.transaction_id, k.day_id) end as source_identity_id,
                 o.sku_id, o.terms_version_id, o.company_id
             from raw_page as r
-            left join private.finances_preprocess_versions as s
+            left join private.finances_transaction_versions as s
                 on r.source = 'FINANCES' and s.id = r.source_version_id
+            left join private.finances_transactions as f on f.id=s.transaction_id
+            left join private.finances_preprocess_batches as fp on fp.id=f.current_batch_id
             left join private.data_kiosk_preprocess_versions as k
                 on r.source = 'DATA_KIOSK' and k.id = r.source_version_id
             left join selected_terms as o

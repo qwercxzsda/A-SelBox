@@ -185,8 +185,10 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 [
                     str(row[0])
                     for row in self.connection.execute(
-                        "select current_version_id from private.finances_days "
-                        "where activity_date=%s",
+                        "select distinct t.current_batch_id from private.finances_transactions t "
+                        "join private.finances_transaction_versions v "
+                        "on v.id=t.current_version_id "
+                        "where v.posted_date=%s",
                         (day,),
                     ).fetchall()
                 ],

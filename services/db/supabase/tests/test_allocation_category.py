@@ -62,9 +62,7 @@ class AllocationCategoryTests(SourceModelFixture):
             with (
                 self.subTest(source=source),
                 self.assertRaises(
-                    psycopg.errors.NotNullViolation
-                    if source == "FINANCES"
-                    else psycopg.errors.CheckViolation
+                    ValueError if source == "FINANCES" else psycopg.errors.CheckViolation
                 ),
                 self.connection.transaction(),
             ):
@@ -73,7 +71,7 @@ class AllocationCategoryTests(SourceModelFixture):
                 else:
                     self.kiosk(1, [row])
         for table in (
-            "finances_preprocess_versions",
+            "finances_preprocess_batches",
             "data_kiosk_preprocess_batches",
             "data_kiosk_preprocess_versions",
         ):
@@ -85,14 +83,16 @@ class AllocationCategoryTests(SourceModelFixture):
             )
 
     def test_finances_cannot_use_the_analysis_category(self) -> None:
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+        with self.assertRaises(ValueError), self.connection.transaction():
             self.finances([self.transaction("-1", category="ANALYSIS_ONLY")])
 
     def test_no_category_can_be_null(self) -> None:
         for source in ("FINANCES", "DATA_KIOSK"):
             with (
                 self.subTest(source=source),
-                self.assertRaises(psycopg.errors.NotNullViolation),
+                self.assertRaises(
+                    ValueError if source == "FINANCES" else psycopg.errors.NotNullViolation
+                ),
                 self.connection.transaction(),
             ):
                 if source == "FINANCES":
@@ -104,7 +104,7 @@ class AllocationCategoryTests(SourceModelFixture):
         for category in ("UNKNOWN", "1"):
             with (
                 self.subTest(source="FINANCES", category=category),
-                self.assertRaises(psycopg.errors.InvalidTextRepresentation),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
                 self.finances([self.transaction("-1", category=category)])

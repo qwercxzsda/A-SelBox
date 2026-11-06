@@ -15,7 +15,6 @@ from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_finances_acquisition,
 )
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
@@ -52,7 +51,7 @@ class RawOrderingTests(LocalWorkflowCase):
         acquisition = archived_finances(
             self.storage, seller, sale_amount=EXACT_AMOUNT, quantity=int(EXACT_QUANTITY)
         )
-        finances = persist_finances_acquisition(self.database, acquisition)
+        finances = acquisition
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, seller)
         )

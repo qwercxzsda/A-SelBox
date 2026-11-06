@@ -1,4 +1,4 @@
-"""Guarded lifecycle for clone-only density and multi-year history fixtures."""
+"""Guarded lifecycle for unmodified copies of a current-schema local seed."""
 
 from __future__ import annotations
 
@@ -18,10 +18,8 @@ from .common import (
     docker,
     source_connection,
 )
-from .density_fixture import build_density
-from .history_fixture import build_history
 
-FIXTURES = {"density": "aselbox_opt_large", "history": "aselbox_opt_broad"}
+FIXTURES = {"seed": "aselbox_opt_large"}
 
 
 @dataclass
@@ -52,10 +50,12 @@ class Clones:
             )
         with connect(database, self.password) as connection:
             initial = catalog_fingerprint(connection)
-            if fixture == "density":
-                metadata = build_density()
-            else:
-                metadata = build_history(connection, copies=10)
+            require_current_schema(connection)
+            metadata: dict[str, object] = {
+                "method": "Unmodified copy of the current-schema seed",
+                "synthetic_expansion": False,
+                "database": database,
+            }
             if initial != catalog_fingerprint(connection):
                 raise RuntimeError("Fixture setup changed schema or access rules")
             tables = connection.execute(
@@ -83,6 +83,16 @@ class Clones:
             raise RuntimeError("Could not remove every owned benchmark clone")
 
 
+def require_current_schema(connection: Connection) -> None:
+    """Reject obsolete source models before copying or benchmarking their data."""
+    present = connection.execute(
+        "select to_regclass('private.finances_transaction_versions') is not null "
+        "and to_regclass('private.finances_preprocess_batch_transactions') is not null"
+    ).fetchone()
+    if present != (True,):
+        raise ValueError("Benchmark seed must use the current Finance transaction-version schema")
+
+
 def _source_state(connection: Connection) -> dict[str, str]:
     with connection.transaction():
         connection.execute("set transaction read only")
@@ -97,6 +107,7 @@ def clone_session(
         raise ValueError("Choose allowlisted benchmark fixtures")
     names = [FIXTURES[name] for name in selected]
     with source_connection(password) as source:
+        require_current_schema(source)
         before = _source_state(source)
         existing = source.execute(
             "select datname from pg_database where datname=any(%s)", (names,)

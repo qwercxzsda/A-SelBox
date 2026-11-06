@@ -357,11 +357,10 @@ class FinancialReviewAccessTests(SourceModelFixture):
     def test_replacing_current_versions_does_not_count_retained_history(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
         acquisition = self.acquisition()
-        _, old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        _, _old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, new_finances = self.finances(
             [self.transaction("50")],
             acquisition_id=acquisition,
-            expected=old_finances,
             version="v1",
         )
         _, old_kiosk = self.kiosk(1, [self.component("-10")])

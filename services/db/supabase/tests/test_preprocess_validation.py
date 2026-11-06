@@ -24,7 +24,9 @@ class PreprocessValidationTests(SourceModelFixture):
             with self.subTest(field=field), self.assertRaises(error), self.connection.transaction():
                 self.finances([self.transaction("100") | {field: None}])
         self.assertEqual(
-            self.connection.execute("select count(*) from private.finances_days").fetchone(),
+            self.connection.execute(
+                "select count(*) from private.finances_transactions"
+            ).fetchone(),
             (0,),
         )
 

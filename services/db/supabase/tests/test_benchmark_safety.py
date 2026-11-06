@@ -58,3 +58,37 @@ class BenchmarkDockerSafetyTests(unittest.TestCase):
             self.assertEqual(
                 call.kwargs["env"], {"PATH": "/usr/bin", "DOCKER_HOST": "unix:///local.sock"}
             )
+
+
+class BenchmarkSchemaSafetyTests(unittest.TestCase):
+    def test_obsolete_seed_is_rejected_before_clone_work(self) -> None:
+        from unittest.mock import MagicMock
+
+        from services.db.supabase.benchmarks.fixtures import require_current_schema
+
+        connection = MagicMock()
+        connection.execute.return_value.fetchone.return_value = (False,)
+        with self.assertRaisesRegex(ValueError, "current Finance"):
+            require_current_schema(connection)
+        self.assertEqual(connection.execute.call_count, 1)
+        self.assertTrue(connection.execute.call_args.args[0].startswith("select "))
+
+    def test_current_seed_passes_read_only_preflight(self) -> None:
+        from unittest.mock import MagicMock
+
+        from services.db.supabase.benchmarks.fixtures import require_current_schema
+
+        connection = MagicMock()
+        connection.execute.return_value.fetchone.return_value = (True,)
+        require_current_schema(connection)
+        self.assertEqual(connection.execute.call_count, 1)
+
+    def test_only_current_seed_workload_is_accepted(self) -> None:
+        from argparse import ArgumentTypeError
+
+        from services.db.supabase.benchmarks.runner import parse_fixtures
+
+        self.assertEqual(parse_fixtures("seed"), ("seed",))
+        for value in ("", "density", "history", "seed,seed", "unrecognized"):
+            with self.subTest(value=value), self.assertRaises(ArgumentTypeError):
+                parse_fixtures(value)

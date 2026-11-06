@@ -51,7 +51,7 @@ zero alone never makes a row supporting detail.
 
 ## Transaction pages
 
-[`public.transaction_page`](../services/db/supabase/migrations/20260928123134_transaction_page.sql)
+[`public.transaction_page`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 accepts:
 
 | Parameter                                                                      | Default | Meaning                                                                                                           |
@@ -131,7 +131,7 @@ inconsistent fields; it does not rewrite a base or fabricate a configured rate.
 
 ## Raw source pages
 
-[`public.source_transaction_page`](../services/db/supabase/migrations/20260928123136_source_transaction_page.sql)
+[`public.source_transaction_page`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 serves the Finances and Data Kiosk tabs. Its required `p_dataset` is `finances` or
 `data_kiosk`. Optional parameters are `p_limit` (25), `p_offset` (0), `p_order_by` (`date`),
 `p_direction` (`desc`), `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`, `p_types`,
@@ -146,12 +146,15 @@ Amount ordering keeps ascending row-ID ties and nulls last. Finances and Data
 Kiosk zero amounts remain included in pagination and counting.
 
 Finances rows expose native transaction IDs, account type, lifecycle status,
-original/release references, source page and record ordinals, component key,
+original/release references, source page and record ordinals, component number,
 breakdown path and activity eligibility. Numeric fields and the boolean/path
 projections are text in the RPC JSON so the browser retains its exact row-value
 contract. Raw administrator pages include excluded release/transfer components
 and retained historical versions for audit. Their amounts must not be summed as
-an activity ledger. Main Transactions reads only current activity-eligible facts.
+an activity ledger. Finance source entries contain one row per immutable component, choosing its
+current observed batch where available or its latest retained observation for source location.
+Repeated unchanged captures therefore do not duplicate source entries. Main Transactions reads only
+current activity-eligible facts.
 
 This endpoint preserves the raw source views' visibility, including historical versions and every
 source category available to the caller. It does not impose Transactions' current-version or
@@ -168,7 +171,7 @@ search arguments.
 
 ## Exact transaction counts
 
-[`public.transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
+[`public.transaction_count`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 accepts the same date, company, SKU, marketplace, source, Type, fee-applicability, and currency filters as the
 page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
 for no matching rows. There are no paging or ordering parameters.
@@ -179,7 +182,7 @@ Search uses the same exact OR-set predicates as the page request. The
 frontend can show rows before this separate request finishes, and reuses counts across page/order
 changes until the relevant revision invalidates them.
 
-[`public.source_transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
+[`public.source_transaction_count`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 accepts required `p_dataset` and optional `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`,
 `p_types`, `p_search_skus`, `p_search_types`, and `p_search_marketplaces` (all null by default). It returns the same exact count string and shares
 raw source visibility/search rules with `source_transaction_page`. No page, ordering, or financial
@@ -220,7 +223,7 @@ name. ISO month text in generated report names and currency search remain availa
 
 ## Period totals and Type breakdowns
 
-[`public.transaction_totals`](../services/db/supabase/migrations/20260928123138_transaction_totals.sql)
+[`public.transaction_totals`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
 accepts:
 
 | Parameter                                   | Default | Meaning                                                    |
@@ -328,76 +331,41 @@ retains caller RLS, and registered-only SKUs still come from the ordinary regist
 
 ## Index access paths
 
-The source tables use the following optional read indexes in the
-[read access module](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql).
-Here `date` means Finances `posted_date` or Data Kiosk `activity_date`.
+The [transaction read module](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
+indexes Finance parent metadata separately from its compact component values.
 
-| Key shape                      | Finances      | Data Kiosk    | Intended access                                                                                     |
-| ------------------------------ | ------------- | ------------- | --------------------------------------------------------------------------------------------------- |
-| `(date, id)`                   | Full index    | Full index    | Both date directions, including raw historical/account rows.                                        |
-| `(sku, date)`                  | Compact index | Compact index | Exact SKU selections/date ranges and distinct-SKU index seeks.                                      |
-| `(component_type, date)`       | Compact index | Compact index | Type selections, fee-applicable Types, and date ranges.                                             |
-| `(marketplace_name, date)`     | Compact index | Compact index | Marketplace filtering and bounded date candidates.                                                  |
-| Compact ownership/version keys | Partial index | —             | Finances component unfiltered and marketplace counts.                                               |
-| Covering count keys            | Date-leading  | Date-leading  | Date-bounded count predicates and authorization without reading full facts when visibility permits. |
+| Source/table                 | Key                                                                                            | Purpose                                                       |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Finance transaction versions | `(posted_date, id)`                                                                            | Posting-date candidates across retained versions.             |
+| Finance transaction versions | `(marketplace_name, posted_date)`                                                              | Native-marketplace/date selection.                            |
+| Finance components           | `(sku, version_id)`                                                                            | Exact SKU selection and joining its version metadata.         |
+| Finance components           | `(component_type, version_id)`                                                                 | Type/fee-applicability candidates.                            |
+| Finance stable transactions  | `(native_transaction_id, id)`                                                                  | Native-ID source lookup.                                      |
+| Finance stable transactions  | Unique seller/scope/native ID; current version/batch keys                                      | Identity and current selection.                               |
+| Finance batch membership     | Primary `(batch_id, transaction_id)`; version/batch index                                      | Exact observed input sets and observation lookup.             |
+| Data Kiosk transactions      | `(activity_date, id)`                                                                          | Both date-order directions over retained facts.               |
+| Data Kiosk transactions      | `(sku, activity_date)`; `(component_type, activity_date)`; `(marketplace_name, activity_date)` | Narrow source/filter candidates.                              |
+| Data Kiosk transactions      | `(activity_date, component_type, sku, version_id, category, marketplace_name)`                 | Date-bounded counts and ownership/current-version predicates. |
 
-The full date/ID indexes have no category or nonzero-amount predicate. Filtering and existing RLS
-still determine which rows qualify. Forward and backward scans serve the complete ascending and
-descending date/ID order; Transactions also reverses its source tie-breaker. SKU and Type indexes
-omit the row ID so repeated key/date pairs can use B-tree deduplication. Adding a unique ID tail
-would prevent sharing those repeated keys and increase storage. Compact indexes can still require
-sorting within a date or merging selected values; they are not a promise of a sort-free plan.
-[B-tree deduplication](https://www.postgresql.org/docs/17/btree.html#BTREE-DEDUPLICATION)
+Finance query projections join components, immutable transaction versions and stable identities.
+Metadata and amounts are no longer duplicated on a single wide fact table, so no Finance index
+claims to cover all date, SKU, category, ownership and currentness conditions. Query plans must be
+measured against the installed schema and representative data.
 
-Marketplace columns and arguments use native text, preserving the allowed names with write
-constraints and input validation. PostgreSQL 17's built-in text equality is leakproof, allowing
-marketplace conditions to reach fact scans under RLS. This permits
-an index condition; it does not require the planner to choose a particular index for every scope.
-No equality wrapper, catalog flag change, or RLS relaxation is involved.
-[PostgreSQL 17 function catalog](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/include/catalog/pg_proc.dat),
-[RLS and leakproof predicates](https://www.postgresql.org/docs/17/sql-createfunction.html)
+Data Kiosk count indexes include zeros and every category, without an amount key or predicate.
+Compact SKU/Type keys retain B-tree deduplication opportunities. They can still require sorting or
+merging for multi-value filters. Index-only scans depend on visibility maps maintained by vacuum.
+[PostgreSQL deduplication](https://www.postgresql.org/docs/17/btree.html#BTREE-DEDUPLICATION),
+[index-only scans](https://www.postgresql.org/docs/17/indexes-index-only-scans.html).
 
-Finances retains its compact ownership/version index and has a partial count index on
-`(posted_date, component_type, sku, version_id, category, marketplace_name)`
-where `category = 'FINANCES'`. Its partial predicate does not cover the expanded
-administrator scope for mature dates, which also admits `SELBOX` Finances rows.
-The planner can use the existing full Type/date and other indexes for the broader scope.
-Trailing keys support filters and eligibility checks where that partial index applies.
+There is no amount-ordering index. Sorting uses at most the validated 10,000 matching rows. Date
+bounds remain optional, and exact counts/sums still process matching facts. Primary/unique keys and
+fee-period exclusion constraints preserve identities and fee coverage; they are not substitutes for
+query-specific measurement. See the [performance guide](database_performance.md).
 
-Data Kiosk uses
-`(activity_date, component_type, sku, version_id, category, marketplace_name)`
-without an amount predicate. It covers zero amounts and every category, including
-administrator account rows. Amount is not stored in the key; filters and RLS still
-determine each query's eligible rows.
-
-These indexes support bounded periods and unbounded reads. API dates remain optional, and the
-frontend does not apply dates by default. Date predicates apply to source facts before counting, aggregation, or page fee
-calculation. Leading with date narrows the index range; later columns can filter entries but do
-not generally narrow that range further.
-[PostgreSQL multicolumn indexes](https://www.postgresql.org/docs/17/indexes-multicolumn.html)
-
-Both count indexes use ordinary key columns, retaining eligibility for B-tree deduplication;
-there are no `INCLUDE` columns. They do not cover financial sums or full row projections.
-Index-only reads also depend on the visibility map maintained by vacuum. Broader coverage does
-not guarantee an index-only plan. See the
-[performance guide](database_performance.md).
-[PostgreSQL index-only scans](https://www.postgresql.org/docs/17/indexes-index-only-scans.html)
-
-Ownership/count indexes, current-pointer indexes, primary/unique constraints, and the fee-period
-GiST exclusion support eligibility and data integrity. There is no amount-ordering index;
-sorting uses the bounded 10,000-match result.
-
-Plans remain dependent on role, filter selectivity, dates, and requested page depth. Exact counts
-and sums still process their matching rows, and multi-value filters may choose a different plan from
-singleton filters. Type indexes also narrow applicable-only counts; ordinary date pages can use
-date/ID scans. The [performance guide](database_performance.md) records measurements and scaling
-limits.
-
-Outside the fact tables, primary/unique indexes cover natural identities and version inventories.
-Current-pointer indexes support currentness. The fee-period GiST constraint provides date coverage
-and prevents overlap. Data Kiosk payout references have a version-leading index for retention
-checks. Payout listings use `(created_at DESC NULLS LAST, id ASC)`; their separate company key
-supports company references. Batch lookups reuse `UNIQUE(batch_id, day_id)`.
+Finance batch links preserve exact observed transaction versions; Data Kiosk batch lookups continue
+to use `UNIQUE(batch_id, day_id)`. Payout listings retain their creation-time/ID order and company
+index, while Data Kiosk payout version references support retention checks.
 
 ## Shared rules and API configuration
 
@@ -424,10 +392,10 @@ checks. These helpers preserve the existing access rules and financial results.
 [Application access](../services/db/supabase/migrations/20260928123123_application_access.sql)
 separates transaction authorization from reference visibility. Fact policies match current source
 pointers directly and still enforce each row's category and current SKU ownership. Metadata
-policies do not inspect facts: `private.is_member()` establishes registered member access,
-headers require a nonnull current pointer, and version references must match a current pointer.
-Members may read current references across companies, including empty or unowned versions; administrators
-retain historical reference access. Existing column grants continue to exclude full report metadata,
+policies keep Finance references tied to owned current activity. Its normalized parent columns
+exclude account totals, hashes and component counts from member grants. Data Kiosk preserves
+its narrow shared current-reference visibility. Administrators retain historical reference access.
+Column grants continue to exclude full report metadata,
 and its administrator-only functions remain guarded. The private member helper has a fixed search path and
 authenticated-only application execution.
 

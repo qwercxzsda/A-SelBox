@@ -68,7 +68,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             start_date=date(2026, 6, 1),
             end_date=date(2026, 6, 30),
             preprocess_version="v0",
-            finances_day_ids=[finances],
+            finances_batch_ids=[finances],
             marketplace_names=[],
         )[0]
         self.assertEqual(

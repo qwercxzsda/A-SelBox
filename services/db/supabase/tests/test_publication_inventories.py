@@ -13,18 +13,16 @@ class PublicationInventoryTests(SourceModelFixture):
         # Exact results are asserted; machine-specific timing belongs in benchmarks.
         self.connection.execute("set statement_timeout='20s'")
         for count in (1000, 4000):
-            _, version = self.finances(
+            run, _ = self.finances(
                 [self.transaction("1", index + 3) for index in range(count)],
                 identity=f"finances-{count}",
             )
             self.assertEqual(
                 self.connection.execute(
-                    "select count(*),sum(c.amount),min(t.source_record_number),"
-                    "max(t.source_record_number) "
-                    "from private.finances_transaction_components c "
-                    "join private.finances_transactions t on t.id=c.transaction_id "
-                    "where c.version_id=%s",
-                    (version,),
+                    "select count(*),sum(amount),min(source_record_number),"
+                    "max(source_record_number) "
+                    "from private.finances_batch_components where batch_id=%s",
+                    (run,),
                 ).fetchone(),
                 (count, Decimal(count), 3, count + 2),
             )
@@ -57,7 +55,7 @@ class PublicationInventoryTests(SourceModelFixture):
                 "insert into private.finances_transaction_components select "
                 "(jsonb_populate_record(null::private.finances_transaction_components, "
                 "to_jsonb(t)||jsonb_build_object('id',%s::text,"
-                "'component_key','additional'))).* "
+                "'component_number',2))).* "
                 "from private.finances_transaction_components t where version_id=%s",
                 (new_id(), finances),
             )
@@ -117,11 +115,11 @@ class PublicationInventoryTests(SourceModelFixture):
 
     def test_invalid_bulk_source_controls_roll_back_whole_publication(self) -> None:
         invalid_amount = self.transaction("NaN", 4)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+        with self.assertRaises(ValueError), self.connection.transaction():
             self.finances([self.transaction("1"), invalid_amount])
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.finances_preprocess_versions"
+                "select count(*) from private.finances_preprocess_batches"
             ).fetchone(),
             (0,),
         )

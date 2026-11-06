@@ -23,9 +23,12 @@ class AdministratorSourceAccessTests(SourceModelFixture):
             acquisition_id=acquisition,
         )
         self.finances(
-            [self.transaction("200"), self.transaction("600", 4, sku="OTHER")],
+            [
+                self.transaction("200"),
+                self.transaction("600", 4, sku="OTHER"),
+                self.transaction("-10", 5, category="SELBOX", kind="AccountFee") | {"sku": None},
+            ],
             acquisition_id=acquisition,
-            expected=finances_version,
         )
         _, kiosk_version = self.kiosk(1, [self.component("-1")])
         self.kiosk(
@@ -76,9 +79,9 @@ class AdministratorSourceAccessTests(SourceModelFixture):
             with self.subTest(query=query):
                 with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                     self.as_user(member, query)
-                self.assertEqual(
-                    len(self.as_user(administrator, query)), 60 if "finances" in query else 2
-                )
+                self.assertEqual(len(self.as_user(administrator, query)), 2)
+        if finances_version is None:
+            raise AssertionError("The populated Finance fixture needs a version.")
         historical_queries: tuple[tuple[LiteralString, str], ...] = (
             (
                 "select id from public.finances_preprocess_entries where version_id=%s",

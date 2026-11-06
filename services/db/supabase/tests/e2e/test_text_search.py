@@ -12,7 +12,6 @@ from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS, SOURC
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_finances_acquisition,
 )
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
@@ -35,9 +34,7 @@ class TextSearchTests(LocalWorkflowCase):
         other = self.seller + "-other"
         company_with_fees(self.database, other, sku="OTHER")
         for seller, sku in ((self.seller, LITERAL_SKU), (other, "OTHER")):
-            finances = persist_finances_acquisition(
-                self.database, archived_finances(self.storage, seller, sku=sku)
-            )
+            finances = archived_finances(self.storage, seller, sku=sku)
             kiosk = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)
             )

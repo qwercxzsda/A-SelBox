@@ -1,36 +1,33 @@
-"""Complete immutable Finances day versions and native monetary components."""
+"""Normalized native transactions, immutable revisions, and typed components."""
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 
 from ..allocation import AllocationCategory
-from ..frozen_values import freeze_mapping
 from ..numeric import Numeric
 
 
 @dataclass(frozen=True, slots=True)
 class FinancesComponent:
-    component_key: str
+    component_number: int
     category: AllocationCategory
     component_type: str
     sku: str | None
     amount: Numeric
-    currency: str
     quantity: Numeric | None
     fee_base: Numeric | None
     accounting_subtype: str | None
-    source_fields: Mapping[str, object]
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "source_fields", freeze_mapping(self.source_fields, field_name="source_fields")
-        )
+    breakdown_path: tuple[str, ...]
+    item_index: int
+    breakdown_indexes: tuple[int, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class FinancesTransaction:
     native_transaction_id: str
+    marketplace_id: str
+    marketplace_name: str
+    posted_date: date
     account_type: str
     transaction_type: str
     transaction_status: str
@@ -42,22 +39,7 @@ class FinancesTransaction:
     activity_eligible: bool
     source_page_number: int
     source_record_number: int
-    source_fields: Mapping[str, object]
     components: tuple[FinancesComponent, ...]
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "source_fields", freeze_mapping(self.source_fields, field_name="source_fields")
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class FinancesDay:
-    marketplace_name: str
-    marketplace_id: str
-    activity_date: date
-    content_sha256: str
-    transactions: tuple[FinancesTransaction, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,5 +57,5 @@ class FinancesSummary:
 
 @dataclass(frozen=True, slots=True)
 class PreparedFinances:
-    days: tuple[FinancesDay, ...]
+    transactions: tuple[FinancesTransaction, ...]
     summaries: tuple[FinancesSummary, ...]

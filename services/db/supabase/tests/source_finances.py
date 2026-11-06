@@ -1,20 +1,52 @@
-"""Publish native monthly captures and immutable daily snapshots for DB regression tests."""
+"""Typed Finance observations published through the production transaction-version workflow."""
 
 from __future__ import annotations
 
+from calendar import monthrange
+from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
-from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from services.db.supabase.tests.local_database import require_row
+from services.db.supabase.tests.integration_support import TransactionDatabase
+from services.sync.src.allocation import AllocationCategory
+from services.sync.src.amazon.finances.client import FINANCES_API_VERSION, FinancesOperation
 from services.sync.src.amazon.financial_channels import FINANCIAL_CHANNELS
 from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAME_BY_ID
 from services.sync.src.amazon.marketplaces import CREDENTIAL_SCOPES
+from services.sync.src.archives.serialization import document_from_payload
+from services.sync.src.database.finances import publish_finances
+from services.sync.src.finances.acquisition_models import (
+    ArchivedFinancesPage,
+    FinancesAcquisition,
+    FinancesCoverageMarketplace,
+)
 from services.sync.src.finances.marketplaces import financial_marketplace_timezone
+from services.sync.src.finances.models import (
+    FinancesComponent,
+    FinancesSummary,
+    FinancesTransaction,
+    PreparedFinances,
+)
+from services.sync.src.numeric import ZERO, Numeric
+from services.sync.src.source_serialization import source_json
 
 if TYPE_CHECKING:
     from services.db.supabase.tests.source_fixtures import SourceModelFixture
+
+
+_MARKETPLACE_SCOPES = {
+    MARKETPLACE_NAME_BY_ID[identifier]: (identifier, name)
+    for name, scope in CREDENTIAL_SCOPES.items()
+    for identifier in scope.marketplace_ids
+}
+_MARKETPLACE_SCOPES.update(
+    {
+        channel.marketplace_name: (identifier, channel.amazon_scope)
+        for identifier, channel in FINANCIAL_CHANNELS.items()
+    }
+)
 
 
 def acquisition(
@@ -29,60 +61,53 @@ def acquisition(
     time_zone: str = "America/Los_Angeles",
     amazon_scope: str = "NA",
 ) -> str:
+    """Prepare an immutable archive manifest locally; preprocessing publishes metadata."""
     from services.db.supabase.tests.source_fixtures import archive_document, new_id
 
-    timestamp = datetime.now(UTC).isoformat()
-    summary_available = marketplace_id not in FINANCIAL_CHANNELS
-    local_start = datetime.combine(date.fromisoformat(start), time.min, ZoneInfo(time_zone))
-    local_end = datetime.combine(
-        date.fromisoformat(end) + timedelta(days=1), time.min, ZoneInfo(time_zone)
-    )
-    return self.call(
-        "publish_finances_acquisition",
-        {
-            "id": new_id(),
-            "seller_namespace": self.seller,
-            "amazon_scope": amazon_scope,
-            "api_version": "2024-06-19",
-            "capture_started_at": timestamp,
-            "downloaded_at": timestamp,
-            "query_start_date": start,
-            "query_end_date": end,
-            "marketplace_ids": [marketplace_id],
-            "api_metadata": {
-                "coverage_marketplaces": [
-                    {
-                        "marketplace_id": marketplace_id,
-                        "marketplace_name": marketplace,
-                        "time_zone": time_zone,
-                    }
-                ],
-                "summary_available": summary_available,
-                "capture_label": capture_label,
-            },
-            "documents": [
-                {
-                    "operation": operation,
-                    "page_number": 1,
-                    "marketplace_id": None,
-                    "is_terminal": True,
-                    "request_parameters": {
-                        "postedAfter": local_start.astimezone(UTC).isoformat(),
-                        "postedBefore": local_end.astimezone(UTC).isoformat(),
-                    }
-                    if operation == "transactions"
-                    else {"periodStart": start, "periodEnd": end},
-                    "requested_at": timestamp,
-                    "received_at": timestamp,
-                    "document": archive_document(digest),
-                    "api_metadata": {},
-                }
-                for operation in (
-                    ("transactions", "summary") if summary_available else ("transactions",)
-                )
-            ],
+    captured_at = datetime.now(UTC)
+    start_date, end_date = date.fromisoformat(start), date.fromisoformat(end)
+    local_start = datetime.combine(start_date, time.min, ZoneInfo(time_zone))
+    local_end = datetime.combine(end_date + timedelta(days=1), time.min, ZoneInfo(time_zone))
+    identifier = new_id()
+    coverage = FinancesCoverageMarketplace(marketplace_id, marketplace, time_zone)
+    document = document_from_payload(archive_document(digest))
+    operations: tuple[FinancesOperation, ...] = ("transactions", "summary")
+    manifest = FinancesAcquisition(
+        id=UUID(identifier),
+        seller_namespace=self.seller,
+        amazon_scope=amazon_scope,
+        api_version=FINANCES_API_VERSION,
+        capture_started_at=captured_at,
+        downloaded_at=captured_at,
+        query_start_date=start_date,
+        query_end_date=end_date,
+        marketplace_ids=(marketplace_id,),
+        api_metadata={
+            "coverage_marketplaces": [source_json(coverage)],
+            "summary_available": True,
+            "capture_label": capture_label,
         },
+        documents=tuple(
+            ArchivedFinancesPage(
+                operation=operation,
+                page_number=1,
+                marketplace_id=None,
+                is_terminal=True,
+                request_parameters={
+                    "postedAfter": local_start.astimezone(UTC).isoformat(),
+                    "postedBefore": local_end.astimezone(UTC).isoformat(),
+                }
+                if operation == "transactions"
+                else {"periodStart": start, "periodEnd": end},
+                requested_at=captured_at,
+                received_at=captured_at,
+                document=document,
+            )
+            for operation in operations
+        ),
     )
+    self.finances_acquisitions[identifier] = manifest
+    return identifier
 
 
 def finances(
@@ -90,81 +115,142 @@ def finances(
     rows: list[dict[str, object]],
     *,
     acquisition_id: str | None = None,
-    expected: str | None = None,
     version: str = "v0",
     identity: str = "finances",
-) -> tuple[str, str]:
-    """Publish independent monthly captures using the same daily replacement rules."""
-    from calendar import monthrange
-
+) -> tuple[str, str | None]:
+    """Publish complete observations, returning a batch and representative transaction version."""
     if acquisition_id is not None:
-        return _finances_capture(
-            self, rows, acquisition_id=acquisition_id, expected=expected, version=version
-        )
-    if any(not isinstance(row.get("marketplace_name"), str) for row in rows):
-        raise ValueError("Fixture Finances transactions require their explicit native marketplace.")
-    scopes = sorted(
-        {
-            (
-                date.fromisoformat(str(row["posted_date"])).replace(day=1),
-                str(row["marketplace_name"]),
-            )
-            for row in rows
-        }
-    ) or [(date(2026, 6, 1), "Amazon.com")]
-    result = None
-    representative = str(rows[0]["posted_date"]) if rows else scopes[0][0].isoformat()
-    representative_market = str(rows[0]["marketplace_name"]) if rows else "Amazon.com"
-    identifiers = {name: identifier for identifier, name in MARKETPLACE_NAME_BY_ID.items()}
-    identifiers.update(
-        {channel.marketplace_name: identifier for identifier, channel in FINANCIAL_CHANNELS.items()}
-    )
-    for month, marketplace in scopes:
-        end = month.replace(day=monthrange(month.year, month.month)[1])
-        selected = [
-            row
-            for row in rows
-            if month.isoformat() <= str(row["posted_date"]) <= end.isoformat()
-            and row["marketplace_name"] == marketplace
-        ]
-        marketplace_id = identifiers[marketplace]
-        channel = FINANCIAL_CHANNELS.get(marketplace_id)
-        amazon_scope = (
-            channel.amazon_scope
-            if channel is not None
-            else next(
-                name
-                for name, scope in CREDENTIAL_SCOPES.items()
-                if marketplace_id in scope.marketplace_ids
-            )
-        )
+        result = _finances_capture(self, rows, acquisition_id=acquisition_id, version=version)
+        self.last_finances_batch_ids = [result[0]]
+        return result
+    groups = _capture_groups(rows)
+    representative = next(iter(groups))
+    self.last_finances_batch_ids = []
+    results: dict[tuple[date, str], tuple[str, str | None]] = {}
+    for (month, marketplace), selected in sorted(groups.items()):
+        marketplace_id, amazon_scope = _MARKETPLACE_SCOPES[marketplace]
         capture = self.acquisition(
             capture_label=identity,
             start=month.isoformat(),
-            end=end.isoformat(),
+            end=month.replace(day=monthrange(month.year, month.month)[1]).isoformat(),
             marketplace=marketplace,
             marketplace_id=marketplace_id,
             time_zone=financial_marketplace_timezone(marketplace_id).key,
             amazon_scope=amazon_scope,
         )
-        current = _finances_capture(
-            self,
-            selected,
-            acquisition_id=capture,
-            expected=expected
-            if month.isoformat() <= representative <= end.isoformat()
-            and marketplace == representative_market
-            else None,
-            version=version,
+        result = _finances_capture(self, selected, acquisition_id=capture, version=version)
+        self.last_finances_batch_ids.append(result[0])
+        results[month, marketplace] = result
+    return results[representative]
+
+
+def _capture_groups(
+    rows: list[dict[str, object]],
+) -> dict[tuple[date, str], list[dict[str, object]]]:
+    """Group once while retaining the input's first source scope as representative."""
+    groups: dict[tuple[date, str], list[dict[str, object]]] = defaultdict(list)
+    for row in rows:
+        marketplace = row.get("marketplace_name")
+        if not isinstance(marketplace, str):
+            raise ValueError(
+                "Fixture Finances transactions require their explicit native marketplace."
+            )
+        month = date.fromisoformat(str(row["posted_date"])).replace(day=1)
+        groups[month, marketplace].append(row)
+    return groups or {(date(2026, 6, 1), "Amazon.com"): []}
+
+
+def _number(value: object) -> Numeric | None:
+    return None if value is None else Numeric(str(value))
+
+
+def _transaction(
+    row: dict[str, object], capture: FinancesAcquisition, index: int
+) -> FinancesTransaction:
+    market = capture.coverage_marketplaces[0]
+    if row.get("marketplace_name") != market.marketplace_name:
+        raise ValueError("Fixture transaction marketplace differs from explicit capture scope.")
+    native = str(row.setdefault("native_transaction_id", row["id"]))
+    path = row.get("breakdown_path", [])
+    if not isinstance(path, list | tuple):
+        raise TypeError("Fixture breakdown path must be a sequence.")
+    path = cast(list[object] | tuple[object, ...], path)
+    component = FinancesComponent(
+        component_number=1,
+        category=AllocationCategory(str(row.get("category"))),
+        component_type=str(row["component_type"]),
+        sku=None if row.get("sku") is None else str(row["sku"]),
+        amount=Numeric(str(row["amount"])),
+        quantity=_number(row.get("quantity")),
+        fee_base=_number(row.get("fee_base")),
+        accounting_subtype=None
+        if row.get("accounting_subtype") is None
+        else str(row["accounting_subtype"]),
+        breakdown_path=tuple(str(part) for part in path),
+        item_index=0,
+        breakdown_indexes=tuple(0 for _ in path),
+    )
+    return FinancesTransaction(
+        native_transaction_id=native,
+        marketplace_id=market.marketplace_id,
+        marketplace_name=market.marketplace_name,
+        posted_date=date.fromisoformat(str(row["posted_date"])),
+        account_type=str(row.get("account_type", "STANDARD_ORDERS")),
+        transaction_type=str(row["transaction_type"]),
+        transaction_status=str(row.get("transaction_status", "RELEASED")),
+        posted_at=datetime.fromisoformat(str(row["posted_at"])),
+        currency=str(row["currency"]),
+        total_amount=Numeric(str(row["amount"])),
+        deferred_transaction_id=None
+        if row.get("deferred_transaction_id") is None
+        else str(row["deferred_transaction_id"]),
+        release_transaction_id=None
+        if row.get("release_transaction_id") is None
+        else str(row["release_transaction_id"]),
+        activity_eligible=bool(row.get("activity_eligible", True)),
+        source_page_number=1,
+        source_record_number=int(str(row.get("source_record_number", index))),
+        components=(component,),
+    )
+
+
+def _summaries(
+    capture: FinancesAcquisition, transactions: tuple[FinancesTransaction, ...]
+) -> tuple[FinancesSummary, ...]:
+    market = capture.coverage_marketplaces[0]
+    summary_market = (
+        "Amazon.com" if market.marketplace_name == "Non-Amazon US" else market.marketplace_name
+    )
+    summary_market_id = "ATVPDKIKX0DER" if summary_market == "Amazon.com" else market.marketplace_id
+    scopes = {(row.account_type, row.currency) for row in transactions} or {
+        ("STANDARD_ORDERS", "USD")
+    }
+    releases = {row.release_transaction_id for row in transactions if row.release_transaction_id}
+    return tuple(
+        FinancesSummary(
+            marketplace_id=summary_market_id,
+            marketplace_name=summary_market,
+            account_type=account,
+            currency=currency,
+            period_start=capture.query_start_date,
+            period_end=capture.query_end_date,
+            net_proceeds=sum(
+                (
+                    row.total_amount
+                    for row in transactions
+                    if row.account_type == account
+                    and row.currency == currency
+                    and row.transaction_type != "Transfer"
+                    and row.deferred_transaction_id is None
+                    and row.native_transaction_id not in releases
+                ),
+                ZERO,
+            ),
+            source_page_number=1,
+            source_summary_index=index,
         )
-        if (
-            month.isoformat() <= representative <= end.isoformat()
-            and marketplace == representative_market
-        ):
-            result = current
-    if result is None:
-        raise AssertionError("Fixture did not publish its representative source day.")
-    return result
+        for index, (account, currency) in enumerate(sorted(scopes), 1)
+    )
 
 
 def _finances_capture(
@@ -172,141 +258,24 @@ def _finances_capture(
     rows: list[dict[str, object]],
     *,
     acquisition_id: str,
-    expected: str | None = None,
-    version: str = "v0",
-) -> tuple[str, str]:
-    """Publish complete native day observations, including empty covered days."""
-    from calendar import monthrange
-    from datetime import timedelta
-
-    from services.db.supabase.tests.source_fixtures import new_id
-
-    acquisition = require_row(
-        self.connection.execute(
-            "select query_start_date,query_end_date,api_metadata "
-            "from private.finances_acquisitions where id=%s",
-            (acquisition_id,),
-        ).fetchone()
+    version: str,
+) -> tuple[str, str | None]:
+    capture = self.finances_acquisitions[acquisition_id]
+    transactions = tuple(_transaction(row, capture, index) for index, row in enumerate(rows, 1))
+    prepared = PreparedFinances(transactions, _summaries(capture, transactions))
+    # Keep the test-owned transaction open; production publication uses a nested savepoint.
+    self.connection.execute("select 1")
+    batch_id = publish_finances(
+        TransactionDatabase(self.connection), capture, prepared, preprocess_version=version
     )
-    start, end, metadata = acquisition
-    market = metadata["coverage_marketplaces"][0]
-    if any(row.get("marketplace_name") != market["marketplace_name"] for row in rows):
-        raise ValueError("Fixture transaction marketplace differs from explicit capture scope.")
-    days: list[dict[str, object]] = []
-    activity = start
-    representative = str(rows[0]["posted_date"]) if rows else start.isoformat()
-    expected_activity = representative
-    if expected is not None:
-        previous_day = self.connection.execute(
-            "select d.activity_date from private.finances_days d "
-            "join private.finances_preprocess_versions v on v.day_id=d.id where v.id=%s",
-            (expected,),
-        ).fetchone()
-        if previous_day:
-            expected_activity = previous_day[0].isoformat()
-            if not rows:
-                representative = expected_activity
-    selected_id = None
-    while activity <= end:
-        current = self.connection.execute(
-            "select current_version_id from private.finances_days where seller_namespace=%s "
-            "and marketplace_name=%s and activity_date=%s",
-            (self.seller, market["marketplace_name"], activity),
-        ).fetchone()
-        day_id = new_id()
-        if activity.isoformat() == representative:
-            selected_id = day_id
-        day_rows = [row for row in rows if row["posted_date"] == activity.isoformat()]
-        parents: list[dict[str, object]] = []
-        for index, row in enumerate(day_rows, 1):
-            native = str(row.get("native_transaction_id", row["id"]))
-            component = dict(row)
-            component["component_key"] = str(row.get("component_key", native))
-            parent: dict[str, object] = {
-                "id": new_id(),
-                "native_transaction_id": native,
-                "account_type": row.get("account_type", "STANDARD_ORDERS"),
-                "transaction_type": row["transaction_type"],
-                "transaction_status": row.get("transaction_status", "RELEASED"),
-                "posted_at": row["posted_at"],
-                "currency": row["currency"],
-                "total_amount": row["amount"],
-                "deferred_transaction_id": row.get("deferred_transaction_id"),
-                "release_transaction_id": row.get("release_transaction_id"),
-                "activity_eligible": row.get("activity_eligible", True),
-                "source_page_number": 1,
-                "source_record_number": row.get("source_record_number", index),
-                "source_fields": {},
-                "components": [component],
-            }
-            parents.append(parent)
-        days.append(
-            {
-                "id": day_id,
-                "marketplace_name": market["marketplace_name"],
-                "marketplace_id": market["marketplace_id"],
-                "activity_date": activity.isoformat(),
-                "expected_current_version_id": (
-                    expected
-                    if activity.isoformat() == expected_activity and expected is not None
-                    else str(current[0])
-                    if current
-                    else None
-                ),
-                "content_sha256": "a" * 64,
-                "transactions": parents,
-            }
+    published = {
+        str(native): (str(component), str(revision))
+        for native, component, revision in self.connection.execute(
+            "select native_transaction_id,id,version_id from private.finances_batch_components "
+            "where batch_id=%s",
+            (batch_id,),
         )
-        activity += timedelta(days=1)
-    summaries: list[dict[str, object]] = []
-    activity = start.replace(day=1)
-    while activity <= end:
-        finish = activity.replace(day=monthrange(activity.year, activity.month)[1])
-        if activity >= start and finish <= end and metadata["summary_available"]:
-            scopes = {
-                (str(row.get("account_type", "STANDARD_ORDERS")), str(row["currency"]))
-                for row in rows
-            } or {("STANDARD_ORDERS", "USD")}
-            for account, currency in scopes:
-                total = sum(
-                    (
-                        Decimal(str(row["amount"]))
-                        for row in rows
-                        if activity.isoformat() <= str(row["posted_date"]) <= finish.isoformat()
-                        and row.get("account_type", "STANDARD_ORDERS") == account
-                        and row["currency"] == currency
-                        and row.get("activity_eligible", True)
-                    ),
-                    Decimal(0),
-                )
-                summaries.append(
-                    {
-                        "marketplace_id": market["marketplace_id"],
-                        "marketplace_name": market["marketplace_name"],
-                        "account_type": account,
-                        "currency": currency,
-                        "period_start": activity.isoformat(),
-                        "period_end": finish.isoformat(),
-                        "net_proceeds": str(total),
-                        "source_page_number": 1,
-                        "source_summary_index": len(summaries) + 1,
-                    }
-                )
-        activity = finish + timedelta(days=1)
-    self.call(
-        "publish_finances_preprocess",
-        {
-            "id": new_id(),
-            "acquisition_id": acquisition_id,
-            "preprocess_version": version,
-            "days": days,
-            "summaries": summaries,
-        },
-    )
-    found = require_row(
-        self.connection.execute(
-            "select day_id from private.finances_preprocess_versions where id=%s",
-            (selected_id,),
-        ).fetchone()
-    )
-    return str(found[0]), str(selected_id)
+    }
+    for row in rows:
+        row["id"] = published[str(row["native_transaction_id"])][0]
+    return batch_id, published[str(rows[0]["native_transaction_id"])][1] if rows else None

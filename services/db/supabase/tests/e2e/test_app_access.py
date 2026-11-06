@@ -19,7 +19,6 @@ from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
 from services.sync.src.database.acquisitions import (
     persist_data_kiosk_acquisition,
-    persist_finances_acquisition,
 )
 from services.sync.src.database.company_terms import create_company
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
@@ -113,9 +112,7 @@ class AppAccessTests(LocalWorkflowCase):
         _, other_member = self.create_member(other)
         _, administrator = self.create_administrator()
         for seller in (self.seller, self.seller + "-second"):
-            finances = persist_finances_acquisition(
-                self.database, archived_finances(self.storage, seller, sku=sku)
-            )
+            finances = archived_finances(self.storage, seller, sku=sku)
             kiosk = persist_data_kiosk_acquisition(
                 self.database, archived_data_kiosk(self.storage, seller, sku=sku)
             )
@@ -184,9 +181,7 @@ class AppAccessTests(LocalWorkflowCase):
         first = company_with_fees(self.database, self.seller)
         second = company_with_fees(self.database, self.seller + "-second")
         for seller in (self.seller, self.seller + "-second"):
-            acquisition = persist_finances_acquisition(
-                self.database, archived_finances(self.storage, seller)
-            )
+            acquisition = archived_finances(self.storage, seller)
             preprocess_finances_acquisition(self.database, self.storage, acquisition)
         administrator_id, administrator_token = self.create_administrator()
         user_id, member_token = self.create_auth_user()
@@ -454,9 +449,7 @@ class AppAccessTests(LocalWorkflowCase):
         company = company_with_fees(self.database, self.seller)
         _, administrator_token = self.create_administrator()
         _, member_token = self.create_member(company)
-        finances = persist_finances_acquisition(
-            self.database, archived_finances(self.storage, self.seller)
-        )
+        finances = archived_finances(self.storage, self.seller)
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, self.seller)
         )
@@ -464,14 +457,18 @@ class AppAccessTests(LocalWorkflowCase):
             preprocess_finances_acquisition(self.database, self.storage, finances)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         for relation, count, current_count in (
-            ("finances_preprocess_results", 4, 2),
+            ("finances_preprocess_results", 2, None),
             ("data_kiosk_preprocess_results", 4, 2),
         ):
             rows = self.read_rows(
                 relation, administrator_token, seller_namespace="eq." + self.seller
             )
             self.assertEqual(len(rows), count)
-            self.assertEqual(sum(row["is_current"] is True for row in rows), current_count)
+            if current_count is None:
+                self.assertTrue(all("is_current" not in row for row in rows))
+                self.assertTrue(all(row["transaction_count"] == 3 for row in rows))
+            else:
+                self.assertEqual(sum(row["is_current"] is True for row in rows), current_count)
             denied = self.stack.request(
                 "GET",
                 "/rest/v1/" + relation,
@@ -481,7 +478,7 @@ class AppAccessTests(LocalWorkflowCase):
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
         for relation, administrator_count, member_count in (
-            ("finances_preprocess_entries", 6, 2),
+            ("finances_preprocess_entries", 3, 2),
             # Each day also retains its zero net-sales comparison component.
             ("data_kiosk_preprocess_entries", 8, 4),
         ):

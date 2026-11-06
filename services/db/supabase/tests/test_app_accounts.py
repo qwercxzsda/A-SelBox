@@ -27,9 +27,9 @@ class AppAccountTests(SourceModelFixture):
         for query in (
             "select * from private.finances_transaction_components",
             "select * from private.data_kiosk_transactions",
-            "select id from private.finances_days",
+            "select id from private.finances_transactions",
             "select id from private.data_kiosk_days",
-            "select id from private.finances_preprocess_versions",
+            "select id from private.finances_transaction_versions",
             "select id from private.data_kiosk_preprocess_versions",
             "select * from public.company_skus",
             "select * from public.current_sku_fee_periods",

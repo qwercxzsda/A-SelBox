@@ -14,6 +14,7 @@ from services.db.supabase.tests.integration_support import (
     DatabaseTestCase,
     TransactionDatabase,
 )
+from services.db.supabase.tests.local_database import require_row
 from services.sync.src.amazon.data_kiosk.models import DataKioskDocumentKind
 from services.sync.src.amazon.data_kiosk.query_builder import (
     ECONOMICS_SCHEMA_NAME,
@@ -27,10 +28,11 @@ from services.sync.src.archives.serialization import data_kiosk_payload
 from services.sync.src.archives.storage import archive_document, load_document_archive
 from services.sync.src.database.acquisitions import (
     load_data_kiosk_acquisition,
-    load_finances_acquisition,
     persist_data_kiosk_acquisition,
-    persist_finances_acquisition,
 )
+from services.sync.src.finances.acquisition_models import FinancesAcquisition
+from services.sync.src.finances.acquisition_serialization import finances_acquisition_from_payload
+from services.sync.src.finances.workflow import preprocess_finances_acquisition
 from services.sync.src.source_serialization import source_mapping
 from services.sync.tests.support.archives import MemoryArchiveStorage
 
@@ -92,23 +94,44 @@ class TestAcquisitionManifests(DatabaseTestCase):
             identifier,
         )
         finances = finances_capture(self.storage, [native_transaction(100)])
-        saved = persist_finances_acquisition(self.database, finances)
-        loaded = load_finances_acquisition(self.database, saved)
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.finances_acquisitions"
+            ).fetchone(),
+            (0,),
+        )
+        preprocess_finances_acquisition(self.database, self.storage, finances)
+        loaded = self.saved_finances(str(finances.id))
         self.assertEqual(loaded, finances)
-        self.assertEqual(persist_finances_acquisition(self.database, finances), saved)
+        preprocess_finances_acquisition(self.database, self.storage, finances)
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.finances_acquisitions"
+            ).fetchone(),
+            (1,),
+        )
         self.assertEqual(
             load_document_archive(self.storage, loaded.documents[0].document),
             load_document_archive(self.storage, finances.documents[0].document),
         )
 
+    def saved_finances(self, identifier: str) -> FinancesAcquisition:
+        payload = require_row(
+            self.connection.execute(
+                "select to_jsonb(a)-'created_at' from private.finances_acquisitions a where id=%s",
+                (identifier,),
+            ).fetchone()
+        )[0]
+        return finances_acquisition_from_payload(payload)
+
     def test_changed_capture_retains_original_manifest_and_raw_archives(self) -> None:
-        original = finances_capture(self.storage, [native_transaction(100)])
-        first = persist_finances_acquisition(self.database, original)
-        changed = finances_capture(self.storage, [native_transaction(101)])
-        second = persist_finances_acquisition(self.database, changed)
-        self.assertNotEqual(first, second)
-        self.assertEqual(load_finances_acquisition(self.database, first), original)
-        self.assertEqual(load_finances_acquisition(self.database, second), changed)
+        original = finances_capture(self.storage, [native_transaction(100, identifier="native")])
+        preprocess_finances_acquisition(self.database, self.storage, original)
+        changed = finances_capture(self.storage, [native_transaction(101, identifier="native")])
+        preprocess_finances_acquisition(self.database, self.storage, changed)
+        self.assertNotEqual(original.id, changed.id)
+        self.assertEqual(self.saved_finances(str(original.id)), original)
+        self.assertEqual(self.saved_finances(str(changed.id)), changed)
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from private.finances_acquisitions"

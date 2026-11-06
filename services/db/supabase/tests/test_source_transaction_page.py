@@ -100,7 +100,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             "with matching as not materialized (select * from public.{view} where {predicates}), "
             "page as (select * from matching order by {ordering} limit %s offset %s) "
             "select jsonb_build_object('rows', coalesce((select jsonb_agg("
-            "(to_jsonb(p) - {excluded}) || jsonb_build_object({numeric_strings}) "
+            "(select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(p) - {excluded})) "
             "order by {ordering}) from page p), '[]'::jsonb), "
             "'total_count', case when %s then (select count(*)::text from matching) end)"
         ).format(
@@ -194,7 +194,7 @@ class SourceTransactionPageTests(SourceModelFixture):
         member, administrator = self.member(company), self.administrator()
         old_terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        _, old_finances = self.finances([self.transaction("999")], acquisition_id=acquisition)
+        _, _old_finances = self.finances([self.transaction("999")], acquisition_id=acquisition)
         _, old_kiosk = self.kiosk(1, [self.component("999"), self.component("0")])
         account_finances = self.transaction("1000", 4, category="SELBOX")
         account_finances["sku"] = None
@@ -203,7 +203,6 @@ class SourceTransactionPageTests(SourceModelFixture):
         self.finances(
             [self.transaction("10"), account_finances],
             acquisition_id=acquisition,
-            expected=old_finances,
         )
         self.kiosk(
             2, [self.component("10"), self.component("0"), account_kiosk], expected=old_kiosk

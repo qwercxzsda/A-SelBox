@@ -75,7 +75,7 @@ def related_ids(value: object) -> dict[str, str]:
             "RELEASE_TRANSACTION_ID",
         }:
             # Amazon emits empty optional ORDER_ID on some direct service charges.
-            # The original entry remains available in the transaction's source fields.
+            # The original entry remains available in the archived response page.
             continue
         identifier = text(obj.get("relatedIdentifierValue"))
         if name in result and result[name] != identifier:

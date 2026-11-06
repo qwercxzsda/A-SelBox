@@ -72,9 +72,7 @@ language sql stable security invoker set search_path = '' as $$
     from private.finances_activity_components as t
     where t.sku = any(p_skus) and t.category = 'FINANCES'
         and t.fee_base is not null
-        and exists (
-            select 1 from private.finances_days as s where s.current_version_id = t.version_id
-        )
+        and t.is_current
     union
     select t.sku, t.marketplace_name, t.activity_date
     from private.data_kiosk_transactions as t
