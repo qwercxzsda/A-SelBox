@@ -102,6 +102,11 @@
   {
     "source": "DATA_KIOSK",
     "category": "DATA_KIOSK",
+    "type": "RUN_LIGHTNING_DEAL_FEE"
+  },
+  {
+    "source": "DATA_KIOSK",
+    "category": "DATA_KIOSK",
     "type": "SPONSORED_BRANDS"
   },
   {

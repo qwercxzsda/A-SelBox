@@ -34,6 +34,12 @@ captures; Amazon also identifies `RunLightningDealFee` as a deal-payment fee in 
 [Finances event model](https://github.com/amzn/selling-partner-api-models/blob/main/models/finances-api-model/financesV0.json).
 Other wrappers and unobserved leaves remain unsupported.
 
+Data Kiosk's observed `fees / RunLightningDealFee` is retained as
+`RUN_LIGHTNING_DEAL_FEE` in category `DATA_KIOSK`, with the source charge sign
+converted once like other fee components. It belongs to the Deals comparison
+family and carries no sales commission base. Unknown fee labels still fail before
+zero-value filtering.
+
 ## Component categories
 
 | Category     | Accepted purpose                                                                                                   | SKU treatment                                                            |

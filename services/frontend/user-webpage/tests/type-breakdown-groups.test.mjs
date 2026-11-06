@@ -43,6 +43,7 @@ test("registered component types map to reference groups without changing row id
     ["SPONSORED_BRANDS_CHARGES", "sponsored-brands"],
     ["SPONSORED_DISPLAY", "sponsored-display"],
     ["ADVERTISING", "advertising"],
+    ["RUN_LIGHTNING_DEAL_FEE", "promotions"],
     ["DIGITAL_SERVICES_FEE_SOA", "digital-services"],
     ["DIGITAL_SERVICES_FEES", "digital-services"],
     ["REMOVAL_FEE", "removal"],

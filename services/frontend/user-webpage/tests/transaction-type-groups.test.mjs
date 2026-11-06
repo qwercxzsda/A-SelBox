@@ -84,6 +84,7 @@ test("both sources' related types are easy to select together without merging th
       "SPONSORED_PRODUCT_FEE",
       "ADVERTISING",
       "COUPON_PARTICIPATION_FEE",
+      "RUN_LIGHTNING_DEAL_FEE",
       "COUPON_FEES",
       "PROMOTIONAL_REBATES",
     ],

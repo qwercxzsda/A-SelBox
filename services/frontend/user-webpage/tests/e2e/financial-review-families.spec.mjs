@@ -45,6 +45,51 @@ async function expectPeriod(page, values, selectedYear = "2026") {
   await expect(summary.locator(".financial-review-summary-value")).toHaveText(values);
 }
 
+test("Lightning Deal fees participate in the Deals family without changing their native type", async ({
+  page,
+}) => {
+  await openFinancialReview(page, (fixture) => {
+    const common = {
+      month: "2026-07-01",
+      category: "DATA_KIOSK",
+      marketplace_name: "Amazon.com",
+      currency: "USD",
+    };
+    fixture.financialReviewTotals = [
+      {
+        ...common,
+        finances_amount: "-12",
+        data_kiosk_amount: "-12",
+        finances_row_count: "1",
+        data_kiosk_row_count: "3",
+      },
+    ];
+    fixture.financialReviewTypeTotals = [
+      { source: "FINANCES", component_type: "DEAL_FEES", amount: "-12" },
+      { source: "DATA_KIOSK", component_type: "RUN_LIGHTNING_DEAL_FEE", amount: "-5" },
+      { source: "DATA_KIOSK", component_type: "DEAL_PARTICIPATION_FEE", amount: "-3" },
+      { source: "DATA_KIOSK", component_type: "DEAL_PERFORMANCE_FEE", amount: "-4" },
+    ].map((row) => ({ ...common, ...row, row_count: "1" }));
+    fixture.financialReviewRecords = fixture.financialReviewTypeTotals.map((row, index) => ({
+      ...row,
+      activity_date: "2026-07-15",
+      seller_namespace: "seller-one",
+      sku: "DEAL-SKU",
+      source_row_id: `0198b50b-701a-7000-8000-${String(index + 1).padStart(12, "0")}`,
+      source_version_id: "0198b50b-701a-7000-8000-000000000020",
+    }));
+  });
+  await chooseFamilies(page, ["Deals"]);
+  await expectPeriod(page, ["-12.00 USD", "-12.00 USD", "0.00 USD"]);
+  await openMonth(page, "July 2026");
+  const types = drawer(page).getByRole("table", { name: "Amounts by type", exact: true });
+  await expect(types.locator("tbody tr")).toHaveCount(4);
+  const lightning = types
+    .getByRole("row")
+    .filter({ has: page.locator('[title$="RUN_LIGHTNING_DEAL_FEE"]') });
+  await expect(lightning.getByRole("cell", { name: "-5.00", exact: true })).toBeVisible();
+});
+
 test("fee comparisons distinguish storage and advertising pairs and retain individual source identities", async ({
   page,
 }) => {

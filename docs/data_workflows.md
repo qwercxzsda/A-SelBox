@@ -38,7 +38,7 @@ Each stable identity selects a version and its observing batch through `current_
 Neither source version has an originating batch. Inventory uses a single successful capture header
 rather than financial versions.
 
-Financial interpretation is identified by `PREPROCESS_VERSION` (currently `v6`). Change it when parsing, filtering,
+Financial interpretation is identified by `PREPROCESS_VERSION` (currently `v7`). Change it when parsing, filtering,
 classification, local dates or activity eligibility change, and explicitly reprocess archived inputs.
 SKU terms have their own immutable versions. Imports never register ownership or invent fee rates.
 

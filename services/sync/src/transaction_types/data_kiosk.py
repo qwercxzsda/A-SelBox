@@ -61,6 +61,7 @@ DATA_KIOSK_TYPES: tuple[DataKioskType, ...] = (
             "COUPON_PERFORMANCE_FEE",
             "DEAL_PARTICIPATION_FEE",
             "DEAL_PERFORMANCE_FEE",
+            "RUN_LIGHTNING_DEAL_FEE",
             "DISPOSAL_FEE",
             "FBA_AGED_INVENTORY_SURCHARGE",
             "FBA_INBOUND_CONVENIENCE_FEE",

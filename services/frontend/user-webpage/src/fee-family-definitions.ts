@@ -87,9 +87,9 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   family(
     "deals",
     "Deals",
-    "Deal participation and performance fees.",
+    "Lightning deal, participation and performance fees.",
     ["DEAL_FEES"],
-    ["DEAL_PARTICIPATION_FEE", "DEAL_PERFORMANCE_FEE"],
+    ["DEAL_PARTICIPATION_FEE", "DEAL_PERFORMANCE_FEE", "RUN_LIGHTNING_DEAL_FEE"],
   ),
   family("disposal", "Disposal", "Inventory disposal fees.", ["DISPOSAL_FEES"], ["DISPOSAL_FEE"]),
   family("removal", "Removal", "Inventory removal fees.", ["REMOVAL_FEES"], ["REMOVAL_FEE"]),
