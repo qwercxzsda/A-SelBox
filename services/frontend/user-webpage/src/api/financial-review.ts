@@ -1,6 +1,9 @@
 import { feeFamilyTypeSelections } from "../fee-family-catalog.ts";
 import { quotePostgrestText, requireCalendarDate, textSelectionValues } from "./filters.ts";
-import { readCompleteFinancialReviewTypes } from "./financial-review-type-reader.ts";
+import {
+  readCompleteFinancialReviewTypes,
+  type FinancialReviewTypeScope,
+} from "./financial-review-type-reader.ts";
 import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
@@ -15,10 +18,12 @@ export interface FinancialReviewRecordFilters {
   type?: string;
 }
 
-interface FinancialReviewBounds {
+export interface FinancialReviewBounds {
   firstMonth: string | null;
   lastMonth: string | null;
 }
+
+type AggregateScope = Omit<FinancialReviewTypeScope, "currency"> & { currency?: string };
 
 const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
   "month",
@@ -86,12 +91,12 @@ function followingMonthDate(month: string): string {
     : `${String(year).padStart(4, "0")}-${String(monthNumber + 1).padStart(2, "0")}-01`;
 }
 
-function totalParams(
-  category: FinancialReviewCategory,
-  firstMonth: string,
-  marketplace: string,
-  lastMonth = firstMonth,
-): URLSearchParams {
+function totalParams({
+  category,
+  firstMonth,
+  lastMonth,
+  marketplace,
+}: AggregateScope): URLSearchParams {
   requireFinancialReviewCategory(category);
   requireMarketplace(marketplace);
   requireMonth(firstMonth);
@@ -110,14 +115,9 @@ function setDetailPage(params: URLSearchParams, pageIndex: number): void {
   params.set("offset", String(pageIndex * DETAIL_PAGE_SIZE));
 }
 
-function typeTotalParams(
-  category: FinancialReviewCategory,
-  month: string,
-  currency: string,
-  marketplace: string,
-  lastMonth = month,
-): URLSearchParams {
-  const params = totalParams(category, month, marketplace, lastMonth);
+function typeTotalParams(scope: FinancialReviewTypeScope): URLSearchParams {
+  const { currency } = scope;
+  const params = totalParams(scope);
   requireCurrency(currency);
   params.set("p_currency", currency);
   params.set(
@@ -184,14 +184,11 @@ export function createFinancialReviewApi(transport: ApiTransport) {
 
   async function readTotals(
     accessToken: string,
-    category: FinancialReviewCategory,
-    firstMonth: string,
-    lastMonth: string,
-    currency: string | undefined,
-    marketplace: string,
+    scope: AggregateScope,
     signal?: AbortSignal,
   ): Promise<CanonicalRow[]> {
-    const params = totalParams(category, firstMonth, marketplace, lastMonth);
+    const { firstMonth, lastMonth, currency, marketplace } = scope;
+    const params = totalParams(scope);
     if (currency !== undefined) {
       requireCurrency(currency);
       params.set("currency", `eq.${currency}`);
@@ -220,11 +217,25 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       requireCurrency(rowCurrency);
       if (currency !== undefined && rowCurrency !== currency)
         throw new Error("Financial review returned a different currency");
-      const scope = `${month}:${rowCurrency}`;
-      if (scopes.has(scope)) throw new Error("Financial review repeated a monthly currency");
-      scopes.add(scope);
+      const key = `${month}:${rowCurrency}`;
+      if (scopes.has(key)) throw new Error("Financial review repeated a monthly currency");
+      scopes.add(key);
     }
     return result.rows;
+  }
+
+  function readFamilyTypes(
+    accessToken: string,
+    scope: FinancialReviewTypeScope,
+    signal?: AbortSignal,
+  ) {
+    return readCompleteFinancialReviewTypes(
+      transport,
+      accessToken,
+      typeTotalParams(scope),
+      scope,
+      signal,
+    );
   }
 
   return {
@@ -234,7 +245,6 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       marketplace: string,
       signal?: AbortSignal,
     ): Promise<FinancialReviewBounds> {
-      requireFinancialReviewCategory(category);
       const [firstMonth, lastMonth] = await Promise.all([
         readBoundaryMonth(accessToken, category, marketplace, "asc", signal),
         readBoundaryMonth(accessToken, category, marketplace, "desc", signal),
@@ -256,11 +266,7 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       requireFinancialReviewYear(year);
       return readTotals(
         accessToken,
-        category,
-        `${year}-01`,
-        `${year}-12`,
-        undefined,
-        marketplace,
+        { category, firstMonth: `${year}-01`, lastMonth: `${year}-12`, marketplace },
         signal,
       );
     },
@@ -273,13 +279,9 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
       requireFinancialReviewYear(year);
-      const firstMonth = `${year}-01`;
-      const lastMonth = `${year}-12`;
-      return readCompleteFinancialReviewTypes(
-        transport,
+      return readFamilyTypes(
         accessToken,
-        typeTotalParams(category, firstMonth, currency, marketplace, lastMonth),
-        { category, firstMonth, lastMonth, currency, marketplace },
+        { category, firstMonth: `${year}-01`, lastMonth: `${year}-12`, currency, marketplace },
         signal,
       );
     },
@@ -292,7 +294,11 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
       requireCurrency(currency);
-      return readTotals(accessToken, category, month, month, currency, marketplace, signal);
+      return readTotals(
+        accessToken,
+        { category, firstMonth: month, lastMonth: month, currency, marketplace },
+        signal,
+      );
     },
     fetchFinancialReviewTypes(
       accessToken: string,
@@ -304,7 +310,13 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       signal?: AbortSignal,
       familyIds: readonly string[] = [],
     ): Promise<PageResult> {
-      const params = typeTotalParams(category, month, currency, marketplace);
+      const params = typeTotalParams({
+        category,
+        firstMonth: month,
+        lastMonth: month,
+        currency,
+        marketplace,
+      });
       applyFeeFamilies(params, familyIds);
       setDetailPage(params, pageIndex);
       return transport.readCsvPage(
@@ -323,10 +335,8 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       marketplace: string,
       signal?: AbortSignal,
     ): Promise<CanonicalRow[]> {
-      return readCompleteFinancialReviewTypes(
-        transport,
+      return readFamilyTypes(
         accessToken,
-        typeTotalParams(category, month, currency, marketplace),
         { category, firstMonth: month, lastMonth: month, currency, marketplace },
         signal,
       );

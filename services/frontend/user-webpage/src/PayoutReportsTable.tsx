@@ -11,8 +11,8 @@ import { MonthGroupCell } from "./MonthGroupCell";
 import { TableScrollControls } from "./TableScrollControls";
 import { formatRecordMonth } from "./date-display";
 import { companyLabel, displayColumns, rowId } from "./view-model";
-import { groupPayoutReports, payoutScopeKey, type PayoutHistoryState } from "./payout-report-view";
-import { payoutMarketplaceLabel } from "./payout-report-scope";
+import { groupPayoutReports, type PayoutHistoryState } from "./payout-report-view";
+import { payoutMarketplaceLabel, payoutScopeKey } from "./payout-report-scope";
 
 export function PayoutReportsTable({
   identity,

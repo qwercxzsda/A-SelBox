@@ -10,11 +10,11 @@ export function formatRecordMonth(value: string): string {
   return monthFormatter.format(new Date(`${month}-01T00:00:00Z`));
 }
 
-/** Keep calendar dates intact and show API timestamps consistently in UTC. */
-export function formatRecordDate(value: string): string {
+/** Parse JSON/CSV timestamps only when the source includes an explicit offset. */
+export function parseRecordTimestamp(value: string): Date | null {
   const parts =
     /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}(?::?\d{2})?)$/.exec(value);
-  if (!parts) return value;
+  if (!parts) return null;
   const [, day, time, offset] = parts;
   const zone =
     offset === "Z" || offset.includes(":")
@@ -23,7 +23,11 @@ export function formatRecordDate(value: string): string {
         ? `${offset}:00`
         : `${offset.slice(0, 3)}:${offset.slice(3)}`;
   const parsed = new Date(`${day}T${time}${zone}`);
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : `${parsed.toISOString().slice(0, 19).replace("T", " ")} UTC`;
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** Keep calendar dates intact and show API timestamps consistently in UTC. */
+export function formatRecordDate(value: string): string {
+  const parsed = parseRecordTimestamp(value);
+  return parsed ? `${parsed.toISOString().slice(0, 19).replace("T", " ")} UTC` : value;
 }

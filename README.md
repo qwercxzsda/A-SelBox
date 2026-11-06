@@ -1,14 +1,10 @@
 # A-SelBox
 
-A-SelBox archives Amazon Finances transactions, Summary controls, and Data Kiosk documents, preprocesses
-those saved inputs into complete source versions, and calculates company amounts
-and fees through live PostgreSQL views. Monthly payout reports are generated
-automatically for companies with currently assigned SKUs as dates mature and source or
-fee inputs change. Immutable reports
-save exact amounts across all source namespaces for each marketplace and currency, and retain
-the versions used. A full mature company/month/marketplace estimate in the same currency matches the latest report
-once automatic generation has captured the current inputs for an eligible company.
-Removing a company's last SKU stops new reports while preserving its saved history.
+A-SelBox archives Amazon Finances transactions, Summary controls, and Data Kiosk documents, then
+preprocesses those inputs into complete source versions. PostgreSQL calculates company amounts and
+fees from the selected sources and SKU terms. The scheduled worker saves immutable monthly
+[payout reports](docs/company_payout_reports.md) per company, marketplace, and currency, retaining
+the exact inputs used. Source and fee changes refresh eligible reports as dates mature.
 
 Daily Inventory Planning reports use the same archive/offline preprocessing pattern and retain one
 normalized capture per seller, marketplace, and day. The read-only Inventory tab shows historical

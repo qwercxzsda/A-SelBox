@@ -6,7 +6,11 @@ import {
   decodeDatasetView,
   decodeInventoryView,
 } from "./workspace-view-codec.ts";
-import { decodePayoutHistoryState, type PayoutVersionSelection } from "./payout-report-view.ts";
+import { decodePayoutHistoryState } from "./payout-report-view.ts";
+import {
+  decodePayoutVersionSelection,
+  type PayoutVersionSelection,
+} from "./payout-report-scope.ts";
 import { decodeReviewScope, type ReviewScope } from "./financial-review-view.ts";
 import { reviewPeriodKey } from "./financial-review-scope-key.ts";
 import { reviewCategory } from "./financial-review-categories.ts";
@@ -24,16 +28,14 @@ type Preferences = ReadonlyMap<string, unknown>;
 function reportSelection(params: URLSearchParams) {
   const currency = params.get("reportCurrency");
   const marketplace = params.get("reportMarketplace");
-  return decodePayoutHistoryState({
-    selected: {
-      reportId: params.get("report"),
-      companyId: params.get("reportCompany"),
-      startDate: params.get("reportFrom"),
-      endDate: params.get("reportTo"),
-      currency: currency === "" ? null : (currency ?? undefined),
-      marketplaceName: marketplace === "" ? null : (marketplace ?? undefined),
-    },
-  }).selected;
+  return decodePayoutVersionSelection({
+    reportId: params.get("report"),
+    companyId: params.get("reportCompany"),
+    startDate: params.get("reportFrom"),
+    endDate: params.get("reportTo"),
+    currency: currency === "" ? null : (currency ?? undefined),
+    marketplaceName: marketplace === "" ? null : (marketplace ?? undefined),
+  });
 }
 
 function readReviewScope(params: URLSearchParams) {

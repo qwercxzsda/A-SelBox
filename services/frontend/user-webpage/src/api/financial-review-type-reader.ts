@@ -10,7 +10,7 @@ const MAX_TYPE_GROUPS = 50_000;
 const MAX_TYPE_PAGES = 200;
 const OPERATION = "Financial review type totals";
 
-interface TypeScope {
+export interface FinancialReviewTypeScope {
   category: FinancialReviewCategory;
   firstMonth: string;
   lastMonth: string;
@@ -18,7 +18,7 @@ interface TypeScope {
   marketplace: string;
 }
 
-function requireTypeGroup(row: CanonicalRow, scope: TypeScope): string {
+function requireTypeGroup(row: CanonicalRow, scope: FinancialReviewTypeScope): string {
   const month = row.month;
   if (typeof month !== "string") throw new Error(`${OPERATION} returned an invalid month`);
   requireCalendarDate(month);
@@ -48,7 +48,7 @@ export async function readCompleteFinancialReviewTypes(
   transport: ApiTransport,
   accessToken: string,
   params: URLSearchParams,
-  scope: TypeScope,
+  scope: FinancialReviewTypeScope,
   signal?: AbortSignal,
 ): Promise<CanonicalRow[]> {
   const rows: CanonicalRow[] = [];

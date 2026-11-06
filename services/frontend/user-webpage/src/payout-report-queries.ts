@@ -1,7 +1,7 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, skipToken } from "@tanstack/react-query";
 import { fetchPayoutHistory, fetchPayoutVersion } from "./api";
 import type { Identity } from "./auth-session";
-import type { PayoutVersionSelection } from "./payout-report-view";
+import type { PayoutReportScope, PayoutVersionSelection } from "./payout-report-scope";
 
 export function payoutVersionQueryOptions(
   identity: Identity,
@@ -16,21 +16,20 @@ export function payoutVersionQueryOptions(
       "version",
       selection,
     ],
-    queryFn: ({ signal }) =>
-      selection
-        ? fetchPayoutVersion({
+    queryFn: selection
+      ? ({ signal }) =>
+          fetchPayoutVersion({
             accessToken: identity.session.access_token,
             ...selection,
             signal,
           })
-        : null,
-    enabled: selection !== null,
+      : skipToken,
   });
 }
 
 export function payoutHistoryQueryOptions(
   identity: Identity,
-  scope: Omit<PayoutVersionSelection, "reportId">,
+  scope: PayoutReportScope | null,
   pageIndex: number,
 ) {
   return queryOptions({
@@ -39,19 +38,21 @@ export function payoutHistoryQueryOptions(
       identity.session.user.id,
       identity.account.access_role,
       identity.account.company_id,
-      scope.companyId,
-      scope.startDate,
-      scope.endDate,
-      scope.marketplaceName,
-      scope.currency,
+      scope?.companyId,
+      scope?.startDate,
+      scope?.endDate,
+      scope?.marketplaceName,
+      scope?.currency,
       pageIndex,
     ],
-    queryFn: ({ signal }) =>
-      fetchPayoutHistory({
-        accessToken: identity.session.access_token,
-        ...scope,
-        pageIndex,
-        signal,
-      }),
+    queryFn: scope
+      ? ({ signal }) =>
+          fetchPayoutHistory({
+            accessToken: identity.session.access_token,
+            ...scope,
+            pageIndex,
+            signal,
+          })
+      : skipToken,
   });
 }

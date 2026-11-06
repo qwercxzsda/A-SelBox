@@ -50,7 +50,7 @@ zero-item representation whose currency comes from the native parent.
 
 Only `PRODUCT_SALES` and `PRODUCT_REFUNDS` carry a signed `fee_base`. Other
 components have no sales commission. Python stores this decision explicitly;
-SQL does not reconstruct it from obsolete report descriptions.
+SQL uses the stored base directly.
 
 Native IDs, account type, status, links, page/record ordinals, item position and
 breakdown path preserve provenance. Components have deterministic keys that retain
@@ -65,11 +65,11 @@ conda run -n A-SelBox python -m services.sync.src.transaction_types.generate
 conda run -n A-SelBox python -m services.sync.src.transaction_types.generate --check
 ```
 
-Do not edit generated JSON or maintain another source Type registry. Marketplace
-choices come from the canonical registry, including the distinct native `Non-Amazon US`,
-`Non-Amazon DE`, and `Non-Amazon IT` channels. Control grouping does not rename stored marketplaces.
-The generator also exports `marketplace-timezones.json` from the canonical retail and native-channel
-time zones so frontend inventory ages use the same calendar boundaries as source capture.
+Do not edit generated JSON or maintain another source Type registry. Marketplace choices and
+`marketplace-timezones.json` come from the canonical retail and native-channel definitions.
+Inventory ages use the same calendar boundaries as source capture. The
+[Finances contract](finances_transactions.md#api-scope) defines native-channel identities and
+control grouping; grouping does not rename stored marketplaces.
 
 Company menus omit SelBox account types. Administrator Transactions also offers
 the derived `FINANCES_KIOSK_DIFFERENCE`; raw source menus offer only their source's

@@ -145,24 +145,10 @@ export function FinancialReviewFamilyBreakdown({
   );
 }
 
-export function FinancialReviewFamilies({
-  identity,
-  category,
-  month,
-  matureCutoff,
-  currency,
-  marketplace,
-  families,
-}: FinancialReviewMonthScope) {
+export function FinancialReviewFamilies(scope: FinancialReviewMonthScope) {
+  const { families, currency } = scope;
   const query = useQuery({
-    ...monthlyFamilyTypesQueryOptions({
-      identity,
-      category,
-      month,
-      matureCutoff,
-      currency,
-      marketplace,
-    }),
+    ...monthlyFamilyTypesQueryOptions(scope),
     select: (rows) => buildFinancialReviewFamilies(rows, families),
   });
   const rows = query.data ?? [];

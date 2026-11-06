@@ -62,21 +62,30 @@ export function SelectionFilter({
   filter,
   onResetScroll,
   onClearFocusFallback,
+  onSearchAvailable,
 }: {
   label: string;
   filter: Extract<ColumnMenuFilter, { kind: "selection" }>;
   onResetScroll: () => void;
   onClearFocusFallback: () => void;
+  onSearchAvailable: (input: HTMLInputElement) => void;
 }) {
   const [search, setSearch] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
   const firstOption = useRef<HTMLInputElement>(null);
   const clearFocusTarget = useRef<HTMLInputElement | null>(null);
   const searchable = filter.options.length > 8;
+  const wasSearchable = useRef(searchable);
   const query = searchable ? search.trim().toLocaleLowerCase() : "";
   const options = filter.options.filter((option) =>
     option.label.toLocaleLowerCase().includes(query),
   );
+
+  useLayoutEffect(() => {
+    if (!wasSearchable.current && searchable && searchInput.current)
+      onSearchAvailable(searchInput.current);
+    wasSearchable.current = searchable;
+  }, [searchable, onSearchAvailable]);
 
   useLayoutEffect(() => {
     const target = clearFocusTarget.current;

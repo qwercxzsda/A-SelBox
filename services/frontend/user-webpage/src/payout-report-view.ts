@@ -1,18 +1,10 @@
 import type { CanonicalRow } from "./api/types.ts";
-import { requireDateRange } from "./api/filters.ts";
-import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
+import { isJsonObject } from "./api/validation.ts";
 import { decodeDetailPage, decodeDetailStrings } from "./detail-view-state.ts";
-import { isPayoutMarketplace, payoutMarketplace } from "./payout-report-scope.ts";
-
-export function payoutScopeKey(row: CanonicalRow): string {
-  return JSON.stringify([
-    row.company_id,
-    row.start_date,
-    row.end_date,
-    payoutMarketplace(row),
-    row.currency,
-  ]);
-}
+import {
+  decodePayoutVersionSelection,
+  type PayoutVersionSelection,
+} from "./payout-report-scope.ts";
 
 export interface PayoutHistoryState {
   expanded: string[];
@@ -20,56 +12,8 @@ export interface PayoutHistoryState {
   selected: PayoutVersionSelection | null;
 }
 
-export interface PayoutVersionSelection {
-  marketplaceName: string | null;
-  companyId: string;
-  startDate: string;
-  endDate: string;
-  currency: string | null;
-  reportId: string;
-}
-
-export function payoutVersionSelection(row: CanonicalRow): PayoutVersionSelection {
-  return {
-    companyId: row.company_id ?? "",
-    startDate: row.start_date ?? "",
-    endDate: row.end_date ?? "",
-    currency: row.currency,
-    marketplaceName: payoutMarketplace(row),
-    reportId: row.id ?? "",
-  };
-}
-
 export function createPayoutHistoryState(): PayoutHistoryState {
   return { expanded: [], pages: {}, selected: null };
-}
-
-function decodePayoutVersionSelection(value: unknown): PayoutVersionSelection | null {
-  if (
-    !isJsonObject(value) ||
-    !isUuid(value.companyId) ||
-    !isUuid(value.reportId) ||
-    typeof value.startDate !== "string" ||
-    !value.startDate ||
-    typeof value.endDate !== "string" ||
-    !value.endDate ||
-    !(value.currency === null || isCurrency(value.currency)) ||
-    !isPayoutMarketplace(value.marketplaceName)
-  )
-    return null;
-  try {
-    requireDateRange(value.startDate, value.endDate);
-  } catch {
-    return null;
-  }
-  return {
-    companyId: value.companyId,
-    startDate: value.startDate,
-    endDate: value.endDate,
-    currency: value.currency,
-    reportId: value.reportId,
-    marketplaceName: value.marketplaceName,
-  };
 }
 
 /** Restore navigation and identity only; a report's amounts always come from the API. */

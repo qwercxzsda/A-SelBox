@@ -1,8 +1,8 @@
 # Financial review
 
 Financial review is an administrator-only comparison of current facts from fully mature months
-for one exact marketplace across all source namespaces, companies, and SKUs. It explains source differences; it is not a
-company payout. [Payout reports](company_payout_reports.md) freeze company amounts separately.
+for one exact marketplace across all source namespaces, companies, and SKUs. It explains source
+differences; [payout reports](company_payout_reports.md) freeze company amounts separately.
 Currencies remain separate in both views.
 
 ## Categories and amounts
@@ -56,11 +56,10 @@ Therefore a Financial review difference can remain nonzero even when the
 Amazon Summary difference is zero. Summary matching does not repair missing,
 duplicated or incorrectly attributed Data Kiosk SKU costs.
 
-The [verification evidence index](evidence/README.md) records dated API, replay and source-refresh
-checks. Earlier source investigations remain historical
-evidence; their release-date comparisons are not the current activity-date
-calculation. Financial review uses original activity dates and excludes linked
-release copies and bank transfers. It retains actual zero-value activity rows.
+Financial review follows the [native activity rules](finances_transactions.md): original activity
+dates determine inclusion, linked release copies and bank transfers are excluded, and zero-value
+activity remains visible. Dated API, replay, and refresh checks are indexed in
+[verification evidence](evidence/README.md).
 
 Amazon's Summary groups native Non-Amazon US activity into Amazon.com. Financial
 review deliberately retains the native marketplaces in its Data Kiosk comparison.
@@ -72,8 +71,8 @@ Only the separate monthly Summary control applies that verified grouping.
 The **Comparison category** caption identifies Finances, Data Kiosk, and SelBox as accounting
 categories; each category compares Finances with Data Kiosk.
 The initial marketplace is Amazon.com and the initial year is the latest year with fully mature
-records for that marketplace/category. Native channels Non-Amazon US, Non-Amazon DE, and Non-Amazon IT
-remain separate. Currency is an amount unit derived from the selected marketplace's actual period
+records for that marketplace/category. Native financial channels remain separate from their retail
+marketplaces. Currency is an amount unit derived from the selected marketplace's actual period
 rows, never a way to infer the marketplace. With one unit it is shown as a label; a secondary currency
 selector appears when multiple units are available. An explicit unit remains selected even if its
 scope becomes empty. Changing marketplace clears the unit and open month. Automatic selection
@@ -154,8 +153,7 @@ Source records expose the original amount, activity date, SKU, marketplace, exac
 namespace. **View source record** opens the exact row/version in a nested drawer, including native
 Amazon transaction IDs, linked release/deferred IDs and processing provenance when available.
 The selection survives reload; a missing or pruned version shows an explicit unavailable message
-instead of substituting a current capture. Finances marketplace identity is required; its native Non-Amazon US channel
-remains explicit. These are current
+instead of substituting a current capture. Native marketplace identity is required. These are
 source facts without company allocation or fee joins. A difference at account or category level
 does not attribute a discrepancy to a particular SKU, transaction, campaign, or blank marketplace.
 

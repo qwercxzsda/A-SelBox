@@ -1,7 +1,6 @@
 import { reviewPeriodKey } from "./financial-review-scope-key";
 import { Group, Paper, Text, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
-import { fetchFinancialReviewTotals } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailSection } from "./DetailSection";
 import { FinancialReviewMonthTotals } from "./FinancialReviewMonthTotals";
@@ -9,61 +8,20 @@ import { FinancialReviewCoverageNote } from "./FinancialReviewCoverageNote";
 import { FinancialReviewSourceDetails } from "./FinancialReviewSourceDetails";
 import { FinancialReviewSnapshots } from "./FinancialReviewSnapshots";
 import { AmountPrecisionNote } from "./AmountPrecisionNote";
-import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
 import { reviewCategoryLabel } from "./financial-review-categories";
 import type { FinancialReviewMonthScope } from "./financial-review-source-state";
-import { monthlyFamilyTypesQueryOptions } from "./financial-review-queries";
+import { monthlyReviewTotalsQueryOptions } from "./financial-review-queries";
 
 interface FinancialReviewMonthContentProps extends FinancialReviewMonthScope {
   onRetry: () => Promise<void>;
 }
 
 export function FinancialReviewMonthContent({
-  identity,
-  category,
-  currency,
-  marketplace,
-  families,
-  month,
-  matureCutoff,
   onRetry,
+  ...scope
 }: FinancialReviewMonthContentProps) {
-  const query = useQuery(
-    families.length
-      ? {
-          ...monthlyFamilyTypesQueryOptions({
-            identity,
-            category,
-            month,
-            matureCutoff,
-            currency,
-            marketplace,
-          }),
-          select: (rows) => buildFinancialReviewFamilyMonths(rows, families),
-        }
-      : {
-          queryKey: [
-            "financial-review",
-            "totals",
-            identity.session.user.id,
-            category,
-            month,
-            currency,
-            marketplace,
-            matureCutoff,
-          ],
-          queryFn: ({ signal }) =>
-            fetchFinancialReviewTotals(
-              identity.session.access_token,
-              category,
-              month,
-              currency,
-              marketplace,
-              signal,
-            ),
-          staleTime: Infinity,
-        },
-  );
+  const { identity, category, currency, marketplace, families, month } = scope;
+  const query = useQuery(monthlyReviewTotalsQueryOptions(scope));
   const rows = query.data ?? [];
   return (
     <>
@@ -109,18 +67,7 @@ export function FinancialReviewMonthContent({
         Differences can reflect missing data, timing or scope. Data Kiosk may not cover every source
         type.
       </Text>
-      {rows.length ? (
-        <FinancialReviewSourceDetails
-          identity={identity}
-          category={category}
-          currency={currency}
-          marketplace={marketplace}
-          families={families}
-          month={month}
-          matureCutoff={matureCutoff}
-          total={rows[0]}
-        />
-      ) : null}
+      {rows.length ? <FinancialReviewSourceDetails {...scope} total={rows[0]} /> : null}
       <DetailSection
         stateKey={`financial-review:snapshots:${category}:${reviewPeriodKey(month, marketplace, currency)}`}
         title="Saved report snapshots"

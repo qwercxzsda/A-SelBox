@@ -24,45 +24,29 @@ begin
             'company_payout_report',locked_seller,p_month
         )::text,0));
     end loop;
-    -- Preserve unknown-ownership blocking even when no owned row creates a scope.
-    if exists (
-        select 1 from (
-            select t.seller_namespace,t.sku
-            from private.finances_activity_components t
-            join private.finances_days s on s.current_version_id = t.version_id
-            where t.posted_date between p_month and month_end and t.category = 'FINANCES'
-                and t.seller_namespace = any(seller_namespaces)
-            union all
-            select t.seller_namespace,t.sku
-            from private.data_kiosk_transactions t
-            join private.data_kiosk_days d on d.current_version_id = t.version_id
-            where t.activity_date between p_month and month_end and t.category = 'DATA_KIOSK'
-                and t.seller_namespace = any(seller_namespaces)
-        ) sources
-        left join private.current_sku_terms o
-            on o.sku = sources.sku
-        where o.company_id is null
-    ) then
-        raise exception 'Unresolved ownership or fee coverage prevents a complete payout report' using errcode = '23514';
-    end if;
     for scope in
-        with company_sources as (
-            select t.seller_namespace,t.sku,t.marketplace_name,t.currency
+        -- Ownership and scope discovery need each SKU/marketplace/currency once;
+        -- the publisher still resolves every original monetary component.
+        with source_scopes as (
+            select t.sku,t.marketplace_name,t.currency
             from private.finances_activity_components t
             join private.finances_days s on s.current_version_id = t.version_id
             where t.posted_date between p_month and month_end and t.category = 'FINANCES'
                 and t.seller_namespace = any(seller_namespaces)
-            union all
-            select t.seller_namespace,t.sku,t.marketplace_name,t.currency
+            union
+            select t.sku,t.marketplace_name,t.currency
             from private.data_kiosk_transactions t
             join private.data_kiosk_days d on d.current_version_id = t.version_id
             where t.activity_date between p_month and month_end and t.category = 'DATA_KIOSK'
                 and t.seller_namespace = any(seller_namespaces)
+        ), resolved_owners as materialized (
+            -- Scope discovery and completeness use the same selected facts and
+            -- ownership lookup, including rows belonging to other companies.
+            select s.marketplace_name,s.currency,o.company_id
+            from source_scopes s left join private.current_sku_terms o on o.sku = s.sku
         ), scopes as (
-            select t.marketplace_name,t.currency
-            from company_sources t
-            join private.current_sku_terms o on o.sku = t.sku
-            where o.company_id = p_company_id
+            select marketplace_name,currency from resolved_owners
+            where company_id = p_company_id
             union
             -- A removed scope needs a new zero aggregate, not a stale nonzero latest report.
             select r.marketplace_name,r.currency from public.company_payout_reports r
@@ -70,10 +54,15 @@ begin
                 and r.currency is not null
         )
         -- An assigned company still has an empty scope before its first sale.
-        select scopes.marketplace_name,scopes.currency
+        select scopes.marketplace_name,scopes.currency,
+            exists(select 1 from resolved_owners where company_id is null) as missing_ownership
         from (values (p_company_id)) company(id) left join scopes on true
         order by scopes.marketplace_name nulls first,scopes.currency
     loop
+        -- Reject unowned facts even when only the fallback empty scope exists.
+        if scope.missing_ownership then
+            raise exception 'Unresolved ownership or fee coverage prevents a complete payout report' using errcode = '23514';
+        end if;
         requested_report_id := private.uuid7();
         report_id := private.publish_company_payout_report(jsonb_build_object(
             'id',requested_report_id,'company_id',p_company_id,

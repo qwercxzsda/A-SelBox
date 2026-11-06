@@ -129,13 +129,11 @@ matches. Capture discovery is paged and contains no financial amounts or item da
 
 Report dates are visible by marketplace, and each item shows its actual snapshot date when supplied.
 A missing snapshot date is labelled explicitly, with the report date as a fallback. Source dates
-more than two calendar days old in that marketplace are marked overdue for daily replenishment review.
-The browser uses generated IANA time zones from the same canonical marketplace definitions as capture
-creation. Calendar stock dates stay intact; fallback report timestamps convert to the marketplace's
-date. A valid next-day snapshot in Japan, Australia, or Singapore is therefore fresh before UTC
-midnight, while a date beyond the marketplace's current day still receives a future-date warning.
-On-screen age updates do not request new data. Exact report and reprocessing timestamps remain in
-UTC; reprocessing does not reset source age.
+more than two marketplace-local calendar days old are marked overdue; dates beyond the marketplace's
+current day receive a future-date warning. The browser uses generated IANA time zones from the same
+definitions as capture creation. Stock calendar dates stay intact; fallback report timestamps convert
+to the marketplace's date. On-screen age updates do not request new data. Exact report and processing
+timestamps remain in UTC; reprocessing does not reset source age.
 Visible filter chips name and individually clear persisted criteria. Sales ordering remains in the
 original currencies; the heading and active-sort note explain that limitation beside the table.
 

@@ -9,7 +9,7 @@ import { formatMoney } from "./decimal";
 import { getErrorMessage, rowId } from "./view-model";
 import { PaginationBar } from "./PaginationBar";
 import { UpdateStatus } from "./UpdateStatus";
-import { payoutVersionSelection } from "./payout-report-view";
+import { payoutVersionSelection } from "./payout-report-scope";
 import { payoutHistoryQueryOptions } from "./payout-report-queries";
 
 function revealHistory(section: HTMLElement | null) {

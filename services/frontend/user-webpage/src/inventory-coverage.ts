@@ -1,6 +1,6 @@
 import type { InventoryCapture } from "./api/inventory.ts";
 import { requireCalendarDate } from "./api/filters.ts";
-import { formatRecordDate } from "./date-display.ts";
+import { parseRecordTimestamp } from "./date-display.ts";
 import timeZones from "./generated/marketplace-timezones.json" with { type: "json" };
 
 export const INVENTORY_OVERDUE_DAYS = 2;
@@ -42,12 +42,8 @@ export function inventorySourceDay(value: string | null, marketplace: string): s
     return null;
   }
   if (value === day) return day;
-  const timestamp = formatRecordDate(value);
-  if (!timestamp.endsWith(" UTC")) return null;
-  return marketplaceDay(
-    Date.parse(`${timestamp.slice(0, 10)}T${timestamp.slice(11, 19)}Z`),
-    marketplace,
-  );
+  const timestamp = parseRecordTimestamp(value);
+  return timestamp ? marketplaceDay(timestamp.getTime(), marketplace) : null;
 }
 
 export function inventoryAge(day: string | null, now: number, marketplace: string) {

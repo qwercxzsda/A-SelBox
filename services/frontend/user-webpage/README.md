@@ -156,41 +156,31 @@ reports preserve their original values and versions. The
 completeness, zero reports, and agreement with estimates.
 
 Financial review shares Marketplace, Year, and the **Fee families** checkbox menu across Finances,
-Data Kiosk, and SelBox categories. Its yearly totals, chart, monthly rows, and running difference
-use the selected family union; clearing restores all families, while a selection with no matches
-stays empty. The menu follows the table Company/SKU controls: changes apply immediately, longer
-lists are searchable, and Done or Escape returns focus to the button. Scope survives navigation and
-reloads; retired family IDs in saved links and preferences resolve to their current groups. Currency
-is resolved from that marketplace's period rows and shown as the amount unit, with a secondary
-selector when several units exist. Changing marketplace clears the unit and open month.
+Data Kiosk, and SelBox categories. These selections scope the yearly totals, chart, monthly rows,
+running difference, and exact source drilldowns. Currency is resolved from the selected
+marketplace's period rows and shown as the amount unit, with a selector when several units exist.
+Changing marketplace clears the unit and open month. Scope survives navigation and reloads.
 
-Family comparisons net related charges and signed offsets without changing category, date, or payout
-rules. Tables rank absolute differences, **Show only** isolates a family, and **Family definition**
-separates catalog membership from observed types. Source-only coverage does not establish an error.
-The [family contract](../../../docs/financial_review.md#fee-family-comparison-and-source-lookup)
-defines exact membership, source coverage, and comparison limits, including refund-date differences.
-
-The chart combines signed family bars with running lines and an expandable legend. **Chart values**
-and **Chart month** provide numeric readouts and keyboard/touch navigation. Opening a month retains
-the selected families through its totals, exact types, and source records; saved snapshots keep
-their complete historical scope. See the
-[overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details) for
-chart, coverage, and drawer behavior.
+The chart combines signed family bars with running lines, numeric readouts, and keyboard/touch month
+navigation. Saved snapshots retain their complete historical scope when current-source comparisons
+are filtered. The
+[overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details) defines
+filtering, chart, coverage, and drawer behavior; the
+[family contract](../../../docs/financial_review.md#fee-family-comparison-and-source-lookup) defines
+memberships and comparison limits. Source-only coverage does not by itself establish an error.
 
 Review links use `reviewMarketplace`, separately from repeated table `marketplace` filters. Report
 links require their exact ID, company, dates, currency, and `reportMarketplace`; an empty
 marketplace value denotes an unspecified market. Currency never infers a marketplace. Native
-Non-Amazon US, DE, and IT remain distinct from their retail marketplaces in menus and links.
+financial channels remain distinct from their retail marketplaces in menus and links.
 
 Source drilldowns retain exact row/version provenance. Finances keeps the main Search focused on
 filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID
 lookup drawer across all retained captures, independently of table filters. Its submitted ID and
-page survive closing, tab changes, and reloads; source details open in a nested drawer and retain
-their exact version on reload. Closing returns keyboard focus to the previous action. An unavailable
-exact version is reported explicitly, without substituting a different capture. Retained components
-are separate observations, not values to sum across captures. See the
-[Financial review contract](../../../docs/financial_review.md) for source eligibility, comparison
-scope, and saved account controls.
+page survive closing, tab changes, and reloads. Source details retain their exact row/version;
+missing or pruned versions show an unavailable message. Closing returns focus to the previous
+action. The [Financial review contract](../../../docs/financial_review.md) defines source
+eligibility and saved account controls.
 
 ## Design conventions
 

@@ -17,17 +17,13 @@ import { DetailSection } from "./DetailSection";
 import { revealSection } from "./reveal-section";
 
 export function FinancialReviewSourceDetails({
-  identity,
-  category,
-  month,
-  matureCutoff,
-  currency,
-  marketplace,
-  families,
   total,
+  ...scope
 }: FinancialReviewMonthScope & { total: CanonicalRow }) {
+  const { category, month, currency, marketplace, families } = scope;
+  const periodKey = reviewPeriodKey(month, marketplace, currency);
   const [state, setSaved] = useWorkspacePreference(
-    `financial-review:sources:${category}:${reviewPeriodKey(month, marketplace, currency)}${reviewFamilyStateKey(families)}`,
+    `financial-review:sources:${category}:${periodKey}${reviewFamilyStateKey(families)}`,
     createReviewSourceState,
     decodeReviewSourceState,
   );
@@ -37,17 +33,7 @@ export function FinancialReviewSourceDetails({
   function change(patch: Partial<ReviewSourceState>) {
     setSaved((current) => ({ ...current, ...patch }));
   }
-  const props = {
-    identity,
-    category,
-    month,
-    matureCutoff,
-    currency,
-    marketplace,
-    families,
-    state,
-    change,
-  };
+  const sourceProps = { ...scope, state, change };
   return (
     <>
       <Text size="xs" c="dimmed" mt="lg" mb="sm">
@@ -56,19 +42,11 @@ export function FinancialReviewSourceDetails({
         {total.data_kiosk_row_count ?? "Unavailable"}
       </Text>
       <DetailSection
-        stateKey={`financial-review:families:${category}:${reviewPeriodKey(month, marketplace, currency)}`}
+        stateKey={`financial-review:families:${category}:${periodKey}`}
         title="Fee family comparison"
         collapsible
       >
-        <FinancialReviewFamilies
-          identity={identity}
-          category={category}
-          month={month}
-          matureCutoff={matureCutoff}
-          currency={currency}
-          marketplace={marketplace}
-          families={families}
-        />
+        <FinancialReviewFamilies {...scope} />
       </DetailSection>
       <DetailSection
         ref={amountsRef}
@@ -76,7 +54,7 @@ export function FinancialReviewSourceDetails({
         description="Select a type to inspect its exact source records for this marketplace, category, month and currency."
       >
         <FinancialReviewTypes
-          {...props}
+          {...sourceProps}
           onSelect={() => {
             requestAnimationFrame(() => {
               revealSection(recordsRef.current);
@@ -116,7 +94,7 @@ export function FinancialReviewSourceDetails({
           ) : null}
         </Group>
         <div className="detail-section-body" id={recordsId} hidden={!state.recordsOpen}>
-          {state.recordsOpen ? <FinancialReviewRecords {...props} /> : null}
+          {state.recordsOpen ? <FinancialReviewRecords {...sourceProps} /> : null}
         </div>
       </section>
     </>

@@ -19,10 +19,8 @@ account reconciliation, and input manifests remain administrator-only in the mon
 The list uses `public.latest_company_payout_reports`, which selects the newest saved report per
 company, month, nullable `marketplace_name`, and currency. A null marketplace is a distinct
 **Not specified** scope.
-Its derived `month_label` is the English
-month/year of `start_date`, allowing Search to match the displayed month independently of a report
-name. Search also retains report-name and currency matching; company access stays enforced by the
-security-invoker view and underlying RLS. The complete
+Search matches the displayed month/year, report name, marketplace, and currency. The view derives
+`month_label` from `start_date`; company access is enforced by its invoker security and underlying RLS. The complete
 `public.company_payout_reports` table retains earlier versions for history.
 
 ## Automatic generation
@@ -387,13 +385,9 @@ conda run -n A-SelBox python -m services.db.supabase.tests.verification.payouts 
 
 ## Data Kiosk coverage for native channels
 
-Finances retains `Non-Amazon US` activity under its native channel. Data Kiosk
-has no separately queryable channel for it, so required Data Kiosk coverage uses
-Amazon.com. The explicit `finances_data_kiosk_marketplace` rule affects coverage
-expectations and strict source selection only; it does not rename financial
-facts, change their fee marketplace, or distribute Data Kiosk amounts to MCF
-transactions. A company report can therefore pin both native Finances channels
-and the retail store's complete Data Kiosk month.
+The [source-allocation contract](source_allocation.md#data-kiosk-coverage-for-native-channels)
+defines the verified Data Kiosk coverage mappings. These affect required input coverage, while
+reports retain each component's native marketplace and fee scope.
 
 ## Automatic report readiness
 

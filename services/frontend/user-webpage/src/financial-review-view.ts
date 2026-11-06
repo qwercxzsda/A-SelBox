@@ -1,7 +1,7 @@
 import type { CanonicalRow } from "./api/types.ts";
 import { requireCalendarDate } from "./api/filters.ts";
 import { isCurrency, isJsonObject, requireCurrency } from "./api/validation.ts";
-import { requireFinancialReviewYear } from "./api/financial-review.ts";
+import { requireFinancialReviewYear, type FinancialReviewBounds } from "./api/financial-review.ts";
 import { sumExactDecimals } from "./decimal.ts";
 import { isMarketplace, requireMarketplace } from "./api/marketplaces.ts";
 import { normalizeFeeFamilyIds } from "./fee-family-catalog.ts";
@@ -39,6 +39,30 @@ export function decodeReviewScope(value: unknown): ReviewScope {
   }
   scope.families = normalizeFeeFamilyIds(value.families);
   return scope;
+}
+
+/** Retain an explicitly selected year even when it has no source rows. */
+export function resolveReviewYear(selected: string, bounds?: FinancialReviewBounds) {
+  const year = selected || (bounds?.lastMonth?.slice(0, 4) ?? "");
+  const firstYear = Number(bounds?.firstMonth?.slice(0, 4));
+  const lastYear = Number(bounds?.lastMonth?.slice(0, 4));
+  const years =
+    firstYear && lastYear
+      ? Array.from({ length: lastYear - firstYear + 1 }, (_, index) =>
+          String(lastYear - index).padStart(4, "0"),
+        )
+      : [];
+  if (year && !years.includes(year)) years.push(year);
+  return { year, years: years.sort((left, right) => right.localeCompare(left)) };
+}
+
+/** Automatic units use actual period rows; an explicit unit remains selected without matches. */
+export function resolveReviewCurrency(selected: string, rows: readonly CanonicalRow[]) {
+  const currencies = [...new Set([selected, ...rows.map((row) => row.currency ?? "")])]
+    .filter(Boolean)
+    .sort();
+  const currency = selected || (currencies.includes("USD") ? "USD" : currencies[0]) || "";
+  return { currency, currencies };
 }
 
 export function createMonthlyReviewView(): MonthlyReviewView {

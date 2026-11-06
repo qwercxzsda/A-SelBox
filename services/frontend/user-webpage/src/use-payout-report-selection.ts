@@ -3,11 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CanonicalRow } from "./api";
 import type { Identity } from "./auth-session";
 import { payoutHistoryQueryOptions, payoutVersionQueryOptions } from "./payout-report-queries";
-import {
-  payoutScopeKey,
-  payoutVersionSelection,
-  type PayoutHistoryState,
-} from "./payout-report-view";
+import type { PayoutHistoryState } from "./payout-report-view";
+import { payoutScopeKey, payoutVersionSelection } from "./payout-report-scope";
 import { rowId } from "./view-model";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 
@@ -45,16 +42,13 @@ export function usePayoutReportSelection({
   const latestOnPage = selected
     ? rows.find((row) => payoutScopeKey(row) === payoutScopeKey(selected))
     : undefined;
-  const latestQuery = useQuery({
-    ...payoutHistoryQueryOptions(
+  const latestQuery = useQuery(
+    payoutHistoryQueryOptions(
       identity,
-      selected
-        ? payoutVersionSelection(selected)
-        : { companyId: "", startDate: "", endDate: "", currency: null, marketplaceName: null },
+      selectedScope && selected && !latestOnPage ? payoutVersionSelection(selected) : null,
       0,
     ),
-    enabled: selectedScope !== null && selected !== null && latestOnPage === undefined,
-  });
+  );
   const latestForSelection =
     latestOnPage ?? (selectedScope ? latestQuery.data?.rows.at(0) : undefined);
   const selectedIsLatest =

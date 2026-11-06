@@ -203,6 +203,15 @@ def load_company_payout_reconciliation(
         return tuple(_reconciliation(row) for row in cursor.fetchall())
 
 
+def _optional_marketplace_name(value: object) -> str | None:
+    """Keep an unspecified marketplace distinct from a validated saved name."""
+    return (
+        None
+        if value is None
+        else validate_marketplace_name(required_text(value, "marketplace_name"))
+    )
+
+
 def _report(row: Sequence[object]) -> CompanyPayoutReport:
     if len(row) != 19:
         raise RuntimeError("The payout report query returned an invalid shape.")
@@ -212,11 +221,7 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
     calculation_version = required_text(row[9], "calculation_version")
     if calculation_version != "v1":
         raise RuntimeError("Unsupported payout calculation version.")
-    marketplace_name = (
-        None
-        if row[6] is None
-        else validate_marketplace_name(required_text(row[6], "marketplace_name"))
-    )
+    marketplace_name = _optional_marketplace_name(row[6])
     report = CompanyPayoutReport(
         id=normalize_uuid(row[0], "id"),
         company_id=normalize_uuid(row[1], "company_id"),
@@ -286,11 +291,7 @@ def _component(row: Sequence[object]) -> CompanyPayoutComponent:
         terms_version_id=normalize_uuid(row[9], "terms_version_id"),
         fee_period_id=None if row[10] is None else normalize_uuid(row[10], "fee_period_id"),
         sku=sku,
-        marketplace_name=(
-            None
-            if row[12] is None
-            else validate_marketplace_name(required_text(row[12], "marketplace_name"))
-        ),
+        marketplace_name=_optional_marketplace_name(row[12]),
         activity_date=required_date(row[13], "activity_date"),
         component_type=required_text(row[14], "component_type"),
         source_amount=optional_financial_amount(row[15], "source_amount"),
@@ -311,11 +312,7 @@ def _reconciliation(row: Sequence[object]) -> CompanyPayoutReconciliation:
         row_number=nonnegative_count(row[1], "row_number"),
         seller_namespace=validate_seller_namespace(required_text(row[2], "seller_namespace")),
         activity_date=required_date(row[3], "activity_date"),
-        marketplace_name=(
-            None
-            if row[4] is None
-            else validate_marketplace_name(required_text(row[4], "marketplace_name"))
-        ),
+        marketplace_name=_optional_marketplace_name(row[4]),
         currency=financial_currency(row[5]),
         finances_category_amount=financial_amount(row[6], "finances_category_amount"),
         selbox_category_amount=financial_amount(row[7], "selbox_category_amount"),

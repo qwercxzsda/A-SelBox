@@ -34,10 +34,22 @@ export function ColumnMenu({ label, triggerRef, filter, sort }: ColumnMenuProps)
   const titleId = useId();
   const dropdown = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const interacted = useRef(false);
   const filterCount = activeColumnFilterCount(filter);
 
   function close() {
     setOpened(false);
+  }
+
+  function changeOpened(next: boolean) {
+    if (next) interacted.current = false;
+    setOpened(next);
+  }
+
+  function focusArrivingSearch(input: HTMLInputElement) {
+    // Async choices may add search after the focus trap chose its initial fallback.
+    if (!interacted.current && document.activeElement === closeButton.current)
+      input.focus({ preventScroll: true });
   }
 
   function resetScroll() {
@@ -47,7 +59,7 @@ export function ColumnMenu({ label, triggerRef, filter, sort }: ColumnMenuProps)
   return (
     <Popover
       opened={opened}
-      onChange={setOpened}
+      onChange={changeOpened}
       width={
         filter?.kind === "selection" && filter.groupBy === "transaction-type"
           ? "min(420px, calc(100vw - 24px))"
@@ -71,7 +83,7 @@ export function ColumnMenu({ label, triggerRef, filter, sort }: ColumnMenuProps)
           aria-label={filterCount > 0 ? `${label} ${String(filterCount)} selected` : label}
           data-filtered={filterCount > 0 || undefined}
           onClick={() => {
-            setOpened(!opened);
+            changeOpened(!opened);
           }}
         >
           <span>{label}</span>{" "}
@@ -92,9 +104,16 @@ export function ColumnMenu({ label, triggerRef, filter, sort }: ColumnMenuProps)
         ref={dropdown}
         className="column-menu-dropdown"
         aria-labelledby={titleId}
+        onKeyDownCapture={() => {
+          interacted.current = true;
+        }}
+        onPointerDownCapture={() => {
+          interacted.current = true;
+        }}
         onFocusCapture={(event) => {
           // Ancestor drawers inspect the focused target before this popover handles Escape.
           event.target.setAttribute("data-mantine-stop-propagation", "true");
+          if (document.activeElement !== closeButton.current) interacted.current = true;
         }}
       >
         <Stack gap="sm" p="md">
@@ -119,6 +138,7 @@ export function ColumnMenu({ label, triggerRef, filter, sort }: ColumnMenuProps)
                 filter={filter}
                 onResetScroll={resetScroll}
                 onClearFocusFallback={() => closeButton.current?.focus()}
+                onSearchAvailable={focusArrivingSearch}
               />
             )
           ) : null}

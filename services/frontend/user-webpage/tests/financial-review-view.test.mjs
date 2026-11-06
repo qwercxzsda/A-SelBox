@@ -6,6 +6,8 @@ import {
   createReviewScope,
   decodeMonthlyReviewView,
   decodeReviewScope,
+  resolveReviewCurrency,
+  resolveReviewYear,
 } from "../src/financial-review-view.ts";
 
 const row = (month, difference, currency = "USD") => ({
@@ -15,6 +17,45 @@ const row = (month, difference, currency = "USD") => ({
   difference,
   finances_amount: "100.004",
   data_kiosk_amount: "99.996",
+});
+
+test("year choices span source bounds while preserving an explicitly empty scope", () => {
+  const bounds = { firstMonth: "2023-11", lastMonth: "2026-02" };
+  assert.deepEqual(resolveReviewYear("", bounds), {
+    year: "2026",
+    years: ["2026", "2025", "2024", "2023"],
+  });
+  assert.deepEqual(resolveReviewYear("2028", bounds), {
+    year: "2028",
+    years: ["2028", "2026", "2025", "2024", "2023"],
+  });
+  assert.deepEqual(resolveReviewYear("", undefined), { year: "", years: [] });
+  assert.deepEqual(resolveReviewYear("2025", { firstMonth: null, lastMonth: null }), {
+    year: "2025",
+    years: ["2025"],
+  });
+});
+
+test("amount unit choices prefer observed USD automatically and never replace an explicit selection", () => {
+  const rows = Object.freeze([
+    row("2026-01", "1", "EUR"),
+    row("2026-02", "2", "USD"),
+    row("2026-03", "3", "EUR"),
+  ]);
+  assert.deepEqual(resolveReviewCurrency("", rows), {
+    currency: "USD",
+    currencies: ["EUR", "USD"],
+  });
+  assert.deepEqual(resolveReviewCurrency("JPY", rows), {
+    currency: "JPY",
+    currencies: ["EUR", "JPY", "USD"],
+  });
+  assert.deepEqual(resolveReviewCurrency("", [row("2026-01", "1", "EUR")]), {
+    currency: "EUR",
+    currencies: ["EUR"],
+  });
+  assert.deepEqual(resolveReviewCurrency("", []), { currency: "", currencies: [] });
+  assert.deepEqual(resolveReviewCurrency("JPY", []), { currency: "JPY", currencies: ["JPY"] });
 });
 
 test("review scope persists marketplace with its amount unit and defaults to automatic currency", () => {

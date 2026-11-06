@@ -6,7 +6,12 @@ import {
 } from "./api";
 import type { Identity } from "./auth-session";
 import type { ReviewCategory } from "./financial-review-categories";
-import { buildFinancialReviewTimeline, type ReviewScope } from "./financial-review-view";
+import {
+  buildFinancialReviewTimeline,
+  resolveReviewCurrency,
+  resolveReviewYear,
+  type ReviewScope,
+} from "./financial-review-view";
 import { usePayoutPolicy } from "./use-payout-policy";
 import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
 import { buildFeeFamilyOptions } from "./fee-family-catalog";
@@ -39,17 +44,7 @@ export function useFinancialReviewPeriod(
     enabled: matureCutoff !== "",
     staleTime: Infinity,
   });
-  const year = scope.year || (bounds.data?.lastMonth?.slice(0, 4) ?? "");
-  const firstYear = Number(bounds.data?.firstMonth?.slice(0, 4));
-  const lastYear = Number(bounds.data?.lastMonth?.slice(0, 4));
-  const years =
-    firstYear && lastYear
-      ? Array.from({ length: lastYear - firstYear + 1 }, (_, index) =>
-          String(lastYear - index).padStart(4, "0"),
-        )
-      : [];
-  if (year && !years.includes(year)) years.push(year);
-  years.sort((left, right) => right.localeCompare(left));
+  const { year, years } = resolveReviewYear(scope.year, bounds.data);
 
   const totalsQuery = useQuery({
     queryKey: [
@@ -73,10 +68,7 @@ export function useFinancialReviewPeriod(
     staleTime: Infinity,
   });
   const periodRows = totalsQuery.data ?? [];
-  const currencies = [...new Set([scope.currency, ...periodRows.map((row) => row.currency ?? "")])]
-    .filter(Boolean)
-    .sort();
-  const currency = scope.currency || (currencies.includes("USD") ? "USD" : currencies[0]) || "";
+  const { currency, currencies } = resolveReviewCurrency(scope.currency, periodRows);
   const familyQuery = useQuery({
     queryKey: [
       "financial-review",

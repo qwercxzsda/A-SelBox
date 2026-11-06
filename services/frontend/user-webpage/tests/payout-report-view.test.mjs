@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createPayoutHistoryState, decodePayoutHistoryState } from "../src/payout-report-view.ts";
 import {
-  createPayoutHistoryState,
-  decodePayoutHistoryState,
+  payoutMarketplaceLabel,
+  payoutMarketplace,
   payoutScopeKey,
   payoutVersionSelection,
-} from "../src/payout-report-view.ts";
-import { payoutMarketplaceLabel, payoutMarketplace } from "../src/payout-report-scope.ts";
+} from "../src/payout-report-scope.ts";
 import { COMPANY_ID, OTHER_COMPANY_ID } from "./api-fixtures.mjs";
 
 const selection = {

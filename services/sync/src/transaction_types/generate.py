@@ -62,7 +62,7 @@ def main() -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(contents, encoding="utf-8")
     if stale:
-        parser.exit(1, f"Regenerate transaction catalogs: {', '.join(stale)}\n")
+        parser.exit(1, f"Regenerate frontend catalogs: {', '.join(stale)}\n")
     return 0
 
 
