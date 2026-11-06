@@ -20,13 +20,13 @@ flowchart LR
     end
     subgraph GROUP_3["Data Kiosk observations"]
         private_data_kiosk_acquisitions["private.data_kiosk_acquisitions"]
-        private_data_kiosk_days["private.data_kiosk_days"]
         private_data_kiosk_preprocess_batches["private.data_kiosk_preprocess_batches"]
-        private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions"]
+        private_data_kiosk_preprocess_batch_days["private.data_kiosk_preprocess_batch_days"]
     end
     subgraph GROUP_4["Data Kiosk facts"]
-        private_data_kiosk_transactions["private.data_kiosk_transactions"]
-        private_data_kiosk_pruned_versions["private.data_kiosk_pruned_versions"]
+        private_data_kiosk_days["private.data_kiosk_days"]
+        private_data_kiosk_day_versions["private.data_kiosk_day_versions"]
+        private_data_kiosk_day_components["private.data_kiosk_day_components"]
     end
     subgraph GROUP_5["Payout results"]
         public_company_payout_reports["public.company_payout_reports"]
@@ -36,7 +36,7 @@ flowchart LR
     end
     subgraph GROUP_6["Payout manifests"]
         private_payout_report_finances_batches["private.payout_report_finances_batches"]
-        private_payout_report_data_kiosk_versions["private.payout_report_data_kiosk_versions"]
+        private_payout_report_data_kiosk_observations["private.payout_report_data_kiosk_observations"]
         private_payout_report_terms_versions["private.payout_report_terms_versions"]
     end
     subgraph GROUP_7["Revisions"]
@@ -48,12 +48,13 @@ flowchart LR
         private_inventory_items["private.inventory_items"]
     end
     private_data_kiosk_acquisitions -.-> ARCHIVES
-    private_data_kiosk_days --> private_data_kiosk_preprocess_versions
+    private_data_kiosk_day_components --> private_data_kiosk_day_versions
+    private_data_kiosk_day_versions --> private_data_kiosk_days
+    private_data_kiosk_days --> private_data_kiosk_preprocess_batch_days
+    private_data_kiosk_preprocess_batch_days --> private_data_kiosk_preprocess_batches
+    private_data_kiosk_preprocess_batch_days --> private_data_kiosk_days
+    private_data_kiosk_preprocess_batch_days --> private_data_kiosk_day_versions
     private_data_kiosk_preprocess_batches --> private_data_kiosk_acquisitions
-    private_data_kiosk_preprocess_versions --> private_data_kiosk_preprocess_batches
-    private_data_kiosk_preprocess_versions --> private_data_kiosk_days
-    private_data_kiosk_pruned_versions --> private_data_kiosk_preprocess_versions
-    private_data_kiosk_transactions --> private_data_kiosk_preprocess_versions
     private_finances_acquisitions -.-> ARCHIVES
     private_finances_preprocess_batch_transactions --> private_finances_transaction_versions
     private_finances_preprocess_batch_transactions --> private_finances_preprocess_batches
@@ -65,8 +66,8 @@ flowchart LR
     private_inventory_acquisitions -.-> ARCHIVES
     private_inventory_daily_captures --> private_inventory_acquisitions
     private_inventory_items --> private_inventory_daily_captures
-    private_payout_report_data_kiosk_versions --> private_data_kiosk_preprocess_versions
-    private_payout_report_data_kiosk_versions --> public_company_payout_reports
+    private_payout_report_data_kiosk_observations --> private_data_kiosk_preprocess_batch_days
+    private_payout_report_data_kiosk_observations --> public_company_payout_reports
     private_payout_report_finances_batches --> private_finances_preprocess_batches
     private_payout_report_finances_batches --> public_company_payout_reports
     private_payout_report_reconciliation --> public_company_payout_reports

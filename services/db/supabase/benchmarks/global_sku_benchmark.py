@@ -12,8 +12,6 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, LiteralString, cast
 
-from psycopg import sql
-
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -41,16 +39,6 @@ _READS: dict[str, LiteralString] = {
         "p_date_to=>'2026-06-30',p_skus=>array['SHARED-SKU'])"
     ),
 }
-# Finance components no longer contain namespace, dates or marketplace metadata.
-# Only the unchanged Data Kiosk fact shape supports this namespace-key comparison.
-_INDEX_COMPARISONS: tuple[tuple[str, str, tuple[str, ...], LiteralString | None], ...] = (
-    (
-        "kiosk_date_count",
-        "data_kiosk_transactions",
-        ("activity_date", "component_type", "sku", "version_id", "category", "marketplace_name"),
-        None,
-    ),
-)
 
 
 def _seed(
@@ -76,7 +64,7 @@ def _seed(
     fixture.connection.commit()
     fixture.connection.autocommit = True
     fixture.connection.execute("vacuum (analyze) private.finances_transaction_components")
-    fixture.connection.execute("vacuum (analyze) private.data_kiosk_transactions")
+    fixture.connection.execute("vacuum (analyze) private.data_kiosk_day_components")
     fixture.connection.execute("analyze")
     return member, expected_ids
 
@@ -153,53 +141,13 @@ def _measure(fixture: SourceModelFixture, member: str, repeat: int) -> list[dict
     ]
 
 
-def _index_sizes(fixture: SourceModelFixture) -> list[dict[str, object]]:
-    """Compare fresh builds on identical data after measuring application plans."""
-    comparisons: list[dict[str, object]] = []
-    for name, table, columns, predicate in _INDEX_COMPARISONS:
-        sizes: dict[str, int] = {}
-        for namespace_key in (False, True):
-            variant = "with_namespace" if namespace_key else "sku_only"
-            keys = list(columns)
-            if namespace_key:
-                keys.insert(keys.index("sku"), "seller_namespace")
-            index_name = "benchmark_" + name + "_" + variant
-            fixture.connection.execute(
-                sql.SQL("create index {} on private.{} ({}){}").format(
-                    sql.Identifier(index_name),
-                    sql.Identifier(table),
-                    sql.SQL(", ").join(map(sql.Identifier, keys)),
-                    sql.SQL("")
-                    if predicate is None
-                    else sql.SQL(" where {} ").format(sql.SQL(predicate)),
-                )
-            )
-            sizes[variant] = int(
-                require_row(
-                    fixture.connection.execute(
-                        "select pg_relation_size(%s::regclass)", ("private." + index_name,)
-                    ).fetchone()
-                )[0]
-            )
-        comparisons.append(
-            {
-                "index": name,
-                "bytes": sizes,
-                "reduction_percent": round(
-                    100 * (1 - sizes["sku_only"] / sizes["with_namespace"]), 2
-                ),
-            }
-        )
-    return comparisons
-
-
 def _verify_plans(
     fixture: SourceModelFixture, plans: list[dict[str, Any]]
 ) -> list[tuple[object, ...]]:
     """Record chosen fact indexes without requiring a cost-dependent scan strategy."""
     fact_indexes: set[str] = set()
     for plan in plans:
-        for relation in ("finances_transaction_components", "data_kiosk_transactions"):
+        for relation in ("finances_transaction_components", "data_kiosk_day_components"):
             used = {
                 node["Index Name"]
                 for node in plan["index_nodes"]
@@ -233,7 +181,6 @@ def run(namespaces: int, matching: int, irrelevant: int, repeat: int) -> dict[st
             )
         ]
         index_keys = _verify_plans(fixture, plans)
-        index_sizes = _index_sizes(fixture)
         version = require_row(fixture.connection.execute("show server_version").fetchone())[0]
     finally:
         if not fixture.doCleanups():
@@ -253,16 +200,13 @@ def run(namespaces: int, matching: int, irrelevant: int, repeat: int) -> dict[st
         "measurements": measurements,
         "plans": plans,
         "used_fact_index_definitions": index_keys,
-        "fresh_index_build_comparison": index_sizes,
         "disposable_database_removed": True,
         "elapsed_seconds": round(time.perf_counter() - started, 3),
         "limits": (
             "Warm synthetic local direct-SQL RPC timings, including result decoding; "
             "no HTTP, browser, network latency, production data distribution, "
             "concurrency, historical source versions, or production scalability claim. "
-            "Index/sequence scan choices are recorded rather than forced. "
-            "Data Kiosk index size variants are fresh builds after timing, "
-            "not an old-query latency comparison."
+            "Index/sequence scan choices are recorded rather than forced."
         ),
     }
 

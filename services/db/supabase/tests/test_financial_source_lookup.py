@@ -16,7 +16,7 @@ class FinancialSourceLookupTests(SourceModelFixture):
         administrator = self.administrator()
         for source, relation in (
             ("FINANCES", "finances_transaction_components"),
-            ("DATA_KIOSK", "data_kiosk_transactions"),
+            ("DATA_KIOSK", "data_kiosk_day_components"),
         ):
             row = self.connection.execute(
                 sql.SQL("select id,version_id,amount::text from private.{} limit 1").format(

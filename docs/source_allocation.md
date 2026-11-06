@@ -97,9 +97,10 @@ contains the current transaction versions; it does not repeat the Finance busine
 
 Empty assigned companies can retain explicit zero reports without inventing a
 marketplace or currency, or claiming that an unobserved seller was inactive. Source publications
-and fee changes enqueue automatic refreshes. Snapshots pin successful Finance batches, including
-empty captures, Data Kiosk day versions and terms. Finance history has no retention cap; Data Kiosk
-retention never removes pinned payloads. Summary evidence remains in the acquisition archives. See [company fees](company_fees.md), [native type rules](transaction_type_registry.md),
+and fee changes enqueue automatic refreshes. Snapshots reference successful Finance batches,
+Data Kiosk batch/day/version memberships and terms, including empty captures. Both sources retain
+immutable history without a cap. Summary evidence remains in the acquisition archives. See
+[company fees](company_fees.md), [native type rules](transaction_type_registry.md),
 and the [payout contract](company_payout_reports.md).
 
 ## Data Kiosk coverage for native channels

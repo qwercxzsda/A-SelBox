@@ -52,7 +52,7 @@ class PayoutReconciliationAccessTests(SourceModelFixture):
         self.assertEqual(self.as_user(administrator, query), expected)
         for user in (self.member(inputs.company), self.member(other_company), self.auth_user()):
             self.assertEqual(self.as_user(user, query), [])
-        self.kiosk(3, [self.component("-100")], expected=kiosk_version, digest="b")
+        self.kiosk(3, [self.component("-100")], expected=kiosk_version)
         self.assertEqual(self.as_user(administrator, query), expected)
         self.assertEqual(
             self.as_user(

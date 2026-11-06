@@ -1,7 +1,7 @@
 """Shared fixed interpretation of archived financial sources.
 
-Change this name when parsing, mapping, classification, or allocation category
+Change this name when parsing, filtering, mapping, classification, or allocation category
 changes. Ownership and fee configuration are deliberately independent.
 """
 
-PREPROCESS_VERSION = "v3"
+PREPROCESS_VERSION = "v5"

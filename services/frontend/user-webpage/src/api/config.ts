@@ -79,6 +79,8 @@ const DATA_KIOSK_COLUMNS = [
   "version_id",
   "day_id",
   "preprocess_version",
+  "batch_id",
+  "is_current",
   "seller_namespace",
   "marketplace_name",
   "activity_date",
@@ -90,8 +92,6 @@ const DATA_KIOSK_COLUMNS = [
   "currency",
   "quantity",
   "fee_base",
-  "source_document_id",
-  "source_line_number",
   "created_at",
 ] as const;
 
@@ -109,7 +109,7 @@ const PAYOUT_COLUMNS = [
   "component_count",
   "reconciliation_count",
   "finances_batch_count",
-  "data_kiosk_version_count",
+  "data_kiosk_observation_count",
   "terms_version_count",
   "source_amount",
   "fee_amount",

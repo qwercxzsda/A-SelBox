@@ -28,14 +28,14 @@ begin
         ),
         kiosk_skus(sku) as (
             (
-                select t.sku from private.data_kiosk_transactions as t
+                select t.sku from private.data_kiosk_day_components as t
                 where t.sku is not null order by t.sku limit 1
             )
             union all
             select next_sku.sku
             from kiosk_skus as previous_sku
             cross join lateral (
-                select t.sku from private.data_kiosk_transactions as t
+                select t.sku from private.data_kiosk_day_components as t
                 where t.sku > previous_sku.sku order by t.sku limit 1
             ) as next_sku
         ),
@@ -75,11 +75,9 @@ language sql stable security invoker set search_path = '' as $$
         and t.is_current
     union
     select t.sku, t.marketplace_name, t.activity_date
-    from private.data_kiosk_transactions as t
+    from private.data_kiosk_component_details as t
     where t.sku = any(p_skus) and t.category <> 'SELBOX' and t.fee_base is not null
-        and exists (
-            select 1 from private.data_kiosk_days as d where d.current_version_id = t.version_id
-        );
+        and t.is_current;
 $$;
 
 -- Both read diagnostics and write validation share the same source/terms query.

@@ -36,6 +36,8 @@ export const DATA_KIOSK_COLUMNS = [
   "version_id",
   "day_id",
   "preprocess_version",
+  "batch_id",
+  "is_current",
   "seller_namespace",
   "marketplace_name",
   "activity_date",
@@ -47,8 +49,6 @@ export const DATA_KIOSK_COLUMNS = [
   "currency",
   "quantity",
   "fee_base",
-  "source_document_id",
-  "source_line_number",
   "created_at",
 ];
 
@@ -67,6 +67,8 @@ export function kioskRow(index, amount) {
     version_id: "version-1",
     day_id: "day-1",
     preprocess_version: "v0",
+    batch_id: "kiosk-batch-1",
+    is_current: "true",
     seller_namespace: "synthetic-seller",
     marketplace_name: "Amazon.com",
     activity_date: "2026-09-16",
@@ -78,8 +80,6 @@ export function kioskRow(index, amount) {
     currency: "USD",
     quantity: "1",
     fee_base: null,
-    source_document_id: "document-1",
-    source_line_number: String(index),
     created_at: "2026-09-17T01:00:00Z",
   };
 }

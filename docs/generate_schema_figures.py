@@ -48,20 +48,20 @@ GROUPS = (
     ),
     (
         "04-data-kiosk-observations",
-        "Data Kiosk acquisitions and daily versions",
+        "Data Kiosk acquisitions and successful batch membership",
         (
             "private.data_kiosk_acquisitions",
-            "private.data_kiosk_days",
             "private.data_kiosk_preprocess_batches",
-            "private.data_kiosk_preprocess_versions",
+            "private.data_kiosk_preprocess_batch_days",
         ),
     ),
     (
         "05-data-kiosk-facts",
-        "Data Kiosk components and retention",
+        "Data Kiosk day identities versions and components",
         (
-            "private.data_kiosk_transactions",
-            "private.data_kiosk_pruned_versions",
+            "private.data_kiosk_days",
+            "private.data_kiosk_day_versions",
+            "private.data_kiosk_day_components",
         ),
     ),
     (
@@ -79,7 +79,7 @@ GROUPS = (
         "Payout source batches day versions and terms manifests",
         (
             "private.payout_report_finances_batches",
-            "private.payout_report_data_kiosk_versions",
+            "private.payout_report_data_kiosk_observations",
             "private.payout_report_terms_versions",
         ),
     ),
@@ -280,9 +280,10 @@ def markdown(schema: dict[str, dict[str, Any]]) -> str:
         "Finances stores stable transaction identities, immutable transaction versions and "
         "components, and the exact versions observed by each successful preprocessing batch. "
         "All Finance business validation runs in Python before publication; raw pages stay in "
-        "private Storage. Data Kiosk retains complete daily versions and its separate pruning "
-        "policy. Payouts pin Finance batches, Data Kiosk versions and company terms. Inventory "
-        "keeps its separate one-capture-per-day model.",
+        "private Storage. Data Kiosk reuses immutable complete-day versions across successful "
+        "batches. Both retain all accepted versions without raw response JSON in component rows. "
+        "Payouts reference Finance batches, Data Kiosk batch/day/version membership and company "
+        "terms. Inventory keeps its separate one-capture-per-day model.",
         "",
         "See [data workflows](data_workflows.md), "
         "[Finances transactions](finances_transactions.md), "

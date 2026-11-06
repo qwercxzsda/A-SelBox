@@ -1,4 +1,4 @@
-"""Normalized Finance parents expose only current owned components to members."""
+"""Normalized source parents expose only current owned components to members."""
 
 from copy import deepcopy
 from typing import Any, cast
@@ -13,6 +13,48 @@ from services.sync.tests.support.finances import finances_acquisition, native_tr
 
 
 class SourceVersionVisibilityTests(SourceModelFixture):
+    def test_reused_kiosk_version_exposes_only_owned_components_and_current_observation(
+        self,
+    ) -> None:
+        company, _ = self.owner()
+        self.owner("OTHER")
+        _, old_version = self.kiosk(1, [self.component("-1"), self.component("-2", sku="OTHER")])
+        rows = [self.component("-3"), self.component("-4", sku="OTHER")]
+        _, current_version = self.kiosk(2, rows, expected=old_version)
+        previous_observation = self.kiosk_observation(current_version)
+        _, reused = self.kiosk(3, rows, expected=current_version)
+        current_observation = self.kiosk_observation(reused)
+        self.assertEqual(reused, current_version)
+        self.assertNotEqual(previous_observation, current_observation)
+        user = self.member(company)
+        self.assertEqual(
+            self.as_user(user, "select sku,amount from private.data_kiosk_day_components"),
+            [("SKU", -3)],
+        )
+        self.assertEqual(
+            self.as_user(user, "select id::text from private.data_kiosk_day_versions"),
+            [(current_version,)],
+        )
+        self.assertEqual(
+            self.as_user(user, "select id::text from private.data_kiosk_preprocess_batch_days"),
+            [(current_observation,)],
+        )
+        self.assertEqual(
+            self.as_user(user, "select count(*) from private.data_kiosk_preprocess_batches"),
+            [(1,)],
+        )
+        administrator = self.administrator()
+        self.assertEqual(
+            self.as_user(administrator, "select count(*) from private.data_kiosk_day_components"),
+            [(4,)],
+        )
+        self.assertEqual(
+            self.as_user(
+                administrator, "select count(*) from public.data_kiosk_preprocess_results"
+            ),
+            [(3,)],
+        )
+
     def test_shared_parent_does_not_expose_another_companys_components(self) -> None:
         first_company, _ = self.owner("SKU-1")
         second_company, _ = self.owner("OTHER")
@@ -96,8 +138,9 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_unassigned_and_members_without_skus_have_no_finance_references(self) -> None:
+    def test_unassigned_and_members_without_skus_have_no_source_references(self) -> None:
         self.publish_owned_history()
+        self.kiosk(1, [self.component()])
         company = new_id()
         self.connection.execute(
             "insert into public.companies(id,name) values (%s,'Empty')", (company,)
@@ -109,6 +152,11 @@ class SourceVersionVisibilityTests(SourceModelFixture):
                 "select id from private.finances_transaction_components",
                 "select batch_id from private.finances_preprocess_batch_transactions",
                 "select id from private.finances_preprocess_batches",
+                "select id from private.data_kiosk_days",
+                "select id from private.data_kiosk_day_versions",
+                "select id from private.data_kiosk_day_components",
+                "select id from private.data_kiosk_preprocess_batch_days",
+                "select id from private.data_kiosk_preprocess_batches",
             ):
                 with self.subTest(user=user, query=query):
                     self.assertEqual(self.as_user(user, query), [])

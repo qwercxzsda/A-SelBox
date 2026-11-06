@@ -23,10 +23,11 @@ def independent_payout_totals(connection: Connection, report_id: str) -> tuple[A
                 where p.report_id=r.id and m.version_id=v.id
             )
             union all
-            select r.id,t.seller_namespace,t.sku,t.marketplace_name,t.activity_date,
+            select r.id,d.seller_namespace,t.sku,d.marketplace_name,d.activity_date,
                 t.currency,t.amount,t.fee_base
-            from target r join private.payout_report_data_kiosk_versions p on p.report_id=r.id
-            join private.data_kiosk_transactions t on t.version_id=p.version_id
+            from target r join private.payout_report_data_kiosk_observations p on p.report_id=r.id
+            join private.data_kiosk_day_components t on t.version_id=p.version_id
+            join private.data_kiosk_days d on d.id=p.day_id
             where t.category='DATA_KIOSK'
         ), assigned as (
             select t.amount,case when t.fee_base is null then 0

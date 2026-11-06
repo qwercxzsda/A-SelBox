@@ -73,6 +73,9 @@ KIOSK_COLUMNS = (
     "version_id",
     "day_id",
     "preprocess_version",
+    "acquisition_id",
+    "dataset_key",
+    "current_batch_id",
     "seller_namespace",
     "marketplace_name",
     "activity_date",
@@ -84,8 +87,8 @@ KIOSK_COLUMNS = (
     "currency",
     "quantity",
     "fee_base",
-    "source_document_id",
-    "source_line_number",
+    "batch_id",
+    "is_current",
     "created_at",
 )
 

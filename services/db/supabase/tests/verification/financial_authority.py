@@ -33,10 +33,10 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
                 and t.category in ('FINANCES','SELBOX')
             union all
             select t.currency,t.amount
-            from private.data_kiosk_transactions t
+            from private.data_kiosk_day_components t
             join private.data_kiosk_days h on h.current_version_id=t.version_id
             where (t.category='DATA_KIOSK' or
-                (t.activity_date >= %s and t.category in ('FINANCES','SELBOX')))
+                (h.activity_date >= %s and t.category in ('FINANCES','SELBOX')))
         ) select currency,sum(amount),count(*) from facts group by currency
         """,
         (mature_cutoff_date, mature_cutoff_date),
@@ -52,7 +52,7 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         difference_count += 1
     minimum = connection.execute(
         "select least((select min(posted_date) from private.finances_transaction_versions),"
-        "(select min(activity_date) from private.data_kiosk_transactions))"
+        "(select min(activity_date) from private.data_kiosk_days))"
     ).fetchall()[0][0]
     actual = as_user(
         connection, administrator, "select public.transaction_totals(p_date_from => %s)", (minimum,)

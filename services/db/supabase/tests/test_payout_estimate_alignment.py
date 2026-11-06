@@ -160,7 +160,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         for (report, _), marketplace in zip(reports, ("Amazon.co.jp", "Amazon.com"), strict=True):
             self.assertEqual(
                 self.connection.execute(
-                    "select source_amount,data_kiosk_version_count,marketplace_name "
+                    "select source_amount,data_kiosk_observation_count,marketplace_name "
                     "from public.company_payout_reports where id=%s",
                     (report,),
                 ).fetchone(),
@@ -223,7 +223,8 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.assert_same_basis(inputs.company, self.member(inputs.company), report, "USD")
         self.assertEqual(
             self.connection.execute(
-                "select data_kiosk_version_count from public.company_payout_reports where id=%s",
+                "select data_kiosk_observation_count from public.company_payout_reports "
+                "where id=%s",
                 (report,),
             ).fetchone(),
             (60,),

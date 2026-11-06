@@ -1,4 +1,4 @@
-"""Fresh-baseline lifecycle, exact calculation, retention and tenant checks."""
+"""Fresh-baseline lifecycle, exact calculation, immutable history and tenant checks."""
 
 from datetime import date, timedelta
 from decimal import Decimal
@@ -129,7 +129,7 @@ class LiveSourceModelTests(SourceModelFixture):
             (3,),
         )
 
-    def test_day_replacement_old_observation_retention_and_comparison(self) -> None:
+    def test_day_replacement_preserves_history_and_old_observations_stay_unselected(self) -> None:
         company, _ = self.owner()
         day, one = self.kiosk(1, [self.component()])
         report = publish_report(self, company)
@@ -150,26 +150,20 @@ class LiveSourceModelTests(SourceModelFixture):
         )
         _, three = self.kiosk(3, [self.component("-2")], expected=two)
         _, four = self.kiosk(4, [self.component("-3")], expected=three)
-        self.assertEqual(
-            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(), (0,)
-        )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "delete from private.payout_report_data_kiosk_versions where report_id=%s",
+                "delete from private.payout_report_data_kiosk_observations where report_id=%s",
                 (report,),
             )
         self.assertEqual(
-            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(), (0,)
-        )
-        self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.data_kiosk_transactions where version_id=%s", (one,)
+                "select count(*) from private.data_kiosk_day_components where version_id=%s", (one,)
             ).fetchone(),
             (1,),
         )
         self.assertEqual(
             self.connection.execute(
-                "select row_count from private.data_kiosk_preprocess_versions where id=%s", (one,)
+                "select row_count from private.data_kiosk_day_versions where id=%s", (one,)
             ).fetchone(),
             (1,),
         )
@@ -181,8 +175,9 @@ class LiveSourceModelTests(SourceModelFixture):
         )
         old_acquisition = require_row(
             self.connection.execute(
-                "select b.acquisition_id from private.data_kiosk_preprocess_versions v "
-                "join private.data_kiosk_preprocess_batches b on b.id=v.batch_id where v.id=%s",
+                "select b.acquisition_id from private.data_kiosk_preprocess_batch_days m "
+                "join private.data_kiosk_preprocess_batches b on b.id=m.batch_id "
+                "where m.version_id=%s",
                 (one,),
             ).fetchone()
         )[0]
@@ -198,13 +193,11 @@ class LiveSourceModelTests(SourceModelFixture):
             four,
         )
         self.assertEqual(
-            require_row(
-                self.connection.execute(
-                    ("select private.compare_data_kiosk_observations(%s,'v0')->>'available'"),
-                    (day,),
-                ).fetchone()
-            )[0],
-            "true",
+            self.connection.execute(
+                "select count(*) from private.data_kiosk_day_versions where day_id=%s",
+                (day,),
+            ).fetchone(),
+            (5,),
         )
 
     def test_strict_combination_rejects_missing_and_mixed_versions(self) -> None:
@@ -327,9 +320,7 @@ class LiveSourceModelTests(SourceModelFixture):
             (0,),
         )
 
-    def test_null_scope_and_retention_arguments_are_rejected(self) -> None:
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute("select private.prune_data_kiosk_preprocess(null)")
+    def test_null_scope_is_rejected(self) -> None:
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
                 "select * from private.company_financial_totals("

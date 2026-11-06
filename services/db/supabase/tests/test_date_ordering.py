@@ -137,12 +137,12 @@ class DateOrderingTests(SourceModelFixture):
             "pg_get_expr(i.indpred,i.indrelid) "
             "from pg_index i join pg_class c on c.oid=i.indexrelid "
             "where c.relnamespace='private'::regnamespace and c.relname in "
-            "('finances_revisions_date_idx','data_kiosk_transactions_date_id_idx') "
+            "('finances_revisions_date_idx','data_kiosk_days_date_idx') "
             "order by c.relname"
         ).fetchall()
         self.assertEqual(len(indexes), 2)
         self.assertEqual(
-            indexes[0], ("data_kiosk_transactions_date_id_idx", "activity_date", "id", "0 0", None)
+            indexes[0], ("data_kiosk_days_date_idx", "activity_date", "id", "0 0", None)
         )
         self.assertEqual(
             indexes[1],
@@ -153,7 +153,7 @@ class DateOrderingTests(SourceModelFixture):
                 "select bool_and(attnotnull) from pg_attribute where "
                 "(attrelid='private.finances_transaction_versions'::regclass "
                 "and attname='posted_date') "
-                "or (attrelid='private.data_kiosk_transactions'::regclass "
+                "or (attrelid='private.data_kiosk_days'::regclass "
                 "and attname='activity_date')"
             ).fetchone(),
             (True,),

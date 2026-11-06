@@ -178,7 +178,7 @@ Source drilldowns retain exact row/version provenance. Finances keeps the main S
 filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID
 lookup drawer across all retained captures, independently of table filters. Its submitted ID and
 page survive closing, tab changes, and reloads. Source details retain their exact row/version;
-missing or pruned versions show an unavailable message. Closing returns focus to the previous
+missing versions show an unavailable message. Closing returns focus to the previous
 action. The [Financial review contract](../../../docs/financial_review.md) defines source
 eligibility and saved account controls.
 

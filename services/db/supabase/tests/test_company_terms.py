@@ -135,7 +135,7 @@ class CompanyTermsTests(SourceModelFixture):
             self.connection.execute(
                 "select sum(company_amount) from private.resolve_company_components("
                 "%s::uuid[],%s::uuid[],%s::uuid[]) where authoritative",
-                ([finances_batch], [day_version], [terms]),
+                ([finances_batch], [self.kiosk_observation(day_version)], [terms]),
             ).fetchone(),
             (Decimal(85),),
         )

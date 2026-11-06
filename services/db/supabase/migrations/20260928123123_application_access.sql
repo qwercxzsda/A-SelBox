@@ -104,7 +104,7 @@ create policy finances_revisions_read on private.finances_transaction_versions
 for select to authenticated using (
     (select private.is_administrator()) or id in (select private.current_owned_finances_revisions())
 );
-create policy finances_runs_read on private.finances_preprocess_batches
+create policy finances_batches_read on private.finances_preprocess_batches
 for select to authenticated using (
     (select private.is_administrator()) or id in (
         select t.current_batch_id from private.finances_transactions as t
@@ -124,7 +124,21 @@ for select to authenticated using (
         )
     )
 );
-create policy data_kiosk_facts_read on private.data_kiosk_transactions
+-- Resolve caller-owned day identities without recursive parent/child RLS.
+create function private.current_owned_data_kiosk_days() returns setof uuid
+language sql stable security definer set search_path = '' as $$
+    select distinct d.id from private.data_kiosk_days d
+    join private.data_kiosk_day_components t on t.version_id=d.current_version_id
+    where (select auth.uid()) is not null and (select private.is_member())
+        and t.category<>'SELBOX'
+        and t.sku in (select o.sku from private.current_owned_sku_terms() o);
+$$;
+revoke all on function private.current_owned_data_kiosk_days() from public,
+anon,
+authenticated,
+service_role;
+
+create policy data_kiosk_facts_read on private.data_kiosk_day_components
 for select to authenticated using (
     (select private.is_administrator()) or (
         category <> 'SELBOX'
@@ -139,16 +153,29 @@ for select to authenticated using (
 create policy data_kiosk_selection_read on private.data_kiosk_days
 for select to authenticated using (
     (select private.is_administrator())
-    or ((select private.is_member()) and current_version_id is not null)
+    or id in (select private.current_owned_data_kiosk_days())
 );
-create policy data_kiosk_version_reference_read on private.data_kiosk_preprocess_versions
+create policy data_kiosk_version_reference_read on private.data_kiosk_day_versions
 for select to authenticated using (
-    (select private.is_administrator()) or (
-        (select private.is_member())
-        and exists (
-            select 1 from private.data_kiosk_days as h
-            where h.current_version_id = data_kiosk_preprocess_versions.id
-        )
+    (select private.is_administrator()) or id in (
+        select d.current_version_id from private.data_kiosk_days as d
+    )
+);
+
+-- Day RLS already restricts these references to the caller's current owned data.
+create policy data_kiosk_batches_read on private.data_kiosk_preprocess_batches
+for select to authenticated using (
+    (select private.is_administrator()) or id in (
+        select d.current_batch_id from private.data_kiosk_days as d
+    )
+);
+create policy data_kiosk_observations_read on private.data_kiosk_preprocess_batch_days
+for select to authenticated using (
+    (select private.is_administrator()) or exists (
+        select 1 from private.data_kiosk_days as d
+        where
+            d.id = data_kiosk_preprocess_batch_days.day_id
+            and d.current_batch_id = data_kiosk_preprocess_batch_days.batch_id
     )
 );
 
@@ -167,25 +194,16 @@ begin
 end;
 $$;
 create function private.read_data_kiosk_preprocess_results() returns table (
-    id uuid, day_id uuid, batch_id uuid, acquisition_id uuid, seller_namespace text,
-    amazon_scope text, marketplace_name text, activity_date date,
-    dataset_key text, preprocess_version text, row_count integer, content_sha256 text,
-    created_at timestamptz, is_current boolean, is_pruned boolean
-)
-language plpgsql stable security definer set search_path = '' as $$
+    id uuid, acquisition_id uuid, seller_namespace text, amazon_scope text,
+    query_start_date date, query_end_date date, preprocess_version text,
+    day_count integer, created_at timestamptz
+) language plpgsql stable security definer set search_path = '' as $$
 begin
-    if not private.is_administrator() then
-        raise exception 'Administrator access required' using errcode = '42501';
-    end if;
-    return query select v.id::uuid,v.day_id::uuid,v.batch_id::uuid,b.acquisition_id::uuid,
-        d.seller_namespace::text,a.amazon_scope::text,d.marketplace_name,d.activity_date,
-        d.dataset_key::text,v.preprocess_version::text,v.row_count,v.content_sha256::text,
-        v.created_at,v.id = d.current_version_id,
-        exists (select 1 from private.data_kiosk_pruned_versions p where p.version_id = v.id)
-    from private.data_kiosk_preprocess_versions v
-    join private.data_kiosk_days d on d.id = v.day_id
-    join private.data_kiosk_preprocess_batches b on b.id = v.batch_id
-    join private.data_kiosk_acquisitions a on a.id = b.acquisition_id;
+    if not private.is_administrator() then raise exception 'Administrator access required' using errcode='42501'; end if;
+    return query select b.id::uuid,b.acquisition_id::uuid,a.seller_namespace::text,a.amazon_scope::text,
+        a.query_start_date,a.query_end_date,b.preprocess_version::text,b.day_count,b.created_at
+        from private.data_kiosk_preprocess_batches b
+        join private.data_kiosk_acquisitions a on a.id=b.acquisition_id;
 end;
 $$;
 create view public.finances_preprocess_results with (security_invoker = true) as
@@ -215,11 +233,21 @@ inner join lateral (
 ) as observation on true;
 create view public.data_kiosk_preprocess_entries with (security_invoker = true) as
 select
-    t.*,
-    v.preprocess_version,
-    v.day_id
-from private.data_kiosk_transactions as t
-inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id;
+    d.*,
+    observation.batch_id,
+    observation.preprocess_version,
+    observation.acquisition_id
+from private.data_kiosk_component_details as d
+inner join lateral (
+    select
+        m.batch_id,
+        b.preprocess_version,
+        b.acquisition_id
+    from private.data_kiosk_preprocess_batch_days as m
+    inner join private.data_kiosk_preprocess_batches as b on m.batch_id = b.id
+    where m.version_id = d.version_id
+    order by (m.batch_id = d.current_batch_id) desc, b.created_at desc, b.id desc limit 1
+) as observation on true;
 
 -- Members read their own frozen payouts even if current SKU ownership changes.
 -- Supporting rows, complete manifests and exclusion evidence stay administrator-only.
@@ -254,9 +282,9 @@ order by
     r.company_id asc, r.start_date asc, r.marketplace_name asc,
     r.currency asc, r.created_at desc, r.id desc;
 
-create policy payout_finances_runs_read on private.payout_report_finances_batches
+create policy payout_finances_batches_read on private.payout_report_finances_batches
 for select to authenticated using ((select private.is_administrator()));
-create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
+create policy payout_data_kiosk_observations_read on private.payout_report_data_kiosk_observations
 for select to authenticated using ((select private.is_administrator()));
 create policy payout_terms_versions_read on private.payout_report_terms_versions
 for select to authenticated using ((select private.is_administrator()));
@@ -300,7 +328,7 @@ select
     t.category,
     t.currency,
     t.amount
-from private.data_kiosk_transactions as t
+from private.data_kiosk_component_details as t
 inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
 where
     (select private.is_administrator())
@@ -399,8 +427,8 @@ group by report_id, currency;
 
 create view public.payout_report_finances_batches with (security_invoker = true) as
 select * from private.payout_report_finances_batches;
-create view public.payout_report_data_kiosk_versions with (security_invoker = true) as
-select * from private.payout_report_data_kiosk_versions;
+create view public.payout_report_data_kiosk_observations with (security_invoker = true) as
+select * from private.payout_report_data_kiosk_observations;
 create view public.payout_report_terms_versions with (security_invoker = true) as
 select * from private.payout_report_terms_versions;
 

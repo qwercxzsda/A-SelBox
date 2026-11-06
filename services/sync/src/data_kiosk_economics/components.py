@@ -1,4 +1,4 @@
-"""Explicit economic source mappings, preserving tax-inclusive source detail once."""
+"""Validate native economic detail and retain typed calculation components."""
 
 from dataclasses import fields
 from typing import Literal
@@ -11,7 +11,7 @@ from ..amazon.data_kiosk.economics_models import (
 )
 from ..amazon.data_kiosk.economics_taxonomy import canonicalize_economics_taxonomy
 from ..numeric import Numeric
-from ..source_serialization import content_sha256, source_mapping
+from ..source_serialization import content_sha256
 from ..transaction_types.data_kiosk import DATA_KIOSK_TYPE_BY_SOURCE, DataKioskType
 from .errors import UnresolvedDataKioskComponentError
 from .models import DataKioskTransaction
@@ -36,7 +36,7 @@ def _source_type(
 
 
 def build_components(fact: DailyMskuEconomicsFact) -> tuple[DataKioskTransaction, ...]:
-    """Keep one amount per native fee subperiod and retain its whole breakdown."""
+    """Keep one typed amount per native fee subperiod after validating its breakdown."""
     if fact.unresolved_fee_types:
         raise UnresolvedDataKioskComponentError(
             "MISSING_FEE_CHARGES",
@@ -56,11 +56,6 @@ def build_components(fact: DailyMskuEconomicsFact) -> tuple[DataKioskTransaction
             sales.net_product_sales,
             quantity=sales.net_units_sold,
             fee_base=sales.net_product_sales.amount,
-            dimensions={
-                "sales": source_mapping(sales),
-                "net_proceeds": source_mapping(fact.net_proceeds),
-                "cost": None if fact.cost is None else source_mapping(fact.cost),
-            },
             identity={"collection": "sales"},
         )
     ]
@@ -87,7 +82,6 @@ def _fee_components(fact: DailyMskuEconomicsFact) -> list[DataKioskTransaction]:
                 fee.aggregated_detail.total_amount,
                 quantity=fee.aggregated_detail.quantity,
                 negate=True,
-                dimensions={"fee": source_mapping(fee)},
                 identity={
                     "collection": "fees",
                     "fee_type_name": fee.fee_type_name,
@@ -120,7 +114,6 @@ def _ad_components(fact: DailyMskuEconomicsFact) -> list[DataKioskTransaction]:
                 ad.charge.total_amount,
                 quantity=ad.charge.quantity,
                 negate=True,
-                dimensions={"ad": source_mapping(ad)},
                 identity={"collection": "ads", "ad_type_name": ad.ad_type_name},
             )
         )
@@ -139,7 +132,6 @@ def _cost_components(fact: DailyMskuEconomicsFact) -> list[DataKioskTransaction]
                     fact,
                     DATA_KIOSK_TYPE_BY_SOURCE["cost", field.name.upper()],
                     amount,
-                    dimensions={"cost_field": field.name},
                     identity={"collection": "cost", "field": field.name},
                 )
             )
@@ -158,7 +150,6 @@ def _component(
     definition: DataKioskType,
     amount: EconomicsAmount,
     *,
-    dimensions: dict[str, object],
     identity: dict[str, object],
     quantity: Numeric | None = None,
     fee_base: Numeric | None = None,
@@ -173,12 +164,4 @@ def _component(
         currency=amount.currency_code,
         quantity=quantity,
         fee_base=fee_base,
-        native_dimensions={
-            "child_asin": fact.child_asin,
-            "parent_asin": fact.parent_asin,
-            "fnsku": fact.fnsku,
-            **dimensions,
-        },
-        source_document_id=fact.source_document_id,
-        source_line_number=fact.source_line_number,
     )

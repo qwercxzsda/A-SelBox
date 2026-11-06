@@ -41,7 +41,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 | {"sku": None},
             ]
         )
-        kiosk_versions: list[str] = []
+        kiosk_observations: list[str] = []
         for number, day, sales, retained, costs in (
             (1, before, "900", "-99", "-10"),
             (2, mature_cutoff_date, "200", "-7", "-20"),
@@ -57,7 +57,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 ],
                 activity_date=day.isoformat(),
             )
-            kiosk_versions.append(kiosk_version)
+            kiosk_observations.append(self.kiosk_observation(kiosk_version))
         administrator, member = self.administrator(), self.member(company)
         for user, count, reported in ((administrator, "7", "260"), (member, "4", "270")):
             page = self.assert_matches_view(user, p_direction="asc")
@@ -92,7 +92,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             "select source_amount,authoritative,fee_amount,company_amount "
             "from private.resolve_company_components(%s::uuid[],%s::uuid[],%s::uuid[]) "
             "where source='DATA_KIOSK' and activity_date=%s and category='FINANCES'",
-            ([version], kiosk_versions, [terms], before),
+            ([version], kiosk_observations, [terms], before),
         ).fetchall()
         self.assertEqual(details, [(Decimal(900), False, None, None)])
         strict = self.connection.execute(
@@ -192,7 +192,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                         (day,),
                     ).fetchall()
                 ],
-                [kiosk_version, earlier_version],
+                [self.kiosk_observation(kiosk_version), self.kiosk_observation(earlier_version)],
             ),
         ).fetchall()
         expected = [

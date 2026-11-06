@@ -45,7 +45,9 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assert_report_count(1)
         self.connection.execute("set constraints all immediate")
 
-    def test_source_versions_including_empty_days_create_new_reports_at_equal_totals(self) -> None:
+    def test_source_observations_including_empty_days_create_new_reports_at_equal_totals(
+        self,
+    ) -> None:
         inputs = prepare_payout(self)
         first = generate_payout_reports(self, inputs.company)[0][0]
         before = payout_snapshot(self, first)
@@ -64,16 +66,15 @@ class PayoutIdempotencyTests(SourceModelFixture):
         ).fetchone()
         if empty is None:
             self.fail("Expected complete empty-day coverage.")
-        _, replacement = self.kiosk(
-            2, [], expected=empty[0], digest="c", activity_date="2026-06-16"
-        )
+        _, replacement = self.kiosk(2, [], expected=empty[0], activity_date="2026-06-16")
+        self.assertEqual(replacement, empty[0])
         third, created = generate_payout_reports(self, inputs.company)[0]
         self.assertTrue(created)
         self.assertNotIn(third, (first, second))
         self.assertEqual(self.report_totals(first), self.report_totals(third))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.payout_report_data_kiosk_versions "
+                "select count(*) from private.payout_report_data_kiosk_observations "
                 "where report_id=%s and version_id=%s",
                 (third, replacement),
             ).fetchone(),

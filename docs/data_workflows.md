@@ -7,7 +7,7 @@ terms; the payout worker freezes the exact inputs and amounts used for a company
 | Source     | Downloaded evidence                                      | Accepted result                                                                         | History                                                                            |
 | ---------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | Finances   | Transaction/Summary pages and local acquisition manifest | Stable transaction identities, immutable versions/components and exact batch membership | All accepted versions retained; unchanged states reused                            |
-| Data Kiosk | Complete query/document inventory                        | Complete seller/marketplace/day/dataset versions                                        | Current, latest three independent observations and payout-pinned versions retained |
+| Data Kiosk | Complete query/document inventory                        | Stable day identities, immutable complete-day versions/components and exact batch membership | All accepted versions retained; unchanged states reused                         |
 | Inventory  | Full Inventory Planning report                           | One capture per seller/marketplace/day                                                  | Same-day capture replaced atomically; prior days and raw acquisitions retained     |
 
 The [Finances contract](finances_transactions.md), [Inventory contract](inventory_daily_captures.md),
@@ -22,12 +22,23 @@ batch records a successful interpretation of that acquisition. Finance acquisiti
 PostgreSQL with its first successful batch; downloads and failed preprocessing use local manifests
 and logs. Data Kiosk and Inventory persist successful acquisition metadata before preprocessing.
 
-Finance components reference `finances_transaction_versions`; batch membership records every observed
-transaction/version, including reused states. Stable transaction identities select a version and its
-observing batch. Data Kiosk components instead belong to complete day versions selected by day
-identities. Inventory uses a single successful capture header rather than financial versions.
+Both financial sources use these six table roles in the `private` schema:
 
-Financial interpretation is identified by `PREPROCESS_VERSION`. Change it when parsing,
+| Meaning | Finances | Data Kiosk |
+| --- | --- | --- |
+| Retrieved source and archive inventory | `finances_acquisitions` | `data_kiosk_acquisitions` |
+| Successful preprocessing | `finances_preprocess_batches` | `data_kiosk_preprocess_batches` |
+| Stable identity | `finances_transactions` | `data_kiosk_days` |
+| Immutable normalized state | `finances_transaction_versions` | `data_kiosk_day_versions` |
+| Monetary components within a version | `finances_transaction_components` | `data_kiosk_day_components` |
+| Versions observed by each batch | `finances_preprocess_batch_transactions` | `data_kiosk_preprocess_batch_days` |
+
+Each stable identity selects a version and its observing batch through `current_version_id` and
+`current_batch_id`. Membership records every successful observation, including reused states.
+Neither source version has an originating batch. Inventory uses a single successful capture header
+rather than financial versions.
+
+Financial interpretation is identified by `PREPROCESS_VERSION`. Change it when parsing, filtering,
 classification, local dates or activity eligibility change, and explicitly reprocess archived inputs.
 SKU terms have their own immutable versions. Imports never register ownership or invent fee rates.
 
@@ -70,15 +81,28 @@ contract](finances_transactions.md#preprocessing-and-publication) for exact rule
 
 ## Data Kiosk preprocessing
 
-Read complete archived acquisitions into daily versions, preserving native SKU, currency, fee
-subperiod, quantities, component dimensions and source references. `(SKU, marketplace, day)` alone
-is not a component key. Preserve signs and avoid adding parent totals to their child breakdowns.
-Missing amounts and quantities remain unknown rather than zero.
+Read complete archived acquisitions into daily versions, preserving native SKU, currency, component
+identity, signed amounts, quantities and fee bases as typed values. Component identities distinguish
+native fee subperiods; `(SKU, marketplace, day)` alone is not a component key. Preserve signs and avoid
+adding parent totals to their child breakdowns. Missing amounts and quantities remain unknown rather
+than zero. Classification and fee eligibility belong to preprocessing.
 
 Validate `netProductSales = orderedProductSales - refundedProductSales` and
 `netUnitsSold = unitsOrdered - unitsRefunded`. Negative refunds retain their signs. Nonblank MSKU
 text stays verbatim. Unknown fees, missing required collections and invalid equations fail before
 publication; the acquisition remains available for investigation.
+
+After validation, omit components whose `amount` is zero and whose `quantity` and `fee_base`
+are each zero or null. Day hashes and row counts use only retained components. Detail belonging
+to omitted components remains in the raw archives; changes confined to that detail do not change
+the day hash. Keep the day version even when all components are omitted.
+
+Reuse a day version and its entire component set when its normalized contents match an existing
+version for that day. A changed component creates a new complete day version; a return to a previous
+state reuses that earlier version. Hashes exclude preprocessing labels and archive document/line
+positions. Labels belong to successful batches. Nested source JSON stays in compressed archives,
+not in normalized rows. To inspect the original row, use the selected batch's acquisition archive,
+day, SKU and deterministic component key.
 
 Only dates preceding the query's local creation date are complete. A successful empty day selects
 zero children. A missing SKU remains absent in the replacement observation instead of falling back
@@ -89,24 +113,21 @@ to an older row. `ANALYSIS_ONLY` components stay diagnostic. The
 
 Finance publishes under seller/credential-scope and payout-input locks; Data Kiosk locks day identities
 in stable order and verifies expected selections. Each batch commits in one transaction. Current
-Finance reads follow transaction pointers; captured reads follow batch membership. Data Kiosk reads
-follow selected day versions. A partial Finance capture cannot certify a changed whole month through
-an older batch.
+Finance reads follow transaction pointers; Data Kiosk reads follow day pointers. Both select an
+observing batch as well as a version. Historical reads follow exact batch membership. A partial
+Finance capture cannot certify a changed whole month through an older batch.
 
 Changed source/terms inputs rotate revision tokens and request payout work. Browser reads reload only
 when relevant tokens change. The payout worker uses published data and never downloads from Amazon.
 The maturity cutoff is an eligibility policy, separate from retrieval and publication success.
 
-## Retention and comparisons
+## Immutable history
 
-Finance retains acquisitions, batches, memberships, versions and components without a cap. Data Kiosk
-keeps current versions, its latest three independent observations per day and payout-pinned versions.
-Multiple reprocessings of one acquisition count as one observation. Comparison uses complete content
-digests under compatible processing definitions; equal totals alone do not prove equal contents.
-
-Data Kiosk pruning locks the day, rechecks references, records a pruning marker and removes only
-eligible payloads. Headers, original counts and archives remain, distinguishing pruning from a
-successful empty day. Reprocessing archives creates a new result. Finance history is not pruned.
+Finance and Data Kiosk retain acquisitions, successful batches, memberships, versions, components
+and raw archives indefinitely. Reprocessing creates a new batch and reuses unchanged normalized
+versions. Current selections may advance without rewriting historical contents. Empty versions
+retain successful coverage with no fabricated monetary rows. Payout references identify the exact
+batch memberships and company terms used to produce each saved report.
 
 ## Company terms and payouts
 

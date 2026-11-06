@@ -45,6 +45,6 @@ class SourcePageBenchmarkPlanTests(SourceModelFixture):
                 self.assertIn(
                     "finances_transaction_components"
                     if dataset == "finances"
-                    else "data_kiosk_transactions",
+                    else "data_kiosk_day_components",
                     scanned,
                 )

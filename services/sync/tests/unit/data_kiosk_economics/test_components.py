@@ -1,4 +1,4 @@
-"""Component authority, exact economic amounts, and semantic comparison."""
+"""Component authority, exact economic amounts, and stable source identities."""
 
 import unittest
 from dataclasses import replace
@@ -8,11 +8,9 @@ from ....src.amazon.data_kiosk.economics_models import (
     EconomicsFeeComponent,
     EconomicsProperty,
 )
-from ....src.data_kiosk_economics.comparison import comparable_components
 from ....src.data_kiosk_economics.components import build_components, classify_fee
 from ....src.data_kiosk_economics.errors import UnresolvedDataKioskComponentError
 from ....src.numeric import Numeric
-from ....src.source_serialization import content_sha256
 from ...support.economics import complete_economics_fact
 
 
@@ -62,7 +60,7 @@ class DataKioskComponentTests(unittest.TestCase):
         with self.assertRaises(UnresolvedDataKioskComponentError):
             classify_fee("UnknownFee")
 
-    def test_tax_promotion_and_credits_use_total_once_and_keep_original_breakdown(self) -> None:
+    def test_tax_promotion_and_credits_validate_detail_and_use_total_once(self) -> None:
         fact = complete_economics_fact()
         fee = fact.fees[0]
         detail = replace(
@@ -109,7 +107,7 @@ class DataKioskComponentTests(unittest.TestCase):
                 )
             )
 
-    def test_full_content_comparison_ignores_provenance_and_unordered_arrays(self) -> None:
+    def test_typed_components_ignore_provenance_and_unstored_source_detail(self) -> None:
         fact = complete_economics_fact()
         properties = (EconomicsProperty("Volume", "1"), EconomicsProperty("Size", "small"))
         detail = fact.fees[0].aggregated_detail
@@ -129,10 +127,7 @@ class DataKioskComponentTests(unittest.TestCase):
             document_sha256="f" * 64,
             fees=(second_fee,),
         )
-        self.assertEqual(
-            content_sha256(comparable_components(build_components(first))),
-            content_sha256(comparable_components(build_components(second))),
-        )
+        self.assertEqual(build_components(first), build_components(second))
         changed_detail = replace(
             detail,
             amount=replace(detail.amount, amount=detail.amount.amount + 1),
@@ -141,11 +136,7 @@ class DataKioskComponentTests(unittest.TestCase):
             ),
         )
         changed = replace(first, fees=(replace(fee, aggregated_detail=changed_detail),))
-        self.assertEqual(build_components(first)[1].amount, build_components(changed)[1].amount)
-        self.assertNotEqual(
-            content_sha256(comparable_components(build_components(first))),
-            content_sha256(comparable_components(build_components(changed))),
-        )
+        self.assertEqual(build_components(first), build_components(changed))
 
     def test_fee_identity_includes_native_subperiod_and_rejects_duplicate_components(self) -> None:
         fact = complete_economics_fact()

@@ -178,7 +178,7 @@ class TransactionPageTests(TransactionPageFixture):
             _, previous = self.kiosk(observation, replacement, expected=previous)
             self.assertEqual(
                 self.connection.execute(
-                    "select count(*) from private.data_kiosk_transactions where version_id=%s",
+                    "select count(*) from private.data_kiosk_day_components where version_id=%s",
                     (historical,),
                 ).fetchone(),
                 (2,),

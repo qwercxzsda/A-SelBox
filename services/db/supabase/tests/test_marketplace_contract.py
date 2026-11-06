@@ -19,7 +19,6 @@ _SCALAR_COLUMNS = {
     "public.sku_fee_periods": True,
     "private.finances_transaction_versions": True,
     "private.data_kiosk_days": True,
-    "private.data_kiosk_transactions": True,
     "public.company_payout_report_components": False,
     "public.company_payout_reports": False,
 }
@@ -217,25 +216,42 @@ class MarketplaceContractTests(SourceModelFixture):
             )
         self.connection.execute("set constraints all immediate")
 
-    def test_optional_kiosk_fact_marketplaces_keep_publication_validation(self) -> None:
-        _, current = self.kiosk(1, [self.component() | {"marketplace_name": "Amazon.ca"}])
-        _, current = self.kiosk(
-            2, [self.component() | {"marketplace_name": None}], expected=current
-        )
+    def test_kiosk_day_marketplaces_keep_publication_validation(self) -> None:
+        _, current = self.kiosk(1, [self.component()])
         self.assertEqual(
             self.connection.execute(
-                "select distinct marketplace_name from private.data_kiosk_transactions"
+                "select distinct marketplace_name from private.data_kiosk_component_details"
             ).fetchall(),
             [("Amazon.com",)],
         )
-        invalid_values: tuple[object, ...] = (*_INVALID_LABELS, 1, True, {}, [])
+        acquisition = self.kiosk_acquisition(2)
+        invalid_values: tuple[object, ...] = (*_INVALID_LABELS, None, 1, True, {}, [])
         for name in invalid_values:
             with (
                 self.subTest(name=name),
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
-                self.kiosk(3, [self.component() | {"marketplace_name": name}], expected=current)
+                self.call(
+                    "publish_data_kiosk_preprocess",
+                    {
+                        "id": new_id(),
+                        "acquisition_id": acquisition,
+                        "preprocess_version": "v0",
+                        "dataset_key": "economics",
+                        "days": [
+                            {
+                                "id": new_id(),
+                                "marketplace_name": name,
+                                "activity_date": "2026-06-15",
+                                "expected_current_version_id": None,
+                                "expected_current_batch_id": None,
+                                "content_sha256": "a" * 64,
+                                "transactions": [self.component()],
+                            }
+                        ],
+                    },
+                )
         self.assertEqual(
             self.connection.execute(
                 "select current_version_id::text from private.data_kiosk_days"

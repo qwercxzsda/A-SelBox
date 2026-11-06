@@ -7,11 +7,11 @@ begin
         'private.finances_acquisitions', 'private.data_kiosk_acquisitions',
         'private.finances_preprocess_batches', 'private.finances_transaction_versions',
         'private.finances_transaction_components', 'private.finances_preprocess_batch_transactions',
-        'private.data_kiosk_preprocess_batches', 'private.data_kiosk_preprocess_versions',
-        'private.data_kiosk_pruned_versions',
+        'private.data_kiosk_preprocess_batches', 'private.data_kiosk_day_versions',
+        'private.data_kiosk_day_components', 'private.data_kiosk_preprocess_batch_days',
         'private.inventory_acquisitions',
         'public.company_payout_reports', 'public.company_payout_report_components',
-        'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_versions',
+        'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_observations',
         'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
     ] loop
         execute format('create trigger immutable before update or delete on %s
@@ -24,8 +24,7 @@ do $$
 declare table_name text;
 begin
     foreach table_name in array array[
-        'public.skus', 'public.sku_terms_versions', 'public.sku_fee_periods',
-        'private.data_kiosk_pruned_versions'
+        'public.skus', 'public.sku_terms_versions', 'public.sku_fee_periods'
     ] loop
         execute format('create trigger no_truncate before truncate on %s
 for each statement execute function private.reject_mutation()', table_name);
@@ -66,9 +65,7 @@ begin
         if expected is null then raise exception 'Missing version parent' using errcode = '23503'; end if;
         execute format('select count(*) from %I.%I where %I = $1', tg_table_schema, tg_table_name, tg_argv[2])
             into actual using parent_id;
-        if actual > expected or (tg_table_name = 'data_kiosk_transactions' and exists (
-            select 1 from private.data_kiosk_pruned_versions where version_id = parent_id
-        )) then
+        if actual > expected then
             raise exception 'Published child inventory is frozen' using errcode = '23514';
         end if;
     end loop;
@@ -99,19 +96,19 @@ for each row execute function private.check_complete_inventory(
     'public.sku_fee_periods', 'fee_period_count', 'terms_version_id'
 );
 create trigger complete_day_insert
-after insert on private.data_kiosk_transactions
+after insert on private.data_kiosk_day_components
 referencing new table as inserted_children for each statement
 execute function private.guard_child_inventory(
-    'private.data_kiosk_preprocess_versions', 'row_count', 'version_id'
+    'private.data_kiosk_day_versions', 'row_count', 'version_id'
 );
 create constraint trigger complete_day_set
-after insert on private.data_kiosk_preprocess_versions
+after insert on private.data_kiosk_day_versions
 deferrable initially deferred
 for each row execute function private.check_complete_inventory(
-    'private.data_kiosk_transactions', 'row_count', 'version_id'
+    'private.data_kiosk_day_components', 'row_count', 'version_id'
 );
 create trigger complete_batch_insert after insert
-on private.data_kiosk_preprocess_versions
+on private.data_kiosk_preprocess_batch_days
 referencing new table as inserted_children for each statement
 execute function private.guard_child_inventory(
     'private.data_kiosk_preprocess_batches', 'day_count', 'batch_id'
@@ -120,42 +117,48 @@ create constraint trigger complete_batch_set
 after insert on private.data_kiosk_preprocess_batches
 deferrable initially deferred
 for each row execute function private.check_complete_inventory(
-    'private.data_kiosk_preprocess_versions', 'day_count', 'batch_id'
+    'private.data_kiosk_preprocess_batch_days', 'day_count', 'batch_id'
 );
 
-create function private.guard_current_reference() returns trigger language plpgsql
+create function private.guard_current_data_kiosk_observation() returns trigger language plpgsql
 set search_path = '' as $$
 declare current_source record; previous_source record;
 begin
-    if tg_op = 'DELETE' or (to_jsonb(new) - 'current_version_id') is distinct from (to_jsonb(old) - 'current_version_id') then
-        raise exception 'Published identity cannot change' using errcode = '23514';
+    if tg_op='DELETE' or (to_jsonb(new)-array['current_version_id','current_batch_id']) is distinct from
+        (to_jsonb(old)-array['current_version_id','current_batch_id']) then
+        raise exception 'Published identity cannot change' using errcode='23514';
     end if;
-    if new.current_version_id is null then
-        raise exception 'Current version must advance through publication' using errcode = '23514';
+    if new.current_version_id is null or new.current_batch_id is null then
+        raise exception 'Current observation cannot be cleared' using errcode='23514';
     end if;
-    if tg_table_name = 'data_kiosk_days' then
-        if exists (select 1 from private.data_kiosk_pruned_versions p where p.version_id = new.current_version_id) then
-            raise exception 'A pruned payload cannot become current' using errcode = '23514';
-        end if;
-        select a.root_query_created_at,a.id into current_source
-            from private.data_kiosk_preprocess_versions v
-            join private.data_kiosk_preprocess_batches b on b.id = v.batch_id
-            join private.data_kiosk_acquisitions a on a.id = b.acquisition_id where v.id = new.current_version_id;
-        select a.root_query_created_at,a.id into previous_source
-            from private.data_kiosk_preprocess_versions v
-            join private.data_kiosk_preprocess_batches b on b.id = v.batch_id
-            join private.data_kiosk_acquisitions a on a.id = b.acquisition_id where v.id = old.current_version_id;
-        if old.current_version_id is not null and (
-            (current_source.root_query_created_at,current_source.id) < (previous_source.root_query_created_at,previous_source.id)
-            or (current_source.id = previous_source.id and new.current_version_id <= old.current_version_id)
-        ) then raise exception 'Data Kiosk observation selection cannot move backward' using errcode = '23514'; end if;
-    end if;
+    select a.root_query_created_at,a.id into current_source
+        from private.data_kiosk_preprocess_batches b
+        join private.data_kiosk_acquisitions a on a.id=b.acquisition_id where b.id=new.current_batch_id;
+    select a.root_query_created_at,a.id into previous_source
+        from private.data_kiosk_preprocess_batches b
+        join private.data_kiosk_acquisitions a on a.id=b.acquisition_id where b.id=old.current_batch_id;
+    if old.current_batch_id is not null and (
+        (current_source.root_query_created_at,current_source.id)<(previous_source.root_query_created_at,previous_source.id)
+        or (current_source.id=previous_source.id and new.current_batch_id<old.current_batch_id)
+    ) then raise exception 'Data Kiosk observation selection cannot move backward' using errcode='23514'; end if;
     return new;
 end;
 $$;
-create trigger immutable_identity
-before update or delete on private.data_kiosk_days
-for each row execute function private.guard_current_reference();
+create trigger immutable_identity before update or delete on private.data_kiosk_days
+for each row execute function private.guard_current_data_kiosk_observation();
+
+create function private.require_selected_data_kiosk_observation() returns trigger language plpgsql
+set search_path = '' as $$
+begin
+    if exists(select 1 from private.data_kiosk_days where id=new.id and current_batch_id is null) then
+        raise exception 'A Data Kiosk day requires a selected observation' using errcode='23514';
+    end if;
+    return null;
+end;
+$$;
+create constraint trigger selected_data_kiosk_observation_required
+after insert on private.data_kiosk_days deferrable initially deferred
+for each row execute function private.require_selected_data_kiosk_observation();
 
 create function private.guard_current_sku_terms() returns trigger
 language plpgsql set search_path = '' as $$
@@ -205,25 +208,11 @@ create function private.require_read_committed() returns void language plpgsql
 set search_path = '' as $$
 begin
     if current_setting('transaction_isolation') <> 'read committed' then
-        raise exception 'Source retention and payout publication require READ COMMITTED isolation'
+        raise exception 'Source and payout publication require READ COMMITTED isolation'
             using errcode = '25000';
     end if;
 end;
 $$;
-
-create function private.guard_data_kiosk_payload_mutation() returns trigger language plpgsql
-set search_path = '' as $$
-begin
-    if tg_op <> 'DELETE' or not exists (
-        select 1 from private.data_kiosk_pruned_versions p where p.version_id = old.version_id
-    ) then raise exception 'Data Kiosk published facts are immutable' using errcode = '23514'; end if;
-    return old;
-end;
-$$;
-create trigger immutable
-before update or delete on private.data_kiosk_transactions
-for each row execute function private.guard_data_kiosk_payload_mutation();
-revoke all on all functions in schema private from public, anon, authenticated, service_role;
 
 do $$
 declare relation text;
@@ -232,10 +221,12 @@ begin
         'private.finances_acquisitions', 'private.finances_preprocess_batches',
         'private.finances_transactions', 'private.finances_transaction_versions',
         'private.finances_transaction_components', 'private.finances_preprocess_batch_transactions',
-        'private.data_kiosk_transactions',
+        'private.data_kiosk_acquisitions', 'private.data_kiosk_days',
+        'private.data_kiosk_preprocess_batches', 'private.data_kiosk_day_versions',
+        'private.data_kiosk_day_components', 'private.data_kiosk_preprocess_batch_days',
         'private.inventory_acquisitions',
         'public.company_payout_reports', 'public.company_payout_report_components',
-        'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_versions',
+        'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_observations',
         'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
     ] loop
         execute format('create trigger immutable_truncate
@@ -253,7 +244,7 @@ begin
         ('public.company_payout_report_components', 'component_count'),
         ('private.payout_report_reconciliation', 'reconciliation_count'),
         ('private.payout_report_finances_batches', 'finances_batch_count'),
-        ('private.payout_report_data_kiosk_versions', 'data_kiosk_version_count'),
+        ('private.payout_report_data_kiosk_observations', 'data_kiosk_observation_count'),
         ('private.payout_report_terms_versions', 'terms_version_count')
     loop
         execute format(

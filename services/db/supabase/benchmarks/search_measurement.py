@@ -87,7 +87,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         subjects = identities(connection)
         facts = connection.execute(
             "select (select count(*) from private.finances_transaction_components),"
-            "(select count(*) from private.data_kiosk_transactions)"
+            "(select count(*) from private.data_kiosk_day_components)"
         ).fetchone()
         actor_cases = {role: discover_cases(connection, user) for role, user in subjects.items()}
         references = {

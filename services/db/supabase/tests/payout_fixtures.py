@@ -6,6 +6,7 @@ from typing import cast
 
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.sync.src.source_serialization import content_sha256
 
 
 def fill_payout_kiosk_month(
@@ -40,7 +41,8 @@ def fill_payout_kiosk_month(
                     "marketplace_name": marketplace,
                     "activity_date": current.isoformat(),
                     "expected_current_version_id": None,
-                    "content_sha256": "c" * 64,
+                    "expected_current_batch_id": None,
+                    "content_sha256": content_sha256([]),
                     "transactions": [],
                 }
             )
@@ -87,7 +89,7 @@ def publish_report(
             "end_date": end_date,
             "dataset_key": "economics",
             "report_name": "Retained source evidence",
-            "change_reason": "Freeze complete source coverage for retention checks",
+            "change_reason": "Freeze complete source observation coverage",
         },
     )
 
@@ -161,7 +163,7 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
             'finances_batches',(select jsonb_agg(to_jsonb(p) order by p.batch_id)
                 from private.payout_report_finances_batches p where p.report_id=r.id),
             'kiosk',(select jsonb_agg(to_jsonb(p) order by p.day_id)
-                from private.payout_report_data_kiosk_versions p where p.report_id=r.id),
+                from private.payout_report_data_kiosk_observations p where p.report_id=r.id),
             'terms',(select jsonb_agg(to_jsonb(p) order by p.sku_id)
                 from private.payout_report_terms_versions p where p.report_id=r.id),
             'reconciliation',(select jsonb_agg(to_jsonb(c) order by c.row_number)

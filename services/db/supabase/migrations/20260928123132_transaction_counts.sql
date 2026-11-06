@@ -48,7 +48,7 @@ begin
         'private.finances_transaction_components'::regclass
     );
     kiosk_policy_is_sufficient := private.member_policy_covers_current_version(
-        'private.data_kiosk_transactions'::regclass
+        'private.data_kiosk_day_components'::regclass
     );
     return (
         -- Each COUNT is bigint; SUM(bigint) is numeric, so combining sources
@@ -96,7 +96,7 @@ begin
                 )
             union all
             select count(*) as row_count
-            from private.data_kiosk_transactions as t
+            from private.data_kiosk_component_details as t
             where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
                     and t.category in ('FINANCES', 'SELBOX')))
                 and (
@@ -212,7 +212,7 @@ begin
         );
     end if;
     return (
-        select count(*)::text from private.data_kiosk_transactions as t
+        select count(*)::text from private.data_kiosk_component_details as t
         where (p_date_from is null or t.activity_date >= p_date_from)
             and (p_date_to is null or t.activity_date <= p_date_to)
             and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))

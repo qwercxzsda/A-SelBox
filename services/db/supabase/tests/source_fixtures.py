@@ -12,6 +12,7 @@ from services.db.supabase.tests.integration_support import DatabaseTestCase
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_finances import acquisition, finances
 from services.sync.src.finances.acquisition_models import FinancesAcquisition
+from services.sync.src.source_serialization import content_sha256
 
 
 def new_id() -> str:
@@ -240,11 +241,18 @@ class SourceModelFixture(DatabaseTestCase):
         expected: str | None = None,
         acquisition_id: str | None = None,
         version: str = "v0",
-        digest: str = "a",
         activity_date: str = "2026-06-15",
     ) -> tuple[str, str]:
-        version_id = new_id()
-        self.call(
+        selected = self.connection.execute(
+            "select current_batch_id from private.data_kiosk_days where seller_namespace=%s "
+            "and marketplace_name='Amazon.com' and activity_date=%s and dataset_key='economics'",
+            (self.seller, activity_date),
+        ).fetchone()
+        normalized_rows = [
+            {key: value for key, value in row.items() if key != "id"} for row in rows
+        ]
+        normalized_rows.sort(key=lambda row: str(row["component_key"]))
+        batch_id = self.call(
             "publish_data_kiosk_preprocess",
             {
                 "id": new_id(),
@@ -254,11 +262,14 @@ class SourceModelFixture(DatabaseTestCase):
                 "dataset_key": "economics",
                 "days": [
                     {
-                        "id": version_id,
+                        "id": new_id(),
                         "marketplace_name": "Amazon.com",
                         "activity_date": activity_date,
                         "expected_current_version_id": expected,
-                        "content_sha256": digest * 64,
+                        "expected_current_batch_id": None
+                        if selected is None or selected[0] is None
+                        else str(selected[0]),
+                        "content_sha256": content_sha256(normalized_rows),
                         "transactions": rows,
                     }
                 ],
@@ -266,13 +277,27 @@ class SourceModelFixture(DatabaseTestCase):
         )
         row = require_row(
             self.connection.execute(
-                "select id from private.data_kiosk_days where seller_namespace=%s "
-                "and marketplace_name='Amazon.com' and activity_date=%s "
-                "and dataset_key='economics'",
-                (self.seller, activity_date),
+                "select day_id,version_id from private.data_kiosk_preprocess_batch_days "
+                "where batch_id=%s",
+                (batch_id,),
             ).fetchone()
         )
-        return str(row[0]), version_id
+        return str(row[0]), str(row[1])
+
+    def kiosk_observation(self, version_id: str) -> str:
+        """Select the current observation of a version, or its latest retained observation."""
+        row = require_row(
+            self.connection.execute(
+                "select m.id from private.data_kiosk_preprocess_batch_days m "
+                "join private.data_kiosk_days d on d.id=m.day_id "
+                "join private.data_kiosk_preprocess_batches b on b.id=m.batch_id "
+                "join private.data_kiosk_acquisitions a on a.id=b.acquisition_id "
+                "where m.version_id=%s order by (m.batch_id=d.current_batch_id) desc,"
+                "a.root_query_created_at desc,a.id desc,b.id desc limit 1",
+                (version_id,),
+            ).fetchone()
+        )
+        return str(row[0])
 
     @staticmethod
     def component(
@@ -288,9 +313,6 @@ class SourceModelFixture(DatabaseTestCase):
             "quantity": None,
             "fee_base": None,
             "category": category,
-            "native_dimensions": {},
-            "source_document_id": "document",
-            "source_line_number": 1,
         }
 
     def totals(

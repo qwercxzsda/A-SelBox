@@ -31,19 +31,20 @@ def raw_reconciliation(
                     and v.posted_date between r.start_date and r.end_date))
         group by t.seller_namespace,v.posted_date,v.marketplace_name,v.currency,c.category
         union all
-        select 'DATA_KIOSK',t.seller_namespace,t.activity_date,t.marketplace_name,t.currency,
+        select 'DATA_KIOSK',d.seller_namespace,d.activity_date,d.marketplace_name,t.currency,
             t.category,sum(t.amount)
-        from private.data_kiosk_transactions t
-        where t.activity_date < %s and t.category='DATA_KIOSK'
-          and ((%s::uuid is null and exists (
-              select 1 from private.data_kiosk_days d where d.current_version_id=t.version_id))
-            or exists (select 1 from private.payout_report_data_kiosk_versions p
+        from private.data_kiosk_day_components t
+        join private.data_kiosk_day_versions v on v.id=t.version_id
+        join private.data_kiosk_days d on d.id=v.day_id
+        where d.activity_date < %s and t.category='DATA_KIOSK'
+          and ((%s::uuid is null and d.current_version_id=t.version_id)
+            or exists (select 1 from private.payout_report_data_kiosk_observations p
                 join public.company_payout_reports r on r.id=p.report_id
                 where p.report_id=%s and p.version_id=t.version_id
-                    and t.marketplace_name is not distinct from r.marketplace_name
+                    and d.marketplace_name is not distinct from r.marketplace_name
                     and t.currency=r.currency
-                    and t.activity_date between r.start_date and r.end_date))
-        group by t.seller_namespace,t.activity_date,t.marketplace_name,t.currency,t.category
+                    and d.activity_date between r.start_date and r.end_date))
+        group by d.seller_namespace,d.activity_date,d.marketplace_name,t.currency,t.category
         """,
         (mature_cutoff_date, report_id, report_id, mature_cutoff_date, report_id, report_id),
     ).fetchall()

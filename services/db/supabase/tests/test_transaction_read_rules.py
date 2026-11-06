@@ -126,7 +126,7 @@ class TransactionReadRulesTests(SourceModelFixture):
             "select private.member_policy_covers_current_version("
             "'private.finances_transaction_components'::regclass),"
             "private.member_policy_covers_current_version("
-            "'private.data_kiosk_transactions'::regclass),"
+            "'private.data_kiosk_day_components'::regclass),"
             "private.member_policy_covers_current_version('public.skus'::regclass)"
         )
         self.assertEqual(self.connection.execute(query).fetchone(), (False, False, False))

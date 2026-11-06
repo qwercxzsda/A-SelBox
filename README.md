@@ -28,16 +28,16 @@ One named enum category selects the allocation: `FINANCES`, `SELBOX`,
 account controls; selected Data Kiosk components supply company costs.
 Analysis-only components stay outside strict financial totals. Dashboard estimates
 combine all eligible transaction sources, as described in the query contract. Finance batches
-record exact observed transaction versions and reuse unchanged contents. Data Kiosk day versions
-include empty days. Both retain independent Amazon observation ordering.
+record exact observed transaction versions and reuse unchanged contents. Data Kiosk batches likewise
+record reusable complete-day versions, including empty days. Both retain independent Amazon observation ordering.
 Application accounts use three roles: Administrator (`administrator`), Member (`member`),
 and Unassigned (`unassigned`). New signups are Unassigned until an administrator assigns a
 company. Members read current own-company facts and terms; administrators also read retained
 history and all payout reports. Only the DB manager can grant or revoke Administrator access.
-Raw documents remain private. Finance history has no retention cap; only successful preprocessing
-enters the database, and failed attempts use local logs. Data Kiosk retention preserves current
-versions, the latest three Amazon observations, and payout dependencies. Approval, rounding, and
-payment execution remain deferred.
+Raw documents remain in private compressed archives. Both financial sources retain all accepted
+versions and exact batch membership without a history cap. Finance acquisition metadata enters the
+database with successful preprocessing; Data Kiosk retains successful download metadata separately.
+Failed preprocessing uses local logs. Approval, rounding, and payment execution remain deferred.
 
 ## Development
 
@@ -73,7 +73,7 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
 ## Design
 
 - [Data workflows](docs/data_workflows.md): archives, complete publications,
-  source ordering, shared versions, retention, and exact values.
+  source ordering, shared versions, immutable history, and exact values.
 - [Company ownership and fees](docs/company_fees.md): versioned terms,
   calculations, partial summaries, completeness, and access.
 - [Application access](docs/access_control.md): Administrator, Member, and Unassigned roles, REST

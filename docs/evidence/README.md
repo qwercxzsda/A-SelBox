@@ -1,9 +1,8 @@
 # Amazon-source evidence
 
 These dated records preserve independently observed Amazon amounts, source limitations and native
-field behavior. They support the current contracts but are not deployment instructions or evidence
-that the old implementation remains installed. Original aggregate files retain the fields and
-terminology of their capture date.
+field behavior. They describe source behavior, not current deployment state. Original aggregate
+files retain the fields and terminology of their capture date.
 
 | Record                                                                                                                                        | Source finding                                                                                                                              |
 | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -17,6 +16,5 @@ terminology of their capture date.
 
 Aggregate files exclude credentials, private document locations and raw customer/SKU identifiers.
 Original API responses, PDFs and XZ archives remain in ignored private output directories.
-Obsolete preview screenshots, old HTTP replay reports and superseded test-suite totals are removed;
-current reproducible checks are documented in the [database guide](../../services/db/supabase/README.md#verification)
+Current reproducible checks are documented in the [database guide](../../services/db/supabase/README.md#verification)
 and [sync guide](../../services/sync/README.md#verification).

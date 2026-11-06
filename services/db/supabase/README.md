@@ -4,7 +4,7 @@ PostgreSQL 17 schema for immutable archived Finances/Data Kiosk inputs, versione
 terms, live financial reads, and frozen payout reports. The migrations form a fresh-install baseline
 with one current definition per object.
 
-- [Schema](../../../docs/database_schema.md): tables, relationships, publication, and retention.
+- [Schema](../../../docs/database_schema.md): tables, relationships, publication, and history.
 - [Application access](../../../docs/access_control.md): account roles, grants, RLS, and administration.
 - [Query contracts](../../../docs/transaction_query_contracts.md): exact page/count/summary/filter APIs.
 - [Performance](../../../docs/database_performance.md): current access paths, measurements, and scaling limits.
@@ -37,16 +37,15 @@ sources, while keeping its own daily-capture tables. Each database object has on
 definition. SKU discovery and configuration reads share one module; validation and publication
 share another.
 
-The existing migration filenames and timestamp prefixes remain stable. Their authoritative
-fresh-install definitions are edited in place for the new Finance model; no migration-history
-rewrites, live conversion or legacy compatibility layer are introduced. Verification installs
-these definitions only in disposable databases.
+The migrations define a fresh installation of the financial source models, with no upgrade or
+conversion path for existing deployments. Verification installs these definitions only in
+disposable databases.
 
 | Module                                                                                       | Responsibility                                                                                                               |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | [schema_primitives](migrations/20260928123050_schema_primitives.sql)                         | Private schema, UUIDs, constrained types, and the common immutability guard.                                                 |
 | [identity_schema](migrations/20260928123051_identity_schema.sql)                             | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms.                                    |
-| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql)             | Six Finance tables with stable transaction identities, immutable versions/components and exact successful batch membership; Data Kiosk days/facts. |
+| [financial_source_schema](migrations/20260928123052_financial_source_schema.sql)             | Six tables per financial source: stable identities, reusable immutable versions/components and exact successful batch membership. |
 | [inventory_schema](migrations/20260928123055_inventory_schema.sql)                           | Daily inventory acquisitions, captures, items, constraints, and indexes.                                                     |
 | [archive_publications](migrations/20260928123056_archive_publications.sql)                   | Immutable archive metadata and acquisition publication for Data Kiosk and Inventory; Finance publication is Python-owned.                          |
 | [source_publications](migrations/20260928123102_source_publications.sql)                     | Atomic Data Kiosk day publication and same-day Inventory capture replacement; Finance publication is Python-owned.                                 |
@@ -58,12 +57,11 @@ these definitions only in disposable databases.
 | [publication_integrity](migrations/20260928123116_publication_integrity.sql)                 | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
 | [payout_validation](migrations/20260928123117_payout_validation.sql)                         | Frozen-input integrity, coverage, provenance, and totals validation.                                                         |
 | [payout_publication](migrations/20260928123119_payout_publication.sql)                       | Locked source capture across namespaces, company/marketplace/currency aggregation, and latest-report reuse.                  |
-| [source_retention](migrations/20260928123121_source_retention.sql)                           | Data Kiosk-only payout-aware pruning, pin guards and observation comparison.                                                                       |
 | [application_access](migrations/20260928123123_application_access.sql)                       | Account, financial, payout, and inventory RLS policies and authorized REST projections.                                      |
 | [payout_generation](migrations/20260928123125_payout_generation.sql)                         | Atomic company/month generation, maturity policy, bounded readiness, and administrator setup diagnostics.                    |
 | [payout_refresh](migrations/20260928123126_payout_refresh.sql)                               | Pending revision requests, maturity discovery, bounded processing, and retry backoff.                                        |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql)                     | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling.            |
-| [payout_invalidation](migrations/20260928123128_payout_invalidation.sql)                     | Transactional requests after source or terms changes, scope expansion, and pruning.                                          |
+| [payout_invalidation](migrations/20260928123128_payout_invalidation.sql)                     | Transactional requests after source or terms changes and scope expansion.                                                    |
 | [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Read indexes, shared filter/pagination validation, and current-policy eligibility.                                           |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql)                       | Exact authorized live and raw source counts.                                                                                 |
 | [transaction_page](migrations/20260928123134_transaction_page.sql)                           | Bounded live row selection before ownership and fee projection.                                                              |
@@ -119,7 +117,7 @@ comparison and analysis facts.
 `workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial
 source and inventory revisions are global; fee, ownership, company-name, and payout revisions are
 company-scoped for members and global for administrators. Source-version publication, current-pointer
-changes, Finance batch membership, and Data Kiosk pruning update financial source tokens atomically at commit.
+changes and successful Finance/Data Kiosk batch membership update financial source tokens atomically at commit.
 This covers administrator history reads as well as current Transactions. Changed daily inventory
 captures rotate the separate `inventory` token in the publication transaction; raw acquisitions,
 idempotent replays, and rolled-back publications do not. New payout headers rotate `payouts` tokens
@@ -169,43 +167,19 @@ read raw errors. The [payout contract](../../../docs/company_payout_reports.md) 
 locking, reuse and scheduler operations; the [permission matrix](../../../docs/access_control.md#permission-matrix)
 owns report and source visibility.
 
-## Observation history and Data Kiosk retention
+## Immutable source contents and observation history
 
-Finance identities are unique by seller namespace, credential scope and native transaction ID.
-Each selects a transaction version and the successful batch that observed it. The batch membership
-retains every observed version, including reused unchanged states and source page/record positions.
-All Finance versions and components remain immutable without a retention cap. There are no Finance
-prune/compare procedures or stored Summary-check tables.
+Both financial sources retain immutable versions and record each successful batch's exact
+membership. Current identities select a version and its observing batch; payout manifests preserve
+their original observation references. The [data workflow](../../../docs/data_workflows.md)
+defines version reuse, empty coverage, source-detail archives and permanent history. The
+[Finances contract](../../../docs/finances_transactions.md) defines transaction lifecycle and Summary
+validation; the [payout contract](../../../docs/company_payout_reports.md) defines input selection.
 
-Payouts retain Finance batch membership and exact historical component IDs. Monthly publication
-selects a successful batch covering the required period whose transaction versions match current
-state; it does not repeat Finance business validation. Empty successful batches record coverage
-without fabricated day rows. The [Finances contract](../../../docs/finances_transactions.md) explains
-the source controls and acquisition boundaries.
-
-Data Kiosk keeps its existing independent day-version workflow:
-
-```sql
-select private.compare_data_kiosk_observations(d.id, v.preprocess_version)
-from private.data_kiosk_days as d
-join private.data_kiosk_preprocess_versions as v on v.id = d.current_version_id
-where d.seller_namespace = 'seller-na'
-    and d.marketplace_name = 'Amazon.com'
-    and d.activity_date = date '2026-08-01'
-    and d.dataset_key = 'economics';
-select private.prune_data_kiosk_preprocess(3);
-```
-
-Data Kiosk pruning retains at least three independent observations per day, every current version
-and every payout reference. It removes eligible fact payloads while preserving original counts,
-headers, acquisitions and archives. Increasing retention cannot restore removed rows; archived
-inputs can be explicitly reprocessed into new versions. Comparison requires complete compatible
-contents; equal observations do not establish financial finality.
-
-Data Kiosk publication, payout capture and pruning lock day identities in stable order. Capture and
-pruning use `READ COMMITTED`; immutable payout references protect complete day versions including
-empty days. Finance publication instead locks seller/credential scope and preserves transaction
-history. Both coordinate with the payout-input guard.
+Publication and payout capture use `READ COMMITTED` and coordinate through the payout-input guard.
+Data Kiosk locks day identities in stable order; Finance locks seller/credential scope. Current
+pointers, new immutable contents and batch membership commit together. Acquisition downloads do
+not select financial source versions.
 
 ## Verification
 
@@ -221,7 +195,7 @@ installs the baseline, and drops each database afterward. It never rebuilds exis
 schemas or changes their migration records and archives. Tests cover complete publication and
 rollback, real XZ parsing through repositories, fee corrections, empty days, source ordering, exact
 filtered tenant totals, cross-company access, frozen reports, and concurrent publication, payout
-capture, and pruning. Live-view regressions compare all 24 output columns against the
+capture, and reusable-version publication. Live-view regressions compare all 24 output columns against the
 explicit-version resolver across roles, ownership changes, historical versions, fee diagnostics, and
 filtered reads; plan checks verify that date predicates reach both fact scans. These PostgreSQL
 checks do not exercise hosted Storage or SP-API transport.

@@ -191,7 +191,8 @@ Object upload and PostgreSQL publication do not share a transaction. A failed
 publication can leave an archived object without a successful acquisition header.
 Preserve it for investigation; do not infer that an uploaded object changed current
 financial facts. Finance batch membership, new transaction versions/components and selected pointers publish
-atomically after Python validation. Data Kiosk day-version publication remains atomic.
+atomically after Python validation. Data Kiosk likewise publishes complete day versions, selected
+observations and reusable-version membership atomically.
 
 ## Manual operational tooling
 
@@ -204,7 +205,7 @@ Source failures preserve prior current selections and captured evidence.
 
 Disposable PostgreSQL and Supabase tests cover native source publication, account
 and company access, frozen calculations, lifecycle exclusion, Summary gates,
-concurrency and retention. The [verification evidence index](evidence/README.md)
+concurrency and immutable history. The [verification evidence index](evidence/README.md)
 distinguishes live API captures from synthetic edge cases and archived replays.
 
 Synthetic owners and fee rates are test configuration, not approved business

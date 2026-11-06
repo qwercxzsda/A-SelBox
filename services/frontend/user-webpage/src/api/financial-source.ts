@@ -44,10 +44,7 @@ export function createFinancialSourceApi(transport: ApiTransport) {
       const [row] = mapDatasetRows(selection.source === "FINANCES" ? "finances" : "data_kiosk", [
         record,
       ]);
-      if (
-        row.id !== selection.rowId ||
-        (selection.source === "FINANCES" ? row.version_id : row.version_id) !== selection.versionId
-      )
+      if (row.id !== selection.rowId || row.version_id !== selection.versionId)
         throw new Error("Source detail returned a different row or version");
       return row;
     },

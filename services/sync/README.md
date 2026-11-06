@@ -2,7 +2,7 @@
 
 The service archives Amazon Finances, Data Kiosk Economics and Inventory Planning responses, then
 preprocesses those saved inputs without contacting Amazon. The [workflow contract](../../docs/data_workflows.md)
-explains each source's publication and retention model.
+explains each source's publication and history model.
 
 Finance downloads write a local manifest. Successful preprocessing atomically accepts acquisition
 metadata, batch membership and immutable transaction versions through `src/database/finances.py`.
@@ -162,8 +162,9 @@ handling and report-time semantics.
 The [type registry](../../docs/transaction_type_registry.md) owns supported native monetary paths,
 allocation categories and frontend type generation. The [Finances contract](../../docs/finances_transactions.md)
 owns transaction identity, lifecycle and Summary checks. The [Data Kiosk workflow](../../docs/data_workflows.md#data-kiosk-preprocessing)
-owns daily replacement and monetary equations. All preserve exact signed decimals and nonblank SKU
-text; unknown required monetary detail fails rather than receiving a guessed category or amount.
+owns daily validation, zero filtering and version reuse. All preserve exact signed decimals and
+nonblank SKU text; unknown required monetary detail fails rather than receiving a guessed category
+or amount.
 
 ## Company terms and live financial reads
 
@@ -211,7 +212,7 @@ conda run -n A-SelBox pyright --pythonpath /path/printed/above
 ```
 
 The database test suite constructs the fresh baseline and exercises publication,
-retention, concurrency, and company access locally. See the database guide for
+version reuse, immutable history, concurrency, and company access locally. See the database guide for
 its commands. Unit tests use synthetic inputs and mocked transfers.
 
 For real local Auth, Storage, and PostgREST verification, run the separate,
@@ -228,7 +229,7 @@ startup may pull Docker images. It uses synthetic Amazon data, does not load
 the [database guide](../db/supabase/README.md#verification) for scope and isolation.
 
 See [verification scope](../../docs/known_issues.md#deployment-and-verification-scope)
-for the boundaries of these checks. Publication and retention concurrency are
+for the boundaries of these checks. Source and payout publication concurrency are
 covered by database tests. The [known issues](../../docs/known_issues.md) also
 document the restrictions on changing Storage visibility or process-global
 routing configuration during use.

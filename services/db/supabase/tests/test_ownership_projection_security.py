@@ -16,7 +16,7 @@ select jsonb_build_object(
     'owned', (select coalesce(jsonb_agg(sku
         order by sku),'[]'::jsonb) from private.current_owned_sku_terms()),
     'finances', (select count(*) from private.finances_transaction_components),
-    'kiosk', (select count(*) from private.data_kiosk_transactions),
+    'kiosk', (select count(*) from private.data_kiosk_day_components),
     'periods', (select count(*) from public.sku_fee_periods)
 )
 """
@@ -110,12 +110,14 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
         self.assertEqual(
             self.as_user(
                 self.member_a,
-                "select t.amount::text from private.data_kiosk_transactions t order by t.amount",
+                "select t.amount::text from private.data_kiosk_day_components t order by t.amount",
             ),
             [("-8",), ("-4",), ("-3",), ("-2",)],
         )
         self.assertEqual(
-            self.as_user(self.member_b, "select amount::text from private.data_kiosk_transactions"),
+            self.as_user(
+                self.member_b, "select amount::text from private.data_kiosk_day_components"
+            ),
             [],
         )
         surfaces: tuple[tuple[LiteralString, tuple[int, int, int]], ...] = (
@@ -127,7 +129,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             ("select count(*) from private.current_sku_terms", (2, 1, 4)),
             ("select count(*) from private.finances_transaction_components", (2, 0, 7)),
             ("select count(*) from public.finances_preprocess_entries", (2, 0, 7)),
-            ("select count(*) from private.data_kiosk_transactions", (4, 0, 8)),
+            ("select count(*) from private.data_kiosk_day_components", (4, 0, 8)),
             ("select count(*) from public.data_kiosk_preprocess_entries", (4, 0, 8)),
         )
         for query, counts in surfaces:
@@ -217,7 +219,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             "alter table public.sku_terms_versions force row level security",
             "alter table public.sku_fee_periods force row level security",
             "alter table private.finances_transaction_components force row level security",
-            "alter table private.data_kiosk_transactions force row level security",
+            "alter table private.data_kiosk_day_components force row level security",
         )
         for query in tables:
             self.connection.execute(query)

@@ -364,7 +364,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
             version="v1",
         )
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
-        _, new_kiosk = self.kiosk(2, [self.component("-5")], expected=old_kiosk, digest="b")
+        _, new_kiosk = self.kiosk(2, [self.component("-5")], expected=old_kiosk)
         administrator = self.administrator()
         self.assertEqual(
             self.as_user(
@@ -378,7 +378,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select (select count(*) from private.finances_transaction_components),"
-                "(select count(*) from private.data_kiosk_transactions)"
+                "(select count(*) from private.data_kiosk_day_components)"
             ).fetchone(),
             (2, 2),
         )
@@ -414,6 +414,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
                             "marketplace_name": market,
                             "activity_date": "2026-06-15",
                             "expected_current_version_id": None,
+                            "expected_current_batch_id": None,
                             "content_sha256": "c" * 64,
                             "transactions": [
                                 self.component(amount, category="FINANCES")

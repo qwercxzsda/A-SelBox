@@ -116,8 +116,8 @@ class TestSourceReprocessing(DatabaseTestCase):
         row = self.connection.execute(
             "select d.current_version_id,v.row_count,b.acquisition_id "
             "from private.data_kiosk_days d "
-            "join private.data_kiosk_preprocess_versions v on v.id=d.current_version_id "
-            "join private.data_kiosk_preprocess_batches b on b.id=v.batch_id "
+            "join private.data_kiosk_day_versions v on v.id=d.current_version_id "
+            "join private.data_kiosk_preprocess_batches b on b.id=d.current_batch_id "
             "where d.seller_namespace=%s and d.activity_date=%s",
             (self.seller, activity_date),
         ).fetchone()
@@ -147,6 +147,33 @@ class TestSourceReprocessing(DatabaseTestCase):
             finances_batch_ids=[],
             marketplace_names=["Amazon.com"],
         )
+
+    def test_zero_only_observation_replaces_nonzero_day_without_changing_history(self) -> None:
+        initial = self.save_observation(
+            cost_document("5"), created_at=datetime(2026, 8, 4, 12, tzinfo=UTC)
+        )
+        preprocess_data_kiosk_acquisition(self.database, self.storage, initial)
+        previous = self.current_day(date(2026, 8, 1))
+        self.assign("SKU-1")
+        self.assertEqual(self.totals()[0].source_amount, Numeric(-5))
+
+        zero = self.save_observation(
+            cost_document("0"), created_at=datetime(2026, 8, 5, 12, tzinfo=UTC)
+        )
+        preprocess_data_kiosk_acquisition(self.database, self.storage, zero)
+        current = self.current_day(date(2026, 8, 1))
+        self.assertNotEqual(current[0], previous[0])
+        self.assertEqual(current[1], 0)
+        self.assertEqual(str(current[2]), zero)
+        self.assertEqual(self.totals(), ())
+        self.assertEqual(
+            self.connection.execute(
+                "select amount from private.data_kiosk_day_components where version_id=%s",
+                (previous[0],),
+            ).fetchall(),
+            [(Numeric(-5),)],
+        )
+        self.connection.execute("set constraints all immediate")
 
     def test_complete_empty_day_removes_disappeared_skus_and_leaves_unqueried_day_selected(
         self,
@@ -203,10 +230,10 @@ class TestSourceReprocessing(DatabaseTestCase):
         self.assertEqual(self.current_day(date(2026, 8, 1)), newest_selection)
         self.assertEqual(str(newest_selection[2]), new)
         latest_result = self.connection.execute(
-            "select v.id,b.acquisition_id from private.data_kiosk_preprocess_versions v "
-            "join private.data_kiosk_preprocess_batches b on b.id=v.batch_id "
+            "select m.version_id,b.acquisition_id from private.data_kiosk_preprocess_batch_days m "
+            "join private.data_kiosk_preprocess_batches b on b.id=m.batch_id "
             "join private.data_kiosk_acquisitions a on a.id=b.acquisition_id "
-            "where a.seller_namespace=%s order by v.id desc limit 1",
+            "where a.seller_namespace=%s order by b.id desc limit 1",
             (self.seller,),
         ).fetchone()
         if latest_result is None:
@@ -225,6 +252,41 @@ class TestSourceReprocessing(DatabaseTestCase):
             (3,),
         )
         self.assertEqual(len(self.storage.objects), 2)
+        self.connection.execute("set constraints all immediate")
+
+    def test_unchanged_and_recurring_contents_reuse_versions_across_observations(self) -> None:
+        versions: list[object] = []
+        batches: list[str] = []
+        for day, amount in ((4, "5"), (5, "5.00"), (6, "7"), (7, "5")):
+            acquisition = self.save_observation(
+                cost_document(amount), created_at=datetime(2026, 8, day, 12, tzinfo=UTC)
+            )
+            batches.append(
+                preprocess_data_kiosk_acquisition(self.database, self.storage, acquisition)
+            )
+            versions.append(self.current_day(date(2026, 8, 1))[0])
+        self.assertEqual(versions[0], versions[1])
+        self.assertNotEqual(versions[0], versions[2])
+        self.assertEqual(versions[0], versions[3])
+        self.assertEqual(len(set(batches)), 4)
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.data_kiosk_day_versions"
+            ).fetchone(),
+            (2,),
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.data_kiosk_preprocess_batch_days"
+            ).fetchone(),
+            (4,),
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select amount from private.data_kiosk_day_components order by amount"
+            ).fetchall(),
+            [(Numeric(-7),), (Numeric(-5),)],
+        )
         self.connection.execute("set constraints all immediate")
 
     def test_unknown_or_incomplete_components_abort_before_publication_and_retain_archives(

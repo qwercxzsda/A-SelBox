@@ -12,7 +12,7 @@ _POLL = "select public.workspace_revisions(%s::text[])"
 _SOURCES = ["finances", "data_kiosk", "fees", "inventory", "payouts"]
 _FACT_STATS = (
     "select relname,seq_scan,seq_tup_read,idx_scan,idx_tup_fetch from pg_stat_xact_user_tables "
-    "where relname in ('finances_transaction_components','data_kiosk_transactions') "
+    "where relname in ('finances_transaction_components','data_kiosk_day_components') "
     "order by relname"
 )
 
@@ -160,38 +160,36 @@ class WorkspaceRevisionTests(SourceModelFixture):
         self.assertNotEqual(second["data_kiosk"], historical["data_kiosk"])
         self.assertEqual(second["finances"], first["finances"])
 
-    def test_pruning_rotates_source_token_only_when_history_is_removed(self) -> None:
+    def test_reused_contents_with_a_new_observation_rotate_source_token(self) -> None:
         company, _ = self.owner()
         administrator, member = self.administrator(), self.member(company)
-        current = None
-        for observation in range(1, 5):
-            _, current = self.kiosk(observation, [self.component()], expected=current)
+        components = [self.component()]
+        _, first_version = self.kiosk(1, components)
+        first_observation = self.kiosk_observation(first_version)
         self.connection.commit()
         initial = self.revisions(administrator)
-        self.assertEqual(self.revisions(member)["data_kiosk"], initial["data_kiosk"])
-        self.assertEqual(
-            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(),
-            (1,),
-        )
+        _, repeated = self.kiosk(2, components, expected=first_version)
+        self.assertEqual(repeated, first_version)
+        self.assertNotEqual(self.kiosk_observation(repeated), first_observation)
         self.assertEqual(self.revisions(administrator), initial)
         self.connection.commit()
-        pruned = self.revisions(administrator)
-        self.assertNotEqual(pruned["data_kiosk"], initial["data_kiosk"])
-        self.assertEqual(pruned["finances"], initial["finances"])
-        self.assertEqual(pruned["fees"], initial["fees"])
-        self.assertEqual(self.revisions(member)["data_kiosk"], pruned["data_kiosk"])
+        changed = self.revisions(administrator)
+        self.assertNotEqual(changed["data_kiosk"], initial["data_kiosk"])
+        self.assertEqual(changed["finances"], initial["finances"])
+        self.assertEqual(changed["fees"], initial["fees"])
+        self.assertEqual(self.revisions(member)["data_kiosk"], changed["data_kiosk"])
         self.assertEqual(
             self.as_user(
                 administrator, "select count(*) from public.data_kiosk_preprocess_entries"
             ),
-            [(3,)],
+            [(1,)],
         )
         self.assertEqual(
-            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(),
-            (0,),
+            self.connection.execute(
+                "select count(*) from private.data_kiosk_preprocess_batch_days"
+            ).fetchone(),
+            (2,),
         )
-        self.connection.commit()
-        self.assertEqual(self.revisions(administrator), pruned)
 
     def test_source_tokens_are_global_but_fees_are_company_scoped(self) -> None:
         company_a, sku_a = self.owner()

@@ -74,7 +74,7 @@ def _reference(connection: Connection, case: Case) -> list[Any]:
         rows = connection.execute(
             'select distinct sku collate "C" as value from ('
             "select sku from private.finances_transaction_components union all "
-            "select sku from private.data_kiosk_transactions union all "
+            "select sku from private.data_kiosk_day_components union all "
             "select sku from public.skus) inventory "
             "where sku is not null order by value"
         ).fetchall()
@@ -218,7 +218,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         users = identities(connection)
         counts = connection.execute(
             "select (select count(*) from private.finances_transaction_components),"
-            "(select count(*) from private.data_kiosk_transactions)"
+            "(select count(*) from private.data_kiosk_day_components)"
         ).fetchone()
         if counts is None:
             raise RuntimeError("Missing fixture metadata")

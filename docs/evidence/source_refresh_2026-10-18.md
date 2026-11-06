@@ -26,7 +26,7 @@ Amazon Summary controls matched**, including the 19 fresh October 1–16 control
 
 Data Kiosk has 3,782 current October components. Every requested marketplace/day
 has a complete compatible capture; current version row counts match their stored
-components, and no current versions are pruned. Amazon returned successful empty
+components. Amazon returned successful empty
 October responses for Mexico, Saudi Arabia, UAE and Singapore. An empty successful
 response is recorded as coverage, rather than treated as an unrequested day.
 

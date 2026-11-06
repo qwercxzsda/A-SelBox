@@ -1,4 +1,4 @@
-"""Complete archived observations, component authority, and semantic comparison."""
+"""Complete archived observations, component authority, and stable day contents."""
 
 import unittest
 from dataclasses import replace
@@ -13,6 +13,7 @@ from ....src.data_kiosk_economics.components import (
 from ....src.data_kiosk_economics.errors import UnresolvedDataKioskComponentError
 from ....src.data_kiosk_economics.preprocess import prepare_data_kiosk_acquisition
 from ....src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
+from ....src.database.source_versions import DataKioskSelection
 from ....src.numeric import Numeric
 from ...support.archives import MemoryArchiveStorage
 from ...support.economics import (
@@ -55,8 +56,12 @@ class DataKioskSourceFactsTests(unittest.TestCase):
                         return_value=acquisition,
                     ),
                     patch(
-                        "services.sync.src.data_kiosk_economics.workflow.current_data_kiosk_versions",
-                        return_value={"2026-08-01": "previous-version"},
+                        "services.sync.src.data_kiosk_economics.workflow.current_data_kiosk_selections",
+                        return_value={
+                            date(2026, 8, 1): DataKioskSelection(
+                                "previous-version", "previous-batch"
+                            )
+                        },
                     ),
                     patch(
                         "services.sync.src.data_kiosk_economics.workflow.publish_data_kiosk"
@@ -125,8 +130,8 @@ class DataKioskSourceFactsTests(unittest.TestCase):
 
     def test_complete_pages_publish_empty_days_and_row_order_does_not_change_contents(self) -> None:
         storage = MemoryArchiveStorage()
-        first = complete_economics_document(msku="SKU-1")
-        second = complete_economics_document(msku="SKU-2")
+        first = complete_economics_document(msku="SKU-1", fees=f"[{economics_fee('DisposalFee')}]")
+        second = complete_economics_document(msku="SKU-2", fees=f"[{economics_fee('DisposalFee')}]")
         a = prepare_data_kiosk_acquisition(kiosk_acquisition(storage, first, second), storage)
         b = prepare_data_kiosk_acquisition(kiosk_acquisition(storage, second + first), storage)
         self.assertEqual([day.content_sha256 for day in a], [day.content_sha256 for day in b])
@@ -201,7 +206,7 @@ class DataKioskSourceFactsTests(unittest.TestCase):
                 return_value=acquisition,
             ),
             patch(
-                "services.sync.src.data_kiosk_economics.workflow.current_data_kiosk_versions",
+                "services.sync.src.data_kiosk_economics.workflow.current_data_kiosk_selections",
                 return_value={},
             ),
             patch(

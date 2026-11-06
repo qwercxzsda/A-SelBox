@@ -167,7 +167,7 @@ def verify(seed: Path) -> dict[str, object]:
                 for row in connection.execute(
                     "select sku from public.skus union "
                     "select sku from private.finances_transaction_components "
-                    "where sku is not null union select sku from private.data_kiosk_transactions "
+                    "where sku is not null union select sku from private.data_kiosk_day_components "
                     "where sku is not null"
                 )
             }
@@ -191,12 +191,12 @@ def verify(seed: Path) -> dict[str, object]:
             finances_count, kiosk_count = require_row(
                 connection.execute(
                     "select (select count(*) from private.finances_transaction_components),"
-                    "(select count(*) from private.data_kiosk_transactions)"
+                    "(select count(*) from private.data_kiosk_day_components)"
                 ).fetchone()
             )
             source_counts = {
                 "finances_transaction_components": int(finances_count),
-                "data_kiosk_transactions": int(kiosk_count),
+                "data_kiosk_day_components": int(kiosk_count),
             }
             publication = _verify_writes(stack, connection, administrator, members, items)
             require(

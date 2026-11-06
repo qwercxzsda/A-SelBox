@@ -11,7 +11,7 @@ from ...support.economics import complete_economics_fact
 
 
 class ObservedComponentMappingTests(unittest.TestCase):
-    def test_observed_sponsored_product_fee_selects_data_kiosk_and_preserves_source(self) -> None:
+    def test_observed_sponsored_product_fee_selects_data_kiosk_calculation_inputs(self) -> None:
         fact = complete_economics_fact()
         ad = replace(fact.ads[0], ad_type_name="SponsoredProductFee")
         rows = build_components(replace(fact, fees=(), ads=(ad,), cost=None))
@@ -24,23 +24,6 @@ class ObservedComponentMappingTests(unittest.TestCase):
         self.assertEqual(row.currency, "USD")
         self.assertEqual(row.quantity, Numeric(2))
         self.assertIsNone(row.fee_base)
-        self.assertEqual(
-            row.native_dimensions["ad"],
-            {
-                "ad_type_name": "SponsoredProductFee",
-                "charge": {
-                    "amount": {"amount": "1.005", "currency_code": "USD"},
-                    "amount_per_unit": {"amount": "1.25", "currency_code": "USD"},
-                    "amount_per_unit_delta": None,
-                    "promotion_amount": {"amount": "0", "currency_code": "USD"},
-                    "quantity": "2",
-                    "tax_amount": {"amount": "0", "currency_code": "USD"},
-                    "total_amount": {"amount": "1.005", "currency_code": "USD"},
-                },
-            },
-        )
-        self.assertEqual(row.source_document_id, "document-1")
-        self.assertEqual(row.source_line_number, 7)
 
     def test_similar_unrecognized_fee_and_ad_labels_fail_allocation(self) -> None:
         fact = complete_economics_fact()

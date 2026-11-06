@@ -170,7 +170,7 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
         finances = dataset == "finances"
         date = "posted_date" if finances else "activity_date"
         replacements = (
-            "finances_component_details" if finances else "data_kiosk_transactions",
+            "finances_component_details" if finances else "data_kiosk_component_details",
             date,
             "amount" if amount else date,
             direction,
@@ -232,7 +232,7 @@ def _read_query(
         policy = connection.execute(
             "select private.member_policy_covers_current_version("
             "'private.finances_transaction_components'::regclass),"
-            "private.member_policy_covers_current_version('private.data_kiosk_transactions'::regclass)"
+            "private.member_policy_covers_current_version('private.data_kiosk_day_components'::regclass)"
         ).fetchone()
         if policy is None:
             raise RuntimeError("Policy lookup returned no row")

@@ -7,7 +7,7 @@ returns boolean language sql stable security invoker set search_path = '' as $$
         where source_skus.sku is not null
             and not exists (select 1 from private.finances_activity_components t
                 where t.seller_namespace = p_seller and t.sku = source_skus.sku)
-            and not exists (select 1 from private.data_kiosk_transactions t
+            and not exists (select 1 from private.data_kiosk_component_details t
                 where t.seller_namespace = p_seller and t.sku = source_skus.sku)
     );
 $$;
@@ -36,7 +36,7 @@ begin
         where s.id = any(p_sku_ids) and isfinite(t.posted_date)
         union
         select date_trunc('month',t.activity_date)::date
-        from public.skus s join private.data_kiosk_transactions t on t.sku = s.sku
+        from public.skus s join private.data_kiosk_component_details t on t.sku = s.sku
         where s.id = any(p_sku_ids) and isfinite(t.activity_date)
     ) months;
     select coalesce(array_agg(distinct v.company_id),'{}'::uuid[]) into owner_companies
@@ -54,8 +54,8 @@ begin
             where s.id = any(p_sku_ids)
             union
             select p.report_id from public.skus s
-            join private.data_kiosk_transactions t on t.sku = s.sku
-            join private.payout_report_data_kiosk_versions p on p.version_id = t.version_id
+            join private.data_kiosk_day_components t on t.sku = s.sku
+            join private.payout_report_data_kiosk_observations p on p.version_id = t.version_id
             where s.id = any(p_sku_ids)
         ), affected_scopes as (
             select s.company_id,s.month from private.payout_report_refresh_state s

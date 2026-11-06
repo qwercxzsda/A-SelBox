@@ -76,7 +76,7 @@ class SchemaContractTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.data_kiosk_transactions"
+                "select count(*) from private.data_kiosk_day_components"
             ).fetchone(),
             (0,),
         )
@@ -88,13 +88,10 @@ class SchemaContractTests(SourceModelFixture):
             self.connection.transaction(),
         ):
             self.connection.execute(
-                "insert into private.data_kiosk_transactions "
-                "(version_id,seller_namespace,marketplace_name,activity_date,component_key,sku,"
-                "category,component_type,amount,currency,"
-                "native_dimensions,source_line_number) "
-                "values (%s,%s,'Amazon.com','2026-06-15','direct','SKU','SELBOX',"
-                "'SubscriptionFee',-10,'USD','{}',1)",
-                (version, self.seller),
+                "insert into private.data_kiosk_day_components "
+                "(version_id,component_key,sku,category,component_type,amount,currency) "
+                "values (%s,'direct','SKU','SELBOX','SubscriptionFee',-10,'USD')",
+                (version,),
             )
         self.assertEqual(
             raised.exception.diag.constraint_name, "data_kiosk_account_requires_blank_sku"

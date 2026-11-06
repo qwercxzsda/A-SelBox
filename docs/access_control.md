@@ -79,7 +79,7 @@ key is not a PostgreSQL login and cannot perform this administration.
 | Read company assignments and fee periods                                   | All versions            | All versions                                 | Current terms for own company's SKUs            | No               |
 | Publish a complete SKU terms version                                       | Python/SQL              | REST RPC                                     | No                                              | No               |
 | Read source preprocessing facts                                            | All retained versions   | All retained versions and categories         | Current versions of permitted own-company facts | No               |
-| Read narrow source references                                              | All                     | All retained references                      | Owned current Finance references; shared current Data Kiosk references | No               |
+| Read narrow source references                                              | All                     | All retained references                      | Owned current references for both financial sources                    | No               |
 | Read full preprocessing headers and diagnostics                            | Yes                     | Yes                                          | No                                              | No               |
 | Read payout reports, latest reports, authoritative components, and totals  | All                     | All                                          | Own saved company only                          | No               |
 | Read current Financial review and frozen payout comparisons/reconciliation | All                     | All, in Financial review                     | No                                              | No               |
@@ -87,7 +87,6 @@ key is not a PostgreSQL login and cannot perform this administration.
 | Read current inventory and filter catalogs                                 | All                     | All current items, including unassigned SKUs | Current items for owned SKUs only               | No               |
 | Publish acquisitions and source results                                    | Python/SQL              | No                                           | No                                              | No               |
 | Inspect payout refresh state and scheduler                                 | SQL                     | No                                           | No                                              | No               |
-| Run Data Kiosk pruning                                                     | Python/SQL              | No                                           | No                                                                     | No               |
 | Read full native transaction totals and acquisition manifests              | Trusted SQL             | No direct endpoint                           | No                                                                     | No               |
 | Read raw document archives                                                 | Trusted archive service | No                                           | No                                              | No               |
 
@@ -109,13 +108,14 @@ current. Historical activity dates inside a current result remain visible;
 
 Finance identity, version, batch and membership references are limited to current owned activity.
 Member column grants exclude parent account totals, content hashes and inventory counts. Data Kiosk
-keeps its narrow current day/version references visible to registered members, including members
-without SKUs. Reference visibility never grants broader fact or full source-metadata access.
+day/version/batch references follow current owned components. Members without matching owned
+components receive no source references. Reference visibility never grants broader fact or full
+source-metadata access.
 
-Administrators can read every retained historical result. Finance transaction versions and
-components have no history cap and are not pruned. A pruned Data Kiosk day version keeps its header
-and pruning marker while its removed payload is unavailable. Payout references protect required
-Data Kiosk versions, including empty days.
+Administrators can read every historical result. Finance transaction versions and Data Kiosk day
+versions keep all immutable components without a history cap. Batch membership records every
+successful observation even when the normalized contents are reused. Payout references identify
+the exact historical source observations, including empty days.
 
 ## REST interfaces
 
@@ -292,7 +292,7 @@ including any fee gaps caused by later source imports.
 | `company_payout_reports`, `company_payout_report_components`                                           | All saved reports and components                                        | Own saved company reports and components            |
 | `latest_company_payout_reports`                                                                        | Latest saved report per company/month/marketplace/currency              | Latest saved own-company reports                    |
 | `rpc/payout_report_totals`                                                                             | All saved report totals and Type breakdowns                             | Own saved company report totals and Type breakdowns |
-| `payout_report_finances_batches`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                                              | No rows                                             |
+| `payout_report_finances_batches`, `payout_report_data_kiosk_observations`, `payout_report_terms_versions` | All saved input references                                              | No rows                                             |
 | `payout_report_reconciliation`                                                                         | Saved daily seller controls                                             | No rows                                             |
 | `financial_review_records`                                                                             | Current mature source facts in each monetary category                   | No rows                                             |
 | `rpc/financial_review_totals`, `rpc/financial_review_type_totals`                                      | Current marketplace/category/month/currency and source/type comparisons | No rows                                             |
@@ -349,21 +349,21 @@ only the selected observations needed for those facts. This prevents an owned co
 revealing a whole multi-SKU transaction's account total.
 
 Data Kiosk members can read owned facts except `SELBOX`, including non-additive `ANALYSIS_ONLY`
-detail. Its day/version reference policies retain the existing narrow shared current-reference
-visibility through `private.is_member()`. Full headers, diagnostics and raw evidence remain
+detail. Its day/version reference policies follow the same owned current facts.
+Full headers, diagnostics and raw evidence remain
 administrator-only. Page/count/total functions separately apply date authority and monetary rules.
 
 `private.is_member()` reads the stored application account using `auth.uid()`. Narrow helpers use
-fixed empty search paths and authenticated-only execution. Finance ownership helpers resolve
-current permitted transaction versions without exposing parent totals. Administrators retain
+fixed empty search paths and authenticated-only execution. Source ownership helpers resolve
+current permitted identities without exposing parent totals. Administrators retain
 historical reference access; unassigned users and missing accounts see no source facts.
 
-SKU reassignment changes fact and corresponding Finance-reference access without rewriting source
+SKU reassignment changes fact and corresponding source-reference access without rewriting source
 history. Removing the application account revokes member access. Payout RLS uses the saved report's
-company for member access; Finance batch/Data Kiosk version/terms manifests and seller-wide
+company for member access; Finance batch/Data Kiosk observation/terms manifests and seller-wide
 reconciliation remain administrator-only.
 
-The private schema is outside the REST API. Source publication, pruning, acquisition manifests,
+The private schema is outside the REST API. Source publication, acquisition manifests,
 and raw Storage objects have no administrator endpoint. The private monthly payout worker
 derives source scope and amounts; administrators and members have read-only report APIs.
 Authorization follows each request's database snapshot;

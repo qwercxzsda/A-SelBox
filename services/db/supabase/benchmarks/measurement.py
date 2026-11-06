@@ -56,7 +56,7 @@ def _metadata(connection: Connection, repeat: int) -> Record:
         )
     counts = connection.execute(
         "select (select count(*) from private.finances_transaction_components),"
-        "(select count(*) from private.data_kiosk_transactions),"
+        "(select count(*) from private.data_kiosk_day_components),"
         "(select count(*) from public.companies),"
         "(select count(*) from private.finances_transactions),"
         "(select count(*) from private.data_kiosk_days)"
@@ -78,7 +78,7 @@ def _metadata(connection: Connection, repeat: int) -> Record:
     visibility = connection.execute(
         "select relname,relpages,relallvisible from pg_class where oid in "
         "('private.finances_transaction_components'::regclass,"
-        "'private.data_kiosk_transactions'::regclass) "
+        "'private.data_kiosk_day_components'::regclass) "
         "order by relname"
     ).fetchall()
     return {

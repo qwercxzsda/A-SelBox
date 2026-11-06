@@ -90,17 +90,17 @@ class LocalWorkflowTests(LocalWorkflowCase):
         self.assertEqual(len(header), 1)
         self.assertEqual(header[0]["company_amount"], -10)
         self.assertEqual(header[0]["marketplace_name"], "Amazon.com")
-        self.assertEqual(len(components), 6)
+        self.assertEqual(len(components), 4)
         self.assertEqual(sum(row["authoritative"] is True for row in components), 4)
         member_components = [row for row in components if row["authoritative"]]
         self.assertEqual(sum(Decimal(str(row["company_amount"])) for row in member_components), -10)
         self.assertEqual({row["terms_version_id"] for row in components}, {str(selected[0])})
         self.assertEqual(header[0]["finances_batch_count"], 1)
-        self.assertEqual(header[0]["data_kiosk_version_count"], 31)
+        self.assertEqual(header[0]["data_kiosk_observation_count"], 31)
         self.assertEqual(header[0]["terms_version_count"], 1)
         for relation, count in (
             ("payout_report_finances_batches", 1),
-            ("payout_report_data_kiosk_versions", 31),
+            ("payout_report_data_kiosk_observations", 31),
             ("payout_report_terms_versions", 1),
         ):
             self.assertEqual(

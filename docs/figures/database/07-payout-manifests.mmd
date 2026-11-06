@@ -2,8 +2,8 @@ erDiagram
     direction LR
     private_finances_preprocess_batches ||--o{ private_payout_report_finances_batches : "batch_id"
     public_company_payout_reports ||--o{ private_payout_report_finances_batches : "report_id"
-    private_data_kiosk_preprocess_versions ||..o{ private_payout_report_data_kiosk_versions : "day_id + version_id"
-    public_company_payout_reports ||--o{ private_payout_report_data_kiosk_versions : "report_id"
+    private_data_kiosk_preprocess_batch_days ||..o{ private_payout_report_data_kiosk_observations : "batch_id + day_id + version_id"
+    public_company_payout_reports ||--o{ private_payout_report_data_kiosk_observations : "report_id"
     public_company_payout_reports ||--o{ private_payout_report_terms_versions : "report_id"
     public_sku_terms_versions ||..o{ private_payout_report_terms_versions : "sku_id + terms_version_id"
 
@@ -12,9 +12,10 @@ erDiagram
         local_uuid batch_id PK, FK "NN"
     }
 
-    private_payout_report_data_kiosk_versions["private.payout_report_data_kiosk_versions"] {
+    private_payout_report_data_kiosk_observations["private.payout_report_data_kiosk_observations"] {
         local_uuid report_id PK, FK "NN"
         local_uuid day_id PK, FK "NN"
+        local_uuid batch_id FK "NN"
         local_uuid version_id FK "NN"
     }
 
@@ -24,7 +25,7 @@ erDiagram
         local_uuid terms_version_id FK "NN"
     }
 
-    private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions (reference)"] {
+    private_data_kiosk_preprocess_batch_days["private.data_kiosk_preprocess_batch_days (reference)"] {
         local_uuid id PK "NN"
     }
 

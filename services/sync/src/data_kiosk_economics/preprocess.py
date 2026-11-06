@@ -18,10 +18,9 @@ from ..amazon.data_kiosk.economics_source_parsing import (
 from ..amazon.marketplace_names import marketplace_name_from_id
 from ..archives.models import DataKioskAcquisition
 from ..archives.storage import ArchiveStorage, load_document_archive
-from ..preprocess_version import PREPROCESS_VERSION
+from ..numeric import Numeric
 from ..source_serialization import content_sha256
 from .acquisition_coverage import validate_acquisition_coverage
-from .comparison import comparable_components
 from .components import build_components
 from .coverage import validate_requested_fields
 from .models import DataKioskDay, DataKioskTransaction
@@ -92,14 +91,40 @@ def _complete_day(
     keys = [row.component_key for row in components]
     if len(keys) != len(set(keys)):
         raise ValueError("Data Kiosk day contains duplicate economic component identities.")
+    components = tuple(
+        row
+        for row in components
+        if row.amount != 0 or row.quantity not in (None, 0) or row.fee_base not in (None, 0)
+    )
     digest = content_sha256(
         {
             "marketplace_name": marketplace_name,
             "activity_date": day,
             "dataset_key": "economics",
-            "preprocess_version": PREPROCESS_VERSION,
             "complete": True,
-            "components": comparable_components(components),
+            "components": [
+                {
+                    "component_key": row.component_key,
+                    "sku": row.sku,
+                    "category": row.category,
+                    "component_type": row.component_type,
+                    "currency": row.currency,
+                    "amount": _canonical_number(row.amount),
+                    "quantity": _canonical_number(row.quantity),
+                    "fee_base": _canonical_number(row.fee_base),
+                }
+                for row in sorted(components, key=lambda row: row.component_key)
+            ],
         }
     )
     return DataKioskDay(marketplace_name, day, digest, components)
+
+
+def _canonical_number(value: Numeric | None) -> str | None:
+    """Reuse equal decimal values regardless of their source formatting."""
+    if value is None:
+        return None
+    if value == 0:
+        return "0"
+    result = format(value.value, "f")
+    return result.rstrip("0").rstrip(".") if "." in result else result

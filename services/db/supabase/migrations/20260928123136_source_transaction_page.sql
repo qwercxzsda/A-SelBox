@@ -22,7 +22,7 @@ begin
         raise exception 'Valid ordering and count preference required' using errcode='22023'; end if;
     perform private.validate_transaction_filters(p_date_from,p_date_to,null,p_skus,p_marketplaces,null,p_types);
     perform private.validate_transaction_filters(null,null,null,p_search_skus,p_search_marketplaces,null,p_search_types);
-    fact_relation:=case p_dataset when 'finances' then 'finances_component_details' else 'data_kiosk_transactions' end;
+    fact_relation:=case p_dataset when 'finances' then 'finances_component_details' else 'data_kiosk_component_details' end;
     entry_relation:=case p_dataset when 'finances' then 'finances_preprocess_entries' else 'data_kiosk_preprocess_entries' end;
     date_column:=case p_dataset when 'finances' then 'posted_date' else 'activity_date' end;
     sort_column:=case p_order_by when 'amount' then 'amount' else date_column end;
@@ -45,7 +45,7 @@ begin
         select * from candidates order by sort_value %4$s nulls %6$s,id %5$s limit $6 offset $7
       ), result_rows as (
         select p.sort_value,p.id,
-          (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(e) - 'native_dimensions')) as payload
+          (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(e))) as payload
         from page p join public.%7$I e on e.id=p.id
       )
       select case when $12 and (select count(*) from candidates)>10000 then null::jsonb

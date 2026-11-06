@@ -29,7 +29,7 @@ class PublicationInventoryTests(SourceModelFixture):
         _, day_version = self.kiosk(1, [self.component() for _ in range(4000)])
         self.assertEqual(
             self.connection.execute(
-                "select count(*),sum(amount) from private.data_kiosk_transactions "
+                "select count(*),sum(amount) from private.data_kiosk_day_components "
                 "where version_id=%s",
                 (day_version,),
             ).fetchone(),
@@ -61,10 +61,10 @@ class PublicationInventoryTests(SourceModelFixture):
             )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "insert into private.data_kiosk_transactions select "
-                "(jsonb_populate_record(null::private.data_kiosk_transactions, "
+                "insert into private.data_kiosk_day_components select "
+                "(jsonb_populate_record(null::private.data_kiosk_day_components, "
                 "to_jsonb(t)||jsonb_build_object('id',%s::text,'component_key','additional'))).* "
-                "from private.data_kiosk_transactions t where version_id=%s",
+                "from private.data_kiosk_day_components t where version_id=%s",
                 (new_id(), kiosk),
             )
 
@@ -92,25 +92,34 @@ class PublicationInventoryTests(SourceModelFixture):
             with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
                 self._fee_period(frozen_version, "[2030-01-01,2031-01-01)")
 
-    def test_pruned_inventory_cannot_be_refilled(self) -> None:
+    def test_all_day_revisions_remain_complete_and_immutable_without_a_cap(self) -> None:
         versions: list[str] = []
-        for observation in range(1, 5):
+        for observation in range(1, 8):
             _, version = self.kiosk(
                 observation,
-                [self.component()],
+                [self.component(str(-observation))],
                 expected=versions[-1] if versions else None,
             )
             versions.append(version)
         self.connection.commit()
-        self.connection.execute("select private.prune_data_kiosk_preprocess()")
-        self.connection.commit()
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*),sum(amount) from private.data_kiosk_day_components"
+            ).fetchone(),
+            (7, Decimal(-28)),
+        )
+        for version in versions:
+            with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+                self.connection.execute(
+                    "delete from private.data_kiosk_day_components where version_id=%s", (version,)
+                )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "insert into private.data_kiosk_transactions select "
-                "(jsonb_populate_record(null::private.data_kiosk_transactions, "
-                "to_jsonb(t)||jsonb_build_object('id',%s::text,'version_id',%s::text))).* "
-                "from private.data_kiosk_transactions t where version_id=%s",
-                (new_id(), versions[0], versions[-1]),
+                "insert into private.data_kiosk_day_components select "
+                "(jsonb_populate_record(null::private.data_kiosk_day_components, "
+                "to_jsonb(t)||jsonb_build_object('id',%s::text,'component_key','additional'))).* "
+                "from private.data_kiosk_day_components t where version_id=%s",
+                (new_id(), versions[0]),
             )
 
     def test_invalid_bulk_source_controls_roll_back_whole_publication(self) -> None:

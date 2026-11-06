@@ -1,9 +1,13 @@
 flowchart LR
     private_calculate_service_fee__["FUNCTION private.calculate_service_fee()"]
     private_current_sku_terms["VIEW private.current_sku_terms"]
+    private_data_kiosk_batch_components["VIEW private.data_kiosk_batch_components"]
+    private_data_kiosk_component_details["VIEW private.data_kiosk_component_details"]
+    private_data_kiosk_day_components["TABLE private.data_kiosk_day_components"]
+    private_data_kiosk_day_versions["TABLE private.data_kiosk_day_versions"]
     private_data_kiosk_days["TABLE private.data_kiosk_days"]
-    private_data_kiosk_preprocess_versions["TABLE private.data_kiosk_preprocess_versions"]
-    private_data_kiosk_transactions["TABLE private.data_kiosk_transactions"]
+    private_data_kiosk_preprocess_batch_days["TABLE private.data_kiosk_preprocess_batch_days"]
+    private_data_kiosk_preprocess_batches["TABLE private.data_kiosk_preprocess_batches"]
     private_finances_activity_components["VIEW private.finances_activity_components"]
     private_finances_batch_components["VIEW private.finances_batch_components"]
     private_finances_component_details["VIEW private.finances_component_details"]
@@ -19,7 +23,7 @@ flowchart LR
     private_live_company_component_inputs["VIEW private.live_company_component_inputs"]
     private_live_source_reconciliation["VIEW private.live_source_reconciliation"]
     private_mature_cutoff_date__["FUNCTION private.mature_cutoff_date()"]
-    private_payout_report_data_kiosk_versions["TABLE private.payout_report_data_kiosk_versions"]
+    private_payout_report_data_kiosk_observations["TABLE private.payout_report_data_kiosk_observations"]
     private_payout_report_finances_batches["TABLE private.payout_report_finances_batches"]
     private_payout_report_reconciliation["TABLE private.payout_report_reconciliation"]
     private_payout_report_terms_versions["TABLE private.payout_report_terms_versions"]
@@ -41,7 +45,7 @@ flowchart LR
     public_latest_inventory_items["VIEW public.latest_inventory_items"]
     public_live_company_components["VIEW public.live_company_components"]
     public_payout_reconciliation_totals["VIEW public.payout_reconciliation_totals"]
-    public_payout_report_data_kiosk_versions["VIEW public.payout_report_data_kiosk_versions"]
+    public_payout_report_data_kiosk_observations["VIEW public.payout_report_data_kiosk_observations"]
     public_payout_report_finances_batches["VIEW public.payout_report_finances_batches"]
     public_payout_report_reconciliation["VIEW public.payout_report_reconciliation"]
     public_payout_report_terms_versions["VIEW public.payout_report_terms_versions"]
@@ -50,6 +54,12 @@ flowchart LR
     public_skus["TABLE public.skus"]
     public_sku_terms_versions --> private_current_sku_terms
     public_skus --> private_current_sku_terms
+    private_data_kiosk_component_details --> private_data_kiosk_batch_components
+    private_data_kiosk_preprocess_batch_days --> private_data_kiosk_batch_components
+    private_data_kiosk_preprocess_batches --> private_data_kiosk_batch_components
+    private_data_kiosk_day_components --> private_data_kiosk_component_details
+    private_data_kiosk_day_versions --> private_data_kiosk_component_details
+    private_data_kiosk_days --> private_data_kiosk_component_details
     private_finances_component_details --> private_finances_activity_components
     private_finances_component_details --> private_finances_batch_components
     private_finances_preprocess_batch_transactions --> private_finances_batch_components
@@ -58,9 +68,8 @@ flowchart LR
     private_finances_transaction_versions --> private_finances_component_details
     private_finances_transactions --> private_finances_component_details
     private_current_sku_terms --> private_live_company_component_inputs
-    private_data_kiosk_days --> private_live_company_component_inputs
-    private_data_kiosk_preprocess_versions --> private_live_company_component_inputs
-    private_data_kiosk_transactions --> private_live_company_component_inputs
+    private_data_kiosk_component_details --> private_live_company_component_inputs
+    private_data_kiosk_preprocess_batches --> private_live_company_component_inputs
     private_finances_activity_components --> private_live_company_component_inputs
     private_finances_preprocess_batches --> private_live_company_component_inputs
     private_live_source_reconciliation --> private_live_company_component_inputs
@@ -70,22 +79,23 @@ flowchart LR
     private_finances_transactions --> private_live_source_reconciliation
     private_reconcile_source_amounts__ --> private_live_source_reconciliation
     private_source_reconciliation_inputs --> private_live_source_reconciliation
-    private_data_kiosk_transactions --> private_source_reconciliation_inputs
+    private_data_kiosk_component_details --> private_source_reconciliation_inputs
     private_finances_activity_components --> private_source_reconciliation_inputs
     private_financial_account_visible__ --> private_source_reconciliation_inputs
     private_mature_cutoff_date__ --> private_source_reconciliation_inputs
     private_current_sku_terms --> public_company_skus
     public_company_skus --> public_current_sku_fee_periods
     public_sku_fee_periods --> public_current_sku_fee_periods
-    private_data_kiosk_preprocess_versions --> public_data_kiosk_preprocess_entries
-    private_data_kiosk_transactions --> public_data_kiosk_preprocess_entries
+    private_data_kiosk_component_details --> public_data_kiosk_preprocess_entries
+    private_data_kiosk_preprocess_batch_days --> public_data_kiosk_preprocess_entries
+    private_data_kiosk_preprocess_batches --> public_data_kiosk_preprocess_entries
     private_read_data_kiosk_preprocess_results__ --> public_data_kiosk_preprocess_results
     private_finances_component_details --> public_finances_preprocess_entries
     private_finances_preprocess_batch_transactions --> public_finances_preprocess_entries
     private_finances_preprocess_batches --> public_finances_preprocess_entries
     private_read_finances_preprocess_results__ --> public_finances_preprocess_results
+    private_data_kiosk_component_details --> public_financial_review_records
     private_data_kiosk_days --> public_financial_review_records
-    private_data_kiosk_transactions --> public_financial_review_records
     private_finances_component_details --> public_financial_review_records
     private_is_administrator__ --> public_financial_review_records
     private_mature_cutoff_date__ --> public_financial_review_records
@@ -99,7 +109,7 @@ flowchart LR
     public_sku_fee_periods --> public_live_company_components
     private_is_administrator__ --> public_payout_reconciliation_totals
     private_payout_report_reconciliation --> public_payout_reconciliation_totals
-    private_payout_report_data_kiosk_versions --> public_payout_report_data_kiosk_versions
+    private_payout_report_data_kiosk_observations --> public_payout_report_data_kiosk_observations
     private_payout_report_finances_batches --> public_payout_report_finances_batches
     private_payout_report_reconciliation --> public_payout_report_reconciliation
     private_payout_report_terms_versions --> public_payout_report_terms_versions

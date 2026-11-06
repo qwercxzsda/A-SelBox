@@ -106,7 +106,7 @@ def verify(
         with database.connection() as connection:
             financial = connection.execute(
                 "SELECT (SELECT count(*) FROM private.finances_transaction_components) + "
-                "(SELECT count(*) FROM private.data_kiosk_transactions) + "
+                "(SELECT count(*) FROM private.data_kiosk_day_components) + "
                 "(SELECT count(*) FROM public.company_payout_reports)"
             ).fetchone()
             require(financial[0] == 0, "Inventory changed financial source or payout data.")

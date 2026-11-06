@@ -131,7 +131,7 @@ inconsistent fields; it does not rewrite a base or fabricate a configured rate.
 
 ## Raw source pages
 
-[`public.source_transaction_page`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
+[`public.source_transaction_page`](../services/db/supabase/migrations/20260928123136_source_transaction_page.sql)
 serves the Finances and Data Kiosk tabs. Its required `p_dataset` is `finances` or
 `data_kiosk`. Optional parameters are `p_limit` (25), `p_offset` (0), `p_order_by` (`date`),
 `p_direction` (`desc`), `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`, `p_types`,
@@ -139,11 +139,13 @@ serves the Finances and Data Kiosk tabs. Its required `p_dataset` is `finances` 
 validation follow the transaction page contract.
 
 Response: `{ "rows": [...], "total_count": "123" }`, with a null count when disabled. Rows contain
-the corresponding source-view fields selected by the frontend, including exact numeric strings.
+the normalized source-view fields, including exact numeric strings. The frontend selects its
+supported display fields from that response.
 Finances orders by `posted_date` or `amount`; Data Kiosk uses `activity_date` or `amount`. Date
 ordering reverses both date and row ID together, with the same null placement as Transactions.
-Amount ordering keeps ascending row-ID ties and nulls last. Finances and Data
-Kiosk zero amounts remain included in pagination and counting.
+Amount ordering keeps ascending row-ID ties and nulls last. Pagination and counting include
+retained zero-amount components; Data Kiosk's all-zero calculation inputs are filtered during
+preprocessing.
 
 Finances rows expose native transaction IDs, account type, lifecycle status,
 original/release references, source page and record ordinals, component number,
@@ -151,10 +153,16 @@ breakdown path and activity eligibility. Numeric fields and the boolean/path
 projections are text in the RPC JSON so the browser retains its exact row-value
 contract. Raw administrator pages include excluded release/transfer components
 and retained historical versions for audit. Their amounts must not be summed as
-an activity ledger. Finance source entries contain one row per immutable component, choosing its
-current observed batch where available or its latest retained observation for source location.
-Repeated unchanged captures therefore do not duplicate source entries. Main Transactions reads only
-current activity-eligible facts.
+an activity ledger. Both source entry views contain one row per immutable component, so repeated
+unchanged captures do not duplicate source entries. Main Transactions reads only current
+activity-eligible facts.
+
+Source pages and `financial_source_record` preserve the exact normalized row/version. Displayed
+batch and preprocessing metadata comes from its current observation when that version is selected,
+or its latest associated preprocessing batch otherwise. It is not an originating batch and is not
+claimed to be the observation used by a particular payout. Frozen payout manifests independently
+retain the exact original batch membership. Data Kiosk source detail is recoverable from that
+acquisition's compressed archives using the day, SKU and component key.
 
 This endpoint preserves the raw source views' visibility, including historical versions and every
 source category available to the caller. It does not impose Transactions' current-version or
@@ -343,16 +351,16 @@ indexes Finance parent metadata separately from its compact component values.
 | Finance stable transactions  | `(native_transaction_id, id)`                                                                  | Native-ID source lookup.                                      |
 | Finance stable transactions  | Unique seller/scope/native ID; current version/batch keys                                      | Identity and current selection.                               |
 | Finance batch membership     | Primary `(batch_id, transaction_id)`; version/batch index                                      | Exact observed input sets and observation lookup.             |
-| Data Kiosk transactions      | `(activity_date, id)`                                                                          | Both date-order directions over retained facts.               |
-| Data Kiosk transactions      | `(sku, activity_date)`; `(component_type, activity_date)`; `(marketplace_name, activity_date)` | Narrow source/filter candidates.                              |
-| Data Kiosk transactions      | `(activity_date, component_type, sku, version_id, category, marketplace_name)`                 | Date-bounded counts and ownership/current-version predicates. |
+| Data Kiosk days              | `(activity_date, id)`; `(marketplace_name, activity_date, id)`                                  | Date and marketplace candidates shared by all versions.        |
+| Data Kiosk components        | `(sku, version_id)`; `(component_type, version_id)`                                            | Exact SKU/Type selection and joining its day metadata.          |
+| Data Kiosk batch membership  | Unique `(batch_id, day_id)`; version/day indexes                                               | Exact observed day contents and historical interpretation.     |
 
-Finance query projections join components, immutable transaction versions and stable identities.
-Metadata and amounts are no longer duplicated on a single wide fact table, so no Finance index
-claims to cover all date, SKU, category, ownership and currentness conditions. Query plans must be
+Both source projections join components, immutable versions and stable identities. Metadata and
+amounts occupy separate relations, so no source index covers all date, SKU, category, ownership
+and currentness conditions. Query plans must be
 measured against the installed schema and representative data.
 
-Data Kiosk count indexes include zeros and every category, without an amount key or predicate.
+Data Kiosk component indexes include every retained category, without an amount key or predicate.
 Compact SKU/Type keys retain B-tree deduplication opportunities. They can still require sorting or
 merging for multi-value filters. Index-only scans depend on visibility maps maintained by vacuum.
 [PostgreSQL deduplication](https://www.postgresql.org/docs/17/btree.html#BTREE-DEDUPLICATION),
@@ -363,9 +371,10 @@ bounds remain optional, and exact counts/sums still process matching facts. Prim
 fee-period exclusion constraints preserve identities and fee coverage; they are not substitutes for
 query-specific measurement. See the [performance guide](database_performance.md).
 
-Finance batch links preserve exact observed transaction versions; Data Kiosk batch lookups continue
-to use `UNIQUE(batch_id, day_id)`. Payout listings retain their creation-time/ID order and company
-index, while Data Kiosk payout version references support retention checks.
+Finance batch links preserve exact observed transaction versions; Data Kiosk membership uses
+`UNIQUE(batch_id, day_id)` and identifies the batch's complete day version. Payout listings retain
+their creation-time/ID order and company index. Data Kiosk payout references preserve the exact
+batch/day/version membership used by each report.
 
 ## Shared rules and API configuration
 
@@ -392,9 +401,9 @@ checks. These helpers preserve the existing access rules and financial results.
 [Application access](../services/db/supabase/migrations/20260928123123_application_access.sql)
 separates transaction authorization from reference visibility. Fact policies match current source
 pointers directly and still enforce each row's category and current SKU ownership. Metadata
-policies keep Finance references tied to owned current activity. Its normalized parent columns
-exclude account totals, hashes and component counts from member grants. Data Kiosk preserves
-its narrow shared current-reference visibility. Administrators retain historical reference access.
+policies keep both sources' references tied to owned current activity. Normalized parent columns
+exclude account totals, hashes and component counts from member grants. Administrators retain
+historical reference access.
 Column grants continue to exclude full report metadata,
 and its administrator-only functions remain guarded. The private member helper has a fixed search path and
 authenticated-only application execution.

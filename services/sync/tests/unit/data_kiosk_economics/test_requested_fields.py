@@ -38,7 +38,7 @@ class RequestedFieldsTests(unittest.TestCase):
         document = complete_economics_document().replace(b'"cost":null', cost)
         storage = MemoryArchiveStorage()
         days = prepare_data_kiosk_acquisition(kiosk_acquisition(storage, document), storage)
-        self.assertEqual(len(days[0].transactions), 1)
+        self.assertEqual(days[0].transactions, ())
         incomplete = document.replace(b',"storageCost":null', b"")
         with self.assertRaisesRegex(ValueError, "pinned query"):
             prepare_data_kiosk_acquisition(kiosk_acquisition(storage, incomplete), storage)

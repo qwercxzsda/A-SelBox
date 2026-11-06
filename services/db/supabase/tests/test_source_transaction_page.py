@@ -1,4 +1,4 @@
-"""Source paging preserves complete raw views, exact values, and caller visibility."""
+"""Source paging preserves normalized views, exact values, and caller visibility."""
 
 from itertools import product
 from typing import LiteralString, cast
@@ -57,18 +57,6 @@ class SourceTransactionPageTests(SourceModelFixture):
 
     def expected(self, user: str, dataset: str, **options: object) -> dict[str, object]:
         date_column = "posted_date" if dataset == "finances" else "activity_date"
-        numeric_columns = ["amount", "quantity", "fee_base"]
-        if dataset == "finances":
-            numeric_columns.extend(
-                (
-                    "breakdown_path",
-                    "activity_eligible",
-                    "source_page_number",
-                    "source_record_number",
-                )
-            )
-        else:
-            numeric_columns.append("source_line_number")
         predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
@@ -100,18 +88,13 @@ class SourceTransactionPageTests(SourceModelFixture):
             "with matching as not materialized (select * from public.{view} where {predicates}), "
             "page as (select * from matching order by {ordering} limit %s offset %s) "
             "select jsonb_build_object('rows', coalesce((select jsonb_agg("
-            "(select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(p) - {excluded})) "
+            "(select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(p))) "
             "order by {ordering}) from page p), '[]'::jsonb), "
             "'total_count', case when %s then (select count(*)::text from matching) end)"
         ).format(
             view=sql.Identifier(dataset + "_preprocess_entries"),
             predicates=sql.SQL(" and ").join(predicates),
             ordering=ordering,
-            excluded=sql.Literal("source_fields" if dataset == "finances" else "native_dimensions"),
-            numeric_strings=sql.SQL(", ").join(
-                sql.SQL("{}, p.{}::text").format(sql.Literal(column), sql.Identifier(column))
-                for column in numeric_columns
-            ),
         )
         parameters.extend(
             (
@@ -132,9 +115,16 @@ class SourceTransactionPageTests(SourceModelFixture):
         self.assertEqual(actual, self.expected(user, dataset, **options))
         self.assertEqual(set(actual), {"rows", "total_count"})
         for row in cast(list[dict[str, object]], actual["rows"]):
-            for column in ("amount", "quantity", "source_line_number", "fee_base"):
+            for column in ("amount", "quantity", "fee_base"):
                 value = row.get(column)
                 self.assertTrue(value is None or isinstance(value, str), column)
+            self.assertNotIn("source_fields", row)
+            self.assertNotIn("native_dimensions", row)
+            if dataset == "data_kiosk":
+                self.assertNotIn("source_document_id", row)
+                self.assertNotIn("source_line_number", row)
+                self.assertIn("batch_id", row)
+                self.assertIn("is_current", row)
         return actual
 
     def test_all_roles_orders_pages_and_exact_count_modes_match_raw_views(self) -> None:

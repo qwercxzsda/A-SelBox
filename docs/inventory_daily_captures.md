@@ -3,7 +3,7 @@
 Inventory supports approximate replenishment planning. Each full observation replaces the reported
 quantities; stock is never calculated by accumulating sales or arrivals. Retain one normalized
 capture per seller, marketplace, and day, plus the immutable source archives. Inventory does not
-participate in fees, financial reconciliation, Data Kiosk retention, or payout calculations.
+participate in fees, financial reconciliation, or payout calculations.
 
 ## Amazon source
 
@@ -32,7 +32,7 @@ The [full schema reference](database_schema.md) owns every application table, co
 The capture's composite FK must match its acquisition's seller, marketplace, and original capture
 date. Replacing a capture creates a fresh ID and deletes the former header and its cascading items
 in one transaction. A failed publication retains the earlier complete result. Other days and all
-raw acquisitions remain available; there is no three-capture window, pruning marker, or payout pin.
+raw acquisitions remain available. Inventory does not participate in payout calculations.
 
 A capture records only success; there are no running/failed placeholder rows or current-version
 pointer. The inventory-specific `inventory-v1` label is independent of financial preprocessing.

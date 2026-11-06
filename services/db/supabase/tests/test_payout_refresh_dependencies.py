@@ -166,20 +166,3 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
             ).fetchone(),
             (1,),
         )
-
-    def test_pruning_final_historical_sku_relationship_preserves_pinned_source_scope(
-        self,
-    ) -> None:
-        self.set_mature_cutoff_date(date(2026, 7, 1))
-        company, _ = self.owner()
-        _, current = self.kiosk(1, [self.component("-10")])
-        for observation in (2, 3, 4):
-            _, current = self.kiosk(observation, [], expected=current)
-        self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
-        before = self.requested_revision(company)
-        self.assertEqual(
-            self.connection.execute("select private.prune_data_kiosk_preprocess()").fetchone(),
-            (1,),
-        )
-        self.assertGreater(self.requested_revision(company), before)
-        self.assertEqual(refresh_payout_reports(self), (1, 0, 1, 0))

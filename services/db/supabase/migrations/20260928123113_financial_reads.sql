@@ -40,9 +40,8 @@ begin
         cross join generate_series(p_start::timestamp,p_end::timestamp,interval '1 day') date_scope(day)
         left join private.data_kiosk_days d on d.seller_namespace = p_seller_namespace
             and d.marketplace_name = m.name and d.activity_date = date_scope.day::date and d.dataset_key = p_dataset_key
-        left join private.data_kiosk_preprocess_versions v on v.id = d.current_version_id
-        where v.id is null or v.preprocess_version <> p_preprocess_version
-           or exists (select 1 from private.data_kiosk_pruned_versions pruned where pruned.version_id = v.id)
+        left join private.data_kiosk_preprocess_batches b on b.id = d.current_batch_id
+        where d.current_version_id is null or b.preprocess_version is distinct from p_preprocess_version
     ) then raise exception 'Missing or incompatible required Data Kiosk day coverage' using errcode = '23514'; end if;
 end;
 $$;

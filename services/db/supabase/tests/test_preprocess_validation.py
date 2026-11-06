@@ -10,8 +10,9 @@ HISTORY_TABLES = (
     "data_kiosk_acquisitions",
     "data_kiosk_days",
     "data_kiosk_preprocess_batches",
-    "data_kiosk_preprocess_versions",
-    "data_kiosk_transactions",
+    "data_kiosk_day_versions",
+    "data_kiosk_preprocess_batch_days",
+    "data_kiosk_day_components",
 )
 
 
@@ -50,8 +51,8 @@ class PreprocessValidationTests(SourceModelFixture):
         for change, error in (
             ({"category": "UNRESOLVED"}, psycopg.errors.InvalidTextRepresentation),
             ({"amount": None}, psycopg.errors.NotNullViolation),
-            ({"marketplace_name": None}, psycopg.errors.NotNullViolation),
-            ({"activity_date": None}, psycopg.errors.NotNullViolation),
+            ({"currency": None}, psycopg.errors.NotNullViolation),
+            ({"component_type": None}, psycopg.errors.NotNullViolation),
         ):
             with (
                 self.subTest(change=change),
@@ -59,15 +60,15 @@ class PreprocessValidationTests(SourceModelFixture):
                 self.connection.transaction(),
             ):
                 self.connection.execute(
-                    "insert into private.data_kiosk_transactions "
-                    "select r.* from private.data_kiosk_transactions t, lateral "
-                    "jsonb_populate_record(null::private.data_kiosk_transactions, "
+                    "insert into private.data_kiosk_day_components "
+                    "select r.* from private.data_kiosk_day_components t, lateral "
+                    "jsonb_populate_record(null::private.data_kiosk_day_components, "
                     "to_jsonb(t) || %s::jsonb) r limit 1",
                     (Jsonb(change | {"id": new_id(), "component_key": new_id()}),),
                 )
 
     def snapshot(self) -> dict[str, list[tuple[object, ...]]]:
-        """Include current selections, raw provenance, original versions and all history."""
+        """Include current selections, observations, original versions and all history."""
         return {
             table: self.connection.execute(
                 sql.SQL("select to_jsonb(t) from private.{} t order by id").format(

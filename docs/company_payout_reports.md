@@ -42,8 +42,8 @@ a large backlog can need several runs.
 Source and terms publications mark affected months pending in the same transaction,
 once the complete publication is validated. Ordinary source changes conservatively
 mark the changed calendar months for every eligible company. Changes to source scope can
-also affect other months: a new marketplace, a new historical seller/SKU relationship,
-or pruning its last retained evidence can change coverage or saved manifests.
+also affect other months: a new marketplace or a new historical seller/SKU relationship
+can change coverage or saved manifests.
 Those cases request broader checks. Ownership and fee changes include old and new
 owners and other companies whose manifests depend on the changed terms. Raw archive
 acquisition and inventory captures do not request payout work.
@@ -56,8 +56,7 @@ historical backfills extend that range. The start includes Finances posting date
 and processed coverage, processed Data Kiosk days, saved reports, and existing
 refresh state. It can precede company creation and produce zero reports for companies
 that have assigned SKUs but no activity. With no financial history or refresh state,
-no start month is invented. Saved reports and refresh state preserve older months
-after source pruning.
+no start month is invented. Saved reports and refresh state preserve previously discovered months.
 An idle run performs indexed frontier lookups for eligible companies and checks the pending index;
 it does not resolve financial inputs or validate coverage for completed reports.
 Historical source discovery is needed when initializing newly eligible companies, and broader
@@ -157,9 +156,9 @@ the batch. Empty successful observations require their own controls; missing Fin
 not invented as zero.
 
 A company with no identifiable source scope can still have an explicit empty
-input inventory. Missing ownership, applicable fees, invalid available inputs,
-pruned Data Kiosk payloads or stale Finance batch membership block publication before both reuse
-and creation. SKU-less account controls never create company ownership.
+input inventory. Missing ownership, applicable fees, invalid available inputs or stale source
+membership block publication before both reuse and creation. SKU-less account controls never
+create company ownership.
 
 The declared coverage pairs use the company's discovered source namespaces. For
 each namespace, they include marketplaces known from Data Kiosk days at any date
@@ -211,9 +210,10 @@ memberships and exact component IDs after current pointers change.
 
 Both publication paths compare only the latest report by save time for the same
 company, calendar month, marketplace, and currency. Reuse requires the same calculation version,
-scope, and exact sets of selected Finance batch IDs, Data Kiosk day-version IDs and
-SKU terms-version IDs across all namespaces. Processing labels remain on Finance batches and
-Data Kiosk versions. The dataset is `economics`.
+scope, and exact sets of selected Finance batch IDs, Data Kiosk observation IDs and
+SKU terms-version IDs across all namespaces. A Data Kiosk observation identifies one batch/day/
+version membership. Processing labels remain on the successful batches for both sources.
+The dataset is `economics`.
 
 A pending request whose inputs still match adds no duplicate. A publication's UUID,
 creation time, report name, or change reason does not force a new report; a reused
@@ -221,9 +221,10 @@ report keeps its original values for those fields.
 
 If the latest report differs or does not exist, publication creates a new snapshot.
 Changed input references create a report even when totals are unchanged or an older report matches.
-A newly selected Finance batch therefore creates a new report even when it reuses every transaction
-version: the recorded observation changed. Repeated generation with the same selected batches and
-other inputs reuses the report. Concurrent matching requests serialize and return the same report.
+A newly selected Finance batch or Data Kiosk observation therefore creates a new report even when
+it reuses all normalized versions: the recorded observation changed. Repeated generation with the
+same selected observations and other inputs reuses the report. Concurrent matching requests
+serialize and return the same report.
 
 ## Company components
 
@@ -312,10 +313,11 @@ seller/month and Data Kiosk source days in order. The worker skips its run if th
 direct publication waits. Source and terms publishers acquire the shared guard before
 publication. Publications that arrive during generation wait for it to finish, then
 commit their changes and pending revisions together. This lock order protects current
-assignment eligibility and prevents publication/generation deadlocks. Capture and pruning use
-`READ COMMITTED`. Reports retain successful Finance batches and Data Kiosk day versions, including
-empty observations. Finance versions are never pruned; Data Kiosk pins prevent payload pruning. Privileged publication recreates its temporary work table
-to prevent caller-owned temporary tables or triggers from running with its role.
+assignment eligibility and prevents publication/generation deadlocks. Capture uses `READ COMMITTED`.
+Reports retain successful Finance batches and exact Data Kiosk batch/day/version membership,
+including empty observations. Both sources retain all immutable contents and observations.
+Privileged publication recreates its temporary work table to prevent caller-owned temporary tables
+or triggers from running with its role.
 
 Reassignment corrects mistaken ownership retroactively in live calculations and
 future generation for eligible companies; it does not establish a dated transfer.
@@ -372,7 +374,7 @@ change requests work.
 
 The disposable database suite covers category authority, exact boundary dates,
 monthly eligibility, reconciliation, tenant isolation, immutable snapshots,
-marketplace isolation, unchanged-input reuse, concurrent publication, and retention.
+marketplace isolation, unchanged-input reuse, concurrent publication, and immutable source history.
 Automatic refresh tests cover maturity discovery, targeted invalidation, idle runs,
 first-SKU activation, last-SKU removal, assigned SKUs without activity,
 blocked-month recovery, retry backoff, concurrent publication, and denied application

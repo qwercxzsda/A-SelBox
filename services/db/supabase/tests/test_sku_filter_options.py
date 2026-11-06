@@ -202,12 +202,12 @@ class SkuFilterOptionsTests(SourceModelFixture):
             "from pg_class t join pg_attribute a on a.attrelid=t.oid and a.attname='sku' "
             "join pg_collation c on c.oid=a.attcollation "
             "where t.oid in ('private.finances_transaction_components'::regclass,"
-            "'private.data_kiosk_transactions'::regclass) order by t.relname"
+            "'private.data_kiosk_day_components'::regclass) order by t.relname"
         ).fetchall()
         self.assertEqual(
             rows,
             [
-                ("data_kiosk_transactions", True, True),
+                ("data_kiosk_day_components", True, True),
                 ("finances_transaction_components", True, True),
             ],
         )

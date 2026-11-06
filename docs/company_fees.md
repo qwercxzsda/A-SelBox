@@ -7,7 +7,7 @@ preserve previously published calculations; approval and payment execution are
 not implemented.
 
 The [workflow contract](data_workflows.md) owns acquisition, preprocessing,
-version ordering, precision, and retention. The
+version ordering, precision, and immutable history. The
 [source policy](source_allocation.md) owns which Amazon source
 supplies each component. The [database guide](../services/db/supabase/README.md)
 documents executable interfaces and verification commands.
@@ -191,8 +191,8 @@ another sign reversal. The native original activity's marketplace-local posting
 date selects its fee period. Release, bank transfer, capture and preprocessing
 dates do not select the rate.
 
-Recent Data Kiosk sales use validated `netProductSales`, preserving
-`orderedProductSales` and signed `refundedProductSales` separately for analysis. The source requires
+Recent Data Kiosk sales use validated `netProductSales`; the original
+`orderedProductSales` and signed `refundedProductSales` remain in the archives. The source requires
 `net = ordered - refunded`, including negative refunds. Only the selected net component
 supplies the recent commission base; mature dates use Finances activity components. Data Kiosk
 comparisons in the Finances category have null fee/company contributions and cannot add a
@@ -207,7 +207,7 @@ Preserve each row's fee inputs when aggregating, keep currencies separate, and u
 exact decimal arithmetic without currency rounding or a zero floor. Dashboard totals can
 combine rows sharing the same fee inputs before fee lookup without changing the result. At 5%,
 sales of 100 and refunds of 20 produce a fee of -4. Noncommission costs require
-ownership but no rate. Fee-eligible zero amounts still require fee coverage.
+ownership but no rate. Retained fee-eligible zero amounts still require fee coverage.
 Every native Finances transaction requires its explicit validated marketplace,
 including noncommission rows. Linked release copies and transfers never create
 additional fee-bearing activity.
@@ -312,6 +312,6 @@ boundaries. Current verification limits are recorded in
 [known issues](known_issues.md#deployment-and-verification-scope).
 
 The [payout publisher](company_payout_reports.md) saves exact amounts and typed
-source/terms manifests protected from retention. Approval, adjustment policy,
+source/terms manifests preserving the exact historical inputs. Approval, adjustment policy,
 rounding, and payment execution remain separate work; saved reports are not
 evidence that a payment was approved or made.

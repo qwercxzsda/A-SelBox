@@ -49,7 +49,7 @@ class PayoutReportAccessTests(SourceModelFixture):
             self.as_user(
                 administrator,
                 "select id::text,company_id::text,component_count,finances_batch_count,"
-                "data_kiosk_version_count,terms_version_count,company_amount "
+                "data_kiosk_observation_count,terms_version_count,company_amount "
                 "from public.company_payout_reports",
             ),
             [(report, company, 5, 1, 30, 2, Decimal(85))],
@@ -70,10 +70,10 @@ class PayoutReportAccessTests(SourceModelFixture):
                 0,
             ),
             ("select * from public.payout_report_finances_batches", 1, 0),
-            ("select * from public.payout_report_data_kiosk_versions", 30, 0),
+            ("select * from public.payout_report_data_kiosk_observations", 30, 0),
             ("select * from public.payout_report_terms_versions", 2, 0),
             ("select * from private.payout_report_finances_batches", 1, 0),
-            ("select * from private.payout_report_data_kiosk_versions", 30, 0),
+            ("select * from private.payout_report_data_kiosk_observations", 30, 0),
             ("select * from private.payout_report_terms_versions", 2, 0),
             ("select * from public.payout_report_reconciliation", 1, 0),
             ("select * from private.payout_report_reconciliation", 1, 0),

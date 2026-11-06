@@ -7,6 +7,7 @@ from services.db.supabase.tests import test_date_ordering as date_fixture
 from services.db.supabase.tests import test_source_transaction_page as source_fixture
 from services.db.supabase.tests import test_transaction_page as live_fixture
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.sync.src.source_serialization import content_sha256
 
 _MARKETS = ("Amazon.com", "Amazon.ca")
 _DAYS = ("2026-06-14", "2026-06-15", "2026-06-16")
@@ -50,6 +51,12 @@ class MarketplaceOrderingTests(SourceModelFixture):
             components[0]["id"] = finances_rows[-3]["id"]
             key = marketplace, day
             current[key] = new_id()
+            selected = self.connection.execute(
+                "select current_batch_id from private.data_kiosk_days "
+                "where seller_namespace=%s and marketplace_name=%s and activity_date=%s "
+                "and dataset_key='economics'",
+                (self.seller, marketplace, day),
+            ).fetchone()
             days.append(
                 {
                     "id": current[key],
@@ -58,7 +65,15 @@ class MarketplaceOrderingTests(SourceModelFixture):
                     "expected_current_version_id": None
                     if day_previous is None
                     else day_previous[key],
-                    "content_sha256": "a" * 64,
+                    "expected_current_batch_id": None
+                    if selected is None or selected[0] is None
+                    else str(selected[0]),
+                    "content_sha256": content_sha256(
+                        [
+                            {key: value for key, value in row.items() if key != "id"}
+                            for row in components
+                        ]
+                    ),
                     "transactions": components,
                 }
             )

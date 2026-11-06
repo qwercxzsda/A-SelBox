@@ -53,7 +53,7 @@ class AdministratorSourceAccessTests(SourceModelFixture):
                 [-10, 100, 200, 500, 600],
             ),
             (
-                "select amount from private.data_kiosk_transactions order by amount",
+                "select amount from private.data_kiosk_day_components order by amount",
                 [-2],
                 [-60, -20, -2, -1],
             ),

@@ -37,7 +37,7 @@ def source_versions(connection: Connection) -> dict[str, list[str]]:
                 sql.SQL("select distinct version_id from private.{}").format(sql.Identifier(table))
             ).fetchall()
         ]
-        for table in ("finances_transaction_components", "data_kiosk_transactions")
+        for table in ("finances_transaction_components", "data_kiosk_day_components")
     }
 
 
@@ -51,5 +51,5 @@ def source_fingerprints(connection: Connection, versions: dict[str, list[str]]) 
             ).format(sql.Identifier(table)),
             (versions[table],),
         ).fetchall()[0][0]
-        for table in ("finances_transaction_components", "data_kiosk_transactions")
+        for table in ("finances_transaction_components", "data_kiosk_day_components")
     }

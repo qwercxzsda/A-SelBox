@@ -27,7 +27,7 @@ begin
     end if;
     if (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'private' and c.relkind = 'r'
-          and c.relname in ('finances_transaction_components','data_kiosk_transactions')) <> 2 then
+          and c.relname in ('finances_transaction_components','data_kiosk_day_components')) <> 2 then
         raise exception 'Both source fact tables are required';
     end if;
     if exists (
@@ -37,17 +37,17 @@ begin
     ) then raise exception 'All financial views must preserve invoker security'; end if;
     if exists (
         select 1 from information_schema.columns where table_schema = 'private'
-          and table_name in ('finances_transaction_components','data_kiosk_transactions')
+          and table_name in ('finances_transaction_components','data_kiosk_day_components')
           and column_name in ('company_id','fee_amount','fee_rate_percent','company_amount','elaborated_quantity')
     ) then raise exception 'Ownership or fee amounts must not be stored in source facts'; end if;
     if exists (
         select 1 from information_schema.columns where table_schema = 'private'
-          and table_name in ('finances_transaction_components','data_kiosk_transactions')
+          and table_name in ('finances_transaction_components','data_kiosk_day_components')
           and column_name = 'amount' and is_nullable <> 'NO'
     ) then raise exception 'Published source facts require quantified amounts'; end if;
     if (select count(*) from information_schema.columns
         where table_schema = 'private'
-          and table_name in ('finances_transaction_components','data_kiosk_transactions')
+          and table_name in ('finances_transaction_components','data_kiosk_day_components')
           and column_name = 'category' and is_nullable = 'NO'
           and udt_schema = 'public' and udt_name = 'allocation_category') <> 2 then
         raise exception 'Both source fact tables require one named enum category';

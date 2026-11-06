@@ -3,41 +3,38 @@
 create function private.publish_data_kiosk_preprocess(p_payload jsonb) returns uuid
 language plpgsql set search_path = '' as $$
 declare acquisition private.data_kiosk_acquisitions; current_day private.data_kiosk_days;
-    day_payload jsonb;
-    published_batch_id public.local_uuid := (p_payload->>'id')::uuid; published_version_id public.local_uuid;
-    current_acquisition private.data_kiosk_acquisitions; dataset text := coalesce(p_payload->>'dataset_key','economics');
-    day_count integer; expected_days integer;
-    scope_expanded boolean; changed_months date[] := '{}';
+    day_payload jsonb; published_batch_id public.local_uuid := (p_payload->>'id')::uuid;
+    published_version_id public.local_uuid; current_acquisition_id public.local_uuid;
+    current_query_created_at timestamptz; dataset text := p_payload->>'dataset_key';
+    day_count integer; expected_days integer; scope_expanded boolean; changed_months date[] := '{}';
 begin
     perform private.lock_payout_report_inputs();
+    perform private.require_read_committed();
     select * into strict acquisition from private.data_kiosk_acquisitions where id = (p_payload->>'acquisition_id')::uuid;
     if jsonb_typeof(p_payload->'days') is distinct from 'array' then
         raise exception 'Complete covered days array required' using errcode = '23514';
     end if;
     day_count := jsonb_array_length(p_payload->'days');
     expected_days := (acquisition.query_end_date - acquisition.query_start_date + 1) * cardinality(acquisition.marketplace_ids);
-    if dataset <> 'economics' or day_count <> expected_days
+    if dataset is distinct from 'economics' or day_count <> expected_days
         or (select count(distinct value->>'marketplace_name') from jsonb_array_elements(p_payload->'days')) <> 1
-        or (
-        select count(distinct (value->>'marketplace_name',value->>'activity_date')) from jsonb_array_elements(p_payload->'days')
-    ) <> day_count then
+        or (select count(distinct (value->>'marketplace_name',value->>'activity_date'))
+            from jsonb_array_elements(p_payload->'days')) <> day_count then
         raise exception 'Complete economics marketplace/day coverage required' using errcode = '23514';
     end if;
     scope_expanded := private.payout_source_has_new_skus(acquisition.seller_namespace,array(
-        select distinct entry->>'sku'
-        from jsonb_array_elements(p_payload->'days') day
-        cross join lateral jsonb_array_elements(case
-            when jsonb_typeof(day->'transactions') = 'array' then day->'transactions'
-            else '[]'::jsonb end) entry
+        select distinct entry->>'sku' from jsonb_array_elements(p_payload->'days') day
+        cross join lateral jsonb_array_elements(case when jsonb_typeof(day->'transactions') = 'array'
+            then day->'transactions' else '[]'::jsonb end) entry
     )) or exists (
         select 1 from jsonb_array_elements(p_payload->'days') day
         where not exists (select 1 from private.data_kiosk_days d
             where d.seller_namespace = acquisition.seller_namespace
                 and d.marketplace_name = day->>'marketplace_name' and d.dataset_key = dataset)
     );
-    -- Publication and retention both acquire day row locks in natural identity
-    -- order: seller, marketplace text, activity date, dataset. UUID creation order
-    -- can differ from date order when older days are discovered later.
+    insert into private.data_kiosk_preprocess_batches(id,acquisition_id,preprocess_version,day_count)
+        values (published_batch_id,acquisition.id,p_payload->>'preprocess_version',day_count);
+    -- Publish each complete day under the same ordered identity locks.
     for day_payload in select value from jsonb_array_elements(p_payload->'days')
         order by value->>'marketplace_name',value->>'activity_date'
     loop
@@ -46,25 +43,8 @@ begin
             raise exception 'Invalid covered day' using errcode = '23514';
         end if;
         if exists (select 1 from jsonb_array_elements(day_payload->'transactions') entry
-            where jsonb_typeof(entry) is distinct from 'object'
-                or not entry ? 'category') then
-            raise exception 'Data Kiosk transactions require category'
-                using errcode = '23514';
-        end if;
-        -- The persisted marketplace comes from the day. Still validate an optional
-        -- transaction value rather than accepting an unsupported ignored field.
-        if exists (select 1 from jsonb_array_elements(day_payload->'transactions') entry
-            where entry->>'marketplace_name' is not null
-                and entry->>'marketplace_name' not in (
-                    'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-                    'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-                    'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-                    'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-                    'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
-                    'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
-                )) then
-            raise exception 'Unsupported Data Kiosk transaction marketplace'
-                using errcode = '23514';
+            where jsonb_typeof(entry) is distinct from 'object' or not entry ? 'category') then
+            raise exception 'Data Kiosk transactions require category' using errcode = '23514';
         end if;
         perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
             'data-kiosk', acquisition.seller_namespace, day_payload->>'marketplace_name',
@@ -73,48 +53,43 @@ begin
             values (acquisition.seller_namespace,day_payload->>'marketplace_name',
                 (day_payload->>'activity_date')::date,dataset)
             on conflict (seller_namespace,marketplace_name,activity_date,dataset_key) do nothing;
-    end loop;
-    insert into private.data_kiosk_preprocess_batches(id,acquisition_id,day_count) values (published_batch_id,acquisition.id,day_count);
-    for day_payload in select value from jsonb_array_elements(p_payload->'days')
-        order by value->>'marketplace_name',value->>'activity_date'
-    loop
         select * into strict current_day from private.data_kiosk_days d where
             (d.seller_namespace,d.marketplace_name,d.activity_date,d.dataset_key) =
             (acquisition.seller_namespace,day_payload->>'marketplace_name',
                 (day_payload->>'activity_date')::date,dataset) for update;
-        if current_day.current_version_id is distinct from (day_payload->>'expected_current_version_id')::uuid then
+        if current_day.current_version_id is distinct from (day_payload->>'expected_current_version_id')::uuid
+            or current_day.current_batch_id is distinct from (day_payload->>'expected_current_batch_id')::uuid then
             raise exception 'Stale Data Kiosk day publication' using errcode = '40001';
         end if;
-        published_version_id := (day_payload->>'id')::uuid;
-        insert into private.data_kiosk_preprocess_versions(id,day_id,batch_id,preprocess_version,row_count,content_sha256)
-            values (published_version_id,current_day.id,published_batch_id,p_payload->>'preprocess_version',
-                jsonb_array_length(day_payload->'transactions'),day_payload->>'content_sha256');
-        insert into private.data_kiosk_transactions(id,version_id,seller_namespace,marketplace_name,activity_date,
-            component_key,sku,category,component_type,amount,currency,quantity,fee_base,
-            native_dimensions,source_document_id,source_line_number)
-            select t.id,published_version_id,acquisition.seller_namespace,current_day.marketplace_name,current_day.activity_date,
-                t.component_key,t.sku,t.category,t.component_type,t.amount,t.currency,t.quantity,
-                t.fee_base,t.native_dimensions,t.source_document_id,t.source_line_number
-            from jsonb_populate_recordset(null::private.data_kiosk_transactions,day_payload->'transactions') t;
-        select a.* into current_acquisition from private.data_kiosk_preprocess_versions v
-            join private.data_kiosk_preprocess_batches b on b.id = v.batch_id
-            join private.data_kiosk_acquisitions a on a.id = b.acquisition_id where v.id = current_day.current_version_id;
-        if current_day.current_version_id is null or (acquisition.root_query_created_at,acquisition.id) >
-            (current_acquisition.root_query_created_at,current_acquisition.id) then
-            update private.data_kiosk_days set current_version_id = published_version_id where id = current_day.id;
-            changed_months := array_append(changed_months,date_trunc('month',current_day.activity_date)::date);
-        elsif acquisition.id = current_acquisition.id then
-            if published_version_id <= current_day.current_version_id then
-                raise exception 'Local Data Kiosk version must advance' using errcode = '23514';
-            end if;
-            update private.data_kiosk_days set current_version_id = published_version_id where id = current_day.id;
+        select v.id into published_version_id from private.data_kiosk_day_versions v
+            where v.day_id=current_day.id and v.content_sha256=day_payload->>'content_sha256';
+        if published_version_id is null then
+            published_version_id := (day_payload->>'id')::uuid;
+            insert into private.data_kiosk_day_versions(id,day_id,row_count,content_sha256)
+                values (published_version_id,current_day.id,
+                    jsonb_array_length(day_payload->'transactions'),day_payload->>'content_sha256');
+            insert into private.data_kiosk_day_components(id,version_id,component_key,sku,category,
+                component_type,amount,currency,quantity,fee_base)
+                select t.id,published_version_id,t.component_key,t.sku,t.category,
+                    t.component_type,t.amount,t.currency,t.quantity,t.fee_base
+                from jsonb_populate_recordset(null::private.data_kiosk_day_components,day_payload->'transactions') t;
+        end if;
+        insert into private.data_kiosk_preprocess_batch_days(batch_id,day_id,version_id)
+            values (published_batch_id,current_day.id,published_version_id);
+        select a.root_query_created_at,a.id into current_query_created_at,current_acquisition_id
+            from private.data_kiosk_preprocess_batches b
+            join private.data_kiosk_acquisitions a on a.id=b.acquisition_id
+            where b.id=current_day.current_batch_id;
+        if current_day.current_version_id is null
+            or (acquisition.root_query_created_at,acquisition.id,published_batch_id)
+                > (current_query_created_at,current_acquisition_id,current_day.current_batch_id) then
+            update private.data_kiosk_days set current_version_id=published_version_id,
+                current_batch_id=published_batch_id where id=current_day.id;
             changed_months := array_append(changed_months,date_trunc('month',current_day.activity_date)::date);
         end if;
     end loop;
     perform private.request_payout_report_refresh(changed_months);
-    if scope_expanded then
-        perform private.request_all_payout_report_refreshes();
-    end if;
+    if scope_expanded then perform private.request_all_payout_report_refreshes(); end if;
     return published_batch_id;
 end;
 $$;

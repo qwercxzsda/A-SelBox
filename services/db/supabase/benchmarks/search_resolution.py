@@ -33,7 +33,7 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
         skus = connection.execute(
             "select sku from public.skus union "
             "select sku from private.finances_transaction_components where sku is not null union "
-            "select sku from private.data_kiosk_transactions where sku is not null"
+            "select sku from private.data_kiosk_day_components where sku is not null"
         ).fetchall()
     types = [
         item.component_type

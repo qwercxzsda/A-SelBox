@@ -13,46 +13,17 @@ create index finances_transactions_native_lookup_idx on private.finances_transac
     native_transaction_id, id
 );
 
--- Date-led coverage serves bounded-period Data Kiosk counts, including zero
--- amounts. Cover every category and version for raw reads; queries and RLS
--- still enforce their respective scopes without a numeric index key.
-create index data_kiosk_transactions_date_count_idx
-on private.data_kiosk_transactions (
-    activity_date, component_type, sku, version_id,
-    category, marketplace_name
-);
-
--- Match each owned fact to its currently selected source version.
-
+-- Day metadata is stored once; component indexes retain only row-level keys.
 create index data_kiosk_days_current_version_idx
-on private.data_kiosk_days (current_version_id)
-where current_version_id is not null;
-
--- Default date pages use one B-tree per source in either direction. Full
--- coverage also serves the raw administrator tabs, including historical/account rows;
--- unchanged RLS and live-query predicates still enforce their respective scopes.
-
-create index data_kiosk_transactions_date_id_idx
-on private.data_kiosk_transactions (activity_date asc nulls last, id asc);
-
--- SKU identity is global. Lead with the selected SKU; retain compact date keys
--- and B-tree deduplication instead of appending ID.
--- These narrow candidate scans; they need not satisfy the complete page order.
-
-create index data_kiosk_transactions_sku_date_idx
-on private.data_kiosk_transactions (sku, activity_date);
-
--- Exact Type selections narrow sparse component/date scopes in either source.
--- Use native text comparisons with the same collation as the existing filters.
-
-create index data_kiosk_transactions_type_date_idx
-on private.data_kiosk_transactions (component_type, activity_date);
-
--- Compact marketplace/date access supports exact text selections. The planner
--- still chooses its scan strategy according to visibility and filter selectivity.
-
-create index data_kiosk_transactions_marketplace_date_idx
-on private.data_kiosk_transactions (marketplace_name, activity_date);
+on private.data_kiosk_days (current_version_id) where current_version_id is not null;
+create index data_kiosk_days_date_idx on private.data_kiosk_days (activity_date, id);
+create index data_kiosk_days_marketplace_date_idx
+on private.data_kiosk_days (marketplace_name, activity_date, id);
+create index data_kiosk_day_components_sku_idx
+on private.data_kiosk_day_components (sku, version_id);
+create index data_kiosk_day_components_type_idx on private.data_kiosk_day_components (
+    component_type, version_id
+);
 
 -- Shared rules for the bounded transaction read API.
 
@@ -123,7 +94,7 @@ returns boolean
 language sql stable security invoker set search_path = '' as $$
     select case when p_relation in (
         'private.finances_transaction_components'::regclass,
-        'private.data_kiosk_transactions'::regclass
+        'private.data_kiosk_day_components'::regclass
     ) then current_user = 'authenticated'
         and not private.is_administrator()
         and pg_catalog.row_security_active(p_relation)

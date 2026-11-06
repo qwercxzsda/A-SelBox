@@ -86,7 +86,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.assertEqual(payout_snapshot(self, report), before)
         for relation, column, version in (
             ("payout_report_finances_batches", "batch_id", finances_batch),
-            ("payout_report_data_kiosk_versions", "version_id", kiosk_version),
+            ("payout_report_data_kiosk_observations", "version_id", kiosk_version),
             ("payout_report_terms_versions", "terms_version_id", terms),
         ):
             rows = self.connection.execute(
@@ -95,7 +95,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 ),
                 (report,),
             ).fetchall()
-            if relation == "payout_report_data_kiosk_versions":
+            if relation == "payout_report_data_kiosk_observations":
                 self.assertEqual(len(rows), 30)
                 self.assertIn((version,), rows)
             else:

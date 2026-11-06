@@ -151,8 +151,10 @@ keeps X-button closing usable without clicking the underlying page again.
 
 Source records expose the original amount, activity date, SKU, marketplace, exact type and source
 namespace. **View source record** opens the exact row/version in a nested drawer, including native
-Amazon transaction IDs, linked release/deferred IDs and processing provenance when available.
-The selection survives reload; a missing or pruned version shows an explicit unavailable message
+Amazon transaction IDs and linked release/deferred IDs when available. Displayed batch metadata
+follows the [source inspector's observation selection](transaction_query_contracts.md#raw-source-pages);
+the payout manifest separately preserves the observation used by a saved report.
+The selection survives reload; a missing version shows an explicit unavailable message
 instead of substituting a current capture. Native marketplace identity is required. These are
 source facts without company allocation or fee joins. A difference at account or category level
 does not attribute a discrepancy to a particular SKU, transaction, campaign, or blank marketplace.
@@ -184,7 +186,7 @@ chargebacks), Taxes collected and withheld (product, shipping, and gift-wrap tax
 and Promotions and points (rebates, refunds, and points) separate. Refund commission, restocking,
 and liquidation proceeds also retain their own families.
 
-Net product sales retains zero-activity row counts. Amazon defines Data Kiosk `netProductSales` as
+Data Kiosk row counts include only retained normalized components after zero filtering. Amazon defines `netProductSales` as
 ordered sales less refunded sales, with refunds assigned by refund-request time. Finances retains
 its posted-activity dates, so related sales and refunds can fall in different months across the
 two sources. See the

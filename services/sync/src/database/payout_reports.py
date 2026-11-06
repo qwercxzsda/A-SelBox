@@ -37,7 +37,7 @@ class CompanyPayoutReport:
     component_count: int
     reconciliation_count: int
     finances_batch_count: int
-    data_kiosk_version_count: int
+    data_kiosk_observation_count: int
     terms_version_count: int
     source_amount: Decimal
     fee_amount: Decimal
@@ -154,7 +154,7 @@ def load_company_payout_report(
             select id, company_id, currency, start_date, end_date,
                 dataset_key, marketplace_name, report_name,
                 change_reason, calculation_version, component_count, reconciliation_count,
-                finances_batch_count, data_kiosk_version_count, terms_version_count,
+                finances_batch_count, data_kiosk_observation_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at
             from public.company_payout_reports where id = %(id)s::uuid
             """,
@@ -236,7 +236,7 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
         component_count=nonnegative_count(row[10], "component_count"),
         reconciliation_count=nonnegative_count(row[11], "reconciliation_count"),
         finances_batch_count=nonnegative_count(row[12], "finances_batch_count"),
-        data_kiosk_version_count=nonnegative_count(row[13], "data_kiosk_version_count"),
+        data_kiosk_observation_count=nonnegative_count(row[13], "data_kiosk_observation_count"),
         terms_version_count=nonnegative_count(row[14], "terms_version_count"),
         source_amount=financial_amount(row[15], "source_amount"),
         fee_amount=financial_amount(row[16], "fee_amount"),

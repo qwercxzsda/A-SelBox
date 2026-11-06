@@ -26,11 +26,11 @@ class AppAccountTests(SourceModelFixture):
         user = self.auth_user()
         for query in (
             "select * from private.finances_transaction_components",
-            "select * from private.data_kiosk_transactions",
+            "select * from private.data_kiosk_day_components",
             "select id from private.finances_transactions",
             "select id from private.data_kiosk_days",
             "select id from private.finances_transaction_versions",
-            "select id from private.data_kiosk_preprocess_versions",
+            "select id from private.data_kiosk_day_versions",
             "select * from public.company_skus",
             "select * from public.current_sku_fee_periods",
             "select * from public.live_company_components",

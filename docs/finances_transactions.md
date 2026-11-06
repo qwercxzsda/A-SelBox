@@ -145,8 +145,8 @@ current transaction versions. An older successful batch cannot certify newly cha
 This is input selection, not another Finance business-validation pass.
 
 Finance acquisitions, batches, memberships, transaction versions and components have no history
-cap and are not pruned. Data Kiosk retains its separate latest-three-observation pruning policy.
-Raw page archives remain indefinitely in either workflow.
+cap. Data Kiosk applies the same immutable-history policy to complete-day versions and their batch
+memberships. Raw page archives remain indefinitely in either workflow.
 
 Administrator source views expose retained transaction versions, including releases and transfers.
 Company Transactions and Financial review select current activity according to allocation rules.

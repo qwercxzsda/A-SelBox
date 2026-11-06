@@ -4,7 +4,7 @@
 -- This payout/reference resolver uses explicit versions, never current pointers.
 -- It shares fee applicability and arithmetic rules with the current live reads.
 create function private.resolve_company_components(
-    p_finances_batch_ids uuid[], p_data_kiosk_version_ids uuid[], p_terms_version_ids uuid[]
+    p_finances_batch_ids uuid[], p_data_kiosk_observation_ids uuid[], p_terms_version_ids uuid[]
 ) returns table (
     source text, source_row_id uuid, source_version_id uuid, preprocess_version text,
     source_identity_id uuid, seller_namespace text, marketplace_name text,
@@ -15,9 +15,9 @@ create function private.resolve_company_components(
 )
 language plpgsql stable set search_path = '' as $$
 begin
-    if p_finances_batch_ids is null or p_data_kiosk_version_ids is null or p_terms_version_ids is null
+    if p_finances_batch_ids is null or p_data_kiosk_observation_ids is null or p_terms_version_ids is null
         or array_position(p_finances_batch_ids,null) is not null
-        or array_position(p_data_kiosk_version_ids,null) is not null
+        or array_position(p_data_kiosk_observation_ids,null) is not null
         or array_position(p_terms_version_ids,null) is not null then
         raise exception 'Explicit nonnull version arrays required' using errcode = '23514';
     end if;
@@ -25,8 +25,10 @@ begin
         join private.finances_preprocess_batches b on b.id=m.batch_id
         where m.batch_id = any(p_finances_batch_ids) group by m.transaction_id
         having count(distinct m.version_id)>1 or count(distinct b.preprocess_version)>1)
-        or exists (select 1 from private.data_kiosk_preprocess_versions v
-            where v.id = any(p_data_kiosk_version_ids) group by v.day_id having count(*) > 1)
+        or exists (select 1 from private.data_kiosk_preprocess_batch_days m
+            join private.data_kiosk_preprocess_batches b on b.id=m.batch_id
+            where m.id = any(p_data_kiosk_observation_ids) group by m.day_id
+            having count(distinct m.version_id)>1 or count(distinct b.preprocess_version)>1)
         or exists (select 1 from public.sku_terms_versions v
             where v.id = any(p_terms_version_ids) group by v.sku_id having count(*) > 1) then
         raise exception 'One interpretation per source or SKU identity required' using errcode = '23514';
@@ -55,12 +57,12 @@ where t.activity_eligible and t.category in ('FINANCES', 'SELBOX')
     and t.posted_date < (select private.mature_cutoff_date())
     and t.batch_id = any(p_finances_batch_ids)
 union all
-select
+select distinct
     'DATA_KIOSK' as source, -- noqa: RF04
     t.id,
     t.version_id,
-    v.preprocess_version,
-    v.day_id,
+    t.preprocess_version,
+    t.day_id,
     t.seller_namespace,
     t.marketplace_name,
     t.activity_date,
@@ -73,16 +75,15 @@ select
     t.category,
     (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
         and t.category in ('FINANCES', 'SELBOX'))) as authoritative
-from private.data_kiosk_transactions as t
-inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
-where v.id = any(p_data_kiosk_version_ids)
+from private.data_kiosk_batch_components as t
+where t.observation_id = any(p_data_kiosk_observation_ids)
 union all
 select 'RECONCILIATION'::text, private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency),
     private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), 'reconciliation-v1'::text,
     private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), r.seller_namespace,
     r.marketplace_name, r.activity_date, null::text, 'FINANCES_KIOSK_DIFFERENCE'::text,
     r.currency, r.difference, null::numeric, null::numeric, 'SELBOX'::public.allocation_category, true
-from private.resolve_source_reconciliation(p_finances_batch_ids,p_data_kiosk_version_ids) r
+from private.resolve_source_reconciliation(p_finances_batch_ids,p_data_kiosk_observation_ids) r
 where r.data_kiosk_finances_control <> 0 or r.data_kiosk_category_amount <> 0
 ), selected_terms as (
     select s.id as sku_id,s.sku,v.id as terms_version_id,v.company_id
@@ -168,8 +169,8 @@ with components as (
         'DATA_KIOSK'::text as source, -- noqa: RF04
         t.id,
         t.version_id,
-        v.preprocess_version,
-        v.day_id,
+        b.preprocess_version,
+        t.day_id,
         t.seller_namespace,
         t.marketplace_name,
         t.activity_date,
@@ -184,10 +185,9 @@ with components as (
             t.activity_date >= (select private.mature_cutoff_date())
             and t.category in ('FINANCES', 'SELBOX')
         )) as authoritative
-    from private.data_kiosk_transactions as t
-    inner join private.data_kiosk_preprocess_versions as v on t.version_id = v.id
-    inner join private.data_kiosk_days as d
-        on v.id = d.current_version_id
+    from private.data_kiosk_component_details as t
+    inner join private.data_kiosk_preprocess_batches as b on t.current_batch_id = b.id
+    where t.is_current
     union all
     select
         'RECONCILIATION'::text,

@@ -34,9 +34,8 @@ begin
                 and t.seller_namespace = any(seller_namespaces)
             union
             select t.sku,t.marketplace_name,t.currency
-            from private.data_kiosk_transactions t
-            join private.data_kiosk_days d on d.current_version_id = t.version_id
-            where t.activity_date between p_month and month_end and t.category = 'DATA_KIOSK'
+            from private.data_kiosk_component_details t
+            where t.is_current and t.activity_date between p_month and month_end and t.category = 'DATA_KIOSK'
                 and t.seller_namespace = any(seller_namespaces)
         ), resolved_owners as materialized (
             -- Scope discovery and completeness use the same selected facts and

@@ -21,7 +21,7 @@ define API behavior; [access control](access_control.md) defines visibility.
 Finance identities select immutable transaction versions; Data Kiosk day headers select complete
 day versions. Fact RLS checks current selection, category and SKU ownership. Finance parent and
 batch metadata follows owned current activity, with parent totals and inventory/hash fields excluded
-from member column grants. Data Kiosk retains its narrow shared current-reference policy. Full
+from member column grants. Data Kiosk references likewise follow current owned components. Full
 source metadata is administrator-only.
 
 `private.current_owned_sku_terms()` obtains the member's current permitted identities and terms
@@ -43,8 +43,9 @@ lookup and current-pointer indexes. Membership keys connect successful batches t
 versions without copying unchanged components. Filtering a Finance date page therefore joins
 transaction metadata to components.
 
-Data Kiosk retains its reversible date/ID, compact SKU/date, Type/date and marketplace/date indexes,
-plus the date-leading covering count index. Its zero amounts and all categories remain represented.
+Data Kiosk indexes date/ID and marketplace/date on stable days, with compact SKU/version and
+Type/version keys on components. Membership and current-pointer indexes identify the exact
+observation without duplicating day metadata or component contents.
 The [index map](transaction_query_contracts.md#index-access-paths) lists the exact current keys.
 
 Finance publication uploads prepared rows in batches and switches pointers atomically after Python
@@ -125,7 +126,7 @@ disposable clones. Compare exact amounts, ordering, visibility, response complet
 and publication cost as well as latency. Measure actual caller roles rather than substituting
 privileged query plans. Inspect selectivity, rows visited, shared buffers, and temporary writes.
 
-Keep ANALYZE and vacuum maintenance appropriate for imports and pruning. Before production, measure
+Keep ANALYZE and vacuum maintenance appropriate for imports. Before production, measure
 realistic company skew, sustained concurrent reads, imports, and cold data, then set latency and
-throughput targets. Import/pruning costs and revision-token writer contention are separate from
+throughput targets. Import costs and revision-token writer contention are separate from
 these frontend read measurements.

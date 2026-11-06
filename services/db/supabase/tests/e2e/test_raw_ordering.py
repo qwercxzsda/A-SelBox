@@ -40,7 +40,7 @@ def reference_parameters(case: SearchCase) -> dict[str, str]:
         "offset": str(case.offset),
     }
     if dataset.key == "live":
-        parameters["and"] = "(or(source.neq.DATA_KIOSK,source_amount.neq.0))"
+        parameters["authoritative"] = "eq.true"
     if case.marketplace is not None:
         parameters["marketplace_name"] = "eq." + case.marketplace
     return parameters
@@ -55,7 +55,7 @@ class RawOrderingTests(LocalWorkflowCase):
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, seller)
         )
-        # Administrators retain both versions in raw tabs; members remain current-only.
+        # Repeated preprocessing reuses contents and records both observations.
         for _ in range(2):
             preprocess_finances_acquisition(self.database, self.storage, finances)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)

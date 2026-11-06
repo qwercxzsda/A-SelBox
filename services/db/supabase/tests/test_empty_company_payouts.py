@@ -38,7 +38,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             self.connection.execute(
                 "select currency,source_amount,fee_amount,"
                 "company_amount,component_count,reconciliation_count,finances_batch_count,"
-                "data_kiosk_version_count,terms_version_count "
+                "data_kiosk_observation_count,terms_version_count "
                 "from public.company_payout_reports where id=%s",
                 (report,),
             ).fetchone(),
@@ -94,7 +94,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self.assert_empty_scope(next_report, (1, 1, 1))
         self.assertEqual(
             self.connection.execute(
-                "select version_id::text from private.payout_report_data_kiosk_versions "
+                "select version_id::text from private.payout_report_data_kiosk_observations "
                 "where report_id=%s",
                 (next_report,),
             ).fetchall(),

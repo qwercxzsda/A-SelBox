@@ -73,7 +73,7 @@ class AllocationCategoryTests(SourceModelFixture):
         for table in (
             "finances_preprocess_batches",
             "data_kiosk_preprocess_batches",
-            "data_kiosk_preprocess_versions",
+            "data_kiosk_day_versions",
         ):
             self.assertEqual(
                 self.connection.execute(

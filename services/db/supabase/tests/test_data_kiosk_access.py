@@ -27,13 +27,15 @@ class DataKioskAccessTests(SourceModelFixture):
         )
         self.seller = "seller-two"
         self.kiosk(1, [self.component("-50")])
+        self.seller = "other-company-only"
+        self.kiosk(1, [self.component("-99", sku="OTHER")])
         user = self.member(company)
         self.connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user,))
         self.connection.execute("set local role authenticated")
 
         self.assertEqual(
             self.connection.execute(
-                "select seller_namespace,sku,amount from private.data_kiosk_transactions "
+                "select seller_namespace,sku,amount from private.data_kiosk_component_details "
                 "order by amount"
             ).fetchall(),
             [
@@ -48,6 +50,12 @@ class DataKioskAccessTests(SourceModelFixture):
                 "select amount from public.data_kiosk_preprocess_entries where category='FINANCES'"
             ).fetchall(),
             [(Decimal("100"),)],
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select seller_namespace from private.data_kiosk_days order by seller_namespace"
+            ).fetchall(),
+            [("seller-one",), ("seller-two",)],
         )
         self.assertEqual(
             self.connection.execute(
@@ -71,10 +79,9 @@ class DataKioskAccessTests(SourceModelFixture):
         for statement in (
             "select * from private.data_kiosk_acquisitions",
             "select * from private.data_kiosk_preprocess_batches",
-            "select row_count from private.data_kiosk_preprocess_versions",
-            "select seller_namespace from private.data_kiosk_days",
-            "select private.prune_data_kiosk_preprocess()",
-            "delete from private.data_kiosk_transactions",
+            "select row_count from private.data_kiosk_day_versions",
+            "select content_sha256 from private.data_kiosk_day_versions",
+            "delete from private.data_kiosk_day_components",
         ):
             with (
                 self.subTest(statement=statement),

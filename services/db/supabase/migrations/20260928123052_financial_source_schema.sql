@@ -26,7 +26,9 @@ create table private.finances_preprocess_batches (
     component_count integer not null check (component_count >= 0),
     created_at timestamptz not null default now()
 );
-create index finances_runs_acquisition_idx on private.finances_preprocess_batches (acquisition_id);
+create index finances_batches_acquisition_idx on private.finances_preprocess_batches (
+    acquisition_id
+);
 
 create table private.finances_transactions (
     id public.local_uuid primary key default private.uuid7(),
@@ -234,44 +236,32 @@ create table private.data_kiosk_days (
     activity_date date not null,
     dataset_key private.nonblank not null,
     current_version_id public.local_uuid,
+    current_batch_id public.local_uuid,
     created_at timestamptz not null default now(),
-    unique (seller_namespace, marketplace_name, activity_date, dataset_key)
+    unique (seller_namespace, marketplace_name, activity_date, dataset_key),
+    check ((current_version_id is null) = (current_batch_id is null))
 );
 create table private.data_kiosk_preprocess_batches (
     id public.local_uuid primary key default private.uuid7(),
     acquisition_id public.local_uuid not null references private.data_kiosk_acquisitions (id),
+    preprocess_version private.nonblank not null,
     day_count integer not null check (day_count > 0),
     created_at timestamptz not null default now()
 );
 create index data_kiosk_batches_acquisition_idx on private.data_kiosk_preprocess_batches (
     acquisition_id
 );
-create table private.data_kiosk_preprocess_versions (
+create table private.data_kiosk_day_versions (
     id public.local_uuid primary key default private.uuid7(),
     day_id public.local_uuid not null references private.data_kiosk_days (id),
-    batch_id public.local_uuid not null references private.data_kiosk_preprocess_batches (id),
-    preprocess_version private.nonblank not null,
     row_count integer not null check (row_count >= 0),
     content_sha256 private.sha256 not null,
     created_at timestamptz not null default now(),
-    unique (day_id, id), unique (batch_id, day_id)
+    unique (day_id, id), unique (day_id, content_sha256)
 );
-alter table private.data_kiosk_days add constraint data_kiosk_current_version_identity
-foreign key (id, current_version_id) references private.data_kiosk_preprocess_versions (day_id, id);
--- UNIQUE(batch_id, day_id) also serves batch inventory counts and FK lookups.
-create table private.data_kiosk_transactions (
+create table private.data_kiosk_day_components (
     id public.local_uuid primary key default private.uuid7(),
-    version_id public.local_uuid not null references private.data_kiosk_preprocess_versions (id),
-    seller_namespace private.nonblank not null,
-    marketplace_name text not null check (marketplace_name in (
-        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
-        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
-    )),
-    activity_date date not null,
+    version_id public.local_uuid not null references private.data_kiosk_day_versions (id),
     component_key private.nonblank not null,
     sku text check (length(btrim(sku)) > 0),
     category public.allocation_category not null,
@@ -280,9 +270,6 @@ create table private.data_kiosk_transactions (
     currency text not null check (currency ~ '^[A-Z]{3}$'),
     quantity private.exact_numeric,
     fee_base private.exact_numeric,
-    native_dimensions jsonb not null check (jsonb_typeof(native_dimensions) = 'object'),
-    source_document_id text,
-    source_line_number integer not null check (source_line_number > 0),
     created_at timestamptz not null default now(),
     unique (version_id, component_key),
     constraint data_kiosk_allocated_requires_sku
@@ -290,7 +277,47 @@ create table private.data_kiosk_transactions (
     constraint data_kiosk_account_requires_blank_sku
     check (category <> 'SELBOX' or sku is null)
 );
-create table private.data_kiosk_pruned_versions (
-    version_id public.local_uuid primary key references private.data_kiosk_preprocess_versions (id),
-    created_at timestamptz not null default now()
+create table private.data_kiosk_preprocess_batch_days (
+    id public.local_uuid primary key default private.uuid7(),
+    batch_id public.local_uuid not null references private.data_kiosk_preprocess_batches (id),
+    day_id public.local_uuid not null references private.data_kiosk_days (id),
+    version_id public.local_uuid not null,
+    unique (batch_id, day_id),
+    unique (batch_id, day_id, version_id),
+    foreign key (day_id, version_id)
+    references private.data_kiosk_day_versions (day_id, id)
 );
+create index data_kiosk_batch_days_version_idx
+on private.data_kiosk_preprocess_batch_days (version_id, batch_id);
+create index data_kiosk_batch_days_day_idx
+on private.data_kiosk_preprocess_batch_days (day_id, batch_id);
+alter table private.data_kiosk_days add constraint data_kiosk_current_observation_identity
+foreign key (current_batch_id, id, current_version_id)
+references private.data_kiosk_preprocess_batch_days (batch_id, day_id, version_id)
+deferrable initially deferred;
+create index data_kiosk_days_current_batch_idx on private.data_kiosk_days (current_batch_id);
+
+create view private.data_kiosk_component_details with (security_invoker = true) as
+select -- noqa: AM04
+    t.*,
+    v.day_id,
+    d.seller_namespace,
+    d.marketplace_name,
+    d.activity_date,
+    d.dataset_key,
+    d.current_batch_id,
+    t.version_id = d.current_version_id as is_current
+from private.data_kiosk_day_components as t
+inner join private.data_kiosk_day_versions as v on t.version_id = v.id
+inner join private.data_kiosk_days as d on v.day_id = d.id;
+
+create view private.data_kiosk_batch_components with (security_invoker = true) as
+select -- noqa: AM04
+    d.*,
+    m.id as observation_id,
+    m.batch_id,
+    b.preprocess_version,
+    b.acquisition_id
+from private.data_kiosk_preprocess_batch_days as m
+inner join private.data_kiosk_preprocess_batches as b on m.batch_id = b.id
+inner join private.data_kiosk_component_details as d on m.version_id = d.version_id;

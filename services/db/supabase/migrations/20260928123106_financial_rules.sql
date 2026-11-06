@@ -66,7 +66,7 @@ select
     t.currency,
     t.category,
     t.amount
-from private.data_kiosk_transactions as t
+from private.data_kiosk_component_details as t
 where
     t.category = 'DATA_KIOSK'
     and t.activity_date < (select private.mature_cutoff_date())
@@ -86,7 +86,7 @@ language sql immutable parallel safe security invoker as $$
 $$;
 
 create function private.resolve_source_reconciliation(
-    p_finances_batch_ids uuid[], p_data_kiosk_version_ids uuid[]
+    p_finances_batch_ids uuid[], p_data_kiosk_observation_ids uuid[]
 ) returns table (
     seller_namespace text, activity_date date, marketplace_name text, currency text,
     finances_category_amount numeric,
@@ -109,7 +109,7 @@ select i.seller_namespace::text, i.activity_date, i.marketplace_name, i.currency
     coalesce(sum(i.amount) filter (where i.source = 'DATA_KIOSK'),0) as data_kiosk_category_amount
 from private.source_reconciliation_inputs i
 where (i.source = 'FINANCES' and i.source_version_id in (select m.version_id from private.finances_preprocess_batch_transactions m where m.batch_id = any(p_finances_batch_ids)))
-    or (i.source = 'DATA_KIOSK' and i.source_version_id = any(p_data_kiosk_version_ids))
+    or (i.source = 'DATA_KIOSK' and i.source_version_id in (select m.version_id from private.data_kiosk_preprocess_batch_days m where m.id = any(p_data_kiosk_observation_ids)))
 group by i.seller_namespace, i.activity_date, i.marketplace_name, i.currency
 )
 select g.*, amounts.difference, amounts.finances_total, amounts.accounted_total

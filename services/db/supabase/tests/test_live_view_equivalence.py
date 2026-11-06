@@ -13,8 +13,10 @@ with reference as materialized (
     select * from private.resolve_company_components(
         array(select distinct current_batch_id::uuid from private.finances_transactions
             where current_batch_id is not null),
-        array(select current_version_id::uuid from private.data_kiosk_days
-            where current_version_id is not null),
+        array(select m.id::uuid from private.data_kiosk_days d
+            join private.data_kiosk_preprocess_batch_days m
+                on (m.batch_id,m.day_id,m.version_id)
+                    =(d.current_batch_id,d.id,d.current_version_id)),
         array(select current_terms_version_id::uuid from public.skus
             where current_terms_version_id is not null)
     )
@@ -138,6 +140,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             [self.transaction("100")], acquisition_id=acquisition
         )
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
+        old_kiosk_observation = self.kiosk_observation(old_kiosk)
         _, new_finances = self.finances(
             [self.transaction("200")],
             acquisition_id=acquisition,
@@ -167,7 +170,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 self.connection.execute(
                     "select sum(company_amount) from private.resolve_company_components("
                     "%s::uuid[],%s::uuid[],%s::uuid[])",
-                    ([old_batch], [old_kiosk], [terms]),
+                    ([old_batch], [old_kiosk_observation], [terms]),
                 ).fetchone()
             )[0],
             Decimal(85),
@@ -205,7 +208,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
         )
         for relation, date_column in (
             ("finances_transaction_versions", "posted_date"),
-            ("data_kiosk_transactions", "activity_date"),
+            ("data_kiosk_days", "activity_date"),
         ):
             with self.subTest(relation=relation):
                 conditions = [

@@ -1,14 +1,31 @@
 erDiagram
     direction LR
-    private_data_kiosk_preprocess_versions ||..o{ private_data_kiosk_transactions : "version_id"
-    private_data_kiosk_preprocess_versions ||--o| private_data_kiosk_pruned_versions : "version_id"
+    private_data_kiosk_preprocess_batch_days o|..o| private_data_kiosk_days : "current_batch_id + id + current_version_id"
+    private_data_kiosk_days ||..o{ private_data_kiosk_day_versions : "day_id"
+    private_data_kiosk_day_versions ||..o{ private_data_kiosk_day_components : "version_id"
 
-    private_data_kiosk_transactions["private.data_kiosk_transactions"] {
-        local_uuid id PK "NN"
-        local_uuid version_id FK "NN"
+    private_data_kiosk_days["private.data_kiosk_days"] {
+        local_uuid id PK, FK "NN"
         nonblank seller_namespace "NN"
         text marketplace_name "NN"
         date activity_date "NN"
+        nonblank dataset_key "NN"
+        local_uuid current_version_id FK "NULL"
+        local_uuid current_batch_id FK "NULL"
+        timestamp_with_time_zone created_at "NN"
+    }
+
+    private_data_kiosk_day_versions["private.data_kiosk_day_versions"] {
+        local_uuid id PK "NN"
+        local_uuid day_id FK "NN"
+        integer row_count "NN"
+        sha256 content_sha256 "NN"
+        timestamp_with_time_zone created_at "NN"
+    }
+
+    private_data_kiosk_day_components["private.data_kiosk_day_components"] {
+        local_uuid id PK "NN"
+        local_uuid version_id FK "NN"
         nonblank component_key "NN"
         text sku "NULL"
         allocation_category category "NN"
@@ -17,17 +34,9 @@ erDiagram
         text currency "NN"
         exact_numeric quantity "NULL"
         exact_numeric fee_base "NULL"
-        jsonb native_dimensions "NN"
-        text source_document_id "NULL"
-        integer source_line_number "NN"
         timestamp_with_time_zone created_at "NN"
     }
 
-    private_data_kiosk_pruned_versions["private.data_kiosk_pruned_versions"] {
-        local_uuid version_id PK, FK "NN"
-        timestamp_with_time_zone created_at "NN"
-    }
-
-    private_data_kiosk_preprocess_versions["private.data_kiosk_preprocess_versions (reference)"] {
+    private_data_kiosk_preprocess_batch_days["private.data_kiosk_preprocess_batch_days (reference)"] {
         local_uuid id PK "NN"
     }

@@ -29,7 +29,7 @@ create table public.company_payout_reports (
     component_count integer not null check (component_count >= 0),
     reconciliation_count integer not null check (reconciliation_count >= 0),
     finances_batch_count integer not null check (finances_batch_count >= 0),
-    data_kiosk_version_count integer not null check (data_kiosk_version_count >= 0),
+    data_kiosk_observation_count integer not null check (data_kiosk_observation_count >= 0),
     terms_version_count integer not null check (terms_version_count >= 0),
     source_amount private.calculated_amount not null,
     fee_amount private.calculated_amount not null,
@@ -75,25 +75,26 @@ create index payout_report_refresh_pending_idx
 on private.payout_report_refresh_state (next_attempt_at, month, company_id)
 where requested_revision > completed_revision;
 
--- These complete manifests are also the retention pins. They include empty
--- source versions and ownership inputs used to exclude other companies' rows.
+-- These complete manifests preserve exact source observations, including empty
+-- day versions and ownership inputs used to exclude other companies' rows.
 create table private.payout_report_finances_batches (
     report_id public.local_uuid not null references public.company_payout_reports (id),
     batch_id public.local_uuid not null references private.finances_preprocess_batches (id),
     primary key (report_id, batch_id)
 );
 
-create table private.payout_report_data_kiosk_versions (
+create table private.payout_report_data_kiosk_observations (
     report_id public.local_uuid not null references public.company_payout_reports (id),
     day_id public.local_uuid not null,
+    batch_id public.local_uuid not null,
     version_id public.local_uuid not null,
     primary key (report_id, day_id),
     unique (report_id, version_id),
-    foreign key (day_id, version_id)
-    references private.data_kiosk_preprocess_versions (day_id, id)
+    foreign key (batch_id, day_id, version_id)
+    references private.data_kiosk_preprocess_batch_days (batch_id, day_id, version_id)
 );
 create index payout_data_kiosk_version_idx
-on private.payout_report_data_kiosk_versions (version_id);
+on private.payout_report_data_kiosk_observations (version_id);
 
 create table private.payout_report_terms_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),

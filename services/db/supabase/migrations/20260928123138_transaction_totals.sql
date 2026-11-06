@@ -36,7 +36,7 @@ begin
         'private.finances_transaction_components'::regclass
     );
     kiosk_policy_is_sufficient := private.member_policy_covers_current_version(
-        'private.data_kiosk_transactions'::regclass
+        'private.data_kiosk_day_components'::regclass
     );
     return (
         with facts as (
@@ -65,7 +65,7 @@ begin
             select t.sku, t.marketplace_name, t.activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end,
                 t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
-            from private.data_kiosk_transactions as t
+            from private.data_kiosk_component_details as t
             where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
                     and t.category in ('FINANCES', 'SELBOX')))
                 and (kiosk_policy_is_sufficient or exists (

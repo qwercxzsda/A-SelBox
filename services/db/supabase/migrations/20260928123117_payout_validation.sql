@@ -40,7 +40,7 @@ language sql stable set search_path = '' as $$
         join private.finances_activity_components t on t.sku = s.sku
         union
         select t.seller_namespace::text from company_skus s
-        join private.data_kiosk_transactions t on t.sku = s.sku
+        join private.data_kiosk_component_details t on t.sku = s.sku
         union
         select a.seller_namespace::text from public.company_payout_reports r
         join private.payout_report_finances_batches p on p.report_id = r.id
@@ -49,7 +49,7 @@ language sql stable set search_path = '' as $$
         where r.company_id = p_company_id
         union
         select d.seller_namespace::text from public.company_payout_reports r
-        join private.payout_report_data_kiosk_versions p on p.report_id = r.id
+        join private.payout_report_data_kiosk_observations p on p.report_id = r.id
         join private.data_kiosk_days d on d.id = p.day_id where r.company_id = p_company_id
     ) sellers;
 $$;
@@ -133,18 +133,18 @@ $$;
 -- Never consult current transaction pointers when checking an existing report.
 create function private.assert_payout_sources(
     p_start date, p_end date, p_dataset_key text,
-    p_finances_runs uuid[], p_data_kiosk_versions uuid[],
+    p_finances_runs uuid[], p_data_kiosk_observation_ids uuid[],
     p_require_complete boolean, p_seller_namespaces text[] default null
 ) returns void language plpgsql set search_path = '' as $$
 begin
-    if p_finances_runs is null or p_data_kiosk_versions is null
+    if p_finances_runs is null or p_data_kiosk_observation_ids is null
         or p_dataset_key is distinct from 'economics'
         or p_start is null or p_end is null or not isfinite(p_start) or not isfinite(p_end)
         or p_end < p_start or p_require_complete is null
         or array_position(p_finances_runs, null) is not null
-        or array_position(p_data_kiosk_versions, null) is not null
+        or array_position(p_data_kiosk_observation_ids, null) is not null
         or (select count(distinct value) from unnest(p_finances_runs) value) <> cardinality(p_finances_runs)
-        or (select count(distinct value) from unnest(p_data_kiosk_versions) value) <> cardinality(p_data_kiosk_versions) then
+        or (select count(distinct value) from unnest(p_data_kiosk_observation_ids) value) <> cardinality(p_data_kiosk_observation_ids) then
         raise exception 'Explicit valid payout source scope required' using errcode = '23514';
     end if;
     if exists (
@@ -156,15 +156,14 @@ begin
         raise exception 'Missing, duplicate or incomplete payout Finances run coverage' using errcode = '23514';
     end if;
     if exists (
-        select 1 from unnest(p_data_kiosk_versions) requested(id)
-        left join private.data_kiosk_preprocess_versions v on v.id = requested.id
-        left join private.data_kiosk_days d on d.id = v.day_id
-        where v.id is null or d.dataset_key <> p_dataset_key
+        select 1 from unnest(p_data_kiosk_observation_ids) requested(id)
+        left join private.data_kiosk_preprocess_batch_days m on m.id = requested.id
+        left join private.data_kiosk_days d on d.id = m.day_id
+        where m.id is null or d.dataset_key <> p_dataset_key
             or d.activity_date not between p_start and p_end
-            or exists(select 1 from private.data_kiosk_pruned_versions p where p.version_id = v.id)
-    ) or (select count(distinct day_id) from private.data_kiosk_preprocess_versions
-          where id = any(p_data_kiosk_versions)) <> cardinality(p_data_kiosk_versions) then
-        raise exception 'Incomplete, pruned or incompatible payout Data Kiosk coverage' using errcode = '23514';
+    ) or (select count(distinct day_id) from private.data_kiosk_preprocess_batch_days
+          where id = any(p_data_kiosk_observation_ids)) <> cardinality(p_data_kiosk_observation_ids) then
+        raise exception 'Incomplete or incompatible payout Data Kiosk coverage' using errcode = '23514';
     end if;
     if p_require_complete and exists (
         with sellers as (
@@ -172,8 +171,8 @@ begin
             join private.finances_acquisitions a on a.id = p.acquisition_id
             where p.id = any(p_finances_runs)
             union
-            select d.seller_namespace from private.data_kiosk_preprocess_versions v
-            join private.data_kiosk_days d on d.id = v.day_id where v.id = any(p_data_kiosk_versions)
+            select d.seller_namespace from private.data_kiosk_preprocess_batch_days m
+            join private.data_kiosk_days d on d.id = m.day_id where m.id = any(p_data_kiosk_observation_ids)
             union
             select unnest(p_seller_namespaces)
         ), scopes as (
@@ -187,19 +186,19 @@ begin
         )
         select 1 from scopes s cross join generate_series(0, p_end-p_start) day_offset
         where not exists (
-            select 1 from private.data_kiosk_preprocess_versions v
-            join private.data_kiosk_days d on d.id = v.day_id
-            where v.id = any(p_data_kiosk_versions) and d.seller_namespace = s.seller_namespace
+            select 1 from private.data_kiosk_preprocess_batch_days m
+            join private.data_kiosk_days d on d.id = m.day_id
+            where m.id = any(p_data_kiosk_observation_ids) and d.seller_namespace = s.seller_namespace
                 and d.marketplace_name = s.marketplace_name and d.activity_date = p_start + day_offset
                 and d.dataset_key = p_dataset_key
         )
     ) then
-        raise exception 'Incomplete, pruned or incompatible payout Data Kiosk coverage' using errcode = '23514';
+        raise exception 'Incomplete or incompatible payout Data Kiosk coverage' using errcode = '23514';
     end if;
     if p_require_complete and exists (
-        select 1 from private.data_kiosk_preprocess_versions kv
-        join private.data_kiosk_days kd on kd.id = kv.day_id
-        where kv.id = any(p_data_kiosk_versions) and not exists (
+        select 1 from private.data_kiosk_preprocess_batch_days m
+        join private.data_kiosk_days kd on kd.id = m.day_id
+        where m.id = any(p_data_kiosk_observation_ids) and not exists (
             select 1 from private.finances_preprocess_batches p
             join private.finances_acquisitions a on a.id = p.acquisition_id
             cross join lateral jsonb_array_elements(a.api_metadata->'coverage_marketplaces') m
@@ -217,9 +216,10 @@ begin
             join private.finances_acquisitions a on a.id = p.acquisition_id
             where p.id = any(p_finances_runs)
             union all
-            select d.seller_namespace, v.preprocess_version
-            from private.data_kiosk_preprocess_versions v
-            join private.data_kiosk_days d on d.id = v.day_id where v.id = any(p_data_kiosk_versions)
+            select d.seller_namespace, b.preprocess_version
+            from private.data_kiosk_preprocess_batch_days m
+            join private.data_kiosk_preprocess_batches b on b.id=m.batch_id
+            join private.data_kiosk_days d on d.id = m.day_id where m.id = any(p_data_kiosk_observation_ids)
         ) versions group by seller_namespace having count(distinct preprocess_version) > 1
     ) then
         raise exception 'Source preprocessing versions must agree within each namespace for a monthly payout'
@@ -234,23 +234,26 @@ $$;
 -- publication caller. The trigger does not expose a callable application API.
 create function private.check_company_payout_report() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare finances_runs uuid[]; kiosk_versions uuid[]; terms_versions uuid[];
+declare finances_runs uuid[]; kiosk_observations uuid[]; terms_versions uuid[];
     component_total bigint; source_total numeric; fee_total numeric; company_total numeric;
     used_terms bigint; unresolved boolean; differs boolean; has_amounts boolean;
 begin
     select coalesce(array_agg(batch_id order by batch_id),'{}'::uuid[])
         into finances_runs from private.payout_report_finances_batches where report_id = new.id;
-    select coalesce(array_agg(version_id order by day_id),'{}'::uuid[])
-        into kiosk_versions from private.payout_report_data_kiosk_versions where report_id = new.id;
+    select coalesce(array_agg(m.id order by p.day_id),'{}'::uuid[])
+        into kiosk_observations from private.payout_report_data_kiosk_observations p
+        join private.data_kiosk_preprocess_batch_days m
+            on (m.batch_id,m.day_id,m.version_id)=(p.batch_id,p.day_id,p.version_id)
+        where p.report_id = new.id;
     select coalesce(array_agg(terms_version_id order by sku_id),'{}'::uuid[])
         into terms_versions from private.payout_report_terms_versions where report_id = new.id;
     if cardinality(finances_runs) <> new.finances_batch_count
-        or cardinality(kiosk_versions) <> new.data_kiosk_version_count
+        or cardinality(kiosk_observations) <> new.data_kiosk_observation_count
         or cardinality(terms_versions) <> new.terms_version_count then
         raise exception 'Incomplete payout input inventory' using errcode = '23514';
     end if;
     with resolved as materialized (
-        select c.* from private.resolve_company_components(finances_runs,kiosk_versions,terms_versions) c
+        select c.* from private.resolve_company_components(finances_runs,kiosk_observations,terms_versions) c
         where c.category <> 'SELBOX'
           and (c.authoritative or (c.source = 'DATA_KIOSK' and c.company_id is not null))
           and c.activity_date between new.start_date and new.end_date
@@ -278,7 +281,7 @@ begin
         exists(select 1 from difference)
     into used_terms, has_amounts, unresolved, differs;
     perform private.assert_payout_sources(new.start_date,new.end_date,
-        new.dataset_key,finances_runs,kiosk_versions,has_amounts);
+        new.dataset_key,finances_runs,kiosk_observations,has_amounts);
     if (has_amounts and used_terms <> new.terms_version_count)
         or (new.currency is null and has_amounts) or unresolved or differs then
         raise exception 'Payout contents do not match complete frozen source and terms inputs' using errcode = '23514';
@@ -294,7 +297,7 @@ begin
     end if;
     with expected as (
         select to_jsonb(r) as item
-        from private.resolve_source_reconciliation(finances_runs,kiosk_versions) r
+        from private.resolve_source_reconciliation(finances_runs,kiosk_observations) r
         where new.currency is not null and r.activity_date between new.start_date and new.end_date
             and r.marketplace_name is not distinct from new.marketplace_name
             and r.currency = new.currency
