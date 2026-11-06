@@ -1,4 +1,4 @@
-"""Verified non-retail Finances identities, without Summary or Data Kiosk aliases."""
+"""Verified non-retail identities; Summary grouping belongs to preprocessing validation."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass

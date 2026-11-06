@@ -153,6 +153,7 @@ def _mapping() -> dict[tuple[str, tuple[str, ...]], FinancesType]:
             add(kind, ("AmazonFees", "FBAPerUnitFulfillmentFee", detail), semantic)
     for detail in ("Base", "Tax"):
         add("ProductAdsPayment", (detail,), "ADVERTISING")
+    add("SellerDealPayment", ("AmazonFees", "RunLightningDealFee", "Base"), "DEAL_FEES")
     fees = {
         "FBAStorageFee": "STORAGE_FEES",
         "FBALongTermStorageFee": "AGED_STORAGE_FEES",

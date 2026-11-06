@@ -191,9 +191,10 @@ local-date period. It verifies component partitions and original/release eligibi
 publishing accepted data. Missing or mismatched controls reject the entire preprocessing attempt;
 errors are local logs, and the previous accepted selection remains unchanged.
 
-The verified control grouping maps native `Non-Amazon US` to Amazon.com. Native transactions and
-company amounts retain their original marketplace. Other channels remain separate unless a mapping
-has been established. Summary agreement validates account activity, not Data Kiosk SKU allocation.
+The verified Summary grouping maps `Non-Amazon US`, `Non-Amazon DE` and `Non-Amazon IT` to
+Amazon.com, Amazon.de and Amazon.it respectively. Native transactions, company amounts and report
+scopes retain their original marketplaces. Summary agreement validates account activity, not Data
+Kiosk SKU allocation. See the [EU control evidence](evidence/finances_summary_channels_2026-11-07.md).
 
 Raw Summary pages stay in the acquisition archives. A successful Finance batch records the exact
 observed transaction versions through `finances_preprocess_batch_transactions`; unchanged versions

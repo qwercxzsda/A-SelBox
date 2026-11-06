@@ -13,6 +13,12 @@ from .lifecycle import TransactionLifecycle, release_transaction_ids
 from .marketplaces import financial_marketplace_name, financial_marketplace_timezone
 from .models import FinancesComponent, FinancesSummary, FinancesTransaction, PreparedFinances
 
+_SUMMARY_MARKETPLACES = {
+    "Non-Amazon US": "Amazon.com",
+    "Non-Amazon DE": "Amazon.de",
+    "Non-Amazon IT": "Amazon.it",
+}
+
 
 def revision_payload(transaction: FinancesTransaction) -> dict[str, object]:
     """Only immutable stored state participates; observation locations never do."""
@@ -208,7 +214,8 @@ def _validate_component(component: FinancesComponent) -> None:
 
 
 def _summary_marketplace(name: str) -> str:
-    return "Amazon.com" if name == "Non-Amazon US" else name
+    """Group verified Summary controls without changing native transaction scope."""
+    return _SUMMARY_MARKETPLACES.get(name, name)
 
 
 def _validate_summary(acquisition: FinancesAcquisition, prepared: PreparedFinances) -> None:

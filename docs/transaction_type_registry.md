@@ -17,6 +17,7 @@ A Finances key is the exact native `transactionType` plus the ordered
 | `Refund / ProductCharges / OurPricePrincipal`   | `PRODUCT_REFUNDS`   | `FINANCES`   |
 | `Shipment / AmazonFees / Commission / Base`     | `REFERRAL_FEES`     | `FINANCES`   |
 | `ProductAdsPayment / Base`                      | `ADVERTISING`       | `DATA_KIOSK` |
+| `SellerDealPayment / AmazonFees / RunLightningDealFee / Base` | `DEAL_FEES` | `DATA_KIOSK` |
 | `ServiceFee / AmazonFees / Subscription / Base` | `SUBSCRIPTION_FEES` | `SELBOX`     |
 | `DebtRecovery / DebtPayment`                    | `DEBT_RECOVERY`     | `SELBOX`     |
 
@@ -25,6 +26,13 @@ The complete accepted paths are in
 under one wrapper does not authorize a different wrapper or transaction type.
 Semantic Type names remain stable across the explicitly reviewed native paths.
 The registry is an application contract, not a claim that Amazon's vocabulary is closed.
+
+Native `SellerDealPayment` lightning-deal base charges are cost controls in the same
+`DEAL_FEES` family as the reviewed service-fee deal paths. They do not create a product
+commission or invent SKU attribution. The exact 2024 path is supported by retained native
+captures; Amazon also identifies `RunLightningDealFee` as a deal-payment fee in its
+[Finances event model](https://github.com/amzn/selling-partner-api-models/blob/main/models/finances-api-model/financesV0.json).
+Other wrappers and unobserved leaves remain unsupported.
 
 ## Component categories
 

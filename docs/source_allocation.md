@@ -65,9 +65,11 @@ Refunds retain their own activity-date fee rate under the existing policy.
 
 Finances native totals independently reconcile to Amazon `listSummary` using the
 same seller, account type, currency and local date interval. Summary is a control,
-not a second monetary input. `Non-Amazon US` contributes to Amazon.com's Summary
-control group; raw facts and company marketplace attribution retain the native
-channel. The successful batch membership records both channels when present.
+not a second monetary input. `Non-Amazon US`, `Non-Amazon DE` and `Non-Amazon IT` contribute to the
+Amazon.com, Amazon.de and Amazon.it Summary groups respectively. Raw facts and company marketplace
+attribution retain each native channel. The successful batch membership records both channels when
+present; the [EU control evidence](evidence/finances_summary_channels_2026-11-07.md) verifies this
+grouping without changing Data Kiosk or payout scopes.
 
 An exact Summary match validates the Finances account calculation. It does not
 prove Data Kiosk's SKU cost allocation is correct. A frontend Data Kiosk comparison can

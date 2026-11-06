@@ -34,9 +34,10 @@ The [sync guide](../services/sync/README.md) owns the executable download/replay
 
 Native `Non-Amazon US`, `Non-Amazon DE`, and `Non-Amazon IT` remain distinct financial channels.
 The registry binds each to its credential scope and local time zone. They do not become Inventory
-or Data Kiosk stores. Summary comparison groups Non-Amazon US with Amazon.com; native transaction
-provenance and company fee matching keep the original channel. DE and IT retain separate scopes
-until a correspondence is established. Currency never supplies a missing marketplace.
+or Data Kiosk stores. Summary comparison groups Non-Amazon US, DE and IT with Amazon.com, Amazon.de
+and Amazon.it respectively. This [verified Summary grouping](evidence/finances_summary_channels_2026-11-07.md)
+does not relabel transactions, company fee matching, Data Kiosk comparisons or report scopes.
+Currency never supplies a missing marketplace.
 
 The downloader splits requests at month boundaries and enforces Amazon's date-window limits.
 Historical marketplace coverage may need an explicit known roster; unsupported source markets fail

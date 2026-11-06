@@ -41,6 +41,30 @@ def _transaction(
 
 
 class HistoricalComponentTests(unittest.TestCase):
+    def test_lightning_deal_bill_is_a_cost_control_without_product_commission(self) -> None:
+        path = ("AmazonFees", "RunLightningDealFee", "Base")
+        row = _transaction("SellerDealPayment", "-150", ((path, "-150"),))
+        component = build_components(row)[0]
+        self.assertEqual(
+            (component.component_type, component.category.value, component.amount),
+            ("DEAL_FEES", "DATA_KIOSK", Numeric(-150)),
+        )
+        self.assertEqual(component.breakdown_path, path)
+        self.assertIsNone(component.sku)
+        self.assertIsNone(component.fee_base)
+        self.assertIsNone(component.quantity)
+
+        for kind, unreviewed_path in (
+            ("ServiceFee", path),
+            ("SellerDealPayment", ("FBAFees", "RunLightningDealFee", "Base")),
+            ("SellerDealPayment", ("AmazonFees", "RunLightningDealFee", "Tax")),
+        ):
+            with (
+                self.subTest(kind=kind, path=unreviewed_path),
+                self.assertRaisesRegex(ValueError, "Unsupported Finances monetary path"),
+            ):
+                build_components(_transaction(kind, "-150", ((unreviewed_path, "-150"),)))
+
     def test_gift_wrap_bundle_preserves_tax_and_chargebacks_without_extra_commission(self) -> None:
         row = _transaction(
             "Shipment",

@@ -205,7 +205,7 @@ class MarketplaceContractTests(SourceModelFixture):
             (["Amazon.it", "Non-Amazon IT"], "2"),
         ):
             self.assertEqual(self.as_user(administrator, query, (names,)), [(count,)])
-        # The Sellers identity alone does not establish a Summary or Data Kiosk alias.
+        # Summary grouping does not establish a Data Kiosk or payout-scope alias.
         for marketplace in ("Non-Amazon DE", "Non-Amazon IT"):
             self.assertEqual(
                 self.connection.execute(

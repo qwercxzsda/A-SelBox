@@ -58,9 +58,9 @@ dates determine inclusion, linked release copies and bank transfers are excluded
 activity remains visible. Dated API, replay, and refresh checks are indexed in
 [verification evidence](evidence/README.md).
 
-Amazon's Summary groups native Non-Amazon US activity into Amazon.com. Financial
-review deliberately retains the native marketplaces in its Data Kiosk comparison.
-Only the separate monthly Summary control applies that verified grouping.
+Amazon's Summary groups native Non-Amazon US, DE and IT activity into Amazon.com, Amazon.de and
+Amazon.it respectively. Financial review deliberately retains the native marketplaces in its Data
+Kiosk comparison. Summary validation applies that grouping without relabeling diagnostic scopes.
 
 ## Yearly overview and monthly details
 
