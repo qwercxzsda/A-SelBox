@@ -83,19 +83,6 @@ begin
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
-            union all
-            select null::text, t.marketplace_name, t.activity_date, t.currency,
-                case when p_group_by_type then 'FINANCES_KIOSK_DIFFERENCE'::text end,
-                t.difference, true, null::numeric
-            from private.live_source_reconciliation t
-            where (t.data_kiosk_finances_control <> 0 or t.data_kiosk_category_amount <> 0)
-                and (p_date_from is null or t.activity_date >= p_date_from)
-                and (p_date_to is null or t.activity_date <= p_date_to)
-                and coalesce(cardinality(p_company_ids),0) = 0
-                and coalesce(cardinality(p_skus),0) = 0
-                and (coalesce(cardinality(p_marketplaces),0) = 0
-                    or t.marketplace_name = any(p_marketplaces))
-                and (p_currency is null or t.currency = p_currency)
         ),
         fact_groups as materialized (
             select f.sku, f.marketplace_name, f.activity_date,

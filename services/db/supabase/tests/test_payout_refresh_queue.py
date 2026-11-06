@@ -122,7 +122,7 @@ class PayoutRefreshQueueTests(SourceModelFixture):
             "'data_kiosk_preprocess_batches','data_kiosk_preprocess_batch_days',"
             "'company_payout_reports','company_payout_report_components',"
             "'payout_report_finances_batches','payout_report_data_kiosk_observations',"
-            "'payout_report_terms_versions','payout_report_reconciliation') "
+            "'payout_report_terms_versions') "
             "order by schemaname,relname"
         )
         before = self.connection.execute(counters).fetchall()

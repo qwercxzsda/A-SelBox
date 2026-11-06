@@ -134,26 +134,6 @@ begin
                     or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
                     or t.marketplace_name = any(p_search_marketplaces) or 'DATA_KIOSK'::text = any(p_search_sources)
                 )
-            union all
-            select count(*) as row_count
-            from private.live_source_reconciliation t
-            where (t.data_kiosk_finances_control <> 0 or t.data_kiosk_category_amount <> 0)
-                and (p_date_from is null or t.activity_date >= p_date_from)
-                and (p_date_to is null or t.activity_date <= p_date_to)
-                and (p_currency is null or t.currency = p_currency)
-                and coalesce(cardinality(p_company_ids),0) = 0
-                and coalesce(cardinality(p_skus),0) = 0
-                and (coalesce(cardinality(p_marketplaces),0) = 0
-                    or t.marketplace_name = any(p_marketplaces))
-                and (coalesce(cardinality(p_sources),0) = 0 or 'RECONCILIATION' = any(p_sources))
-                and (coalesce(cardinality(p_types),0) = 0
-                    or 'FINANCES_KIOSK_DIFFERENCE' = any(p_types))
-                and (p_fee_applicable is null or not p_fee_applicable)
-                and ((p_search_skus is null and p_search_types is null
-                        and p_search_marketplaces is null and p_search_sources is null)
-                    or 'FINANCES_KIOSK_DIFFERENCE' = any(p_search_types)
-                    or t.marketplace_name = any(p_search_marketplaces)
-                    or 'RECONCILIATION' = any(p_search_sources))
         ) as source_counts
     );
 end;

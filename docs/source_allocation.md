@@ -36,40 +36,25 @@ not a guarantee that Amazon will never revise a record.
 | `DATA_KIOSK`    | Data Kiosk supplies company costs; Finances supplies account controls.             | Data Kiosk supplies company costs.   |
 | `ANALYSIS_ONLY` | Diagnostic detail; never additive.                                                 | Diagnostic detail; never additive.   |
 
-For each mature seller, native marketplace, local activity day and currency:
-
-```text
-difference = Finances amounts in DATA_KIOSK - Data Kiosk amounts in DATA_KIOSK
-accounted total = Finances amounts in FINANCES + Finances amounts in SELBOX
-                + Data Kiosk amounts in DATA_KIOSK + difference
-                = Finances activity amount
-```
-
-Only the Data Kiosk category enters this residual. Differences in the other
-categories are diagnostic comparisons, not extra payout adjustments. Keep exact
-signed amounts, zero rows and separate currencies. The union of both source key
-sets preserves one-sided groups. Finances' validated native marketplace remains
-unchanged, including `Non-Amazon US`.
-
-The derived residual has source `RECONCILIATION`, type
-`FINANCES_KIOSK_DIFFERENCE`, and category `SELBOX`. It belongs to the administrator's
-account ledger. It is not a new Amazon fact or a company cost allocation.
+Source comparisons are frontend diagnostics over exact backend aggregates. The backend supplies
+current or report-referenced source/category amounts, row counts and successful retrieval coverage.
+The frontend aligns matching scopes and computes differences with exact decimal arithmetic.
+No diagnostic difference is an imported component, a company allocation or a transaction row.
+See the [read contract](financial_review.md#read-contract).
 
 ## Company amounts and SelBox amounts
 
 Exact SKU ownership assigns `FINANCES` and `DATA_KIOSK` amounts to companies.
-`SELBOX` and reconciliation amounts are excluded from company and SKU selections,
+`SELBOX` amounts are excluded from company and SKU selections,
 even when a native account component preserves a SKU. Ownership is never inferred
 from a source namespace, an account balance, or a reconciliation difference.
 
 ```text
 company entitlement = assigned authoritative component amounts + signed service fees
-SelBox retained amount = authoritative SELBOX amounts + difference - service fees
-sum(company entitlements) + SelBox retained amount = Finances activity amount
 ```
 
-The identity requires resolved company ownership and applicable fee periods.
-SelBox's amount is not automatically profit: it can include balance movements.
+Company calculations require resolved ownership and applicable fee periods.
+Actual SelBox amounts can include balance movements and are not automatically profit.
 A saved payout report records a calculation, not payment approval or execution.
 
 Current SKU assignment corrects live ownership retroactively. It is not a dated
@@ -85,7 +70,7 @@ control group; raw facts and company marketplace attribution retain the native
 channel. The successful batch membership records both channels when present.
 
 An exact Summary match validates the Finances account calculation. It does not
-prove Data Kiosk's SKU cost allocation is correct. The Data Kiosk residual can
+prove Data Kiosk's SKU cost allocation is correct. A frontend Data Kiosk comparison can
 remain nonzero even when the Finances/Summary difference is zero.
 
 [Payout reports](company_payout_reports.md) cover one company, exact marketplace, currency, and full

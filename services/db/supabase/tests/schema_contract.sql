@@ -71,9 +71,9 @@ begin
     if to_regprocedure('public.generate_company_payout_reports(uuid,date)') is not null then
         raise exception 'Monthly payouts must not have a manual generation API';
     end if;
-    if to_regclass('public.account_reconciliation_details') is not null
-        or to_regclass('public.account_reconciliation_totals') is not null then
-        raise exception 'Current review must use the category-scoped financial review API';
+    if to_regprocedure('public.current_source_totals(date,date,text,text,text,public.allocation_category,integer,bigint)') is null
+        or to_regprocedure('public.report_source_totals(uuid,text,integer,bigint)') is null then
+        raise exception 'Source review requires current and saved-report aggregate APIs';
     end if;
     if has_column_privilege('authenticated','public.app_accounts','access_role','INSERT')
         or has_column_privilege('authenticated','public.app_accounts','access_role','UPDATE')

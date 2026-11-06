@@ -71,9 +71,8 @@ Inventory ages use the same calendar boundaries as source capture. The
 [Finances contract](finances_transactions.md#acquisition-scope-and-archives) defines native-channel identities and
 control grouping; grouping does not rename stored marketplaces.
 
-Company menus omit SelBox account types. Administrator Transactions also offers
-the derived `FINANCES_KIOSK_DIFFERENCE`; raw source menus offer only their source's
-registered types. Static options can legitimately match zero rows. Search resolves
+Company menus omit SelBox account types. Transaction menus contain only registered
+source types; raw source menus restrict them to their source. Static options can legitimately match zero rows. Search resolves
 catalog labels and exact keys, while database permissions authorize each result.
 
 ## Adding a type

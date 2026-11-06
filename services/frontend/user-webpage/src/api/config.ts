@@ -107,7 +107,6 @@ const PAYOUT_COLUMNS = [
   "change_reason",
   "calculation_version",
   "component_count",
-  "reconciliation_count",
   "finances_batch_count",
   "data_kiosk_observation_count",
   "terms_version_count",

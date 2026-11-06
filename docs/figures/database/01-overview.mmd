@@ -31,7 +31,6 @@ flowchart LR
     subgraph GROUP_5["Payout results"]
         public_company_payout_reports["public.company_payout_reports"]
         public_company_payout_report_components["public.company_payout_report_components"]
-        private_payout_report_reconciliation["private.payout_report_reconciliation"]
         private_payout_report_refresh_state["private.payout_report_refresh_state"]
     end
     subgraph GROUP_6["Payout manifests"]
@@ -70,7 +69,6 @@ flowchart LR
     private_payout_report_data_kiosk_observations --> public_company_payout_reports
     private_payout_report_finances_batches --> private_finances_preprocess_batches
     private_payout_report_finances_batches --> public_company_payout_reports
-    private_payout_report_reconciliation --> public_company_payout_reports
     private_payout_report_refresh_state --> public_companies
     private_payout_report_terms_versions --> public_company_payout_reports
     private_payout_report_terms_versions --> public_sku_terms_versions

@@ -7,8 +7,15 @@ import { DetailSection } from "./DetailSection";
 import { AmountPrecisionNote } from "./AmountPrecisionNote";
 import { buildFinancialReviewFamilies } from "./financial-review-families";
 import type { FinancialReviewMonthScope } from "./financial-review-source-state";
-import { monthlyFamilyTypesQueryOptions } from "./financial-review-queries";
+import {
+  monthlyFamilyTypesQueryOptions,
+  monthlySourceTotalsQueryOptions,
+} from "./financial-review-queries";
 import { compareAbsoluteDecimals } from "./decimal";
+import { applyComparisonCoverage, sameSourceRevision } from "./source-diagnostics";
+import { useSourceRevisionGuard, diagnosticQueryState } from "./source-diagnostics-context";
+import type { SourceTotals } from "./api/source-totals";
+import type { SourceTypeTotals } from "./api/financial-review-type-reader";
 
 function FamilyDefinition({ row }: { row: CanonicalRow }) {
   return (
@@ -51,7 +58,13 @@ function FeeFamilyTable({
 }) {
   const rankedRows = [...rows].sort(
     (left, right) =>
-      compareAbsoluteDecimals(right.difference, left.difference) ||
+      (left.difference === right.difference
+        ? 0
+        : left.difference === null
+          ? 1
+          : right.difference === null
+            ? -1
+            : compareAbsoluteDecimals(right.difference, left.difference)) ||
       (left.family ?? "").localeCompare(right.family ?? ""),
   );
   return (
@@ -59,8 +72,8 @@ function FeeFamilyTable({
       <Text size="xs" c="dimmed" mb="sm">
         Each source type belongs to one economic family. Related charges, refunds and corrections
         are combined using their original signs. Difference = Finances − Data Kiosk. A missing side
-        contributes zero. Source-only amounts show unmatched coverage, not confirmed errors;
-        matching family definitions do not guarantee matching dates or complete records.
+        is zero only when retrieval coverage includes the period. Source-only amounts are
+        diagnostic; matching family definitions do not guarantee matching dates or complete records.
       </Text>
       {rows.length ? (
         <>
@@ -112,15 +125,26 @@ export function FinancialReviewFamilyBreakdown({
   marketplace,
   families,
   onSelectFamily,
+  sourceTotals,
+  sourceQuery,
 }: {
-  query: UseQueryResult<CanonicalRow[]>;
+  query: UseQueryResult<SourceTypeTotals>;
+  sourceQuery: UseQueryResult<SourceTotals>;
+  sourceTotals: SourceTotals | undefined;
   category: string;
   currency: string;
   marketplace: string;
   families: readonly string[];
   onSelectFamily: (family: string) => void;
 }) {
-  const rows = buildFinancialReviewFamilies(query.data ?? [], families);
+  const consistent = useSourceRevisionGuard(query.data);
+  const rows =
+    consistent && sourceTotals && sameSourceRevision(sourceTotals, query.data)
+      ? applyComparisonCoverage(
+          buildFinancialReviewFamilies(query.data?.rows ?? [], families),
+          sourceTotals,
+        )
+      : [];
   return (
     <DetailSection
       title="Fee family breakdown"
@@ -129,7 +153,10 @@ export function FinancialReviewFamilyBreakdown({
       collapsible
     >
       <DetailData
-        query={query}
+        query={diagnosticQueryState(
+          [query, sourceQuery],
+          consistent && sourceTotals !== undefined && sameSourceRevision(sourceTotals, query.data),
+        )}
         label="fee family breakdown"
         rowCount={rows.length}
         emptyMessage={`No source types match these fee families for ${marketplace} in this year and currency.`}
@@ -149,12 +176,26 @@ export function FinancialReviewFamilies(scope: FinancialReviewMonthScope) {
   const { families, currency } = scope;
   const query = useQuery({
     ...monthlyFamilyTypesQueryOptions(scope),
-    select: (rows) => buildFinancialReviewFamilies(rows, families),
   });
-  const rows = query.data ?? [];
+  const sourceQuery = useQuery(monthlySourceTotalsQueryOptions(scope));
+  const consistent = useSourceRevisionGuard(query.data);
+  const sourceConsistent = useSourceRevisionGuard(sourceQuery.data);
+  const rows =
+    consistent &&
+    sourceConsistent &&
+    sourceQuery.data &&
+    sameSourceRevision(sourceQuery.data, query.data)
+      ? applyComparisonCoverage(
+          buildFinancialReviewFamilies(query.data?.rows ?? [], families),
+          sourceQuery.data,
+        )
+      : [];
   return (
     <DetailData
-      query={query}
+      query={diagnosticQueryState(
+        [query, sourceQuery],
+        consistent && sourceConsistent && sameSourceRevision(sourceQuery.data, query.data),
+      )}
       label="fee family comparison"
       rowCount={rows.length}
       emptyMessage="No source types match these fee families."

@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import { fetchFinancialReviewFamilyTypes, fetchFinancialReviewTotals } from "./api";
-import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
+import { fetchFinancialReviewFamilyTypes, fetchCurrentSourceTotals } from "./api";
+import { monthSourcePeriod } from "./source-diagnostics";
 import type { FinancialReviewMonthScope } from "./financial-review-source-state";
 
 /** Complete raw types are shared; each observer derives its selected-family view. */
@@ -36,14 +36,8 @@ export function monthlyFamilyTypesQueryOptions({
   });
 }
 
-/** Selected-family totals reuse the complete raw-type cache with an observer-local projection. */
-export function monthlyReviewTotalsQueryOptions(scope: FinancialReviewMonthScope) {
-  if (scope.families.length) {
-    return queryOptions({
-      ...monthlyFamilyTypesQueryOptions(scope),
-      select: (rows) => buildFinancialReviewFamilyMonths(rows, scope.families),
-    });
-  }
+/** One native aggregate response provides both paired values and retrieval coverage. */
+export function monthlySourceTotalsQueryOptions(scope: FinancialReviewMonthScope) {
   const { identity, category, month, currency, marketplace, matureCutoff } = scope;
   return queryOptions({
     queryKey: [
@@ -57,12 +51,15 @@ export function monthlyReviewTotalsQueryOptions(scope: FinancialReviewMonthScope
       matureCutoff,
     ],
     queryFn: ({ signal }) =>
-      fetchFinancialReviewTotals(
+      fetchCurrentSourceTotals(
         identity.session.access_token,
-        category,
-        month,
-        currency,
-        marketplace,
+        {
+          ...monthSourcePeriod(month),
+          category,
+          currency,
+          marketplace,
+          grouping: "month",
+        },
         signal,
       ),
     staleTime: Infinity,

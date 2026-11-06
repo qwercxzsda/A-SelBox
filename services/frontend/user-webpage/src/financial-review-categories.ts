@@ -20,7 +20,7 @@ export const REVIEW_CATEGORIES: { value: ReviewCategory; label: string; descript
     value: "SELBOX",
     label: "SelBox",
     description:
-      "Seller service fees, account adjustments and balance movements. Some families have no Data Kiosk counterpart. These amounts exclude company allocations, retained service fees and the derived Data Kiosk difference.",
+      "Seller service fees, account adjustments and balance movements. Some families have no Data Kiosk counterpart. These are native account amounts, separate from company allocations and service fees.",
   },
 ];
 

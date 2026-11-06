@@ -9,6 +9,7 @@ import { WorkspacePreferences } from "./WorkspacePreferences";
 import { CompanyDirectoryProvider } from "./CompanyDirectoryProvider";
 import { useCompanyDirectory } from "./company-directory-context";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { SourceDiagnosticsContext } from "./source-diagnostics-context";
 
 interface AuthenticatedProps {
   identity: Identity;
@@ -42,12 +43,14 @@ function WorkspaceContent({ identity, onRefreshIdentity }: AuthenticatedProps) {
     );
   }
   return (
-    <FinanceWorkspace
-      identity={visibleIdentity}
-      onRetry={refresh}
-      isUpdating={isUpdating}
-      updateError={updateError}
-    />
+    <SourceDiagnosticsContext value={{ identity: visibleIdentity, refresh }}>
+      <FinanceWorkspace
+        identity={visibleIdentity}
+        onRetry={refresh}
+        isUpdating={isUpdating}
+        updateError={updateError}
+      />
+    </SourceDiagnosticsContext>
   );
 }
 

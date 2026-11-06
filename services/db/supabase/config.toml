@@ -17,6 +17,8 @@ enabled = false
 
 [auth]
 enable_signup = true
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = ["http://127.0.0.1:5173/", "http://localhost:5173", "http://localhost:5173/"]
 
 [studio]
 port = 54323
@@ -26,4 +28,8 @@ api_url = "http://127.0.0.1"
 file_size_limit = "50MiB"
 
 [storage.vector]
+enabled = false
+
+# Local application checks do not need Logflare's duplicate database log storage.
+[analytics]
 enabled = false

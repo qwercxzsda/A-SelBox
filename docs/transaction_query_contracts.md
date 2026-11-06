@@ -1,7 +1,8 @@
 # Transaction query contracts
 
 The browser uses authenticated Supabase REST/RPC requests. The database owns filtering,
-authorization, pagination, and exact financial calculation. Current definitions are listed in the
+authorization, pagination, exact source aggregation, and authoritative payout calculation.
+The frontend owns diagnostic comparisons and differences. Current definitions are listed in the
 [database module map](../services/db/supabase/README.md#schema-modules); each RPC has one signature.
 
 ## Shared behavior
@@ -20,13 +21,10 @@ period of two calendar months as the mature cutoff date. Dates before it are mat
 the mature cutoff date and later are recent.
 Recent dates use Data Kiosk amounts in all three monetary categories. Mature dates use
 Finances activity amounts in the Finances and SelBox categories, Data Kiosk amounts in the
-Data Kiosk category, and administrator-only `RECONCILIATION` rows. Each derived row is the
-Finances activity control minus the Data Kiosk amount in the Data Kiosk category, grouped by
-day/marketplace/seller/currency with a nonzero subtotal in at least one source.
-Matching nonzero controls retain a zero difference row; groups with both subtotals zero have no
-derived transaction row. These choices use the unchanged preprocessing categories. For mature dates,
-the complete account total equals the Finances activity total. Members see only their assigned amounts
-in the Finances and Data Kiosk categories. Rows in the SelBox category and difference rows have
+Data Kiosk category. Transaction rows always represent actual normalized source components;
+frontend diagnostic differences never enter pages, counts or totals. These choices use the
+preprocessing categories. Members see only their assigned amounts in the Finances and Data Kiosk
+categories. Actual SelBox rows have
 zero company contribution and remain administrator-only. Company/SKU
 filters omit these account controls rather than apportioning them. Comparison and
 analysis rows do not count toward pages, counts, or totals. Strict reads additionally
@@ -66,7 +64,7 @@ accepts:
 | `p_skus`                                                                       | `null`  | Exact SKU text selection.                                                                                         |
 | `p_marketplaces`                                                               | `null`  | Exact supported marketplace text selection.                                                                       |
 | `p_sources`                                                                    | `null`  | Source text selection.                                                                                            |
-| `p_types`                                                                      | `null`  | Component-type selection, including the derived administrator difference.                                         |
+| `p_types`                                                                      | `null`  | Native component-type selection.                                         |
 | `p_include_count`                                                              | `true`  | Whether to include an exact matching-row count.                                                                   |
 | `p_fee_applicable`                                                             | `null`  | `true`: applicable source Type; `false`: other Types; null: both.                                                 |
 | `p_currency`                                                                   | `null`  | Optional three-letter uppercase currency code, applied before pagination and counting.                            |
@@ -74,7 +72,6 @@ accepts:
 Response: `{ "rows": [...], "total_count": "123" }`. With counting disabled, `total_count` is null.
 An empty page still receives the full matching count when requested. Rows retain source identity,
 metadata, current terms and fee references, quantities, amounts, and resolution diagnostics.
-Derived differences use deterministic group UUIDs and do not identify a raw source transaction.
 
 Filters, text search, and RLS apply before candidate selection. For date ordering the database takes
 at most `offset + limit` eligible candidates per source, merges them, selects the page, and only
@@ -91,7 +88,7 @@ unassigned or unregistered administrator-visible facts. Member RLS independently
 the caller's current ownership set before candidate selection; page limits cannot bypass it.
 
 Date and Reported amount ordering, with or without text search, use this RPC. Reported amount is the
-numeric source amount or derived difference, ordered with its sign; values are not converted between currencies.
+numeric source amount, ordered with its sign; values are not converted between currencies.
 Exact search-set predicates apply before
 each source candidate limit; fee calculation still follows global page selection.
 
@@ -120,7 +117,7 @@ responsible for enforcing the cap when the count is unknown or stale.
 The fee-applicability filter uses source Type codes before paging/counting: Finances activity components
 in the Finances category with type
 `PRODUCT_SALES` and `PRODUCT_REFUNDS`, and Data Kiosk `NET_PRODUCT_SALES`. The negative filter
-also includes retained account and reconciliation rows. Explicit Type selections intersect this filter; they
+also includes retained account rows. Explicit Type selections intersect this filter; they
 do not replace it. These direct comparisons expose the existing `(component_type, date)` indexes.
 
 Applicability is independent of configuration: a zero base, zero rate, missing ownership, or missing
@@ -184,8 +181,7 @@ accepts the same date, company, SKU, marketplace, source, Type, fee-applicabilit
 page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
 for no matching rows. There are no paging or ordering parameters.
 
-The function counts eligible source facts and derived reconciliation groups without resolving
-company fees. Reconciliation still requires grouped source subtotals.
+The function counts eligible source facts without resolving company fees.
 Search uses the same exact OR-set predicates as the page request. The
 frontend can show rows before this separate request finishes, and reuses counts across page/order
 changes until the relevant revision invalidates them.
@@ -248,7 +244,7 @@ row contains `currency`, `component_type`, `reported_amount`, `service_fee`, `co
 `row_count`, and `known_company_count`. `component_type` is null for currency-only grouping. All
 five numeric fields are strings or, for unknown monetary sums, null.
 
-`row_count` includes every eligible source or derived reconciliation row. Retained SelBox rows
+`row_count` includes every eligible source row. Retained SelBox rows
 have a known zero company amount, so they do not signal missing ownership or fees. `known_company_count` counts rows with a known
 company amount, allowing the UI to identify incomplete fee coverage. Monetary sums retain SQL sum
 semantics: known amounts contribute; an entirely unknown sum is null. No matching facts produce an
@@ -301,9 +297,7 @@ preload [`public.sku_filter_options`](../services/db/supabase/migrations/2026092
 during identity bootstrap. Opening a menu makes no database request. Options may return zero rows
 under the selected dataset and other filters.
 
-Administrators receive every known Type for the dataset's source scope. Administrator Transactions
-also offers source `RECONCILIATION` and type `FINANCES_KIOSK_DIFFERENCE`, computed separately
-from the unchanged preprocessing registry. Members receive
+Administrators receive every known Type for the dataset's source scope. Members receive
 every known Type except category `SELBOX`. These are local registry choices, not occurrence-based
 database discovery. After selection, page/count RPCs still query matching transaction rows for the
 table and exact pagination; knowing valid Type names does not establish their transaction counts.
@@ -420,3 +414,11 @@ grant transaction access. See the [access contract](access_control.md#how-rls-en
 [REST configuration](../services/db/supabase/migrations/20260928123144_rest_api_configuration.sql)
 sets `pgrst.db_aggregates_enabled=false`. General REST aggregate selections fail with `PGRST123`;
 ordinary row reads, pagination counts, and these dedicated RPCs remain available.
+
+## Diagnostic source aggregates
+
+Administrator comparisons use `current_source_totals` or `report_source_totals`. These JSON RPCs
+return only exact source/category sums, counts, coverage and revision metadata. The frontend owns
+all differences and charts. They do not participate in transaction row counts or payout calculations.
+The [Financial review read contract](financial_review.md#read-contract) defines grouping and complete
+comparison-bucket pagination.

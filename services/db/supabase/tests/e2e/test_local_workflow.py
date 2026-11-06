@@ -88,6 +88,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
             order="row_number",
         )
         self.assertEqual(len(header), 1)
+        self.assertNotIn("reconciliation_count", header[0])
         self.assertEqual(header[0]["company_amount"], -10)
         self.assertEqual(header[0]["marketplace_name"], "Amazon.com")
         self.assertEqual(len(components), 4)
@@ -98,6 +99,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         self.assertEqual(header[0]["finances_batch_count"], 1)
         self.assertEqual(header[0]["data_kiosk_observation_count"], 31)
         self.assertEqual(header[0]["terms_version_count"], 1)
+        self.assert_saved_source_totals(report_id, administrator_token, original_token)
         for relation, count in (
             ("payout_report_finances_batches", 1),
             ("payout_report_data_kiosk_observations", 31),
@@ -171,6 +173,87 @@ class LocalWorkflowTests(LocalWorkflowCase):
             self.assertEqual(
                 self.read_rows("sku_terms_versions", token, id="eq." + str(selected[0])), []
             )
+        self.assert_saved_source_totals(report_id, administrator_token, original_token)
+
+    def assert_saved_source_totals(self, report_id: str, administrator: str, member: str) -> None:
+        """Read exact source aggregates through Auth/PostgREST without diagnostic arithmetic."""
+        endpoint = "/rest/v1/rpc/report_source_totals"
+        response = self.stack.request(
+            "POST", endpoint, token=administrator, json={"p_report_id": report_id}
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        totals = response.json()
+        self.assertEqual(
+            totals["scope"],
+            {
+                "report_id": report_id,
+                "start_date": "2026-08-01",
+                "end_date": "2026-08-31",
+                "marketplace_name": "Amazon.com",
+                "currency": "USD",
+            },
+        )
+        self.assertIsNone(totals["revision"])
+        self.assertEqual(totals["total_count"], "1")
+        self.assertIsNone(totals["next_offset"])
+        self.assertEqual(
+            {(row["source"], row["category"]): Decimal(row["amount"]) for row in totals["rows"]},
+            {
+                ("FINANCES", "FINANCES"): Decimal(0),
+                ("FINANCES", "DATA_KIOSK"): Decimal(-10),
+                ("DATA_KIOSK", "DATA_KIOSK"): Decimal(-12),
+            },
+        )
+        self.assertEqual(
+            {item["source"] for item in totals["coverage"]}, {"FINANCES", "DATA_KIOSK"}
+        )
+        for offset, day, expected_rows, next_offset in (
+            (0, "2026-08-01", 2, 1),
+            (1, "2026-08-02", 3, None),
+        ):
+            page = self.stack.request(
+                "POST",
+                endpoint,
+                token=administrator,
+                json={
+                    "p_report_id": report_id,
+                    "p_grouping": "day",
+                    "p_limit": 1,
+                    "p_offset": offset,
+                },
+            )
+            self.assertEqual(page.status_code, 200, page.text)
+            body = page.json()
+            self.assertEqual(body["total_count"], "2")
+            self.assertEqual(body["next_offset"], next_offset)
+            self.assertEqual(len(body["rows"]), expected_rows)
+            self.assertEqual({row["period"] for row in body["rows"]}, {day})
+            self.assertEqual({row["source"] for row in body["rows"]}, {"FINANCES", "DATA_KIOSK"})
+            for row in body["rows"]:
+                self.assertIsInstance(row["amount"], str)
+                self.assertNotIn("difference", row)
+                self.assertNotIn("accounted_total", row)
+        denied = self.stack.request("POST", endpoint, token=member, json={"p_report_id": report_id})
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.json()["code"], "42501")
+        current = self.stack.request(
+            "POST",
+            "/rest/v1/rpc/current_source_totals",
+            token=administrator,
+            json={
+                "p_start": "2026-08-01",
+                "p_end": "2026-08-31",
+                "p_marketplace": "Amazon.com",
+                "p_currency": "USD",
+                "p_grouping": "day",
+                "p_limit": 1000,
+            },
+        )
+        self.assertEqual(current.status_code, 200, current.text)
+        self.assertEqual(set(current.json()["revision"]), {"finances", "data_kiosk"})
+        self.assertTrue(
+            any(row["seller_namespace"] == self.seller for row in current.json()["rows"])
+        )
 
     def test_both_sources_publish_complete_company_financial_rows_through_authenticated_rest(
         self,

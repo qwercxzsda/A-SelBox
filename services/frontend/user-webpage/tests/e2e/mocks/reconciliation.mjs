@@ -1,42 +1,33 @@
-import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
+import { sourceRequestParams, sourceTotalsResponse } from "./source-totals.mjs";
 
-const COLUMNS = [
-  "report_id",
-  "currency",
-  "finances_category_amount",
-  "selbox_category_amount",
-  "data_kiosk_finances_control",
-  "data_kiosk_category_amount",
-  "difference",
-  "finances_total",
-  "accounted_total",
-  "source_group_count",
-];
-
-/** Saved report controls stay separate from the current category review fixtures. */
-export async function respondWithReconciliation(
-  fixture,
-  { request, url, user, reply, csvReply, track },
-) {
+/** Saved source aggregates use the report's exact scope and independent raw categories. */
+export async function respondWithReconciliation(fixture, { request, url, user, reply, track }) {
   const endpoint = url.pathname.split("/").at(-1);
-  const entry = { endpoint, params: url.searchParams, user, completed: false };
+  if (request.method() !== "POST") return reply({}, 405);
+  const args = request.postDataJSON();
+  const entry = { endpoint, params: sourceRequestParams(args), args, user, completed: false };
   fixture.reconciliationRequests.push(entry);
   track(request, entry);
   if (fixture.roles[user] !== "administrator") return reply({}, 403);
   await fixture.beforeReconciliation(entry);
   const status = fixture.reconciliationStatusForRequest?.(entry) ?? fixture.reconciliationStatus;
   if (status !== 200) return reply({}, status);
-  const reportId = url.searchParams.get("report_id")?.slice(3);
-  const rows = sortRecordRows(
-    filterRecordRows(
-      fixture.payoutReconciliationTotals.filter((row) => row.report_id === reportId),
-      url.searchParams,
+  const report = fixture.payoutRows.find((row) => row.id === args.p_report_id);
+  if (!report) return reply({}, 400);
+  const scope = {
+    report_id: report.id,
+    start_date: report.start_date,
+    end_date: report.end_date,
+    marketplace_name: report.marketplace_name ?? null,
+    currency: report.currency ?? null,
+  };
+  return reply(
+    sourceTotalsResponse(
+      fixture.reportSourceRows.filter((row) => row.report_id === report.id),
+      scope,
+      args,
+      null,
+      fixture.reportSourceCoverage,
     ),
-    url.searchParams,
   );
-  const offset = Number(url.searchParams.get("offset") ?? 0);
-  const limit = Number(url.searchParams.get("limit") ?? rows.length);
-  const selected = url.searchParams.get("select");
-  const columns = selected && selected !== "*" ? selected.split(",") : COLUMNS;
-  return csvReply(columns, rows.slice(offset, offset + limit), rows.length, offset);
 }

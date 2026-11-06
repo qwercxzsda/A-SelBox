@@ -27,7 +27,6 @@ create table public.company_payout_reports (
     change_reason private.nonblank not null,
     calculation_version text not null check (calculation_version = 'v1'),
     component_count integer not null check (component_count >= 0),
-    reconciliation_count integer not null check (reconciliation_count >= 0),
     finances_batch_count integer not null check (finances_batch_count >= 0),
     data_kiosk_observation_count integer not null check (data_kiosk_observation_count >= 0),
     terms_version_count integer not null check (terms_version_count >= 0),
@@ -38,7 +37,7 @@ create table public.company_payout_reports (
     check (company_amount = source_amount + fee_amount),
     -- An empty company/month has no inferred currency.
     check (currency is not null or (
-        component_count = 0 and reconciliation_count = 0
+        component_count = 0
         and source_amount = 0 and fee_amount = 0 and company_amount = 0
     ))
 );
@@ -164,39 +163,4 @@ create table public.company_payout_report_components (
             and fee_amount = -(fee_base * fee_rate_percent * 0.01)
         )
     )
-);
-
--- Seller-wide control context, repeated per saved company report. Never sum this
--- inventory across reports or add its amounts to the company entitlement.
-create table private.payout_report_reconciliation (
-    report_id public.local_uuid not null references public.company_payout_reports (id),
-    row_number integer not null check (row_number > 0),
-    seller_namespace private.nonblank not null,
-    activity_date date not null,
-    marketplace_name text,
-    currency text not null check (currency ~ '^[A-Z]{3}$'),
-    finances_category_amount private.calculated_amount not null,
-    selbox_category_amount private.calculated_amount not null,
-    data_kiosk_finances_control private.calculated_amount not null,
-    data_kiosk_category_amount private.calculated_amount not null,
-    difference private.calculated_amount not null,
-    finances_total private.calculated_amount not null,
-    accounted_total private.calculated_amount not null,
-    primary key (report_id, row_number),
-    unique nulls not distinct (
-        report_id, seller_namespace, activity_date, marketplace_name, currency
-    ),
-    check (difference = data_kiosk_finances_control - data_kiosk_category_amount),
-    check (
-        finances_total
-        = finances_category_amount + selbox_category_amount + data_kiosk_finances_control
-    ),
-    check (
-        accounted_total
-        = finances_category_amount
-        + selbox_category_amount
-        + data_kiosk_category_amount
-        + difference
-    ),
-    check (accounted_total = finances_total)
 );

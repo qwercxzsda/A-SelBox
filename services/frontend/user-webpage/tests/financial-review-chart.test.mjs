@@ -301,11 +301,7 @@ test("net sales plot one signed economic difference instead of separate opposing
     typeRow("2026-02", "ZERO_ACTIVITY", "0", "FINANCES", "FINANCES"),
     typeRow("2026-02", "NET_PRODUCT_SALES", "0", "DATA_KIOSK", "FINANCES"),
   ];
-  for (const ids of [
-    [],
-    ["net-product-sales"],
-    ["product-sales", "product-refunds", "zero-activity"],
-  ]) {
+  for (const ids of [[], ["net-product-sales"], ["net-product-sales", "net-product-sales"]]) {
     const series = buildFinancialReviewFamilySeries(types, rows, ids);
     assert.equal(series.length, 1);
     assert.equal(series[0].id, "net-product-sales");

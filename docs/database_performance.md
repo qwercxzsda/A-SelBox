@@ -9,12 +9,12 @@ define API behavior; [access control](access_control.md) defines visibility.
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Date-ordered page    | Filter authorized facts, select bounded candidates in date/ID order, merge sources, then resolve metadata and fees for the page.                                   |
 | Reported-amount page | Stop after 10,001 fully filtered matches; reject scopes above 10,000, otherwise sort and calculate the selected page.                                              |
-| Exact count          | Count authorized source facts and reconciliation groups without fee calculation. The browser renders rows first and caches counts independently of page and order. |
+| Exact count          | Count authorized source facts without fee calculation. The browser renders rows first and caches counts independently of page and order. |
 | Period total         | Filter dates and scope, combine facts sharing fee inputs, resolve relevant terms and fees, then aggregate by currency and optional Type.                           |
 | Filter options       | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog.                              |
 | Assignments and fees | Load the caller's complete SKU configuration, deduplicate required source dates, and return compressed coverage ranges and setup gaps in one response.             |
 | Revision polling     | Read the current account and requested revision-token rows, then refresh only dependent queries when a revision changes.                                           |
-| Financial review     | Apply exact marketplace, category, and fully mature month bounds to current source facts before monthly/type grouping; page exact source records separately.       |
+| Financial review     | Apply the requested marketplace, category, and date bounds to current source facts before monthly/type grouping; page exact source records separately.       |
 
 ### Authorization and current versions
 
@@ -58,20 +58,20 @@ Predicate selectivity, parent/component joins, RLS and row visibility determine 
 Index-only behavior is not promised by the schema. Measure the installed model with representative
 data before using its timings or storage estimates for capacity planning.
 
-### Reconciliation work
+### Diagnostic source aggregation
 
-For mature dates, administrator reads aggregate Finances controls and Data Kiosk costs by seller, day,
-marketplace, and currency. These derived groups join the live ledger; member reads exclude them.
-Date and marketplace predicates can restrict grouping, while broad administrator counts and totals
-still pay for the matching source aggregation. Company and SKU selections omit account groups.
+Two administrator read functions return source/category sums and counts: current selected facts for
+an explicit range, or the immutable inputs already referenced by one report. Whole-scope and monthly
+responses are complete aggregates across sellers. Daily pages keep every source/category for a
+seller/day/marketplace/currency bucket together. The backend never calculates diagnostic differences.
 
-[Financial review](financial_review.md#read-contract) compares each monetary category directly from
-current source facts, without company ownership or fee joins. Exact marketplace filters apply to
-date anchors, calendar-year aggregates, and detail reads. Single-row date anchors identify the
-available years; a bounded calendar-year aggregation supplies the available amount units and up to
-twelve monthly rows for the selected currency. Only fully mature months participate. The selected month's
-type totals and source rows have their own bounded marketplace/currency queries. Date discovery can
-still examine many eligible rows; it is not a constant-time lookup or a full-history rollup cache.
+The frontend computes comparisons with exact decimals, loads details lazily, and uses complete
+headline aggregates rather than totaling a page. Current responses include source revision tokens
+for cache consistency; saved report aggregates are cached by report ID and authorization identity.
+Successful retrieval coverage comes from existing acquisition/batch/day metadata, not row counts.
+Finance coverage selects acquisitions with accepted batches, so repeated preprocessing does not
+expand the coverage query once per batch.
+The [Financial review contract](financial_review.md#read-contract) defines the native RPC payloads.
 
 ### Search and SKU discovery
 

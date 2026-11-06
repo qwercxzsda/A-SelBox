@@ -4,6 +4,7 @@ import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-typ
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
 import type { FinancialSourceSelection } from "./api/financial-source.ts";
+import type { CurrentSourceScope, ReportSourceScope } from "./api/source-totals.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
 import type {
   FinancialReviewCategory,
@@ -187,21 +188,16 @@ export const fetchPayoutTypeTotals = (
   signal?: AbortSignal,
 ) => getDefaultClient().fetchPayoutTypeTotals(accessToken, reportId, currency, signal);
 
-export const fetchPayoutReconciliation = (
+export const fetchCurrentSourceTotals = (
   accessToken: string,
-  reportId: string,
-  pageIndex: number,
+  scope: CurrentSourceScope,
   signal?: AbortSignal,
-  currency?: string,
-) =>
-  getDefaultClient().fetchPayoutReconciliation(accessToken, reportId, pageIndex, signal, currency);
-
-export const fetchPayoutReconciliationTotals = (
+) => getDefaultClient().fetchCurrentSourceTotals(accessToken, scope, signal);
+export const fetchReportSourceTotals = (
   accessToken: string,
-  reportId: string,
+  scope: ReportSourceScope,
   signal?: AbortSignal,
-  currency?: string,
-) => getDefaultClient().fetchPayoutReconciliationTotals(accessToken, reportId, signal, currency);
+) => getDefaultClient().fetchReportSourceTotals(accessToken, scope, signal);
 
 export const fetchFinancialReviewBounds = (
   accessToken: string,
@@ -209,20 +205,13 @@ export const fetchFinancialReviewBounds = (
   marketplace: string,
   signal?: AbortSignal,
 ) => getDefaultClient().fetchFinancialReviewBounds(accessToken, category, marketplace, signal);
-export const fetchFinancialReviewPeriod = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  year: string,
-  marketplace: string,
-  signal?: AbortSignal,
-) =>
-  getDefaultClient().fetchFinancialReviewPeriod(accessToken, category, year, marketplace, signal);
 export const fetchFinancialReviewPeriodTypes = (
   accessToken: string,
   category: FinancialReviewCategory,
   year: string,
   currency: string,
   marketplace: string,
+  lastMonth: string,
   signal?: AbortSignal,
 ) =>
   getDefaultClient().fetchFinancialReviewPeriodTypes(
@@ -231,22 +220,7 @@ export const fetchFinancialReviewPeriodTypes = (
     year,
     currency,
     marketplace,
-    signal,
-  );
-export const fetchFinancialReviewTotals = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  month: string,
-  currency: string,
-  marketplace: string,
-  signal?: AbortSignal,
-) =>
-  getDefaultClient().fetchFinancialReviewTotals(
-    accessToken,
-    category,
-    month,
-    currency,
-    marketplace,
+    lastMonth,
     signal,
   );
 export const fetchFinancialReviewTypes = (

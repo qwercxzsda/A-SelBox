@@ -110,12 +110,12 @@ test("SelBox groups account purposes and retains a zero balance without inventin
   await expectAccessible("selbox-economic-families-phone");
 });
 
-test("retired family links migrate to one selected net-sales family across reload and browser history", async ({
+test("current family links deduplicate and retain selection across reload and browser history", async ({
   page,
 }) => {
   await openFinancialReview(page, setupEconomicFamilies);
   await page.goto(
-    "/?tab=financial-review&category=FINANCES&year=2026&currency=USD&family=product-sales&family=product-refunds",
+    "/?tab=financial-review&category=FINANCES&year=2026&currency=USD&family=net-product-sales&family=net-product-sales",
   );
   await expect
     .poll(() => new URL(page.url()).searchParams.getAll("family"))

@@ -10,6 +10,7 @@ from services.db.supabase.tests.payout_fixtures import (
     payout_snapshot,
     prepare_payout,
     publish_payout,
+    report_source_rows,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -84,7 +85,7 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assert_report_count(3)
         self.connection.execute("set constraints all immediate")
 
-    def test_control_only_source_revision_changes_reconciliation_not_company_totals(self) -> None:
+    def test_control_only_source_revision_changes_inputs_not_company_totals(self) -> None:
         inputs = prepare_payout(self)
         first = generate_payout_reports(self, inputs.company)[0][0]
         self.finances(
@@ -100,12 +101,12 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assertNotEqual(first, second)
         self.assertEqual(self.report_totals(first), self.report_totals(second))
         self.assertEqual(
-            self.connection.execute(
-                "select data_kiosk_finances_control from private.payout_report_reconciliation "
-                "where report_id=%s",
-                (second,),
-            ).fetchone(),
-            (Decimal(-12),),
+            [
+                Decimal(row["amount"])
+                for row in report_source_rows(self, self.administrator(), second)
+                if row["source"] == "FINANCES" and row["category"] == "DATA_KIOSK"
+            ],
+            [Decimal(-12)],
         )
         self.connection.execute("set constraints all immediate")
 

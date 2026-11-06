@@ -7,19 +7,21 @@ import { respondWithFinancialReview } from "./e2e/mocks/financial-review.mjs";
 
 function mockReviewClient(fixture) {
   return createApiClient(SETTINGS, (url) =>
-    respondWithFinancialReview(fixture, {
-      request: {},
-      url: new URL(url),
-      user: "admin",
-      track: () => {},
-      reply: (body, status) => new Response(JSON.stringify(body), { status }),
-      csvReply: (columns, rows, total, offset) =>
-        new Response(csv(columns, rows), {
-          headers: {
-            "Content-Range": `${rows.length ? `${offset}-${offset + rows.length - 1}` : "*"}/${total}`,
-          },
+    new URL(url).pathname.endsWith("/workspace_revisions")
+      ? new Response(JSON.stringify({ revisions: { finances: "f1", data_kiosk: "k1" } }))
+      : respondWithFinancialReview(fixture, {
+          request: {},
+          url: new URL(url),
+          user: "admin",
+          track: () => {},
+          reply: (body, status) => new Response(JSON.stringify(body), { status }),
+          csvReply: (columns, rows, total, offset) =>
+            new Response(csv(columns, rows), {
+              headers: {
+                "Content-Range": `${rows.length ? `${offset}-${offset + rows.length - 1}` : "*"}/${total}`,
+              },
+            }),
         }),
-    }),
   );
 }
 
@@ -113,7 +115,7 @@ test("unknown family identities escape punctuation literally and never include t
   );
 });
 
-test("retired net-sales and referral IDs request one exact source-qualified economic union", async () => {
+test("current net-sales and referral IDs request one exact source-qualified economic union", async () => {
   const requests = [];
   const client = createApiClient(SETTINGS, async (url) => {
     const params = new URL(url).searchParams;
@@ -124,14 +126,7 @@ test("retired net-sales and referral IDs request one exact source-qualified econ
     );
     return new Response("amount\n", { headers: { "Content-Range": "*/0" } });
   });
-  const ids = [
-    "product-sales",
-    "product-refunds",
-    "zero-activity",
-    "net-product-sales",
-    "refunded-referral",
-    "referral",
-  ];
+  const ids = ["net-product-sales", "referral", "net-product-sales"];
   await client.fetchFinancialReviewTypes(
     "access",
     "FINANCES",
@@ -162,7 +157,7 @@ test("retired net-sales and referral IDs request one exact source-qualified econ
   assert.equal(requests[1].get("offset"), "50");
 });
 
-test("source-only balance aliases remain a Finances-only union alongside existing source filters", async () => {
+test("balance movements remain a Finances-only union alongside existing source filters", async () => {
   const client = createApiClient(SETTINGS, async (url) => {
     const params = new URL(url).searchParams;
     assert.equal(
@@ -182,7 +177,7 @@ test("source-only balance aliases remain a Finances-only union alongside existin
     0,
     { source: "DATA_KIOSK" },
     undefined,
-    ["debt-recovery", "bank-transfers", "balance-movements"],
+    ["balance-movements"],
   );
   assert.equal(result.totalCount, 0);
   assert.deepEqual(result.rows, []);
@@ -197,7 +192,7 @@ test("invalid nonempty family selections never broaden to an unrestricted reques
     ["not-a-family"],
     ["source:FINANCES:%"],
     ["monthly-storage", "invalid"],
-    ["product-sales", "invalid"],
+    ["unregistered-family", "invalid"],
   ]) {
     assert.throws(() =>
       client.fetchFinancialReviewTypes(
@@ -318,8 +313,9 @@ test("review browser fixtures apply source-specific family intersections before 
         "2026",
         "USD",
         "Amazon.com",
+        "2026-07",
       )
-    ).length,
+    ).rows.length,
     4,
   );
   const exactUnknown = await client.fetchFinancialReviewRecords(
@@ -402,18 +398,10 @@ test("Germany and France using EUR stay separate before family counts, records a
       "2026",
       "EUR",
       marketplace,
+      "2026-07",
     );
-    assert.equal(types.length, 1);
-    assert.equal(types[0].marketplace_name, marketplace);
-    assert.equal(types[0].amount, String(count));
-    const totals = await client.fetchFinancialReviewPeriod(
-      "access",
-      "DATA_KIOSK",
-      "2026",
-      marketplace,
-    );
-    assert.equal(totals.length, 1);
-    assert.equal(totals[0].marketplace_name, marketplace);
-    assert.equal(totals[0].difference, String(count));
+    assert.equal(types.rows.length, 1);
+    assert.equal(types.rows[0].marketplace_name, marketplace);
+    assert.equal(types.rows[0].amount, String(count));
   }
 });

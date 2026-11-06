@@ -1,6 +1,7 @@
 import { Paper, Text } from "@mantine/core";
 import type { CanonicalRow } from "./api";
-import { formatMoney, sumExactDecimals } from "./decimal";
+import { formatMoney } from "./decimal";
+import { sumCompleteDecimals } from "./source-diagnostics";
 import { formatRecordMonth } from "./date-display";
 import { FinancialReviewCoverageNote } from "./FinancialReviewCoverageNote";
 
@@ -38,7 +39,7 @@ export function FinancialReviewSummary({
             {label}
           </Text>
           <Text className="financial-review-summary-value">
-            {formatMoney(sumExactDecimals(rows.map((row) => row[field])), currency)}
+            {formatMoney(sumCompleteDecimals(rows.map((row) => row[field])), currency)}
           </Text>
         </Paper>
       ))}

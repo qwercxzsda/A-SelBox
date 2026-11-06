@@ -15,6 +15,13 @@ export function PayoutReviewDetails({
   const reportId = row.id ?? "";
   const currency = row.currency;
   const marketplace = payoutMarketplaceLabel(row);
+  const scope = {
+    report_id: reportId,
+    start_date: row.start_date ?? "",
+    end_date: row.end_date ?? "",
+    marketplace_name: row.marketplace_name,
+    currency,
+  };
   return (
     <>
       <DetailSection
@@ -30,22 +37,18 @@ export function PayoutReviewDetails({
       </DetailSection>
       <DetailSection
         stateKey={`payout-review:${reportId}:reconciliation`}
-        title="Saved account reconciliation"
+        title="Account reconciliation"
         collapsible
-        description={`Account controls saved for ${currency ?? "this report"} and ${marketplace}, across all companies and SKUs in its source accounts for the report month. They are not this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
+        description={`Calculated from this report's saved source inputs for ${currency ?? "this report"} and ${marketplace}, across all companies and SKUs in its source accounts for the report month. These are separate from this company's payout amounts. The same controls may appear in other reports; do not add them across reports.`}
       >
-        <PayoutReconciliationTotals
-          accessToken={accessToken}
-          reportId={reportId}
-          currency={currency}
-        />
+        <PayoutReconciliationTotals accessToken={accessToken} scope={scope} />
         <DetailSection
           stateKey={`payout-review:${reportId}:daily`}
-          title="Saved daily source details"
+          title="Daily source details"
           collapsible
-          description="Daily rows separate source accounts and marketplaces. Total after adding difference equals Finances total by construction; it does not confirm that the sources agree."
+          description="Daily rows compare native source amounts for each source account and marketplace. Differences are diagnostic and do not adjust the saved payout. Missing retrieval coverage is not treated as zero."
         >
-          <PayoutReconciliation accessToken={accessToken} reportId={reportId} currency={currency} />
+          <PayoutReconciliation accessToken={accessToken} scope={scope} />
         </DetailSection>
       </DetailSection>
     </>

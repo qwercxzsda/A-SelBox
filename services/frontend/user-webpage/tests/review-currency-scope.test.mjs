@@ -3,7 +3,7 @@ import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { datasetCountQueryOptions, datasetQueryOptions } from "../src/dataset-queries.ts";
 import { createQueryClient } from "../src/query-client.ts";
-import { SETTINGS, COMPANY_ID, csvRecord, datasetRecord, pageRequest } from "./api-fixtures.mjs";
+import { SETTINGS, csvRecord, datasetRecord, pageRequest } from "./api-fixtures.mjs";
 
 test("saved-report pages and counts use the same exact currency scope", async () => {
   const requests = [];
@@ -53,39 +53,11 @@ test("switching review currency cannot reuse another currency's pages or counts"
   }
 });
 
-test("saved account totals and daily controls retain exact values within the chosen currency", async () => {
-  const client = createApiClient(SETTINGS, async (url) => {
-    const params = new URL(url).searchParams;
-    assert.equal(params.get("currency"), "eq.USD");
-    assert.equal(params.get("report_id"), `eq.${COMPANY_ID}`);
-    return new Response(csvRecord({ currency: "USD", difference: "-0.00019" }), {
-      headers: { "Content-Range": "0-0/1" },
-    });
-  });
-  const totals = await client.fetchPayoutReconciliationTotals(
-    "access",
-    COMPANY_ID,
-    undefined,
-    "USD",
-  );
-  const details = await client.fetchPayoutReconciliation("access", COMPANY_ID, 0, undefined, "USD");
-  assert.equal(totals[0].difference, "-0.00019");
-  assert.equal(details.rows[0].difference, "-0.00019");
-});
-
 test("invalid currency scopes fail before a saved-report request", async () => {
   const client = createApiClient(SETTINGS, () => assert.fail("Invalid currency reached the API"));
   for (const currency of ["", "usd", "USD,EUR", "USD.or.currency.eq.EUR", null, ["USD"]]) {
     const options = pageRequest("payouts", { currency });
     await assert.rejects(client.fetchDatasetPage(options), /currency/);
     await assert.rejects(client.fetchDatasetCount(options), /currency/);
-    await assert.rejects(
-      client.fetchPayoutReconciliationTotals("access", COMPANY_ID, undefined, currency),
-      /currency/,
-    );
-    await assert.rejects(
-      client.fetchPayoutReconciliation("access", COMPANY_ID, 0, undefined, currency),
-      /currency/,
-    );
   }
 });

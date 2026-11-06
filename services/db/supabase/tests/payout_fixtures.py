@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import cast
+from typing import Any, cast
 
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
@@ -165,9 +165,7 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
             'kiosk',(select jsonb_agg(to_jsonb(p) order by p.day_id)
                 from private.payout_report_data_kiosk_observations p where p.report_id=r.id),
             'terms',(select jsonb_agg(to_jsonb(p) order by p.sku_id)
-                from private.payout_report_terms_versions p where p.report_id=r.id),
-            'reconciliation',(select jsonb_agg(to_jsonb(c) order by c.row_number)
-                from private.payout_report_reconciliation c where c.report_id=r.id)
+                from private.payout_report_terms_versions p where p.report_id=r.id)
         ) from public.company_payout_reports r where r.id=%s
     """,
         (report,),
@@ -175,6 +173,16 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
     if row is None:
         raise AssertionError("Expected a saved payout report.")
     return row[0]
+
+
+def report_source_rows(
+    fixture: SourceModelFixture, administrator: str, report: str, *, grouping: str = "total"
+) -> list[dict[str, Any]]:
+    """Read raw category aggregates through the administrator's report scope."""
+    result = fixture.as_user(
+        administrator, "select public.report_source_totals(%s,%s)", (report, grouping)
+    )[0][0]
+    return cast(dict[str, Any], result)["rows"]
 
 
 def publish_payout(fixture: SourceModelFixture, inputs: PayoutInputs, **scope: object) -> str:

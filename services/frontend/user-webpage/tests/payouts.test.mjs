@@ -143,25 +143,3 @@ test("payout eligibility comes from the server and validates calendar dates", as
   policy.mature_cutoff_date = "2026-02-30";
   await assert.rejects(client.fetchPayoutPolicy("token"), /valid calendar date/);
 });
-
-test("saved seller reconciliation uses its separate report-scoped endpoint and exact decimals", async () => {
-  const client = createApiClient(SETTINGS, async (url) => {
-    assert.equal(new URL(url).pathname, "/rest/v1/payout_report_reconciliation");
-    const params = new URL(url).searchParams;
-    assert.equal(params.get("report_id"), `eq.${COMPANY_ID}`);
-    assert.equal(params.get("offset"), "50");
-    assert.equal(params.get("order"), "row_number.asc");
-    return new Response(
-      csvRecord({
-        report_id: COMPANY_ID,
-        row_number: "51",
-        difference: "-0.000000000000000123",
-        marketplace_name: null,
-      }),
-      { headers: { "Content-Range": "50-50/51" } },
-    );
-  });
-  const result = await client.fetchPayoutReconciliation("token", COMPANY_ID, 1);
-  assert.equal(result.rows[0].difference, "-0.000000000000000123");
-  assert.equal(result.rows[0].marketplace_name, null);
-});

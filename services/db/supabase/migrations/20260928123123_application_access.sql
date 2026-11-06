@@ -288,15 +288,10 @@ create policy payout_data_kiosk_observations_read on private.payout_report_data_
 for select to authenticated using ((select private.is_administrator()));
 create policy payout_terms_versions_read on private.payout_report_terms_versions
 for select to authenticated using ((select private.is_administrator()));
-create policy payout_reconciliation_read on private.payout_report_reconciliation
-for select to authenticated using ((select private.is_administrator()));
-create view public.payout_report_reconciliation with (security_invoker = true) as
-select * from private.payout_report_reconciliation;
-
 -- Financial review is a source comparison, not a second company ledger. Retain
 -- both current sources in every allocation category without ownership/fee joins.
 -- Administrator gates are necessary because base facts also have member read policies.
--- Match payout eligibility: exclude the entire month containing the maturity cutoff.
+-- The caller chooses the date range; the UI supplies its default maturity window.
 create view public.financial_review_records with (security_invoker = true) as
 select
     'FINANCES'::text as source, -- noqa: RF04
@@ -313,8 +308,7 @@ select
 from private.finances_component_details as t
 where
     t.is_current and t.activity_eligible
-    and (select private.is_administrator())
-    and t.posted_date < (select date_trunc('month', private.mature_cutoff_date()::timestamp)::date)
+    and (select private.financial_account_visible())
 union all
 select
     'DATA_KIOSK'::text as source, -- noqa: RF04
@@ -329,12 +323,8 @@ select
     t.currency,
     t.amount
 from private.data_kiosk_component_details as t
-inner join private.data_kiosk_days as h on t.version_id = h.current_version_id
 where
-    (select private.is_administrator())
-    and t.activity_date < (
-        select date_trunc('month', private.mature_cutoff_date()::timestamp)::date
-    )
+    t.is_current and (select private.financial_account_visible())
     and t.category in ('FINANCES', 'DATA_KIOSK', 'SELBOX');
 
 -- Direct activity-date bounds are applied before aggregation. Filtering a
@@ -355,31 +345,6 @@ begin
             using errcode = '22023';
     end if;
     perform private.validate_transaction_filters(null, null, null, null, array[p_marketplace]);
-end;
-$$;
-
-create function public.financial_review_totals(
-    p_month_from date, p_month_to date, p_category public.allocation_category, p_marketplace text
-) returns table (
-    month date, category public.allocation_category, marketplace_name text, currency text,
-    finances_amount numeric, data_kiosk_amount numeric, difference numeric,
-    finances_row_count bigint, data_kiosk_row_count bigint
-)
-language plpgsql stable security invoker set search_path = '' as $$
-begin
-    perform private.validate_financial_review_scope(p_month_from,p_month_to,p_category,p_marketplace);
-    return query
-    select date_trunc('month',r.activity_date::timestamp)::date,r.category,r.marketplace_name,r.currency,
-        coalesce(sum(r.amount) filter (where r.source = 'FINANCES'),0),
-        coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
-        coalesce(sum(r.amount) filter (where r.source = 'FINANCES'),0)
-            - coalesce(sum(r.amount) filter (where r.source = 'DATA_KIOSK'),0),
-        count(*) filter (where r.source = 'FINANCES'),
-        count(*) filter (where r.source = 'DATA_KIOSK')
-    from public.financial_review_records r
-    where r.activity_date >= p_month_from and r.activity_date < p_month_to
-        and r.category = p_category and r.marketplace_name = p_marketplace
-    group by date_trunc('month',r.activity_date::timestamp)::date,r.category,r.marketplace_name,r.currency;
 end;
 $$;
 
@@ -407,23 +372,153 @@ begin
 end;
 $$;
 
--- A saved report pins account-wide controls for audit, not company amounts.
--- Never combine these repeated snapshots across reports.
-create view public.payout_reconciliation_totals with (security_invoker = true) as
-select
-    report_id,
-    currency,
-    sum(finances_category_amount) as finances_category_amount,
-    sum(selbox_category_amount) as selbox_category_amount,
-    sum(data_kiosk_finances_control) as data_kiosk_finances_control,
-    sum(data_kiosk_category_amount) as data_kiosk_category_amount,
-    sum(difference) as difference,
-    sum(finances_total) as finances_total,
-    sum(accounted_total) as accounted_total,
-    count(*) as source_group_count
-from private.payout_report_reconciliation
-where (select private.is_administrator())
-group by report_id, currency;
+-- Native diagnostics expose additive source/category amounts only. Application
+-- callers must be administrators; trusted database roles retain invoker access.
+create policy finances_acquisition_diagnostics_read on private.finances_acquisitions
+for select to authenticated using ((select private.is_administrator()));
+
+create function private.read_source_totals(
+    p_report_id uuid, p_start date, p_end date, p_marketplace text,
+    p_grouping text, p_currency text, p_category public.allocation_category,
+    p_limit integer, p_offset bigint
+) returns jsonb language plpgsql stable security invoker set search_path = '' as $$
+declare scope_start date := p_start; scope_end date := p_end;
+    scope_marketplace text := p_marketplace; scope_currency text := p_currency;
+    revision jsonb := null; result jsonb; coverage jsonb; scope jsonb;
+begin
+    if not private.financial_account_visible() then
+        raise exception 'Administrator access required' using errcode='42501';
+    end if;
+    if p_grouping is null or p_grouping not in ('total','month','day') then
+        raise exception 'Choose total, month or day grouping' using errcode='22023';
+    end if;
+    perform private.validate_page_bounds(p_limit,p_offset);
+    if p_report_id is not null then
+        if p_start is not null or p_end is not null or p_marketplace is not null
+            or p_currency is not null or p_category is not null then
+            raise exception 'Saved report scope cannot be overridden' using errcode='22023';
+        end if;
+        select r.start_date,r.end_date,r.marketplace_name,r.currency
+        into scope_start,scope_end,scope_marketplace,scope_currency
+        from public.company_payout_reports r where r.id=p_report_id;
+        if not found then raise exception 'Payout report not found' using errcode='22023'; end if;
+    else
+        if p_start is null or p_end is null or not isfinite(p_start) or not isfinite(p_end)
+            or p_start>p_end or p_marketplace is null
+            or (p_currency is not null and p_currency !~ '^[A-Z]{3}$')
+            or (p_category is not null and p_category not in ('FINANCES','SELBOX','DATA_KIOSK')) then
+            raise exception 'Choose a valid source date, marketplace and currency scope' using errcode='22023';
+        end if;
+        perform private.validate_transaction_filters(p_start,p_end,null,null,array[p_marketplace]);
+        if private.is_administrator() then
+            revision:=public.workspace_revisions(array['finances','data_kiosk'])->'revisions';
+        end if;
+    end if;
+    scope:=jsonb_build_object('start_date',scope_start,'end_date',scope_end,
+        'marketplace_name',scope_marketplace,'currency',scope_currency);
+    if p_report_id is not null then scope:=scope||jsonb_build_object('report_id',p_report_id); end if;
+    with saved_finance_versions as (
+        select distinct m.version_id
+        from private.payout_report_finances_batches p
+        join private.finances_preprocess_batch_transactions m on m.batch_id=p.batch_id
+        where p.report_id=p_report_id
+    ), inputs as (
+        select r.source,r.seller_namespace,r.activity_date,r.marketplace_name,r.currency,
+            r.category,r.amount
+        from public.financial_review_records r where p_report_id is null
+        union all
+        select 'FINANCES',t.seller_namespace,v.posted_date,v.marketplace_name,v.currency,
+            c.category,c.amount
+        from saved_finance_versions m
+        join private.finances_transaction_versions v on v.id=m.version_id
+        join private.finances_transactions t on t.id=v.transaction_id
+        join private.finances_transaction_components c on c.version_id=v.id
+        where v.activity_eligible
+        union all
+        select 'DATA_KIOSK',d.seller_namespace,d.activity_date,d.marketplace_name,c.currency,
+            c.category,c.amount
+        from private.payout_report_data_kiosk_observations p
+        join private.data_kiosk_days d on d.id=p.day_id
+        join private.data_kiosk_day_components c on c.version_id=p.version_id
+        where p.report_id=p_report_id
+    ), grouped as materialized (
+        select case when p_grouping='day' then i.seller_namespace::text end as seller_namespace,
+            case when p_grouping='day' then i.activity_date
+                when p_grouping='month' then date_trunc('month',i.activity_date::timestamp)::date end as period,
+            i.marketplace_name,i.currency,i.source,i.category,sum(i.amount) as amount,count(*) as row_count
+        from inputs i
+        where i.activity_date between scope_start and scope_end
+            and i.marketplace_name is not distinct from scope_marketplace
+            and ((p_report_id is null and scope_currency is null) or i.currency=scope_currency)
+            and i.category in ('FINANCES','SELBOX','DATA_KIOSK')
+            and (p_category is null or i.category=p_category)
+        group by 1,2,3,4,5,6
+    ), buckets as materialized (
+        select distinct seller_namespace,period,marketplace_name,currency from grouped
+    ), selected_buckets as (
+        select * from buckets
+        order by seller_namespace nulls first,period nulls first,marketplace_name,currency
+        limit case when p_grouping='day' then p_limit end
+        offset case when p_grouping='day' then p_offset else 0 end
+    ), rows as (
+        select g.* from grouped g join selected_buckets b
+            on (g.seller_namespace,g.period,g.marketplace_name,g.currency)
+                is not distinct from (b.seller_namespace,b.period,b.marketplace_name,b.currency)
+    ), inventory as (select count(*) as count from buckets)
+    select jsonb_build_object(
+        'scope',scope,'revision',revision,
+        'rows',coalesce((select jsonb_agg(jsonb_build_object(
+            'seller_namespace',r.seller_namespace,'period',r.period,
+            'marketplace_name',r.marketplace_name,'currency',r.currency,
+            'source',r.source,'category',r.category,'amount',r.amount::text,'row_count',r.row_count::text)
+            order by r.seller_namespace nulls first,r.period nulls first,r.marketplace_name,
+                r.currency,r.source,r.category) from rows r),'[]'::jsonb),
+        'total_count',inventory.count::text,
+        'next_offset',case when p_grouping='day' and p_offset+p_limit<inventory.count
+            then p_offset+p_limit end)
+    into result from inventory;
+    with covered as (
+        select 'FINANCES'::text as source,a.seller_namespace::text,
+            greatest(a.query_start_date,scope_start) as start_date,
+            least(a.query_end_date,scope_end) as end_date
+        from private.finances_acquisitions a
+        where a.query_start_date<=scope_end and a.query_end_date>=scope_start
+            and exists (select 1 from jsonb_array_elements(a.api_metadata->'coverage_marketplaces') market
+                where market->>'marketplace_name'=scope_marketplace)
+            and exists (
+                select 1 from private.finances_preprocess_batches b where b.acquisition_id=a.id
+                    and (p_report_id is null or exists (
+                        select 1 from private.payout_report_finances_batches p
+                        where p.report_id=p_report_id and p.batch_id=b.id)))
+        union
+        select 'DATA_KIOSK',d.seller_namespace::text,d.activity_date,d.activity_date
+        from private.data_kiosk_days d
+        where d.dataset_key='economics' and d.marketplace_name=scope_marketplace
+            and d.activity_date between scope_start and scope_end
+            and ((p_report_id is null and d.current_version_id is not null) or exists (
+                select 1 from private.payout_report_data_kiosk_observations p
+                where p.report_id=p_report_id and p.day_id=d.id))
+    )
+    select coalesce(jsonb_agg(to_jsonb(c) order by c.source,c.seller_namespace,c.start_date,c.end_date),'[]'::jsonb)
+        into coverage from covered c;
+    return result||jsonb_build_object('coverage',coverage);
+end;
+$$;
+
+create function public.current_source_totals(
+    p_start date, p_end date, p_marketplace text, p_grouping text default 'month',
+    p_currency text default null, p_category public.allocation_category default null,
+    p_limit integer default 50, p_offset bigint default 0
+) returns jsonb language sql stable security invoker set search_path = '' as $$
+    select private.read_source_totals(null,p_start,p_end,p_marketplace,p_grouping,p_currency,p_category,p_limit,p_offset);
+$$;
+
+create function public.report_source_totals(
+    p_report_id uuid, p_grouping text default 'total',
+    p_limit integer default 50, p_offset bigint default 0
+) returns jsonb language sql stable security invoker set search_path = '' as $$
+    select private.read_source_totals(p_report_id,null,null,null,p_grouping,null,null,p_limit,p_offset);
+$$;
 
 create view public.payout_report_finances_batches with (security_invoker = true) as
 select * from private.payout_report_finances_batches;

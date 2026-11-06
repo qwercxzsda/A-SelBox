@@ -11,6 +11,7 @@ from services.db.supabase.tests.payout_fixtures import (
     generate_payout_reports,
     payout_snapshot,
     prepare_payout,
+    report_source_rows,
 )
 from services.db.supabase.tests.rpc_support import assert_rpc_security
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
@@ -108,12 +109,15 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             for user in (member, administrator):
                 self.assert_same_basis(inputs.company, user, report, currency)
         self.assertEqual(
-            self.connection.execute(
-                "select count(distinct seller_namespace) from private.payout_report_reconciliation "
-                "where report_id=%s",
-                (headers[1][0],),
-            ).fetchone(),
-            (2,),
+            len(
+                {
+                    row["seller_namespace"]
+                    for row in report_source_rows(
+                        self, administrator, headers[1][0], grouping="day"
+                    )
+                }
+            ),
+            2,
         )
         other, _ = self.owner("OTHER")
         self.assertEqual(self.read_payout_totals(self.member(other), headers[0][0])["rows"], [])

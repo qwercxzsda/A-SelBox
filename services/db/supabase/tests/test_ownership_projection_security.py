@@ -239,7 +239,7 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
                 "select public.transaction_page(p_limit=>100)->>'total_count'"
             ).fetchone()
         )[0]
-        self.assertEqual(trusted, "11")
+        self.assertEqual(trusted, "9")
         with self.connection.transaction():
             self.connection.execute("set local row_security=off")
             self.assertEqual(len(self.as_user(self.member_a, _HELPER)), 2)

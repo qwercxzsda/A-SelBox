@@ -5,7 +5,6 @@ erDiagram
     private_payout_report_terms_versions ||..o{ public_company_payout_report_components : "report_id + terms_version_id"
     public_company_payout_reports ||..o{ public_company_payout_report_components : "report_id"
     public_sku_terms_versions ||..o{ public_company_payout_report_components : "sku_id + terms_version_id"
-    public_company_payout_reports ||--o{ private_payout_report_reconciliation : "report_id"
     public_companies ||--o{ private_payout_report_refresh_state : "company_id"
 
     public_company_payout_reports["public.company_payout_reports"] {
@@ -20,7 +19,6 @@ erDiagram
         nonblank change_reason "NN"
         text calculation_version "NN"
         integer component_count "NN"
-        integer reconciliation_count "NN"
         integer finances_batch_count "NN"
         integer data_kiosk_observation_count "NN"
         integer terms_version_count "NN"
@@ -53,22 +51,6 @@ erDiagram
         calculated_amount fee_amount "NULL"
         calculated_amount company_amount "NULL"
         text resolution_status "NN"
-    }
-
-    private_payout_report_reconciliation["private.payout_report_reconciliation"] {
-        local_uuid report_id PK, FK "NN"
-        integer row_number PK "NN"
-        nonblank seller_namespace "NN"
-        date activity_date "NN"
-        text marketplace_name "NULL"
-        text currency "NN"
-        calculated_amount finances_category_amount "NN"
-        calculated_amount selbox_category_amount "NN"
-        calculated_amount data_kiosk_finances_control "NN"
-        calculated_amount data_kiosk_category_amount "NN"
-        calculated_amount difference "NN"
-        calculated_amount finances_total "NN"
-        calculated_amount accounted_total "NN"
     }
 
     private_payout_report_refresh_state["private.payout_report_refresh_state"] {

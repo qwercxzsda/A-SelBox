@@ -66,11 +66,10 @@ GROUPS = (
     ),
     (
         "06-payout-results",
-        "Payout results reconciliation and refresh state",
+        "Payout results and refresh state",
         (
             "public.company_payout_reports",
             "public.company_payout_report_components",
-            "private.payout_report_reconciliation",
             "private.payout_report_refresh_state",
         ),
     ),
@@ -283,7 +282,9 @@ def markdown(schema: dict[str, dict[str, Any]]) -> str:
         "private Storage. Data Kiosk reuses immutable complete-day versions across successful "
         "batches. Both retain all accepted versions without raw response JSON in component rows. "
         "Payouts reference Finance batches, Data Kiosk batch/day/version membership and company "
-        "terms. Inventory keeps its separate one-capture-per-day model.",
+        "terms. Diagnostic source aggregates are computed on read; "
+        "comparisons are frontend values. "
+        "Inventory keeps its separate one-capture-per-day model.",
         "",
         "See [data workflows](data_workflows.md), "
         "[Finances transactions](finances_transactions.md), "

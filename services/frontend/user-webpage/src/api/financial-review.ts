@@ -3,10 +3,11 @@ import { quotePostgrestText, requireCalendarDate, textSelectionValues } from "./
 import {
   readCompleteFinancialReviewTypes,
   type FinancialReviewTypeScope,
+  type SourceTypeTotals,
 } from "./financial-review-type-reader.ts";
-import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagination.ts";
+import { DETAIL_PAGE_SIZE, validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
-import type { CanonicalRow, PageResult } from "./types.ts";
+import type { PageResult } from "./types.ts";
 import { requireCurrency } from "./validation.ts";
 import { requireMarketplace } from "./marketplaces.ts";
 
@@ -22,20 +23,6 @@ export interface FinancialReviewBounds {
   firstMonth: string | null;
   lastMonth: string | null;
 }
-
-type AggregateScope = Omit<FinancialReviewTypeScope, "currency"> & { currency?: string };
-
-const FINANCIAL_REVIEW_TOTAL_COLUMNS = [
-  "month",
-  "category",
-  "marketplace_name",
-  "currency",
-  "finances_amount",
-  "data_kiosk_amount",
-  "difference",
-  "finances_row_count",
-  "data_kiosk_row_count",
-] as const;
 
 const FINANCIAL_REVIEW_RECORD_COLUMNS = [
   "source",
@@ -71,13 +58,6 @@ export function requireFinancialReviewYear(year: string): void {
     throw new Error("Choose a valid financial review year");
 }
 
-function returnedMonth(date: string | null | undefined): string {
-  if (!date) throw new Error("Financial review returned an invalid month");
-  requireCalendarDate(date);
-  if (!date.endsWith("-01")) throw new Error("Financial review returned an invalid month");
-  return date.slice(0, 7);
-}
-
 function scopeParams(category: FinancialReviewCategory, marketplace: string): URLSearchParams {
   requireFinancialReviewCategory(category);
   requireMarketplace(marketplace);
@@ -91,24 +71,6 @@ function followingMonthDate(month: string): string {
     : `${String(year).padStart(4, "0")}-${String(monthNumber + 1).padStart(2, "0")}-01`;
 }
 
-function totalParams({
-  category,
-  firstMonth,
-  lastMonth,
-  marketplace,
-}: AggregateScope): URLSearchParams {
-  requireFinancialReviewCategory(category);
-  requireMarketplace(marketplace);
-  requireMonth(firstMonth);
-  requireMonth(lastMonth);
-  return new URLSearchParams({
-    p_category: category,
-    p_marketplace: marketplace,
-    p_month_from: `${firstMonth}-01`,
-    p_month_to: followingMonthDate(lastMonth),
-  });
-}
-
 function setDetailPage(params: URLSearchParams, pageIndex: number): void {
   validatePagination(pageIndex, DETAIL_PAGE_SIZE);
   params.set("limit", String(DETAIL_PAGE_SIZE));
@@ -116,10 +78,19 @@ function setDetailPage(params: URLSearchParams, pageIndex: number): void {
 }
 
 function typeTotalParams(scope: FinancialReviewTypeScope): URLSearchParams {
-  const { currency } = scope;
-  const params = totalParams(scope);
+  const { category, firstMonth, lastMonth, marketplace, currency } = scope;
+  requireFinancialReviewCategory(category);
+  requireMarketplace(marketplace);
+  requireMonth(firstMonth);
+  requireMonth(lastMonth);
   requireCurrency(currency);
-  params.set("p_currency", currency);
+  const params = new URLSearchParams({
+    p_category: category,
+    p_marketplace: marketplace,
+    p_month_from: `${firstMonth}-01`,
+    p_month_to: followingMonthDate(lastMonth),
+    p_currency: currency,
+  });
   params.set(
     "select",
     rpcProjection([
@@ -182,48 +153,6 @@ export function createFinancialReviewApi(transport: ApiTransport) {
     return date.slice(0, 7);
   }
 
-  async function readTotals(
-    accessToken: string,
-    scope: AggregateScope,
-    signal?: AbortSignal,
-  ): Promise<CanonicalRow[]> {
-    const { firstMonth, lastMonth, currency, marketplace } = scope;
-    const params = totalParams(scope);
-    if (currency !== undefined) {
-      requireCurrency(currency);
-      params.set("currency", `eq.${currency}`);
-    }
-    params.set("select", rpcProjection(FINANCIAL_REVIEW_TOTAL_COLUMNS));
-    params.set("order", "month.asc,currency.asc");
-    params.set("limit", String(LOOKUP_PAGE_SIZE));
-    const result = await transport.readCsvPage(
-      accessToken,
-      "rpc/financial_review_totals",
-      params,
-      "Financial review totals",
-      signal,
-      false,
-    );
-    if (result.rows.length >= LOOKUP_PAGE_SIZE)
-      throw new Error("Financial review returned too many monthly currencies");
-    const scopes = new Set<string>();
-    for (const row of result.rows) {
-      const month = returnedMonth(row.month);
-      if (month < firstMonth || month > lastMonth)
-        throw new Error("Financial review returned a month outside the requested range");
-      if (row.marketplace_name !== marketplace)
-        throw new Error("Financial review returned a different marketplace");
-      const rowCurrency = row.currency ?? "";
-      requireCurrency(rowCurrency);
-      if (currency !== undefined && rowCurrency !== currency)
-        throw new Error("Financial review returned a different currency");
-      const key = `${month}:${rowCurrency}`;
-      if (scopes.has(key)) throw new Error("Financial review repeated a monthly currency");
-      scopes.add(key);
-    }
-    return result.rows;
-  }
-
   function readFamilyTypes(
     accessToken: string,
     scope: FinancialReviewTypeScope,
@@ -256,47 +185,21 @@ export function createFinancialReviewApi(transport: ApiTransport) {
         throw new Error("Financial review returned inconsistent date bounds");
       return { firstMonth, lastMonth };
     },
-    async fetchFinancialReviewPeriod(
-      accessToken: string,
-      category: FinancialReviewCategory,
-      year: string,
-      marketplace: string,
-      signal?: AbortSignal,
-    ): Promise<CanonicalRow[]> {
-      requireFinancialReviewYear(year);
-      return readTotals(
-        accessToken,
-        { category, firstMonth: `${year}-01`, lastMonth: `${year}-12`, marketplace },
-        signal,
-      );
-    },
     async fetchFinancialReviewPeriodTypes(
       accessToken: string,
       category: FinancialReviewCategory,
       year: string,
       currency: string,
       marketplace: string,
+      lastMonth: string,
       signal?: AbortSignal,
-    ): Promise<CanonicalRow[]> {
+    ): Promise<SourceTypeTotals> {
       requireFinancialReviewYear(year);
+      requireMonth(lastMonth);
+      if (!lastMonth.startsWith(year)) throw new Error("Choose a month within the review year");
       return readFamilyTypes(
         accessToken,
-        { category, firstMonth: `${year}-01`, lastMonth: `${year}-12`, currency, marketplace },
-        signal,
-      );
-    },
-    async fetchFinancialReviewTotals(
-      accessToken: string,
-      category: FinancialReviewCategory,
-      month: string,
-      currency: string,
-      marketplace: string,
-      signal?: AbortSignal,
-    ): Promise<CanonicalRow[]> {
-      requireCurrency(currency);
-      return readTotals(
-        accessToken,
-        { category, firstMonth: month, lastMonth: month, currency, marketplace },
+        { category, firstMonth: `${year}-01`, lastMonth, currency, marketplace },
         signal,
       );
     },
@@ -334,7 +237,7 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       currency: string,
       marketplace: string,
       signal?: AbortSignal,
-    ): Promise<CanonicalRow[]> {
+    ): Promise<SourceTypeTotals> {
       return readFamilyTypes(
         accessToken,
         { category, firstMonth: month, lastMonth: month, currency, marketplace },

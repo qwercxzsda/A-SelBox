@@ -4,40 +4,6 @@ import { FEE_FAMILIES, type FeeFamily } from "./fee-family-definitions.ts";
 
 const SOURCE_LABELS = { FINANCES: "Finances", DATA_KIOSK: "Data Kiosk" };
 
-// Persisted links and scopes must keep their economic selection after regrouping.
-const RETIRED_FAMILY_IDS: Readonly<Record<string, string>> = {
-  "product-sales": "net-product-sales",
-  "product-refunds": "net-product-sales",
-  "zero-activity": "net-product-sales",
-  "shipping-credits": "shipping",
-  "shipping-refunds": "shipping",
-  "shipping-chargebacks": "shipping",
-  "gift-wrap-credits": "gift-wrapping",
-  "gift-wrap-chargebacks": "gift-wrapping",
-  "product-tax": "taxes",
-  "shipping-tax": "taxes",
-  "gift-wrap-tax": "taxes",
-  "tax-withheld": "taxes",
-  "promotional-rebates": "promotions",
-  "promotional-refunds": "promotions",
-  points: "promotions",
-  "refunded-referral": "referral",
-  "fulfillment-fee-corrections": "fba-fulfillment",
-  "fulfillment-fee-reversals": "fba-fulfillment",
-  "inventory-reimbursement-reversals": "inventory-reimbursements",
-  "liquidation-processing": "liquidation-fees",
-  "liquidation-referral": "liquidation-fees",
-  epr: "seller-service-fees",
-  vine: "seller-service-fees",
-  "inbound-defect": "seller-service-fees",
-  "mcf-credits": "account-adjustments",
-  "other-adjustments": "account-adjustments",
-  "debt-recovery": "balance-movements",
-  "cross-account-adjustments": "balance-movements",
-  "reserve-movements": "balance-movements",
-  "bank-transfers": "balance-movements",
-};
-
 const familiesById = new Map<string, FeeFamily>();
 const familiesByType = new Map<string, FeeFamily>();
 for (const entry of FEE_FAMILIES) {
@@ -77,9 +43,7 @@ export function resolveFeeFamily(source: string, type: string): FeeFamily {
 }
 
 function familyFromId(id: string): FeeFamily | null {
-  const registered = familiesById.get(
-    Object.hasOwn(RETIRED_FAMILY_IDS, id) ? RETIRED_FAMILY_IDS[id] : id,
-  );
+  const registered = familiesById.get(id);
   if (registered) return registered;
   const match = /^source:(FINANCES|DATA_KIOSK):(.+)$/.exec(id);
   if (!match) return null;

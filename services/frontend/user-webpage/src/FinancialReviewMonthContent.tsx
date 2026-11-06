@@ -10,7 +10,17 @@ import { FinancialReviewSnapshots } from "./FinancialReviewSnapshots";
 import { AmountPrecisionNote } from "./AmountPrecisionNote";
 import { reviewCategoryLabel } from "./financial-review-categories";
 import type { FinancialReviewMonthScope } from "./financial-review-source-state";
-import { monthlyReviewTotalsQueryOptions } from "./financial-review-queries";
+import {
+  monthlySourceTotalsQueryOptions,
+  monthlyFamilyTypesQueryOptions,
+} from "./financial-review-queries";
+import {
+  applyComparisonCoverage,
+  buildSourceComparisons,
+  sameSourceRevision,
+} from "./source-diagnostics";
+import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
+import { useSourceRevisionGuard, diagnosticQueryState } from "./source-diagnostics-context";
 
 interface FinancialReviewMonthContentProps extends FinancialReviewMonthScope {
   onRetry: () => Promise<void>;
@@ -21,8 +31,31 @@ export function FinancialReviewMonthContent({
   ...scope
 }: FinancialReviewMonthContentProps) {
   const { identity, category, currency, marketplace, families, month } = scope;
-  const query = useQuery(monthlyReviewTotalsQueryOptions(scope));
-  const rows = query.data ?? [];
+  const sourceQuery = useQuery(monthlySourceTotalsQueryOptions(scope));
+  const familyQuery = useQuery({
+    ...monthlyFamilyTypesQueryOptions(scope),
+    enabled: families.length > 0,
+  });
+  const consistent = useSourceRevisionGuard(sourceQuery.data);
+  const familyConsistent = useSourceRevisionGuard(families.length ? familyQuery.data : undefined);
+  const source = sourceQuery.data;
+  const compatible =
+    consistent &&
+    familyConsistent &&
+    (!families.length || sameSourceRevision(source, familyQuery.data));
+  const query = diagnosticQueryState(
+    families.length ? [sourceQuery, familyQuery] : [sourceQuery],
+    compatible,
+  );
+  const rows =
+    source && compatible
+      ? families.length
+        ? applyComparisonCoverage(
+            buildFinancialReviewFamilyMonths(familyQuery.data?.rows ?? [], families),
+            source,
+          )
+        : buildSourceComparisons(source, category)
+      : [];
   return (
     <>
       <Paper
@@ -53,17 +86,13 @@ export function FinancialReviewMonthContent({
         <FinancialReviewCoverageNote rows={rows} />
         <Text className="monthly-review-total-formula" size="sm">
           Difference = Finances {category === "DATA_KIOSK" ? "costs" : "amount"} − Data Kiosk{" "}
-          {category === "DATA_KIOSK" ? "costs" : "amount"}. A source with no rows contributes zero
-          to this comparison.
+          {category === "DATA_KIOSK" ? "costs" : "amount"}. An absent amount is zero only when
+          retrieval coverage includes the complete period.
         </Text>
         <AmountPrecisionNote />
       </Paper>
       <Text className="monthly-review-context" size="sm" c="dimmed">
-        {families.length
-          ? "This is a diagnostic comparison of the selected fee families. Saved payout reconciliation continues to use the complete Data Kiosk category. "
-          : category === "DATA_KIOSK"
-            ? "This category's difference is the account reconciliation amount. "
-            : "This source comparison is diagnostic; it does not create an additional reconciliation adjustment. "}
+        This comparison is diagnostic and never changes transaction amounts or saved payouts.{" "}
         Differences can reflect missing data, timing or scope. Data Kiosk may not cover every source
         type.
       </Text>

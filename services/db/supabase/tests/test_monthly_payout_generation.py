@@ -6,12 +6,13 @@ from decimal import Decimal
 from typing import cast
 
 import psycopg
-from psycopg import sql
 
 from services.db.supabase.tests.payout_fixtures import (
     fill_payout_kiosk_month,
     generate_payout_reports,
+    payout_snapshot,
     publish_report,
+    report_source_rows,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -95,33 +96,25 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
                 "select * from private.resolve_company_components('{}','{}','{}')"
             )
             self.connection.execute(
-                "create temporary table payout_reconciliation as "
-                "select * from private.resolve_source_reconciliation('{}','{}')"
-            )
-            self.connection.execute(
                 "create function pg_temp.payout_hijack() returns trigger language plpgsql as $$ "
                 "begin raise exception 'Untrusted payout trigger executed'; "
                 "end; $$"
             )
-            for table in ("payout_resolved_components", "payout_reconciliation"):
-                self.connection.execute(
-                    sql.SQL(
-                        "create trigger payout_hijack before insert or truncate "
-                        "on pg_temp.{} for each statement execute function pg_temp.payout_hijack()"
-                    ).format(sql.Identifier(table))
-                )
+            self.connection.execute(
+                "create trigger payout_hijack before insert or truncate "
+                "on pg_temp.payout_resolved_components "
+                "for each statement execute function pg_temp.payout_hijack()"
+            )
             self.connection.execute("reset role")
         self.generate(company)
-        for table in ("payout_resolved_components", "payout_reconciliation"):
-            with self.subTest(table=table):
-                self.assertEqual(
-                    self.connection.execute(
-                        "select count(*) from pg_trigger where tgrelid=%s::regclass "
-                        "and tgname='payout_hijack'",
-                        ("pg_temp." + table,),
-                    ).fetchone(),
-                    (0,),
-                )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from pg_trigger "
+                "where tgrelid='pg_temp.payout_resolved_components'::regclass "
+                "and tgname='payout_hijack'"
+            ).fetchone(),
+            (0,),
+        )
         self.connection.execute("set constraints all immediate")
 
     def test_other_company_missing_fee_does_not_block_own_report(self) -> None:
@@ -139,7 +132,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_controls_reconcile_without_allocating_selbox_or_difference_to_company(self) -> None:
+    def test_account_source_categories_do_not_change_company_entitlement(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
         self.finances(
@@ -165,61 +158,35 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
-                "select source_amount,fee_amount,company_amount,reconciliation_count "
+                "select source_amount,fee_amount,company_amount "
                 "from public.company_payout_reports where id=%s",
                 (report,),
             ).fetchone(),
-            (Decimal(90), Decimal(-5), Decimal(85), 1),
+            (Decimal(90), Decimal(-5), Decimal(85)),
         )
-        self.assertEqual(
-            self.as_user(
-                administrator,
-                "select marketplace_name,finances_category_amount,selbox_category_amount,"
-                "data_kiosk_finances_control,"
-                "data_kiosk_category_amount,difference,finances_total,accounted_total "
-                "from public.payout_report_reconciliation where report_id=%s "
-                "order by marketplace_name nulls first",
-                (report,),
-            ),
+        self.assertCountEqual(
             [
-                (
-                    "Amazon.com",
-                    Decimal(100),
-                    Decimal(-3),
-                    Decimal(-12),
-                    Decimal(-10),
-                    Decimal(-2),
-                    Decimal(85),
-                    Decimal(85),
-                ),
+                (row["source"], row["category"], Decimal(row["amount"]))
+                for row in report_source_rows(self, administrator, report)
+            ],
+            [
+                ("FINANCES", "FINANCES", Decimal(100)),
+                ("FINANCES", "SELBOX", Decimal(-3)),
+                ("FINANCES", "DATA_KIOSK", Decimal(-12)),
+                ("DATA_KIOSK", "DATA_KIOSK", Decimal(-10)),
+                ("DATA_KIOSK", "FINANCES", Decimal(100)),
             ],
         )
-        self.assertEqual(
-            self.as_user(member, "select * from public.payout_report_reconciliation"), []
-        )
-        self.assertEqual(
-            self.as_user(member, "select * from private.payout_report_reconciliation"), []
-        )
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            report_source_rows(self, member, report)
         self.connection.execute("set constraints all immediate")
 
-    def test_saved_reconciliation_must_match_the_frozen_source_versions(self) -> None:
+    def test_reading_source_aggregates_does_not_mutate_saved_report_inputs(self) -> None:
         company = self.prepared_company()
         report = self.generate(company)
-        with (
-            self.assertRaisesRegex(psycopg.errors.CheckViolation, "reconciliation"),
-            self.connection.transaction(),
-        ):
-            self.connection.execute(
-                "alter table private.payout_report_reconciliation disable trigger immutable"
-            )
-            self.connection.execute(
-                "update private.payout_report_reconciliation "
-                "set finances_category_amount=finances_category_amount+1,"
-                "finances_total=finances_total+1,accounted_total=accounted_total+1 "
-                "where report_id=%s",
-                (report,),
-            )
-            self.connection.execute("set constraints all immediate")
+        before = payout_snapshot(self, report)
+        self.assertTrue(report_source_rows(self, self.administrator(), report))
+        self.assertEqual(payout_snapshot(self, report), before)
         self.connection.execute("set constraints all immediate")
 
     def test_deferred_integrity_runs_for_internal_generation_without_a_login(self) -> None:
@@ -247,12 +214,11 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             (Decimal(-10), Decimal(0), Decimal(-10)),
         )
         self.assertEqual(
-            self.connection.execute(
-                "select finances_total,data_kiosk_category_amount,difference,accounted_total "
-                "from private.payout_report_reconciliation where report_id=%s",
-                (report,),
-            ).fetchone(),
-            (Decimal(0), Decimal(-10), Decimal(10), Decimal(0)),
+            [
+                (row["source"], row["category"], Decimal(row["amount"]))
+                for row in report_source_rows(self, self.administrator(), report)
+            ],
+            [("DATA_KIOSK", "DATA_KIOSK", Decimal(-10))],
         )
         self.connection.execute("set constraints all immediate")
 

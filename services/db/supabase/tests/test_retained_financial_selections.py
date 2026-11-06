@@ -61,24 +61,14 @@ class RetainedFinancialSelectionTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select public.transaction_count(p_skus=>array['SKU'],"
-                "p_sources=>array['RECONCILIATION'])",
-            ),
-            [("0",)],
-        )
-        self.assertEqual(
-            self.as_user(
-                administrator,
                 "select public.transaction_count(p_company_ids=>array[%s]::uuid[])",
                 (company,),
             ),
             [("2",)],
         )
         self.assertEqual(
-            self.as_user(
-                administrator, "select public.transaction_count(p_sources=>array['RECONCILIATION'])"
-            ),
-            [("1",)],
+            self.as_user(administrator, "select public.transaction_count()"),
+            [("3",)],
         )
         # Raw source inspection/search retains supplied SKU text and category provenance.
         self.assertEqual(

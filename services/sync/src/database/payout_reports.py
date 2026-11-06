@@ -16,7 +16,6 @@ from .financial_values import (
     optional_financial_amount,
 )
 from .publication import publish_json
-from .seller_namespaces import validate_seller_namespace
 from .values import normalize_uuid, required_date, required_text
 
 
@@ -35,7 +34,6 @@ class CompanyPayoutReport:
     change_reason: str
     calculation_version: str
     component_count: int
-    reconciliation_count: int
     finances_batch_count: int
     data_kiosk_observation_count: int
     terms_version_count: int
@@ -71,25 +69,6 @@ class CompanyPayoutComponent:
     fee_amount: Decimal | None
     company_amount: Decimal | None
     resolution_status: str
-
-
-@dataclass(frozen=True, slots=True)
-class CompanyPayoutReconciliation:
-    """Seller-wide daily controls, repeated per report and restricted to administrators."""
-
-    report_id: str
-    row_number: int
-    seller_namespace: str
-    activity_date: date
-    marketplace_name: str | None
-    currency: str
-    finances_category_amount: Decimal
-    selbox_category_amount: Decimal
-    data_kiosk_finances_control: Decimal
-    data_kiosk_category_amount: Decimal
-    difference: Decimal
-    finances_total: Decimal
-    accounted_total: Decimal
 
 
 def publish_company_payout_report(
@@ -153,7 +132,7 @@ def load_company_payout_report(
             """
             select id, company_id, currency, start_date, end_date,
                 dataset_key, marketplace_name, report_name,
-                change_reason, calculation_version, component_count, reconciliation_count,
+                change_reason, calculation_version, component_count,
                 finances_batch_count, data_kiosk_observation_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at
             from public.company_payout_reports where id = %(id)s::uuid
@@ -184,25 +163,6 @@ def load_company_payout_report_components(
         return tuple(_component(row) for row in cursor.fetchall())
 
 
-def load_company_payout_reconciliation(
-    database: DatabaseConnection, report_id: str
-) -> tuple[CompanyPayoutReconciliation, ...]:
-    """Read saved seller controls; these amounts never add to a company payout."""
-    with database.connection() as connection, connection.cursor() as cursor:
-        cursor.execute(
-            """
-            select report_id, row_number, seller_namespace, activity_date, marketplace_name,
-                currency, finances_category_amount, selbox_category_amount,
-                data_kiosk_finances_control,
-                data_kiosk_category_amount, difference, finances_total, accounted_total
-            from public.payout_report_reconciliation
-            where report_id = %(id)s::uuid order by row_number
-            """,
-            {"id": normalize_uuid(report_id, "report_id")},
-        )
-        return tuple(_reconciliation(row) for row in cursor.fetchall())
-
-
 def _optional_marketplace_name(value: object) -> str | None:
     """Keep an unspecified marketplace distinct from a validated saved name."""
     return (
@@ -213,9 +173,9 @@ def _optional_marketplace_name(value: object) -> str | None:
 
 
 def _report(row: Sequence[object]) -> CompanyPayoutReport:
-    if len(row) != 19:
+    if len(row) != 18:
         raise RuntimeError("The payout report query returned an invalid shape.")
-    created_at = row[18]
+    created_at = row[17]
     if not isinstance(created_at, datetime) or created_at.utcoffset() is None:
         raise RuntimeError("created_at must be a timezone-aware datetime.")
     calculation_version = required_text(row[9], "calculation_version")
@@ -234,19 +194,17 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
         change_reason=required_text(row[8], "change_reason"),
         calculation_version=calculation_version,
         component_count=nonnegative_count(row[10], "component_count"),
-        reconciliation_count=nonnegative_count(row[11], "reconciliation_count"),
-        finances_batch_count=nonnegative_count(row[12], "finances_batch_count"),
-        data_kiosk_observation_count=nonnegative_count(row[13], "data_kiosk_observation_count"),
-        terms_version_count=nonnegative_count(row[14], "terms_version_count"),
-        source_amount=financial_amount(row[15], "source_amount"),
-        fee_amount=financial_amount(row[16], "fee_amount"),
-        company_amount=financial_amount(row[17], "company_amount"),
+        finances_batch_count=nonnegative_count(row[11], "finances_batch_count"),
+        data_kiosk_observation_count=nonnegative_count(row[12], "data_kiosk_observation_count"),
+        terms_version_count=nonnegative_count(row[13], "terms_version_count"),
+        source_amount=financial_amount(row[14], "source_amount"),
+        fee_amount=financial_amount(row[15], "fee_amount"),
+        company_amount=financial_amount(row[16], "company_amount"),
         created_at=created_at,
     )
     if report.currency is None and any(
         (
             report.component_count,
-            report.reconciliation_count,
             report.source_amount,
             report.fee_amount,
             report.company_amount,
@@ -301,24 +259,4 @@ def _component(row: Sequence[object]) -> CompanyPayoutComponent:
         fee_amount=optional_financial_amount(row[19], "fee_amount"),
         company_amount=optional_financial_amount(row[20], "company_amount"),
         resolution_status=status,
-    )
-
-
-def _reconciliation(row: Sequence[object]) -> CompanyPayoutReconciliation:
-    if len(row) != 13:
-        raise RuntimeError("The payout reconciliation query returned an invalid shape.")
-    return CompanyPayoutReconciliation(
-        report_id=normalize_uuid(row[0], "report_id"),
-        row_number=nonnegative_count(row[1], "row_number"),
-        seller_namespace=validate_seller_namespace(required_text(row[2], "seller_namespace")),
-        activity_date=required_date(row[3], "activity_date"),
-        marketplace_name=_optional_marketplace_name(row[4]),
-        currency=financial_currency(row[5]),
-        finances_category_amount=financial_amount(row[6], "finances_category_amount"),
-        selbox_category_amount=financial_amount(row[7], "selbox_category_amount"),
-        data_kiosk_finances_control=financial_amount(row[8], "data_kiosk_finances_control"),
-        data_kiosk_category_amount=financial_amount(row[9], "data_kiosk_category_amount"),
-        difference=financial_amount(row[10], "difference"),
-        finances_total=financial_amount(row[11], "finances_total"),
-        accounted_total=financial_amount(row[12], "accounted_total"),
     )

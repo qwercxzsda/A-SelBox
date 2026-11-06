@@ -68,8 +68,7 @@ Each complete download logs its ID. Finances writes an atomic local manifest bun
 `--manifest-output`; it requires no database connection and refuses an existing output file.
 Completed monthly captures remain in the bundle if a later month fails. Other downloaders
 continue publishing their acquisition metadata to PostgreSQL. An incomplete source traversal logs diagnostics and
-publishes no partial successful manifest. Finances Summary is a separate optional control, as
-described below. Independently completed downloads stay available.
+publishes no partial successful manifest. Independently completed downloads stay available.
 
 Finances uses SP-API v2024-06-19 `listTransactions` and `listSummary`. It obtains the
 seller's participating marketplace roster and sends unfiltered regional requests, including all
@@ -188,7 +187,7 @@ not call Amazon. The [payout contract](../../docs/company_payout_reports.md) own
 input selection, retry/reuse behavior and access.
 
 `src/database/payout_reports.py` provides a trusted internal `publish_company_payout_report()`
-helper and readers for frozen headers, components and reconciliation. Publication selects one
+helper and readers for frozen headers and components. Publication selects one
 company/month/marketplace/currency scope; callers do not supply source selections or calculated
 totals. A null marketplace/currency can represent an eligible company month without monetary scope.
 Application users only read reports; saving one does not approve or execute payment.

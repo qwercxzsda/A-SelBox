@@ -75,9 +75,6 @@ class PayoutReportAccessTests(SourceModelFixture):
             ("select * from private.payout_report_finances_batches", 1, 0),
             ("select * from private.payout_report_data_kiosk_observations", 30, 0),
             ("select * from private.payout_report_terms_versions", 2, 0),
-            ("select * from public.payout_report_reconciliation", 1, 0),
-            ("select * from private.payout_report_reconciliation", 1, 0),
-            ("select * from public.payout_reconciliation_totals", 1, 0),
         )
         for query, administrator_count, member_count in queries:
             with self.subTest(query=query):

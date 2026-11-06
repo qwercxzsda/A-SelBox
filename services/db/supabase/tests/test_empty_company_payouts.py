@@ -37,12 +37,12 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select currency,source_amount,fee_amount,"
-                "company_amount,component_count,reconciliation_count,finances_batch_count,"
+                "company_amount,component_count,finances_batch_count,"
                 "data_kiosk_observation_count,terms_version_count "
                 "from public.company_payout_reports where id=%s",
                 (report,),
             ).fetchone(),
-            (None, Decimal(0), Decimal(0), Decimal(0), 0, 0, *inventories),
+            (None, Decimal(0), Decimal(0), Decimal(0), 0, *inventories),
         )
 
     def test_company_without_assigned_skus_gets_no_report_despite_members_or_source_data(

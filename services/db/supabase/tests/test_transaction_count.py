@@ -53,7 +53,7 @@ class TransactionCountTests(SourceModelFixture):
     def test_roles_zero_visibility_and_missing_fee_rows_are_counted_exactly(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, expected in (
-            (self.administrator(), "20"),
+            (self.administrator(), "18"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
@@ -132,7 +132,7 @@ class TransactionCountTests(SourceModelFixture):
         acquisition = self.acquisition()
         _, _finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk = self.kiosk(1, [self.component("-10")])
-        for user, expected in ((administrator, "3"), (member_a, "2"), (member_b, "0")):
+        for user, expected in ((administrator, "2"), (member_a, "2"), (member_b, "0")):
             self.assertEqual(self.assert_matches_view(user), expected)
         self.finances(
             [self.transaction("200", 3), self.transaction("300", 4)],
@@ -155,7 +155,7 @@ class TransactionCountTests(SourceModelFixture):
     def test_text_marketplace_counts_match_pages_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
-            (self.administrator(), "20"),
+            (self.administrator(), "18"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),

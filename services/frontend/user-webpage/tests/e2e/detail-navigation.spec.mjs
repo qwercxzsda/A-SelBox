@@ -20,7 +20,6 @@ async function openReport(page, role, companyName = "Navigation Company") {
       source_amount: "75",
       fee_amount: "0",
       company_amount: "75",
-      reconciliation_count: "1",
     },
   ];
   fixture.payoutComponents = Array.from({ length: 75 }, (_, index) => ({
@@ -100,7 +99,7 @@ for (const role of ["administrator", "member"]) {
           drawer.getByRole("button", { name: "Reconciliation", exact: true }),
         ).toHaveCount(0);
         expect(
-          fixture.events.some(({ endpoint }) => endpoint.endsWith("/payout_report_reconciliation")),
+          fixture.events.some(({ endpoint }) => endpoint.endsWith("/rpc/report_source_totals")),
         ).toBe(false);
       }
     });

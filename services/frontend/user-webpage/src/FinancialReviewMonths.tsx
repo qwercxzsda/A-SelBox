@@ -42,7 +42,9 @@ export function FinancialReviewMonths({
     bounds,
     comparisonQuery,
     totalsQuery,
+    sourceTotals,
     familyQuery,
+    familyTypes,
     familyOptions,
     matureCutoff,
     latestMonth,
@@ -173,7 +175,7 @@ export function FinancialReviewMonths({
       ) : null}
       {hasSelectedFamilies && totalsQuery.isError ? (
         <Alert role="alert" color="red" mb="sm">
-          Could not load available currencies.
+          Could not load source coverage and available currencies.
           <Button
             variant="subtle"
             onClick={() => {
@@ -181,7 +183,7 @@ export function FinancialReviewMonths({
               void totalsQuery.refetch();
             }}
           >
-            Retry currencies
+            Retry source totals
           </Button>
         </Alert>
       ) : null}
@@ -206,7 +208,7 @@ export function FinancialReviewMonths({
             rows={rows}
             currency={currency}
             families={scope.families}
-            familyTypes={familyQuery.data ?? null}
+            familyTypes={familyTypes}
             familyLoading={
               familyQuery.isPending || familyQuery.isFetching || totalsQuery.isFetching
             }
@@ -222,6 +224,8 @@ export function FinancialReviewMonths({
       {year && matureCutoff && currency ? (
         <FinancialReviewFamilyBreakdown
           query={familyQuery}
+          sourceTotals={sourceTotals}
+          sourceQuery={totalsQuery}
           category={category}
           marketplace={scope.marketplace}
           currency={currency}

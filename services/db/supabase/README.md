@@ -24,6 +24,10 @@ The default API and Storage URL is `http://127.0.0.1:54321`; PostgreSQL uses por
 local stacks can use different ports. The frontend must use the explicit public API URL for the
 intended stack, as described in the [frontend setup guide](../../frontend/user-webpage/README.md#configuration).
 
+Local analytics is disabled in `config.toml`; the application does not use Logflare. This avoids
+keeping a second database copy of development logs. Source archives and preprocessing logs are
+independent of that service.
+
 Starting Supabase preserves existing local data. This undeployed project's canonical migrations
 install a fresh database. Verification creates disposable databases without changing development
 data, migration records, or archives.
@@ -50,10 +54,10 @@ disposable databases.
 | [archive_publications](migrations/20260928123056_archive_publications.sql)                   | Immutable archive metadata and acquisition publication for Data Kiosk and Inventory; Finance publication is Python-owned.                          |
 | [source_publications](migrations/20260928123102_source_publications.sql)                     | Atomic Data Kiosk day publication and same-day Inventory capture replacement; Finance publication is Python-owned.                                 |
 | [application_identity](migrations/20260928123104_application_identity.sql)                   | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views.                                            |
-| [financial_rules](migrations/20260928123106_financial_rules.sql)                             | Mature cutoff, fee arithmetic, source controls, and SelBox reconciliation for live and frozen inputs.                        |
+| [financial_rules](migrations/20260928123106_financial_rules.sql)                             | Mature cutoff, account visibility, and service-fee arithmetic.                        |
 | [financial_components](migrations/20260928123111_financial_components.sql)                   | Current and explicit-version company components with ownership and fees.                                                     |
 | [financial_reads](migrations/20260928123113_financial_reads.sql)                             | Strict complete and partial financial reads with declared source coverage.                                                   |
-| [payout_schema](migrations/20260928123115_payout_schema.sql)                                 | Frozen payout headers/components, Finance batch and Data Kiosk version manifests, reconciliation and refresh state.                                |
+| [payout_schema](migrations/20260928123115_payout_schema.sql)                                 | Frozen payout headers/components, exact Finance and Data Kiosk observation manifests, and refresh state.                    |
 | [publication_integrity](migrations/20260928123116_publication_integrity.sql)                 | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
 | [payout_validation](migrations/20260928123117_payout_validation.sql)                         | Frozen-input integrity, coverage, provenance, and totals validation.                                                         |
 | [payout_publication](migrations/20260928123119_payout_publication.sql)                       | Locked source capture across namespaces, company/marketplace/currency aggregation, and latest-report reuse.                  |
@@ -77,7 +81,7 @@ disposable databases.
 
 All browser financial reads use authenticated REST/RPC with invoker security and base-table RLS.
 `transaction_page` and `source_transaction_page` select filtered, authorized rows before metadata
-and fee projection. `transaction_count` counts the live ledger, including authorized derived differences;
+and fee projection. `transaction_count` counts current authoritative source components;
 `source_transaction_count` counts raw facts independently.
 `transaction_totals` combines compatible facts before fee lookup. Administrator identity bootstrap
 preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
@@ -240,7 +244,7 @@ fixture companies. It restores the full dump, including its Auth fixtures, into 
 disposable Supabase stack. It creates verification logins through actual Auth and uses their tokens
 with PostgREST to check administrator and member configuration reads, changed-SKU rejection and atomic
 rollback, assignment and exact fee changes, denied member writes, and stale-version rejection.
-Independent SQL checks verify source authority and daily reconciliation.
+Independent SQL checks verify source authority and frozen company amounts.
 
 Test publications change only the disposable database. The verifier checks that source facts and
 the supplied seed file remain unchanged, removes the temporary stack, and writes a sanitized JSON

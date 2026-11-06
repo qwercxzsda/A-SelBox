@@ -72,10 +72,10 @@ class LiveViewEquivalenceTests(FinancialFixture):
             self.administrator(),
         )
         scopes: tuple[tuple[LiteralString, tuple[object, ...], tuple[int, int, int]], ...] = (
-            ("true", (), (23, 12, 2)),
+            ("true", (), (21, 12, 2)),
             ("company_id = %s::uuid", (company_a,), (12, 12, 0)),
             ("company_id = %s::uuid", (company_b,), (2, 0, 2)),
-            ("activity_date = %s::date", ("2026-06-15",), (21, 10, 2)),
+            ("activity_date = %s::date", ("2026-06-15",), (19, 10, 2)),
             ("sku = %s", ("SKU",), (12, 11, 0)),
             ("source = %s", ("DATA_KIOSK",), (10, 6, 1)),
             (
@@ -83,7 +83,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 ("Amazon.com", "FbaStorageFee"),
                 (9, 5, 1),
             ),
-            ("authoritative", (), (20, 10, 2)),
+            ("authoritative", (), (18, 10, 2)),
             (
                 "activity_date = %s::date and sku = %s and authoritative",
                 ("2026-06-15", "SKU"),
@@ -99,7 +99,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             ):
                 with self.subTest(role="trusted" if user is None else user, predicate=predicate):
                     self.assert_matches_resolver(user, expected_rows, predicate, parameters)
-        for user, count in ((None, 23), (administrator, 23), (member_a, 12), (member_b, 2)):
+        for user, count in ((None, 21), (administrator, 21), (member_a, 12), (member_b, 2)):
             with self.subTest(page_role="trusted" if user is None else user):
                 self.assert_matches_resolver(user, count, limit=3)
         self.assert_matches_resolver(self.auth_user(), 0)
@@ -147,14 +147,13 @@ class LiveViewEquivalenceTests(FinancialFixture):
         )
         _, new_kiosk = self.kiosk(2, [self.component("-20")], expected=old_kiosk)
         revised_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, count in ((None, 3), (administrator, 3), (members[0], 0), (members[1], 2)):
+        for user, count in ((None, 2), (administrator, 2), (members[0], 0), (members[1], 2)):
             self.assert_matches_resolver(user, count)
         self.assertEqual(
             {
                 str(row[0])
                 for row in self.connection.execute(
                     "select source_version_id from public.live_company_components "
-                    "where source<>'RECONCILIATION'"
                 ).fetchall()
             },
             {new_finances, new_kiosk},
@@ -176,7 +175,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             Decimal(85),
         )
         self.assign("SKU", None, rate="7", expected=revised_terms)
-        for user, count in ((None, 3), (administrator, 3), (members[0], 0), (members[1], 0)):
+        for user, count in ((None, 2), (administrator, 2), (members[0], 0), (members[1], 0)):
             self.assert_matches_resolver(user, count)
         self.connection.execute("set constraints all immediate")
 

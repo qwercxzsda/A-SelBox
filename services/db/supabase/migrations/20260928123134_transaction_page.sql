@@ -229,36 +229,6 @@ begin
                 limit $8::bigint
                 %10$s
             )
-            union all
-            (
-                %8$s
-                select 'RECONCILIATION'::text as source,
-                    private.reconciliation_group_id(t.seller_namespace, t.activity_date, t.marketplace_name, t.currency) as source_row_id,
-                    private.reconciliation_group_id(t.seller_namespace, t.activity_date, t.marketplace_name, t.currency) as source_version_id,
-                    t.seller_namespace, t.marketplace_name, t.activity_date,
-                    null::text as sku, 'FINANCES_KIOSK_DIFFERENCE'::text as component_type,
-                    t.currency, t.difference as source_amount, null::numeric as quantity,
-                    null::numeric as fee_base, 'SELBOX'::public.allocation_category as category
-                from private.live_source_reconciliation t
-                where (t.data_kiosk_finances_control <> 0 or t.data_kiosk_category_amount <> 0)
-                    and ($1::date is null or t.activity_date >= $1)
-                    and ($2::date is null or t.activity_date <= $2)
-                    and ($18::text is null or t.currency = $18)
-                    and coalesce(cardinality($3::uuid[]),0) = 0
-                    and coalesce(cardinality($4::text[]),0) = 0
-                    and %9$s
-                    and (coalesce(cardinality($6::text[]),0) = 0 or 'RECONCILIATION' = any($6))
-                    and (coalesce(cardinality($7::text[]),0) = 0
-                        or 'FINANCES_KIOSK_DIFFERENCE' = any($7))
-                    and ($12::boolean is null or not $12)
-                    and (($13::text[] is null and $14::text[] is null
-                            and $15::text[] is null and $16::text[] is null)
-                        or 'FINANCES_KIOSK_DIFFERENCE' = any($14)
-                        or t.marketplace_name = any($15) or 'RECONCILIATION' = any($16))
-                %3$s
-                limit $8::bigint
-                %10$s
-            )
             %5$s
         ),
         candidate_count as materialized (
@@ -280,10 +250,8 @@ begin
         ),
         page as materialized (
             select r.*,
-                case when r.source = 'RECONCILIATION' then 'reconciliation-v1'
-                    else coalesce(fp.preprocess_version, kb.preprocess_version) end as preprocess_version,
-                case when r.source = 'RECONCILIATION' then r.source_row_id
-                    else coalesce(s.transaction_id, k.day_id) end as source_identity_id,
+                coalesce(fp.preprocess_version, kb.preprocess_version) as preprocess_version,
+                coalesce(s.transaction_id, k.day_id) as source_identity_id,
                 o.sku_id, o.terms_version_id, o.company_id
             from raw_page as r
             left join private.finances_transaction_versions as s
@@ -296,7 +264,7 @@ begin
             left join private.data_kiosk_preprocess_batches as kb on kb.id=kd.current_batch_id
             left join selected_terms as o
                 on r.sku = o.sku and r.category <> 'SELBOX'
-            where s.id is not null or k.id is not null or r.source = 'RECONCILIATION'
+            where s.id is not null or k.id is not null
         ),
         resolved as (
             select c.*, p.id as fee_period_id, p.fee_rate_percent,

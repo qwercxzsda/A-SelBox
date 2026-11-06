@@ -1,7 +1,7 @@
 # Financial review
 
-Financial review is an administrator-only comparison of current facts from fully mature months
-for one exact marketplace across all source namespaces, companies, and SKUs. It explains source
+Financial review is an administrator-only frontend comparison of current facts, defaulting to fully
+mature months for one exact marketplace across all source namespaces, companies, and SKUs. It explains source
 differences; [payout reports](company_payout_reports.md) freeze company amounts separately.
 Currencies remain separate in both views.
 
@@ -14,7 +14,7 @@ the source of every row in that tab:
 | ---------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Finances   | Sales, refunds, and transaction fees            | Finances supplies company amounts; Data Kiosk supplies a comparison.                                                      |
 | Data Kiosk | Allocated costs such as advertising and storage | Data Kiosk supplies company costs; Finances supplies account controls.                                                    |
-| SelBox     | Account charges and balance movements           | These source-category amounts stay with SelBox. They exclude retained service fees and the derived Data Kiosk difference. |
+| SelBox     | Account charges and balance movements           | These actual source-category amounts stay with SelBox. Diagnostic differences are separate. |
 
 Data Kiosk is the initial category. Each marketplace/month/currency row compares the signed source sums:
 
@@ -32,23 +32,20 @@ decimal precision and round only the displayed result, with ties away from zero.
 the unrounded source sums, so subtracting two displayed rounded amounts can differ by a cent from
 the displayed difference. Values that round to zero display `0.00`, without a negative sign.
 
-Only the complete Data Kiosk category difference is the accounting reconciliation amount retained by SelBox.
-Selecting fee families shows a diagnostic subset; it does not change saved payout reconciliation.
-Differences in the Finances and SelBox categories are diagnostic and do not create additional
-payout adjustments. A source with no matching rows has a zero sum and is identified by its zero
-record count. Source rows with zero amounts remain visible. `ANALYSIS_ONLY` rows do not enter
-these monetary comparisons.
+A shared frontend module computes category and fee-family differences from the exact source sums.
+No difference is a transaction, a payout adjustment or a backend accounting record. A missing source
+contributes zero only when successful retrieval coverage covers the comparison period for every
+relevant seller. An absent side with unknown or partial coverage stays unavailable. Returned source
+amounts remain visible with their coverage status. When both sides have amounts but coverage is
+partial, their difference describes only the observed data; it does not certify complete retrieval. Retained
+zero-amount components remain observable. Data Kiosk omits components only when all calculation
+inputs are zero or absent, while preserving empty-day coverage. `ANALYSIS_ONLY` data is excluded
+from additive monetary comparisons.
 
-Only fully mature calendar months are eligible, matching [payout reports](company_payout_reports.md).
-The current-source boundary is the first day of the month containing `mature_cutoff_date`, exclusive.
-For example, an August 18 cutoff includes all of July and excludes all of August, including its
-otherwise mature early dates. The overview and month drawer identify the latest eligible month from
-the payout policy's `latest_month`. A newly eligible month appears in full when the cutoff enters
-the following month. This boundary applies to date discovery, available currencies, period and running
-totals, types, and source records; a stale saved selection cannot reopen an ineligible month.
-Downloaded coverage and Financial review eligibility are separate: recent months can be present
-in the source tabs while absent from this comparison. Maturity is an application assumption,
-not proof that Amazon's sources agree or that every expected transaction has arrived.
+The UI uses the payout policy's `latest_month` to choose its default fully mature date window and
+clips overview, family and detail requests to that window. The backend source readers honor the
+explicit requested dates without applying a moving maturity cutoff. Retrieval coverage and the
+UI's review window are separate; neither establishes Amazon finality or agreement between sources.
 
 The independent Finances/`listSummary` check validates account activity before
 payout publication. It compares native transaction totals, not Data Kiosk.
@@ -88,9 +85,8 @@ Monthly storage and Sponsored products includes both, while Marketplace, Year, a
 intersect that selection. An empty selection includes all families; a nonempty selection with no
 matching source types stays empty. Selections remain when changing marketplace, year, currency, or category,
 including families absent from the new scope. Saved preferences and `family=` URL parameters
-resolve retired IDs to their current family, deduplicate them, and retain the filtered scope through
-reload and Back/Forward navigation. For example, `product-sales` and `product-refunds` both resolve
-to `net-product-sales`; they do not become an unrestricted selection.
+use current family IDs, deduplicate them, and retain the filtered scope through reload and
+Back/Forward navigation. Request filtering rejects unknown family IDs.
 `reviewMarketplace` is a scalar URL field, separate from repeated transaction marketplace filters.
 Saved report links additionally require their exact marketplace, company, dates, currency, and ID.
 Currency never implies a marketplace.
@@ -98,7 +94,8 @@ Currency never implies a marketplace.
 The overview shows up to twelve monthly rows, January through December, without row pagination or
 a separate month filter. Each row shows the monthly source sums, monthly difference, and
 **Running difference**: the exact sum of monthly differences from the start of the selected year
-through that row. Missing months have no row; the running sum includes only returned source facts.
+through that row. Missing months have no row. An unavailable monthly comparison makes the running
+value unavailable; it is not silently counted as zero.
 Period totals, the **Monthly and running differences** chart, and the monthly rows use the same year,
 marketplace, currency, category, and family selection. The optional **Fee family breakdown** shows each named
 family's source sums and difference across that period. Offsetting differences can reduce a running
@@ -107,8 +104,8 @@ were resolved.
 
 Where a source is absent in all or part of the selected scope, an overview note identifies it or
 counts the months with records from only one source, and shows each source's record count. An absent
-source contributes zero to the comparison. Missing or malformed counts remain unavailable instead
-of becoming zero.
+source contributes zero only for a covered empty period. Missing retrieval coverage or malformed
+counts remain unavailable instead of becoming zero.
 A zero amount can still have source records, and a zero difference can result from cancelling
 amounts; neither establishes complete source coverage.
 
@@ -265,41 +262,71 @@ preserving its company filter independently of the current category comparison. 
 selection does not alter a saved snapshot's amounts or supporting records; the section identifies
 that historical scope explicitly. This list remains limited to the selected marketplace.
 
-Selecting a snapshot opens **Saved source details**, including **Supporting records**, saved
-account reconciliation, and input metadata captured when that report was created. These details are exclusive of the company
-payout amount. Account controls can include other companies from the source accounts. Reports
-save controls for their exact marketplace/currency. Details use the selected report's own currency, while account scope remains
-separate from the report's company scope.
+Selecting a snapshot opens **Saved source details**, including stored **Supporting records**,
+**Account reconciliation** calculated from the report's saved source inputs, and input metadata.
+These diagnostics are separate from the frozen company payout amount. Reconciliation uses the
+selected report's own dates, marketplace and currency; its account scope can include other
+companies from the source accounts.
 
-Saved account controls remain immutable. The same controls can appear beside several company
-reports, so they must not be added across reports. The [saved reconciliation contract](company_payout_reports.md#saved-account-reconciliation)
-defines their exact identity. Members cannot read these comparison rows, controls, or
-input manifests through the API.
+The frontend uses the same calculation for current and saved-source aggregates. The report endpoint
+follows the already-saved source references and accepts no replacement scope or version IDs.
+Current ownership, fees and maturity policy do not alter those inputs. The same accounts may appear
+in several company reports; do not add their diagnostic totals across reports. Members cannot read
+these account-wide aggregates or source manifests.
 
 ## Read contract
 
-| Interface                                                                                              | Purpose                                                                                                                  |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `public.financial_review_records`                                                                      | Current mature facts in the three monetary categories, filtered by exact marketplace with source provenance.             |
-| `public.financial_review_totals(p_month_from, p_month_to, p_category, p_marketplace)`                  | Monthly sums, differences, and source record counts by currency within one marketplace.                                  |
-| `public.financial_review_type_totals(p_month_from, p_month_to, p_category, p_currency, p_marketplace)` | Exact sums and counts by source and raw type within one marketplace.                                                     |
-| `public.financial_source_record(p_source, p_row_id, p_version_id)`                                     | Exact retained source detail, with no version substitution; administrator-only.                                          |
-| `public.financial_source_transaction_lookup(p_native_transaction_id, p_limit, p_offset)`               | Exact Finances native-ID component lookup across retained captures; administrator-only and bounded to 100 rows per call. |
-| `public.payout_reconciliation_totals`                                                                  | Frozen account controls for one selected saved report, grouped by currency.                                              |
-| `public.payout_report_reconciliation`                                                                  | Frozen daily account controls and their source provenance.                                                               |
+| Interface | Purpose |
+| --- | --- |
+| `public.current_source_totals` | Exact source/category sums for the requested current-source date and marketplace scope. |
+| `public.report_source_totals` | The same aggregates from one report's immutable source references and fixed scope. |
+| `public.financial_review_records` | Current additive source records for administrator drill-down. |
+| `public.financial_review_type_totals` | Exact source/type sums and counts within explicit half-open month bounds. |
+| `public.financial_source_record` | Exact retained component/version lookup. |
+| `public.financial_source_transaction_lookup` | Bounded exact native Finance transaction-ID lookup. |
 
-Current-source interfaces use invoker security and an explicit administrator check. Month RPCs require
-half-open date bounds and an exact marketplace, applied before grouping with existing fact-date indexes.
-The browser reads the earliest and latest eligible dates with one-row date anchors, then requests
-one bounded January-to-January period for the selected marketplace. The period response includes
-its currencies to resolve the amount unit; only that unit enters displayed totals and running sums. Complete type
-aggregates for that marketplace, year, and currency provide the family choices and breakdown. When families are
-selected, their aggregate union supplies the monthly, running, and period amounts. Monthly detail
-reads also filter by the exact marketplace, currency, and family source/type identities. Finding the date bounds
-can still examine source rows; bounded result size is not a constant-time guarantee.
+The two source-total RPCs return JSON with `scope`, `revision`, `rows`, `total_count`, `next_offset`
+and `coverage`. `scope` contains `start_date`, `end_date`, `marketplace_name` and `currency`; report
+responses also include `report_id`. The client verifies this scope against its request. Each amount
+row carries `seller_namespace`, `period`, `marketplace_name`, `currency`,
+`source`, `category`, `amount` and `row_count`. Sources are `FINANCES` and `DATA_KIOSK`; additive
+categories are `FINANCES`, `DATA_KIOSK` and `SELBOX`. `row_count` counts monetary components, not
+Amazon transaction identities. Amounts and counts are exact strings. The frontend
+pivots these rows into comparisons using its exact-decimal utilities; no derived diagnostic amount
+comes from SQL.
 
-CSV responses preserve decimal strings. Aggregate RPC projections are alphabetically ordered to
-keep values aligned with headers on the deployed PostgREST CSV serializer; tests protect that
-alignment. See [access control](access_control.md) for grants/RLS and the
-[frontend guide](../services/frontend/user-webpage/README.md#requests-and-session-lifecycle) for
-revision and cache behavior.
+Current arguments are `p_start`, `p_end`, `p_marketplace`, `p_grouping`, optional `p_currency` and
+`p_category`, and daily `p_limit`/`p_offset`. Dates are inclusive and finite. Report arguments are
+only `p_report_id`, `p_grouping`, `p_limit` and `p_offset`; its saved header fixes the date, market and
+currency scope. A report with no currency has no native amount rows; readers do not invent a unit.
+Both endpoints reject non-administrator authenticated callers. The default grouping is `month` for
+current reads and `total` for reports. Daily pagination defaults to 50 buckets at offset zero.
+
+`total` and `month` grouping return complete aggregates across sellers without applying page limits
+or offsets; `next_offset` is null. Their `seller_namespace` is null. The `total` period is null,
+and each `month` period is the first day of that month. `day` grouping retains
+seller/date/market/currency buckets and pages complete buckets, including all their source/category
+rows. `total_count` and `next_offset` refer to comparison buckets, not individual aggregate rows.
+Source record drill-down
+uses its own ordinary pagination. The frontend never computes headline totals from a detail page.
+
+Daily buckets are ordered by seller, date, marketplace and currency using the database's text
+collation; source and category order rows within each bucket. The client preserves that bucket order
+across pages instead of re-sorting each page independently.
+
+Coverage contains `{source, seller_namespace, start_date, end_date}` intervals clipped to the
+inclusive response scope. Finance periods come from accepted acquisition batches; Data Kiosk
+periods come from selected day headers, including empty days. Report coverage follows only its
+saved manifests. Coverage is independent of category/currency filtering, and row absence alone
+is not coverage or a promise of Amazon finality.
+
+Current `revision` contains the `finances` and `data_kiosk` workspace tokens, including their
+existing cutoff suffix, for authenticated administrators. Companion results with different tokens
+are invalidated together. Trusted SQL reads without an administrator identity return null. Report
+`revision` is always null: its immutable aggregate is cached by report ID and authorization identity.
+Currencies are never combined.
+
+Basic type and record readers retain CSV projections where appropriate. RPC CSV projections are
+alphabetically ordered to preserve field alignment on PostgREST. See [access control](access_control.md)
+for grants/RLS and the [frontend guide](../services/frontend/user-webpage/README.md#requests-and-session-lifecycle)
+for session and cache handling.

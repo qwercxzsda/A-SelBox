@@ -77,14 +77,6 @@ select distinct
         and t.category in ('FINANCES', 'SELBOX'))) as authoritative
 from private.data_kiosk_batch_components as t
 where t.observation_id = any(p_data_kiosk_observation_ids)
-union all
-select 'RECONCILIATION'::text, private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency),
-    private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), 'reconciliation-v1'::text,
-    private.reconciliation_group_id(r.seller_namespace, r.activity_date, r.marketplace_name, r.currency), r.seller_namespace,
-    r.marketplace_name, r.activity_date, null::text, 'FINANCES_KIOSK_DIFFERENCE'::text,
-    r.currency, r.difference, null::numeric, null::numeric, 'SELBOX'::public.allocation_category, true
-from private.resolve_source_reconciliation(p_finances_batch_ids,p_data_kiosk_observation_ids) r
-where r.data_kiosk_finances_control <> 0 or r.data_kiosk_category_amount <> 0
 ), selected_terms as (
     select s.id as sku_id,s.sku,v.id as terms_version_id,v.company_id
     from public.sku_terms_versions v join public.skus s on s.id = v.sku_id
@@ -188,32 +180,6 @@ with components as (
     from private.data_kiosk_component_details as t
     inner join private.data_kiosk_preprocess_batches as b on t.current_batch_id = b.id
     where t.is_current
-    union all
-    select
-        'RECONCILIATION'::text,
-        private.reconciliation_group_id(
-            r.seller_namespace, r.activity_date, r.marketplace_name, r.currency
-        ) as source_row_id,
-        private.reconciliation_group_id(
-            r.seller_namespace, r.activity_date, r.marketplace_name, r.currency
-        ) as source_version_id,
-        'reconciliation-v1'::text,
-        private.reconciliation_group_id(
-            r.seller_namespace, r.activity_date, r.marketplace_name, r.currency
-        ) as source_identity_id,
-        r.seller_namespace,
-        r.marketplace_name,
-        r.activity_date,
-        null::text,
-        'FINANCES_KIOSK_DIFFERENCE'::text,
-        r.currency,
-        r.difference,
-        null::numeric,
-        null::numeric,
-        'SELBOX'::public.allocation_category,
-        true as authoritative
-    from private.live_source_reconciliation as r
-    where r.data_kiosk_finances_control <> 0 or r.data_kiosk_category_amount <> 0
 ),
 
 selected_terms as materialized (

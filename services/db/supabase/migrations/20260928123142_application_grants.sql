@@ -5,7 +5,10 @@ revoke all on function public.payout_report_policy(), public.sku_configuration()
 public.publish_sku_configuration(jsonb, text),
 public.create_company(text), public.delete_company(uuid),
 public.account_directory(), public.set_company_membership(uuid, uuid, public.app_access_role, uuid),
-public.financial_review_totals(date, date, public.allocation_category, text),
+public.current_source_totals(
+    date, date, text, text, text, public.allocation_category, integer, bigint
+),
+public.report_source_totals(uuid, text, integer, bigint),
 public.financial_review_type_totals(date, date, public.allocation_category, text, text)
 from public, anon, authenticated, service_role;
 grant usage on schema private to authenticated;
@@ -53,16 +56,11 @@ public.latest_company_payout_reports,
 private.payout_report_finances_batches, private.payout_report_data_kiosk_observations,
 private.payout_report_terms_versions, public.payout_report_finances_batches,
 public.payout_report_data_kiosk_observations, public.payout_report_terms_versions,
-private.payout_report_reconciliation, public.payout_report_reconciliation,
-public.financial_review_records,
-public.payout_reconciliation_totals,
-private.live_source_reconciliation, private.source_reconciliation_inputs to authenticated;
+public.financial_review_records to authenticated;
 grant execute on function private.is_administrator(), private.is_member(),
 private.current_owned_sku_terms(), private.current_owned_finances_revisions(),
 private.current_owned_data_kiosk_days(),
 private.mature_cutoff_date(), private.financial_account_visible(),
-private.reconciliation_group_id(text, date, text, text),
-private.reconcile_source_amounts(numeric, numeric, numeric, numeric),
 public.payout_report_policy(),
 public.payout_readiness(date, uuid[], integer, bigint),
 private.read_payout_readiness(date, uuid[], integer, bigint),
@@ -70,11 +68,10 @@ public.payout_setup_blockers(uuid, date, integer, bigint),
 private.read_payout_setup_blockers(uuid, date, integer, bigint),
 private.read_finances_preprocess_results(),
 private.read_data_kiosk_preprocess_results(),
-private.resolve_company_components(uuid[], uuid[], uuid[]),
-private.resolve_source_reconciliation(uuid[], uuid[]) to authenticated;
+private.resolve_company_components(uuid[], uuid[], uuid[]) to authenticated;
 grant execute on function private.validate_financial_review_scope(
     date, date, public.allocation_category, text
-), public.financial_review_totals(date, date, public.allocation_category, text),
+),
 public.financial_review_type_totals(date, date, public.allocation_category, text, text)
 to authenticated;
 grant execute on function public.financial_source_record(text, uuid, uuid),
@@ -134,3 +131,14 @@ private.inventory_items, public.latest_inventory_captures,
 public.latest_inventory_items to authenticated;
 grant execute on function private.latest_inventory_capture_references() to authenticated;
 grant execute on function public.inventory_filter_options() to authenticated;
+
+-- Successful Finance coverage metadata is needed for administrator source summaries.
+grant select (id, seller_namespace, query_start_date, query_end_date, api_metadata)
+on private.finances_acquisitions to authenticated;
+
+grant execute on function private.read_source_totals(
+    uuid, date, date, text, text, text, public.allocation_category, integer, bigint
+), public.current_source_totals(
+    date, date, text, text, text, public.allocation_category, integer, bigint
+), public.report_source_totals(uuid, text, integer, bigint)
+to authenticated;

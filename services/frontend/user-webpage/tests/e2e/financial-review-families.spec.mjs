@@ -211,7 +211,7 @@ test("monthly totals, alias types and source records keep the selected family un
     drawer(page).getByRole("heading", { name: "Selected fee family totals", exact: true }),
   ).toBeVisible();
   await expect(drawer(page)).toContainText(
-    "This is a diagnostic comparison of the selected fee families. Saved payout reconciliation continues to use the complete Data Kiosk category.",
+    "This comparison is diagnostic and never changes transaction amounts or saved payouts.",
   );
   const totals = drawer(page).getByRole("table", { name: "Financial review totals", exact: true });
   await expect(totals.locator("tbody tr").getByRole("cell")).toHaveText([
@@ -268,7 +268,7 @@ test("a failed family catalog keeps filtered totals unavailable while retry and 
   const isYearCatalog = ({ endpoint, params }) =>
     endpoint === "financial_review_type_totals" &&
     params.get("p_month_from") === "2026-01-01" &&
-    params.get("p_month_to") === "2027-01-01";
+    params.get("p_month_to") === "2026-08-01";
   const failCatalog = (request) => (isYearCatalog(request) ? 503 : 200);
   fixture.financialReviewStatusForRequest = failCatalog;
   await page.reload();
@@ -363,21 +363,23 @@ test("an empty review without a resolved year settles without requesting or load
   ).toHaveLength(0);
 });
 
-test("currency discovery failures remain recoverable without changing the selected family amounts", async ({
+test("source coverage failures keep selected family comparisons unavailable until retry", async ({
   page,
 }) => {
   const fixture = await openFinancialReview(page, setupFamilies);
   await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
   fixture.financialReviewStatusForRequest = ({ endpoint }) =>
-    endpoint === "financial_review_totals" ? 503 : 200;
+    endpoint === "current_source_totals" ? 503 : 200;
   await page.reload();
-  const retry = page.getByRole("button", { name: "Retry currencies", exact: true });
+  const retry = page.getByRole("button", { name: "Retry source totals", exact: true });
   await expect(retry).toBeVisible();
   await expect(page.getByRole("alert").filter({ has: retry })).toContainText(
-    "Could not load available currencies.",
+    "Could not load source coverage and available currencies.",
   );
   await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
-  await expectPeriod(page, ["-49.02 USD", "-44.00 USD", "-5.01 USD"]);
+  await expect(page.getByRole("region", { name: "2026 review totals", exact: true })).toHaveCount(
+    0,
+  );
   fixture.financialReviewStatusForRequest = null;
   await retry.press("Enter");
   await expect(retry).toBeHidden();
@@ -389,6 +391,27 @@ test("currency discovery failures remain recoverable without changing the select
     "monthly-storage",
     "sponsored-products",
   ]);
+});
+
+test("monthly family comparison reports a failed coverage read and retries both inputs", async ({
+  page,
+}) => {
+  const fixture = await openFinancialReview(page, setupFamilies);
+  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  fixture.financialReviewStatusForRequest = ({ endpoint, params }) =>
+    endpoint === "current_source_totals" && params.get("p_start") === "2026-02-01" ? 503 : 200;
+  await openMonth(page, "February 2026");
+  const retry = drawer(page).getByRole("button", { name: "Retry account totals", exact: true });
+  await expect(retry).toBeVisible();
+  await expect(drawer(page)).not.toContainText(
+    "No source data for Amazon.com in USD in this month.",
+  );
+  fixture.financialReviewStatusForRequest = null;
+  await retry.click();
+  await expect(retry).toBeHidden();
+  await expect(
+    drawer(page).getByRole("table", { name: "Financial review totals", exact: true }),
+  ).toContainText("1.99");
 });
 
 test("phone keyboard selection keeps fee-family controls reachable and accessible", async ({

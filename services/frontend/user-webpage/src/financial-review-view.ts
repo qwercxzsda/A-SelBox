@@ -2,7 +2,7 @@ import type { CanonicalRow } from "./api/types.ts";
 import { requireCalendarDate } from "./api/filters.ts";
 import { isCurrency, isJsonObject, requireCurrency } from "./api/validation.ts";
 import { requireFinancialReviewYear, type FinancialReviewBounds } from "./api/financial-review.ts";
-import { sumExactDecimals } from "./decimal.ts";
+import { sumCompleteDecimals } from "./source-diagnostics.ts";
 import { isMarketplace, requireMarketplace } from "./api/marketplaces.ts";
 import { normalizeFeeFamilyIds } from "./fee-family-catalog.ts";
 
@@ -110,16 +110,16 @@ export function buildFinancialReviewTimeline(
       if (month.slice(0, 4) !== year)
         throw new Error("Financial review timeline must stay within one year");
       if (months.has(month)) throw new Error("Financial review repeated a monthly currency");
-      if (typeof row.difference !== "string")
+      if (row.difference !== null && typeof row.difference !== "string")
         throw new Error("Financial review is missing a monthly difference");
       months.add(month);
       return { row, month, difference: row.difference };
     });
-  let running: string | null = null;
+  let running: string | null = "0";
   return selected
     .sort((left, right) => left.month.localeCompare(right.month))
     .map(({ row, difference }) => {
-      running = sumExactDecimals([running, difference]);
+      running = sumCompleteDecimals([running, difference]);
       return { ...row, running_difference: running };
     });
 }

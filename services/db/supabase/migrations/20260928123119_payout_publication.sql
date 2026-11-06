@@ -172,22 +172,15 @@ begin
     if existing_report_id is not null then
         return existing_report_id;
     end if;
-    drop table if exists pg_temp.payout_reconciliation;
-    create temporary table payout_reconciliation on commit drop as
-        select r.* from private.resolve_source_reconciliation(finances_runs,kiosk_observations) r
-        where report_input.currency is not null and r.activity_date between report_input.start_date and report_input.end_date
-            and r.marketplace_name is not distinct from report_input.marketplace_name
-            and r.currency = report_input.currency;
     insert into public.company_payout_reports (
         id,company_id,marketplace_name,currency,start_date,end_date,dataset_key,
-        report_name,change_reason,calculation_version,component_count,reconciliation_count,
+        report_name,change_reason,calculation_version,component_count,
         finances_batch_count,data_kiosk_observation_count,terms_version_count,
         source_amount,fee_amount,company_amount
     ) select report_input.id,report_input.company_id,report_input.marketplace_name,report_input.currency,
         report_input.start_date,report_input.end_date,report_input.dataset_key,
         report_input.report_name,report_input.change_reason,'v1',
         count(*)::integer,
-        (select count(*)::integer from pg_temp.payout_reconciliation),
         cardinality(finances_runs),cardinality(kiosk_observations),cardinality(used_terms),
         coalesce(sum(source_amount) filter (where authoritative),0),
         coalesce(sum(fee_amount) filter (where authoritative),0),
@@ -217,16 +210,6 @@ begin
         from pg_temp.payout_resolved_components
         where company_id = report_input.company_id and currency = report_input.currency
             and marketplace_name is not distinct from report_input.marketplace_name;
-    insert into private.payout_report_reconciliation (
-        report_id,row_number,seller_namespace,activity_date,marketplace_name,currency,
-        finances_category_amount,selbox_category_amount,data_kiosk_finances_control,data_kiosk_category_amount,difference,
-        finances_total,accounted_total
-    ) select report_input.id,
-        row_number() over(order by r.seller_namespace,r.activity_date,r.marketplace_name nulls first,r.currency)::integer,
-        r.seller_namespace,r.activity_date,r.marketplace_name,r.currency,
-        r.finances_category_amount,r.selbox_category_amount,r.data_kiosk_finances_control,r.data_kiosk_category_amount,r.difference,
-        r.finances_total,r.accounted_total
-      from pg_temp.payout_reconciliation r;
     return report_input.id;
 end;
 $$;

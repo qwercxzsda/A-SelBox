@@ -3,6 +3,7 @@ import { requireCalendarDate } from "./api/filters.ts";
 import { requireMarketplace } from "./api/marketplaces.ts";
 import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
+import { differenceExact } from "./source-diagnostics.ts";
 import { describeFeeFamilyCoverage } from "./financial-review-coverage.ts";
 import { selectFeeFamilies, resolveFeeFamily } from "./fee-family-catalog.ts";
 import type { FeeFamily, FeeFamilySource } from "./fee-family-definitions.ts";
@@ -85,11 +86,10 @@ function sourceTypes(rows: readonly FamilyTypeTotal[], source: FeeFamilySource):
 function comparison(rows: readonly FamilyTypeTotal[]): CanonicalRow {
   const finances = sourceTotals(rows, "FINANCES");
   const kiosk = sourceTotals(rows, "DATA_KIOSK");
-  const negativeKiosk = kiosk.amount.startsWith("-") ? kiosk.amount.slice(1) : `-${kiosk.amount}`;
   return {
     finances_amount: finances.amount,
     data_kiosk_amount: kiosk.amount,
-    difference: sumExactDecimals([finances.amount, negativeKiosk]),
+    difference: differenceExact(finances.amount, kiosk.amount),
     finances_row_count: finances.rowCount,
     data_kiosk_row_count: kiosk.rowCount,
   };

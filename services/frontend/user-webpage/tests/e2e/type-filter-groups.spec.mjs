@@ -44,9 +44,7 @@ for (const role of ["member", "administrator"]) {
     await search(menu).fill("subscription");
     await expect(checkbox(menu, "Subscription fees")).toHaveCount(role === "administrator" ? 1 : 0);
     await search(menu).fill("FINANCES_KIOSK_DIFFERENCE");
-    await expect(checkbox(menu, "Finances / Data Kiosk difference")).toHaveCount(
-      role === "administrator" ? 1 : 0,
-    );
+    await expect(checkbox(menu, "Finances / Data Kiosk difference")).toHaveCount(0);
     await menu.getByRole("button", { name: "Done", exact: true }).click();
 
     if (role === "administrator") {

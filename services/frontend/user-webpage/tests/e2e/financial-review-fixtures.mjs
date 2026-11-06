@@ -1,19 +1,6 @@
 export const REVIEW_COMPANY = "0198b50b-701a-7000-8000-000000000041";
 export const REVIEW_REPORT = "0198b50b-701a-7000-8000-000000000042";
 
-function reconciliationAmounts(overrides = {}) {
-  return {
-    finances_category_amount: "500",
-    selbox_category_amount: "-20",
-    data_kiosk_finances_control: "-100.25",
-    data_kiosk_category_amount: "-101.5",
-    difference: "1.25",
-    finances_total: "379.75",
-    accounted_total: "379.75",
-    ...overrides,
-  };
-}
-
 export function reviewAmounts(overrides = {}) {
   return {
     category: "DATA_KIOSK",
@@ -164,52 +151,11 @@ export function setupFinancialReview(fixture) {
   fixture.companyIds["member-a"] = REVIEW_COMPANY;
   fixture.companyNames[REVIEW_COMPANY] = "Review Company";
   setupCurrentReview(fixture);
-  const savedTotals = [
-    { month: "2026-07-01", currency: "USD", ...reconciliationAmounts(), source_group_count: "51" },
-    {
-      month: "2026-07-01",
-      currency: "EUR",
-      ...reconciliationAmounts({
-        data_kiosk_finances_control: "-10",
-        data_kiosk_category_amount: "-10",
-        difference: "0",
-        finances_total: "470",
-        accounted_total: "470",
-      }),
-      source_group_count: "1",
-    },
-    {
-      month: "2026-06-01",
-      currency: "USD",
-      ...reconciliationAmounts({ data_kiosk_category_amount: "-112.75", difference: "12.5" }),
-      source_group_count: "1",
-    },
-  ];
-  const savedDetails = Array.from({ length: 51 }, (_, index) => ({
-    seller_namespace: index % 2 ? "seller-east" : "seller-west",
-    activity_date: `2026-07-${String((index % 25) + 1).padStart(2, "0")}`,
-    marketplace_name: index % 2 ? "Amazon.com" : null,
-    currency: "USD",
-    ...reconciliationAmounts({
-      finances_category_amount: index === 0 ? "500" : "0",
-      selbox_category_amount: index === 0 ? "-20" : "0",
-      data_kiosk_finances_control: index === 0 ? "-100.25" : "0",
-      data_kiosk_category_amount: index === 1 ? "-101.5" : "0",
-      difference: index === 0 ? "-100.25" : index === 1 ? "101.5" : "0",
-      finances_total: index === 0 ? "379.75" : "0",
-      accounted_total: index === 0 ? "379.75" : "0",
-    }),
-  }));
-  savedDetails.push({
-    ...savedTotals[1],
-    seller_namespace: "seller-europe",
-    activity_date: "2026-07-12",
-    marketplace_name: "Amazon.de",
-  });
   fixture.payoutRows = [
     {
       id: REVIEW_REPORT,
       company_id: REVIEW_COMPANY,
+      marketplace_name: "Amazon.com",
       currency: "USD",
       start_date: "2026-06-01",
       end_date: "2026-06-30",
@@ -217,7 +163,6 @@ export function setupFinancialReview(fixture) {
       source_amount: "100",
       fee_amount: "-5",
       company_amount: "95",
-      reconciliation_count: "52",
     },
   ];
   fixture.payoutComponents = [
@@ -246,13 +191,35 @@ export function setupFinancialReview(fixture) {
       company_amount: null,
     })),
   ];
-  fixture.payoutReconciliationTotals = savedTotals
-    .filter((row) => row.month === "2026-07-01")
-    .map((row) => ({ ...row, report_id: REVIEW_REPORT }));
-  fixture.payoutReconciliation = savedDetails.map((row, index) => ({
-    ...row,
-    report_id: REVIEW_REPORT,
-    row_number: String(index + 1),
-    activity_date: row.activity_date.replace("2026-07", "2026-06"),
-  }));
+  fixture.reportSourceRows = Array.from({ length: 51 }, (_, index) => {
+    const dimensions = {
+      report_id: REVIEW_REPORT,
+      seller_namespace: index < 26 ? "seller-west" : "seller-east",
+      activity_date: `2026-06-${String((index % 26) + 1).padStart(2, "0")}`,
+      marketplace_name: "Amazon.com",
+      currency: "USD",
+      row_count: "1",
+    };
+    return [
+      {
+        ...dimensions,
+        source: "FINANCES",
+        category: "FINANCES",
+        amount: index === 0 ? "500" : "0",
+      },
+      { ...dimensions, source: "FINANCES", category: "SELBOX", amount: index === 0 ? "-20" : "0" },
+      {
+        ...dimensions,
+        source: "FINANCES",
+        category: "DATA_KIOSK",
+        amount: index === 0 ? "-100.25" : "0",
+      },
+      {
+        ...dimensions,
+        source: "DATA_KIOSK",
+        category: "DATA_KIOSK",
+        amount: index === 1 ? "-101.5" : "0",
+      },
+    ];
+  }).flat();
 }

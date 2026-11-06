@@ -220,14 +220,13 @@ test("running amounts never round monthly values and each selected year starts w
   );
 });
 
-test("timeline rejects malformed months, duplicate months, mixed years and unknown differences", () => {
+test("timeline rejects malformed months, duplicate months, mixed years and invalid differences", () => {
   for (const rows of [
     [{ ...row("2026-01", "1"), month: "2026-01-02" }],
     [{ ...row("2026-01", "1"), month: "2026-13-01" }],
     [{ ...row("2026-01", "1"), month: "2026-01-extra-01" }],
     [row("2026-01", "1"), row("2026-01", "2")],
     [row("2025-12", "1"), row("2026-01", "2")],
-    [row("2026-01", null)],
     [row("2026-01", undefined)],
     [row("2026-01", "")],
     [row("2026-01", "not-money")],
@@ -244,5 +243,15 @@ test("timeline rejects malformed months, duplicate months, mixed years and unkno
         "EUR",
       ),
     /marketplace/,
+  );
+});
+
+test("an unavailable comparison keeps later running differences unavailable", () => {
+  assert.deepEqual(
+    buildFinancialReviewTimeline(
+      [row("2026-01", "1"), row("2026-02", null), row("2026-03", "3")],
+      "USD",
+    ).map(({ running_difference }) => running_difference),
+    ["1", null, null],
   );
 });

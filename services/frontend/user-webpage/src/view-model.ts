@@ -63,7 +63,7 @@ export const DATASET_PRESENTATION = {
   payouts: {
     label: "Payout reports",
     description:
-      "Monthly payouts preserve company amounts in the Finances and Data Kiosk categories, plus service fees. The SelBox category and reconciliation difference stay with SelBox.",
+      "Monthly payouts preserve company amounts in the Finances and Data Kiosk categories, plus service fees. Source comparisons are separate diagnostics and never change these saved amounts.",
     searchPlaceholder: "Month, marketplace, or report name",
     emptyMessage: "No payout reports match this view.",
   },

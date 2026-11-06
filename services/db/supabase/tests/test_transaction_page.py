@@ -14,7 +14,7 @@ class TransactionPageTests(TransactionPageFixture):
     def test_all_roles_preserve_exact_rows_null_states_and_visibility(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, count in (
-            (self.administrator(), "20"),
+            (self.administrator(), "18"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),
@@ -409,12 +409,12 @@ class TransactionPageTests(TransactionPageFixture):
         self.finances([self.transaction("200")], acquisition_id=acquisition)
         self.kiosk(2, [self.component("-20")], expected=kiosk)
         new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, count in ((administrator, "3"), (member_a, "0"), (member_b, "2")):
+        for user, count in ((administrator, "2"), (member_a, "0"), (member_b, "2")):
             for include_count in (False, True):
                 page = self.assert_matches_view(user, p_limit=1, p_include_count=include_count)
                 self.assertEqual(page["total_count"], count if include_count else None)
         unassigned = self.assign("SKU", None, rate="7", expected=new_terms)
-        for user, count in ((administrator, "3"), (member_a, "0"), (member_b, "0")):
+        for user, count in ((administrator, "2"), (member_a, "0"), (member_b, "0")):
             for include_count in (False, True):
                 page = self.assert_matches_view(user, p_limit=1, p_include_count=include_count)
                 self.assertEqual(page["total_count"], count if include_count else None)

@@ -17,9 +17,6 @@ from services.db.supabase.tests.e2e.local_stack import LocalSupabaseStack
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.verification.financial_authority import verify_authority
-from services.db.supabase.tests.verification.financial_reconciliation import (
-    verify_live_reconciliation,
-)
 from services.db.supabase.tests.verification.financial_seed import (
     Connection,
     require,
@@ -186,8 +183,7 @@ def verify(seed: Path) -> dict[str, object]:
                     visible == expected, "Member read differs from its exact saved configuration"
                 )
                 member_counts.append(len(visible))
-            cutoff, authority = verify_authority(connection, administrator_id)
-            reconciliation = verify_live_reconciliation(connection, cutoff)
+            _, authority = verify_authority(connection, administrator_id)
             finances_count, kiosk_count = require_row(
                 connection.execute(
                     "select (select count(*) from private.finances_transaction_components),"
@@ -216,7 +212,6 @@ def verify(seed: Path) -> dict[str, object]:
         "member_sku_counts": sorted(member_counts),
         "setup_issues": 0,
         "independent_authority": authority,
-        "independent_reconciliation": reconciliation,
         "publication_checks": publication,
         "source_facts_unchanged": True,
         "seed_file_unchanged_by_verification": True,

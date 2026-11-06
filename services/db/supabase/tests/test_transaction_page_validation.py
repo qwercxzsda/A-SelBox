@@ -22,7 +22,7 @@ class TransactionPageValidationTests(TransactionPageFixture):
     def test_text_marketplaces_preserve_rows_and_counts_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
-            (self.administrator(), "20"),
+            (self.administrator(), "18"),
             (self.member(company_a), "10"),
             (self.member(company_b), "2"),
             (self.auth_user(), "0"),

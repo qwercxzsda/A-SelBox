@@ -5,6 +5,39 @@ import type { FinancialReviewCategory } from "./financial-review.ts";
 import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow } from "./types.ts";
+import { isJsonObject } from "./validation.ts";
+import type { SourceTotals } from "./source-totals.ts";
+
+export interface SourceTypeTotals {
+  rows: CanonicalRow[];
+  revision: NonNullable<SourceTotals["revision"]>;
+}
+
+async function readSourceRevision(
+  transport: ApiTransport,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<SourceTypeTotals["revision"]> {
+  const value = await transport.requestJson(
+    "/rest/v1/rpc/workspace_revisions?p_sources=%7Bfinances%2Cdata_kiosk%7D",
+    {
+      signal,
+      cache: "no-store",
+      headers: transport.authenticatedHeaders(accessToken),
+    },
+    "Source comparison revision",
+  );
+  if (
+    !isJsonObject(value) ||
+    !isJsonObject(value.revisions) ||
+    typeof value.revisions.finances !== "string" ||
+    !value.revisions.finances ||
+    typeof value.revisions.data_kiosk !== "string" ||
+    !value.revisions.data_kiosk
+  )
+    throw new Error("Source comparison returned invalid revisions");
+  return { finances: value.revisions.finances, data_kiosk: value.revisions.data_kiosk };
+}
 
 const MAX_TYPE_GROUPS = 50_000;
 const MAX_TYPE_PAGES = 200;
@@ -50,7 +83,8 @@ export async function readCompleteFinancialReviewTypes(
   params: URLSearchParams,
   scope: FinancialReviewTypeScope,
   signal?: AbortSignal,
-): Promise<CanonicalRow[]> {
+): Promise<SourceTypeTotals> {
+  const revision = await readSourceRevision(transport, accessToken, signal);
   const rows: CanonicalRow[] = [];
   const seen = new Set<string>();
   let expectedCount: number | null = null;
@@ -81,7 +115,12 @@ export async function readCompleteFinancialReviewTypes(
       rows.push(row);
     }
     if (rows.length > expectedCount) throw new Error(`${OPERATION} returned an inconsistent count`);
-    if (rows.length === expectedCount) return rows;
+    if (rows.length === expectedCount) {
+      const after = await readSourceRevision(transport, accessToken, signal);
+      if (revision.finances !== after.finances || revision.data_kiosk !== after.data_kiosk)
+        throw new Error(`${OPERATION} changed while loading. Please retry.`);
+      return { rows, revision };
+    }
     if (page.rows.length === 0)
       throw new Error(`${OPERATION} returned an incomplete comparison. Please retry.`);
   }

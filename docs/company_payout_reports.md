@@ -13,7 +13,7 @@ to mature live reads.
 The database generates reports automatically. Administrators browse every company's
 saved reports and filter by company/month/marketplace; members read only their own headers,
 authoritative components, and Type totals. Neither role creates reports. Saved comparison rows,
-account reconciliation, and input manifests remain administrator-only in the month's
+source diagnostics, and input manifests remain administrator-only in the month's
 **Saved report snapshots** section of [Financial review](financial_review.md).
 
 The list uses `public.latest_company_payout_reports`, which selects the newest saved report per
@@ -176,7 +176,7 @@ an error. A company with no identifiable seller can have an empty input inventor
 
 With no monetary scope, the header has null `marketplace_name` and `currency`.
 Its totals are zero and it has no component or
-account-reconciliation rows; available source/terms manifests can still be present. A known
+diagnostic source scope; available source/terms manifests can still be present. A known
 marketplace/currency remains in its header even when its aggregate becomes zero. A null
 marketplace with a known currency is a distinct unspecified-marketplace monetary scope.
 
@@ -253,60 +253,49 @@ records. Values remain exact decimal strings in the browser and `Decimal` in Pyt
 
 [Financial review](financial_review.md) compares current source facts in the
 Finances, Data Kiosk, and SelBox categories for one selected marketplace and year, across all
-source accounts and companies. Currency is a separate amount unit. It includes only fully mature
-months, using the same month boundary as payout reports,
-and shows monthly and running differences. Its source records explain the current type subtotals
-without repeated company-report snapshots. Only the Data Kiosk difference is the accounting
-reconciliation amount; the other category differences are diagnostic.
+source accounts and companies. Currency is a separate amount unit. The UI defaults to fully mature
+months using the payout policy; native source readers honor their explicit requested date range.
+The frontend computes monthly and running differences. Source records explain the current type subtotals
+without repeated company-report snapshots. All source differences are diagnostics, separate from
+company payout amounts.
 
-The month's **Saved report snapshots** section lists only marketplace reports for the selected market
-and amount unit. Selected reports retain their own comparison rows and frozen account controls.
-Reports save reconciliation only for their exact marketplace/currency. Controls
-can still include other companies, so their account scope stays separate from the report's company
-scope. `public.payout_reconciliation_totals` groups saved controls by currency, and optional daily
-rows preserve source provenance. Report diagnostics remain exclusive of the company payout amount.
+The month's **Saved report snapshots** section lists marketplace reports for the selected market
+and amount unit. Selected reports retain their stored comparison rows. Optional account diagnostics
+use `report_source_totals(report_id, grouping)` to aggregate the report's already-recorded source
+references. The frontend computes comparisons from these sums. Source accounts may include other
+companies, so this administrator-only diagnostic stays separate from the company's frozen payout.
 
 Saved links require the report ID, company, dates, currency, and `reportMarketplace`.
 An empty marketplace value explicitly selects the unspecified scope; omission is invalid.
 Currency never supplies a guessed marketplace.
 
-## Saved account reconciliation
+## Account reconciliation from saved inputs
 
-For each seller, currency, day, and marketplace, save these exact amounts:
+Reconciliation is a frontend diagnostic. The backend's `report_source_totals` function accepts a
+report ID and grouping/paging options, follows its exact saved Finance batches and Data Kiosk
+observations, and returns additive source/category amounts and counts. It accepts no replacement
+source references or report-scope overrides. Shared Finance versions are counted once.
 
-| Field                         | Meaning                                              |
-| ----------------------------- | ---------------------------------------------------- |
-| `finances_category_amount`    | Finances activity amounts in the Finances category   |
-| `selbox_category_amount`      | Finances activity amounts in the SelBox category     |
-| `data_kiosk_finances_control` | Finances activity amounts in the Data Kiosk category |
-| `data_kiosk_category_amount`  | Data Kiosk amounts in the Data Kiosk category        |
+The frontend uses the same exact-decimal comparison module for current and report data. For costs,
+it subtracts Data Kiosk's `DATA_KIOSK` amount from Finances' `DATA_KIOSK` amount. Missing source values
+become zero only when retrieval coverage establishes a covered empty scope; otherwise the UI keeps
+an unavailable comparison. Currencies and source scopes remain separate. No diagnostic row or
+formula is stored in the financial schema or inserted into the transaction ledger.
 
-The named fields keep the source and category distinct. Their relationship is:
-
-```text
-difference = data_kiosk_finances_control - data_kiosk_category_amount
-accounted_total = finances_category_amount + selbox_category_amount
-                + data_kiosk_category_amount + difference
-                = finances_total
-```
-
-Reports retain groups only for their exact marketplace and currency, including
-one-sided groups under their native identity. Full required capture, terms, and Summary evidence
-remains pinned for validation.
-These daily Data Kiosk controls are distinct from the grouped monthly Amazon
-Summary check; only that separate check combines the Non-Amazon US channel.
-Amounts in the SelBox category and the difference remain with SelBox. The
-administrator-only `public.payout_report_reconciliation` view exposes the frozen controls in
-Financial review, labelled as account-wide context. The same account controls may
-appear beside several company reports: never sum those repeated snapshots across
-reports. Members cannot read them or the source manifests.
+Saved report headers, component amounts and manifests remain immutable. Diagnostic reads do not
+recalculate payout amounts, change fees or ownership, or publish another report. The report's
+`calculation_version` describes its monetary calculation, not a separate diagnostic implementation.
+The [read contract](financial_review.md#read-contract) specifies aggregate fields, coverage,
+revision tokens and complete daily comparison groups. Members cannot access these account-wide
+aggregates or source manifests. The same accounts can occur in several reports; their diagnostic
+amounts must not be added across reports.
 
 ## Integrity and access
 
-Reports, company components, reconciliation rows, and complete source/terms
-manifests are immutable. Integrity checks verify provenance, exact sums, complete
-inventories, and the reconciliation identity against frozen versions. A null currency
-is restricted to an empty aggregate. The worker, direct monthly generator,
+Reports, company components and complete source/terms manifests are immutable. Publication
+checks their provenance, exact monetary sums and complete inventories. Administrator source-aggregate
+readers return saved inputs without deriving reconciliation values. A null currency is restricted to
+an empty aggregate. The worker, direct monthly generator,
 and single-report publisher acquire the exclusive payout-input transaction advisory
 guard before locking company/month, capturing its related seller set, and locking
 seller/month and Data Kiosk source days in order. The worker skips its run if the guard is busy;

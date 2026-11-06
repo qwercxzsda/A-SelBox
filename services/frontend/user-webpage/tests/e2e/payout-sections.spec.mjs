@@ -24,7 +24,6 @@ for (const width of [1440, 1920]) {
         source_amount: "100",
         fee_amount: "-5",
         company_amount: "95",
-        reconciliation_count: "51",
       },
     ];
     const record = {
@@ -55,7 +54,7 @@ for (const width of [1440, 1920]) {
     await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
     const typeTable = drawer.getByRole("table", { name: "Transaction type amounts", exact: true });
     expect(
-      fixture.events.some(({ endpoint }) => endpoint.endsWith("/payout_report_reconciliation")),
+      fixture.events.some(({ endpoint }) => endpoint.endsWith("/rpc/report_source_totals")),
     ).toBe(false);
     await records.scrollIntoViewIfNeeded();
     await expect(drawer.locator(".detail-drawer-context")).toBeInViewport();

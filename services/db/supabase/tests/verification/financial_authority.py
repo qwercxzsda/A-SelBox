@@ -1,10 +1,9 @@
-"""Compare live authority and daily controls with independent real-source sums."""
+"""Compare live authority with independent sums over real source components."""
 
 import calendar
 from datetime import date
 from decimal import Decimal
 
-from services.db.supabase.tests.verification.financial_reconciliation import raw_reconciliation
 from services.db.supabase.tests.verification.financial_seed import Connection, as_user, require
 
 
@@ -42,14 +41,6 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         (mature_cutoff_date, mature_cutoff_date),
     ).fetchall()
     expected = {currency: [amount, count] for currency, amount, count in source_totals}
-    difference_count = 0
-    for row in raw_reconciliation(connection, mature_cutoff_date):
-        if row[6] == 0 and row[7] == 0:
-            continue
-        values = expected.setdefault(row[3], [Decimal(0), 0])
-        values[0] += row[8]
-        values[1] += 1
-        difference_count += 1
     minimum = connection.execute(
         "select least((select min(posted_date) from private.finances_transaction_versions),"
         "(select min(activity_date) from private.data_kiosk_days))"
@@ -64,7 +55,7 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
             for row in actual
         },
         "Administrator totals differ from mature Finances/SelBox categories, Data Kiosk costs, "
-        "daily differences, and recent Data Kiosk amounts",
+        "and recent Data Kiosk amounts",
     )
     excluded = connection.execute(
         "select count(*) from private.finances_component_details t "
@@ -76,6 +67,5 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         "latest_month": policy["latest_month"],
         "exact_currency_totals_match": True,
         "authoritative_row_count": sum(values[1] for values in expected.values()),
-        "daily_difference_rows": difference_count,
         "recent_finances_rows_excluded": excluded,
     }

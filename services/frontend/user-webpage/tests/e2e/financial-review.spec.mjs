@@ -60,17 +60,17 @@ test("one-currency category summaries retain zero rows and defer source records 
   expect(
     currentReads(fixture).every(
       ({ endpoint, params }) =>
-        (endpoint === "financial_review_totals" ||
+        (endpoint === "current_source_totals" ||
           (endpoint === "financial_review_type_totals" &&
             params.get("p_month_from") === "2026-01-01" &&
-            params.get("p_month_to") === "2027-01-01")) &&
+            params.get("p_month_to") === "2026-08-01")) &&
         categoryFilter(params) === "DATA_KIOSK",
     ),
   ).toBe(true);
   await selectMonth(page);
   await expect(totalsTable(page).locator("tbody tr")).toHaveCount(1);
-  expect(currentReads(fixture, "financial_review_totals").at(-1).params.get("currency")).toBe(
-    "eq.USD",
+  expect(currentReads(fixture, "current_source_totals").at(-1).params.get("p_currency")).toBe(
+    "USD",
   );
   await expect(drawer(page).getByLabel("Review currency", { exact: true })).toHaveCount(0);
   await expect(typesTable(page).locator("tbody tr")).toHaveCount(2);
@@ -312,7 +312,7 @@ test("source and maturity revisions refresh visible review data while unchanged 
   let reads = currentReads(fixture).length;
   await checkFinancialReviewUpdates(page, fixture);
   expect(currentReads(fixture)).toHaveLength(reads);
-  fixture.financialReviewTotals[0].difference = "2.25";
+  fixture.financialReviewTotals[0].finances_amount = "-99.25";
   fixture.financialReviewRecords.find(
     (row) => row.activity_date === "2026-07-25" && row.currency === "USD",
   ).amount = "-97.25";
@@ -329,7 +329,7 @@ test("source and maturity revisions refresh visible review data while unchanged 
     latest_month: "2026-07-01",
     mature_cutoff_months: 2,
   };
-  fixture.financialReviewTotals[0].difference = "3.25";
+  fixture.financialReviewTotals[0].finances_amount = "-98.25";
   await checkFinancialReviewUpdates(page, fixture);
   await expect(totalsTable(page).getByRole("cell", { name: "3.25", exact: true })).toBeVisible();
   expect(fixture.payoutComponentRequests).toHaveLength(0);
@@ -337,6 +337,48 @@ test("source and maturity revisions refresh visible review data while unchanged 
   await closeReview(page);
   await expect(page.getByText("Mature dates only", { exact: true })).toHaveCount(0);
   await expect(monthRow(page, "July 2026").getByRole("cell").last()).toHaveText("15.75");
+});
+
+test("a changed source revision during aggregate loading refreshes the comparison together", async ({
+  page,
+}) => {
+  let changed = false;
+  const fixture = await openFinancialReview(page, (state) => {
+    state.beforeFinancialReview = async ({ endpoint }) => {
+      if (endpoint !== "current_source_totals" || changed) return;
+      changed = true;
+      state.revisions.finances = "changed-during-aggregate";
+      state.financialReviewTotals[0].finances_amount = "-99.25";
+    };
+  });
+  await expect(monthRow(page, "July 2026")).toContainText("2.25");
+  await expect.poll(() => currentReads(fixture, "current_source_totals").length).toBeGreaterThan(1);
+  await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+});
+
+test("retrieved empty monthly data stays distinct from an unavailable counterpart", async ({
+  page,
+}) => {
+  const fixture = await openFinancialReview(page);
+  await expect(monthRow(page, "July 2026")).toBeVisible();
+  fixture.financialReviewTotals = fixture.financialReviewTotals.filter(
+    (row) => row.month !== "2026-07-01" || row.category !== "DATA_KIOSK" || row.currency !== "USD",
+  );
+  fixture.currentSourceCoverage = [
+    {
+      source: "FINANCES",
+      seller_namespace: "seller-one",
+      start_date: "2026-07-01",
+      end_date: "2026-07-31",
+    },
+  ];
+  await selectMonth(page);
+  await expect(totalsTable(page).locator("tbody tr").getByRole("cell")).toHaveText([
+    "0.00",
+    "—",
+    "—",
+  ]);
+  await expect(drawer(page)).toContainText("Source retrieval coverage is incomplete");
 });
 
 test("failed monthly and source reads retry locally without losing month or currency", async ({
@@ -502,16 +544,12 @@ test("saved snapshots are scoped to the open month and preserve historical zeros
         ),
     ),
   ).toBe(true);
-  await savedDrawer
-    .getByRole("button", { name: "Saved account reconciliation", exact: true })
-    .click();
+  await savedDrawer.getByRole("button", { name: "Account reconciliation", exact: true }).click();
   await expect(savedDrawer.getByRole("cell", { name: "EUR", exact: true })).toHaveCount(0);
-  expect(fixture.reconciliationRequests.at(-1).params.get("report_id")).toBe(`eq.${REVIEW_REPORT}`);
-  expect(fixture.reconciliationRequests.at(-1).params.get("currency")).toBe("eq.USD");
-  await savedDrawer
-    .getByRole("button", { name: "Saved daily source details", exact: true })
-    .click();
-  const saved = savedDrawer.getByRole("table", { name: "Saved reconciliation", exact: true });
+  expect(fixture.reconciliationRequests.at(-1).params.get("p_report_id")).toBe(REVIEW_REPORT);
+  expect(fixture.reconciliationRequests.at(-1).params.get("p_grouping")).toBe("total");
+  await savedDrawer.getByRole("button", { name: "Daily source details", exact: true }).click();
+  const saved = savedDrawer.getByRole("table", { name: "Account reconciliation", exact: true });
   await expect(saved.locator("tbody tr")).toHaveCount(50);
   await savedDrawer.getByRole("button", { name: "Next reconciliation", exact: true }).click();
   await expect(saved.locator("tbody tr")).toHaveCount(1);

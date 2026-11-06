@@ -1,5 +1,4 @@
 import { PAYOUT_COMPONENT_COLUMNS } from "../../../src/api/payouts.ts";
-import { PAYOUT_RECONCILIATION_COLUMNS } from "../../../src/api/reconciliation.ts";
 import { sumExactDecimals } from "../../../src/decimal.ts";
 import { filterRecordRows } from "../record-fixtures.mjs";
 
@@ -15,20 +14,6 @@ export async function respondWithPayouts(fixture, { url, request, user, reply, c
     );
   const totalsArgs = url.pathname.endsWith("/payout_report_totals") ? request.postDataJSON() : null;
   const reportId = totalsArgs?.p_report_id ?? url.searchParams.get("report_id").slice(3);
-  if (url.pathname.endsWith("/payout_report_reconciliation")) {
-    if (fixture.roles[user] !== "administrator") return reply({}, 403);
-    const rows = filterRecordRows(
-      (fixture.payoutReconciliation ?? []).filter((row) => row.report_id === reportId),
-      url.searchParams,
-    );
-    const offset = Number(url.searchParams.get("offset"));
-    return csvReply(
-      PAYOUT_RECONCILIATION_COLUMNS,
-      rows.slice(offset, offset + 50),
-      rows.length,
-      offset,
-    );
-  }
   const visible = fixture.payoutRows.some(
     (row) =>
       row.id === reportId &&

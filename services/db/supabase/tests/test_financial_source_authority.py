@@ -1,4 +1,4 @@
-"""Category authority and daily SelBox reconciliation never double-count sources."""
+"""Category authority counts only real source components without double-counting."""
 
 from datetime import date, timedelta
 from decimal import Decimal
@@ -21,12 +21,12 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             self.connection.execute("select set_config('TimeZone',%s,true)", (timezone,))
             self.assertEqual(self.mature_cutoff_date(), expected)
 
-    def test_category_boundaries_and_selbox_residual_preserve_company_entitlement(self) -> None:
+    def test_category_boundaries_preserve_company_entitlement(self) -> None:
         mature_cutoff_date = self.mature_cutoff_date()
         before = mature_cutoff_date - timedelta(days=1)
         company, sku = self.owner()
         terms = self.fee(sku, [(date(before.year, 1, 1).isoformat(), None, "10")])
-        finances, version = self.finances(
+        finances, _ = self.finances(
             [
                 self.transaction("100", 3, activity_date=before.isoformat()),
                 self.transaction("-5", 4, activity_date=before.isoformat(), category="SELBOX"),
@@ -59,7 +59,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             )
             kiosk_observations.append(self.kiosk_observation(kiosk_version))
         administrator, member = self.administrator(), self.member(company)
-        for user, count, reported in ((administrator, "7", "260"), (member, "4", "270")):
+        for user, count, reported in ((administrator, "6", "258"), (member, "4", "270")):
             page = self.assert_matches_view(user, p_direction="asc")
             self.assertEqual(page["total_count"], count)
             totals = self.as_user(
@@ -78,21 +78,18 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             for row in cast(list[dict[str, object]], self.page(administrator)["rows"])
             if row["category"] == "SELBOX"
         ]
-        self.assertEqual(len(retained_rows), 3)
+        self.assertEqual(len(retained_rows), 2)
         for row in retained_rows:
             self.assertIsNone(row["company_id"])
             self.assertIsNone(row["terms_version_id"])
             self.assertEqual(row["company_amount"], "0")
             self.assertEqual(row["fee_amount"], "0")
             self.assertEqual(row["resolution_status"], "NOT_APPLICABLE")
-        self.assertEqual(
-            self.as_user(member, "select * from private.live_source_reconciliation"), []
-        )
         details = self.connection.execute(
             "select source_amount,authoritative,fee_amount,company_amount "
             "from private.resolve_company_components(%s::uuid[],%s::uuid[],%s::uuid[]) "
             "where source='DATA_KIOSK' and activity_date=%s and category='FINANCES'",
-            ([version], kiosk_observations, [terms], before),
+            ([finances], kiosk_observations, [terms], before),
         ).fetchall()
         self.assertEqual(details, [(Decimal(900), False, None, None)])
         strict = self.connection.execute(
@@ -143,7 +140,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             [(Decimal(30),)],
         )
 
-    def test_difference_uses_data_kiosk_category_and_preserves_unmatched_dimensions(self) -> None:
+    def test_raw_source_totals_preserve_unmatched_categories_and_dimensions(self) -> None:
         day = self.mature_cutoff_date() - timedelta(days=1)
         earlier = day - timedelta(days=1)
         self.owner()
@@ -162,7 +159,7 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 | {"marketplace_name": "Amazon.ca"},
             ]
         )
-        _, kiosk_version = self.kiosk(
+        self.kiosk(
             1,
             [
                 self.component("900", category="FINANCES"),
@@ -172,64 +169,43 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             ],
             activity_date=day.isoformat(),
         )
-        _, earlier_version = self.kiosk(
-            2, [self.component("-11")], activity_date=earlier.isoformat()
-        )
-        rows = self.connection.execute(
-            "select activity_date,marketplace_name,currency,data_kiosk_finances_control,"
-            "data_kiosk_category_amount,"
-            "difference,finances_total,accounted_total "
-            "from private.resolve_source_reconciliation(%s::uuid[],%s::uuid[]) "
-            "order by activity_date,marketplace_name nulls first,currency",
-            (
-                [
-                    str(row[0])
-                    for row in self.connection.execute(
-                        "select distinct t.current_batch_id from private.finances_transactions t "
-                        "join private.finances_transaction_versions v "
-                        "on v.id=t.current_version_id "
-                        "where v.posted_date=%s",
-                        (day,),
-                    ).fetchall()
-                ],
-                [self.kiosk_observation(kiosk_version), self.kiosk_observation(earlier_version)],
-            ),
-        ).fetchall()
-        expected = [
-            (earlier, "Amazon.com", "USD", 0, -11, 11, 0, 0),
-            (day, "Non-Amazon US", "USD", -3, 0, -3, -3, -3),
-            (day, "Amazon.ca", "USD", -4, 0, -4, -4, -4),
-            (day, "Amazon.com", "EUR", 0, -1, 1, 0, 0),
-            (day, "Amazon.com", "USD", -8, -10, 2, 87, 87),
-        ]
-        self.assertEqual(rows, sorted(expected, key=lambda row: (row[0], row[1], row[2])))
+        self.kiosk(2, [self.component("-11")], activity_date=earlier.isoformat())
         administrator = self.administrator()
-        selection = {
-            "p_sources": ["RECONCILIATION"],
-            "p_date_from": day.isoformat(),
-            "p_marketplaces": ["Amazon.com"],
-            "p_types": ["FINANCES_KIOSK_DIFFERENCE"],
-        }
-        original = self.assert_matches_view(administrator, **selection)
-        self.assertEqual(original["total_count"], "2")
-        self.assertEqual(self.page(administrator, p_fee_applicable=True, **selection)["rows"], [])
-        ids = {
-            row["currency"]: row["source_row_id"]
-            for row in cast(list[dict[str, object]], original["rows"])
-        }
-        self.kiosk(
-            3,
-            [self.component("-12"), self.component("-1") | {"currency": "EUR"}],
-            expected=kiosk_version,
-            activity_date=day.isoformat(),
-        )
-        revised = self.assert_matches_view(administrator, p_order_by="amount", **selection)
-        self.assertEqual(
-            {
-                row["currency"]: row["source_row_id"]
-                for row in cast(list[dict[str, object]], revised["rows"])
-            },
-            ids,
+        actual: list[tuple[str, str, str, str, str, Decimal]] = []
+        for marketplace in ("Amazon.com", "Amazon.ca", "Non-Amazon US"):
+            result = cast(
+                dict[str, object],
+                self.as_user(
+                    administrator,
+                    "select public.current_source_totals(%s,%s,%s,'day')",
+                    (earlier, day, marketplace),
+                )[0][0],
+            )
+            for row in cast(list[dict[str, str]], result["rows"]):
+                actual.append(
+                    (
+                        row["period"],
+                        row["marketplace_name"],
+                        row["currency"],
+                        row["source"],
+                        row["category"],
+                        Decimal(row["amount"]),
+                    )
+                )
+        self.assertCountEqual(
+            actual,
+            [
+                (earlier.isoformat(), "Amazon.com", "USD", "DATA_KIOSK", "DATA_KIOSK", -11),
+                (day.isoformat(), "Non-Amazon US", "USD", "FINANCES", "DATA_KIOSK", -3),
+                (day.isoformat(), "Amazon.ca", "USD", "FINANCES", "DATA_KIOSK", -4),
+                (day.isoformat(), "Amazon.com", "EUR", "DATA_KIOSK", "DATA_KIOSK", -1),
+                (day.isoformat(), "Amazon.com", "USD", "FINANCES", "FINANCES", 100),
+                (day.isoformat(), "Amazon.com", "USD", "FINANCES", "SELBOX", -5),
+                (day.isoformat(), "Amazon.com", "USD", "FINANCES", "DATA_KIOSK", -8),
+                (day.isoformat(), "Amazon.com", "USD", "DATA_KIOSK", "FINANCES", 900),
+                (day.isoformat(), "Amazon.com", "USD", "DATA_KIOSK", "SELBOX", -99),
+                (day.isoformat(), "Amazon.com", "USD", "DATA_KIOSK", "DATA_KIOSK", -10),
+            ],
         )
 
     def test_mature_kiosk_authority_excludes_finances_but_includes_costs(self) -> None:

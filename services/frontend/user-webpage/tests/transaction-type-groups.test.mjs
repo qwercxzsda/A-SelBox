@@ -47,7 +47,6 @@ test("the real type catalog is a complete, stable partition preserving exact opt
       ["taxes", "Taxes"],
       ["other", "Other fees & adjustments"],
       ["seller-costs", "Seller-provided costs"],
-      ["reconciliation", "Reconciliation"],
     ],
   );
   const members = forward.flatMap(({ options }) => options);
@@ -91,7 +90,6 @@ test("both sources' related types are easy to select together without merging th
     taxes: ["TAX_WITHHELD", "SHIPPING_TAX", "PRODUCT_TAX"],
     other: ["SUBSCRIPTION_FEES", "CROSS_ACCOUNT_ADJUSTMENTS", "EPR_FEES"],
     "seller-costs": ["MFN_STORAGE_COST", "MFN_FULFILLMENT_COST", "COST_OF_GOODS_SOLD"],
-    reconciliation: ["FINANCES_KIOSK_DIFFERENCE"],
   };
   for (const [id, values] of Object.entries(cases))
     for (const value of values) assert.equal(groupFor(value), id, value);

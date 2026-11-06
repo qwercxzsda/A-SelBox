@@ -169,10 +169,7 @@ test("net product sales include signed refunds and zero-activity counts without 
     row("FINANCES", "PRODUCT_TAX", "8", { category: "FINANCES" }),
   ];
   const original = structuredClone(rows);
-  for (const ids of [
-    ["net-product-sales"],
-    ["product-sales", "product-refunds", "zero-activity"],
-  ]) {
+  for (const ids of [["net-product-sales"], ["net-product-sales", "net-product-sales"]]) {
     const families = buildFinancialReviewFamilies(rows, ids);
     assert.equal(families.length, 1);
     assert.equal(families[0].family_id, "net-product-sales");
@@ -351,20 +348,13 @@ test("source-only economic families combine related signed movements without mix
   assert.equal(resolveFeeFamily("FINANCES", "TAX_RECLASSIFICATION").id, "tax-reclassification");
 });
 
-test("retired family IDs migrate to a canonical union without duplicating or broadening types", () => {
-  const aliases = [
-    "product-sales",
-    "product-refunds",
-    "zero-activity",
-    "net-product-sales",
-    "refunded-referral",
-    "referral",
-  ];
-  assert.deepEqual(normalizeFeeFamilyIds([...aliases, null, "invalid"]), [
+test("current family IDs deduplicate while unsupported request IDs are rejected", () => {
+  const ids = ["net-product-sales", "referral", "net-product-sales"];
+  assert.deepEqual(normalizeFeeFamilyIds([...ids, null, "invalid"]), [
     "net-product-sales",
     "referral",
   ]);
-  const selection = feeFamilyTypeSelections(aliases);
+  const selection = feeFamilyTypeSelections(ids);
   assert.deepEqual(
     new Set(selection.financesTypes),
     new Set([
@@ -382,43 +372,12 @@ test("retired family IDs migrate to a canonical union without duplicating or bro
   assert.equal(selection.financesTypes.length, 5);
   assert.equal(selection.dataKioskTypes.length, 4);
   assert.deepEqual(
-    buildFeeFamilyOptions([], aliases)
+    buildFeeFamilyOptions([], ids)
       .map((family) => family.id)
       .sort(),
     ["net-product-sales", "referral"],
   );
-  for (const [retired, canonical] of [
-    ["fulfillment-fee-corrections", "fba-fulfillment"],
-    ["fulfillment-fee-reversals", "fba-fulfillment"],
-    ["inventory-reimbursement-reversals", "inventory-reimbursements"],
-    ["liquidation-processing", "liquidation-fees"],
-    ["liquidation-referral", "liquidation-fees"],
-    ["shipping-credits", "shipping"],
-    ["shipping-refunds", "shipping"],
-    ["shipping-chargebacks", "shipping"],
-    ["gift-wrap-credits", "gift-wrapping"],
-    ["gift-wrap-chargebacks", "gift-wrapping"],
-    ["product-tax", "taxes"],
-    ["shipping-tax", "taxes"],
-    ["gift-wrap-tax", "taxes"],
-    ["tax-withheld", "taxes"],
-    ["promotional-rebates", "promotions"],
-    ["promotional-refunds", "promotions"],
-    ["points", "promotions"],
-    ["epr", "seller-service-fees"],
-    ["vine", "seller-service-fees"],
-    ["inbound-defect", "seller-service-fees"],
-    ["mcf-credits", "account-adjustments"],
-    ["other-adjustments", "account-adjustments"],
-    ["debt-recovery", "balance-movements"],
-    ["cross-account-adjustments", "balance-movements"],
-    ["reserve-movements", "balance-movements"],
-    ["bank-transfers", "balance-movements"],
-  ]) {
-    assert.deepEqual(normalizeFeeFamilyIds([retired, canonical]), [canonical]);
-    assert.deepEqual(feeFamilyTypeSelections([retired]), feeFamilyTypeSelections([canonical]));
-  }
-  assert.throws(() => feeFamilyTypeSelections(["product-sales", "invalid"]));
+  assert.throws(() => feeFamilyTypeSelections(["unregistered-family"]));
 });
 
 test("native inbound convenience fees pair without including placement service fees", () => {
@@ -633,6 +592,10 @@ test("family API requests the complete single-month/currency type list with exac
     row_count: "2",
   };
   const client = createApiClient(SETTINGS, async (url, init) => {
+    if (new URL(url).pathname.endsWith("/workspace_revisions"))
+      return new Response(JSON.stringify({ revisions: { finances: "f1", data_kiosk: "k1" } }), {
+        headers: { "Content-Type": "application/json" },
+      });
     const params = new URL(url).searchParams;
     assert.equal(params.get("p_month_from"), "2026-07-01");
     assert.equal(params.get("p_month_to"), "2026-08-01");
@@ -653,7 +616,7 @@ test("family API requests the complete single-month/currency type list with exac
         "USD",
         "Amazon.com",
       )
-    )[0].amount,
+    ).rows[0].amount,
     "-6.53",
   );
 });
@@ -674,9 +637,12 @@ test("family API rejects truncated or differently scoped responses", async () =>
       "\n" +
       Array(1000).fill(csvRecord(record).split("\n")[1]).join("\n"),
   ]) {
-    const client = createApiClient(
-      SETTINGS,
-      async () => new Response(body, { headers: { "Content-Range": "0-0/1" } }),
+    const client = createApiClient(SETTINGS, async (url) =>
+      new URL(url).pathname.endsWith("/workspace_revisions")
+        ? new Response(JSON.stringify({ revisions: { finances: "f1", data_kiosk: "k1" } }), {
+            headers: { "Content-Type": "application/json" },
+          })
+        : new Response(body, { headers: { "Content-Range": "0-0/1" } }),
     );
     await assert.rejects(
       client.fetchFinancialReviewFamilyTypes(

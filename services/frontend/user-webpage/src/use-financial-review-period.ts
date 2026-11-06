@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchFinancialReviewBounds,
-  fetchFinancialReviewPeriod,
+  fetchCurrentSourceTotals,
   fetchFinancialReviewPeriodTypes,
 } from "./api";
 import type { Identity } from "./auth-session";
@@ -15,6 +15,13 @@ import {
 import { usePayoutPolicy } from "./use-payout-policy";
 import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
 import { buildFeeFamilyOptions } from "./fee-family-catalog";
+import {
+  applyComparisonCoverage,
+  buildSourceComparisons,
+  monthSourcePeriod,
+  sameSourceRevision,
+} from "./source-diagnostics";
+import { useSourceRevisionGuard } from "./source-diagnostics-context";
 
 /** Resolve a marketplace period and keep each monetary unit separate. */
 export function useFinancialReviewPeriod(
@@ -44,7 +51,21 @@ export function useFinancialReviewPeriod(
     enabled: matureCutoff !== "",
     staleTime: Infinity,
   });
-  const { year, years } = resolveReviewYear(scope.year, bounds.data);
+  const lastAvailableMonth =
+    bounds.data?.lastMonth && latestMonth
+      ? [bounds.data.lastMonth, latestMonth.slice(0, 7)].sort()[0]
+      : null;
+  const availableBounds =
+    bounds.data &&
+    lastAvailableMonth &&
+    bounds.data.firstMonth &&
+    bounds.data.firstMonth <= lastAvailableMonth
+      ? { firstMonth: bounds.data.firstMonth, lastMonth: lastAvailableMonth }
+      : undefined;
+  const { year, years } = resolveReviewYear(scope.year, availableBounds);
+  const lastRequestedMonth =
+    year && latestMonth ? [`${year}-12`, latestMonth.slice(0, 7)].sort()[0] : "";
+  const periodAvailable = matureCutoff !== "" && year !== "" && lastRequestedMonth >= `${year}-01`;
 
   const totalsQuery = useQuery({
     queryKey: [
@@ -57,17 +78,23 @@ export function useFinancialReviewPeriod(
       matureCutoff,
     ],
     queryFn: ({ signal }) =>
-      fetchFinancialReviewPeriod(
+      fetchCurrentSourceTotals(
         identity.session.access_token,
-        category,
-        year,
-        scope.marketplace,
+        {
+          startDate: `${year}-01-01`,
+          endDate: monthSourcePeriod(lastRequestedMonth).endDate,
+          category,
+          marketplace: scope.marketplace,
+          grouping: "month",
+        },
         signal,
       ),
-    enabled: matureCutoff !== "" && year !== "",
+    enabled: periodAvailable,
     staleTime: Infinity,
   });
-  const periodRows = totalsQuery.data ?? [];
+  const consistent = useSourceRevisionGuard(totalsQuery.data);
+  const sourceTotals = consistent ? totalsQuery.data : undefined;
+  const periodRows = sourceTotals ? buildSourceComparisons(sourceTotals, category) : [];
   const { currency, currencies } = resolveReviewCurrency(scope.currency, periodRows);
   const familyQuery = useQuery({
     queryKey: [
@@ -87,18 +114,29 @@ export function useFinancialReviewPeriod(
         year,
         currency,
         scope.marketplace,
+        lastRequestedMonth,
         signal,
       ),
-    enabled: matureCutoff !== "" && year !== "" && currency !== "",
+    enabled: periodAvailable && currency !== "",
     staleTime: Infinity,
   });
   const comparisonQuery = scope.families.length ? familyQuery : totalsQuery;
-  const familyTypes = familyQuery.data ?? [];
+  const familyConsistent = useSourceRevisionGuard(familyQuery.data);
+  const compatibleFamilyTypes =
+    familyConsistent && sameSourceRevision(sourceTotals, familyQuery.data)
+      ? (familyQuery.data?.rows ?? [])
+      : null;
+  const familyTypes = compatibleFamilyTypes ?? [];
   const familyOptions = buildFeeFamilyOptions(familyTypes, scope.families);
   const rows = currency
     ? buildFinancialReviewTimeline(
         scope.families.length
-          ? buildFinancialReviewFamilyMonths(familyTypes, scope.families)
+          ? sourceTotals
+            ? applyComparisonCoverage(
+                buildFinancialReviewFamilyMonths(familyTypes, scope.families),
+                sourceTotals,
+              )
+            : []
           : periodRows,
         currency,
       )
@@ -107,15 +145,17 @@ export function useFinancialReviewPeriod(
   const loading =
     policy.isPending ||
     (matureCutoff !== "" && bounds.isPending) ||
-    (year !== "" && totalsQuery.isPending) ||
-    (currency !== "" && scope.families.length > 0 && familyQuery.isPending);
+    (periodAvailable && (totalsQuery.isPending || !consistent)) ||
+    (currency !== "" && scope.families.length > 0 && (familyQuery.isPending || !familyConsistent));
 
   return {
     policy,
     bounds,
     comparisonQuery,
     totalsQuery,
+    sourceTotals,
     familyQuery,
+    familyTypes: compatibleFamilyTypes,
     familyOptions,
     matureCutoff,
     latestMonth,

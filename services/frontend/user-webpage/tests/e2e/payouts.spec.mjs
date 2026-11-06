@@ -141,7 +141,7 @@ test("members see both company amount sources without supporting or account cont
   await expect(page.getByText("Reconciliation", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "102.00", exact: true })).toHaveCount(0);
   expect(
-    fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
+    fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/rpc/report_source_totals"),
   ).toBe(false);
   expect(
     fixture.payoutComponentRequests.every(({ authoritative }) => authoritative === "true"),
@@ -158,7 +158,6 @@ test("administrator payout drawers contain only their payout amounts and records
       id: report,
       company_id: company,
       seller_namespace: "seller-a",
-      reconciliation_count: "1",
       currency: "USD",
       start_date: "2026-06-01",
       end_date: "2026-06-30",
@@ -168,34 +167,18 @@ test("administrator payout drawers contain only their payout amounts and records
       company_amount: "70",
     },
   ];
-  fixture.payoutReconciliation = [
-    {
-      report_id: report,
-      row_number: "1",
-      seller_namespace: "seller-a",
-      activity_date: "2026-06-12",
-      marketplace_name: "Amazon.com",
-      currency: "USD",
-      finances_category_amount: "100",
-      selbox_category_amount: "-3",
-      data_kiosk_finances_control: "-20",
-      data_kiosk_category_amount: "-25",
-      difference: "5",
-      finances_total: "77",
-      accounted_total: "77",
-    },
-  ];
+
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await page.getByRole("cell", { name: "70.00 USD", exact: true }).click();
   expect(
-    fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/payout_report_reconciliation"),
+    fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/rpc/report_source_totals"),
   ).toBe(false);
   const drawer = page.getByRole("dialog", { name: "Selected row details" });
   await expect(
-    drawer.getByRole("button", { name: /Saved source details|Saved account reconciliation/ }),
+    drawer.getByRole("button", { name: /Saved source details|Account reconciliation/ }),
   ).toHaveCount(0);
-  await expect(drawer.getByRole("table", { name: "Saved reconciliation" })).toHaveCount(0);
+  await expect(drawer.getByRole("table", { name: "Account reconciliation" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toBeVisible();
   expect(
     fixture.payoutComponentRequests.every(({ authoritative }) => authoritative === "true"),

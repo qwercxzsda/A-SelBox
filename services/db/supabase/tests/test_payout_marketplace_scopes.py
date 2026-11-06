@@ -10,9 +10,9 @@ from services.db.supabase.tests.payout_fixtures import (
     generate_payout_reports,
     payout_snapshot,
     prepare_payout,
+    report_source_rows,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
-from services.db.supabase.tests.verification.financial_reconciliation import raw_reconciliation
 from services.db.supabase.tests.verification.payout_estimates import verify_estimate_parity
 from services.db.supabase.tests.verification.payouts import independent_payout_totals
 
@@ -61,14 +61,6 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 self.assertEqual(
                     independent_payout_totals(self.connection, report), (source, fee, amount)
                 )
-                self.assertTrue(
-                    all(
-                        row[2:4] == (market, currency)
-                        for row in raw_reconciliation(
-                            self.connection, self.mature_cutoff_date(), report
-                        )
-                    )
-                )
                 self.assertEqual(
                     self.connection.execute(
                         "select distinct marketplace_name "
@@ -79,12 +71,11 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                     [(market,)],
                 )
                 self.assertEqual(
-                    self.connection.execute(
-                        "select distinct marketplace_name,currency "
-                        "from private.payout_report_reconciliation where report_id=%s",
-                        (report,),
-                    ).fetchall(),
-                    [(market, currency)],
+                    {
+                        (row["marketplace_name"], row["currency"])
+                        for row in report_source_rows(self, self.administrator(), report)
+                    },
+                    {(market, currency)},
                 )
         member, other = self.member(inputs.company), self.member(self.owner("OTHER")[0])
         self.assertCountEqual(
@@ -120,15 +111,19 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
             ).fetchall(),
             [("Amazon.com", "EUR", Decimal("-7.25")), ("Amazon.com", "USD", Decimal(85))],
         )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.payout_report_reconciliation c "
-                "join public.company_payout_reports r on r.id=c.report_id "
-                "where c.currency<>r.currency "
-                "or c.marketplace_name is distinct from r.marketplace_name"
-            ).fetchone(),
-            (0,),
-        )
+        administrator = self.administrator()
+        for report, _ in generated:
+            scope = self.connection.execute(
+                "select marketplace_name,currency from public.company_payout_reports where id=%s",
+                (report,),
+            ).fetchone()
+            self.assertTrue(report_source_rows(self, administrator, report))
+            self.assertTrue(
+                all(
+                    (row["marketplace_name"], row["currency"]) == scope
+                    for row in report_source_rows(self, administrator, report)
+                )
+            )
         self.connection.execute("set constraints all immediate")
 
     def test_zero_market_gets_new_snapshot_without_changing_its_old_report(self) -> None:

@@ -8,8 +8,12 @@ export function FinancialReviewCoverageNote({ rows }: { rows: readonly Canonical
   if (!coverage.monthCount) return null;
   const oneSided = coverage.months.onlyFinances + coverage.months.onlyDataKiosk;
   let message: string;
-  if (coverage.months.unknownCounts)
-    message = "Source record counts are unavailable for part of this comparison.";
+  if (
+    coverage.months.unknownCounts ||
+    rows.some((row) => row.finances_covered === "false" || row.data_kiosk_covered === "false")
+  )
+    message =
+      "Source retrieval coverage is incomplete for part of this comparison. Unavailable counterparts are not treated as zero.";
   else if (coverage.financesRowCount === "0" && coverage.dataKioskRowCount === "0")
     message = "No source records in this scope.";
   else if (coverage.financesRowCount === "0")

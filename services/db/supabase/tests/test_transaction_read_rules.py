@@ -9,16 +9,11 @@ from services.db.supabase.tests import test_live_view_equivalence as live_fixtur
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
-_INLINE_HELPERS = (
-    "private.calculate_service_fee(numeric,numeric)",
-    "private.reconcile_source_amounts(numeric,numeric,numeric,numeric)",
-)
+_INLINE_HELPERS = ("private.calculate_service_fee(numeric,numeric)",)
 _HELPERS = (
     *_INLINE_HELPERS,
     "private.mature_cutoff_date()",
-    "private.reconciliation_group_id(text,date,text,text)",
     "private.financial_account_visible()",
-    "private.resolve_source_reconciliation(uuid[],uuid[])",
     "private.validate_transaction_filters(date,date,uuid[],text[],text[],text[],text[],boolean)",
     "private.validate_page_bounds(integer,bigint)",
     "private.member_policy_covers_current_version(regclass)",

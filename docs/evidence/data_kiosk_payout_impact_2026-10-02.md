@@ -15,9 +15,9 @@ allocations. The current [type registry](../transaction_type_registry.md) is the
 ## Why account reconciliation does not repair a company payout
 
 A company's Data Kiosk cost enters its amount directly, without another service-fee percentage.
-The account reconciliation difference remains with SelBox. For example, a real cost of 10 should
-reduce 1,000 to 990. If Data Kiosk supplies 20, the company calculation becomes 980 while SelBox
-retains a +10 control difference. Account totals can balance while the company allocation is wrong.
+For example, a real cost of 10 should reduce 1,000 to 990. If Data Kiosk supplies 20, the company
+calculation becomes 980. The +10 difference between the billed and allocated costs is diagnostic;
+it does not correct the company allocation.
 Missing costs can overstate company amounts; duplicated costs can understate them. Moving the same
 cost to a different company can misstate both without changing the account net. See
 [source allocation](../source_allocation.md) and [payouts](../company_payout_reports.md).

@@ -134,9 +134,11 @@ test("F5 keeps a stale partial-month selection closed without reading its detail
   const detailReads = fixture.financialReviewRequests
     .slice(before)
     .filter(({ endpoint, params }) =>
-      endpoint === "financial_review_totals" || endpoint === "financial_review_type_totals"
-        ? params.get("p_month_from") !== "2026-01-01"
-        : endpoint !== "financial_review_records" || params.get("select") !== "activity_date",
+      endpoint === "current_source_totals"
+        ? params.get("p_start") !== "2026-01-01"
+        : endpoint === "financial_review_type_totals"
+          ? params.get("p_month_from") !== "2026-01-01"
+          : endpoint !== "financial_review_records" || params.get("select") !== "activity_date",
     );
   expect(detailReads.map(({ endpoint, params }) => `${endpoint}?${params}`)).toEqual([]);
 });

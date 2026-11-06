@@ -10,7 +10,6 @@ from uuid import uuid7
 from psycopg.types.json import Jsonb
 
 from ....src.database.payout_reports import (
-    load_company_payout_reconciliation,
     load_company_payout_report,
     load_company_payout_report_components,
     publish_company_payout_report,
@@ -86,7 +85,6 @@ class TestPayoutReports(unittest.TestCase):
             "v1",
             1,
             1,
-            1,
             2,
             1,
             Decimal("1e1000"),
@@ -101,6 +99,15 @@ class TestPayoutReports(unittest.TestCase):
         self.assertEqual(report.source_amount, Decimal("1e1000"))
         self.assertEqual(report.fee_amount, Decimal("-0.123456789123456789"))
         self.assertEqual(report.marketplace_name, "Amazon.co.jp")
+        self.assertEqual(
+            (
+                report.component_count,
+                report.finances_batch_count,
+                report.data_kiosk_observation_count,
+                report.terms_version_count,
+            ),
+            (1, 1, 2, 1),
+        )
         self.assertNotIn("current_", database.execute_calls[0][0])
         self.assertEqual(report.calculation_version, "v1")
         unsupported = (*header[:9], "v0", *header[10:])
@@ -124,7 +131,6 @@ class TestPayoutReports(unittest.TestCase):
             0,
             0,
             0,
-            0,
             Decimal(0),
             Decimal(0),
             Decimal(0),
@@ -141,10 +147,9 @@ class TestPayoutReports(unittest.TestCase):
         )
         for index, value in (
             (10, 1),
-            (11, 1),
-            (15, Decimal(1)),
-            (16, Decimal(-1)),
-            (17, Decimal(1)),
+            (14, Decimal(1)),
+            (15, Decimal(-1)),
+            (16, Decimal(1)),
         ):
             invalid = (*header[:index], value, *header[index + 1 :])
             with (
@@ -194,39 +199,6 @@ class TestPayoutReports(unittest.TestCase):
                 self.assertEqual(result.source_amount, amount)
                 self.assertEqual(result.company_amount, amount if authoritative else None)
                 self.assertEqual(result.authoritative, authoritative)
-
-    def test_reconciliation_reader_preserves_exact_seller_control_amounts(self) -> None:
-        report = str(uuid7())
-        database = FakeDatabaseConnection(
-            fetchall_results=[
-                [
-                    (
-                        report,
-                        1,
-                        "seller",
-                        date(2026, 1, 1),
-                        None,
-                        "USD",
-                        Decimal(100),
-                        Decimal(-3),
-                        Decimal(-12),
-                        Decimal(-10),
-                        Decimal(-2),
-                        Decimal(85),
-                        Decimal(85),
-                    )
-                ]
-            ]
-        )
-        result = load_company_payout_reconciliation(database, report)[0]
-        self.assertIsNone(result.marketplace_name)
-        self.assertEqual(result.finances_category_amount, Decimal(100))
-        self.assertEqual(result.selbox_category_amount, Decimal(-3))
-        self.assertEqual(result.data_kiosk_finances_control, Decimal(-12))
-        self.assertEqual(result.data_kiosk_category_amount, Decimal(-10))
-        self.assertEqual(result.difference, Decimal(-2))
-        self.assertEqual(result.accounted_total, result.finances_total)
-        self.assertIn("public.payout_report_reconciliation", database.execute_calls[0][0])
 
     def test_missing_report_is_not_synthesized(self) -> None:
         self.assertIsNone(load_company_payout_report(FakeDatabaseConnection([None]), str(uuid7())))

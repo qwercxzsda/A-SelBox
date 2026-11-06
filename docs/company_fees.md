@@ -271,8 +271,7 @@ counts, totals, and payout records and retain the same ownership and applicable
 fee requirements as other rows. Verified empty days satisfy coverage. Comparison
 and analysis rows do not add money.
 
-Company amounts use exact SKU ownership and the signed fee formula above. SelBox category and
-reconciliation rows have no company ownership, require no fee configuration, and contribute zero
+Company amounts use exact SKU ownership and the signed fee formula above. SelBox category rows have no company ownership, require no fee configuration, and contribute zero
 to company amounts. Company and SKU selections exclude those account rows. See the
 [summary API](transaction_query_contracts.md#period-totals-and-type-breakdowns) for request scope.
 

@@ -12,7 +12,7 @@ begin
         'private.inventory_acquisitions',
         'public.company_payout_reports', 'public.company_payout_report_components',
         'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_observations',
-        'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
+        'private.payout_report_terms_versions'
     ] loop
         execute format('create trigger immutable before update or delete on %s
 for each row execute function private.reject_mutation()', table_name);
@@ -227,7 +227,7 @@ begin
         'private.inventory_acquisitions',
         'public.company_payout_reports', 'public.company_payout_report_components',
         'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_observations',
-        'private.payout_report_terms_versions', 'private.payout_report_reconciliation'
+        'private.payout_report_terms_versions'
     ] loop
         execute format('create trigger immutable_truncate
 before truncate on %s
@@ -242,7 +242,6 @@ declare child text; count_field text;
 begin
     for child, count_field in values
         ('public.company_payout_report_components', 'component_count'),
-        ('private.payout_report_reconciliation', 'reconciliation_count'),
         ('private.payout_report_finances_batches', 'finances_batch_count'),
         ('private.payout_report_data_kiosk_observations', 'data_kiosk_observation_count'),
         ('private.payout_report_terms_versions', 'terms_version_count')

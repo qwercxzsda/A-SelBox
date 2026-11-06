@@ -153,7 +153,7 @@ Mature payouts already use Finances for the direct category. Sweden's missing Da
 transaction fees and the direct sales comparison gaps therefore affect comparison or recent
 estimates, not an additional deduction from the mature payout. Data Kiosk-category costs remain
 authoritative even for mature payouts: missing or excessive costs can still misstate company
-amounts. An account residual retained by SelBox does not repair SKU allocation.
+amounts. An account-level comparison does not repair SKU allocation.
 
 No blanket eventual-consistency conclusion is justified. Matched operation cohorts explain
 timing, while Swedish fees and the reviewed SKU/coupon/deal omissions persist across captures.

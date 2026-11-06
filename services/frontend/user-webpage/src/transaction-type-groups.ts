@@ -17,7 +17,6 @@ const GROUPS = {
   taxes: "Taxes",
   other: "Other fees & adjustments",
   "seller-costs": "Seller-provided costs",
-  reconciliation: "Reconciliation",
 } as const;
 
 type GroupId = keyof typeof GROUPS;
@@ -48,14 +47,10 @@ const FILTER_GROUPS: Record<BreakdownGroupId, GroupId> = {
   reimbursements: "inventory",
   liquidations: "inventory",
   "off-amazon-costs": "seller-costs",
-  reconciliation: "reconciliation",
   other: "other",
 };
 
-const KNOWN_TYPES = new Set([
-  ...transactionTypes.map(({ type }) => type),
-  "FINANCES_KIOSK_DIFFERENCE",
-]);
+const KNOWN_TYPES = new Set(transactionTypes.map(({ type }) => type));
 
 export function transactionTypeGroups(options: readonly FilterOption[]): TransactionTypeGroup[] {
   const groups = new Map<GroupId, FilterOption[]>();

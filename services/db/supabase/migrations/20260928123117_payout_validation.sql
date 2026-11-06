@@ -295,24 +295,6 @@ begin
         (new.component_count::bigint,new.source_amount::numeric,new.fee_amount::numeric,new.company_amount::numeric) then
         raise exception 'Payout totals do not match its complete component inventory' using errcode = '23514';
     end if;
-    with expected as (
-        select to_jsonb(r) as item
-        from private.resolve_source_reconciliation(finances_runs,kiosk_observations) r
-        where new.currency is not null and r.activity_date between new.start_date and new.end_date
-            and r.marketplace_name is not distinct from new.marketplace_name
-            and r.currency = new.currency
-    ), actual as (
-        select to_jsonb(r) - array['report_id','row_number'] as item
-        from private.payout_report_reconciliation r where r.report_id = new.id
-    ), difference as (
-        (select item from expected except all select item from actual)
-        union all
-        (select item from actual except all select item from expected)
-    ) select exists(select 1 from difference) into differs;
-    if differs or (select count(*) from private.payout_report_reconciliation where report_id = new.id)
-        <> new.reconciliation_count then
-        raise exception 'Payout reconciliation does not match its frozen source inputs' using errcode = '23514';
-    end if;
     return null;
 end;
 $$;

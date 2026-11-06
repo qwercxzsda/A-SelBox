@@ -3,6 +3,15 @@ import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { SETTINGS, csvRecord } from "./api-fixtures.mjs";
 
+const REVISION = { finances: "f1", data_kiosk: "k1" };
+function sourceClient(fetcher) {
+  return createApiClient(SETTINGS, (url, init) =>
+    new URL(url).pathname.endsWith("/workspace_revisions")
+      ? new Response(JSON.stringify({ revisions: REVISION }))
+      : fetcher(url, init),
+  );
+}
+
 const typeGroup = (overrides = {}) => ({
   month: "2026-07-01",
   category: "DATA_KIOSK",
@@ -33,6 +42,7 @@ const readYear = (client, signal) =>
     "2026",
     "USD",
     "Amazon.com",
+    "2026-07",
     signal,
   );
 
@@ -43,14 +53,14 @@ test("complete year type totals traverse beyond 1000 groups without losing decim
     }),
   );
   const offsets = [];
-  const client = createApiClient(SETTINGS, async (url, init) => {
+  const client = sourceClient(async (url, init) => {
     const parsed = new URL(url);
     const params = parsed.searchParams;
     assert.equal(parsed.pathname, "/rest/v1/rpc/financial_review_type_totals");
     assert.equal(params.get("p_category"), "DATA_KIOSK");
     assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("p_month_from"), "2026-01-01");
-    assert.equal(params.get("p_month_to"), "2027-01-01");
+    assert.equal(params.get("p_month_to"), "2026-08-01");
     assert.equal(params.get("p_currency"), "USD");
     assert.equal(params.get("order"), "month.asc,source.asc,component_type.asc");
     assert.equal(params.get("limit"), "1000");
@@ -64,7 +74,7 @@ test("complete year type totals traverse beyond 1000 groups without losing decim
     return pageResponse(expected.slice(offset, offset + 1000), expected.length, offset);
   });
   assert.deepEqual(
-    (await readYear(client)).map((row) => ({ ...row })),
+    (await readYear(client)).rows.map((row) => ({ ...row })),
     expected,
   );
   assert.deepEqual(offsets, [0, 1000]);
@@ -75,12 +85,12 @@ test("complete reads tolerate smaller server page caps and distinguish repeated 
     typeGroup({ month: `2026-${month}-01` }),
   );
   const offsets = [];
-  const client = createApiClient(SETTINGS, async (url) => {
+  const client = sourceClient(async (url) => {
     const offset = Number(new URL(url).searchParams.get("offset"));
     offsets.push(offset);
     return pageResponse(expected.slice(offset, offset + 2), expected.length, offset);
   });
-  assert.equal((await readYear(client)).length, 5);
+  assert.equal((await readYear(client)).rows.length, 5);
   assert.deepEqual(offsets, [0, 2, 4]);
 });
 
@@ -95,7 +105,7 @@ test("monthly family comparisons reuse complete count-aware paging", async () =>
     }),
   ];
   const offsets = [];
-  const client = createApiClient(SETTINGS, async (url) => {
+  const client = sourceClient(async (url) => {
     const params = new URL(url).searchParams;
     assert.equal(params.get("p_month_from"), "2026-07-01");
     assert.equal(params.get("p_month_to"), "2026-08-01");
@@ -112,7 +122,7 @@ test("monthly family comparisons reuse complete count-aware paging", async () =>
         "USD",
         "Amazon.com",
       )
-    ).length,
+    ).rows.length,
     2,
   );
   assert.deepEqual(offsets, [0, 1]);
@@ -141,7 +151,7 @@ test("complete comparisons reject missing counts, changing counts, duplicate gro
     [[Array.from({ length: 1001 }, () => one), 1001]],
   ]) {
     let requests = 0;
-    const client = createApiClient(SETTINGS, async (url) => {
+    const client = sourceClient(async (url) => {
       assert.ok(
         requests < responses.length,
         "an inconsistent read must stop instead of retrying indefinitely",
@@ -180,21 +190,21 @@ test("scope, source, exact amount and positive safe record counts are validated 
     { row_count: "1.5" },
     { row_count: "9007199254740992" },
   ]) {
-    const client = createApiClient(SETTINGS, async () => pageResponse([typeGroup(patch)], 1));
+    const client = sourceClient(async () => pageResponse([typeGroup(patch)], 1));
     await assert.rejects(readYear(client), undefined, JSON.stringify(patch));
   }
 });
 
 test("complete comparisons stop at explicit group and request bounds rather than returning partial totals", async () => {
   let requests = 0;
-  const tooMany = createApiClient(SETTINGS, async () => {
+  const tooMany = sourceClient(async () => {
     requests++;
     return pageResponse([typeGroup()], 50_001);
   });
   await assert.rejects(readYear(tooMany), /complete comparison limit/);
   assert.equal(requests, 1);
   requests = 0;
-  const tinyPages = createApiClient(SETTINGS, async (url) => {
+  const tinyPages = sourceClient(async (url) => {
     const offset = Number(new URL(url).searchParams.get("offset"));
     requests++;
     return pageResponse([typeGroup({ component_type: `TYPE-${offset}` })], 201, offset);
@@ -208,14 +218,23 @@ test("empty complete reads and calendar endpoints stay bounded", async () => {
     ["0001", "0002-01-01"],
     ["9999", "10000-01-01"],
   ]) {
-    const client = createApiClient(SETTINGS, async (url) => {
+    const client = sourceClient(async (url) => {
       const params = new URL(url).searchParams;
       assert.equal(params.get("p_month_from"), `${year}-01-01`);
       assert.equal(params.get("p_month_to"), end);
       return pageResponse([], 0);
     });
     assert.deepEqual(
-      await client.fetchFinancialReviewPeriodTypes("access", "FINANCES", year, "USD", "Amazon.com"),
+      (
+        await client.fetchFinancialReviewPeriodTypes(
+          "access",
+          "FINANCES",
+          year,
+          "USD",
+          "Amazon.com",
+          `${year}-12`,
+        )
+      ).rows,
       [],
     );
   }
@@ -223,7 +242,7 @@ test("empty complete reads and calendar endpoints stay bounded", async () => {
 
 test("invalid complete-read inputs never query; permission and cancellation errors remain intact", async () => {
   let requests = 0;
-  const invalid = createApiClient(SETTINGS, async () => {
+  const invalid = sourceClient(async () => {
     requests++;
     return pageResponse([], 0);
   });
@@ -234,7 +253,14 @@ test("invalid complete-read inputs never query; permission and cancellation erro
     ["FINANCES", "2026", "usd"],
   ])
     await assert.rejects(
-      invalid.fetchFinancialReviewPeriodTypes("access", category, year, currency, "Amazon.com"),
+      invalid.fetchFinancialReviewPeriodTypes(
+        "access",
+        category,
+        year,
+        currency,
+        "Amazon.com",
+        "2026-07",
+      ),
     );
   assert.equal(requests, 0);
   const denied = createApiClient(
@@ -247,11 +273,33 @@ test("invalid complete-read inputs never query; permission and cancellation erro
   );
   const controller = new AbortController();
   const reason = new Error("Scope changed");
-  const cancelled = createApiClient(SETTINGS, async () => {
+  const cancelled = sourceClient(async () => {
     requests++;
     controller.abort(reason);
     return pageResponse([typeGroup()], 2);
   });
   await assert.rejects(readYear(cancelled, controller.signal), (error) => error === reason);
   assert.equal(requests, 1);
+});
+
+test("complete type reads reject source changes between their revision checks", async () => {
+  let revisions = 0;
+  const client = createApiClient(SETTINGS, async (url) => {
+    if (new URL(url).pathname.endsWith("/workspace_revisions"))
+      return new Response(
+        JSON.stringify({ revisions: { ...REVISION, finances: String(++revisions) } }),
+      );
+    return pageResponse([typeGroup()], 1);
+  });
+  await assert.rejects(readYear(client), /changed while loading/);
+  assert.equal(revisions, 2);
+});
+
+test("successful complete type reads return the revisions that bracket their rows", async () => {
+  const result = await readYear(sourceClient(async () => pageResponse([typeGroup()], 1)));
+  assert.deepEqual(result.revision, REVISION);
+  assert.deepEqual(
+    result.rows.map((row) => ({ ...row })),
+    [typeGroup()],
+  );
 });

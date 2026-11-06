@@ -151,7 +151,9 @@ activity; administrators can inspect setup requirements and open the affected SK
 Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
 company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.
 Readiness covers the whole company/month even when the list is filtered to a marketplace. Historical
-reports preserve their original values and versions. The
+reports preserve their original values and versions. Administrator diagnostics load native aggregates
+from each report's saved source inputs. The frontend computes comparisons with exact decimals, using
+retrieval coverage to distinguish an absent source from a covered zero; payout amounts stay frozen. The
 [payout contract](../../../docs/company_payout_reports.md) defines eligibility, maturity,
 completeness, zero reports, and agreement with estimates.
 
@@ -180,7 +182,7 @@ lookup drawer across all retained captures, independently of table filters. Its 
 page survive closing, tab changes, and reloads. Source details retain their exact row/version;
 missing versions show an unavailable message. Closing returns focus to the previous
 action. The [Financial review contract](../../../docs/financial_review.md) defines source
-eligibility and saved account controls.
+eligibility and diagnostics over saved source inputs.
 
 ## Design conventions
 
@@ -271,7 +273,9 @@ for local hosts. Missing configuration has no implicit fallback.
 Reverse proxies must allow the Auth token, user, logout, signup, verify, and recover endpoints,
 including authenticated `PUT /auth/v1/user` for password updates. Configure approved callback URLs
 for the deployed origin/path and email delivery for confirmation/recovery. The local preview uses a
-mail sink; successful local recovery does not establish hosted email delivery.
+mail sink and explicitly permits recovery callbacks to `http://127.0.0.1:5173/` and
+`http://localhost:5173/` in [the local Auth configuration](../../db/supabase/config.toml).
+Successful local recovery does not establish hosted email delivery.
 
 Cache fingerprinted `/assets/` privately with `max-age=31536000, immutable`; keep HTML, Auth, and
 REST responses `no-store`. Missing assets must return 404 rather than SPA HTML, and an absent

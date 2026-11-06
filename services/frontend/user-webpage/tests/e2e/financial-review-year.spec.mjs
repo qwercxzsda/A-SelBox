@@ -47,17 +47,19 @@ test("a full year shows at most twelve chronological months in one currency with
   await expect(table(page)).not.toContainText("EUR");
   await expect(table(page)).not.toContainText("JPY");
   const reads = fixture.financialReviewRequests.filter(
-    ({ endpoint }) => endpoint === "financial_review_totals",
+    ({ endpoint }) => endpoint === "current_source_totals",
   );
   expect(
     reads.some(
       ({ params }) =>
-        params.get("p_month_from") === "2025-01-01" && params.get("p_month_to") === "2026-01-01",
+        params.get("p_start") === "2025-01-01" && params.get("p_end") === "2025-12-31",
     ),
   ).toBe(true);
   for (const { params } of reads) {
-    expect(params.get("p_month_from")).toMatch(/^\d{4}-01-01$/);
-    expect(params.get("p_month_to")).toMatch(/^\d{4}-01-01$/);
+    expect(params.get("p_start")).toMatch(/^\d{4}-01-01$/);
+    expect(params.get("p_end")).toBe(
+      params.get("p_start").startsWith("2026") ? "2026-07-31" : "2025-12-31",
+    );
     expect(params.has("p_currency")).toBe(false);
   }
   const anchors = fixture.financialReviewRequests.filter(
@@ -202,10 +204,10 @@ test("chart keyboard selection opens the same currency and restores focus to its
   await expect(totals.getByRole("cell", { name: "-10.00", exact: true })).toHaveCount(2);
   expect(
     fixture.financialReviewRequests
-      .filter(({ endpoint }) => endpoint === "financial_review_totals")
+      .filter(({ endpoint }) => endpoint === "current_source_totals")
       .at(-1)
-      .params.get("currency"),
-  ).toBe("eq.EUR");
+      .params.get("p_currency"),
+  ).toBe("EUR");
   await detail.getByRole("button", { name: "Close monthly financial review", exact: true }).click();
   await expect(july).toBeFocused();
 });

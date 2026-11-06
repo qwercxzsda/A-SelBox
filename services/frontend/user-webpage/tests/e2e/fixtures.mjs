@@ -55,13 +55,13 @@ export async function mockSupabase(page) {
       return respondWithPayoutReadiness(fixture, context);
     if (
       [
-        "/rest/v1/rpc/financial_review_totals",
+        "/rest/v1/rpc/current_source_totals",
         "/rest/v1/rpc/financial_review_type_totals",
         "/rest/v1/financial_review_records",
       ].includes(url.pathname)
     )
       return respondWithFinancialReview(fixture, context);
-    if (url.pathname === "/rest/v1/payout_reconciliation_totals")
+    if (url.pathname === "/rest/v1/rpc/report_source_totals")
       return respondWithReconciliation(fixture, context);
     if (
       ["/rest/v1/rpc/sku_configuration", "/rest/v1/rpc/publish_sku_configuration"].includes(
@@ -74,7 +74,6 @@ export async function mockSupabase(page) {
         "/rest/v1/rpc/payout_report_policy",
         "/rest/v1/rpc/payout_report_totals",
         "/rest/v1/company_payout_report_components",
-        "/rest/v1/payout_report_reconciliation",
       ].includes(url.pathname)
     )
       return respondWithPayouts(fixture, context);

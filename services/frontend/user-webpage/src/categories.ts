@@ -2,7 +2,6 @@ const LABELS: Record<string, string> = {
   FINANCES: "Finances",
   DATA_KIOSK: "Data Kiosk",
   SELBOX: "SelBox",
-  RECONCILIATION: "Reconciliation",
   ANALYSIS_ONLY: "Analysis only",
   APPLIED: "Fee applied",
   NOT_APPLICABLE: "Fee not applicable",
@@ -64,7 +63,6 @@ const TYPE_WORDS = new Map([
 
 /** Display source type codes consistently without changing their filter/group identity. */
 export function transactionTypeLabel(value: string): string {
-  if (value === "FINANCES_KIOSK_DIFFERENCE") return "Finances / Data Kiosk difference";
   return value
     .split("/")
     .map((segment) => {

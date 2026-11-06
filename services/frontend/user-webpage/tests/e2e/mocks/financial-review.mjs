@@ -1,17 +1,7 @@
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
+import { sourceRequestParams, sourceTotalsResponse } from "./source-totals.mjs";
 
 const COLUMNS = {
-  financial_review_totals: [
-    "month",
-    "category",
-    "marketplace_name",
-    "currency",
-    "finances_amount",
-    "data_kiosk_amount",
-    "difference",
-    "finances_row_count",
-    "data_kiosk_row_count",
-  ],
   financial_review_type_totals: [
     "month",
     "category",
@@ -37,7 +27,6 @@ const COLUMNS = {
   ],
 };
 const DATA = {
-  financial_review_totals: "financialReviewTotals",
   financial_review_type_totals: "financialReviewTypeTotals",
   financial_review_records: "financialReviewRecords",
 };
@@ -97,13 +86,70 @@ export async function respondWithFinancialReview(
   { request, url, user, reply, csvReply, track },
 ) {
   const endpoint = url.pathname.split("/").at(-1);
-  const entry = { endpoint, params: url.searchParams, user, completed: false };
+  if (endpoint === "current_source_totals" && request.method() !== "POST") return reply({}, 405);
+  const args = endpoint === "current_source_totals" ? request.postDataJSON() : null;
+  const entry = {
+    endpoint,
+    params: args ? sourceRequestParams(args) : url.searchParams,
+    args,
+    user,
+    completed: false,
+  };
   fixture.financialReviewRequests.push(entry);
   track(request, entry);
   if (fixture.roles[user] !== "administrator") return reply({}, 403);
   await fixture.beforeFinancialReview(entry);
   const status = fixture.financialReviewStatusForRequest?.(entry) ?? fixture.financialReviewStatus;
   if (status !== 200) return reply({}, status);
+  if (args) {
+    const scope = {
+      start_date: args.p_start,
+      end_date: args.p_end,
+      marketplace_name: args.p_marketplace,
+      currency: args.p_currency ?? null,
+    };
+    const monthEnd = new Date(`${args.p_end.slice(0, 7)}-01T00:00:00Z`);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+    monthEnd.setUTCDate(0);
+    const partialMonth =
+      !args.p_start.endsWith("-01") || args.p_end !== monthEnd.toISOString().slice(0, 10);
+    const rows =
+      args.p_grouping === "day" || partialMonth
+        ? fixture.financialReviewRecords
+        : fixture.financialReviewTotals.flatMap((row) =>
+            ["FINANCES", "DATA_KIOSK"].flatMap((source) => {
+              const prefix = source.toLowerCase();
+              const count = row[`${prefix}_row_count`];
+              return BigInt(count ?? "0") > 0n
+                ? [
+                    {
+                      source,
+                      category: row.category,
+                      activity_date: row.month,
+                      seller_namespace: "seller-one",
+                      marketplace_name: row.marketplace_name,
+                      currency: row.currency,
+                      amount: row[`${prefix}_amount`],
+                      row_count: count,
+                    },
+                  ]
+                : [];
+            }),
+          );
+    const revision = fixture.revisionsByUser[user] ?? fixture.revisions;
+    return reply(
+      sourceTotalsResponse(
+        rows,
+        scope,
+        args,
+        {
+          finances: revision.finances,
+          data_kiosk: revision.data_kiosk,
+        },
+        fixture.currentSourceCoverage,
+      ),
+    );
+  }
   const filters = new URLSearchParams(url.searchParams);
   const familyFilter = filters.get("or");
   filters.delete("or");
@@ -122,7 +168,6 @@ export async function respondWithFinancialReview(
   const sourceRows = isAnchor
     ? fixture.financialReviewTotals.map((row) => ({ ...row, activity_date: row.month }))
     : fixture[DATA[endpoint]];
-  const matureMonthBoundary = `${(fixture.payoutPolicy?.mature_cutoff_date ?? "2026-07-27").slice(0, 7)}-01`;
   for (const [, field, operator, date] of (filters.get("and") ?? "").matchAll(
     /(month|activity_date)\.(eq|gte|lte|gt|lt)\.([0-9-]+)/g,
   ))
@@ -130,7 +175,6 @@ export async function respondWithFinancialReview(
   const rows = sortRecordRows(
     filterRecordRows(sourceRows, filters).filter((row) => {
       if (familyFilter && !matchesFamilyExpression(row, `or${familyFilter}`)) return false;
-      if ((row.activity_date ?? row.month) >= matureMonthBoundary) return false;
       if (filters.get("category") !== `eq.${row.category}`) return false;
       const before = filters.get("activity_date");
       if (before?.startsWith("lt.") && row.activity_date >= before.slice(3)) return false;
