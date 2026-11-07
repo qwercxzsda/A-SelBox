@@ -191,15 +191,12 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       year: string,
       currency: string,
       marketplace: string,
-      lastMonth: string,
       signal?: AbortSignal,
     ): Promise<SourceTypeTotals> {
       requireFinancialReviewYear(year);
-      requireMonth(lastMonth);
-      if (!lastMonth.startsWith(year)) throw new Error("Choose a month within the review year");
       return readFamilyTypes(
         accessToken,
-        { category, firstMonth: `${year}-01`, lastMonth, currency, marketplace },
+        { category, firstMonth: `${year}-01`, lastMonth: `${year}-12`, currency, marketplace },
         signal,
       );
     },

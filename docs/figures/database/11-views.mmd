@@ -20,9 +20,8 @@ flowchart LR
     private_inventory_items["TABLE private.inventory_items"]
     private_latest_inventory_capture_references__["FUNCTION private.latest_inventory_capture_references()"]
     private_live_company_component_inputs["VIEW private.live_company_component_inputs"]
-    private_mature_cutoff_date__["FUNCTION private.mature_cutoff_date()"]
-    private_payout_report_data_kiosk_observations["TABLE private.payout_report_data_kiosk_observations"]
-    private_payout_report_finances_batches["TABLE private.payout_report_finances_batches"]
+    private_payout_report_data_kiosk_versions["TABLE private.payout_report_data_kiosk_versions"]
+    private_payout_report_finances_versions["TABLE private.payout_report_finances_versions"]
     private_payout_report_terms_versions["TABLE private.payout_report_terms_versions"]
     private_read_data_kiosk_preprocess_results__["FUNCTION private.read_data_kiosk_preprocess_results()"]
     private_read_finances_preprocess_results__["FUNCTION private.read_finances_preprocess_results()"]
@@ -38,8 +37,8 @@ flowchart LR
     public_latest_inventory_captures["VIEW public.latest_inventory_captures"]
     public_latest_inventory_items["VIEW public.latest_inventory_items"]
     public_live_company_components["VIEW public.live_company_components"]
-    public_payout_report_data_kiosk_observations["VIEW public.payout_report_data_kiosk_observations"]
-    public_payout_report_finances_batches["VIEW public.payout_report_finances_batches"]
+    public_payout_report_data_kiosk_versions["VIEW public.payout_report_data_kiosk_versions"]
+    public_payout_report_finances_versions["VIEW public.payout_report_finances_versions"]
     public_payout_report_terms_versions["VIEW public.payout_report_terms_versions"]
     public_sku_fee_periods["TABLE public.sku_fee_periods"]
     public_sku_terms_versions["TABLE public.sku_terms_versions"]
@@ -64,17 +63,18 @@ flowchart LR
     private_data_kiosk_preprocess_batches --> private_live_company_component_inputs
     private_finances_activity_components --> private_live_company_component_inputs
     private_finances_preprocess_batches --> private_live_company_component_inputs
-    private_mature_cutoff_date__ --> private_live_company_component_inputs
     private_current_sku_terms --> public_company_skus
     public_company_skus --> public_current_sku_fee_periods
     public_sku_fee_periods --> public_current_sku_fee_periods
     private_data_kiosk_component_details --> public_data_kiosk_preprocess_entries
     private_data_kiosk_preprocess_batch_days --> public_data_kiosk_preprocess_entries
     private_data_kiosk_preprocess_batches --> public_data_kiosk_preprocess_entries
+    private_financial_account_visible__ --> public_data_kiosk_preprocess_entries
     private_read_data_kiosk_preprocess_results__ --> public_data_kiosk_preprocess_results
     private_finances_component_details --> public_finances_preprocess_entries
     private_finances_preprocess_batch_transactions --> public_finances_preprocess_entries
     private_finances_preprocess_batches --> public_finances_preprocess_entries
+    private_financial_account_visible__ --> public_finances_preprocess_entries
     private_read_finances_preprocess_results__ --> public_finances_preprocess_results
     private_data_kiosk_component_details --> public_financial_review_records
     private_finances_component_details --> public_financial_review_records
@@ -87,6 +87,6 @@ flowchart LR
     private_calculate_service_fee__ --> public_live_company_components
     private_live_company_component_inputs --> public_live_company_components
     public_sku_fee_periods --> public_live_company_components
-    private_payout_report_data_kiosk_observations --> public_payout_report_data_kiosk_observations
-    private_payout_report_finances_batches --> public_payout_report_finances_batches
+    private_payout_report_data_kiosk_versions --> public_payout_report_data_kiosk_versions
+    private_payout_report_finances_versions --> public_payout_report_finances_versions
     private_payout_report_terms_versions --> public_payout_report_terms_versions

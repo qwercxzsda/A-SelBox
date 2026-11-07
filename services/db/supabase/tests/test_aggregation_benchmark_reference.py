@@ -1,6 +1,5 @@
 """Benchmark summary oracles preserve live authority and authenticated scope."""
 
-from datetime import date
 from itertools import product
 from typing import Any, cast
 
@@ -15,7 +14,6 @@ from services.db.supabase.tests.local_database import require_row
 
 class AggregationBenchmarkReferenceTests(FinancialFixture):
     def test_reference_matches_totals_for_current_authority_roles_and_grouping(self) -> None:
-        self.set_mature_cutoff_date(date(2026, 8, 1))
         company, _ = self.financial_fixture()
         member, administrator = self.member(company), self.administrator()
         for (role, user, expected_count), grouped in product(
@@ -32,7 +30,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
                         "where not authoritative"
                     ).fetchone()
                 )[0]
-                self.assertGreater(excluded, 0)
+                self.assertEqual(excluded, 0)
                 accounts = require_row(
                     self.connection.execute(
                         "select count(*) from public.live_company_components "

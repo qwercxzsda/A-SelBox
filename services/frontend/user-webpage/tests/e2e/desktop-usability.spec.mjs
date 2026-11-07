@@ -25,7 +25,7 @@ for (const width of [1440, 1920, 834, 390]) {
     await mockInventory(page, [inventoryRow("DESKTOP-0", { available: "0" })]);
     await signIn(page);
     const tabs = page.getByRole("tablist", { name: "Workspace data" });
-    const summaries = page.getByRole("region", { name: "Estimated totals", exact: true });
+    const summaries = page.getByRole("region", { name: "Current totals", exact: true });
     const currency = summaries.getByLabel("Summary currency", { exact: true });
     await expect(currency).toBeVisible();
     await currency.selectOption("EUR");

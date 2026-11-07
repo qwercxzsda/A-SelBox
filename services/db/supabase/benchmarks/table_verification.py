@@ -31,8 +31,6 @@ class Payload(TypedDict):
 def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
     clauses: list[sql.Composable] = [sql.SQL("true")]
     params: list[object] = []
-    if case.dataset.key == "live":
-        clauses.append(sql.SQL("v.authoritative"))
     for value, comparison in ((case.date_from, sql.SQL(">=")), (case.date_to, sql.SQL("<="))):
         if value is not None:
             clauses.append(
@@ -179,7 +177,12 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
             "select set_config('request.jwt.claims',%s,true)",
             (json.dumps({"sub": user, "role": "authenticated"}),),
         )
+        administrator = connection.execute("select private.is_administrator()").fetchone() == (
+            True,
+        )
         for dataset in DATASETS:
+            if dataset.key != "live" and not administrator:
+                continue
             blank = SearchCase(dataset, "date_blank", "date", "desc")
             predicate, params = view_filter(blank)
             scope = connection.execute(

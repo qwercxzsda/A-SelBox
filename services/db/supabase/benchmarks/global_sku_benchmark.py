@@ -7,7 +7,7 @@ import json
 import statistics
 import time
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, LiteralString, cast
@@ -45,7 +45,6 @@ def _seed(
     fixture: SourceModelFixture, namespaces: int, matching: int, irrelevant: int
 ) -> tuple[str, set[str]]:
     """Use normal publication validation; do not disable triggers or RLS."""
-    fixture.set_mature_cutoff_date(date(2026, 7, 1))
     company, identity = fixture.owner(_SKU)
     fixture.fee(identity, [("2026-01-01", None, "5")])
     member = fixture.member(company)

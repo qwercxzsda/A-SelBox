@@ -5,9 +5,8 @@ language sql stable security invoker set search_path = '' as $$
         or private.is_administrator();
 $$;
 
--- Maturity assumes Finances completion after two calendar months. Use a UTC
--- mature cutoff date so caller/session time zones cannot change the policy.
--- Dates before it are mature; the mature cutoff date and later are recent.
+-- Payout eligibility waits two calendar months; this never selects a transaction's
+-- authoritative source. UTC makes the payout boundary independent of session time zones.
 create function private.mature_cutoff_date()
 returns date
 language sql stable parallel safe security invoker set search_path = '' as $$

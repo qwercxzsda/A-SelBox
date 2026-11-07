@@ -62,6 +62,22 @@ def fill_payout_kiosk_month(
         )
 
 
+def _payout_payload(company: str, **scope: object) -> dict[str, object]:
+    """Use one default report scope for source selection and publication tests."""
+    return {
+        "id": new_id(),
+        "company_id": company,
+        "marketplace_name": "Amazon.com",
+        "currency": "USD",
+        "start_date": "2026-06-01",
+        "end_date": "2026-06-30",
+        "dataset_key": "economics",
+        "report_name": "Saved June report",
+        "change_reason": "Initial publication",
+        **scope,
+    }
+
+
 def publish_report(
     fixture: SourceModelFixture,
     company_id: str,
@@ -80,17 +96,13 @@ def publish_report(
         fixture.finances([], acquisition_id=fixture.acquisition(start=start_date, end=end_date))
     return fixture.call(
         "publish_company_payout_report",
-        {
-            "id": new_id(),
-            "company_id": company_id,
-            "marketplace_name": "Amazon.com",
-            "currency": "USD",
-            "start_date": start_date,
-            "end_date": end_date,
-            "dataset_key": "economics",
-            "report_name": "Retained source evidence",
-            "change_reason": "Freeze complete source observation coverage",
-        },
+        _payout_payload(
+            company_id,
+            start_date=start_date,
+            end_date=end_date,
+            report_name="Retained source evidence",
+            change_reason="Freeze source revisions and successful coverage",
+        ),
     )
 
 
@@ -99,7 +111,6 @@ class PayoutInputs:
     company: str
     sku_identity: str
     acquisition: str
-    finances: str
     finances_version: str
     kiosk_version: str
 
@@ -119,12 +130,18 @@ def prepare_payout(fixture: SourceModelFixture, company: str | None = None) -> P
             raise AssertionError("Expected the company's shared global SKU.")
         identity = str(row[0])
     acquisition = fixture.acquisition()
-    finances, version = fixture.finances([fixture.transaction("100")], acquisition_id=acquisition)
+    _, version = fixture.finances([fixture.transaction("100")], acquisition_id=acquisition)
     _, kiosk = fixture.kiosk(1, [fixture.component("-10")])
     fill_payout_kiosk_month(fixture)
     if version is None:
         raise AssertionError("Expected a nonempty Finance revision.")
-    return PayoutInputs(company, identity, acquisition, finances, version, kiosk)
+    return PayoutInputs(
+        company=company,
+        sku_identity=identity,
+        acquisition=acquisition,
+        finances_version=version,
+        kiosk_version=kiosk,
+    )
 
 
 def generate_payout_reports(
@@ -154,17 +171,16 @@ def refresh_payout_reports(
 
 
 def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
+    """Capture persisted totals and revision references without derived rows."""
     row = fixture.connection.execute(
         """
         select jsonb_build_object(
             'header',to_jsonb(r),
-            'components',(select jsonb_agg(to_jsonb(c) order by c.row_number)
-                from public.company_payout_report_components c where c.report_id=r.id),
-            'finances_batches',(select jsonb_agg(to_jsonb(p) order by p.batch_id)
-                from private.payout_report_finances_batches p where p.report_id=r.id),
-            'kiosk',(select jsonb_agg(to_jsonb(p) order by p.day_id)
-                from private.payout_report_data_kiosk_observations p where p.report_id=r.id),
-            'terms',(select jsonb_agg(to_jsonb(p) order by p.sku_id)
+            'finances_versions',(select jsonb_agg(to_jsonb(p) order by p.transaction_id)
+                from private.payout_report_finances_versions p where p.report_id=r.id),
+            'data_kiosk_versions',(select jsonb_agg(to_jsonb(p) order by p.day_id)
+                from private.payout_report_data_kiosk_versions p where p.report_id=r.id),
+            'terms_versions',(select jsonb_agg(to_jsonb(p) order by p.sku_id)
                 from private.payout_report_terms_versions p where p.report_id=r.id)
         ) from public.company_payout_reports r where r.id=%s
     """,
@@ -173,6 +189,45 @@ def payout_snapshot(fixture: SourceModelFixture, report: str) -> object:
     if row is None:
         raise AssertionError("Expected a saved payout report.")
     return row[0]
+
+
+def report_records(
+    fixture: SourceModelFixture,
+    report: str,
+    *,
+    user: str | None = None,
+    authoritative: bool | None = None,
+) -> list[dict[str, Any]]:
+    """Read all permitted records, or one explicit scope through its paginated RPC."""
+    if authoritative is None:
+        query = (
+            "select coalesce(jsonb_agg((select jsonb_object_agg(key,value) "
+            "from jsonb_each_text(to_jsonb(r))) "
+            "order by r.source,r.source_identity_id,r.source_row_id),'[]'::jsonb) "
+            "from private.read_payout_report_records(%s) r"
+        )
+        result = (
+            require_row(fixture.connection.execute(query, (report,)).fetchone())[0]
+            if user is None
+            else fixture.as_user(user, query, (report,))[0][0]
+        )
+        return cast(list[dict[str, Any]], result)
+    records: list[dict[str, Any]] = []
+    while True:
+        query = "select public.payout_report_records(%s,%s,1000,%s)"
+        parameters = (report, authoritative, len(records))
+        result = (
+            require_row(fixture.connection.execute(query, parameters).fetchone())[0]
+            if user is None
+            else fixture.as_user(user, query, parameters)[0][0]
+        )
+        page = cast(dict[str, Any], result)
+        rows = cast(list[dict[str, Any]], page["rows"])
+        records.extend(rows)
+        if len(records) >= int(page["total_count"]):
+            return records
+        if not rows:
+            raise AssertionError("Payout records ended before their exact count.")
 
 
 def report_source_rows(
@@ -186,21 +241,7 @@ def report_source_rows(
 
 
 def publish_payout(fixture: SourceModelFixture, inputs: PayoutInputs, **scope: object) -> str:
-    return fixture.call(
-        "publish_company_payout_report",
-        {
-            "id": new_id(),
-            "company_id": inputs.company,
-            "marketplace_name": "Amazon.com",
-            "currency": "USD",
-            "start_date": "2026-06-01",
-            "end_date": "2026-06-30",
-            "dataset_key": "economics",
-            "report_name": "Saved June report",
-            "change_reason": "Initial publication",
-            **scope,
-        },
-    )
+    return fixture.call("publish_company_payout_report", _payout_payload(inputs.company, **scope))
 
 
 def reassign_payout_sku(fixture: SourceModelFixture, sku_id: str, company: str | None) -> None:
@@ -232,14 +273,10 @@ def reassign_payout_sku(fixture: SourceModelFixture, sku_id: str, company: str |
 
 
 def empty_report_payload(company: str) -> dict[str, object]:
-    return {
-        "id": new_id(),
-        "company_id": company,
-        "marketplace_name": None,
-        "currency": None,
-        "start_date": "2026-06-01",
-        "end_date": "2026-06-30",
-        "dataset_key": "economics",
-        "report_name": "June payout",
-        "change_reason": "Verify current assignment requirement",
-    }
+    return _payout_payload(
+        company,
+        marketplace_name=None,
+        currency=None,
+        report_name="June payout",
+        change_reason="Verify current assignment requirement",
+    )

@@ -187,7 +187,7 @@ not call Amazon. The [payout contract](../../docs/company_payout_reports.md) own
 input selection, retry/reuse behavior and access.
 
 `src/database/payout_reports.py` provides a trusted internal `publish_company_payout_report()`
-helper and readers for frozen headers and components. Publication selects one
+helper and readers for frozen headers and records derived from saved inputs. Publication selects one
 company/month/marketplace/currency scope; callers do not supply source selections or calculated
 totals. A null marketplace/currency can represent an eligible company month without monetary scope.
 Application users only read reports; saving one does not approve or execute payment.

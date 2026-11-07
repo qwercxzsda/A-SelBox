@@ -6,10 +6,11 @@ an observation in Python, and atomically publishes stable transaction identities
 transaction versions, and their monetary components. Unchanged transactions reuse their existing
 versions across successful preprocessing batches.
 
-Company allocation remains separate from Amazon account reconciliation. Finances supplies mature
+Company allocation remains separate from Amazon account reconciliation. Finances supplies
 Finances and SelBox category amounts. Data Kiosk supplies its allocated company-cost category at all
-ages and recent estimates for the other monetary categories. The existing two-calendar-month
-[maturity policy](source_allocation.md) is an application cutoff, not a promise of Amazon finality.
+dates. Data Kiosk counterparts in other categories remain available for administrator comparisons.
+The two-calendar-month [maturity policy](source_allocation.md) controls payout eligibility only,
+not current source selection or Amazon finality.
 
 ## Acquisition scope and archives
 
@@ -138,12 +139,11 @@ passed validation. A match does not certify Data Kiosk's SKU cost allocation.
 
 ## Payouts, history and reads
 
-Payouts pin successful Finance batches through `private.payout_report_finances_batches`, Data Kiosk
-day versions and SKU terms. Finance membership identifies the exact immutable transaction versions
-and component IDs used. Saved reports keep those inputs after later source changes. Publication
-requires a coherent successful batch covering the required monthly scope whose membership matches
-current transaction versions. An older successful batch cannot certify newly changed contents.
-This is input selection, not another Finance business-validation pass.
+Payouts reference transaction versions directly through `private.payout_report_finances_versions`,
+alongside Data Kiosk day versions and SKU terms. Saved reports keep those exact contents and compact
+coverage intervals after current selections change. Publication checks required successful source
+coverage, not Finance business equations again. Reprocessing unchanged normalized versions does
+not create another payout report merely because a new batch observed them.
 
 Finance acquisitions, batches, memberships, transaction versions and components have no history
 cap. Data Kiosk applies the same immutable-history policy to complete-day versions and their batch
@@ -151,7 +151,7 @@ memberships. Raw page archives remain indefinitely in either workflow.
 
 Administrator source views expose retained transaction versions, including releases and transfers.
 Company Transactions and Financial review select current activity according to allocation rules.
-An acquisition is an explicit command; payout scheduling does not call Amazon. Use calendar-month
-retrievals for monthly payout refreshes. A partial capture can update transactions, but cannot
-certify a changed whole month through an older batch. The [payout contract](company_payout_reports.md)
+An acquisition is an explicit command; payout scheduling does not call Amazon.
+A partial capture can update transactions, but does not
+establish retrieval coverage for unqueried dates. The [payout contract](company_payout_reports.md)
 and [schema reference](database_schema.md) describe the exact read and reference relationships.

@@ -73,7 +73,7 @@ export async function mockSupabase(page) {
       [
         "/rest/v1/rpc/payout_report_policy",
         "/rest/v1/rpc/payout_report_totals",
-        "/rest/v1/company_payout_report_components",
+        "/rest/v1/rpc/payout_report_records",
       ].includes(url.pathname)
     )
       return respondWithPayouts(fixture, context);

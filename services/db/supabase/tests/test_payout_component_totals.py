@@ -1,12 +1,14 @@
 """Frozen report totals match authoritative components and retain exact marketplace units."""
 
 from decimal import Decimal
+from typing import cast
 
 from services.db.supabase.tests.payout_fixtures import (
     fill_payout_kiosk_month,
     generate_payout_reports,
     prepare_payout,
     publish_payout,
+    report_records,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -74,7 +76,7 @@ class PayoutComponentTotalsTests(SourceModelFixture):
                 "count(*) filter(where not authoritative),"
                 "count(*) filter(where not authoritative and fee_amount is null "
                 "and company_amount is null) "
-                "from public.company_payout_report_components where report_id=%s",
+                "from private.read_payout_report_records(%s)",
                 (report,),
             ).fetchone(),
             (56, 2, 2),
@@ -84,13 +86,47 @@ class PayoutComponentTotalsTests(SourceModelFixture):
                 "select sum(c.source_amount) filter(where c.authoritative)=r.source_amount,"
                 "sum(c.fee_amount) filter(where c.authoritative)=r.fee_amount,"
                 "sum(c.company_amount) filter(where c.authoritative)=r.company_amount "
-                "from public.company_payout_report_components c "
-                "join public.company_payout_reports r on r.id=c.report_id where r.id=%s "
+                "from public.company_payout_reports r "
+                "cross join lateral private.read_payout_report_records(r.id) c where r.id=%s "
                 "group by r.id",
                 (report,),
             ).fetchone(),
             (True, True, True),
         )
+        record_snapshots: dict[str, list[dict[str, object]]] = {}
+        for user, expected_count in ((administrator, 56), (member, 56)):
+            records: list[dict[str, object]] = []
+            for offset in range(0, expected_count, 17):
+                page = cast(
+                    dict[str, object],
+                    self.as_user(
+                        user,
+                        "select public.payout_report_records(%s,true,17,%s)",
+                        (report, offset),
+                    )[0][0],
+                )
+                self.assertEqual(page["total_count"], str(expected_count))
+                records.extend(cast(list[dict[str, object]], page["rows"]))
+            identities = {
+                (row["report_id"], row["source"], row["source_row_id"]) for row in records
+            }
+            self.assertEqual(len(identities), expected_count)
+            self.assertTrue(all("id" not in row and "created_at" not in row for row in records))
+            self.assertEqual(records, report_records(self, report, user=user, authoritative=True))
+            record_snapshots[user] = records
+            selected = cast(
+                dict[str, object],
+                self.as_user(
+                    user,
+                    "select public.payout_report_records(%s,true,1,0,array['FbaStorageFee'])",
+                    (report,),
+                )[0][0],
+            )
+            self.assertEqual(selected["total_count"], "1")
+            self.assertEqual(
+                [row["source_amount"] for row in cast(list[dict[str, str]], selected["rows"])],
+                ["-0.23"],
+            )
         self.fee(inputs.sku_identity, [("2026-01-01", None, "15")])
         finances_rows[0] = finances_rows[0] | {"amount": "1000", "fee_base": "1000"}
         self.finances(finances_rows)
@@ -98,6 +134,8 @@ class PayoutComponentTotalsTests(SourceModelFixture):
         self.assertEqual(self.report_totals(member, report), [expected[1]])
         self.assertEqual(self.report_totals(member, canada_report), [expected[0]])
         self.assertEqual(self.report_totals(other_member, other_report), other_expected)
+        for user, records in record_snapshots.items():
+            self.assertEqual(report_records(self, report, user=user, authoritative=True), records)
         self.connection.execute("set constraints all immediate")
 
     def test_company_month_generation_returns_every_currency_scope(self) -> None:

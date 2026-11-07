@@ -164,7 +164,7 @@ export const fetchPayoutHistory = (options: FetchPayoutHistoryOptions): Promise<
   getDefaultClient().fetchPayoutHistory(options);
 export const fetchPayoutVersion = (options: FetchPayoutVersionOptions) =>
   getDefaultClient().fetchPayoutVersion(options);
-export const fetchPayoutComponents = (
+export const fetchPayoutRecords = (
   accessToken: string,
   reportId: string,
   authoritative: boolean,
@@ -172,7 +172,7 @@ export const fetchPayoutComponents = (
   signal?: AbortSignal,
   types: string[] = [],
 ) =>
-  getDefaultClient().fetchPayoutComponents(
+  getDefaultClient().fetchPayoutRecords(
     accessToken,
     reportId,
     authoritative,
@@ -211,7 +211,6 @@ export const fetchFinancialReviewPeriodTypes = (
   year: string,
   currency: string,
   marketplace: string,
-  lastMonth: string,
   signal?: AbortSignal,
 ) =>
   getDefaultClient().fetchFinancialReviewPeriodTypes(
@@ -220,7 +219,6 @@ export const fetchFinancialReviewPeriodTypes = (
     year,
     currency,
     marketplace,
-    lastMonth,
     signal,
   );
 export const fetchFinancialReviewTypes = (

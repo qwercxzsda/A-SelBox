@@ -57,7 +57,7 @@ export function SummaryCard({
       className="estimated-summary-card"
       withBorder
       p="sm"
-      aria-label={`${title} estimated totals`}
+      aria-label={`${title} current totals`}
     >
       {period && total && total.rowCount > 0 && currency ? (
         <UnstyledButton

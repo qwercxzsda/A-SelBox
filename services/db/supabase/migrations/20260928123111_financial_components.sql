@@ -1,12 +1,11 @@
--- Company components share source authority and signed-fee arithmetic.
+-- Company components apply exact signed fees to selected source values and terms.
 -- Wildcards expand typed sources and named CTEs.
 -- noqa: disable=AM04
--- This payout/reference resolver uses explicit versions, never current pointers.
--- It shares fee applicability and arithmetic rules with the current live reads.
+-- Resolve saved source revisions and ownership/fee versions without current pointers.
 create function private.resolve_company_components(
-    p_finances_batch_ids uuid[], p_data_kiosk_observation_ids uuid[], p_terms_version_ids uuid[]
+    p_finances_version_ids uuid[], p_data_kiosk_version_ids uuid[], p_terms_version_ids uuid[]
 ) returns table (
-    source text, source_row_id uuid, source_version_id uuid, preprocess_version text,
+    source text, source_row_id uuid, source_version_id uuid,
     source_identity_id uuid, seller_namespace text, marketplace_name text,
     activity_date date, sku text, component_type text, currency text, source_amount numeric,
     quantity numeric, fee_base numeric, category public.allocation_category, authoritative boolean,
@@ -15,31 +14,26 @@ create function private.resolve_company_components(
 )
 language plpgsql stable set search_path = '' as $$
 begin
-    if p_finances_batch_ids is null or p_data_kiosk_observation_ids is null or p_terms_version_ids is null
-        or array_position(p_finances_batch_ids,null) is not null
-        or array_position(p_data_kiosk_observation_ids,null) is not null
+    if p_finances_version_ids is null or p_data_kiosk_version_ids is null or p_terms_version_ids is null
+        or array_position(p_finances_version_ids,null) is not null
+        or array_position(p_data_kiosk_version_ids,null) is not null
         or array_position(p_terms_version_ids,null) is not null then
         raise exception 'Explicit nonnull version arrays required' using errcode = '23514';
     end if;
-    if exists (select 1 from private.finances_preprocess_batch_transactions m
-        join private.finances_preprocess_batches b on b.id=m.batch_id
-        where m.batch_id = any(p_finances_batch_ids) group by m.transaction_id
-        having count(distinct m.version_id)>1 or count(distinct b.preprocess_version)>1)
-        or exists (select 1 from private.data_kiosk_preprocess_batch_days m
-            join private.data_kiosk_preprocess_batches b on b.id=m.batch_id
-            where m.id = any(p_data_kiosk_observation_ids) group by m.day_id
-            having count(distinct m.version_id)>1 or count(distinct b.preprocess_version)>1)
+    if exists (select 1 from private.finances_transaction_versions v
+        where v.id = any(p_finances_version_ids) group by v.transaction_id having count(*)>1)
+        or exists (select 1 from private.data_kiosk_day_versions v
+            where v.id = any(p_data_kiosk_version_ids) group by v.day_id having count(*)>1)
         or exists (select 1 from public.sku_terms_versions v
             where v.id = any(p_terms_version_ids) group by v.sku_id having count(*) > 1) then
         raise exception 'One interpretation per source or SKU identity required' using errcode = '23514';
     end if;
     return query
     with components as (
-    select distinct
+    select
     'FINANCES'::text as source, -- noqa: RF04
     t.id as source_row_id,
     t.version_id as source_version_id,
-    t.preprocess_version,
     t.transaction_id as source_identity_id,
     t.seller_namespace,
     t.marketplace_name,
@@ -52,16 +46,14 @@ begin
     t.fee_base as fee_base,
     t.category,
     true as authoritative
-from private.finances_batch_components as t
+from private.finances_component_details as t
 where t.activity_eligible and t.category in ('FINANCES', 'SELBOX')
-    and t.posted_date < (select private.mature_cutoff_date())
-    and t.batch_id = any(p_finances_batch_ids)
+    and t.version_id = any(p_finances_version_ids)
 union all
-select distinct
+select
     'DATA_KIOSK' as source, -- noqa: RF04
     t.id,
     t.version_id,
-    t.preprocess_version,
     t.day_id,
     t.seller_namespace,
     t.marketplace_name,
@@ -73,10 +65,9 @@ select distinct
     t.quantity,
     t.fee_base,
     t.category,
-    (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-        and t.category in ('FINANCES', 'SELBOX'))) as authoritative
-from private.data_kiosk_batch_components as t
-where t.observation_id = any(p_data_kiosk_observation_ids)
+    t.category = 'DATA_KIOSK' as authoritative
+from private.data_kiosk_component_details as t
+where t.version_id = any(p_data_kiosk_version_ids)
 ), selected_terms as (
     select s.id as sku_id,s.sku,v.id as terms_version_id,v.company_id
     from public.sku_terms_versions v join public.skus s on s.id = v.sku_id
@@ -110,14 +101,13 @@ calculated as (
         case
             when not r.authoritative then null::numeric
             when r.resolution_status = 'NOT_APPLICABLE' then 0::numeric
-            when
-                r.resolution_status = 'APPLIED'
+            when r.resolution_status = 'APPLIED'
                 then private.calculate_service_fee(r.fee_base, r.fee_rate_percent)
         end as fee_amount
     from resolved as r
 )
 
-select c.source,c.source_row_id::uuid,c.source_version_id::uuid,c.preprocess_version::text,
+select c.source,c.source_row_id::uuid,c.source_version_id::uuid,
     c.source_identity_id::uuid,c.seller_namespace::text,c.marketplace_name,c.activity_date,c.sku::text,
     c.component_type::text,c.currency,c.source_amount::numeric,c.quantity::numeric,c.fee_base::numeric,
     c.category,c.authoritative,c.sku_id::uuid,c.terms_version_id::uuid,c.company_id::uuid,
@@ -128,6 +118,9 @@ from calculated as c;
 end;
 $$;
 
+-- Source authority is fixed for every date: eligible Finances FINANCES/SELBOX
+-- components and Data Kiosk DATA_KIOSK components. Unused categories remain in
+-- the administrator's raw source views, not these financial reads.
 -- Keep current-source selection and ownership in one RLS-preserving input view.
 -- This private view is not a new Data API resource. Callers still need the same
 -- underlying column privileges, and every underlying row policy remains active.
@@ -155,7 +148,6 @@ with components as (
     inner join private.finances_preprocess_batches as p on t.current_batch_id = p.id
     where
         t.is_current and t.category in ('FINANCES', 'SELBOX')
-        and t.posted_date < (select private.mature_cutoff_date())
     union all
     select
         'DATA_KIOSK'::text as source, -- noqa: RF04
@@ -173,13 +165,10 @@ with components as (
         t.quantity,
         t.fee_base,
         t.category,
-        (t.category = 'DATA_KIOSK' or (
-            t.activity_date >= (select private.mature_cutoff_date())
-            and t.category in ('FINANCES', 'SELBOX')
-        )) as authoritative
+        true as authoritative
     from private.data_kiosk_component_details as t
     inner join private.data_kiosk_preprocess_batches as b on t.current_batch_id = b.id
-    where t.is_current
+    where t.is_current and t.category = 'DATA_KIOSK'
 ),
 
 selected_terms as materialized (
@@ -230,7 +219,6 @@ calculated as (
     select
         r.*,
         case
-            when not r.authoritative then null::numeric
             when r.resolution_status = 'NOT_APPLICABLE' then 0::numeric
             when r.resolution_status = 'APPLIED'
                 then private.calculate_service_fee(r.fee_base, r.fee_rate_percent)

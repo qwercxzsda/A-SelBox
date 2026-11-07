@@ -78,9 +78,8 @@ for (const width of [834, 390]) {
       fee_amount: "0",
       company_amount: "0",
     });
-    fixture.payoutComponents = fixture.liveRows.map((row) => ({
+    fixture.payoutRecords = fixture.liveRows.map((row) => ({
       ...row,
-      id: row.source_row_id,
       report_id: reportId,
       authoritative: "true",
     }));

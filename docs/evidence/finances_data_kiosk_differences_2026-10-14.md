@@ -149,9 +149,9 @@ are quantified in the first table; their cause remains deferred pending Ads API 
 
 ## Implications and remaining work
 
-Mature payouts already use Finances for the direct category. Sweden's missing Data Kiosk
-transaction fees and the direct sales comparison gaps therefore affect comparison or recent
-estimates, not an additional deduction from the mature payout. Data Kiosk-category costs remain
+Company calculations use Finances for the direct category at every date. Sweden's missing Data Kiosk
+transaction fees and the direct sales comparison gaps therefore affect comparisons without adding
+a further deduction to company amounts. Data Kiosk-category costs remain
 authoritative even for mature payouts: missing or excessive costs can still misstate company
 amounts. An account-level comparison does not repair SKU allocation.
 

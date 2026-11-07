@@ -8,7 +8,6 @@ export function monthlyFamilyTypesQueryOptions({
   identity,
   category,
   month,
-  matureCutoff,
   currency,
   marketplace,
 }: Omit<FinancialReviewMonthScope, "families">) {
@@ -19,7 +18,6 @@ export function monthlyFamilyTypesQueryOptions({
       identity.session.user.id,
       category,
       month,
-      matureCutoff,
       currency,
       marketplace,
     ],
@@ -38,7 +36,7 @@ export function monthlyFamilyTypesQueryOptions({
 
 /** One native aggregate response provides both paired values and retrieval coverage. */
 export function monthlySourceTotalsQueryOptions(scope: FinancialReviewMonthScope) {
-  const { identity, category, month, currency, marketplace, matureCutoff } = scope;
+  const { identity, category, month, currency, marketplace } = scope;
   return queryOptions({
     queryKey: [
       "financial-review",
@@ -48,7 +46,6 @@ export function monthlySourceTotalsQueryOptions(scope: FinancialReviewMonthScope
       month,
       currency,
       marketplace,
-      matureCutoff,
     ],
     queryFn: ({ signal }) =>
       fetchCurrentSourceTotals(

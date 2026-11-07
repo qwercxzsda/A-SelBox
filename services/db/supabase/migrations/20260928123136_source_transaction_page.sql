@@ -13,6 +13,9 @@ declare fact_relation text; entry_relation text; date_column text;
     sort_column text; sort_direction text; tie_direction text; sort_nulls text;
     candidate_cap text; candidate_materialization text; result jsonb;
 begin
+    if not private.financial_account_visible() then
+        raise exception 'Administrator access required' using errcode='42501';
+    end if;
     perform private.validate_page_bounds(p_limit,p_offset);
     if p_dataset is null or p_dataset not in ('finances','data_kiosk') then
         raise exception 'Dataset must be finances or data_kiosk' using errcode='22023'; end if;

@@ -71,8 +71,8 @@ export function setupMarketplaceReview(fixture) {
     fee_amount: "0",
     company_amount: amount,
   }));
-  fixture.payoutComponents = fixture.payoutRows.map((row) => ({
-    id: `support-${row.id}`,
+  fixture.payoutRecords = fixture.payoutRows.map((row) => ({
+    source_row_id: `support-${row.id}`,
     report_id: row.id,
     authoritative: "false",
     source: "DATA_KIOSK",

@@ -313,7 +313,7 @@ test("a failed family catalog keeps filtered totals unavailable while retry and 
   const isYearCatalog = ({ endpoint, params }) =>
     endpoint === "financial_review_type_totals" &&
     params.get("p_month_from") === "2026-01-01" &&
-    params.get("p_month_to") === "2026-08-01";
+    params.get("p_month_to") === "2027-01-01";
   const failCatalog = (request) => (isYearCatalog(request) ? 503 : 200);
   fixture.financialReviewStatusForRequest = failCatalog;
   await page.reload();
@@ -384,7 +384,7 @@ test("an empty review without a resolved year settles without requesting or load
     state.financialReviewTypeTotals = [];
     state.financialReviewRecords = [];
   });
-  await expect(overview(page)).toContainText("No mature source records for Amazon.com.");
+  await expect(overview(page)).toContainText("No source records for Amazon.com.");
   await expect(year(page)).toBeDisabled();
   await expect(year(page).locator("option")).toHaveText(["No years"]);
   await expect(familyTrigger(page)).toBeEnabled();

@@ -69,16 +69,15 @@ GROUPS = (
         "Payout results and refresh state",
         (
             "public.company_payout_reports",
-            "public.company_payout_report_components",
             "private.payout_report_refresh_state",
         ),
     ),
     (
         "07-payout-manifests",
-        "Payout source batches day versions and terms manifests",
+        "Payout source versions and terms manifests",
         (
-            "private.payout_report_finances_batches",
-            "private.payout_report_data_kiosk_observations",
+            "private.payout_report_finances_versions",
+            "private.payout_report_data_kiosk_versions",
             "private.payout_report_terms_versions",
         ),
     ),
@@ -281,8 +280,10 @@ def markdown(schema: dict[str, dict[str, Any]]) -> str:
         "All Finance business validation runs in Python before publication; raw pages stay in "
         "private Storage. Data Kiosk reuses immutable complete-day versions across successful "
         "batches. Both retain all accepted versions without raw response JSON in component rows. "
-        "Payouts reference Finance batches, Data Kiosk batch/day/version membership and company "
-        "terms. Diagnostic source aggregates are computed on read; "
+        "Payouts reference immutable Finance transaction versions, Data Kiosk day versions and "
+        "company terms, with validated source coverage and frozen totals saved on the report. "
+        "Payout records and type breakdowns are calculated on read from those references. "
+        "Diagnostic source aggregates are computed on read; "
         "comparisons are frontend values. "
         "Inventory keeps its separate one-capture-per-day model.",
         "",

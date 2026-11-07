@@ -46,7 +46,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select source,authoritative,source_amount,fee_amount,company_amount "
-                "from public.company_payout_report_components where report_id=%s order by source",
+                "from private.read_payout_report_records(%s) order by source",
                 (report,),
             ).fetchall(),
             [
@@ -82,40 +82,6 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             ).fetchone(),
             (0,),
         )
-
-    def test_administrator_cannot_inject_a_temporary_table_trigger_into_publication(self) -> None:
-        company = self.prepared_company()
-        administrator = self.administrator()
-        with self.connection.transaction():
-            self.connection.execute(
-                "select set_config('request.jwt.claim.sub',%s,true)", (administrator,)
-            )
-            self.connection.execute("set local role authenticated")
-            self.connection.execute(
-                "create temporary table payout_resolved_components as "
-                "select * from private.resolve_company_components('{}','{}','{}')"
-            )
-            self.connection.execute(
-                "create function pg_temp.payout_hijack() returns trigger language plpgsql as $$ "
-                "begin raise exception 'Untrusted payout trigger executed'; "
-                "end; $$"
-            )
-            self.connection.execute(
-                "create trigger payout_hijack before insert or truncate "
-                "on pg_temp.payout_resolved_components "
-                "for each statement execute function pg_temp.payout_hijack()"
-            )
-            self.connection.execute("reset role")
-        self.generate(company)
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from pg_trigger "
-                "where tgrelid='pg_temp.payout_resolved_components'::regclass "
-                "and tgname='payout_hijack'"
-            ).fetchone(),
-            (0,),
-        )
-        self.connection.execute("set constraints all immediate")
 
     def test_other_company_missing_fee_does_not_block_own_report(self) -> None:
         company, identity = self.owner()
@@ -242,9 +208,8 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(other_member, "select * from public.company_payout_reports"), []
         )
-        self.assertEqual(
-            self.as_user(other_member, "select * from public.company_payout_report_components"), []
-        )
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            self.as_user(other_member, "select public.payout_report_records(%s)", (report,))
 
     def test_generation_requires_exact_mature_month_and_allows_empty_history(self) -> None:
         company = self.prepared_company()

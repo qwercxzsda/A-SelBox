@@ -38,7 +38,7 @@ for (const width of [1440, 1920]) {
       fee_amount: "-5",
       company_amount: "95",
     };
-    fixture.payoutComponents = [{ ...record, id: "amount", authoritative: "true" }];
+    fixture.payoutRecords = [{ ...record, source_row_id: "amount", authoritative: "true" }];
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await page.getByRole("cell", { name: "95.00 USD", exact: true }).click();

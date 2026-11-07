@@ -49,6 +49,14 @@ class TextSearchTests(LocalWorkflowCase):
                 page = "transaction_page" if live else "source_transaction_page"
                 count = "transaction_count" if live else "source_transaction_count"
                 scope = {} if live else {"p_dataset": dataset}
+                if not live and token == member:
+                    for endpoint in (page, count):
+                        denied = self.stack.request(
+                            "POST", "/rest/v1/rpc/" + endpoint, token=token, json=scope
+                        )
+                        self.assertEqual(denied.status_code, 403)
+                        self.assertEqual(denied.json()["code"], "42501")
+                    continue
                 fields = LIVE_SEARCH_FIELDS if live else SOURCE_SEARCH_FIELDS
                 for order, direction in (("date", "desc"), ("date", "asc"), ("amount", "desc")):
                     body = {**scope, "p_order_by": order, "p_direction": direction, "p_limit": 1000}
@@ -119,6 +127,14 @@ class TextSearchTests(LocalWorkflowCase):
             scope = {} if dataset == "live" else {"p_dataset": dataset}
             body = {**scope, "p_search_skus": [LITERAL_SKU]}
             for token in (member, outsider):
+                if dataset != "live":
+                    for endpoint in (page, count):
+                        denied = self.stack.request(
+                            "POST", "/rest/v1/rpc/" + endpoint, token=token, json=body
+                        )
+                        self.assertEqual(denied.status_code, 403)
+                        self.assertEqual(denied.json()["code"], "42501")
+                    continue
                 result = self.stack.request("POST", "/rest/v1/rpc/" + page, token=token, json=body)
                 self.assertEqual(result.status_code, 200)
                 self.assertEqual(result.json(), {"rows": [], "total_count": "0"})

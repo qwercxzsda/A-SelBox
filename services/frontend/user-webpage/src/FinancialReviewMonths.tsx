@@ -38,7 +38,6 @@ export function FinancialReviewMonths({
   onRetry: () => Promise<void>;
 }) {
   const {
-    policy,
     bounds,
     comparisonQuery,
     totalsQuery,
@@ -46,7 +45,6 @@ export function FinancialReviewMonths({
     familyQuery,
     familyTypes,
     familyOptions,
-    matureCutoff,
     latestMonth,
     year,
     years,
@@ -78,18 +76,15 @@ export function FinancialReviewMonths({
   }
   const hasSelectedFamilies = scope.families.length > 0;
   const comparisonUnavailable =
-    comparisonQuery.isError ||
-    bounds.isError ||
-    policy.isError ||
-    (!currency && totalsQuery.isError);
+    comparisonQuery.isError || bounds.isError || (!currency && totalsQuery.isError);
   const canClearFamilies = hasSelectedFamilies && !loading && !comparisonUnavailable;
   const emptyMessage = loading
     ? "Loading monthly summaries…"
     : comparisonUnavailable
       ? "Monthly summaries are unavailable."
       : hasSelectedFamilies
-        ? `No mature source records match the selected fee families for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` for ${year}` : ""}.`
-        : `No mature source records for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` in ${year}` : ""}.`;
+        ? `No source records match the selected fee families for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` for ${year}` : ""}.`
+        : `No source records for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` in ${year}` : ""}.`;
 
   return (
     <div ref={listRef} className="financial-review-months" tabIndex={-1}>
@@ -143,10 +138,12 @@ export function FinancialReviewMonths({
         </Group>
         <Text size="xs" c="dimmed" className="financial-review-scope-note">
           {latestMonth
-            ? `Full mature months through ${formatRecordMonth(latestMonth)}`
-            : policy.isError
-              ? "Mature months unavailable"
-              : "Checking mature months…"}
+            ? `Source records through ${formatRecordMonth(latestMonth)}`
+            : bounds.isError
+              ? "Available source months unavailable"
+              : bounds.isPending
+                ? "Checking available source months…"
+                : "No source months available"}
           <br />
           {scope.marketplace} · All source accounts and companies
         </Text>
@@ -158,14 +155,13 @@ export function FinancialReviewMonths({
           records.
         </Text>
       </div>
-      {policy.isError || bounds.isError ? (
+      {bounds.isError ? (
         <Alert color="red" role="alert" mb="sm">
           Could not load available review periods.
           <Button
             variant="subtle"
             onClick={() => {
               revealSection(listRef.current);
-              void policy.refetch();
               void bounds.refetch();
             }}
           >
@@ -221,7 +217,7 @@ export function FinancialReviewMonths({
           />
         </>
       ) : null}
-      {year && matureCutoff && currency ? (
+      {year && currency ? (
         <FinancialReviewFamilyBreakdown
           query={familyQuery}
           sourceTotals={sourceTotals}
@@ -261,8 +257,6 @@ export function FinancialReviewMonths({
         onRetry={onRetry}
         identity={identity}
         month={selectedMonth}
-        matureCutoff={matureCutoff}
-        latestMonth={latestMonth}
         months={months}
         onSelect={selectMonth}
         onExitTransitionEnd={restoreFocus}

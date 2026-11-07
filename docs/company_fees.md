@@ -24,8 +24,8 @@ Both sources use the shared [`PREPROCESS_VERSION`](../services/sync/src/preproce
 A strict combined read requires this exact name on every required selected source version. Marketplace
 names join as exact `text`, validated against the same supported-name list in Python and database
 `CHECK` constraints. Original API IDs
-remain in source provenance. Queries accept explicit dates and apply the mature cutoff date
-rule described in the source policy.
+remain in source provenance. Queries accept explicit dates and apply the same source/category
+rule at every date. Maturity affects payout eligibility only.
 
 ## Ownership and fee configuration
 
@@ -68,7 +68,7 @@ Required fee dates come from the selected current source versions:
 | Finances   | Activity-eligible category `FINANCES` components with a nonnull signed `fee_base` | Marketplace-local `posted_date` |
 | Data Kiosk | Category other than `SELBOX` with a nonnull `fee_base`                            | `activity_date`                 |
 
-Both sources contribute requirements independently of today's maturity boundary, including
+Both sources contribute requirements independently of payout eligibility, including
 zero bases. Historical source versions contribute known SKU names but no required fee dates.
 Coverage applies to each recorded marketplace/date; dates without qualifying activity need
 no fee period. A 0% rate is complete coverage. Noncommission activity requires ownership but
@@ -177,7 +177,7 @@ failed publications.
 
 ## Live read contract
 
-A strict read selects declared successful Finance batch memberships for mature dates and
+A strict read selects declared successful Finance batch memberships and
 Data Kiosk marketplace/day coverage for every date. It requires complete compatible
 source versions and applies the source policy before calculating money.
 It resolves SKU ownership independently of fee eligibility, then joins the
@@ -191,12 +191,11 @@ another sign reversal. The native original activity's marketplace-local posting
 date selects its fee period. Release, bank transfer, capture and preprocessing
 dates do not select the rate.
 
-Recent Data Kiosk sales use validated `netProductSales`; the original
-`orderedProductSales` and signed `refundedProductSales` remain in the archives. The source requires
-`net = ordered - refunded`, including negative refunds. Only the selected net component
-supplies the recent commission base; mature dates use Finances activity components. Data Kiosk
-comparisons in the Finances category have null fee/company contributions and cannot add a
-second commission. Costs in the Data Kiosk category remain authoritative and have no sales commission.
+Data Kiosk sales retain validated `netProductSales` for administrator comparison. The original
+`orderedProductSales` and signed `refundedProductSales` remain in archives, and preprocessing
+requires `net = ordered - refunded`, including negative refunds. These comparison components
+never supply live company amounts or commissions. Finances principal components supply sales
+and refund commission bases at every date; Data Kiosk supplies its allocated cost category.
 
 ```text
 fee_amount = -(fee_base * fee_rate_percent * 0.01)

@@ -211,7 +211,8 @@ select * from private.read_finances_preprocess_results();
 create view public.data_kiosk_preprocess_results with (security_invoker = true) as
 select * from private.read_data_kiosk_preprocess_results();
 -- One row per immutable component, with an explicitly selected observed location.
--- Administrators see all revisions; members see only owned current components.
+-- The full source datasets are administrator-only. Member transaction reads use
+-- the separate current allocation view and its underlying ownership policies.
 create view public.finances_preprocess_entries with (security_invoker = true) as
 select
     d.*,
@@ -230,7 +231,8 @@ inner join lateral (
     inner join private.finances_preprocess_batches as p on m.batch_id = p.id
     where m.version_id = d.version_id
     order by (m.batch_id = d.current_batch_id) desc, p.created_at desc, p.id desc limit 1
-) as observation on true;
+) as observation on true
+where (select private.financial_account_visible());
 create view public.data_kiosk_preprocess_entries with (security_invoker = true) as
 select
     d.*,
@@ -247,7 +249,8 @@ inner join lateral (
     inner join private.data_kiosk_preprocess_batches as b on m.batch_id = b.id
     where m.version_id = d.version_id
     order by (m.batch_id = d.current_batch_id) desc, b.created_at desc, b.id desc limit 1
-) as observation on true;
+) as observation on true
+where (select private.financial_account_visible());
 
 -- Members read their own frozen payouts even if current SKU ownership changes.
 -- Supporting rows, complete manifests and exclusion evidence stay administrator-only.
@@ -256,12 +259,6 @@ using ((select private.is_administrator()) or company_id in (
     select a.company_id from public.app_accounts as a
     where a.user_id = (select auth.uid()) and a.access_role = 'member'
 ));
-create policy payout_components_read on public.company_payout_report_components
-for select to authenticated using (
-    (select private.is_administrator()) or (
-        authoritative and report_id in (select r.id from public.company_payout_reports as r)
-    )
-);
 -- One latest report per company/month/marketplace and currency. Source namespaces
 -- are provenance only. Invoker security keeps the underlying company RLS.
 create view public.latest_company_payout_reports with (security_invoker = true) as
@@ -282,16 +279,75 @@ order by
     r.company_id asc, r.start_date asc, r.marketplace_name asc,
     r.currency asc, r.created_at desc, r.id desc;
 
-create policy payout_finances_batches_read on private.payout_report_finances_batches
+-- Historical report access follows the saved company, not current SKU ownership.
+-- The private reader first authorizes that report, then reads only its pinned
+-- sources and terms as owner. No arbitrary source/version IDs are accepted.
+create function private.read_payout_report_records(p_report_id uuid)
+returns table (
+    report_id uuid, source text, authoritative boolean,
+    source_row_id uuid, source_version_id uuid, source_identity_id uuid,
+    sku_id uuid, terms_version_id uuid, fee_period_id uuid, sku text,
+    marketplace_name text, activity_date date, component_type text, currency text,
+    source_amount numeric, quantity numeric, fee_base numeric, fee_rate_percent numeric,
+    fee_amount numeric, company_amount numeric, resolution_status text
+) language plpgsql stable security definer set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
+declare report public.company_payout_reports; account public.app_accounts;
+    caller_role name := coalesce(nullif(current_setting('role',true),'none'),session_user::text)::name;
+    trusted boolean; supporting_allowed boolean;
+    finances_versions uuid[]; kiosk_versions uuid[]; terms_versions uuid[];
+begin
+    if p_report_id is null then
+        raise exception 'Report is required' using errcode='22023';
+    end if;
+    -- SECURITY DEFINER changes current_user, but not the caller's SET ROLE.
+    -- Only the actual table owner (or a role inheriting it) is a trusted SQL reader.
+    select pg_has_role(caller_role,c.relowner,'USAGE') into trusted
+        from pg_class c where c.oid='public.company_payout_reports'::regclass;
+    if not trusted then
+        select * into account from public.app_accounts a where a.user_id=auth.uid();
+        if not found or account.access_role not in ('administrator','member') then
+            raise exception 'Report access required' using errcode='42501';
+        end if;
+    end if;
+    select * into report from public.company_payout_reports r
+    where r.id=p_report_id and (trusted or account.access_role='administrator'
+        or (account.access_role='member' and r.company_id=account.company_id));
+    if not found then raise exception 'Report access required' using errcode='42501'; end if;
+    supporting_allowed:=trusted or account.access_role='administrator';
+    select coalesce(array_agg(p.version_id order by p.transaction_id),'{}'::uuid[])
+        into finances_versions from private.payout_report_finances_versions p where p.report_id=report.id;
+    select coalesce(array_agg(p.version_id order by p.day_id),'{}'::uuid[])
+        into kiosk_versions from private.payout_report_data_kiosk_versions p where p.report_id=report.id;
+    select coalesce(array_agg(p.terms_version_id order by p.sku_id),'{}'::uuid[])
+        into terms_versions from private.payout_report_terms_versions p where p.report_id=report.id;
+    return query
+    select report.id::uuid,c.source,c.authoritative,
+        c.source_row_id,c.source_version_id,c.source_identity_id,
+        c.sku_id,c.terms_version_id,c.fee_period_id,c.sku,
+        c.marketplace_name,c.activity_date,c.component_type,c.currency,
+        c.source_amount,c.quantity,c.fee_base,c.fee_rate_percent,
+        c.fee_amount,c.company_amount,c.resolution_status
+    from private.resolve_company_components(finances_versions,kiosk_versions,terms_versions) c
+    where c.category<>'SELBOX' and (c.authoritative or c.source='DATA_KIOSK')
+        and c.company_id=report.company_id
+        and c.marketplace_name is not distinct from report.marketplace_name
+        and c.currency=report.currency
+        and c.activity_date between report.start_date and report.end_date
+        and (supporting_allowed or c.authoritative);
+end;
+$$;
+
+create policy payout_finances_versions_read on private.payout_report_finances_versions
 for select to authenticated using ((select private.is_administrator()));
-create policy payout_data_kiosk_observations_read on private.payout_report_data_kiosk_observations
+create policy payout_data_kiosk_versions_read on private.payout_report_data_kiosk_versions
 for select to authenticated using ((select private.is_administrator()));
 create policy payout_terms_versions_read on private.payout_report_terms_versions
 for select to authenticated using ((select private.is_administrator()));
 -- Financial review is a source comparison, not a second company ledger. Retain
 -- both current sources in every allocation category without ownership/fee joins.
 -- Administrator gates are necessary because base facts also have member read policies.
--- The caller chooses the date range; the UI supplies its default maturity window.
+-- The caller chooses the date range independently of payout maturity.
 create view public.financial_review_records with (security_invoker = true) as
 select
     'FINANCES'::text as source, -- noqa: RF04
@@ -398,8 +454,8 @@ begin
             or p_currency is not null or p_category is not null then
             raise exception 'Saved report scope cannot be overridden' using errcode='22023';
         end if;
-        select r.start_date,r.end_date,r.marketplace_name,r.currency
-        into scope_start,scope_end,scope_marketplace,scope_currency
+        select r.start_date,r.end_date,r.marketplace_name,r.currency,r.source_coverage
+        into scope_start,scope_end,scope_marketplace,scope_currency,coverage
         from public.company_payout_reports r where r.id=p_report_id;
         if not found then raise exception 'Payout report not found' using errcode='22023'; end if;
     else
@@ -417,27 +473,22 @@ begin
     scope:=jsonb_build_object('start_date',scope_start,'end_date',scope_end,
         'marketplace_name',scope_marketplace,'currency',scope_currency);
     if p_report_id is not null then scope:=scope||jsonb_build_object('report_id',p_report_id); end if;
-    with saved_finance_versions as (
-        select distinct m.version_id
-        from private.payout_report_finances_batches p
-        join private.finances_preprocess_batch_transactions m on m.batch_id=p.batch_id
-        where p.report_id=p_report_id
-    ), inputs as (
+    with inputs as (
         select r.source,r.seller_namespace,r.activity_date,r.marketplace_name,r.currency,
             r.category,r.amount
         from public.financial_review_records r where p_report_id is null
         union all
         select 'FINANCES',t.seller_namespace,v.posted_date,v.marketplace_name,v.currency,
             c.category,c.amount
-        from saved_finance_versions m
-        join private.finances_transaction_versions v on v.id=m.version_id
+        from private.payout_report_finances_versions p
+        join private.finances_transaction_versions v on v.id=p.version_id
         join private.finances_transactions t on t.id=v.transaction_id
         join private.finances_transaction_components c on c.version_id=v.id
-        where v.activity_eligible
+        where p.report_id=p_report_id and v.activity_eligible
         union all
         select 'DATA_KIOSK',d.seller_namespace,d.activity_date,d.marketplace_name,c.currency,
             c.category,c.amount
-        from private.payout_report_data_kiosk_observations p
+        from private.payout_report_data_kiosk_versions p
         join private.data_kiosk_days d on d.id=p.day_id
         join private.data_kiosk_day_components c on c.version_id=p.version_id
         where p.report_id=p_report_id
@@ -477,6 +528,15 @@ begin
         'next_offset',case when p_grouping='day' and p_offset+p_limit<inventory.count
             then p_offset+p_limit end)
     into result from inventory;
+    if p_report_id is not null then
+        -- Empty Finance periods have no revision IDs. Their accepted retrieval
+        -- coverage was captured when this report was published, independently
+        -- of monetary version selection and all later preprocessing runs.
+        select coalesce(jsonb_agg(entry-'marketplace_name'
+            order by entry->>'source',entry->>'seller_namespace',entry->>'start_date',entry->>'end_date'),'[]'::jsonb)
+        into coverage from jsonb_array_elements(coverage) entry
+        where entry->>'marketplace_name' is not distinct from scope_marketplace;
+    else
     with covered as (
         select 'FINANCES'::text as source,a.seller_namespace::text,
             greatest(a.query_start_date,scope_start) as start_date,
@@ -486,21 +546,17 @@ begin
             and exists (select 1 from jsonb_array_elements(a.api_metadata->'coverage_marketplaces') market
                 where market->>'marketplace_name'=scope_marketplace)
             and exists (
-                select 1 from private.finances_preprocess_batches b where b.acquisition_id=a.id
-                    and (p_report_id is null or exists (
-                        select 1 from private.payout_report_finances_batches p
-                        where p.report_id=p_report_id and p.batch_id=b.id)))
+                select 1 from private.finances_preprocess_batches b where b.acquisition_id=a.id)
         union
         select 'DATA_KIOSK',d.seller_namespace::text,d.activity_date,d.activity_date
         from private.data_kiosk_days d
         where d.dataset_key='economics' and d.marketplace_name=scope_marketplace
             and d.activity_date between scope_start and scope_end
-            and ((p_report_id is null and d.current_version_id is not null) or exists (
-                select 1 from private.payout_report_data_kiosk_observations p
-                where p.report_id=p_report_id and p.day_id=d.id))
+            and d.current_version_id is not null
     )
     select coalesce(jsonb_agg(to_jsonb(c) order by c.source,c.seller_namespace,c.start_date,c.end_date),'[]'::jsonb)
         into coverage from covered c;
+    end if;
     return result||jsonb_build_object('coverage',coverage);
 end;
 $$;
@@ -520,10 +576,10 @@ create function public.report_source_totals(
     select private.read_source_totals(p_report_id,null,null,null,p_grouping,null,null,p_limit,p_offset);
 $$;
 
-create view public.payout_report_finances_batches with (security_invoker = true) as
-select * from private.payout_report_finances_batches;
-create view public.payout_report_data_kiosk_observations with (security_invoker = true) as
-select * from private.payout_report_data_kiosk_observations;
+create view public.payout_report_finances_versions with (security_invoker = true) as
+select * from private.payout_report_finances_versions;
+create view public.payout_report_data_kiosk_versions with (security_invoker = true) as
+select * from private.payout_report_data_kiosk_versions;
 create view public.payout_report_terms_versions with (security_invoker = true) as
 select * from private.payout_report_terms_versions;
 

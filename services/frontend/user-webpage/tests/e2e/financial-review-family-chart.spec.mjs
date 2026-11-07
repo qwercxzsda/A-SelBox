@@ -232,8 +232,8 @@ test("inconsistent family aggregates keep total values visible until a coordinat
     .slice(before)
     .filter(({ endpoint, params }) =>
       endpoint === "current_source_totals"
-        ? params.get("p_start") === "2026-01-01" && params.get("p_end") === "2026-07-31"
-        : params.get("p_month_from") === "2026-01-01" && params.get("p_month_to") === "2026-08-01",
+        ? params.get("p_start") === "2026-01-01" && params.get("p_end") === "2026-12-31"
+        : params.get("p_month_from") === "2026-01-01" && params.get("p_month_to") === "2027-01-01",
     );
   expect(new Set(refreshed.map(({ endpoint }) => endpoint))).toEqual(
     new Set(["current_source_totals", "financial_review_type_totals"]),

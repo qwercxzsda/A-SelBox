@@ -4,7 +4,7 @@ create function private.generate_company_payout_reports(p_company_id uuid, p_mon
 returns table (report_id uuid, created boolean)
 language plpgsql volatile security invoker set search_path = '' as $$
 declare month_end date; scope record;
-    requested_report_id uuid; seller_namespaces text[]; locked_seller text;
+    requested_report_id uuid; seller_namespaces text[];
 begin
     perform private.require_read_committed();
     month_end := private.payout_month_end(p_month);
@@ -13,17 +13,9 @@ begin
     end if;
     perform pg_advisory_xact_lock(hashtextextended('company_payout_inputs',0));
     if not private.payout_company_eligible(p_company_id) then return; end if;
-    perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
-        'company_payout_month',p_company_id,p_month
-    )::text,0));
-    -- Fix membership once; concurrent assignments to another seller are included
-    -- on the next request, without changing this request's natural lock order.
+    -- The input guard keeps ownership and source selections stable across every
+    -- report in this company/month, including an explicitly empty scope.
     seller_namespaces := private.payout_company_sellers(p_company_id);
-    foreach locked_seller in array seller_namespaces loop
-        perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
-            'company_payout_report',locked_seller,p_month
-        )::text,0));
-    end loop;
     for scope in
         -- Ownership and scope discovery need each SKU/marketplace/currency once;
         -- the publisher still resolves every original monetary component.
@@ -66,7 +58,7 @@ begin
             'id',requested_report_id,'company_id',p_company_id,
             'marketplace_name',scope.marketplace_name,
             'currency',scope.currency,'start_date',p_month,'end_date',month_end,
-            'dataset_key','economics','captured_seller_namespaces',seller_namespaces,
+            'dataset_key','economics',
             'report_name',to_char(p_month,'YYYY-MM') || ' payout report',
             'change_reason','Automatically generated monthly payout report'
         ));

@@ -10,7 +10,6 @@ const companyId = "0198b50b-701a-7000-8000-000000000001";
 function rows() {
   return Array.from({ length: 55 }, (_, index) => ({
     ...liveRow("RELOAD", index, companyId),
-    id: `row-${index}`,
     source_row_id: `row-${index}`,
     activity_date: "2026-06-30",
     source: "FINANCES",
@@ -41,7 +40,7 @@ test("F5 restores the selected payout, marketplace, type, and record page", asyn
       company_amount: "55",
     },
   ];
-  fixture.payoutComponents = rows();
+  fixture.payoutRecords = rows();
   await signIn(page);
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await page

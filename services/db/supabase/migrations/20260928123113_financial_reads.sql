@@ -1,6 +1,37 @@
 -- A complete financial request declares all required successful Finances runs and
 -- marketplace-local days. Missing or incompatible inputs raise, never disappear
 -- through filtering, RLS, NULL SUM behavior, or implicit source substitution.
+-- Compare membership rather than observation timestamps: unchanged revisions
+-- can be shared by several successful runs. This is a current-input selection
+-- guard, never another component/Summary financial validation.
+create function private.finances_batch_matches_current(p_batch_id uuid, p_start date, p_end date)
+returns boolean language sql stable security invoker set search_path = '' as $$
+    select exists (
+        select 1 from private.finances_preprocess_batches p
+        join private.finances_acquisitions a on a.id = p.acquisition_id
+        where p.id = p_batch_id and a.query_start_date <= p_start and a.query_end_date >= p_end
+            and not exists (
+                select 1 from private.finances_preprocess_batch_transactions m
+                join private.finances_transaction_versions r on r.id = m.version_id
+                join private.finances_transactions t on t.id = m.transaction_id
+                where m.batch_id = p.id and r.posted_date between p_start and p_end
+                    and t.current_version_id is distinct from m.version_id
+            )
+            and not exists (
+                select 1 from private.finances_transactions t
+                join private.finances_transaction_versions r on r.id = t.current_version_id
+                where t.seller_namespace = a.seller_namespace and t.amazon_scope = a.amazon_scope
+                    and r.marketplace_id = any(a.marketplace_ids)
+                    and r.posted_date between p_start and p_end
+                    and not exists (
+                        select 1 from private.finances_preprocess_batch_transactions m
+                        where m.batch_id = p.id and m.transaction_id = t.id
+                            and m.version_id = t.current_version_id
+                    )
+            )
+    );
+$$;
+
 create function private.assert_company_source_scope(
     p_seller_namespace text, p_start date, p_end date, p_preprocess_version text,
     p_finances_batch_ids uuid[],
@@ -24,7 +55,7 @@ begin
         ]::text[]) then
         raise exception 'Explicit valid financial input scope required' using errcode = '23514';
     end if;
-    if p_start < private.mature_cutoff_date() and exists (
+    if exists (
         select 1 from unnest(p_finances_batch_ids) requested(id)
         left join private.finances_preprocess_batches r on r.id=requested.id
         left join private.finances_acquisitions a on a.id=r.acquisition_id
@@ -54,7 +85,7 @@ create function private.company_components_in_scope(
 ) returns setof public.live_company_components
 language sql stable security invoker as $$
     select c.* from public.live_company_components c
-    where c.category <> 'SELBOX' and c.authoritative
+    where c.category <> 'SELBOX'
         and c.seller_namespace = p_seller_namespace and c.activity_date between p_start and p_end
         and ((c.source = 'FINANCES' and c.source_version_id in (select m.version_id from private.finances_preprocess_batch_transactions m where m.batch_id=any(p_finances_batch_ids)))
             or (c.source = 'DATA_KIOSK' and c.marketplace_name in (select private.finances_data_kiosk_marketplace(value) from unnest(p_marketplaces) value)));

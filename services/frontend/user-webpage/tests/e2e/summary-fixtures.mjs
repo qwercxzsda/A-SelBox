@@ -28,10 +28,10 @@ function aggregateValues(
 
 export function summaryCards(page) {
   return {
-    summaries: page.getByRole("region", { name: "Estimated totals", exact: true }),
-    day: page.getByRole("article", { name: "Latest day estimated totals", exact: true }),
-    month: page.getByRole("article", { name: "Latest month estimated totals", exact: true }),
-    selected: page.getByRole("article", { name: "Selected dates estimated totals", exact: true }),
+    summaries: page.getByRole("region", { name: "Current totals", exact: true }),
+    day: page.getByRole("article", { name: "Latest day current totals", exact: true }),
+    month: page.getByRole("article", { name: "Latest month current totals", exact: true }),
+    selected: page.getByRole("article", { name: "Selected dates current totals", exact: true }),
   };
 }
 

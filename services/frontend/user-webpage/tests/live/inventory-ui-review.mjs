@@ -17,7 +17,7 @@ export async function reviewInventoryLayout(page, name) {
       element.scrollLeft = 0;
     });
     await page.evaluate(() => window.scrollTo(0, 0));
-    await expect(page.getByText("Estimated totals", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Current totals", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Search", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Marketplace", { exact: true })).toBeVisible();
     const layout = await page.evaluate(() => ({

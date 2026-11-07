@@ -11,7 +11,7 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture
 class AllocationCategoryTests(SourceModelFixture):
     def test_analysis_category_does_not_affect_authoritative_totals(self) -> None:
         self.owner()
-        recent = self.recent_activity_date()
+        recent = self.current_activity_date()
         self.kiosk(
             1,
             [
@@ -28,10 +28,7 @@ class AllocationCategoryTests(SourceModelFixture):
                 "from public.live_company_components order by category"
             ).fetchall(),
             [
-                ("FINANCES", True),
-                ("SELBOX", True),
                 ("DATA_KIOSK", True),
-                ("ANALYSIS_ONLY", False),
             ],
         )
         self.assertEqual(
@@ -40,8 +37,6 @@ class AllocationCategoryTests(SourceModelFixture):
                 "where source='DATA_KIOSK' and authoritative order by category"
             ).fetchall(),
             [
-                ("FINANCES", Decimal("100")),
-                ("SELBOX", Decimal("-80")),
                 ("DATA_KIOSK", Decimal("-10")),
             ],
         )
@@ -52,7 +47,7 @@ class AllocationCategoryTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(query, (self.seller, recent, recent)).fetchall(),
-            [(Decimal("90"), Decimal(0), Decimal("90"))],
+            [(Decimal("-10"), Decimal(0), Decimal("-10"))],
         )
 
     def test_publication_rejects_missing_category_atomically(self) -> None:

@@ -171,9 +171,9 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 ("DATA_KIOSK", "2026-08-01", "-1"),
                 ("DATA_KIOSK", "2026-08-17", "-1"),
                 ("DATA_KIOSK", "2026-08-18", "-1"),
-                ("DATA_KIOSK", "2026-08-18", "107"),
                 ("FINANCES", "2026-08-01", "11"),
                 ("FINANCES", "2026-08-17", "13"),
+                ("FINANCES", "2026-08-18", "17"),
             ],
         )
 

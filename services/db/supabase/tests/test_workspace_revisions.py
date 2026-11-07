@@ -43,23 +43,19 @@ class WorkspaceRevisionTests(SourceModelFixture):
                     set(cast(dict[str, str], response["revisions"])), {"finances", "fees"}
                 )
                 self.assertEqual(self.poll(user, [])["revisions"], {})
-        mature_cutoff_date = require_row(
-            self.connection.execute("select private.mature_cutoff_date()").fetchone()
-        )[0]
-        self.assertEqual(self.revisions(member)["finances"], f"0:{mature_cutoff_date}")
-        self.assertEqual(self.revisions(member)["data_kiosk"], f"0:{mature_cutoff_date}")
+        self.assertEqual(self.revisions(member)["finances"], "0")
+        self.assertEqual(self.revisions(member)["data_kiosk"], "0")
 
-    def test_mature_cutoff_date_change_invalidates_source_tokens_without_an_import(self) -> None:
+    def test_payout_maturity_changes_do_not_change_source_revision_tokens(self) -> None:
         company, _ = self.owner()
-        member = self.member(company)
-        before = self.revisions(member)
-        with self.connection.transaction(force_rollback=True):
-            self.set_mature_cutoff_date(date(2000, 1, 1))
-            after = self.revisions(member)
-            self.assertNotEqual(before["finances"], after["finances"])
-            self.assertNotEqual(before["data_kiosk"], after["data_kiosk"])
-            self.assertEqual(before["fees"], after["fees"])
-            self.assertEqual(before["inventory"], after["inventory"])
+        self.finances([self.transaction("100", activity_date=self.current_activity_date())])
+        self.kiosk(1, [self.component("-10")], activity_date=self.current_activity_date())
+        for user in (self.member(company), self.administrator()):
+            before = self.revisions(user)
+            for cutoff in (date(2000, 1, 1), date(2100, 1, 1)):
+                with self.subTest(cutoff=cutoff), self.connection.transaction(force_rollback=True):
+                    self.set_mature_cutoff_date(cutoff)
+                    self.assertEqual(self.revisions(user), before)
 
     def test_requires_current_application_access_and_never_grants_private_table_access(
         self,

@@ -205,14 +205,7 @@ test("invalid categories, years, months, currencies, record filters and page ind
   for (const category of ["ANALYSIS_ONLY", "", "FINANCES,category.eq.SELBOX", null]) {
     await assert.rejects(client.fetchFinancialReviewBounds("access", category, "Amazon.com"));
     await assert.rejects(
-      client.fetchFinancialReviewPeriodTypes(
-        "access",
-        category,
-        "2026",
-        "USD",
-        "Amazon.com",
-        "2026-07",
-      ),
+      client.fetchFinancialReviewPeriodTypes("access", category, "2026", "USD", "Amazon.com"),
     );
     await assert.rejects(
       client.fetchFinancialReviewFamilyTypes("access", category, "2026-07", "USD", "Amazon.com"),
@@ -223,14 +216,7 @@ test("invalid categories, years, months, currencies, record filters and page ind
   }
   for (const year of [null, undefined, 2026, "", "0000", "26", "02026", "2026-01", "2026,or=(id)"])
     await assert.rejects(
-      client.fetchFinancialReviewPeriodTypes(
-        "access",
-        "FINANCES",
-        year,
-        "USD",
-        "Amazon.com",
-        "2026-07",
-      ),
+      client.fetchFinancialReviewPeriodTypes("access", "FINANCES", year, "USD", "Amazon.com"),
     );
   for (const month of ["2026-13", "2026-7", "2026-07-01", "0000-01", "2026-07,or=(id)"])
     await assert.rejects(
@@ -296,27 +282,13 @@ test("a marketplace must be explicit and valid for every review read", async () 
   ]) {
     await assert.rejects(client.fetchFinancialReviewBounds("access", "FINANCES", marketplace));
     await assert.rejects(
-      client.fetchFinancialReviewPeriodTypes(
-        "access",
-        "FINANCES",
-        "2026",
-        "EUR",
-        marketplace,
-        "2026-07",
-      ),
+      client.fetchFinancialReviewPeriodTypes("access", "FINANCES", "2026", "EUR", marketplace),
     );
     await assert.rejects(
       client.fetchFinancialReviewFamilyTypes("access", "FINANCES", "2026-07", "EUR", marketplace),
     );
     await assert.rejects(
-      client.fetchFinancialReviewPeriodTypes(
-        "access",
-        "FINANCES",
-        "2026",
-        "EUR",
-        marketplace,
-        "2026-07",
-      ),
+      client.fetchFinancialReviewPeriodTypes("access", "FINANCES", "2026", "EUR", marketplace),
     );
     await assert.rejects(
       client.fetchFinancialReviewFamilyTypes("access", "FINANCES", "2026-07", "EUR", marketplace),

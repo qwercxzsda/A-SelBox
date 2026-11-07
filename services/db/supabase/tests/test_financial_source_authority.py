@@ -11,7 +11,7 @@ from services.db.supabase.tests.transaction_fixtures import TransactionPageFixtu
 
 
 class FinancialSourceAuthorityTests(TransactionPageFixture):
-    def test_mature_cutoff_date_uses_two_calendar_months_in_every_session_timezone(self) -> None:
+    def test_payout_cutoff_uses_two_calendar_months_in_every_session_timezone(self) -> None:
         expected = require_row(
             self.connection.execute(
                 "select ((current_timestamp at time zone 'UTC')::date - interval '2 months')::date"
@@ -21,30 +21,36 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             self.connection.execute("select set_config('TimeZone',%s,true)", (timezone,))
             self.assertEqual(self.mature_cutoff_date(), expected)
 
-    def test_category_boundaries_preserve_company_entitlement(self) -> None:
-        mature_cutoff_date = self.mature_cutoff_date()
-        before = mature_cutoff_date - timedelta(days=1)
+    def test_source_categories_apply_to_historical_and_current_dates(self) -> None:
+        current = date.fromisoformat(self.current_activity_date())
+        before = date(2026, 6, 15)
         company, sku = self.owner()
         terms = self.fee(sku, [(date(before.year, 1, 1).isoformat(), None, "10")])
-        finances, _ = self.finances(
+        self.finances(
             [
                 self.transaction("100", 3, activity_date=before.isoformat()),
                 self.transaction("-5", 4, activity_date=before.isoformat(), category="SELBOX"),
                 self.transaction("-8", 5, activity_date=before.isoformat(), category="DATA_KIOSK"),
-                self.transaction("1000", 6, activity_date=mature_cutoff_date.isoformat()),
+                self.transaction("1000", 6, activity_date=current.isoformat()),
+                self.transaction("-999", 7, activity_date=current.isoformat(), category="SELBOX"),
                 self.transaction(
-                    "-999", 7, activity_date=mature_cutoff_date.isoformat(), category="SELBOX"
-                ),
-                self.transaction(
-                    "-100", 8, activity_date=mature_cutoff_date.isoformat(), category="DATA_KIOSK"
+                    "-100", 8, activity_date=current.isoformat(), category="DATA_KIOSK"
                 )
                 | {"sku": None},
+                self.transaction(
+                    "10000",
+                    9,
+                    activity_date=current.isoformat(),
+                    kind="Transfer",
+                    category="SELBOX",
+                )
+                | {"activity_eligible": False},
             ]
         )
-        kiosk_observations: list[str] = []
+        kiosk_versions: list[str] = []
         for number, day, sales, retained, costs in (
             (1, before, "900", "-99", "-10"),
-            (2, mature_cutoff_date, "200", "-7", "-20"),
+            (2, current, "200", "-7", "-20"),
         ):
             _, kiosk_version = self.kiosk(
                 number,
@@ -57,9 +63,13 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 ],
                 activity_date=day.isoformat(),
             )
-            kiosk_observations.append(self.kiosk_observation(kiosk_version))
+            kiosk_versions.append(kiosk_version)
         administrator, member = self.administrator(), self.member(company)
-        for user, count, reported in ((administrator, "6", "258"), (member, "4", "270")):
+        self.assertEqual(
+            self.as_user(administrator, "select public.source_transaction_count('finances')"),
+            [("7",)],
+        )
+        for user, count, reported in ((administrator, "6", "66"), (member, "4", "1070")):
             page = self.assert_matches_view(user, p_direction="asc")
             self.assertEqual(page["total_count"], count)
             totals = self.as_user(
@@ -67,8 +77,8 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             )[0][0]
             total = cast(dict[str, list[dict[str, str]]], totals)["rows"][0]
             self.assertEqual(Decimal(total["reported_amount"]), Decimal(reported))
-            self.assertEqual(Decimal(total["service_fee"]), Decimal(-30))
-            self.assertEqual(Decimal(total["company_amount"]), Decimal(240))
+            self.assertEqual(Decimal(total["service_fee"]), Decimal(-110))
+            self.assertEqual(Decimal(total["company_amount"]), Decimal(960))
             self.assertEqual(total["row_count"], count)
         self.assertEqual(
             self.page(administrator, p_company_ids=[company])["rows"], self.page(member)["rows"]
@@ -89,17 +99,33 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             "select source_amount,authoritative,fee_amount,company_amount "
             "from private.resolve_company_components(%s::uuid[],%s::uuid[],%s::uuid[]) "
             "where source='DATA_KIOSK' and activity_date=%s and category='FINANCES'",
-            ([finances], kiosk_observations, [terms], before),
+            (
+                self.finances_versions(*self.last_finances_batch_ids),
+                kiosk_versions,
+                [terms],
+                before,
+            ),
         ).fetchall()
         self.assertEqual(details, [(Decimal(900), False, None, None)])
-        strict = self.connection.execute(
-            "select source_amount,fee_amount,company_amount from private.company_financial_totals("
-            "%s,%s,%s,'v0',%s::uuid[],array['Amazon.com'])",
-            (self.seller, before, mature_cutoff_date, [finances]),
-        ).fetchall()
-        self.assertEqual(strict, [(Decimal(270), Decimal(-30), Decimal(240))])
+        for user in (administrator, member):
+            expected = self.as_user(
+                user,
+                "select public.transaction_page(),public.transaction_count(),"
+                "public.transaction_totals(p_date_from=>'2026-01-01')",
+            )
+            for cutoff in (date(2000, 1, 1), date(2100, 1, 1)):
+                with self.subTest(cutoff=cutoff), self.connection.transaction(force_rollback=True):
+                    self.set_mature_cutoff_date(cutoff)
+                    self.assertEqual(
+                        self.as_user(
+                            user,
+                            "select public.transaction_page(),public.transaction_count(),"
+                            "public.transaction_totals(p_date_from=>'2026-01-01')",
+                        ),
+                        expected,
+                    )
 
-    def test_strict_reads_require_mature_kiosk_coverage_and_accept_unallocated_cost_controls(
+    def test_strict_reads_validate_every_date_and_accept_unallocated_cost_controls(
         self,
     ) -> None:
         mature_cutoff_date = self.mature_cutoff_date()
@@ -130,20 +156,26 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             [(Decimal(-10),)],
         )
         self.kiosk(2, [self.component("30")], activity_date=mature_cutoff_date.isoformat())
-        self.assertEqual(
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
                 "select source_amount from private.company_financial_totals("
                 "%s,%s,%s,'v0',array['00000000-0000-0000-0000-000000000001']::uuid[],"
                 "array['Amazon.com'])",
+                (self.seller, mature_cutoff_date, mature_cutoff_date),
+            )
+        self.assertEqual(
+            self.connection.execute(
+                "select source_amount from private.company_financial_totals("
+                "%s,%s,%s,'v0','{}',array['Amazon.com'])",
                 (self.seller, mature_cutoff_date, mature_cutoff_date),
             ).fetchall(),
             [(Decimal(30),)],
         )
 
     def test_raw_source_totals_preserve_unmatched_categories_and_dimensions(self) -> None:
-        day = self.mature_cutoff_date() - timedelta(days=1)
+        day = date.fromisoformat(self.current_activity_date())
         earlier = day - timedelta(days=1)
-        self.owner()
+        company, _ = self.owner()
         self.finances(
             [
                 self.transaction("100", 3, activity_date=day.isoformat()),
@@ -208,8 +240,16 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
             ],
         )
 
-    def test_mature_kiosk_authority_excludes_finances_but_includes_costs(self) -> None:
-        before = self.mature_cutoff_date() - timedelta(days=1)
+        for user in (self.member(company), self.auth_user()):
+            with self.subTest(user=user), self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                self.as_user(
+                    user,
+                    "select public.current_source_totals(%s,%s,'Amazon.com')",
+                    (earlier, day),
+                )
+
+    def test_kiosk_sales_stay_supporting_without_finance_activity(self) -> None:
+        before = date.fromisoformat(self.current_activity_date())
         company, _ = self.owner()
         self.kiosk(
             1,

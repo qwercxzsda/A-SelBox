@@ -4,8 +4,13 @@ from decimal import Decimal
 
 import psycopg
 from psycopg import sql
+from psycopg.types.json import Jsonb
 
-from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month, payout_snapshot
+from services.db.supabase.tests.payout_fixtures import (
+    fill_payout_kiosk_month,
+    payout_snapshot,
+    report_records,
+)
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
@@ -52,10 +57,11 @@ class CompanyPayoutReportTests(SourceModelFixture):
         company, identity = self.owner()
         terms = self.fee(identity, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        finances_batch, _ = self.finances([self.transaction("100")], acquisition_id=acquisition)
+        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, kiosk_version = self.kiosk(1, [self.component()])
         report = self.report(company)
         before = payout_snapshot(self, report)
+        details = report_records(self, report)
         self.assertEqual(
             self.connection.execute(
                 "select source_amount,fee_amount,company_amount "
@@ -64,14 +70,13 @@ class CompanyPayoutReportTests(SourceModelFixture):
             ).fetchone(),
             (Decimal(90), Decimal(-5), Decimal(85)),
         )
+        kiosk_detail = next(row for row in details if row["source"] == "DATA_KIOSK")
         self.assertEqual(
-            self.connection.execute(
-                "select terms_version_id::text,fee_period_id,fee_rate_percent,fee_amount "
-                "from public.company_payout_report_components "
-                "where report_id=%s and source='DATA_KIOSK'",
-                (report,),
-            ).fetchone(),
-            (terms, None, None, Decimal(0)),
+            tuple(
+                kiosk_detail[field]
+                for field in ("terms_version_id", "fee_period_id", "fee_rate_percent", "fee_amount")
+            ),
+            (terms, None, None, "0"),
         )
         self.finances([self.transaction("200")], acquisition_id=acquisition)
         self.kiosk(2, [self.component("-20")], expected=kiosk_version)
@@ -84,9 +89,10 @@ class CompanyPayoutReportTests(SourceModelFixture):
         )
         self.reassign(identity, None)
         self.assertEqual(payout_snapshot(self, report), before)
+        self.assertEqual(report_records(self, report), details)
         for relation, column, version in (
-            ("payout_report_finances_batches", "batch_id", finances_batch),
-            ("payout_report_data_kiosk_observations", "version_id", kiosk_version),
+            ("payout_report_finances_versions", "version_id", finances_version),
+            ("payout_report_data_kiosk_versions", "version_id", kiosk_version),
             ("payout_report_terms_versions", "terms_version_id", terms),
         ):
             rows = self.connection.execute(
@@ -95,7 +101,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 ),
                 (report,),
             ).fetchall()
-            if relation == "payout_report_data_kiosk_observations":
+            if relation == "payout_report_data_kiosk_versions":
                 self.assertEqual(len(rows), 30)
                 self.assertIn((version,), rows)
             else:
@@ -122,13 +128,35 @@ class CompanyPayoutReportTests(SourceModelFixture):
         before = payout_snapshot(self, report)
         self.reassign(other_identity, company)
         self.assertEqual(payout_snapshot(self, report), before)
+        self.assertEqual([row["sku"] for row in report_records(self, report)], ["SKU"])
+        self.connection.execute("set constraints all immediate")
+
+    def test_detail_count_includes_supporting_rows_without_adding_their_amounts(self) -> None:
+        company, identity = self.owner()
+        self.fee(identity, [("2026-01-01", None, "5")])
+        self.finances([self.transaction("100")])
+        self.kiosk(
+            1,
+            [
+                self.component("-10"),
+                self.component("999", category="FINANCES")
+                | {"component_type": "NET_PRODUCT_SALES", "fee_base": "999"},
+                self.component("123", category="ANALYSIS_ONLY"),
+            ],
+        )
+        report = self.report(company)
         self.assertEqual(
             self.connection.execute(
-                "select sku from public.company_payout_report_components where report_id=%s",
+                "select component_count,source_amount,fee_amount,company_amount "
+                "from public.company_payout_reports where id=%s",
                 (report,),
-            ).fetchall(),
-            [("SKU",)],
+            ).fetchone(),
+            (4, 90, -5, 85),
         )
+        supporting = report_records(self, report, authoritative=False)
+        self.assertEqual(len(supporting), 2)
+        self.assertEqual({row["source_amount"] for row in supporting}, {"999", "123"})
+        self.assertTrue(all(row["company_amount"] is None for row in supporting))
         self.connection.execute("set constraints all immediate")
 
     def test_company_report_access_survives_sku_transfer(self) -> None:
@@ -146,25 +174,23 @@ class CompanyPayoutReportTests(SourceModelFixture):
             [(report,)],
         )
         self.assertEqual(
-            self.as_user(
-                administrator, "select company_amount from public.company_payout_report_components"
-            ),
-            [(Decimal(95),)],
+            [
+                Decimal(row["company_amount"])
+                for row in report_records(self, report, user=administrator)
+            ],
+            [Decimal(95)],
         )
         self.assertEqual(
             self.as_user(old_user, "select id::text from public.company_payout_reports"),
             [(report,)],
         )
         self.assertEqual(
-            self.as_user(
-                old_user, "select company_amount from public.company_payout_report_components"
-            ),
-            [(Decimal(95),)],
+            [Decimal(row["company_amount"]) for row in report_records(self, report, user=old_user)],
+            [Decimal(95)],
         )
         self.assertEqual(self.as_user(new_user, "select * from public.company_payout_reports"), [])
-        self.assertEqual(
-            self.as_user(new_user, "select * from public.company_payout_report_components"), []
-        )
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            report_records(self, report, user=new_user)
         self.assertEqual(
             self.as_user(old_user, "select id from private.finances_transaction_components"), []
         )
@@ -175,6 +201,8 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(administrator, "select id from public.company_payout_reports"), []
         )
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            report_records(self, report, user=administrator)
 
     def test_incomplete_ownership_fees_and_source_coverage_fail_atomically(self) -> None:
         company, identity = self.owner()
@@ -188,7 +216,7 @@ class CompanyPayoutReportTests(SourceModelFixture):
         self.fee(identity, [("2026-01-01", None, "0")])
         for scope in (
             {"preprocess_version": "another-version"},
-            {"finances_batch_ids": [new_id()]},
+            {"finances_version_ids": [new_id()]},
             {"marketplace_name": "Unsupported marketplace"},
         ):
             with (
@@ -233,41 +261,54 @@ class CompanyPayoutReportTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_deferred_validator_rejects_fabricated_component_and_missing_inputs(self) -> None:
+    def test_deferred_validator_rejects_incorrect_totals_count_and_missing_inputs(self) -> None:
         company, identity = self.owner()
         self.fee(identity, [("2026-01-01", None, "5")])
         self.finances([self.transaction("100")])
-        for corrupt in ("component", "inputs"):
+        report = self.report(company)
+        self.connection.execute("set constraints all immediate")
+        self.connection.execute("set constraints all deferred")
+        for corrupt in ("amounts", "count", "inputs"):
             with (
                 self.subTest(corrupt=corrupt),
                 self.assertRaises(psycopg.errors.CheckViolation),
                 self.connection.transaction(),
             ):
-                report = self.report(company)
-                # Exercise deferred validation independently of the mutation guards.
-                if corrupt == "component":
+                candidate = new_id()
+                changes: dict[str, object] = {"id": candidate}
+                if corrupt == "amounts":
+                    changes |= {"source_amount": "101", "company_amount": "96"}
+                elif corrupt == "count":
+                    changes |= {"component_count": 2}
+                self.connection.execute(
+                    "insert into public.company_payout_reports "
+                    "select (jsonb_populate_record(r,%s::jsonb)).* "
+                    "from public.company_payout_reports r where id=%s",
+                    (Jsonb(changes), report),
+                )
+                for table, identity_column, version_column in (
+                    ("payout_report_finances_versions", "transaction_id", "version_id"),
+                    ("payout_report_data_kiosk_versions", "day_id", "version_id"),
+                    ("payout_report_terms_versions", "sku_id", "terms_version_id"),
+                ):
+                    if corrupt == "inputs" and table == "payout_report_finances_versions":
+                        continue
                     self.connection.execute(
-                        "alter table public.company_payout_report_components "
-                        "disable trigger immutable"
-                    )
-                    self.connection.execute(
-                        "update public.company_payout_report_components set source_row_id=%s "
-                        "where report_id=%s",
-                        (new_id(), report),
-                    )
-                else:
-                    self.connection.execute(
-                        "alter table private.payout_report_finances_batches "
-                        "disable trigger immutable"
-                    )
-                    self.connection.execute(
-                        "delete from private.payout_report_finances_batches where report_id=%s",
-                        (report,),
+                        sql.SQL(
+                            "insert into private.{} select %s,{},{} "
+                            "from private.{} where report_id=%s"
+                        ).format(
+                            sql.Identifier(table),
+                            sql.Identifier(identity_column),
+                            sql.Identifier(version_column),
+                            sql.Identifier(table),
+                        ),
+                        (candidate, report),
                     )
                 self.connection.execute("set constraints all immediate")
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.company_payout_reports"
             ).fetchone(),
-            (0,),
+            (1,),
         )

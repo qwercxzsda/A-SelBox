@@ -25,7 +25,7 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
     account = connection.execute(
         "select access_role from public.app_accounts where user_id=auth.uid()"
     ).fetchone()
-    if account is None:
+    if account is None or (dataset != "live" and account[0] != "administrator"):
         return {name: [] for name in names}
     if account[0] == "member":
         skus = connection.execute("select distinct sku from public.company_skus").fetchall()
@@ -43,7 +43,10 @@ def resolve_search_values(connection: Connection, term: str, dataset: str) -> di
         )
         if dataset in ("live", source)
         for item in entries
-        if account[0] == "administrator" or item.category != "SELBOX"
+        if dataset != "live"
+        or (source == "finances" and item.category == "FINANCES")
+        or (source == "finances" and item.category == "SELBOX" and account[0] == "administrator")
+        or (source == "data_kiosk" and item.category == "DATA_KIOSK")
     ]
     result: dict[str, object] = {
         "p_search_skus": sorted({str(row[0]) for row in skus if normalized in str(row[0]).lower()}),

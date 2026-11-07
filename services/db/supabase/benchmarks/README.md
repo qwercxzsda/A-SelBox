@@ -30,13 +30,17 @@ cleanup status and writes results atomically.
   administrator's complete SKU catalog, including historical facts and registered-only SKUs. Untimed
   authorized SQL provides independent exact-value references. Only current RPCs are timed;
   general REST aggregates stay disabled.
-- **Search and amount ordering:** all three datasets, exact OR search sets resolved from raw SKU,
+- **Search and amount ordering:** Transactions for members and administrators, plus both raw source
+  datasets for administrators. Exact OR search sets resolve from raw SKU,
   Type, Marketplace, and Source values before timing; currency is excluded. Filtered date and amount
   pages cover stable ties, offsets, exact counts, and the 10,000-row amount-ordering guard. Independent
   raw-view substring queries verify these benchmark terms without sorting over-limit scopes.
   Frontend tests separately cover humanized labels and Unicode matching.
 
-Each actor's visible data supplies its scope. Summary filter values are selected from positive
+Transactions references contain only eligible Finances `FINANCES`/`SELBOX` and Data Kiosk
+`DATA_KIOSK` components, with member ownership restrictions. They do not depend on payout maturity.
+Raw source cases preserve administrators' retained history and comparison categories.
+Each actor's permitted data supplies its scope. Summary filter values are selected from positive
 transactions inside the benchmark date range; records include the actual bounds and
 matching row counts. One warm-up precedes measured repetitions; request order rotates
 across runs. Results contain timings, counts, sizes, digests, catalog fingerprints,
@@ -55,8 +59,7 @@ removes only its allowlisted clones and temporary REST containers, using the ins
 `--pull=never` and a fresh synthetic signing key.
 
 The seed is copied without changing its transactions, versions, memberships, dates or terms.
-The previous daily-snapshot density/history generators were removed because they rewrote obsolete
-source inventories under disabled triggers. No synthetic expansion or trigger suppression is used.
+No synthetic expansion or trigger suppression is used.
 A schema preflight rejects an old seed before copying. Build any larger representative dataset
 through validated current preprocessing before using these measurement runners.
 
@@ -73,7 +76,7 @@ run simultaneous instances against the same clone names.
 `plans.explain_rpc(connection, user_id, function_name, arguments)` inspects current installed
 query definitions on an idle connection. It binds the current request parameters and runs the
 extracted SELECT under `authenticated` with the supplied actor in a read-only transaction. The
-SKU catalog path first invokes its actual administrator gate. Check the real RPC response before
+raw source and SKU catalog paths first invoke their actual administrator gates. Check the real RPC response before
 using a plan as diagnostic evidence; this helper does not replace API validation.
 
 The adapter supports current page, count, total, and administrator SKU-catalog RPCs. It records

@@ -39,14 +39,14 @@ export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description:
-      "Mature dates use Finances totals with Data Kiosk detail; recent dates use Data Kiosk estimates. Maturity uses an assumed two-calendar-month cutoff.",
+      "Current Finances activity with Data Kiosk costs, using each SKU’s current company and fee rules.",
     searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
   finances: {
     label: "Finances",
     description:
-      "Source records from retained daily versions. Activity eligibility applies within each version; Transactions uses the current version.",
+      "Source records from immutable transaction versions. Activity eligibility applies within each version; Transactions uses the current version.",
     searchPlaceholder: "SKU, type, or marketplace",
     emptyMessage: "No Finances transactions match this view.",
   },

@@ -134,7 +134,6 @@ begin
                     t.category
                 from private.finances_activity_components as t
                 where t.category in ('FINANCES', 'SELBOX')
-                    and t.posted_date < (select private.mature_cutoff_date())
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.finances_transaction_components'::regclass
@@ -190,8 +189,7 @@ begin
                     t.fee_base,
                     t.category
                 from private.data_kiosk_component_details as t
-                where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-                        and t.category in ('FINANCES', 'SELBOX')))
+                where t.category = 'DATA_KIOSK'
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.data_kiosk_day_components'::regclass

@@ -26,9 +26,11 @@ test("one term collects matches across fields using raw keys and displayed type/
   const found = resolveTransactionSearch("live", "administrator", ["AMAZON-SKU"], "amazon");
   assert.deepEqual(found.skus, ["AMAZON-SKU"]);
   assert.ok(found.marketplaces.includes("Amazon.com"));
-  assert.deepEqual(found.types, ["SHIPPING_TO_AMAZON_COST"]);
+  assert.deepEqual(found.types, []);
   assert.ok(
-    resolveTransactionSearch("live", "administrator", [], "coupon").types.includes("COUPON_FEES"),
+    resolveTransactionSearch("live", "administrator", [], "coupon").types.includes(
+      "COUPON_PARTICIPATION_FEE",
+    ),
   );
   assert.deepEqual(resolveTransactionSearch("live", "member", [], "data kiosk").sources, [
     "DATA_KIOSK",
@@ -56,7 +58,7 @@ test("member type search respects allocation categories and raw tabs search only
   const term = "Subscription fee";
   assert.deepEqual(resolveTransactionSearch("live", "member", [], term), empty);
   assert.ok(
-    resolveTransactionSearch("live", "administrator", [], term).types.includes("SUBSCRIPTION_FEE"),
+    resolveTransactionSearch("live", "administrator", [], term).types.includes("SUBSCRIPTION_FEES"),
   );
   assert.deepEqual(resolveTransactionSearch("data_kiosk", "administrator", [], term).types, [
     "SUBSCRIPTION_FEE",

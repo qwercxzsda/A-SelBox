@@ -19,7 +19,6 @@ _SCALAR_COLUMNS = {
     "public.sku_fee_periods": True,
     "private.finances_transaction_versions": True,
     "private.data_kiosk_days": True,
-    "public.company_payout_report_components": False,
     "public.company_payout_reports": False,
 }
 _INVALID_LABELS = ("Unknown marketplace", "", " ", "amazon.com", " Amazon.com", "Amazon.com ")
@@ -119,18 +118,13 @@ class MarketplaceContractTests(SourceModelFixture):
 
     def test_publication_and_direct_storage_preserve_marketplace_boundaries(self) -> None:
         payload = self.publish_marketplace_report()
-        for relation in (
-            "private.finances_transaction_versions",
-            "public.company_payout_report_components",
-        ):
-            self.assertEqual(
-                self.connection.execute(
-                    sql.SQL("select count(*) from {} where marketplace_name is null").format(
-                        sql.Identifier(*relation.split("."))
-                    )
-                ).fetchone(),
-                (0,),
-            )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.finances_transaction_versions "
+                "where marketplace_name is null"
+            ).fetchone(),
+            (0,),
+        )
         for relation in _SCALAR_COLUMNS:
             self.assert_stored_marketplace_constraints(relation)
         for name in _INVALID_LABELS:

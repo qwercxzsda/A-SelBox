@@ -42,7 +42,7 @@ export function FinancialRecords({
           label={label}
           columns={[...RECORD_COLUMNS, ...financialAmountColumns(currency, authoritative)]}
           rows={rows}
-          rowKey={(row) => row.id ?? `${row.source ?? ""}:${row.source_row_id ?? ""}`}
+          rowKey={(row) => [row.report_id, row.source, row.source_row_id].filter(Boolean).join(":")}
         />
       ) : null}
     </DetailData>

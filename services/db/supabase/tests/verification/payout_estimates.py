@@ -51,8 +51,8 @@ def verify_record_parity(
             user,
             "select source,source_row_id,activity_date,sku,component_type,"
             "source_amount,fee_amount,company_amount "
-            "from public.company_payout_report_components where report_id=%s "
-            "and authoritative",
+            "from private.read_payout_report_records(%s) "
+            "where authoritative",
             (report_id,),
         )
     }

@@ -150,12 +150,14 @@ activity; administrators can inspect setup requirements and open the affected SK
 
 Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
 company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.
-Readiness covers the whole company/month even when the list is filtered to a marketplace. Historical
-reports preserve their original values and versions. Administrator diagnostics load native aggregates
-from each report's saved source inputs. The frontend computes comparisons with exact decimals, using
-retrieval coverage to distinguish an absent source from a covered zero; payout amounts stay frozen. The
-[payout contract](../../../docs/company_payout_reports.md) defines eligibility, maturity,
-completeness, zero reports, and agreement with estimates.
+The headline uses frozen header amounts; Type breakdowns and records are calculated from the saved
+source and terms versions through `payout_report_totals` and `payout_report_records`. Readiness
+covers the whole company/month even when the list is filtered to a marketplace. Historical reports
+preserve their original totals and version references. Administrator diagnostics load native
+aggregates from each report's saved source inputs. The frontend computes comparisons with exact
+decimals, using retrieval coverage to distinguish an absent source from a covered zero; payout
+amounts stay frozen. The [payout contract](../../../docs/company_payout_reports.md) defines
+eligibility, maturity, completeness, zero reports, and agreement with estimates.
 
 Financial review shares Marketplace, Year, and the **Fee families** checkbox menu across Finances,
 Data Kiosk, and SelBox categories. These selections scope the yearly totals, chart, monthly rows,
@@ -180,9 +182,9 @@ Source drilldowns retain exact row/version provenance. Finances keeps the main S
 filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID
 lookup drawer across all retained captures, independently of table filters. Its submitted ID and
 page survive closing, tab changes, and reloads. Source details retain their exact row/version;
-missing versions show an unavailable message. Closing returns focus to the previous
-action. The [Financial review contract](../../../docs/financial_review.md) defines source
-eligibility and diagnostics over saved source inputs.
+missing versions show an unavailable message. Closing returns focus to the previous action. The
+[Financial review contract](../../../docs/financial_review.md) defines source eligibility and
+diagnostics over saved source inputs.
 
 ## Design conventions
 
@@ -217,10 +219,10 @@ scope changes, and reloads never reuse that catalog.
 Visible, online workspaces check `workspace_revisions` every 60 seconds and on focus/reconnection.
 Unchanged revisions preserve successful cached financial and inventory reads. Relevant changes
 invalidate dependent pages, counts, summaries, options, and fee lookups. Financial source tokens
-also include the mature cutoff date. Payout publication/readiness revisions are independent of
-source and fee revisions. Member fee/ownership and payout revisions are company-scoped. Pages and
-account counts have 30-second freshness; financial/payout counts persist until a relevant revision
-changes.
+track publications without a date or maturity suffix. Payout publication/readiness revisions are
+independent of source and fee revisions. Member fee/ownership and payout revisions are
+company-scoped. Pages and account counts have 30-second freshness; financial/payout counts persist
+until a relevant revision changes.
 
 Offline notices distinguish cached information from a new view waiting for a connection. The last
 successful application read is not Amazon capture freshness. Cached rows remain visible and paused

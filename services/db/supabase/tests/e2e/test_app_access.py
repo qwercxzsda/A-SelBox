@@ -203,7 +203,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(
             {
                 row["seller_namespace"]
-                for row in self.read_rows("finances_preprocess_entries", member_token)
+                for row in self.read_rows("live_company_components", member_token)
             },
             {self.seller},
         )
@@ -223,7 +223,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(
             {
                 row["seller_namespace"]
-                for row in self.read_rows("finances_preprocess_entries", member_token)
+                for row in self.read_rows("live_company_components", member_token)
             },
             {self.seller + "-second"},
         )
@@ -443,7 +443,7 @@ class AppAccessTests(LocalWorkflowCase):
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
 
-    def test_administrator_reads_source_history_while_member_only_reads_owned_current_facts(
+    def test_administrator_reads_source_history_while_member_uses_transactions(
         self,
     ) -> None:
         company = company_with_fees(self.database, self.seller)
@@ -456,19 +456,16 @@ class AppAccessTests(LocalWorkflowCase):
         for _ in range(2):
             preprocess_finances_acquisition(self.database, self.storage, finances)
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
-        for relation, count, current_count in (
-            ("finances_preprocess_results", 2, None),
-            ("data_kiosk_preprocess_results", 4, 2),
+        for relation, inventory_field, inventory_count in (
+            ("finances_preprocess_results", "transaction_count", 3),
+            ("data_kiosk_preprocess_results", "day_count", 2),
         ):
             rows = self.read_rows(
                 relation, administrator_token, seller_namespace="eq." + self.seller
             )
-            self.assertEqual(len(rows), count)
-            if current_count is None:
-                self.assertTrue(all("is_current" not in row for row in rows))
-                self.assertTrue(all(row["transaction_count"] == 3 for row in rows))
-            else:
-                self.assertEqual(sum(row["is_current"] is True for row in rows), current_count)
+            self.assertEqual(len(rows), 2)
+            self.assertTrue(all("is_current" not in row for row in rows))
+            self.assertTrue(all(row[inventory_field] == inventory_count for row in rows))
             denied = self.stack.request(
                 "GET",
                 "/rest/v1/" + relation,
@@ -478,9 +475,9 @@ class AppAccessTests(LocalWorkflowCase):
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
         for relation, administrator_count, member_count in (
-            ("finances_preprocess_entries", 3, 2),
-            # Each day also retains its zero net-sales comparison component.
-            ("data_kiosk_preprocess_entries", 8, 4),
+            ("finances_preprocess_entries", 3, 0),
+            # Repeated processing reuses each day's one nonzero fee component.
+            ("data_kiosk_preprocess_entries", 2, 0),
         ):
             with self.subTest(relation=relation):
                 self.assertEqual(

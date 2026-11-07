@@ -14,7 +14,7 @@ export function reviewAmounts(overrides = {}) {
   };
 }
 
-/** Complete prior year, current mature months, multiple currencies, and a gap year. */
+/** Complete prior year, current source months, multiple currencies, and a gap year. */
 export function setupManyFinancialReviewRows(fixture) {
   const rows = [];
   for (const [year, months] of [
@@ -165,9 +165,9 @@ export function setupFinancialReview(fixture) {
       company_amount: "95",
     },
   ];
-  fixture.payoutComponents = [
+  fixture.payoutRecords = [
     {
-      id: "payout-record",
+      source_row_id: "payout-record",
       report_id: REVIEW_REPORT,
       authoritative: "true",
       source: "FINANCES",
@@ -177,7 +177,7 @@ export function setupFinancialReview(fixture) {
       component_type: "PRODUCT_SALES",
     },
     ...Array.from({ length: 51 }, (_, index) => ({
-      id: `support-${index}`,
+      source_row_id: `support-${String(999 - index).padStart(3, "0")}`,
       report_id: REVIEW_REPORT,
       authoritative: "false",
       source: "DATA_KIOSK",

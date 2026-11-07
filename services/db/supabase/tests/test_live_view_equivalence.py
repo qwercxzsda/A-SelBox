@@ -1,4 +1,4 @@
-"""The relational live view preserves the explicit resolver's full row contract."""
+"""Live rows match immutable payout inputs apart from observation metadata."""
 
 from decimal import Decimal, localcontext
 from typing import LiteralString, cast
@@ -11,20 +11,19 @@ from services.db.supabase.tests.local_database import require_row
 _COMPARISON: LiteralString = """
 with reference as materialized (
     select * from private.resolve_company_components(
-        array(select distinct current_batch_id::uuid from private.finances_transactions
-            where current_batch_id is not null),
-        array(select m.id::uuid from private.data_kiosk_days d
-            join private.data_kiosk_preprocess_batch_days m
-                on (m.batch_id,m.day_id,m.version_id)
-                    =(d.current_batch_id,d.id,d.current_version_id)),
+        array(select current_version_id::uuid from private.finances_transactions
+            where current_version_id is not null),
+        array(select current_version_id::uuid from private.data_kiosk_days
+            where current_version_id is not null),
         array(select current_terms_version_id::uuid from public.skus
             where current_terms_version_id is not null)
-    )
+    ) where authoritative
 ), actual as materialized (
-    select * from public.live_company_components where {predicate}
+    select to_jsonb(c) - 'preprocess_version' as row
+    from public.live_company_components c where {predicate}
     order by activity_date desc nulls last, source, source_row_id {limit_clause}
 ), expected as materialized (
-    select * from reference where {predicate}
+    select to_jsonb(c) as row from reference c where {predicate}
     order by activity_date desc nulls last, source, source_row_id {limit_clause}
 ), differences as (
     (select * from actual except all select * from expected)
@@ -72,16 +71,16 @@ class LiveViewEquivalenceTests(FinancialFixture):
             self.administrator(),
         )
         scopes: tuple[tuple[LiteralString, tuple[object, ...], tuple[int, int, int]], ...] = (
-            ("true", (), (21, 12, 2)),
-            ("company_id = %s::uuid", (company_a,), (12, 12, 0)),
+            ("true", (), (18, 10, 2)),
+            ("company_id = %s::uuid", (company_a,), (10, 10, 0)),
             ("company_id = %s::uuid", (company_b,), (2, 0, 2)),
-            ("activity_date = %s::date", ("2026-06-15",), (19, 10, 2)),
-            ("sku = %s", ("SKU",), (12, 11, 0)),
-            ("source = %s", ("DATA_KIOSK",), (10, 6, 1)),
+            ("activity_date = %s::date", ("2026-06-15",), (16, 8, 2)),
+            ("sku = %s", ("SKU",), (10, 9, 0)),
+            ("source = %s", ("DATA_KIOSK",), (7, 4, 1)),
             (
                 "marketplace_name = %s and component_type = %s",
                 ("Amazon.com", "FbaStorageFee"),
-                (9, 5, 1),
+                (6, 3, 1),
             ),
             ("authoritative", (), (18, 10, 2)),
             (
@@ -99,7 +98,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
             ):
                 with self.subTest(role="trusted" if user is None else user, predicate=predicate):
                     self.assert_matches_resolver(user, expected_rows, predicate, parameters)
-        for user, count in ((None, 21), (administrator, 21), (member_a, 12), (member_b, 2)):
+        for user, count in ((None, 18), (administrator, 18), (member_a, 10), (member_b, 2)):
             with self.subTest(page_role="trusted" if user is None else user):
                 self.assert_matches_resolver(user, count, limit=3)
         self.assert_matches_resolver(self.auth_user(), 0)
@@ -136,11 +135,8 @@ class LiveViewEquivalenceTests(FinancialFixture):
         administrator = self.administrator()
         terms = self.fee(sku, [("2026-01-01", None, "5")])
         acquisition = self.acquisition()
-        old_batch, _old_finances = self.finances(
-            [self.transaction("100")], acquisition_id=acquisition
-        )
+        _, old_finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
-        old_kiosk_observation = self.kiosk_observation(old_kiosk)
         _, new_finances = self.finances(
             [self.transaction("200")],
             acquisition_id=acquisition,
@@ -169,7 +165,7 @@ class LiveViewEquivalenceTests(FinancialFixture):
                 self.connection.execute(
                     "select sum(company_amount) from private.resolve_company_components("
                     "%s::uuid[],%s::uuid[],%s::uuid[])",
-                    ([old_batch], [old_kiosk_observation], [terms]),
+                    ([old_finances], [old_kiosk], [terms]),
                 ).fetchone()
             )[0],
             Decimal(85),

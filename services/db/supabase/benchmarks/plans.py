@@ -3,7 +3,7 @@
 Call explain_rpc(connection, user_id, function_name, arguments) on an idle
 psycopg connection after timing rounds. This does not measure timings, change
 planner settings, inspect credentials, modify schemas/data, or retain arguments.
-Guarded catalog plans first invoke the actual RPC under the requested actor; that
+Raw-source and guarded catalog plans first invoke the actual RPC under the requested actor; that
 untimed authorization check prevents explaining a SELECT the caller cannot use.
 """
 
@@ -14,6 +14,7 @@ import re
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, LiteralString, cast
 
+from psycopg import sql
 from psycopg.pq import TransactionStatus
 
 from .common import Connection
@@ -268,6 +269,15 @@ def explain_rpc(
         connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user_id,))
         connection.execute("set local role authenticated")
         connection.execute("set local search_path=''")
+        if function in ("source_transaction_page", "source_transaction_count"):
+            # Run the installed authorization/validation gate before extracting its SELECT.
+            request = sql.SQL("select public.{}({})").format(
+                sql.Identifier(function),
+                sql.SQL(",").join(
+                    sql.SQL("{} => %s").format(sql.Identifier(name)) for name in arguments
+                ),
+            )
+            connection.execute(request, tuple(arguments.values())).fetchone()
         if function.endswith("_page"):
             query, parameters = _page_query(definition, function, arguments)
         else:

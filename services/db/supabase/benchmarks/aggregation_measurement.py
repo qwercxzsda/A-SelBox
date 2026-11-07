@@ -85,8 +85,7 @@ def _reference(connection: Connection, case: Case) -> list[Any]:
         "sum(fee_amount)::text as service_fee,sum(company_amount)::text as company_amount,"
         "count(*)::text as row_count,count(company_amount)::text as known_company_count "
         "from public.live_company_components "
-        "where authoritative "
-        "and activity_date between %s::date and %s::date "
+        "where activity_date between %s::date and %s::date "
         "and (%s::text is null or currency=%s::text) "
         "and (%s::text[] is null or marketplace_name=any(%s::text[])) "
         "group by currency{group}"
@@ -126,15 +125,14 @@ def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, 
             (json.dumps({"sub": user, "role": "authenticated"}),),
         )
         latest_row = connection.execute(
-            "select max(activity_date) from public.live_company_components where authoritative"
+            "select max(activity_date) from public.live_company_components"
         ).fetchone()
         if latest_row is None or latest_row[0] is None:
             raise RuntimeError("Summary benchmark identity has no visible transaction scope")
         latest = latest_row[0]
         scope = connection.execute(
             "select marketplace_name,currency from public.live_company_components "
-            "where authoritative "
-            "and marketplace_name is not null and activity_date between %s and %s "
+            "where marketplace_name is not null and activity_date between %s and %s "
             "group by marketplace_name,currency order by count(*) desc,marketplace_name,currency "
             "limit 1",
             (latest - timedelta(days=59), latest),

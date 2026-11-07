@@ -141,7 +141,7 @@ test("summary cards and date links keep distinct keyboard and click actions with
   page,
 }) => {
   await setup(page, false);
-  const card = page.getByRole("article", { name: "Latest day estimated totals", exact: true });
+  const card = page.getByRole("article", { name: "Latest day current totals", exact: true });
   const open = button(card, "View Latest day by type");
   const date = card.getByRole("button", { name: /^Filter transactions to / });
   await expect(card.getByText("View by type →", { exact: true })).toBeVisible();
@@ -158,7 +158,7 @@ test("summary cards and date links keep distinct keyboard and click actions with
   await date.press("Enter");
   await expect(panel(page, "Amounts by type")).toHaveCount(0);
   await expect(
-    page.getByRole("article", { name: "Selected dates estimated totals", exact: true }),
+    page.getByRole("article", { name: "Selected dates current totals", exact: true }),
   ).toContainText("10.00 USD");
   await open.focus();
   await open.press("Enter");

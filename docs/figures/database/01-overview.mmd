@@ -30,12 +30,11 @@ flowchart LR
     end
     subgraph GROUP_5["Payout results"]
         public_company_payout_reports["public.company_payout_reports"]
-        public_company_payout_report_components["public.company_payout_report_components"]
         private_payout_report_refresh_state["private.payout_report_refresh_state"]
     end
     subgraph GROUP_6["Payout manifests"]
-        private_payout_report_finances_batches["private.payout_report_finances_batches"]
-        private_payout_report_data_kiosk_observations["private.payout_report_data_kiosk_observations"]
+        private_payout_report_finances_versions["private.payout_report_finances_versions"]
+        private_payout_report_data_kiosk_versions["private.payout_report_data_kiosk_versions"]
         private_payout_report_terms_versions["private.payout_report_terms_versions"]
     end
     subgraph GROUP_7["Revisions"]
@@ -65,19 +64,15 @@ flowchart LR
     private_inventory_acquisitions -.-> ARCHIVES
     private_inventory_daily_captures --> private_inventory_acquisitions
     private_inventory_items --> private_inventory_daily_captures
-    private_payout_report_data_kiosk_observations --> private_data_kiosk_preprocess_batch_days
-    private_payout_report_data_kiosk_observations --> public_company_payout_reports
-    private_payout_report_finances_batches --> private_finances_preprocess_batches
-    private_payout_report_finances_batches --> public_company_payout_reports
+    private_payout_report_data_kiosk_versions --> private_data_kiosk_day_versions
+    private_payout_report_data_kiosk_versions --> public_company_payout_reports
+    private_payout_report_finances_versions --> public_company_payout_reports
+    private_payout_report_finances_versions --> private_finances_transaction_versions
     private_payout_report_refresh_state --> public_companies
     private_payout_report_terms_versions --> public_company_payout_reports
     private_payout_report_terms_versions --> public_sku_terms_versions
     public_app_accounts --> public_companies
     public_app_accounts --> auth_users
-    public_company_payout_report_components --> public_sku_fee_periods
-    public_company_payout_report_components --> private_payout_report_terms_versions
-    public_company_payout_report_components --> public_company_payout_reports
-    public_company_payout_report_components --> public_sku_terms_versions
     public_company_payout_reports --> public_companies
     public_sku_fee_periods --> public_sku_terms_versions
     public_sku_terms_versions --> public_companies

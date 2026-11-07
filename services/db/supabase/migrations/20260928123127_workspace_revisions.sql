@@ -143,12 +143,8 @@ begin
             where source is null or source not in ('finances', 'data_kiosk', 'fees', 'inventory', 'payouts')) then
         raise exception 'Invalid revision sources' using errcode = '22023';
     end if;
-    -- The mature cutoff date moves even when no source is imported. Include it
-    -- in opaque source tokens so existing clients invalidate cached money/counts.
     select coalesce(jsonb_object_agg(s.source,
-        case when account.access_role = 'unassigned' then '0' else coalesce(r.revision::text, '0')
-        || case when s.source in ('finances', 'data_kiosk')
-            then ':' || private.mature_cutoff_date()::text else '' end end), '{}'::jsonb)
+        case when account.access_role = 'unassigned' then '0' else coalesce(r.revision::text, '0') end), '{}'::jsonb)
     into revisions
     from (select distinct source from unnest(p_sources) as requested(source)) as s
     left join private.workspace_revision_tokens as r on r.source = s.source

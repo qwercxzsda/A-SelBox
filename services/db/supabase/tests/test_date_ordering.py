@@ -3,6 +3,8 @@
 from itertools import product
 from typing import cast
 
+import psycopg
+
 from services.db.supabase.tests import test_source_transaction_page as source_fixture
 from services.db.supabase.tests import test_transaction_page as live_fixture
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
@@ -48,9 +50,10 @@ class DateOrderingTests(SourceModelFixture):
 
     def test_date_directions_are_exact_reverses_for_all_datasets_and_roles(self) -> None:
         company_a, company_b = self.tied_rows()
+        administrator = self.administrator()
         for user, dataset in product(
             (
-                self.administrator(),
+                administrator,
                 self.member(company_a),
                 self.member(company_b),
                 self.auth_user(),
@@ -58,6 +61,10 @@ class DateOrderingTests(SourceModelFixture):
             ("live", "finances", "data_kiosk"),
         ):
             with self.subTest(user=user, dataset=dataset):
+                if dataset != "live" and user != administrator:
+                    with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                        self.page(user, dataset)
+                    continue
                 ascending = self.page(user, dataset, p_direction="asc", p_limit=1000)
                 descending = self.page(user, dataset, p_direction="desc", p_limit=1000)
                 self.assertEqual(
@@ -86,8 +93,9 @@ class DateOrderingTests(SourceModelFixture):
 
     def test_search_and_filters_keep_reverse_order_but_amount_ties_stay_ascending(self) -> None:
         company_a, _ = self.tied_rows()
+        administrator = self.administrator()
         for user, dataset in product(
-            (self.administrator(), self.member(company_a)), ("live", "finances", "data_kiosk")
+            (administrator, self.member(company_a)), ("live", "finances", "data_kiosk")
         ):
             with self.subTest(user=user, dataset=dataset):
                 filters = {
@@ -97,6 +105,10 @@ class DateOrderingTests(SourceModelFixture):
                     "p_marketplaces": ["Amazon.com"],
                     "p_search_skus": ["SKU"],
                 }
+                if dataset != "live" and user != administrator:
+                    with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                        self.page(user, dataset, **filters)
+                    continue
                 ascending = self.page(user, dataset, p_direction="asc", **filters)
                 descending = self.page(user, dataset, p_direction="desc", **filters)
                 self.assertEqual(

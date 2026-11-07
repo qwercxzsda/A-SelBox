@@ -4,7 +4,11 @@ from datetime import date
 from decimal import Decimal
 
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.payout_fixtures import prepare_payout, refresh_payout_reports
+from services.db.supabase.tests.payout_fixtures import (
+    payout_snapshot,
+    prepare_payout,
+    refresh_payout_reports,
+)
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
@@ -80,13 +84,17 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
             (1,),
         )
 
-    def test_new_marketplace_requires_older_report_coverage_even_when_new_day_is_future(
-        self,
-    ) -> None:
+    def test_future_marketplace_discovery_reuses_unaffected_marketplace_report(self) -> None:
         inputs = prepare_payout(self)
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
+        report = str(
+            require_row(
+                self.connection.execute("select id from public.company_payout_reports").fetchone()
+            )[0]
+        )
+        frozen = payout_snapshot(self, report)
         before = self.requested_revision(inputs.company)
-        acquisition = self.kiosk_acquisition(1, start="2026-07-01")
+        acquisition = self.kiosk_acquisition(1, start="2026-07-01", marketplace_id="A2EUQ1WTGCTBG2")
         self.call(
             "publish_data_kiosk_preprocess",
             {
@@ -107,18 +115,15 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
             },
         )
         self.assertGreater(self.requested_revision(inputs.company), before)
-        self.assertEqual(refresh_payout_reports(self), (1, 0, 0, 1))
-        self.assertIn(
-            "Data Kiosk",
-            str(
-                require_row(
-                    self.connection.execute(
-                        "select last_error_message from private.payout_report_refresh_state "
-                        "where company_id=%s and month='2026-06-01'",
-                        (inputs.company,),
-                    ).fetchone()
-                )[0]
-            ),
+        self.assertEqual(refresh_payout_reports(self), (1, 0, 1, 0))
+        self.assertEqual(payout_snapshot(self, report), frozen)
+        self.assertEqual(
+            self.connection.execute(
+                "select last_error_message from private.payout_report_refresh_state "
+                "where company_id=%s and month='2026-06-01'",
+                (inputs.company,),
+            ).fetchone(),
+            (None,),
         )
 
     def test_historical_source_import_discovers_earlier_months_for_existing_companies(self) -> None:

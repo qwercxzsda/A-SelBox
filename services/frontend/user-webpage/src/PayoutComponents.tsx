@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchPayoutComponents } from "./api";
+import { fetchPayoutRecords } from "./api";
 import { FinancialRecords } from "./FinancialRecords";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailPage } from "./detail-view-state";
@@ -25,9 +25,9 @@ export function PayoutComponents({
     decodeDetailPage,
   );
   const query = useQuery({
-    queryKey: ["payout-components", reportId, authoritative, types, pageIndex],
+    queryKey: ["payout-records", reportId, authoritative, types, pageIndex],
     queryFn: ({ signal }) =>
-      fetchPayoutComponents(accessToken, reportId, authoritative, pageIndex, signal, types),
+      fetchPayoutRecords(accessToken, reportId, authoritative, pageIndex, signal, types),
     staleTime: Infinity,
   });
   return (

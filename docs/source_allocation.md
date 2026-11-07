@@ -23,18 +23,16 @@ scope, complete pagination, and Summary validation.
 
 ## Source selection
 
-`private.mature_cutoff_date()` subtracts two calendar months from the database's
-UTC transaction-start date. Dates strictly before that boundary are mature;
-the boundary date and later dates are recent. Calendar arithmetic clamps an
-unavailable day to the month's end. This is an application maturity policy,
-not a guarantee that Amazon will never revise a record.
+The source/category rule is the same for every activity date. Current reads select the
+current immutable revisions and keep native activity eligibility checks. Missing Finances
+activity does not make Data Kiosk sales authoritative.
 
-| Category        | Mature activity                                                                    | Recent activity                      |
-| --------------- | ---------------------------------------------------------------------------------- | ------------------------------------ |
-| `FINANCES`      | Finances components supply amounts; Data Kiosk counterparts are comparison detail. | Data Kiosk supplies amounts.         |
-| `SELBOX`        | Finances components belong to SelBox.                                              | Data Kiosk amounts belong to SelBox. |
-| `DATA_KIOSK`    | Data Kiosk supplies company costs; Finances supplies account controls.             | Data Kiosk supplies company costs.   |
-| `ANALYSIS_ONLY` | Diagnostic detail; never additive.                                                 | Diagnostic detail; never additive.   |
+| Category        | Authoritative source and treatment |
+| --------------- | ---------------------------------- |
+| `FINANCES`      | Eligible Finances components supply company amounts. Data Kiosk counterparts remain diagnostic detail. |
+| `SELBOX`        | Eligible Finances components belong to SelBox and stay outside company allocations. |
+| `DATA_KIOSK`    | Data Kiosk supplies company costs. Finances counterparts remain account controls. |
+| `ANALYSIS_ONLY` | Diagnostic detail; never additive. |
 
 Source comparisons are frontend diagnostics over exact backend aggregates. The backend supplies
 current or report-referenced source/category amounts, row counts and successful retrieval coverage.
@@ -76,16 +74,19 @@ prove Data Kiosk's SKU cost allocation is correct. A frontend Data Kiosk compari
 remain nonzero even when the Finances/Summary difference is zero.
 
 [Payout reports](company_payout_reports.md) cover one company, exact marketplace, currency, and full
-calendar month whose end is mature. Nonempty company scopes require complete compatible Data Kiosk and
-Finances batch coverage and resolved ownership/fees. Finance preprocessing verifies Summary
-before accepted database publication. Missing or mismatched controls reject the whole batch and
-preserve the prior accepted source state. Payout selection checks that a successful monthly batch
-contains the current transaction versions; it does not repeat the Finance business checks.
+calendar month whose end is strictly before `private.mature_cutoff_date()`. That date is the
+current UTC date minus two calendar months; calendar arithmetic clamps an unavailable day to the
+month's end. This policy controls payout eligibility only. It does not limit Transactions or
+Financial review, switch authoritative sources, or promise that Amazon will never revise a record. Nonempty company scopes require complete successful source
+coverage, compatible current preprocessing labels and resolved ownership/fees. Finance preprocessing
+verifies Summary before accepted database publication. Missing or mismatched controls reject the whole batch and
+preserve the prior accepted source state. Payout selection checks successful period coverage and
+selects current transaction/day versions directly; it does not repeat Finance business checks.
 
 Empty assigned companies can retain explicit zero reports without inventing a
 marketplace or currency, or claiming that an unobserved seller was inactive. Source publications
-and fee changes enqueue automatic refreshes. Snapshots reference successful Finance batches,
-Data Kiosk batch/day/version memberships and terms, including empty captures. Both sources retain
+and fee changes enqueue automatic refreshes. Snapshots reference Finance transaction versions,
+Data Kiosk day versions and terms directly, including empty day versions. Both sources retain
 immutable history without a cap. Summary evidence remains in the acquisition archives. See
 [company fees](company_fees.md), [native type rules](transaction_type_registry.md),
 and the [payout contract](company_payout_reports.md).

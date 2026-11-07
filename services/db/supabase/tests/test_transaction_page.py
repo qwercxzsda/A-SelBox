@@ -114,7 +114,7 @@ class TransactionPageTests(TransactionPageFixture):
         # Fact IDs are unique within a source, not across both source tables.
         kiosk_rows[0]["id"] = finances_rows[0]["id"]
         self.finances(finances_rows)
-        self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
+        self.kiosk(1, kiosk_rows, activity_date=self.current_activity_date())
         user = self.member(company)
         for ordering, direction in product(("date", "amount"), ("asc", "desc")):
             with self.subTest(ordering=ordering, direction=direction):
@@ -285,7 +285,7 @@ class TransactionPageTests(TransactionPageFixture):
                 self.component("9", sku="ZERO-RATE")
                 | {"component_type": "NET_PRODUCT_SALES", "fee_base": "9"},
             ],
-            activity_date=self.recent_activity_date(),
+            activity_date=self.current_activity_date(),
         )
         administrator = self.administrator()
         for user, applicable_count, other_count in (
@@ -325,7 +325,7 @@ class TransactionPageTests(TransactionPageFixture):
             self.component("60") | {"fee_base": "60"},
         ]
         self.finances(finances_rows)
-        self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
+        self.kiosk(1, kiosk_rows, activity_date=self.current_activity_date())
         # Finance inputs satisfy preprocessing rules. Similarly named types from
         # the other source still use that source's fee-applicability definition.
         applicable_ids = {row["id"] for row in [*finances_rows[1:], kiosk_rows[1]]}

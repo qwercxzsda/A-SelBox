@@ -26,9 +26,8 @@ class LocalWorkflowCase(unittest.TestCase):
         self.database = self.enterContext(PostgresDatabaseConnection(self.stack.database_url))
         self.storage = SupabaseArchiveStorage(self.stack.api_url, self.stack.service_key)
         self.seller = f"local-e2e-{uuid7()}"
-        # The synthetic August reports exercise mature Finances authority.
-        # Fix the disposable database clock boundary so calendar time cannot
-        # silently switch these transport tests to the recent Data Kiosk policy.
+        # Keep the synthetic August month eligible for payout publication;
+        # source authority is the same for every activity date.
         with self.database.connection() as connection, connection.transaction():
             connection.execute(
                 "create or replace function private.mature_cutoff_date() "
@@ -101,6 +100,29 @@ class LocalWorkflowCase(unittest.TestCase):
         response = self.stack.request("GET", "/rest/v1/" + relation, token=token, params=params)
         self.assertEqual(response.status_code, 200)
         return cast(list[dict[str, object]], response.json())
+
+    def read_payout_records(self, token: str, report_id: str) -> list[dict[str, object]]:
+        """Read the full derived report scope through the authenticated paginated RPC."""
+        rows: list[dict[str, object]] = []
+        while True:
+            response = self.stack.request(
+                "POST",
+                "/rest/v1/rpc/payout_report_records",
+                token=token,
+                json={
+                    "p_report_id": report_id,
+                    "p_authoritative": True,
+                    "p_limit": 1000,
+                    "p_offset": len(rows),
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            page = cast(list[dict[str, object]], payload["rows"])
+            rows.extend(page)
+            if len(rows) >= int(payload["total_count"]):
+                return rows
+            self.assertTrue(page, "Report records ended before their exact count")
 
     def assert_storage_denied(self, response: httpx.Response, *, write: bool = False) -> None:
         # HTTP 400 can wrap an authorization/not-found code; generic bad input must fail.

@@ -142,7 +142,7 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         self.assertIsNotNone(failed[0])
         self.assertIsNone(failed[1])
         self.assertEqual(failed[2], "23514")
-        self.assertIn("Data Kiosk", str(failed[3]))
+        self.assertIn("source coverage", str(failed[3]))
         self.assertIsNotNone(self.state(other)[1])
         self.assertEqual(
             self.connection.execute(

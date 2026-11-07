@@ -3,6 +3,8 @@
 from itertools import product
 from typing import cast
 
+import psycopg
+
 from services.db.supabase.tests import test_date_ordering as date_fixture
 from services.db.supabase.tests import test_source_transaction_page as source_fixture
 from services.db.supabase.tests import test_transaction_page as live_fixture
@@ -128,19 +130,21 @@ class MarketplaceOrderingTests(SourceModelFixture):
             [*_MARKETS, _MARKETS[0]],
         )
         for user, dataset in product((administrator, member), ("live", "finances", "data_kiosk")):
+            if dataset != "live" and user == member:
+                with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                    self.page(user, dataset)
+                with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                    self.count(user, dataset, None)
+                continue
             unfiltered = self.expected(user, dataset, p_limit=1000)
             rows = cast(list[dict[str, object]], unfiltered["rows"])
             self.assertEqual({row["marketplace_name"] for row in rows}, set(_MARKETS))
             if dataset != "live":
                 self.assertEqual(
                     {row["preprocess_version"] for row in rows},
-                    {"old", "current"}
-                    if dataset == "data_kiosk" and user == administrator
-                    else {"current"},
+                    {"old", "current"} if dataset == "data_kiosk" else {"current"},
                 )
-                self.assertEqual(
-                    any(row["category"] == "SELBOX" for row in rows), user == administrator
-                )
+                self.assertTrue(any(row["category"] == "SELBOX" for row in rows))
             for selection in selections:
                 count = self.count(user, dataset, selection)
                 reference = self.expected(user, dataset, p_marketplaces=selection, p_limit=1000)
@@ -167,9 +171,9 @@ class MarketplaceOrderingTests(SourceModelFixture):
     def test_singleton_arrays_with_nonstandard_lower_bounds_keep_marketplace_selection(
         self,
     ) -> None:
-        users = self.marketplace_fixture()
+        administrator, member = self.marketplace_fixture()
         for user, dataset, direction, lower in product(
-            users, ("live", "finances", "data_kiosk"), ("asc", "desc"), (-3, 0, 7)
+            (administrator, member), ("live", "finances", "data_kiosk"), ("asc", "desc"), (-3, 0, 7)
         ):
             arguments: tuple[object, ...] = (_MARKETS[1], lower, direction)
             filters = (
@@ -182,6 +186,10 @@ class MarketplaceOrderingTests(SourceModelFixture):
                 query = "select public.source_transaction_page(%s," + filters + ")"
                 arguments = (dataset, *arguments)
             with self.subTest(user=user, dataset=dataset, direction=direction, lower=lower):
+                if dataset != "live" and user == member:
+                    with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                        self.as_user(user, query, arguments)
+                    continue
                 actual = self.as_user(user, query, arguments)[0][0]
                 self.assertEqual(
                     actual,
@@ -196,7 +204,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
                 )
 
     def test_marketplace_candidate_budget_preserves_results_and_complete_counts(self) -> None:
-        users = self.marketplace_fixture()
+        administrator, member = self.marketplace_fixture()
         repeated_markets = list(_MARKETS) * 2048
         scenarios: tuple[tuple[str, dict[str, object]], ...] = (
             # Two selected markets permit 2,048 candidates each at the boundary.
@@ -218,7 +226,12 @@ class MarketplaceOrderingTests(SourceModelFixture):
             ),
             ("amount_ordering", {"p_order_by": "amount", "p_limit": 1}),
         )
-        for user, dataset in product(users, ("live", "finances", "data_kiosk")):
+        for user, dataset in (
+            (administrator, "live"),
+            (member, "live"),
+            (administrator, "finances"),
+            (administrator, "data_kiosk"),
+        ):
             count = self.count(user, dataset, list(_MARKETS))
             self.assertGreater(int(count), 0)
             for direction, (scenario, selection) in product(("asc", "desc"), scenarios):

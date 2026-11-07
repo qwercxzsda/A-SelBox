@@ -1,4 +1,4 @@
-"""Administrators retain source history while members see only current owned facts."""
+"""Raw source projections are administrator-only; company calculation grants stay scoped."""
 
 from decimal import Decimal
 from typing import LiteralString
@@ -49,7 +49,7 @@ class AdministratorSourceAccessTests(SourceModelFixture):
             ),
             (
                 "select amount from public.finances_preprocess_entries order by amount",
-                [200],
+                [],
                 [-10, 100, 200, 500, 600],
             ),
             (
@@ -59,7 +59,7 @@ class AdministratorSourceAccessTests(SourceModelFixture):
             ),
             (
                 "select amount from public.data_kiosk_preprocess_entries order by amount",
-                [-2],
+                [],
                 [-60, -20, -2, -1],
             ),
         )

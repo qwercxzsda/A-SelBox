@@ -57,7 +57,7 @@ disposable databases.
 | [financial_rules](migrations/20260928123106_financial_rules.sql)                             | Mature cutoff, account visibility, and service-fee arithmetic.                        |
 | [financial_components](migrations/20260928123111_financial_components.sql)                   | Current and explicit-version company components with ownership and fees.                                                     |
 | [financial_reads](migrations/20260928123113_financial_reads.sql)                             | Strict complete and partial financial reads with declared source coverage.                                                   |
-| [payout_schema](migrations/20260928123115_payout_schema.sql)                                 | Frozen payout headers/components, exact Finance and Data Kiosk observation manifests, and refresh state.                    |
+| [payout_schema](migrations/20260928123115_payout_schema.sql)                                 | Frozen payout headers, exact source/terms version manifests, derived records, and refresh state.                        |
 | [publication_integrity](migrations/20260928123116_publication_integrity.sql)                 | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
 | [payout_validation](migrations/20260928123117_payout_validation.sql)                         | Frozen-input integrity, coverage, provenance, and totals validation.                                                         |
 | [payout_publication](migrations/20260928123119_payout_publication.sql)                       | Locked source capture across namespaces, company/marketplace/currency aggregation, and latest-report reuse.                  |
@@ -114,8 +114,9 @@ the [performance guide](../../../docs/database_performance.md) explains their tr
 The relational `live_company_components` view supports current reads, while the
 explicit-version resolver supports captured inputs. Dashboard and strict reads apply
 the same [source policy](../../../docs/source_allocation.md). Strict reads additionally
-validate declared source coverage and ownership/fees. Raw source tabs preserve
-comparison and analysis facts.
+validate declared source coverage and ownership/fees. Administrator-only raw source tabs preserve
+comparison and analysis facts; public source pages/counts reject members and source-entry views
+return no member rows. Transactions and its direct live view contain only authoritative categories.
 
 `workspace_revisions` reads the authenticated account and requested opaque tokens from the small
 `workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial
@@ -127,8 +128,8 @@ captures rotate the separate `inventory` token in the publication transaction; r
 idempotent replays, and rolled-back publications do not. New payout headers rotate `payouts` tokens
 for their company and the global administrator scope; refresh-state changes rotate the same token
 so a blocked attempt is visible even without a report. Unchanged report reuse does not rotate it
-unless refresh state changes. Only financial
-source tokens include the UTC mature cutoff date. The browser checks relevant tokens on its polling interval, focus, and
+unless refresh state changes. Financial
+source tokens are independent of date and payout maturity. The browser checks relevant tokens on its polling interval, focus, and
 reconnection, then invalidates dependent reads when a token changes. Unchanged inventory and
 ownership tokens retain successful cached inventory reads; failed reads can retry. The
 [frontend lifecycle](../../frontend/user-webpage/README.md#requests-and-session-lifecycle) defines
@@ -174,8 +175,9 @@ owns report and source visibility.
 ## Immutable source contents and observation history
 
 Both financial sources retain immutable versions and record each successful batch's exact
-membership. Current identities select a version and its observing batch; payout manifests preserve
-their original observation references. The [data workflow](../../../docs/data_workflows.md)
+membership. Current identities select a version and its observing batch. Payout manifests reference
+normalized transaction/day versions directly and preserve validated coverage intervals. The
+[data workflow](../../../docs/data_workflows.md)
 defines version reuse, empty coverage, source-detail archives and permanent history. The
 [Finances contract](../../../docs/finances_transactions.md) defines transaction lifecycle and Summary
 validation; the [payout contract](../../../docs/company_payout_reports.md) defines input selection.

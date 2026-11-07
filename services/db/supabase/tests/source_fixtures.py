@@ -44,9 +44,27 @@ class SourceModelFixture(DatabaseTestCase):
         self.finances_acquisitions: dict[str, FinancesAcquisition] = {}
         self.last_finances_batch_ids: list[str] = []
 
-    def recent_activity_date(self) -> str:
-        """Use the mature cutoff date for recent fixture facts."""
-        return self.mature_cutoff_date().isoformat()
+    def finances_versions(self, *batches: str) -> list[str]:
+        """Read the immutable transaction revisions from successful fixture captures."""
+        return [
+            str(row[0])
+            for row in self.connection.execute(
+                "select distinct version_id::text "
+                "from private.finances_preprocess_batch_transactions "
+                "where batch_id=any(%s::uuid[]) order by version_id::text",
+                (list(batches),),
+            ).fetchall()
+        ]
+
+    def current_activity_date(self) -> str:
+        """Use today's UTC date without coupling source fixtures to payout eligibility."""
+        return str(
+            require_row(
+                self.connection.execute(
+                    "select (current_timestamp at time zone 'UTC')::date"
+                ).fetchone()
+            )[0]
+        )
 
     def call(self, function: str, payload: dict[str, object]) -> str:
         from psycopg import sql

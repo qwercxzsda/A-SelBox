@@ -69,17 +69,13 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
                 (1,),
             )
 
-    def test_new_source_namespace_waits_for_generation_and_is_captured_by_next_request(
+    def test_new_source_namespace_waits_for_publication_and_is_captured_by_next_request(
         self,
     ) -> None:
         self.seller = "seller-z"
         inputs = prepare_payout(self)
         self.connection.commit()
         database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
-
-        def generate_waiting_company() -> tuple[str, bool]:
-            with psycopg.connect(database_url, application_name="seller-scope-a") as worker:
-                return generate_on_connection(worker, inputs.company)
 
         def publish_new_source() -> None:
             with psycopg.connect(database_url, application_name="new-payout-source") as writer:
@@ -95,21 +91,15 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
             psycopg.connect(database_url, autocommit=True) as observer,
             ThreadPoolExecutor(max_workers=2) as executor,
         ):
-            holder.execute(
-                "select pg_advisory_xact_lock(hashtextextended(jsonb_build_array("
-                "'company_payout_report','seller-z',date '2026-06-01')::text,0))"
-            )
-            future = executor.submit(generate_waiting_company)
+            first_report, first_created = generate_on_connection(holder, inputs.company)
+            self.assertTrue(first_created)
+            source_future = executor.submit(publish_new_source)
             try:
-                wait_for_block(observer, "seller-scope-a", wait_event="advisory")
-                # Direct generation uses the same exclusive input guard as cron.
-                # A new source waits rather than changing the captured seller set.
-                source_future = executor.submit(publish_new_source)
+                # The report is prepared but uncommitted. Source publication
+                # must wait for the same input guard used by every payout path.
                 wait_for_block(observer, "new-payout-source", wait_event="advisory")
             finally:
                 holder.commit()
-            first_report, first_created = future.result(timeout=12)
-            self.assertTrue(first_created)
             source_future.result(timeout=12)
 
         self.assertEqual(
@@ -134,7 +124,7 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
         )
         self.assertEqual(payout_snapshot(self, first_report), before)
 
-    def test_same_seller_month_serializes_different_currencies_before_day_locks(self) -> None:
+    def test_input_guard_serializes_different_currencies(self) -> None:
         inputs = prepare_payout(self)
         self.kiosk(
             2,

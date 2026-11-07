@@ -14,8 +14,8 @@ $$;
 
 create index payout_terms_sku_idx
 on private.payout_report_terms_versions (sku_id, report_id);
-create index payout_finances_batch_idx
-on private.payout_report_finances_batches (batch_id, report_id);
+create index payout_finances_version_idx
+on private.payout_report_finances_versions (version_id, report_id);
 
 -- Empty reports capture historically owned terms even without monthly rows.
 -- Other companies can also depend on these terms to exclude another owner's
@@ -49,13 +49,12 @@ begin
             union
             select p.report_id from public.skus s
             join private.finances_activity_components t on t.sku = s.sku
-            join private.finances_preprocess_batch_transactions m on m.version_id = t.version_id
-            join private.payout_report_finances_batches p on p.batch_id = m.batch_id
+            join private.payout_report_finances_versions p on p.version_id = t.version_id
             where s.id = any(p_sku_ids)
             union
             select p.report_id from public.skus s
             join private.data_kiosk_day_components t on t.sku = s.sku
-            join private.payout_report_data_kiosk_observations p on p.version_id = t.version_id
+            join private.payout_report_data_kiosk_versions p on p.version_id = t.version_id
             where s.id = any(p_sku_ids)
         ), affected_scopes as (
             select s.company_id,s.month from private.payout_report_refresh_state s

@@ -120,8 +120,8 @@ class PayoutRefreshQueueTests(SourceModelFixture):
             "'finances_preprocess_batches','finances_preprocess_batch_transactions',"
             "'data_kiosk_day_components','data_kiosk_day_versions','data_kiosk_days',"
             "'data_kiosk_preprocess_batches','data_kiosk_preprocess_batch_days',"
-            "'company_payout_reports','company_payout_report_components',"
-            "'payout_report_finances_batches','payout_report_data_kiosk_observations',"
+            "'company_payout_reports',"
+            "'payout_report_finances_versions','payout_report_data_kiosk_versions',"
             "'payout_report_terms_versions') "
             "order by schemaname,relname"
         )

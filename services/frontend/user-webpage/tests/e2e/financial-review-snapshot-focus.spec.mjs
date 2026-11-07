@@ -15,10 +15,9 @@ for (const width of [390, 1440]) {
         id: previousReport,
         created_at: "2026-09-26T13:20:10Z",
       });
-      fixture.payoutComponents.push(
-        ...fixture.payoutComponents.map((row) => ({
+      fixture.payoutRecords.push(
+        ...fixture.payoutRecords.map((row) => ({
           ...row,
-          id: `previous-${row.id}`,
           report_id: previousReport,
         })),
       );

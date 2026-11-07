@@ -78,7 +78,7 @@ key is not a PostgreSQL login and cannot perform this administration.
 | Manage Administrator access                                                | Yes                     | No                                           | No                                              | No               |
 | Read company assignments and fee periods                                   | All versions            | All versions                                 | Current terms for own company's SKUs            | No               |
 | Publish a complete SKU terms version                                       | Python/SQL              | REST RPC                                     | No                                              | No               |
-| Read source preprocessing facts                                            | All retained versions   | All retained versions and categories         | Current versions of permitted own-company facts | No               |
+| Browse raw source preprocessing facts                                      | All retained versions   | All retained versions and categories         | No                                              | No               |
 | Read narrow source references                                              | All                     | All retained references                      | Owned current references for both financial sources                    | No               |
 | Read full preprocessing headers and diagnostics                            | Yes                     | Yes                                          | No                                              | No               |
 | Read payout reports, latest reports, authoritative components, and totals  | All                     | All                                          | Own saved company only                          | No               |
@@ -95,12 +95,16 @@ roles have no generation RPC or execution grant on the worker or internal publis
 
 [Financial review](financial_review.md) is administrator-only. Its invoker RPCs aggregate native
 facts within an explicit current-source date/marketplace scope or one saved report's fixed scope.
-The UI supplies the default mature window; native diagnostic
-reads do not apply a moving maturity cutoff. The [read contract](financial_review.md#read-contract)
+The UI defaults to the latest available source year and includes recent and partial months.
+Native diagnostic reads do not apply a moving maturity cutoff. The [read contract](financial_review.md#read-contract)
 defines source totals, coverage and complete daily buckets. Members cannot read its source rows or
-aggregates. Saved report snapshots retain their original company/report scope; member reads of payout components require
+aggregates. Saved report snapshots retain their original company/report scope; member reads of payout records require
 `authoritative = true` and access to that saved company. These database restrictions apply
 independently of tab visibility.
+
+The public raw source page/count RPCs require Administrator access, and the public
+preprocessing-entry views return no rows to members. The following narrow underlying grants
+support company calculations; they do not expose the raw source tabs.
 
 Members see activity-eligible Finances `FINANCES` components and owned Data Kiosk facts
 except `SELBOX`. Category rules keep account/control amounts
@@ -117,7 +121,8 @@ source-metadata access.
 Administrators can read every historical result. Finance transaction versions and Data Kiosk day
 versions keep all immutable components without a history cap. Batch membership records every
 successful observation even when the normalized contents are reused. Payout references identify
-the exact historical source observations, including empty days.
+the exact immutable transaction and day versions, including empty days. Saved coverage metadata
+on the report preserves retrieval availability independently of later source publications.
 
 ## REST interfaces
 
@@ -288,13 +293,15 @@ including any fee gaps caused by later source imports.
 | `company_skus`, `current_sku_fee_periods`                                                              | Current projections across companies                                    | Own company current projections                     |
 | `rpc/sku_configuration`                                                                                | All known SKUs, current terms, and coverage gaps                        | Own assigned SKUs and current coverage only         |
 | `rpc/sku_filter_options`                                                                               | Complete distinct SKU catalog                                           | Denied (`42501`)                                    |
-| `finances_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                                                | Permitted current own-company rows                  |
+| `rpc/source_transaction_page`, `rpc/source_transaction_count` | Full retained source records and exact counts | Denied (`42501`) |
+| `finances_preprocess_entries`, `data_kiosk_preprocess_entries`                                         | All retained source rows                                                | No rows                                              |
 | `finances_preprocess_results`, `data_kiosk_preprocess_results`                                         | Full historical result metadata                                         | Denied                                              |
 | `live_company_components`                                                                              | Current data permitted by the view's definition                         | Current own-company data                            |
-| `company_payout_reports`, `company_payout_report_components`                                           | All saved reports and components                                        | Own saved company reports and components            |
+| `company_payout_reports`                                           | All saved report headers                                        | Own saved company report headers            |
+| `rpc/payout_report_records` | Derived authoritative and supporting records | Own saved company's authoritative records |
 | `latest_company_payout_reports`                                                                        | Latest saved report per company/month/marketplace/currency              | Latest saved own-company reports                    |
 | `rpc/payout_report_totals`                                                                             | All saved report totals and Type breakdowns                             | Own saved company report totals and Type breakdowns |
-| `payout_report_finances_batches`, `payout_report_data_kiosk_observations`, `payout_report_terms_versions` | All saved input references                                              | No rows                                             |
+| `payout_report_finances_versions`, `payout_report_data_kiosk_versions`, `payout_report_terms_versions` | All saved input references                                              | No rows                                             |
 | `financial_review_records`                                                                             | Current source facts in each monetary category                   | No rows                                             |
 | `rpc/current_source_totals`, `rpc/report_source_totals` | Exact source/category aggregates and retrieval coverage | Denied (`42501`) |
 | `rpc/financial_review_type_totals` | Current source/type sums and counts for the requested scope | No rows |
@@ -309,7 +316,7 @@ runs with its owner at commit so authenticated publication can verify protected 
 callers have no direct execute grant on that trigger function. REST views and public RPC
 wrappers use invoker security.
 
-`latest_company_payout_reports` and `payout_report_totals` use invoker
+`latest_company_payout_reports`, `payout_report_records` and `payout_report_totals` use invoker
 security over the saved report company. A report identifier never grants access
 to another company's amounts. Saved values combine source namespaces within the report's exact
 company/month/marketplace/currency scope.
@@ -361,8 +368,8 @@ historical reference access; unassigned users and missing accounts see no source
 
 SKU reassignment changes fact and corresponding source-reference access without rewriting source
 history. Removing the application account revokes member access. Payout RLS uses the saved report's
-company for member access; Finance batch/Data Kiosk observation/terms manifests and seller-wide
-source diagnostics remain administrator-only.
+company for member access; source-version and terms manifests and seller-wide diagnostics remain
+administrator-only.
 
 The private schema is outside the REST API. Source publication, acquisition manifests,
 and raw Storage objects have no administrator endpoint. The private monthly payout worker

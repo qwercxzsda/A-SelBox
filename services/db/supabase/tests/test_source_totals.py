@@ -12,6 +12,7 @@ from services.db.supabase.tests.payout_fixtures import (
     payout_snapshot,
     prepare_payout,
     publish_payout,
+    publish_report,
     reassign_payout_sku,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
@@ -208,6 +209,24 @@ class SourceTotalsTests(SourceModelFixture):
         )
         other_report = publish_payout(self, inputs, company_id=other_company)
         self.assertEqual(self.report(other_report)["rows"], original["rows"])
+        self.assertEqual(
+            self.connection.execute(
+                "select distinct v.marketplace_name from private.payout_report_finances_versions p "
+                "join private.finances_transaction_versions v on v.id=p.version_id "
+                "where p.report_id=%s",
+                (report,),
+            ).fetchall(),
+            [("Amazon.com",)],
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select distinct d.marketplace_name "
+                "from private.payout_report_data_kiosk_versions p "
+                "join private.data_kiosk_days d on d.id=p.day_id where p.report_id=%s",
+                (report,),
+            ).fetchall(),
+            [("Amazon.com",)],
+        )
         frozen = payout_snapshot(self, report)
         self.connection.commit()
         _, reused = self.kiosk(3, components, expected=version)
@@ -255,44 +274,58 @@ class SourceTotalsTests(SourceModelFixture):
         with self.assertRaises(psycopg.errors.InvalidParameterValue), self.connection.transaction():
             self.connection.execute("select public.report_source_totals(%s)", (new_id(),))
 
-    def test_shared_finance_versions_are_counted_once_in_saved_scope(self) -> None:
+    def test_reprocessing_reuses_direct_version_pins_and_saved_diagnostics(self) -> None:
         inputs = prepare_payout(self)
-        first_report = publish_payout(self, inputs)
-        additional_batch, reused = self.finances([self.transaction("100")])
+        report = publish_payout(self, inputs)
+        original = self.report(report)
+        _, reused = self.finances([self.transaction("100")])
         self.assertEqual(reused, inputs.finances_version)
-        report = new_id()
-        self.connection.execute(
-            "insert into public.company_payout_reports select (jsonb_populate_record("
-            "null::public.company_payout_reports,to_jsonb(r)||jsonb_build_object("
-            "'id',%s::uuid,'finances_batch_count',r.finances_batch_count+1))).* "
-            "from public.company_payout_reports r where r.id=%s",
-            (report, first_report),
-        )
-        self.connection.execute(
-            "insert into private.payout_report_finances_batches(report_id,batch_id) "
-            "select %s::uuid,batch_id from private.payout_report_finances_batches "
-            "where report_id=%s union all select %s::uuid,%s::uuid",
-            (report, first_report, report, additional_batch),
-        )
-        self.connection.execute(
-            "insert into private.payout_report_data_kiosk_observations "
-            "select %s::uuid,day_id,batch_id,version_id "
-            "from private.payout_report_data_kiosk_observations where report_id=%s",
-            (report, first_report),
-        )
-        self.connection.execute(
-            "insert into private.payout_report_terms_versions "
-            "select %s::uuid,sku_id,terms_version_id from private.payout_report_terms_versions "
-            "where report_id=%s",
-            (report, first_report),
-        )
-        self.connection.execute(
-            "insert into public.company_payout_report_components select (jsonb_populate_record("
-            "null::public.company_payout_report_components,to_jsonb(c)||jsonb_build_object("
-            "'id',private.uuid7(),'report_id',%s::uuid))).* "
-            "from public.company_payout_report_components c where c.report_id=%s",
-            (report, first_report),
-        )
+        component_key = require_row(
+            self.connection.execute(
+                "select component_key from private.data_kiosk_day_components where version_id=%s",
+                (inputs.kiosk_version,),
+            ).fetchone()
+        )[0]
+        unchanged = self.component("-10") | {"component_key": component_key}
+        _, reused_day = self.kiosk(2, [unchanged], expected=inputs.kiosk_version)
+        self.assertEqual(reused_day, inputs.kiosk_version)
+        self.assertEqual(publish_payout(self, inputs), report)
         self.connection.execute("set constraints all immediate")
-        self.assertEqual(self.report(report)["rows"], self.report(first_report)["rows"])
-        self.assertEqual(self.report(report)["coverage"], self.report(first_report)["coverage"])
+        self.assertEqual(self.report(report), original)
+        self.assertEqual(
+            self.connection.execute(
+                "select finances_version_count,data_kiosk_version_count "
+                "from public.company_payout_reports where id=%s",
+                (report,),
+            ).fetchone(),
+            (1, 30),
+        )
+
+    def test_empty_finance_coverage_is_frozen_without_finance_revision_pins(self) -> None:
+        self.set_mature_cutoff_date(date(2026, 7, 1))
+        company, sku = self.owner()
+        self.fee(sku, [("2026-01-01", None, "5")])
+        self.finances([])
+        self.kiosk(1, [self.component("-10")])
+        report = publish_report(self, company)
+        original = self.report(report)
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.payout_report_finances_versions where report_id=%s",
+                (report,),
+            ).fetchone(),
+            (0,),
+        )
+        self.assertIn(
+            {
+                "source": "FINANCES",
+                "seller_namespace": self.seller,
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30",
+            },
+            original["coverage"],
+        )
+        self.finances([self.transaction("100")])
+        self.seller = "later-seller"
+        self.finances([])
+        self.assertEqual(self.report(report), original)

@@ -1,8 +1,8 @@
 # Database schema
 
-The fresh-install migrations define **27 application tables, 244 table columns, 34 foreign keys and 21 ordinary views**. These figures and keys are generated from an isolated installation of the actual migrations, without reading existing financial data.
+The fresh-install migrations define **26 application tables, 222 table columns, 30 foreign keys and 21 ordinary views**. These figures and keys are generated from an isolated installation of the actual migrations, without reading existing financial data.
 
-Finances stores stable transaction identities, immutable transaction versions and components, and the exact versions observed by each successful preprocessing batch. All Finance business validation runs in Python before publication; raw pages stay in private Storage. Data Kiosk reuses immutable complete-day versions across successful batches. Both retain all accepted versions without raw response JSON in component rows. Payouts reference Finance batches, Data Kiosk batch/day/version membership and company terms. Diagnostic source aggregates are computed on read; comparisons are frontend values. Inventory keeps its separate one-capture-per-day model.
+Finances stores stable transaction identities, immutable transaction versions and components, and the exact versions observed by each successful preprocessing batch. All Finance business validation runs in Python before publication; raw pages stay in private Storage. Data Kiosk reuses immutable complete-day versions across successful batches. Both retain all accepted versions without raw response JSON in component rows. Payouts reference immutable Finance transaction versions, Data Kiosk day versions and company terms, with validated source coverage and frozen totals saved on the report. Payout records and type breakdowns are calculated on read from those references. Diagnostic source aggregates are computed on read; comparisons are frontend values. Inventory keeps its separate one-capture-per-day model.
 
 See [data workflows](data_workflows.md), [Finances transactions](finances_transactions.md), [source allocation](source_allocation.md), [company terms](company_fees.md), [payouts](company_payout_reports.md), and [access](access_control.md) for behavioral contracts.
 
@@ -52,9 +52,9 @@ Every application table column appears in its group's full figure. `NN` means NO
 
 [Full SVG](figures/database/06-payout-results.svg) · [Mermaid source](figures/database/06-payout-results.mmd)
 
-## Payout source batches day versions and terms manifests
+## Payout source versions and terms manifests
 
-![Payout source batches day versions and terms manifests](figures/database/07-payout-manifests.svg)
+![Payout source versions and terms manifests](figures/database/07-payout-manifests.svg)
 
 [Full SVG](figures/database/07-payout-manifests.svg) · [Mermaid source](figures/database/07-payout-manifests.mmd)
 
@@ -103,14 +103,13 @@ View dependencies show direct references tracked by PostgreSQL. Function nodes a
 | `private.inventory_acquisitions` | `(id)` | `(seller_namespace, amazon_scope, report_id)`; `(seller_namespace, marketplace_name, capture_date, id)` |
 | `private.inventory_daily_captures` | `(id)` | `(seller_namespace, marketplace_name, capture_date)` |
 | `private.inventory_items` | `(capture_id, sku)` | `(capture_id, source_line_number)` |
-| `private.payout_report_data_kiosk_observations` | `(report_id, day_id)` | `(report_id, version_id)` |
-| `private.payout_report_finances_batches` | `(report_id, batch_id)` | None |
+| `private.payout_report_data_kiosk_versions` | `(report_id, day_id)` | `(report_id, version_id)` |
+| `private.payout_report_finances_versions` | `(report_id, transaction_id)` | `(report_id, version_id)` |
 | `private.payout_report_refresh_state` | `(company_id, month)` | None |
 | `private.payout_report_terms_versions` | `(report_id, sku_id)` | `(report_id, terms_version_id)` |
 | `private.workspace_revision_tokens` | `(source, scope_company_id)` | None |
 | `public.app_accounts` | `(user_id)` | None |
 | `public.companies` | `(id)` | None |
-| `public.company_payout_report_components` | `(id)` | `(report_id, source, source_row_id)`; `(report_id, row_number)` |
 | `public.company_payout_reports` | `(id)` | None |
 | `public.sku_fee_periods` | `(id)` | `(terms_version_id, id)` |
 | `public.sku_terms_versions` | `(id)` | `(sku_id, id)`; `(sku_id, version_number)` |
@@ -136,19 +135,15 @@ View dependencies show direct references tracked by PostgreSQL. Function nodes a
 | `private.finances_transactions` | `FOREIGN KEY (current_batch_id, id, current_version_id) REFERENCES private.finances_preprocess_batch_transactions(batch_id, transaction_id, version_id) DEFERRABLE INITIALLY DEFERRED` |
 | `private.inventory_daily_captures` | `FOREIGN KEY (seller_namespace, marketplace_name, capture_date, acquisition_id) REFERENCES private.inventory_acquisitions(seller_namespace, marketplace_name, capture_date, id)` |
 | `private.inventory_items` | `FOREIGN KEY (capture_id) REFERENCES private.inventory_daily_captures(id) ON DELETE CASCADE` |
-| `private.payout_report_data_kiosk_observations` | `FOREIGN KEY (batch_id, day_id, version_id) REFERENCES private.data_kiosk_preprocess_batch_days(batch_id, day_id, version_id)` |
-| `private.payout_report_data_kiosk_observations` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
-| `private.payout_report_finances_batches` | `FOREIGN KEY (batch_id) REFERENCES private.finances_preprocess_batches(id)` |
-| `private.payout_report_finances_batches` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_data_kiosk_versions` | `FOREIGN KEY (day_id, version_id) REFERENCES private.data_kiosk_day_versions(day_id, id)` |
+| `private.payout_report_data_kiosk_versions` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_finances_versions` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
+| `private.payout_report_finances_versions` | `FOREIGN KEY (transaction_id, version_id) REFERENCES private.finances_transaction_versions(transaction_id, id)` |
 | `private.payout_report_refresh_state` | `FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE` |
 | `private.payout_report_terms_versions` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
 | `private.payout_report_terms_versions` | `FOREIGN KEY (sku_id, terms_version_id) REFERENCES sku_terms_versions(sku_id, id)` |
 | `public.app_accounts` | `FOREIGN KEY (company_id) REFERENCES companies(id)` |
 | `public.app_accounts` | `FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE` |
-| `public.company_payout_report_components` | `FOREIGN KEY (terms_version_id, fee_period_id) REFERENCES sku_fee_periods(terms_version_id, id)` |
-| `public.company_payout_report_components` | `FOREIGN KEY (report_id, terms_version_id) REFERENCES private.payout_report_terms_versions(report_id, terms_version_id)` |
-| `public.company_payout_report_components` | `FOREIGN KEY (report_id) REFERENCES company_payout_reports(id)` |
-| `public.company_payout_report_components` | `FOREIGN KEY (sku_id, terms_version_id) REFERENCES sku_terms_versions(sku_id, id)` |
 | `public.company_payout_reports` | `FOREIGN KEY (company_id) REFERENCES companies(id)` |
 | `public.sku_fee_periods` | `FOREIGN KEY (terms_version_id) REFERENCES sku_terms_versions(id)` |
 | `public.sku_terms_versions` | `FOREIGN KEY (company_id) REFERENCES companies(id)` |
@@ -173,12 +168,12 @@ View dependencies show direct references tracked by PostgreSQL. Function nodes a
 | `public.finances_preprocess_entries` | `id`, `version_id`, `transaction_id`, `seller_namespace`, `amazon_scope`, `native_transaction_id`, `current_batch_id`, `posted_date`, `posted_at`, `marketplace_id`, `marketplace_name`, `account_type`, `transaction_type`, `transaction_status`, `deferred_transaction_id`, `release_transaction_id`, `activity_eligible`, `currency`, `component_number`, `category`, `component_type`, `accounting_subtype`, `sku`, `amount`, `quantity`, `fee_base`, `breakdown_path`, `item_index`, `breakdown_indexes`, `created_at`, `is_current`, `batch_id`, `preprocess_version`, `source_page_number`, `source_record_number` |
 | `public.finances_preprocess_results` | `id`, `acquisition_id`, `seller_namespace`, `amazon_scope`, `query_start_date`, `query_end_date`, `preprocess_version`, `transaction_count`, `component_count`, `created_at` |
 | `public.financial_review_records` | `source`, `source_row_id`, `source_version_id`, `activity_date`, `seller_namespace`, `marketplace_name`, `sku`, `component_type`, `category`, `currency`, `amount` |
-| `public.latest_company_payout_reports` | `id`, `company_id`, `marketplace_name`, `currency`, `start_date`, `end_date`, `dataset_key`, `report_name`, `change_reason`, `calculation_version`, `component_count`, `finances_batch_count`, `data_kiosk_observation_count`, `terms_version_count`, `source_amount`, `fee_amount`, `company_amount`, `created_at`, `month_label` |
+| `public.latest_company_payout_reports` | `id`, `company_id`, `marketplace_name`, `currency`, `start_date`, `end_date`, `dataset_key`, `report_name`, `change_reason`, `component_count`, `finances_version_count`, `data_kiosk_version_count`, `terms_version_count`, `source_coverage`, `source_amount`, `fee_amount`, `company_amount`, `created_at`, `month_label` |
 | `public.latest_inventory_captures` | `capture_id`, `seller_namespace`, `marketplace_name`, `capture_date`, `report_created_at`, `preprocessed_at` |
 | `public.latest_inventory_items` | `capture_id`, `seller_namespace`, `capture_date`, `marketplace_name`, `sku`, `company_id`, `report_created_at`, `preprocessed_at`, `snapshot_date`, `available_quantity`, `fba_supply_quantity`, `inbound_quantity`, `inbound_working_quantity`, `inbound_shipped_quantity`, `inbound_received_quantity`, `reserved_quantity`, `reserved_transfer_quantity`, `reserved_processing_quantity`, `reserved_customer_order_quantity`, `unfulfillable_quantity`, `sales_amount_90d`, `units_shipped_90d`, `currency`, `health_status`, `minimum_inventory_units`, `days_of_supply`, `total_days_of_supply`, `recommended_ship_in_units`, `recommended_ship_in_date`, `recommended_action`, `health_status_urgency`, `recommended_action_urgency` |
 | `public.live_company_components` | `source`, `source_row_id`, `source_version_id`, `preprocess_version`, `source_identity_id`, `seller_namespace`, `marketplace_name`, `activity_date`, `sku`, `component_type`, `currency`, `source_amount`, `quantity`, `fee_base`, `category`, `authoritative`, `sku_id`, `terms_version_id`, `company_id`, `fee_period_id`, `fee_rate_percent`, `resolution_status`, `fee_amount`, `company_amount` |
-| `public.payout_report_data_kiosk_observations` | `report_id`, `day_id`, `batch_id`, `version_id` |
-| `public.payout_report_finances_batches` | `report_id`, `batch_id` |
+| `public.payout_report_data_kiosk_versions` | `report_id`, `day_id`, `version_id` |
+| `public.payout_report_finances_versions` | `report_id`, `transaction_id`, `version_id` |
 | `public.payout_report_terms_versions` | `report_id`, `sku_id`, `terms_version_id` |
 
 ## Regenerate

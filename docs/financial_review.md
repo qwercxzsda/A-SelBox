@@ -1,7 +1,7 @@
 # Financial review
 
-Financial review is an administrator-only frontend comparison of current facts, defaulting to fully
-mature months for one exact marketplace across all source namespaces, companies, and SKUs. It explains source
+Financial review is an administrator-only frontend comparison of current facts for one exact
+marketplace across all source namespaces, companies, and SKUs, including recent and partial months. It explains source
 differences; [payout reports](company_payout_reports.md) freeze company amounts separately.
 Currencies remain separate in both views.
 
@@ -10,7 +10,7 @@ Currencies remain separate in both views.
 The three category tabs use the existing allocation rules. Their labels identify a category, not
 the source of every row in that tab:
 
-| Category   | Contents                                        | Role in mature calculations                                                                                               |
+| Category   | Contents                                        | Role in company calculations                                                                                               |
 | ---------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Finances   | Sales, refunds, and transaction fees            | Finances supplies company amounts; Data Kiosk supplies a comparison.                                                      |
 | Data Kiosk | Allocated costs such as advertising and storage | Data Kiosk supplies company costs; Finances supplies account controls.                                                    |
@@ -42,10 +42,11 @@ zero-amount components remain observable. Data Kiosk omits components only when 
 inputs are zero or absent, while preserving empty-day coverage. `ANALYSIS_ONLY` data is excluded
 from additive monetary comparisons.
 
-The UI uses the payout policy's `latest_month` to choose its default fully mature date window and
-clips overview, family and detail requests to that window. The backend source readers honor the
-explicit requested dates without applying a moving maturity cutoff. Retrieval coverage and the
-UI's review window are separate; neither establishes Amazon finality or agreement between sources.
+The UI defaults to the latest available source year and queries the complete selected calendar
+year for overview and family comparisons. It preserves an explicitly selected year. Recent and
+partial months remain visible with retrieval coverage; available source dates determine the latest
+month. No payout policy limits these reads. Coverage does not establish Amazon finality or
+agreement between sources.
 
 The independent Finances/`listSummary` check validates account activity before
 payout publication. It compares native transaction totals, not Data Kiosk.
@@ -67,8 +68,8 @@ Kiosk comparison. Summary validation applies that grouping without relabeling di
 **Marketplace**, **Year**, and **Fee families** define one shared scope across the three category tabs.
 The **Comparison category** caption identifies Finances, Data Kiosk, and SelBox as accounting
 categories; each category compares Finances with Data Kiosk.
-The initial marketplace is Amazon.com and the initial year is the latest year with fully mature
-records for that marketplace/category. Native financial channels remain separate from their retail
+The initial marketplace is Amazon.com and the initial year is the latest available source year
+for that marketplace/category. Native financial channels remain separate from their retail
 marketplaces. Currency is an amount unit derived from the selected marketplace's actual period
 rows, never a way to infer the marketplace. With one unit it is shown as a label; a secondary currency
 selector appears when multiple units are available. An explicit unit remains selected even if its
@@ -150,7 +151,7 @@ Source records expose the original amount, activity date, SKU, marketplace, exac
 namespace. **View source record** opens the exact row/version in a nested drawer, including native
 Amazon transaction IDs and linked release/deferred IDs when available. Displayed batch metadata
 follows the [source inspector's observation selection](transaction_query_contracts.md#raw-source-pages);
-the payout manifest separately preserves the observation used by a saved report.
+the payout manifest separately preserves the normalized versions used by a saved report.
 The selection survives reload; a missing version shows an explicit unavailable message
 instead of substituting a current capture. Native marketplace identity is required. These are
 source facts without company allocation or fee joins. A difference at account or category level
@@ -158,7 +159,8 @@ does not attribute a discrepancy to a particular SKU, transaction, campaign, or 
 
 Marketplace, year, currency, category, selected families, selected month, source filters, detail pages, and
 expanded sections survive reloads. Only view state is saved; amounts are fetched again. Lightweight source revision checks
-and maturity-policy changes refresh current comparisons, including an open drawer.
+refresh current comparisons, including an open drawer. Payout maturity changes do not invalidate
+source facts or their revision tokens.
 
 ## Fee family comparison and source lookup
 
@@ -262,7 +264,7 @@ preserving its company filter independently of the current category comparison. 
 selection does not alter a saved snapshot's amounts or supporting records; the section identifies
 that historical scope explicitly. This list remains limited to the selected marketplace.
 
-Selecting a snapshot opens **Saved source details**, including stored **Supporting records**,
+Selecting a snapshot opens **Saved source details**, including **Supporting records** calculated from its saved inputs,
 **Account reconciliation** calculated from the report's saved source inputs, and input metadata.
 These diagnostics are separate from the frozen company payout amount. Reconciliation uses the
 selected report's own dates, marketplace and currency; its account scope can include other
@@ -315,13 +317,14 @@ collation; source and category order rows within each bucket. The client preserv
 across pages instead of re-sorting each page independently.
 
 Coverage contains `{source, seller_namespace, start_date, end_date}` intervals clipped to the
-inclusive response scope. Finance periods come from accepted acquisition batches; Data Kiosk
-periods come from selected day headers, including empty days. Report coverage follows only its
-saved manifests. Coverage is independent of category/currency filtering, and row absence alone
+inclusive response scope. Current Finance periods come from accepted acquisition batches; Data
+Kiosk periods come from selected day headers, including empty days. Report coverage comes from
+the validated intervals saved on its header, independently of later source publications.
+Coverage is independent of category/currency filtering, and row absence alone
 is not coverage or a promise of Amazon finality.
 
-Current `revision` contains the `finances` and `data_kiosk` workspace tokens, including their
-existing cutoff suffix, for authenticated administrators. Companion results with different tokens
+Current `revision` contains the `finances` and `data_kiosk` workspace tokens for authenticated
+administrators. These tokens track publications and have no date or maturity suffix. Companion results with different tokens
 are invalidated together. Trusted SQL reads without an administrator identity return null. Report
 `revision` is always null: its immutable aggregate is cached by report ID and authorization identity.
 Currencies are never combined.

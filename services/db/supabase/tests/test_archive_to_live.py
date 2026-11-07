@@ -48,7 +48,6 @@ from services.sync.tests.support.economics import (
 class TestArchiveToLive(DatabaseTestCase):
     def setUp(self) -> None:
         super().setUp()
-        self.set_mature_cutoff_date(date(2026, 7, 1))
         self.database = TransactionDatabase(self.connection)
         self.storage = MemoryArchiveStorage()
         self.seller = f"archive-integration-{uuid7()}"
@@ -175,7 +174,7 @@ class TestArchiveToLive(DatabaseTestCase):
         self.assertEqual(totals[0].fee_amount, Numeric(0))
         self.assertEqual(totals[0].company_amount, Numeric("-15.5"))
 
-    def test_recent_sources_ignore_finances_refunds_and_use_kiosk_fee_base(self) -> None:
+    def test_finances_sales_and_refunds_use_their_activity_date_fee_rates(self) -> None:
         finances_input, economics_input = self.save_finances(), self.save_data_kiosk()
         preprocess_finances_acquisition(self.database, self.storage, finances_input)
         preprocess_data_kiosk_acquisition(self.database, self.storage, economics_input)
@@ -204,8 +203,8 @@ class TestArchiveToLive(DatabaseTestCase):
         totals = self.read_totals(finances_id)
         self.assertEqual(len(totals), 1)
         self.assertEqual(totals[0].source_amount, Numeric(-12))
-        self.assertEqual(totals[0].fee_amount, Numeric(0))
-        self.assertEqual(totals[0].company_amount, Numeric(-12))
+        self.assertEqual(totals[0].fee_amount, Numeric(2))
+        self.assertEqual(totals[0].company_amount, Numeric(-10))
         publish_sku_terms(
             self.database,
             sku="SKU-1",
@@ -219,7 +218,7 @@ class TestArchiveToLive(DatabaseTestCase):
         )
         self.assertEqual(
             self.read_totals(finances_id)[0].company_amount,
-            Numeric(-12),
+            Numeric(-11),
         )
         self.assertEqual(
             self.connection.execute(

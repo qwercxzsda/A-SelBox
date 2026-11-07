@@ -51,11 +51,11 @@ grant select (
 grant select on public.finances_preprocess_results, public.finances_preprocess_entries,
 public.data_kiosk_preprocess_results, public.data_kiosk_preprocess_entries,
 public.live_company_components, private.live_company_component_inputs to authenticated;
-grant select on public.company_payout_reports, public.company_payout_report_components,
+grant select on public.company_payout_reports,
 public.latest_company_payout_reports,
-private.payout_report_finances_batches, private.payout_report_data_kiosk_observations,
-private.payout_report_terms_versions, public.payout_report_finances_batches,
-public.payout_report_data_kiosk_observations, public.payout_report_terms_versions,
+private.payout_report_finances_versions, private.payout_report_data_kiosk_versions,
+private.payout_report_terms_versions, public.payout_report_finances_versions,
+public.payout_report_data_kiosk_versions, public.payout_report_terms_versions,
 public.financial_review_records to authenticated;
 grant execute on function private.is_administrator(), private.is_member(),
 private.current_owned_sku_terms(), private.current_owned_finances_revisions(),
@@ -108,9 +108,9 @@ grant execute on function public.source_transaction_page(
     text[], text[], boolean, text[], text[], text[]
 ) to authenticated;
 
-grant execute on function public.payout_report_totals(
-    uuid, boolean, integer, bigint
-) to authenticated;
+grant execute on function private.read_payout_report_records(uuid),
+public.payout_report_records(uuid, boolean, integer, bigint, text[]),
+public.payout_report_totals(uuid, boolean, integer, bigint) to authenticated;
 
 grant execute on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean, integer, bigint

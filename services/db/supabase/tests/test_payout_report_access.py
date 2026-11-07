@@ -1,9 +1,11 @@
 """Members read their frozen payouts; full input inventories remain administrator-only."""
 
 from decimal import Decimal
-from typing import LiteralString
+from typing import LiteralString, cast
 
-from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
+import psycopg
+
+from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month, report_records
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
@@ -48,8 +50,8 @@ class PayoutReportAccessTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select id::text,company_id::text,component_count,finances_batch_count,"
-                "data_kiosk_observation_count,terms_version_count,company_amount "
+                "select id::text,company_id::text,component_count,finances_version_count,"
+                "data_kiosk_version_count,terms_version_count,company_amount "
                 "from public.company_payout_reports",
             ),
             [(report, company, 5, 1, 30, 2, Decimal(85))],
@@ -63,17 +65,11 @@ class PayoutReportAccessTests(SourceModelFixture):
                 1,
                 1,
             ),
-            ("select * from public.company_payout_report_components", 5, 2),
-            (
-                "select * from public.company_payout_report_components where not authoritative",
-                3,
-                0,
-            ),
-            ("select * from public.payout_report_finances_batches", 1, 0),
-            ("select * from public.payout_report_data_kiosk_observations", 30, 0),
+            ("select * from public.payout_report_finances_versions", 1, 0),
+            ("select * from public.payout_report_data_kiosk_versions", 30, 0),
             ("select * from public.payout_report_terms_versions", 2, 0),
-            ("select * from private.payout_report_finances_batches", 1, 0),
-            ("select * from private.payout_report_data_kiosk_observations", 30, 0),
+            ("select * from private.payout_report_finances_versions", 1, 0),
+            ("select * from private.payout_report_data_kiosk_versions", 30, 0),
             ("select * from private.payout_report_terms_versions", 2, 0),
         )
         for query, administrator_count, member_count in queries:
@@ -82,6 +78,51 @@ class PayoutReportAccessTests(SourceModelFixture):
                 self.assertEqual(len(self.as_user(owner, query)), member_count)
                 for user in denied_users:
                     self.assertEqual(self.as_user(user, query), [])
+        self.assertEqual(len(report_records(self, report, user=administrator)), 5)
+        member_records = report_records(self, report, user=owner)
+        self.assertEqual(len(member_records), 2)
+        self.assertTrue(all(row["authoritative"] == "true" for row in member_records))
+        self.assertEqual(
+            len(report_records(self, report, user=administrator, authoritative=False)), 3
+        )
+        for user in denied_users:
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                report_records(self, report, user=user)
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                self.as_user(user, "select public.payout_report_totals(%s)", (report,))
+        for user in (owner, administrator):
+            for query in (
+                "select public.payout_report_records(%s)",
+                "select public.payout_report_totals(%s)",
+            ):
+                with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                    self.as_user(user, query, (new_id(),))
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            report_records(self, report, user=owner, authoritative=False)
+        coverage = cast(
+            list[dict[str, str]],
+            self.as_user(
+                owner,
+                "select source_coverage from public.company_payout_reports where id=%s",
+                (report,),
+            )[0][0],
+        )
+        self.assertEqual({row["source"] for row in coverage}, {"FINANCES", "DATA_KIOSK"})
+        for interval in coverage:
+            self.assertEqual(
+                set(interval),
+                {"source", "seller_namespace", "marketplace_name", "start_date", "end_date"},
+            )
+            self.assertEqual(interval["seller_namespace"], self.seller)
+            self.assertEqual(interval["marketplace_name"], "Amazon.com")
+            self.assertEqual(interval["start_date"], "2026-06-01")
+            self.assertEqual(interval["end_date"], "2026-06-30")
+        for user in (owner, *denied_users):
+            with (
+                self.subTest(source_totals_user=user),
+                self.assertRaises(psycopg.errors.InsufficientPrivilege),
+            ):
+                self.as_user(user, "select public.report_source_totals(%s)", (report,))
         self.assertEqual(
             self.as_user(owner, "select month_label from public.latest_company_payout_reports"),
             [("June 2026",)],

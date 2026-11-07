@@ -1,36 +1,24 @@
 """Published evidence stays immutable and rejects invalid report references."""
 
-from typing import cast
-
 import psycopg
 from psycopg import sql
-from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests import test_company_payout_reports as payout_fixture
-from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
 class EvidenceIntegrityTests(SourceModelFixture):
     report = payout_fixture.CompanyPayoutReportTests.report
 
-    def published_evidence(self) -> tuple[str, str, str, str]:
+    def published_evidence(self) -> tuple[str, str, str]:
         company, identity = self.owner()
         _, other_identity = self.owner("OTHER")
         self.fee(identity, [("2026-01-01", None, "5")])
         other_terms = self.fee(other_identity, [("2026-01-01", None, "5")])
-        other_period = str(
-            require_row(
-                self.connection.execute(
-                    "select id from public.sku_fee_periods where terms_version_id=%s",
-                    (other_terms,),
-                ).fetchone()
-            )[0]
-        )
         self.finances([self.transaction("100")])
         report = self.report(company)
         self.connection.execute("set constraints all immediate")
-        return report, other_identity, other_terms, other_period
+        return report, other_identity, other_terms
 
     def test_source_and_terms_parent_mutations_are_rejected_before_fk_checks(self) -> None:
         self.published_evidence()
@@ -54,49 +42,27 @@ class EvidenceIntegrityTests(SourceModelFixture):
                 ):
                     self.connection.execute(statement)
 
-    def test_report_components_reject_missing_and_misbound_foreign_keys(self) -> None:
-        report, other_identity, other_terms, other_period = self.published_evidence()
-        # OTHER has real terms and a real fee period, but neither belongs to the
-        # report's SKU/terms/manifest. A valid UUID alone cannot establish a link.
-        changes = (
-            {"report_id": new_id()},
-            {"sku_id": new_id()},
-            {"terms_version_id": new_id()},
-            {"fee_period_id": new_id()},
-            {"sku_id": other_identity},
-            {"fee_period_id": other_period},
-            {
-                "sku_id": other_identity,
-                "terms_version_id": other_terms,
-                "fee_period_id": other_period,
-            },
-        )
-        for change in changes:
+    def test_report_terms_reject_missing_or_misbound_revision_references(self) -> None:
+        _, third_identity = self.owner("THIRD")
+        report, other_identity, other_terms = self.published_evidence()
+        for report_id, sku_id, terms_id in (
+            (new_id(), other_identity, other_terms),
+            (report, new_id(), other_terms),
+            (report, other_identity, new_id()),
+            (report, third_identity, other_terms),
+        ):
             with (
-                self.subTest(changed_fields=tuple(change)),
                 self.assertRaises(psycopg.errors.ForeignKeyViolation),
                 self.connection.transaction(),
             ):
                 self.connection.execute(
-                    "insert into public.company_payout_report_components "
-                    "select (jsonb_populate_record(null::public.company_payout_report_components, "
-                    "to_jsonb(c)||%s::jsonb)).* "
-                    "from public.company_payout_report_components c where c.report_id=%s",
-                    (
-                        Jsonb(
-                            cast(dict[str, object], change)
-                            | {
-                                "id": new_id(),
-                                "row_number": 2,
-                                "source_row_id": new_id(),
-                            }
-                        ),
-                        report,
-                    ),
+                    "insert into private.payout_report_terms_versions "
+                    "(report_id,sku_id,terms_version_id) values (%s,%s,%s)",
+                    (report_id, sku_id, terms_id),
                 )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.company_payout_report_components where report_id=%s",
+                "select count(*) from private.payout_report_terms_versions where report_id=%s",
                 (report,),
             ).fetchone(),
             (1,),

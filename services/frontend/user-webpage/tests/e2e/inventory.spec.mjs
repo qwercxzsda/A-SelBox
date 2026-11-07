@@ -24,7 +24,7 @@ for (const user of ["member", "administrator"]) {
     ]);
     await signIn(page);
     await page.getByRole("tab", { name: "Inventory", exact: true }).click();
-    await expect(page.getByText("Estimated totals", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Current totals", { exact: true })).toHaveCount(0);
     const region = page.getByRole("region", { name: "Inventory items" });
     await expect(region.getByText("ELG_Black", { exact: true })).toBeVisible();
     await expect(region.getByRole("columnheader")).toContainText([

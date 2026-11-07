@@ -3,6 +3,8 @@
 from decimal import Decimal
 from typing import cast
 
+import psycopg
+
 from services.db.supabase.tests.financial_fixtures import FinancialFixture
 from services.db.supabase.tests.payout_fixtures import (
     fill_payout_kiosk_month,
@@ -129,29 +131,38 @@ class GlobalSkuIdentityTests(FinancialFixture):
             (1,),
         )
 
-    def test_current_member_source_pages_combine_namespaces_without_exposing_history(self) -> None:
+    def test_raw_source_pages_preserve_namespace_history_for_administrators_only(self) -> None:
         company, other, _, _ = self.shared_sources()
         member, administrator = self.member(company), self.administrator()
+        denied_users = (member, self.member(other), self.auth_user())
         for dataset in ("finances", "data_kiosk"):
-            for user, expected in ((member, "2"), (administrator, "4"), (self.member(other), "0")):
-                with self.subTest(dataset=dataset, user=user):
-                    page = cast(
-                        dict[str, object],
-                        self.as_user(
-                            user,
-                            "select public.source_transaction_page(%s,p_skus=>array['S1'])",
-                            (dataset,),
-                        )[0][0],
-                    )
-                    self.assertEqual(page["total_count"], expected)
-                    self.assertEqual(
-                        self.as_user(
-                            user,
-                            "select public.source_transaction_count(%s,p_skus=>array['S1'])",
-                            (dataset,),
-                        ),
-                        [(expected,)],
-                    )
+            page = cast(
+                dict[str, object],
+                self.as_user(
+                    administrator,
+                    "select public.source_transaction_page(%s,p_skus=>array['S1'])",
+                    (dataset,),
+                )[0][0],
+            )
+            self.assertEqual(page["total_count"], "4")
+            self.assertEqual(
+                self.as_user(
+                    administrator,
+                    "select public.source_transaction_count(%s,p_skus=>array['S1'])",
+                    (dataset,),
+                ),
+                [("4",)],
+            )
+            for user in denied_users:
+                for query in (
+                    "select public.source_transaction_page(%s,p_skus=>array['S1'])",
+                    "select public.source_transaction_count(%s,p_skus=>array['S1'])",
+                ):
+                    with (
+                        self.subTest(dataset=dataset),
+                        self.assertRaises(psycopg.errors.InsufficientPrivilege),
+                    ):
+                        self.as_user(user, query, (dataset,))
         self.assertEqual(
             self.connection.execute(
                 "select table_name,column_name from information_schema.columns "

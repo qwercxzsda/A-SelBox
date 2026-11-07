@@ -42,9 +42,23 @@ const readYear = (client, signal) =>
     "2026",
     "USD",
     "Amazon.com",
-    "2026-07",
     signal,
   );
+
+test("year reads retain recent months without requesting payout maturity", async () => {
+  const rows = [typeGroup(), typeGroup({ month: "2026-11-01" })];
+  const client = sourceClient(async (url) => {
+    const request = new URL(url);
+    assert.equal(request.pathname, "/rest/v1/rpc/financial_review_type_totals");
+    assert.equal(request.searchParams.get("p_month_from"), "2026-01-01");
+    assert.equal(request.searchParams.get("p_month_to"), "2027-01-01");
+    return pageResponse(rows, rows.length);
+  });
+  assert.deepEqual(
+    (await readYear(client)).rows.map((row) => row.month),
+    ["2026-07-01", "2026-11-01"],
+  );
+});
 
 test("complete year type totals traverse beyond 1000 groups without losing decimal or count precision", async () => {
   const expected = Array.from({ length: 1001 }, (_, index) =>
@@ -60,7 +74,7 @@ test("complete year type totals traverse beyond 1000 groups without losing decim
     assert.equal(params.get("p_category"), "DATA_KIOSK");
     assert.equal(params.get("p_marketplace"), "Amazon.com");
     assert.equal(params.get("p_month_from"), "2026-01-01");
-    assert.equal(params.get("p_month_to"), "2026-08-01");
+    assert.equal(params.get("p_month_to"), "2027-01-01");
     assert.equal(params.get("p_currency"), "USD");
     assert.equal(params.get("order"), "month.asc,source.asc,component_type.asc");
     assert.equal(params.get("limit"), "1000");
@@ -232,7 +246,6 @@ test("empty complete reads and calendar endpoints stay bounded", async () => {
           year,
           "USD",
           "Amazon.com",
-          `${year}-12`,
         )
       ).rows,
       [],
@@ -253,14 +266,7 @@ test("invalid complete-read inputs never query; permission and cancellation erro
     ["FINANCES", "2026", "usd"],
   ])
     await assert.rejects(
-      invalid.fetchFinancialReviewPeriodTypes(
-        "access",
-        category,
-        year,
-        currency,
-        "Amazon.com",
-        "2026-07",
-      ),
+      invalid.fetchFinancialReviewPeriodTypes("access", category, year, currency, "Amazon.com"),
     );
   assert.equal(requests, 0);
   const denied = createApiClient(

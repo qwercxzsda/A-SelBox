@@ -58,7 +58,7 @@ test("a full year shows at most twelve chronological months in one currency with
   for (const { params } of reads) {
     expect(params.get("p_start")).toMatch(/^\d{4}-01-01$/);
     expect(params.get("p_end")).toBe(
-      params.get("p_start").startsWith("2026") ? "2026-07-31" : "2025-12-31",
+      params.get("p_start").startsWith("2026") ? "2026-12-31" : "2025-12-31",
     );
     expect(params.has("p_currency")).toBe(false);
   }
@@ -133,9 +133,7 @@ test("year and currency stay shared across categories and reloads, including una
   await category(page, "SelBox").click();
   await expect(year(page)).toHaveValue("2025");
   await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
-  await expect(table(page)).toContainText(
-    "No mature source records for Amazon.com in EUR in 2025.",
-  );
+  await expect(table(page)).toContainText("No source records for Amazon.com in EUR in 2025.");
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
   await page.reload();
   await expect(category(page, "SelBox")).toHaveAttribute("aria-selected", "true");
@@ -144,9 +142,7 @@ test("year and currency stay shared across categories and reloads, including una
   await category(page, "Data Kiosk").click();
   await expect(table(page).locator("tbody tr")).toHaveCount(12);
   await year(page).selectOption("2024");
-  await expect(table(page)).toContainText(
-    "No mature source records for Amazon.com in EUR in 2024.",
-  );
+  await expect(table(page)).toContainText("No source records for Amazon.com in EUR in 2024.");
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
   await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
   await year(page).selectOption("2020");

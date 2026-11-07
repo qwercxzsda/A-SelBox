@@ -12,7 +12,7 @@ from services.sync.src.database.company_terms import FeePeriod, create_company, 
 from services.sync.src.database.financial_reads import load_company_financial_progress
 from services.sync.src.database.payout_reports import (
     load_company_payout_report,
-    load_company_payout_report_components,
+    load_company_payout_report_records,
     publish_company_payout_report,
 )
 from services.sync.src.numeric import Numeric
@@ -103,7 +103,7 @@ class FinancialRepositoryTests(SourceModelFixture):
             change_reason="Freeze source and terms",
         )
         before = load_company_payout_report(database, report_id)
-        components = load_company_payout_report_components(database, report_id)
+        components = load_company_payout_report_records(database, report_id)
         if before is None:
             self.fail("Expected saved report.")
         self.assertEqual(before.fee_amount, Decimal("-5.123456"))
@@ -119,4 +119,4 @@ class FinancialRepositoryTests(SourceModelFixture):
             change_reason="Unassign current SKU",
         )
         self.assertEqual(load_company_payout_report(database, report_id), before)
-        self.assertEqual(load_company_payout_report_components(database, report_id), components)
+        self.assertEqual(load_company_payout_report_records(database, report_id), components)

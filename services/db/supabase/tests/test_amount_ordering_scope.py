@@ -38,7 +38,7 @@ class AmountOrderingScopeTests(SourceModelFixture):
         kiosk_rows = [self.component(str(i)) for i in range(10000)]
         kiosk_rows.append(self.component("10001", sku="OTHER") | {"component_type": "FOCUS"})
         self.finances(finances_rows)
-        self.kiosk(1, kiosk_rows, activity_date=self.recent_activity_date())
+        self.kiosk(1, kiosk_rows, activity_date=self.current_activity_date())
 
         for dataset, direction, include_count in product(
             ("finances", "data_kiosk"), ("asc", "desc"), (False, True)
@@ -59,7 +59,9 @@ class AmountOrderingScopeTests(SourceModelFixture):
                     self.assertEqual(raised.exception.diag.message_primary, _AMOUNT_SCOPE_MESSAGE)
                 # Exact 10,000-row membership is accepted; another company's
                 # visible row cannot consume this member's sort budget.
-                source = self.source_page(member, dataset, **options)
+                with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                    self.source_page(member, dataset, **options)
+                source = self.source_page(administrator, dataset, p_skus=["SKU"], **options)
                 live = self.live_page(member, p_sources=[dataset.upper()], **options)
                 expected_count = "10000" if include_count else None
                 self.assertEqual(source["total_count"], expected_count)
@@ -79,8 +81,14 @@ class AmountOrderingScopeTests(SourceModelFixture):
                 # Offsets do not turn a broad amount sort into an eligible one.
                 with self.assertRaises(psycopg.errors.InvalidParameterValue):
                     self.source_page(administrator, dataset, p_offset=20000, **options)
-                tail = self.source_page(member, dataset, p_offset=9999, **options)
+                tail = self.source_page(
+                    administrator, dataset, p_skus=["SKU"], p_offset=9999, **options
+                )
                 self.assertEqual(len(cast(list[object], tail["rows"])), 1)
+                live_tail = self.live_page(
+                    member, p_sources=[dataset.upper()], p_offset=9999, **options
+                )
+                self.assertEqual(len(cast(list[object], live_tail["rows"])), 1)
 
         for dataset in ("finances", "data_kiosk"):
             source = dataset.upper()
@@ -106,8 +114,13 @@ class AmountOrderingScopeTests(SourceModelFixture):
                     )
                     self.assertEqual(raw["total_count"], expected_count)
                     self.assertEqual(live["total_count"], expected_count)
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                self.source_page(other_member, dataset, p_order_by="amount")
             self.assertEqual(
-                self.source_page(other_member, dataset, p_order_by="amount")["total_count"], "1"
+                self.live_page(other_member, p_sources=[source], p_order_by="amount")[
+                    "total_count"
+                ],
+                "1",
             )
             # Date pages and exact counts stay available above the amount cap.
             for direction in ("asc", "desc"):

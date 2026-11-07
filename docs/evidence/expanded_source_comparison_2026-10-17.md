@@ -160,9 +160,8 @@ The observed late-September boundary is not a 30-day historical limit. The Econo
 `resultRetention` describes query/document retention, not a limit on the age of economic facts.
 [Official Economics schema](https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql).
 
-These ordinary fees are in the Finances category. Mature payouts already use Finances for them;
-the omission affects Data Kiosk comparisons and recent estimates, rather than causing an extra
-missing deduction in mature payouts.
+These ordinary fees are in the Finances category. Current company calculations use Finances for these categories at every date. The omission affects
+Data Kiosk comparisons without causing an additional deduction from company amounts.
 
 France also retains ordinary fulfillment differences: **−€63.56 in August** and **−€4.54 in
 September**, while October 1–15 matches. August's three SKU deficits correspond to 28 fewer

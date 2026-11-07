@@ -1,8 +1,44 @@
-import { PAYOUT_COMPONENT_COLUMNS } from "../../../src/api/payouts.ts";
 import { sumExactDecimals } from "../../../src/decimal.ts";
-import { filterRecordRows } from "../record-fixtures.mjs";
 
-export async function respondWithPayouts(fixture, { url, request, user, reply, csvReply }) {
+function reportRecords(fixture, report) {
+  return fixture.payoutRecords
+    .filter((row) => row.report_id === report.id)
+    .map((row) => {
+      if (!row.source_row_id || Object.hasOwn(row, "id") || Object.hasOwn(row, "created_at"))
+        throw new Error(
+          "Payout record fixtures require source identity, without stored-row fields",
+        );
+      const field = (key, fallback) => (Object.hasOwn(row, key) ? row[key] : fallback);
+      return {
+        report_id: report.id,
+        source: row.source ?? "FINANCES",
+        authoritative: row.authoritative ?? "true",
+        source_row_id: row.source_row_id,
+        source_version_id: row.source_version_id ?? "source-version",
+        source_identity_id: row.source_identity_id ?? "source-identity",
+        sku_id: row.sku_id ?? "source-sku",
+        terms_version_id: row.terms_version_id ?? "saved-terms",
+        fee_period_id: row.fee_period_id ?? null,
+        sku: field("sku", "PAYOUT-SKU"),
+        marketplace_name: field(
+          "marketplace_name",
+          report.marketplace_name === undefined ? "Amazon.com" : report.marketplace_name,
+        ),
+        activity_date: field("activity_date", report.start_date),
+        component_type: row.component_type ?? "UNSPECIFIED",
+        currency: field("currency", report.currency),
+        source_amount: field("source_amount", "0"),
+        quantity: row.quantity ?? null,
+        fee_base: row.fee_base ?? null,
+        fee_rate_percent: row.fee_rate_percent ?? null,
+        fee_amount: row.fee_amount ?? null,
+        company_amount: row.company_amount ?? null,
+        resolution_status: row.resolution_status ?? "APPLIED",
+      };
+    });
+}
+
+export async function respondWithPayouts(fixture, { url, request, user, reply }) {
   if (url.pathname.endsWith("/payout_report_policy"))
     return reply(
       fixture.payoutPolicy ?? {
@@ -12,51 +48,66 @@ export async function respondWithPayouts(fixture, { url, request, user, reply, c
       },
       fixture.payoutPolicyStatus ?? 200,
     );
-  const totalsArgs = url.pathname.endsWith("/payout_report_totals") ? request.postDataJSON() : null;
-  const reportId = totalsArgs?.p_report_id ?? url.searchParams.get("report_id").slice(3);
-  const visible = fixture.payoutRows.some(
-    (row) =>
-      row.id === reportId &&
-      (fixture.roles[user] === "administrator" || row.company_id === fixture.companyIds[user]),
-  );
-  if (totalsArgs) {
-    const report = fixture.payoutRows.find((row) => row.id === reportId);
-    const components = (fixture.payoutComponents ?? []).filter(
-      (row) => visible && row.report_id === reportId && row.authoritative === "true",
-    );
-    const types = [...new Set(components.map((row) => row.component_type ?? "UNSPECIFIED"))].sort();
-    const totals = types.map((type) => {
-      const rows = components.filter((row) => (row.component_type ?? "UNSPECIFIED") === type);
-      return {
-        currency: report.currency,
-        component_type: type,
-        reported_amount: sumExactDecimals(rows.map((row) => row.source_amount ?? null)),
-        service_fee: sumExactDecimals(rows.map((row) => row.fee_amount ?? null)),
-        company_amount: sumExactDecimals(rows.map((row) => row.company_amount ?? null)),
-        row_count: String(rows.length),
-        known_company_count: String(rows.filter((row) => row.company_amount !== null).length),
-      };
-    });
+  if (request.method() !== "POST") return reply({}, 405);
+  const args = request.postDataJSON();
+  const reportId = args.p_report_id;
+  const report = fixture.payoutRows.find((row) => row.id === reportId);
+  const administrator = fixture.roles[user] === "administrator";
+  if (!report || (!administrator && report.company_id !== fixture.companyIds[user]))
+    return reply({ code: "42501", message: "Report access required" }, 403);
+  const records = reportRecords(fixture, report);
+  const offset = args.p_offset ?? 0;
+  if (url.pathname.endsWith("/payout_report_totals")) {
+    const authoritative = records.filter((row) => row.authoritative === "true");
+    const types = [...new Set(authoritative.map((row) => row.component_type))].sort();
+    const rows = args.p_group_by_type
+      ? types.map((type) => {
+          const group = authoritative.filter((row) => row.component_type === type);
+          return {
+            currency: report.currency,
+            component_type: type,
+            reported_amount: sumExactDecimals(group.map((row) => row.source_amount)),
+            service_fee: sumExactDecimals(group.map((row) => row.fee_amount)),
+            company_amount: sumExactDecimals(group.map((row) => row.company_amount)),
+            row_count: String(group.length),
+            known_company_count: String(group.filter((row) => row.company_amount !== null).length),
+          };
+        })
+      : report.currency === null
+        ? []
+        : [
+            {
+              currency: report.currency,
+              reported_amount: report.source_amount,
+              service_fee: report.fee_amount,
+              company_amount: report.company_amount,
+              row_count: String(authoritative.length),
+              known_company_count: String(authoritative.length),
+            },
+          ];
+    const limit = args.p_limit ?? 1000;
     return reply({
-      rows: totals.slice(totalsArgs.p_offset, totalsArgs.p_offset + totalsArgs.p_limit),
-      next_offset: null,
+      rows: rows.slice(offset, offset + limit),
+      next_offset: offset + limit < rows.length ? offset + limit : null,
     });
   }
-  const authoritative = url.searchParams.get("authoritative").slice(3);
-  fixture.payoutComponentRequests.push({ reportId, authoritative, user, params: url.searchParams });
-  const filters = new URLSearchParams();
-  if (url.searchParams.has("component_type"))
-    filters.set("component_type", url.searchParams.get("component_type"));
-  const rows = filterRecordRows(
-    (fixture.payoutComponents ?? []).filter(
+  if (typeof args.p_authoritative !== "boolean") return reply({}, 400);
+  if (!administrator && !args.p_authoritative)
+    return reply({ code: "42501", message: "Report access required" }, 403);
+  const authoritative = String(args.p_authoritative);
+  fixture.payoutRecordRequests.push({ reportId, authoritative, user, args });
+  const rows = records
+    .filter(
       (row) =>
-        visible &&
-        row.report_id === reportId &&
         row.authoritative === authoritative &&
-        (fixture.roles[user] === "administrator" || row.authoritative === "true"),
-    ),
-    filters,
-  );
-  const offset = Number(url.searchParams.get("offset"));
-  return csvReply(PAYOUT_COMPONENT_COLUMNS, rows.slice(offset, offset + 50), rows.length, offset);
+        (!args.p_types?.length || args.p_types.includes(row.component_type)),
+    )
+    .sort(
+      (a, b) =>
+        b.activity_date.localeCompare(a.activity_date) ||
+        b.source.localeCompare(a.source) ||
+        b.source_row_id.localeCompare(a.source_row_id),
+    );
+  const limit = args.p_limit ?? 50;
+  return reply({ rows: rows.slice(offset, offset + limit), total_count: String(rows.length) });
 }

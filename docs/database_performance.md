@@ -50,7 +50,7 @@ The [index map](transaction_query_contracts.md#index-access-paths) lists the exa
 
 Finance publication uploads prepared rows in batches and switches pointers atomically after Python
 source validation. Component totals and Summary controls are not queried repeatedly by the payout
-worker. Payout selection checks successful batch membership against current transaction versions.
+worker. Payout selection uses current transaction/day versions and successful scope coverage.
 New versions add storage only for changed normalized state; each observation still adds compact
 membership records.
 
@@ -68,9 +68,10 @@ seller/day/marketplace/currency bucket together. The backend never calculates di
 The frontend computes comparisons with exact decimals, loads details lazily, and uses complete
 headline aggregates rather than totaling a page. Current responses include source revision tokens
 for cache consistency; saved report aggregates are cached by report ID and authorization identity.
-Successful retrieval coverage comes from existing acquisition/batch/day metadata, not row counts.
+Current retrieval coverage comes from existing acquisition/batch/day metadata, not row counts.
 Finance coverage selects acquisitions with accepted batches, so repeated preprocessing does not
-expand the coverage query once per batch.
+expand the coverage query once per batch. Reports read their own compact saved coverage intervals
+alongside direct source-version references.
 The [Financial review contract](financial_review.md#read-contract) defines the native RPC payloads.
 
 ### Search and SKU discovery

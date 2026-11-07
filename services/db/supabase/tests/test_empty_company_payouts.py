@@ -37,8 +37,8 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select currency,source_amount,fee_amount,"
-                "company_amount,component_count,finances_batch_count,"
-                "data_kiosk_observation_count,terms_version_count "
+                "company_amount,component_count,finances_version_count,"
+                "data_kiosk_version_count,terms_version_count "
                 "from public.company_payout_reports where id=%s",
                 (report,),
             ).fetchone(),
@@ -69,32 +69,31 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
     ) -> None:
         company, identity = self.owner()
         acquisition = self.acquisition()
-        finances_batch, _ = self.finances([], acquisition_id=acquisition)
+        self.finances([], acquisition_id=acquisition)
         _, old_kiosk = self.kiosk(1, [self.component("-10")])
         _, kiosk_version = self.kiosk(2, [], expected=old_kiosk)
         report, created = generate_payout_reports(self, company)[0]
         self.assertTrue(created)
-        self.assert_empty_scope(report, (1, 1, 1))
+        self.assert_empty_scope(report, (0, 1, 1))
         before = payout_snapshot(self, report)
         self.assertEqual(
             self.connection.execute(
-                "select batch_id::text from private.payout_report_finances_batches "
-                "where report_id=%s and batch_id=%s",
-                (report, finances_batch),
-            ).fetchall(),
-            [(finances_batch,)],
+                "select source_coverage from public.company_payout_reports where id=%s",
+                (report,),
+            ).fetchone(),
+            ([],),
         )
         self.assertEqual(generate_payout_reports(self, company), [(report, False)])
         _, replacement = self.kiosk(3, [], expected=kiosk_version)
         self.connection.commit()
         self.assertEqual(self.report_count(), 1)
         next_report, created = generate_payout_reports(self, company)[0]
-        self.assertTrue(created)
-        self.assertNotEqual(next_report, report)
-        self.assert_empty_scope(next_report, (1, 1, 1))
+        self.assertFalse(created)
+        self.assertEqual(next_report, report)
+        self.assert_empty_scope(next_report, (0, 1, 1))
         self.assertEqual(
             self.connection.execute(
-                "select version_id::text from private.payout_report_data_kiosk_observations "
+                "select version_id::text from private.payout_report_data_kiosk_versions "
                 "where report_id=%s",
                 (next_report,),
             ).fetchall(),
@@ -102,7 +101,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         )
         terms = self.fee(identity, [])
         self.connection.commit()
-        self.assertEqual(self.report_count(), 2)
+        self.assertEqual(self.report_count(), 1)
         final_report, created = generate_payout_reports(self, company)[0]
         self.assertTrue(created)
         self.assertNotEqual(final_report, next_report)

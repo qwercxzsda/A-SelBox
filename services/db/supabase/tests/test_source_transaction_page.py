@@ -127,16 +127,10 @@ class SourceTransactionPageTests(SourceModelFixture):
                 self.assertIn("is_current", row)
         return actual
 
-    def test_all_roles_orders_pages_and_exact_count_modes_match_raw_views(self) -> None:
-        company_a, company_b = self.financial_fixture()
-        users = (
-            self.administrator(),
-            self.member(company_a),
-            self.member(company_b),
-            self.auth_user(),
-        )
-        for user, dataset, order, direction, offset, include_count in product(
-            users,
+    def test_administrator_orders_pages_and_exact_count_modes_match_raw_views(self) -> None:
+        self.financial_fixture()
+        administrator = self.administrator()
+        for dataset, order, direction, offset, include_count in product(
             ("finances", "data_kiosk"),
             ("date", "amount"),
             ("asc", "desc"),
@@ -145,7 +139,7 @@ class SourceTransactionPageTests(SourceModelFixture):
         ):
             with self.subTest(dataset=dataset, order=order, direction=direction, offset=offset):
                 self.assert_matches_view(
-                    user,
+                    administrator,
                     dataset,
                     p_limit=3,
                     p_offset=offset,
@@ -155,7 +149,8 @@ class SourceTransactionPageTests(SourceModelFixture):
                 )
 
     def test_source_filters_apply_before_the_limit_without_widening_access(self) -> None:
-        company_a, company_b = self.financial_fixture()
+        self.financial_fixture()
+        administrator = self.administrator()
         filters: tuple[dict[str, object], ...] = (
             {},
             {"p_date_from": "2026-06-16"},
@@ -170,14 +165,28 @@ class SourceTransactionPageTests(SourceModelFixture):
             {"p_types": ["PRODUCT_REFUNDS"], "p_skus": ["SKU"]},
             {"p_skus": [], "p_types": None, "p_marketplaces": []},
         )
-        for user, dataset, order, selection in product(
-            (self.administrator(), self.member(company_a), self.member(company_b)),
+        for dataset, order, selection in product(
             ("finances", "data_kiosk"),
             ("date", "amount"),
             filters,
         ):
             with self.subTest(dataset=dataset, selection=selection, order=order):
-                self.assert_matches_view(user, dataset, p_order_by=order, p_limit=1, **selection)
+                self.assert_matches_view(
+                    administrator, dataset, p_order_by=order, p_limit=1, **selection
+                )
+
+    def test_members_and_unassigned_accounts_cannot_read_raw_sources(self) -> None:
+        company_a, company_b = self.financial_fixture()
+        for user, dataset in product(
+            (self.member(company_a), self.member(company_b), self.auth_user()),
+            ("finances", "data_kiosk"),
+        ):
+            with (
+                self.subTest(dataset=dataset),
+                self.assertRaises(psycopg.errors.InsufficientPrivilege),
+            ):
+                self.page(user, dataset, p_skus=["SKU"], p_limit=1)
+            self.assertEqual(self.expected(user, dataset), {"rows": [], "total_count": "0"})
 
     def test_administrator_keeps_historical_and_account_rows_but_members_do_not(self) -> None:
         company, sku = self.owner()
@@ -201,10 +210,10 @@ class SourceTransactionPageTests(SourceModelFixture):
             administrator_page = self.assert_matches_view(
                 administrator, dataset, p_order_by="amount"
             )
-            member_page = self.assert_matches_view(member, dataset, p_order_by="amount")
             kiosk = dataset == "data_kiosk"
             self.assertEqual(administrator_page["total_count"], "5" if kiosk else "3")
-            self.assertEqual(member_page["total_count"], "2" if kiosk else "1")
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                self.page(member, dataset, p_order_by="amount")
             rows = cast(list[dict[str, object]], administrator_page["rows"])
             self.assertEqual(
                 [row["amount"] for row in rows],
@@ -213,12 +222,11 @@ class SourceTransactionPageTests(SourceModelFixture):
             self.assertEqual(rows[0]["category"], "SELBOX")
         self.assign("SKU", None, expected=old_terms)
         for dataset in ("finances", "data_kiosk"):
-            self.assertEqual(
-                self.assert_matches_view(member, dataset), {"rows": [], "total_count": "0"}
-            )
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                self.page(member, dataset)
 
     def test_amount_order_uses_exact_signed_numeric_values_and_stable_ties(self) -> None:
-        company, _ = self.owner()
+        self.owner()
         amounts = ["100.123456789012345678902", "100.123456789012345678901", "-10", "2", "2", "0"]
         transactions = [self.transaction(amount, line) for line, amount in enumerate(amounts, 3)]
         components = [self.component(amount) for amount in amounts]
@@ -227,8 +235,8 @@ class SourceTransactionPageTests(SourceModelFixture):
         components[0]["fee_base"] = "100.123456789012345678902"
         self.finances(transactions)
         self.kiosk(1, components)
-        for user, dataset, direction in product(
-            (self.administrator(), self.member(company)),
+        administrator = self.administrator()
+        for dataset, direction in product(
             ("finances", "data_kiosk"),
             ("asc", "desc"),
         ):
@@ -238,7 +246,7 @@ class SourceTransactionPageTests(SourceModelFixture):
                     cast(
                         list[object],
                         self.assert_matches_view(
-                            user,
+                            administrator,
                             dataset,
                             p_order_by="amount",
                             p_direction=direction,
@@ -249,7 +257,9 @@ class SourceTransactionPageTests(SourceModelFixture):
                 )
             self.assertEqual(
                 rows,
-                self.expected(user, dataset, p_order_by="amount", p_direction=direction)["rows"],
+                self.expected(administrator, dataset, p_order_by="amount", p_direction=direction)[
+                    "rows"
+                ],
             )
 
     def test_invoker_signature_and_execution_grants(self) -> None:

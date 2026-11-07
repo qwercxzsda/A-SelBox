@@ -3,11 +3,12 @@ import { openFinancialReview } from "./financial-review-actions.mjs";
 
 test("failed review period checks stop describing the scope as loading", async ({ page }) => {
   await openFinancialReview(page, (state) => {
-    state.payoutPolicyStatus = 403;
+    state.financialReviewStatusForRequest = ({ params }) =>
+      params.get("select") === "activity_date" ? 403 : 200;
   });
   await expect(page.getByRole("alert")).toContainText("Could not load available review periods.");
   await expect(page.locator(".financial-review-scope-note")).not.toContainText(
-    "Checking mature months…",
+    "Checking available source months…",
   );
 });
 
@@ -16,7 +17,9 @@ for (const periods of [true, false]) {
     page,
   }) => {
     const fixture = await openFinancialReview(page, (state) => {
-      if (periods) state.payoutPolicyStatus = 403;
+      if (periods)
+        state.financialReviewStatusForRequest = ({ params }) =>
+          params.get("select") === "activity_date" ? 403 : 200;
       else
         state.financialReviewStatusForRequest = ({ params }) =>
           params.get("limit") === "1" ? 200 : 403;
@@ -26,7 +29,6 @@ for (const periods of [true, false]) {
       exact: true,
     });
     await expect(retry).toBeVisible();
-    fixture.payoutPolicyStatus = 200;
     fixture.financialReviewStatusForRequest = null;
     await retry.focus();
     await retry.press("Enter");
@@ -35,7 +37,7 @@ for (const periods of [true, false]) {
     ).toBeVisible();
     await expect(page.locator(".financial-review-months")).toBeFocused();
     await expect(page.locator(".financial-review-scope-note")).toContainText(
-      "Full mature months through July 2026",
+      "Source records through July 2026",
     );
   });
 }

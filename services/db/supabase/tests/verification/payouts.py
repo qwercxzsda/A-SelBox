@@ -12,20 +12,16 @@ def independent_payout_totals(connection: Connection, report_id: str) -> tuple[A
         with target as (
             select * from public.company_payout_reports where id=%s
         ), inputs as (
-            select r.id as report_id,t.seller_namespace,c.sku,v.marketplace_name,
+            select r.id as report_id,c.sku,v.marketplace_name,
                 v.posted_date as day,v.currency,c.amount,c.fee_base
-            from target r cross join private.finances_transaction_components c
-            join private.finances_transaction_versions v on v.id=c.version_id
-            join private.finances_transactions t on t.id=v.transaction_id
-            where c.category='FINANCES' and v.activity_eligible and exists (
-                select 1 from private.payout_report_finances_batches p
-                join private.finances_preprocess_batch_transactions m on m.batch_id=p.batch_id
-                where p.report_id=r.id and m.version_id=v.id
-            )
+            from target r join private.payout_report_finances_versions p on p.report_id=r.id
+            join private.finances_transaction_versions v on v.id=p.version_id
+            join private.finances_transaction_components c on c.version_id=v.id
+            where c.category='FINANCES' and v.activity_eligible
             union all
-            select r.id,d.seller_namespace,t.sku,d.marketplace_name,d.activity_date,
+            select r.id,t.sku,d.marketplace_name,d.activity_date,
                 t.currency,t.amount,t.fee_base
-            from target r join private.payout_report_data_kiosk_observations p on p.report_id=r.id
+            from target r join private.payout_report_data_kiosk_versions p on p.report_id=r.id
             join private.data_kiosk_day_components t on t.version_id=p.version_id
             join private.data_kiosk_days d on d.id=p.day_id
             where t.category='DATA_KIOSK'

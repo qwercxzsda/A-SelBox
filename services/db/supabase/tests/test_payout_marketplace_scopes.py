@@ -64,8 +64,7 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 self.assertEqual(
                     self.connection.execute(
                         "select distinct marketplace_name "
-                        "from public.company_payout_report_components "
-                        "where report_id=%s",
+                        "from private.read_payout_report_records(%s)",
                         (report,),
                     ).fetchall(),
                     [(market,)],
@@ -210,19 +209,34 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
             )
         self.connection.execute("set constraints all immediate")
 
-    def test_deferred_validation_rejects_components_from_a_different_market(self) -> None:
+    def test_deferred_validation_rejects_revision_inputs_from_a_different_market(self) -> None:
         inputs = prepare_payout(self)
-        with (
-            self.assertRaisesRegex(psycopg.errors.CheckViolation, "contents"),
-            self.connection.transaction(),
-        ):
-            report, _ = generate_payout_reports(self, inputs.company)[0]
-            self.connection.execute(
-                "alter table public.company_payout_report_components disable trigger immutable"
+        _, other_version = self.finances(
+            [self.transaction("10", 4) | {"marketplace_name": "Amazon.ca"}]
+        )
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+            report = self.call(
+                "publish_company_payout_report",
+                {
+                    "id": new_id(),
+                    "company_id": inputs.company,
+                    "marketplace_name": "Amazon.com",
+                    "currency": "USD",
+                    "start_date": "2026-06-01",
+                    "end_date": "2026-06-30",
+                    "dataset_key": "economics",
+                    "report_name": "Scope validation",
+                    "change_reason": "Reject an out-of-scope pinned revision",
+                },
             )
             self.connection.execute(
-                "update public.company_payout_report_components "
-                "set marketplace_name='Amazon.ca' where report_id=%s",
-                (report,),
+                "alter table private.payout_report_finances_versions disable trigger immutable"
+            )
+            self.connection.execute(
+                "update private.payout_report_finances_versions p "
+                "set transaction_id=v.transaction_id,version_id=v.id "
+                "from private.finances_transaction_versions v "
+                "where v.id=%s and p.report_id=%s",
+                (other_version, report),
             )
             self.connection.execute("set constraints all immediate")

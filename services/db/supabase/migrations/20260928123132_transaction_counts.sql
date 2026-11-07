@@ -58,7 +58,6 @@ begin
             select count(*) as row_count
             from private.finances_activity_components as t
             where t.category in ('FINANCES', 'SELBOX')
-                and t.posted_date < (select private.mature_cutoff_date())
                 and (
                     finances_policy_is_sufficient
                     or t.is_current
@@ -97,8 +96,7 @@ begin
             union all
             select count(*) as row_count
             from private.data_kiosk_component_details as t
-            where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-                    and t.category in ('FINANCES', 'SELBOX')))
+            where t.category = 'DATA_KIOSK'
                 and (
                     kiosk_policy_is_sufficient
                     or exists (
@@ -145,8 +143,8 @@ revoke all on function public.transaction_count(
 from public, anon, authenticated, service_role;
 
 -- Count the same raw facts as source_transaction_page without metadata joins.
--- Existing fact/version policies ensure every visible fact has a visible parent;
--- administrators retain history/account rows and members retain only authorized facts.
+-- Full raw source history is administrator-only; fact RLS remains unchanged for
+-- the separate financial transaction reads used by members.
 create function public.source_transaction_count(
     p_dataset text,
     p_date_from date default null,
@@ -162,6 +160,9 @@ language plpgsql stable security invoker
 set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 begin
+    if not private.financial_account_visible() then
+        raise exception 'Administrator access is required' using errcode = '42501';
+    end if;
     if p_dataset is null or p_dataset not in ('finances', 'data_kiosk') then
         raise exception 'Dataset must be finances or data_kiosk' using errcode = '22023';
     end if;

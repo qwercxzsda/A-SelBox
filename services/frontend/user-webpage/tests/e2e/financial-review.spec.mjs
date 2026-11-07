@@ -63,7 +63,7 @@ test("one-currency category summaries retain zero rows and defer source records 
         (endpoint === "current_source_totals" ||
           (endpoint === "financial_review_type_totals" &&
             params.get("p_month_from") === "2026-01-01" &&
-            params.get("p_month_to") === "2026-08-01")) &&
+            params.get("p_month_to") === "2027-01-01")) &&
         categoryFilter(params) === "DATA_KIOSK",
     ),
   ).toBe(true);
@@ -75,7 +75,7 @@ test("one-currency category summaries retain zero rows and defer source records 
   await expect(drawer(page).getByLabel("Review currency", { exact: true })).toHaveCount(0);
   await expect(typesTable(page).locator("tbody tr")).toHaveCount(2);
   expect(currentReads(fixture, "financial_review_records")).toHaveLength(0);
-  expect(fixture.payoutComponentRequests).toHaveLength(0);
+  expect(fixture.payoutRecordRequests).toHaveLength(0);
   expect(fixture.requests.some(({ dataset }) => dataset === "payouts")).toBe(false);
   await openRecords(page);
   await expect(recordsTable(page).locator("tbody tr")).toHaveCount(50);
@@ -301,7 +301,7 @@ test("negative and high precision differences round for display without combinin
   await expect(totalsTable(page).getByRole("cell", { name: "-0.12", exact: true })).toBeVisible();
 });
 
-test("source and maturity revisions refresh visible review data while unchanged and fee checks stay lightweight", async ({
+test("source revisions refresh visible review data while unchanged and fee checks stay lightweight", async ({
   page,
 }) => {
   await page.clock.install();
@@ -329,10 +329,13 @@ test("source and maturity revisions refresh visible review data while unchanged 
     latest_month: "2026-07-01",
     mature_cutoff_months: 2,
   };
+  await checkFinancialReviewUpdates(page, fixture);
+  expect(currentReads(fixture)).toHaveLength(reads);
   fixture.financialReviewTotals[0].finances_amount = "-98.25";
+  fixture.revisions.data_kiosk = "another-source-change";
   await checkFinancialReviewUpdates(page, fixture);
   await expect(totalsTable(page).getByRole("cell", { name: "3.25", exact: true })).toBeVisible();
-  expect(fixture.payoutComponentRequests).toHaveLength(0);
+  expect(fixture.payoutRecordRequests).toHaveLength(0);
   expect(fixture.reconciliationRequests).toHaveLength(0);
   await closeReview(page);
   await expect(page.getByText("Mature dates only", { exact: true })).toHaveCount(0);
@@ -411,7 +414,7 @@ test("empty categories keep controls reachable and members never fetch review da
   const fixture = await openFinancialReview(page, (state) => {
     state.financialReviewTotals = [];
   });
-  await expect(page.getByText(/No mature source records for Amazon.com/)).toBeVisible();
+  await expect(page.getByText(/No source records for Amazon.com/)).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Marketplace", exact: true })).toHaveValue(
     "Amazon.com",
   );
@@ -428,18 +431,19 @@ test("empty categories keep controls reachable and members never fetch review da
   expect(currentReads(fixture)).toHaveLength(reads);
 });
 
-test("a failed maturity policy after F5 keeps retry reachable and restores the saved review", async ({
+test("failed available date bounds after F5 keeps retry reachable and restores the saved review", async ({
   page,
 }) => {
   const fixture = await openFinancialReview(page);
   await selectMonth(page);
-  fixture.payoutPolicyStatus = 503;
+  fixture.financialReviewStatusForRequest = ({ params }) =>
+    params.get("select") === "activity_date" ? 503 : 200;
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Retry available months", exact: true }),
   ).toBeVisible();
   await expect(drawer(page)).toHaveCount(0);
-  fixture.payoutPolicyStatus = 200;
+  fixture.financialReviewStatusForRequest = null;
   await page.getByRole("button", { name: "Retry available months", exact: true }).click();
   await expect(drawer(page).getByRole("heading", { name: "July 2026", exact: true })).toBeVisible();
   await expect(totalsTable(page).getByRole("cell", { name: "1.25", exact: true })).toBeVisible();
@@ -528,7 +532,7 @@ test("saved snapshots are scoped to the open month and preserve historical zeros
   await expect(support.getByRole("cell", { name: "SUPPORT-50", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Saved source details", exact: true })).toHaveCount(0);
   expect(
-    fixture.payoutComponentRequests.every(
+    fixture.payoutRecordRequests.every(
       ({ reportId, authoritative }) => reportId === REVIEW_REPORT && authoritative === "false",
     ),
   ).toBe(true);

@@ -38,7 +38,6 @@ export interface FinancialReviewMonthScope {
   identity: Identity;
   category: ReviewCategory;
   month: string;
-  matureCutoff: string;
   currency: string;
   marketplace: string;
   families: readonly string[];

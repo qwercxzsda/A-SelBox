@@ -22,8 +22,8 @@ async function openReport(page, role, companyName = "Navigation Company") {
       company_amount: "75",
     },
   ];
-  fixture.payoutComponents = Array.from({ length: 75 }, (_, index) => ({
-    id: `record-${index}`,
+  fixture.payoutRecords = Array.from({ length: 75 }, (_, index) => ({
+    source_row_id: `record-${String(999 - index).padStart(3, "0")}`,
     report_id: reportId,
     authoritative: "true",
     activity_date: "2026-06-30",

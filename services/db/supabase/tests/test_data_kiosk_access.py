@@ -1,4 +1,4 @@
-"""Members read current source facts under current SKU ownership."""
+"""Member calculation grants preserve ownership without exposing raw source projections."""
 
 from decimal import Decimal
 
@@ -49,7 +49,7 @@ class DataKioskAccessTests(SourceModelFixture):
             self.connection.execute(
                 "select amount from public.data_kiosk_preprocess_entries where category='FINANCES'"
             ).fetchall(),
-            [(Decimal("100"),)],
+            [],
         )
         self.assertEqual(
             self.connection.execute(
@@ -62,7 +62,7 @@ class DataKioskAccessTests(SourceModelFixture):
                 "select amount from public.data_kiosk_preprocess_entries "
                 "where category='DATA_KIOSK'"
             ).fetchall(),
-            [(Decimal("-3"),), (Decimal("-50"),)],
+            [],
         )
         self.assertEqual(
             self.connection.execute(
@@ -71,9 +71,7 @@ class DataKioskAccessTests(SourceModelFixture):
             ).fetchall(),
             [
                 (Decimal("-50"), True),
-                (Decimal("-6"), False),
                 (Decimal("-3"), True),
-                (Decimal("100"), False),
             ],
         )
         for statement in (

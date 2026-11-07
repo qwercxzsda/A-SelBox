@@ -149,9 +149,8 @@ for (const [user, role] of [
           company_amount: sumKnown(rows, "company_amount"),
         },
       ];
-      fixture.payoutComponents = rows.map((row) => ({
+      fixture.payoutRecords = rows.map((row) => ({
         ...row,
-        id: row.source_row_id,
         report_id: reportId,
         authoritative: "true",
       }));

@@ -46,7 +46,7 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assert_report_count(1)
         self.connection.execute("set constraints all immediate")
 
-    def test_source_observations_including_empty_days_create_new_reports_at_equal_totals(
+    def test_observation_only_reprocessing_reuses_reports_including_empty_days(
         self,
     ) -> None:
         inputs = prepare_payout(self)
@@ -57,8 +57,8 @@ class PayoutIdempotencyTests(SourceModelFixture):
             acquisition_id=inputs.acquisition,
         )
         second, created = generate_payout_reports(self, inputs.company)[0]
-        self.assertTrue(created)
-        self.assertNotEqual(first, second)
+        self.assertFalse(created)
+        self.assertEqual(first, second)
         self.assertEqual(self.report_totals(first), self.report_totals(second))
         empty = self.connection.execute(
             "select current_version_id::text from private.data_kiosk_days "
@@ -70,19 +70,19 @@ class PayoutIdempotencyTests(SourceModelFixture):
         _, replacement = self.kiosk(2, [], expected=empty[0], activity_date="2026-06-16")
         self.assertEqual(replacement, empty[0])
         third, created = generate_payout_reports(self, inputs.company)[0]
-        self.assertTrue(created)
-        self.assertNotIn(third, (first, second))
+        self.assertFalse(created)
+        self.assertEqual(third, first)
         self.assertEqual(self.report_totals(first), self.report_totals(third))
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.payout_report_data_kiosk_observations "
+                "select count(*) from private.payout_report_data_kiosk_versions "
                 "where report_id=%s and version_id=%s",
                 (third, replacement),
             ).fetchone(),
             (1,),
         )
         self.assertEqual(payout_snapshot(self, first), before)
-        self.assert_report_count(3)
+        self.assert_report_count(1)
         self.connection.execute("set constraints all immediate")
 
     def test_control_only_source_revision_changes_inputs_not_company_totals(self) -> None:
@@ -159,15 +159,34 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assert_report_count(1)
         self.connection.execute("set constraints all immediate")
 
-    def test_new_equal_capture_pins_distinguish_equal_total_reports(self) -> None:
+    def test_publication_rejects_fields_outside_its_declared_scope(self) -> None:
+        inputs = prepare_payout(self)
+        extra_fields: tuple[dict[str, object], ...] = (
+            {"unknown": True},
+            {"component_count": 0},
+            {"captured_seller_namespaces": []},
+        )
+        for extra in extra_fields:
+            with (
+                self.subTest(extra=extra),
+                self.assertRaisesRegex(psycopg.errors.CheckViolation, "publication scope"),
+                self.connection.transaction(),
+            ):
+                publish_payout(self, inputs, **extra)
+        self.assert_report_count(0)
+        publish_payout(self, inputs)
+        self.assert_report_count(1)
+        self.connection.execute("set constraints all immediate")
+
+    def test_new_equal_capture_reuses_the_same_revision_report(self) -> None:
         inputs = prepare_payout(self)
         first = publish_payout(self, inputs)
         self.finances([self.transaction("100")])
         second = publish_payout(self, inputs)
-        self.assertNotEqual(first, second)
+        self.assertEqual(first, second)
         self.assertEqual(self.report_totals(first), self.report_totals(second))
         self.assertEqual(publish_payout(self, inputs), second)
-        self.assert_report_count(2)
+        self.assert_report_count(1)
 
     def test_new_namespace_and_source_change_replace_one_aggregate_atomically(self) -> None:
         first_scope = prepare_payout(self)

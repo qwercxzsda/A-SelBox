@@ -66,7 +66,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             for source, row_id, *amounts in self.as_user(
                 user,
                 "select source,source_row_id::text,source_amount,fee_amount,company_amount "
-                "from public.company_payout_report_components where report_id=%s and authoritative",
+                "from private.read_payout_report_records(%s) where authoritative",
                 (report,),
             )
         }
@@ -120,7 +120,8 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             2,
         )
         other, _ = self.owner("OTHER")
-        self.assertEqual(self.read_payout_totals(self.member(other), headers[0][0])["rows"], [])
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            self.read_payout_totals(self.member(other), headers[0][0])
         self.connection.execute("set constraints all immediate")
 
     def publish_market_month(self, marketplace: str, *, version: str = "v0") -> None:
@@ -164,11 +165,11 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         for (report, _), marketplace in zip(reports, ("Amazon.co.jp", "Amazon.com"), strict=True):
             self.assertEqual(
                 self.connection.execute(
-                    "select source_amount,data_kiosk_observation_count,marketplace_name "
+                    "select source_amount,data_kiosk_version_count,marketplace_name "
                     "from public.company_payout_reports where id=%s",
                     (report,),
                 ).fetchone(),
-                (Decimal(-1), 60, marketplace),
+                (Decimal(-1), 30, marketplace),
             )
             self.assert_same_basis(company, member, report, "USD")
         self.connection.execute("set constraints all immediate")
@@ -177,7 +178,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         inputs = prepare_payout(self)
         self.seller = "incomplete-seller"
         self.kiosk(1, [self.component("-20")])
-        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "Data Kiosk coverage"):
+        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "source coverage"):
             generate_payout_reports(self, inputs.company)
         self.assertEqual(
             self.connection.execute(
@@ -201,8 +202,8 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select authoritative,fee_amount,company_amount from "
-                "public.company_payout_report_components where report_id=%s "
-                "and (source_amount=0 or source_amount is null)",
+                "private.read_payout_report_records(%s) "
+                "where (source_amount=0 or source_amount is null)",
                 (report,),
             ).fetchall(),
             [(True, Decimal(-5), Decimal(-5))],
@@ -213,7 +214,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         inputs = prepare_payout(self)
         self.seller = "historical-seller"
         self.kiosk(1, [self.component("-20")], activity_date="2026-05-15")
-        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "Data Kiosk coverage"):
+        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "source coverage"):
             generate_payout_reports(self, inputs.company)
         self.assertEqual(
             self.connection.execute(
@@ -227,8 +228,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         self.assert_same_basis(inputs.company, self.member(inputs.company), report, "USD")
         self.assertEqual(
             self.connection.execute(
-                "select data_kiosk_observation_count from public.company_payout_reports "
-                "where id=%s",
+                "select data_kiosk_version_count from public.company_payout_reports where id=%s",
                 (report,),
             ).fetchone(),
             (60,),

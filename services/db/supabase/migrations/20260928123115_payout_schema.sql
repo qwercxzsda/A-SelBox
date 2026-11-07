@@ -25,11 +25,13 @@ create table public.company_payout_reports (
     dataset_key text not null check (dataset_key = 'economics'),
     report_name private.nonblank not null,
     change_reason private.nonblank not null,
-    calculation_version text not null check (calculation_version = 'v1'),
+    -- Count all derived detail rows; monetary totals include authoritative rows only.
     component_count integer not null check (component_count >= 0),
-    finances_batch_count integer not null check (finances_batch_count >= 0),
-    data_kiosk_observation_count integer not null check (data_kiosk_observation_count >= 0),
+    finances_version_count integer not null check (finances_version_count >= 0),
+    data_kiosk_version_count integer not null check (data_kiosk_version_count >= 0),
     terms_version_count integer not null check (terms_version_count >= 0),
+    source_coverage jsonb not null default '[]'::jsonb
+    check (jsonb_typeof(source_coverage) = 'array'),
     source_amount private.calculated_amount not null,
     fee_amount private.calculated_amount not null,
     company_amount private.calculated_amount not null,
@@ -74,26 +76,29 @@ create index payout_report_refresh_pending_idx
 on private.payout_report_refresh_state (next_attempt_at, month, company_id)
 where requested_revision > completed_revision;
 
--- These complete manifests preserve exact source observations, including empty
--- day versions and ownership inputs used to exclude other companies' rows.
-create table private.payout_report_finances_batches (
+-- Reports pin immutable contents, independently of the observations that produced them.
+-- Empty Finance retrieval evidence is frozen separately in the report coverage metadata.
+create table private.payout_report_finances_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
-    batch_id public.local_uuid not null references private.finances_preprocess_batches (id),
-    primary key (report_id, batch_id)
+    transaction_id public.local_uuid not null,
+    version_id public.local_uuid not null,
+    primary key (report_id, transaction_id),
+    unique (report_id, version_id),
+    foreign key (transaction_id, version_id)
+    references private.finances_transaction_versions (transaction_id, id)
 );
 
-create table private.payout_report_data_kiosk_observations (
+create table private.payout_report_data_kiosk_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
     day_id public.local_uuid not null,
-    batch_id public.local_uuid not null,
     version_id public.local_uuid not null,
     primary key (report_id, day_id),
     unique (report_id, version_id),
-    foreign key (batch_id, day_id, version_id)
-    references private.data_kiosk_preprocess_batch_days (batch_id, day_id, version_id)
+    foreign key (day_id, version_id)
+    references private.data_kiosk_day_versions (day_id, id)
 );
 create index payout_data_kiosk_version_idx
-on private.payout_report_data_kiosk_observations (version_id);
+on private.payout_report_data_kiosk_versions (version_id);
 
 create table private.payout_report_terms_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
@@ -103,64 +108,4 @@ create table private.payout_report_terms_versions (
     unique (report_id, terms_version_id),
     foreign key (sku_id, terms_version_id)
     references public.sku_terms_versions (sku_id, id)
-);
-
-create table public.company_payout_report_components (
-    id public.local_uuid primary key default private.uuid7(),
-    report_id public.local_uuid not null references public.company_payout_reports (id),
-    row_number integer not null check (row_number > 0),
-    source text not null check (source in ('FINANCES', 'DATA_KIOSK')), -- noqa: RF04
-    authoritative boolean not null,
-    source_row_id public.local_uuid not null,
-    source_version_id public.local_uuid not null,
-    source_identity_id public.local_uuid not null,
-    sku_id public.local_uuid not null,
-    terms_version_id public.local_uuid not null,
-    fee_period_id public.local_uuid,
-    sku private.nonblank not null,
-    marketplace_name text check (marketplace_name in (
-        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
-        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
-    )),
-    activity_date date not null,
-    component_type private.nonblank not null,
-    source_amount private.calculated_amount,
-    quantity private.calculated_amount,
-    fee_base private.calculated_amount,
-    fee_rate_percent private.calculated_amount,
-    fee_amount private.calculated_amount,
-    company_amount private.calculated_amount,
-    resolution_status text not null check (
-        resolution_status in ('APPLIED', 'NOT_APPLICABLE', 'MISSING_FEE')
-    ),
-    check (not authoritative or (
-        source_amount is not null
-        and fee_amount is not null and company_amount is not null
-        and resolution_status in ('APPLIED', 'NOT_APPLICABLE')
-    )),
-    unique (report_id, row_number),
-    unique (report_id, source, source_row_id),
-    foreign key (report_id, terms_version_id)
-    references private.payout_report_terms_versions (report_id, terms_version_id),
-    foreign key (sku_id, terms_version_id)
-    references public.sku_terms_versions (sku_id, id),
-    foreign key (terms_version_id, fee_period_id)
-    references public.sku_fee_periods (terms_version_id, id),
-    check (company_amount = source_amount + fee_amount),
-    check (
-        not authoritative or (
-            resolution_status = 'NOT_APPLICABLE' and fee_base is null
-            and fee_period_id is null and fee_rate_percent is null and fee_amount = 0
-        )
-        or (
-            resolution_status = 'APPLIED' and fee_base is not null
-            and fee_period_id is not null and fee_rate_percent is not null
-            and fee_rate_percent between 0 and 100
-            and fee_amount = -(fee_base * fee_rate_percent * 0.01)
-        )
-    )
 );

@@ -126,14 +126,16 @@ The maturity cutoff is an eligibility policy, separate from retrieval and public
 Finance and Data Kiosk retain acquisitions, successful batches, memberships, versions, components
 and raw archives indefinitely. Reprocessing creates a new batch and reuses unchanged normalized
 versions. Current selections may advance without rewriting historical contents. Empty versions
-retain successful coverage with no fabricated monetary rows. Payout references identify the exact
-batch memberships and company terms used to produce each saved report.
+retain successful coverage with no fabricated monetary rows. Payout references identify exact
+transaction/day versions and company terms directly; reports retain compact validated coverage
+intervals for their original scope. A new observation of unchanged versions does not create another
+payout.
 
 ## Company terms and payouts
 
 [SKU terms](company_fees.md) select exact-SKU ownership and marketplace/date fee rates. Changes restate
 live calculations; saved reports retain their original inputs. The [payout contract](company_payout_reports.md)
-owns monthly eligibility, coherent Finance batch selection, Data Kiosk coverage, queueing and frozen
+owns monthly eligibility, source-version selection, coverage, queueing and frozen
 results. Summary agreement validates Finance account activity, not Data Kiosk's SKU cost allocation.
 
 ## Exact values and failures

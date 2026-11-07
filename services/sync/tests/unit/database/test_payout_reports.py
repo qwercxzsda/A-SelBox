@@ -11,7 +11,7 @@ from psycopg.types.json import Jsonb
 
 from ....src.database.payout_reports import (
     load_company_payout_report,
-    load_company_payout_report_components,
+    load_company_payout_report_records,
     publish_company_payout_report,
 )
 from ...support.fakes import FakeDatabaseConnection
@@ -82,11 +82,10 @@ class TestPayoutReports(unittest.TestCase):
             "Amazon.co.jp",
             "January",
             "Initial",
-            "v1",
-            1,
-            1,
+            4,
+            3,
+            31,
             2,
-            1,
             Decimal("1e1000"),
             Decimal("-0.123456789123456789"),
             Decimal("1e1000"),
@@ -102,17 +101,16 @@ class TestPayoutReports(unittest.TestCase):
         self.assertEqual(
             (
                 report.component_count,
-                report.finances_batch_count,
-                report.data_kiosk_observation_count,
+                report.finances_version_count,
+                report.data_kiosk_version_count,
                 report.terms_version_count,
             ),
-            (1, 1, 2, 1),
+            (4, 3, 31, 2),
         )
         self.assertNotIn("current_", database.execute_calls[0][0])
-        self.assertEqual(report.calculation_version, "v1")
-        unsupported = (*header[:9], "v0", *header[10:])
-        with self.assertRaisesRegex(RuntimeError, "Unsupported payout calculation version"):
-            load_company_payout_report(FakeDatabaseConnection([unsupported]), report_id)
+        self.assertNotIn("source_coverage", database.execute_calls[0][0])
+        self.assertIn("finances_version_count", database.execute_calls[0][0])
+        self.assertIn("data_kiosk_version_count", database.execute_calls[0][0])
 
     def test_currencyless_header_must_be_an_empty_aggregate(self) -> None:
         report_id, company_id = str(uuid7()), str(uuid7())
@@ -126,7 +124,6 @@ class TestPayoutReports(unittest.TestCase):
             None,
             "June empty report",
             "Explicit request",
-            "v1",
             0,
             0,
             0,
@@ -146,10 +143,10 @@ class TestPayoutReports(unittest.TestCase):
             (Decimal(0), Decimal(0), Decimal(0)),
         )
         for index, value in (
-            (10, 1),
-            (14, Decimal(1)),
-            (15, Decimal(-1)),
-            (16, Decimal(1)),
+            (9, 1),
+            (13, Decimal(1)),
+            (14, Decimal(-1)),
+            (15, Decimal(1)),
         ):
             invalid = (*header[:index], value, *header[index + 1 :])
             with (
@@ -158,30 +155,29 @@ class TestPayoutReports(unittest.TestCase):
             ):
                 load_company_payout_report(FakeDatabaseConnection([invalid]), report_id)
 
-    def test_components_preserve_terms_for_costs_and_supporting_sales(self) -> None:
-        ids = [str(uuid7()) for _ in range(7)]
+    def test_derived_records_preserve_terms_and_stable_source_identity(self) -> None:
+        report, source_row, version, identity, sku, terms = (str(uuid7()) for _ in range(6))
         amount = Decimal("-5.123456789123456789")
         for authoritative, component_type, fee_base, status in (
             (True, "FbaStorageFee", None, "NOT_APPLICABLE"),
             (False, "NET_PRODUCT_SALES", amount, "MISSING_FEE"),
         ):
             with self.subTest(authoritative=authoritative):
-                component = (
-                    ids[0],
-                    ids[1],
-                    1,
+                record = (
+                    report,
                     "DATA_KIOSK",
                     authoritative,
-                    ids[2],
-                    ids[3],
-                    ids[4],
-                    ids[5],
-                    ids[6],
+                    source_row,
+                    version,
+                    identity,
+                    sku,
+                    terms,
                     None,
                     " SKU ",
                     "Amazon.com",
                     date(2026, 1, 1),
                     component_type,
+                    "USD",
                     amount,
                     None,
                     fee_base,
@@ -190,15 +186,18 @@ class TestPayoutReports(unittest.TestCase):
                     amount if authoritative else None,
                     status,
                 )
-                database = FakeDatabaseConnection(fetchall_results=[[component]])
-                result = load_company_payout_report_components(database, ids[1])[0]
-                self.assertEqual(result.terms_version_id, ids[6])
+                database = FakeDatabaseConnection(fetchall_results=[[record]])
+                result = load_company_payout_report_records(database, report)[0]
+                self.assertEqual(result.terms_version_id, terms)
                 self.assertIsNone(result.fee_period_id)
                 self.assertEqual(result.fee_base, fee_base)
                 self.assertEqual(result.sku, " SKU ")
                 self.assertEqual(result.source_amount, amount)
                 self.assertEqual(result.company_amount, amount if authoritative else None)
                 self.assertEqual(result.authoritative, authoritative)
+                self.assertEqual(result.currency, "USD")
+                self.assertEqual(result.identity, (report, "DATA_KIOSK", source_row))
+                self.assertIn("private.read_payout_report_records", database.execute_calls[0][0])
 
     def test_missing_report_is_not_synthesized(self) -> None:
         self.assertIsNone(load_company_payout_report(FakeDatabaseConnection([None]), str(uuid7())))

@@ -57,14 +57,14 @@ export function EstimatedSummaries({
   ].sort();
 
   return (
-    <section className="estimated-summaries" aria-label="Estimated totals" aria-busy={loading}>
+    <section className="estimated-summaries" aria-label="Current totals" aria-busy={loading}>
       <Group justify="space-between" align="center" mb={4}>
         <div>
           <Title order={2} className="ui-workspace-intro-title">
-            Estimated totals
+            Current totals
           </Title>
           <UpdateStatus active={loading && periods.some((period) => period !== null)}>
-            Updating estimated totals…
+            Updating current totals…
           </UpdateStatus>
         </div>
         <NativeSelect

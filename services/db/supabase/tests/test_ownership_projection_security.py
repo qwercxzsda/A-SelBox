@@ -128,9 +128,9 @@ class OwnershipProjectionSecurityTests(FinancialFixture):
             ("select count(*) from public.current_sku_fee_periods", (2, 1, 3)),
             ("select count(*) from private.current_sku_terms", (2, 1, 4)),
             ("select count(*) from private.finances_transaction_components", (2, 0, 7)),
-            ("select count(*) from public.finances_preprocess_entries", (2, 0, 7)),
+            ("select count(*) from public.finances_preprocess_entries", (0, 0, 7)),
             ("select count(*) from private.data_kiosk_day_components", (4, 0, 8)),
-            ("select count(*) from public.data_kiosk_preprocess_entries", (4, 0, 8)),
+            ("select count(*) from public.data_kiosk_preprocess_entries", (0, 0, 8)),
         )
         for query, counts in surfaces:
             for user, expected in zip(

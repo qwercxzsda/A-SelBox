@@ -333,7 +333,7 @@ test("a removed account loses its cached financial workspace on the next revisio
   await page.clock.fastForward(60_000);
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Estimated totals", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Current totals", exact: true })).toHaveCount(0);
   await expect
     .poll(() =>
       page.evaluate(() =>

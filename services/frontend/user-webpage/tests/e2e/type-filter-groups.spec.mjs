@@ -33,10 +33,14 @@ for (const role of ["member", "administrator"]) {
     await expect(checkbox(menu, "FBA storage fee")).toHaveCount(0);
     await checkbox(menu, STORAGE).check();
     await expect.poll(() => typesSent(fixture)).toContain("FBA_STORAGE_FEE");
-    expect(typesSent(fixture)).toContain("STORAGE_FEES");
+    expect(typesSent(fixture)).not.toContain("STORAGE_FEES");
     const allowed = new Set(
       registry
-        .filter(({ category }) => role === "administrator" || category !== "SELBOX")
+        .filter(
+          ({ source, category }) =>
+            source === category ||
+            (source === "FINANCES" && category === "SELBOX" && role === "administrator"),
+        )
         .map(({ type }) => type),
     );
     expect(typesSent(fixture).every((value) => allowed.has(value))).toBe(true);

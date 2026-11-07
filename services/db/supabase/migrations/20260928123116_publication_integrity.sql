@@ -10,8 +10,8 @@ begin
         'private.data_kiosk_preprocess_batches', 'private.data_kiosk_day_versions',
         'private.data_kiosk_day_components', 'private.data_kiosk_preprocess_batch_days',
         'private.inventory_acquisitions',
-        'public.company_payout_reports', 'public.company_payout_report_components',
-        'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_observations',
+        'public.company_payout_reports',
+        'private.payout_report_finances_versions', 'private.payout_report_data_kiosk_versions',
         'private.payout_report_terms_versions'
     ] loop
         execute format('create trigger immutable before update or delete on %s
@@ -225,8 +225,8 @@ begin
         'private.data_kiosk_preprocess_batches', 'private.data_kiosk_day_versions',
         'private.data_kiosk_day_components', 'private.data_kiosk_preprocess_batch_days',
         'private.inventory_acquisitions',
-        'public.company_payout_reports', 'public.company_payout_report_components',
-        'private.payout_report_finances_batches', 'private.payout_report_data_kiosk_observations',
+        'public.company_payout_reports',
+        'private.payout_report_finances_versions', 'private.payout_report_data_kiosk_versions',
         'private.payout_report_terms_versions'
     ] loop
         execute format('create trigger immutable_truncate
@@ -241,9 +241,8 @@ do $$
 declare child text; count_field text;
 begin
     for child, count_field in values
-        ('public.company_payout_report_components', 'component_count'),
-        ('private.payout_report_finances_batches', 'finances_batch_count'),
-        ('private.payout_report_data_kiosk_observations', 'data_kiosk_observation_count'),
+        ('private.payout_report_finances_versions', 'finances_version_count'),
+        ('private.payout_report_data_kiosk_versions', 'data_kiosk_version_count'),
         ('private.payout_report_terms_versions', 'terms_version_count')
     loop
         execute format(

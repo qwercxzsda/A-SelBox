@@ -57,12 +57,12 @@ export function createSummaryApi(
             p_limit: LOOKUP_PAGE_SIZE,
             p_offset: offset,
           },
-          "Estimated totals",
+          "Current totals",
           signal,
         ),
       decodeRows,
       rowKey,
-      "Estimated totals",
+      "Current totals",
       signal,
     );
   }

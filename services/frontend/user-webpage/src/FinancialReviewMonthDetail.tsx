@@ -18,8 +18,6 @@ export function FinancialReviewMonthDetail({
   families,
   onRetry,
   month,
-  matureCutoff,
-  latestMonth,
   months,
   onSelect,
   onClose,
@@ -32,14 +30,12 @@ export function FinancialReviewMonthDetail({
   families: readonly string[];
   onRetry: () => Promise<void>;
   month: string | null;
-  matureCutoff: string;
-  latestMonth: string;
   months: string[];
   onSelect: (month: string) => void;
   onClose: () => void;
   onExitTransitionEnd: () => void;
 }) {
-  const opened = month !== null && latestMonth !== "";
+  const opened = month !== null;
   const index = month ? months.indexOf(month) : -1;
   const olderMonth = index > 0 ? months[index - 1] : null;
   const newerMonth = index >= 0 ? (months[index + 1] ?? null) : null;
@@ -107,8 +103,7 @@ export function FinancialReviewMonthDetail({
               ) : null}
             </Group>
             <Text size="xs" c="dimmed" mb="lg">
-              Full mature months through {formatRecordMonth(latestMonth)}. Uses the same
-              mature-month window as payout reports.
+              Current source records for this calendar month. Retrieval coverage may be incomplete.
             </Text>
             <FinancialReviewMonthContent
               key={`${category}:${reviewPeriodKey(month, marketplace, currency)}${reviewFamilyStateKey(families)}`}
@@ -119,7 +114,6 @@ export function FinancialReviewMonthDetail({
               families={families}
               onRetry={onRetry}
               month={month}
-              matureCutoff={matureCutoff}
             />
           </>
         ) : null}

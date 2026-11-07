@@ -17,10 +17,15 @@ const TRANSACTION_SOURCES = ["FINANCES", "DATA_KIOSK"] as const;
 export function transactionTypeValues(dataset: TableDatasetKey, role: AccessRole): string[] {
   return transactionTypes
     .filter(({ source, category }) => {
-      if (role !== "administrator" && category === "SELBOX") return false;
-      if (dataset === "finances") return source === "FINANCES";
-      if (dataset === "data_kiosk") return source === "DATA_KIOSK";
-      return dataset === "live";
+      if (role === "unassigned") return false;
+      if (dataset === "finances") return role === "administrator" && source === "FINANCES";
+      if (dataset === "data_kiosk") return role === "administrator" && source === "DATA_KIOSK";
+      return (
+        dataset === "live" &&
+        ((source === "FINANCES" &&
+          (category === "FINANCES" || (category === "SELBOX" && role === "administrator"))) ||
+          (source === "DATA_KIOSK" && category === "DATA_KIOSK"))
+      );
     })
     .map(({ type }) => type);
 }

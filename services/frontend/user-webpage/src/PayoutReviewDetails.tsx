@@ -26,7 +26,7 @@ export function PayoutReviewDetails({
     <>
       <DetailSection
         title="Supporting records"
-        description={`Saved comparison and analysis rows for this company, ${marketplace}, and ${currency ?? "no currency"}. Their amounts are exclusive of the company payout.`}
+        description={`Comparison and analysis rows calculated from this report's saved inputs for this company, ${marketplace}, and ${currency ?? "no currency"}. Their amounts are exclusive of the company payout.`}
       >
         <PayoutComponents
           reportId={reportId}

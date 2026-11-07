@@ -152,7 +152,7 @@ class LiveSourceModelTests(SourceModelFixture):
         _, four = self.kiosk(4, [self.component("-3")], expected=three)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "delete from private.payout_report_data_kiosk_observations where report_id=%s",
+                "delete from private.payout_report_data_kiosk_versions where report_id=%s",
                 (report,),
             )
         self.assertEqual(
@@ -202,7 +202,7 @@ class LiveSourceModelTests(SourceModelFixture):
 
     def test_strict_combination_rejects_missing_and_mixed_versions(self) -> None:
         self.owner()
-        recent = self.recent_activity_date()
+        recent = self.current_activity_date()
         self.kiosk(
             1,
             [self.component(), self.component("100", category="FINANCES")],
@@ -216,7 +216,7 @@ class LiveSourceModelTests(SourceModelFixture):
             require_row(
                 self.connection.execute(sql, (self.seller, recent, recent, "v0")).fetchone()
             )[-1],
-            Decimal("90"),
+            Decimal("-10"),
         )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(sql, (self.seller, recent, recent, "different"))
@@ -344,13 +344,9 @@ class LiveSourceModelTests(SourceModelFixture):
         user = self.member(company)
         self.connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user,))
         self.connection.execute("set local role authenticated")
-        mature_cutoff_date = self.recent_activity_date()
         for start, end in (("2026-06-01", "2026-06-30"), ("2026-01-01", "2026-12-31")):
             expected_count = sum(
-                row["sku"] == "SKU"
-                and start <= str(row["posted_date"]) <= end
-                and str(row["posted_date"]) < mature_cutoff_date
-                for row in rows
+                row["sku"] == "SKU" and start <= str(row["posted_date"]) <= end for row in rows
             )
             with self.subTest(start=start, end=end):
                 self.assertEqual(

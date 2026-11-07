@@ -317,7 +317,7 @@ test("revoking membership removes the visible financial workspace and reassignme
   await expect(page.getByText("Awaiting company access", { exact: true })).toBeVisible();
   await expect(page.getByRole("tab")).toHaveCount(0);
   await expect(page.getByRole("table", { name: "Financial records", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Estimated totals", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Current totals", exact: true })).toHaveCount(0);
   const reads = financialReads(fixture);
   await checkUnchangedAccess(page, fixture);
   expect(financialReads(fixture)).toEqual(reads);

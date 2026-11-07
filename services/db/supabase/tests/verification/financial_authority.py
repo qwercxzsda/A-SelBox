@@ -28,17 +28,15 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         with facts as (
             select t.currency,t.amount
             from private.finances_component_details t
-            where t.is_current and t.posted_date < %s and t.activity_eligible
+            where t.is_current and t.activity_eligible
                 and t.category in ('FINANCES','SELBOX')
             union all
             select t.currency,t.amount
             from private.data_kiosk_day_components t
             join private.data_kiosk_days h on h.current_version_id=t.version_id
-            where (t.category='DATA_KIOSK' or
-                (h.activity_date >= %s and t.category in ('FINANCES','SELBOX')))
+            where t.category='DATA_KIOSK'
         ) select currency,sum(amount),count(*) from facts group by currency
         """,
-        (mature_cutoff_date, mature_cutoff_date),
     ).fetchall()
     expected = {currency: [amount, count] for currency, amount, count in source_totals}
     minimum = connection.execute(
@@ -54,18 +52,17 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
             row["currency"]: [Decimal(row["reported_amount"]), int(row["row_count"])]
             for row in actual
         },
-        "Administrator totals differ from mature Finances/SelBox categories, Data Kiosk costs, "
-        "and recent Data Kiosk amounts",
+        "Administrator totals differ from eligible Finances/SelBox components and Data Kiosk costs",
     )
     excluded = connection.execute(
-        "select count(*) from private.finances_component_details t "
-        "where t.is_current and t.posted_date >= %s",
-        (mature_cutoff_date,),
+        "select count(*) from private.data_kiosk_day_components c "
+        "join private.data_kiosk_days d on d.current_version_id=c.version_id "
+        "where c.category<>'DATA_KIOSK'",
     ).fetchall()[0][0]
     return mature_cutoff_date, {
         "mature_cutoff_date": mature_cutoff_date.isoformat(),
         "latest_month": policy["latest_month"],
         "exact_currency_totals_match": True,
         "authoritative_row_count": sum(values[1] for values in expected.values()),
-        "recent_finances_rows_excluded": excluded,
+        "supporting_data_kiosk_rows_excluded": excluded,
     }

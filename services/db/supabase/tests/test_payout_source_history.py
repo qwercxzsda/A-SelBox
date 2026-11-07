@@ -1,11 +1,18 @@
-"""Frozen payouts preserve exact observations across immutable source history."""
+"""Frozen payouts preserve immutable versions independently of observation history."""
 
+from datetime import date
 from typing import LiteralString
 
 import psycopg
 from psycopg import sql
 
-from services.db.supabase.tests.payout_fixtures import payout_snapshot, publish_report
+from services.db.supabase.tests.payout_fixtures import (
+    payout_snapshot,
+    prepare_payout,
+    publish_payout,
+    publish_report,
+    report_records,
+)
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
@@ -24,7 +31,7 @@ class PayoutSourceHistoryTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select version_id::text,count(*) "
-                "from private.payout_report_data_kiosk_observations "
+                "from private.payout_report_data_kiosk_versions "
                 "where report_id=any(%s::uuid[]) and version_id=any(%s::uuid[]) "
                 "group by version_id order by version_id",
                 ([first_report, empty_report], [first, empty]),
@@ -50,7 +57,7 @@ class PayoutSourceHistoryTests(SourceModelFixture):
             (0, 0),
         )
 
-    def test_shared_version_keeps_each_observations_preprocessing_identity(self) -> None:
+    def test_reused_version_has_no_frozen_observation_or_processing_label_dependency(self) -> None:
         company, _ = self.owner()
         components = [self.component("-10")]
         day, version = self.kiosk(1, components)
@@ -58,59 +65,56 @@ class PayoutSourceHistoryTests(SourceModelFixture):
         report = publish_report(self, company)
         before = payout_snapshot(self, report)
         _, reused = self.kiosk(2, components, expected=version, version="v1")
-        second_observation = self.kiosk_observation(reused)
         self.assertEqual(reused, version)
-        self.assertNotEqual(first_observation, second_observation)
+        self.assertNotEqual(self.kiosk_observation(reused), first_observation)
         self.assertEqual(payout_snapshot(self, report), before)
         self.assertEqual(
             self.connection.execute(
-                "select p.batch_id=m.batch_id,p.version_id=m.version_id "
-                "from private.payout_report_data_kiosk_observations p "
-                "join private.data_kiosk_preprocess_batch_days m on m.id=%s "
-                "where p.report_id=%s and p.day_id=%s",
-                (first_observation, report, day),
+                "select version_id::text from private.payout_report_data_kiosk_versions "
+                "where report_id=%s and day_id=%s",
+                (report, day),
             ).fetchone(),
-            (True, True),
+            (version,),
         )
-        for observation, label in ((first_observation, "v0"), (second_observation, "v1")):
-            with self.subTest(preprocess_version=label):
-                self.assertEqual(
-                    self.connection.execute(
-                        "select preprocess_version,source_version_id::text "
-                        "from private.resolve_company_components('{}',%s::uuid[],'{}') "
-                        "where source='DATA_KIOSK'",
-                        ([observation],),
-                    ).fetchall(),
-                    [(label, version)],
-                )
-        with (
-            self.assertRaisesRegex(psycopg.errors.CheckViolation, "One interpretation"),
-            self.connection.transaction(),
-        ):
-            self.connection.execute(
-                "select * from private.resolve_company_components('{}',%s::uuid[],'{}')",
-                ([first_observation, second_observation],),
-            )
-        # The original report's deferred validation must still use its original observation.
-        self.connection.execute("set constraints all immediate")
-
-    def test_repeated_observations_of_shared_contents_do_not_duplicate_amounts(self) -> None:
-        components = [self.component("-10")]
-        _, version = self.kiosk(1, components)
-        first = self.kiosk_observation(version)
-        _, reused = self.kiosk(2, components, expected=version)
-        second = self.kiosk_observation(reused)
-        self.assertEqual(reused, version)
-        self.assertNotEqual(first, second)
         self.assertEqual(
             self.connection.execute(
-                "select count(*),sum(source_amount) "
-                "from private.resolve_company_components('{}',%s::uuid[],'{}') "
+                "select count(*),sum(source_amount) from "
+                "private.resolve_company_components('{}',%s::uuid[],'{}') "
                 "where source='DATA_KIOSK'",
-                ([first, second],),
+                ([version, reused],),
             ).fetchone(),
             (1, -10),
         )
+        self.connection.execute("set constraints all immediate")
+
+    def test_frozen_resolution_ignores_later_maturity_and_current_source_selections(self) -> None:
+        inputs = prepare_payout(self)
+        report = publish_payout(self, inputs)
+        saved = payout_snapshot(self, report)
+        details = report_records(self, report)
+        terms = [
+            str(row[0])
+            for row in self.connection.execute(
+                "select terms_version_id from private.payout_report_terms_versions "
+                "where report_id=%s",
+                (report,),
+            ).fetchall()
+        ]
+        self.connection.commit()
+        self.finances([self.transaction("500")])
+        self.kiosk(2, [self.component("-40")], expected=inputs.kiosk_version)
+        self.fee(inputs.sku_identity, [("2026-01-01", None, "37")])
+        self.set_mature_cutoff_date(date(2026, 1, 1))
+        self.assertEqual(
+            self.connection.execute(
+                "select sum(company_amount) from private.resolve_company_components("
+                "%s::uuid[],%s::uuid[],%s::uuid[]) where authoritative",
+                ([inputs.finances_version], [inputs.kiosk_version], terms),
+            ).fetchone(),
+            (85,),
+        )
+        self.assertEqual(payout_snapshot(self, report), saved)
+        self.assertEqual(report_records(self, report), details)
 
     def test_report_source_dependencies_cannot_be_reassigned_or_deleted(self) -> None:
         company, _ = self.owner()
@@ -120,15 +124,15 @@ class PayoutSourceHistoryTests(SourceModelFixture):
         self.connection.commit()
         statements: tuple[tuple[LiteralString, tuple[str, ...]], ...] = (
             (
-                "update private.payout_report_data_kiosk_observations set version_id=%s "
+                "update private.payout_report_data_kiosk_versions set version_id=%s "
                 "where report_id=%s",
                 (later, report),
             ),
             (
-                "delete from private.payout_report_data_kiosk_observations where report_id=%s",
+                "delete from private.payout_report_data_kiosk_versions where report_id=%s",
                 (report,),
             ),
-            ("truncate private.payout_report_data_kiosk_observations", ()),
+            ("truncate private.payout_report_data_kiosk_versions", ()),
         )
         for statement, parameters in statements:
             with (
@@ -139,7 +143,7 @@ class PayoutSourceHistoryTests(SourceModelFixture):
                 self.connection.execute(statement, parameters)
         self.assertEqual(
             self.connection.execute(
-                "select version_id::text from private.payout_report_data_kiosk_observations "
+                "select version_id::text from private.payout_report_data_kiosk_versions "
                 "where report_id=%s and version_id=%s",
                 (report, first),
             ).fetchone(),

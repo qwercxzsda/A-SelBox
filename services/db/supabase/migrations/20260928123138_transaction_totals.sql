@@ -47,7 +47,6 @@ begin
                 t.fee_base::numeric as fee_base
             from private.finances_activity_components as t
             where t.category in ('FINANCES', 'SELBOX')
-                and t.posted_date < (select private.mature_cutoff_date())
                 and (finances_policy_is_sufficient or t.is_current)
                 and (p_date_from is null or t.posted_date >= p_date_from)
                 and (p_date_to is null or t.posted_date <= p_date_to)
@@ -66,8 +65,7 @@ begin
                 case when p_group_by_type then t.component_type::text end,
                 t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
             from private.data_kiosk_component_details as t
-            where (t.category = 'DATA_KIOSK' or (t.activity_date >= (select private.mature_cutoff_date())
-                    and t.category in ('FINANCES', 'SELBOX')))
+            where t.category = 'DATA_KIOSK'
                 and (kiosk_policy_is_sufficient or exists (
                     select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
                 ))
@@ -159,8 +157,44 @@ revoke all on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean, integer, bigint
 ) from public, anon, authenticated, service_role;
 
--- The frozen read uses the live totals response shape, keeping one UI for both
--- financial bases. Numeric values stay decimal strings and access stays RLS-bound.
+-- Derived records use saved inputs and report authorization. Numeric/boolean
+-- fields are text in JSON, matching the application's exact-value row contract.
+create function public.payout_report_records(
+    p_report_id uuid, p_authoritative boolean default true,
+    p_limit integer default 50, p_offset bigint default 0, p_types text[] default null
+) returns jsonb language plpgsql stable security invoker set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
+begin
+    if p_report_id is null or p_authoritative is null then
+        raise exception 'Report and record scope are required' using errcode='22023';
+    end if;
+    if not p_authoritative and not private.financial_account_visible() then
+        raise exception 'Administrator access required' using errcode='42501';
+    end if;
+    perform private.validate_page_bounds(p_limit,p_offset);
+    perform private.validate_transaction_filters(null,null,null,null,null,null,p_types);
+    return (
+        with records as materialized (
+            select r.* from private.read_payout_report_records(p_report_id) r
+            where r.authoritative=p_authoritative
+                and (coalesce(cardinality(p_types),0)=0 or r.component_type=any(p_types))
+        ), page as (
+            select * from records
+            order by activity_date desc,source desc,source_row_id desc
+            limit p_limit offset p_offset
+        )
+        select jsonb_build_object(
+            'rows',coalesce((select jsonb_agg(
+                (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(p)))
+                order by p.activity_date desc,p.source desc,p.source_row_id desc)
+                from page p),'[]'::jsonb),
+            'total_count',(select count(*)::text from records))
+    );
+end;
+$$;
+
+-- Grand totals remain the saved report values. Type breakdowns are derived from
+-- the same immutable inputs; neither path uses current ownership or source pointers.
 create function public.payout_report_totals(
     p_report_id uuid,
     p_group_by_type boolean default false,
@@ -169,24 +203,26 @@ create function public.payout_report_totals(
 ) returns jsonb
 language plpgsql stable security invoker set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
+declare report public.company_payout_reports;
 begin
     if p_report_id is null or p_group_by_type is null then
         raise exception 'Report and grouping preference are required' using errcode = '22023';
     end if;
     perform private.validate_page_bounds(p_limit,p_offset);
+    select * into report from public.company_payout_reports r where r.id=p_report_id;
+    if not found then raise exception 'Report access required' using errcode='42501'; end if;
     return (
         with totals as (
-            select r.currency,
+            select report.currency,
                 case when p_group_by_type then c.component_type::text end as component_type,
-                sum(c.source_amount)::text as reported_amount,
-                sum(c.fee_amount)::text as service_fee,
-                sum(c.company_amount)::text as company_amount,
+                (case when p_group_by_type then sum(c.source_amount) else report.source_amount end)::text as reported_amount,
+                (case when p_group_by_type then sum(c.fee_amount) else report.fee_amount end)::text as service_fee,
+                (case when p_group_by_type then sum(c.company_amount) else report.company_amount end)::text as company_amount,
                 count(*)::text as row_count,
                 count(c.company_amount)::text as known_company_count
-            from public.company_payout_report_components c
-            join public.company_payout_reports r on r.id = c.report_id
-            where c.report_id = p_report_id and c.authoritative
-            group by r.currency,case when p_group_by_type then c.component_type::text end
+            from private.read_payout_report_records(p_report_id) c
+            where c.authoritative
+            group by case when p_group_by_type then c.component_type::text end
         ), selected as materialized (
             select * from totals
             order by currency collate "C",component_type collate "C" nulls first
@@ -203,5 +239,6 @@ begin
     );
 end;
 $$;
-revoke all on function public.payout_report_totals(uuid, boolean, integer, bigint)
+revoke all on function public.payout_report_records(uuid, boolean, integer, bigint, text[]),
+public.payout_report_totals(uuid, boolean, integer, bigint)
 from public, anon, authenticated, service_role;

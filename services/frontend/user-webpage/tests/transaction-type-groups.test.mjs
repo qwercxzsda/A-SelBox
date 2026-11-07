@@ -46,7 +46,6 @@ test("the real type catalog is a complete, stable partition preserving exact opt
       ["advertising", "Advertising & promotions"],
       ["taxes", "Taxes"],
       ["other", "Other fees & adjustments"],
-      ["seller-costs", "Seller-provided costs"],
     ],
   );
   const members = forward.flatMap(({ options }) => options);
@@ -58,42 +57,45 @@ test("the real type catalog is a complete, stable partition preserving exact opt
   );
 });
 
-test("both sources' related types are easy to select together without merging their keys", () => {
+test("Transactions groups contain only the authoritative types from each source", () => {
   const cases = {
-    sales: ["PRODUCT_SALES", "PRODUCT_REFUNDS", "NET_PRODUCT_SALES"],
-    selling: ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"],
+    sales: ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
+    selling: ["REFERRAL_FEES", "REFUNDED_REFERRAL_FEES", "REFUND_COMMISSION"],
     fulfillment: [
-      "FBA_FULFILMENT_FEE",
-      "FBA_FULFILLMENT_FEE",
       "FBA_FULFILLMENT_FEES",
       "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
-      "INBOUND_PLACEMENT_FEES",
       "LABELING_FEE",
       "SHIPPING_CREDITS",
       "SHIPPING_CHARGEBACKS",
     ],
     inventory: [
       "FBA_STORAGE_FEE",
-      "STORAGE_FEES",
-      "AGED_STORAGE_FEES",
-      "DISPOSAL_FEES",
-      "FBA_INVENTORY_REIMBURSEMENT",
+      "FBA_AGED_INVENTORY_SURCHARGE",
+      "DISPOSAL_FEE",
+      "INVENTORY_REIMBURSEMENTS",
       "LIQUIDATION_PROCEEDS",
     ],
     advertising: [
       "SPONSORED_PRODUCT_FEE",
-      "ADVERTISING",
       "COUPON_PARTICIPATION_FEE",
       "RUN_LIGHTNING_DEAL_FEE",
-      "COUPON_FEES",
       "PROMOTIONAL_REBATES",
     ],
     taxes: ["TAX_WITHHELD", "SHIPPING_TAX", "PRODUCT_TAX"],
     other: ["SUBSCRIPTION_FEES", "CROSS_ACCOUNT_ADJUSTMENTS", "EPR_FEES"],
-    "seller-costs": ["MFN_STORAGE_COST", "MFN_FULFILLMENT_COST", "COST_OF_GOODS_SOLD"],
   };
   for (const [id, values] of Object.entries(cases))
     for (const value of values) assert.equal(groupFor(value), id, value);
+});
+
+test("administrator raw source groups preserve supporting and seller-provided types", () => {
+  const raw = transactionTypeGroups(
+    filterOptions("component_type", transactionTypeValues("data_kiosk", "administrator")),
+  );
+  const values = (id) => raw.find((group) => group.id === id).options.map(({ value }) => value);
+  assert.ok(values("sales").includes("NET_PRODUCT_SALES"));
+  assert.ok(values("seller-costs").includes("COST_OF_GOODS_SOLD"));
+  assert.ok(values("selling").includes("REFERRAL_FEE"));
 });
 
 test("role and source scopes are preserved and unfamiliar selected keys stay in Other", () => {

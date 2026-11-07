@@ -268,7 +268,7 @@ test("payout publication tokens refresh report pages, history and counts without
   const page = ["dataset", "u", "member", "a", "payouts"];
   const count = ["dataset-count", "u", "member", "a", "payouts"];
   const history = ["payout-history", "u", "member", "a", "2026-07-01", "USD", 0];
-  const details = ["payout-components", "report", true, 0];
+  const details = ["payout-records", "report", true, 0];
   const keys = [page, count, history, details];
   const unsubscribers = keys.map((key) =>
     new QueryObserver(client, {

@@ -56,7 +56,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         with self.database.connection() as connection:
             canonical = connection.execute(
-                "select distinct current_batch_id from "
+                "select current_version_id from "
                 "private.finances_transactions where seller_namespace=%s",
                 (self.seller,),
             ).fetchone()
@@ -81,28 +81,23 @@ class LocalWorkflowTests(LocalWorkflowCase):
             administrator_token,
             id="eq." + report_id,
         )
-        components = self.read_rows(
-            "company_payout_report_components",
-            administrator_token,
-            report_id="eq." + report_id,
-            order="row_number",
-        )
+        records = self.read_payout_records(administrator_token, report_id)
         self.assertEqual(len(header), 1)
-        self.assertNotIn("reconciliation_count", header[0])
+        self.assertNotIn("calculation_version", header[0])
         self.assertEqual(header[0]["company_amount"], -10)
         self.assertEqual(header[0]["marketplace_name"], "Amazon.com")
-        self.assertEqual(len(components), 4)
-        self.assertEqual(sum(row["authoritative"] is True for row in components), 4)
-        member_components = [row for row in components if row["authoritative"]]
-        self.assertEqual(sum(Decimal(str(row["company_amount"])) for row in member_components), -10)
-        self.assertEqual({row["terms_version_id"] for row in components}, {str(selected[0])})
-        self.assertEqual(header[0]["finances_batch_count"], 1)
-        self.assertEqual(header[0]["data_kiosk_observation_count"], 31)
+        self.assertEqual(len(records), 4)
+        self.assertEqual(sum(row["authoritative"] == "true" for row in records), 4)
+        member_records = [row for row in records if row["authoritative"] == "true"]
+        self.assertEqual(sum(Decimal(str(row["company_amount"])) for row in member_records), -10)
+        self.assertEqual({row["terms_version_id"] for row in records}, {str(selected[0])})
+        self.assertEqual(header[0]["finances_version_count"], 3)
+        self.assertEqual(header[0]["data_kiosk_version_count"], 31)
         self.assertEqual(header[0]["terms_version_count"], 1)
         self.assert_saved_source_totals(report_id, administrator_token, original_token)
         for relation, count in (
-            ("payout_report_finances_batches", 1),
-            ("payout_report_data_kiosk_observations", 31),
+            ("payout_report_finances_versions", 3),
+            ("payout_report_data_kiosk_versions", 31),
             ("payout_report_terms_versions", 1),
         ):
             self.assertEqual(
@@ -117,13 +112,8 @@ class LocalWorkflowTests(LocalWorkflowCase):
             header,
         )
         self.assertEqual(
-            self.read_rows(
-                "company_payout_report_components",
-                original_token,
-                report_id="eq." + report_id,
-                order="row_number",
-            ),
-            member_components,
+            self.read_payout_records(original_token, report_id),
+            member_records,
         )
 
         next_company = create_company(self.database, "New current owner")
@@ -136,25 +126,20 @@ class LocalWorkflowTests(LocalWorkflowCase):
             periods=[],
             change_reason="Correct owner",
         )
-        for token, visible_components in (
-            (administrator_token, components),
-            (original_token, member_components),
+        for token, visible_records in (
+            (administrator_token, records),
+            (original_token, member_records),
         ):
             self.assertEqual(
                 self.read_rows("company_payout_reports", token, id="eq." + report_id),
                 header,
             )
             self.assertEqual(
-                self.read_rows(
-                    "company_payout_report_components",
-                    token,
-                    report_id="eq." + report_id,
-                    order="row_number",
-                ),
-                visible_components,
+                self.read_payout_records(token, report_id),
+                visible_records,
             )
         self.assertEqual(self.read_rows("live_company_components", original_token), [])
-        self.assertEqual(len(self.read_rows("finances_preprocess_entries", next_token)), 2)
+        self.assertEqual(self.read_rows("finances_preprocess_entries", next_token), [])
         self.assertEqual(
             self.read_rows(
                 "company_payout_reports",
@@ -163,12 +148,14 @@ class LocalWorkflowTests(LocalWorkflowCase):
             ),
             [],
         )
-        self.assertEqual(
-            self.read_rows(
-                "company_payout_report_components", next_token, report_id="eq." + report_id
-            ),
-            [],
+        denied = self.stack.request(
+            "POST",
+            "/rest/v1/rpc/payout_report_records",
+            token=next_token,
+            json={"p_report_id": report_id},
         )
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.json()["code"], "42501")
         for token in (original_token, next_token):
             self.assertEqual(
                 self.read_rows("sku_terms_versions", token, id="eq." + str(selected[0])), []
@@ -309,15 +296,14 @@ class LocalWorkflowTests(LocalWorkflowCase):
                     sum((Decimal(str(row["company_amount"])) for row in rows), Decimal(0)),
                     Decimal(-10),
                 )
-                for relation, category, expected in (
-                    ("finances_preprocess_entries", "FINANCES", [100, -100]),
-                    ("data_kiosk_preprocess_entries", "DATA_KIOSK", [-7, -5]),
+                for relation, category in (
+                    ("finances_preprocess_entries", "FINANCES"),
+                    ("data_kiosk_preprocess_entries", "DATA_KIOSK"),
                 ):
                     values = self.read_rows(
                         relation, token, select="seller_namespace,amount", category="eq." + category
                     )
-                    self.assertEqual({row["seller_namespace"] for row in values}, {seller})
-                    self.assertCountEqual([row["amount"] for row in values], expected)
+                    self.assertEqual(values, [])
                 other_seller = next(item[0] for item in members if item[0] != seller)
                 self.assertEqual(
                     self.read_rows(
@@ -332,7 +318,7 @@ class LocalWorkflowTests(LocalWorkflowCase):
         acquisition = archived_finances(self.storage, self.seller)
         identifier = acquisition
         preprocess_finances_acquisition(self.database, self.storage, identifier)
-        self.assertEqual(len(self.read_rows("finances_preprocess_entries", token)), 2)
+        self.assertEqual(self.read_rows("finances_preprocess_entries", token), [])
 
         anonymous = self.stack.request("GET", "/rest/v1/live_company_components")
         self.assertEqual(anonymous.status_code, 401)

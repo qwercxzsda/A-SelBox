@@ -254,7 +254,6 @@ test("review browser fixtures apply source-specific family intersections before 
     financialReviewRequests: [],
     financialReviewStatus: 200,
     beforeFinancialReview: async () => {},
-    payoutPolicy: { mature_cutoff_date: "2027-01-27" },
     financialReviewRecords: records,
     financialReviewTypeTotals: [
       { ...base, row_count: "52" },
@@ -313,7 +312,6 @@ test("review browser fixtures apply source-specific family intersections before 
         "2026",
         "USD",
         "Amazon.com",
-        "2026-07",
       )
     ).rows.length,
     4,
@@ -351,7 +349,6 @@ test("Germany and France using EUR stay separate before family counts, records a
     financialReviewRequests: [],
     financialReviewStatus: 200,
     beforeFinancialReview: async () => {},
-    payoutPolicy: { mature_cutoff_date: "2027-01-27" },
     financialReviewRecords: markets.flatMap(([marketplace_name, count]) =>
       Array.from({ length: count }, (_, index) => ({
         ...base,
@@ -398,7 +395,6 @@ test("Germany and France using EUR stay separate before family counts, records a
       "2026",
       "EUR",
       marketplace,
-      "2026-07",
     );
     assert.equal(types.rows.length, 1);
     assert.equal(types.rows[0].marketplace_name, marketplace);

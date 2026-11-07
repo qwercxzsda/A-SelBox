@@ -1,10 +1,6 @@
 erDiagram
     direction LR
     public_companies ||..o{ public_company_payout_reports : "company_id"
-    public_sku_fee_periods o|..o{ public_company_payout_report_components : "terms_version_id + fee_period_id"
-    private_payout_report_terms_versions ||..o{ public_company_payout_report_components : "report_id + terms_version_id"
-    public_company_payout_reports ||..o{ public_company_payout_report_components : "report_id"
-    public_sku_terms_versions ||..o{ public_company_payout_report_components : "sku_id + terms_version_id"
     public_companies ||--o{ private_payout_report_refresh_state : "company_id"
 
     public_company_payout_reports["public.company_payout_reports"] {
@@ -17,40 +13,15 @@ erDiagram
         text dataset_key "NN"
         nonblank report_name "NN"
         nonblank change_reason "NN"
-        text calculation_version "NN"
         integer component_count "NN"
-        integer finances_batch_count "NN"
-        integer data_kiosk_observation_count "NN"
+        integer finances_version_count "NN"
+        integer data_kiosk_version_count "NN"
         integer terms_version_count "NN"
+        jsonb source_coverage "NN"
         calculated_amount source_amount "NN"
         calculated_amount fee_amount "NN"
         calculated_amount company_amount "NN"
         timestamp_with_time_zone created_at "NN"
-    }
-
-    public_company_payout_report_components["public.company_payout_report_components"] {
-        local_uuid id PK "NN"
-        local_uuid report_id FK "NN"
-        integer row_number "NN"
-        text source "NN"
-        boolean authoritative "NN"
-        local_uuid source_row_id "NN"
-        local_uuid source_version_id "NN"
-        local_uuid source_identity_id "NN"
-        local_uuid sku_id FK "NN"
-        local_uuid terms_version_id FK "NN"
-        local_uuid fee_period_id FK "NULL"
-        nonblank sku "NN"
-        text marketplace_name "NULL"
-        date activity_date "NN"
-        nonblank component_type "NN"
-        calculated_amount source_amount "NULL"
-        calculated_amount quantity "NULL"
-        calculated_amount fee_base "NULL"
-        calculated_amount fee_rate_percent "NULL"
-        calculated_amount fee_amount "NULL"
-        calculated_amount company_amount "NULL"
-        text resolution_status "NN"
     }
 
     private_payout_report_refresh_state["private.payout_report_refresh_state"] {
@@ -66,19 +37,6 @@ erDiagram
         text last_error_message "NULL"
     }
 
-    private_payout_report_terms_versions["private.payout_report_terms_versions (reference)"] {
-        local_uuid report_id PK, FK "NN"
-        local_uuid sku_id PK, FK "NN"
-    }
-
     public_companies["public.companies (reference)"] {
-        local_uuid id PK "NN"
-    }
-
-    public_sku_fee_periods["public.sku_fee_periods (reference)"] {
-        local_uuid id PK "NN"
-    }
-
-    public_sku_terms_versions["public.sku_terms_versions (reference)"] {
         local_uuid id PK "NN"
     }

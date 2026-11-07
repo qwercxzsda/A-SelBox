@@ -16,21 +16,15 @@ filter can narrow the caller's visible data but cannot expand it.
 The SKU discovery RPC additionally requires a current stored Administrator account.
 Members use their assigned SKUs and cannot call that administrator endpoint.
 
-Current transaction reads use PostgreSQL's current UTC date minus the mature cutoff
-period of two calendar months as the mature cutoff date. Dates before it are mature;
-the mature cutoff date and later are recent.
-Recent dates use Data Kiosk amounts in all three monetary categories. Mature dates use
-Finances activity amounts in the Finances and SelBox categories, Data Kiosk amounts in the
-Data Kiosk category. Transaction rows always represent actual normalized source components;
-frontend diagnostic differences never enter pages, counts or totals. These choices use the
-preprocessing categories. Members see only their assigned amounts in the Finances and Data Kiosk
-categories. Actual SelBox rows have
-zero company contribution and remain administrator-only. Company/SKU
-filters omit these account controls rather than apportioning them. Comparison and
-analysis rows do not count toward pages, counts, or totals. Strict reads additionally
-validate complete required coverage and ownership/fees. Monthly reports require
-month end strictly before the mature cutoff date. Source changes and reassignment affect live
-reads but cannot change saved reports.
+Current transaction reads use eligible Finances activity in the `FINANCES` and `SELBOX`
+categories and Data Kiosk components in the `DATA_KIOSK` category at every date. There is no
+age-based source switch or substitute sales source when Finances is absent. Transaction rows
+represent normalized source components; diagnostic comparisons and analysis rows never enter
+pages, counts or totals. Members see only their assigned company amounts. Actual SelBox rows
+have zero company contribution and remain administrator-only; company and SKU filters omit them.
+Strict reads validate required coverage, selected preprocessing labels, ownership and fees for
+the requested dates. Only monthly payout publication uses the two-calendar-month eligibility
+cutoff. Source changes and reassignment affect current reads without changing saved reports.
 
 Date bounds are inclusive, finite calendar dates. If both are supplied, the start cannot exceed the
 end. Selection arrays are one-dimensional and cannot contain null members. Omitted, null, or empty
@@ -128,6 +122,10 @@ inconsistent fields; it does not rewrite a base or fabricate a configured rate.
 
 ## Raw source pages
 
+Raw source pages, exact counts and preprocessing-entry projections are administrator-only.
+Authenticated members cannot call the source page/count RPCs and receive no rows from the
+public source-entry views. Main Transactions and its company-scoped details remain available.
+
 [`public.source_transaction_page`](../services/db/supabase/migrations/20260928123136_source_transaction_page.sql)
 serves the Finances and Data Kiosk tabs. Its required `p_dataset` is `finances` or
 `data_kiosk`. Optional parameters are `p_limit` (25), `p_offset` (0), `p_order_by` (`date`),
@@ -157,14 +155,13 @@ activity-eligible facts.
 Source pages and `financial_source_record` preserve the exact normalized row/version. Displayed
 batch and preprocessing metadata comes from its current observation when that version is selected,
 or its latest associated preprocessing batch otherwise. It is not an originating batch and is not
-claimed to be the observation used by a particular payout. Frozen payout manifests independently
-retain the exact original batch membership. Data Kiosk source detail is recoverable from that
-acquisition's compressed archives using the day, SKU and component key.
+claimed to be a payout input. Frozen payout manifests independently retain the exact normalized
+versions. Data Kiosk source detail is recoverable through an associated acquisition's compressed
+archives using the day, SKU and component key.
 
-This endpoint preserves the raw source views' visibility, including historical versions and every
-source category available to the caller. It does not impose Transactions' current-version or
-category and source-authority restrictions. Existing fact and metadata RLS still apply; choosing a dataset
-cannot expand access. The UI exposes these tabs to administrators.
+Administrators can inspect historical versions and every retained source category. The endpoint
+does not impose Transactions' current-version or category restrictions. Stored account checks
+enforce administrator access independently of tab visibility, and existing fact/metadata RLS remains active.
 
 The same 10,000-match amount-ordering limit applies to each raw source tab, after its filters,
 search, and RLS. Overflow is checked before sorting or metadata projection; exactly 10,000 matches
@@ -283,11 +280,21 @@ ordering as live totals. It is stable, uses invoker security and an empty search
 path, and is executable only by authenticated application users with access to
 the saved report under RLS.
 
-It reads frozen authoritative components across all namespaces, including
-zero-amount rows in its records and counts just as live totals do. Supporting
-comparisons and seller reconciliation never enter its totals. Missing or
-inaccessible reports return an empty result. A zero report without contributing
-records also returns no groups; its saved header still records the exact zero totals.
+Ungrouped monetary totals use the frozen header. Counts and Type groups are calculated from its
+saved source and terms versions, including authoritative zero-amount rows as live totals do.
+Supporting comparisons and seller reconciliation never enter these totals. Missing or inaccessible
+reports raise `42501` with the generic report-access error. A report without contributing records
+returns no Type groups; its saved header still records the exact totals.
+
+`public.payout_report_records(p_report_id, p_authoritative, p_limit, p_offset, p_types)` returns
+`{ "rows": [...], "total_count": "..." }` with exact numeric strings. It uses the same saved
+inputs and formula as the Type totals. The default is authoritative records, 50 rows at offset
+zero, with no Type filter. Record identity is `(report_id, source, source_row_id)`.
+Pages order by date, source and source-row ID descending.
+Members can read only their own company's authoritative records;
+administrators may select supporting records. Pagination and Type filtering do not change the
+frozen header totals. An accessible report with no matching records returns an empty page and
+`total_count: "0"`. Inaccessible reports and member requests for supporting records raise `42501`.
 
 ## Filter options
 
@@ -297,8 +304,10 @@ preload [`public.sku_filter_options`](../services/db/supabase/migrations/2026092
 during identity bootstrap. Opening a menu makes no database request. Options may return zero rows
 under the selected dataset and other filters.
 
-Administrators receive every known Type for the dataset's source scope. Members receive
-every known Type except category `SELBOX`. These are local registry choices, not occurrence-based
+Transactions offers Finances Types in category `FINANCES`, plus `SELBOX` for administrators,
+and Data Kiosk Types in category `DATA_KIOSK`. Raw administrator tabs and Financial review keep
+the full source Type catalogs. Members have no raw-source Type catalog. Literal search uses the
+same dataset/role-filtered Type catalog. These are local registry choices, not occurrence-based
 database discovery. After selection, page/count RPCs still query matching transaction rows for the
 table and exact pagination; knowing valid Type names does not establish their transaction counts.
 
@@ -367,8 +376,8 @@ query-specific measurement. See the [performance guide](database_performance.md)
 
 Finance batch links preserve exact observed transaction versions; Data Kiosk membership uses
 `UNIQUE(batch_id, day_id)` and identifies the batch's complete day version. Payout listings retain
-their creation-time/ID order and company index. Data Kiosk payout references preserve the exact
-batch/day/version membership used by each report.
+their creation-time/ID order and company index. Payout references identify exact transaction and
+day versions directly; observation membership remains source-processing history.
 
 ## Shared rules and API configuration
 
