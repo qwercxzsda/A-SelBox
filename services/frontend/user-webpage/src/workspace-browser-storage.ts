@@ -1,5 +1,4 @@
-import { readBuildConfig } from "./api/runtime-config";
-import { validateApiConfig } from "./api/client-config";
+import { readRuntimeConfig } from "./api/runtime-config";
 import {
   clearWorkspaceStorage,
   workspaceStoragePrefix,
@@ -8,7 +7,7 @@ import {
 
 export function browserWorkspaceStorage(): { storage: WorkspaceStorage | null; prefix: string } {
   try {
-    const { supabaseUrl } = validateApiConfig(readBuildConfig(import.meta.env));
+    const { supabaseUrl } = readRuntimeConfig(import.meta.env, window.location.origin);
     return { storage: window.sessionStorage, prefix: workspaceStoragePrefix(supabaseUrl) };
   } catch {
     return { storage: null, prefix: "" };

@@ -272,6 +272,13 @@ Use an API URL reachable from the browser; local ports can differ. A public `ano
 accepted. Secret and `service_role` keys must never enter `VITE_` settings. HTTPS is required except
 for local hosts. Missing configuration has no implicit fallback.
 
+For a reverse proxy that serves the app and Supabase on one origin, explicitly set
+`VITE_SUPABASE_URL=same-origin` and keep the public key configured. The browser resolves the API
+origin at runtime, so changing a tunnel hostname does not require rebuilding the bundle. Route
+`/auth/v1/` and `/rest/v1/` requests to Supabase, preserving their paths and methods; those paths
+must not return the application's HTML fallback. Runtime origins still require HTTPS except for
+local development hosts. Session and workspace storage use that same resolved origin.
+
 Reverse proxies must allow the Auth token, user, logout, signup, verify, and recover endpoints,
 including authenticated `PUT /auth/v1/user` for password updates. Configure approved callback URLs
 for the deployed origin/path and email delivery for confirmation/recovery. The local preview uses a

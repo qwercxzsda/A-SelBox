@@ -12,8 +12,7 @@ import {
   type SkuAssignment,
   type WorkspaceRevisions,
 } from "./api";
-import { readBuildConfig } from "./api/runtime-config";
-import { validateApiConfig } from "./api/client-config";
+import { readRuntimeConfig } from "./api/runtime-config";
 import { sessionRefreshDelayMs } from "./session";
 import { createSessionStore, sessionStorageKey } from "./session-storage";
 import { REVISION_SOURCES } from "./workspace-revisions";
@@ -39,7 +38,7 @@ interface IdentityLoadOptions extends IdentityRefreshOptions {
 
 export function browserSessionStore() {
   try {
-    const { supabaseUrl } = validateApiConfig(readBuildConfig(import.meta.env));
+    const { supabaseUrl } = readRuntimeConfig(import.meta.env, window.location.origin);
     return createSessionStore(window.sessionStorage, sessionStorageKey(supabaseUrl));
   } catch {
     return createSessionStore(null, "");

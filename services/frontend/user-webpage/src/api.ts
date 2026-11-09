@@ -1,5 +1,5 @@
 import { createApiClient } from "./api/client.ts";
-import { readBuildConfig } from "./api/runtime-config.ts";
+import { readRuntimeConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FetchInventoryPageOptions } from "./api/inventory.ts";
@@ -50,7 +50,7 @@ export type {
 
 let defaultClient: ReturnType<typeof createApiClient> | undefined;
 function getDefaultClient(): ReturnType<typeof createApiClient> {
-  defaultClient ??= createApiClient(readBuildConfig(import.meta.env));
+  defaultClient ??= createApiClient(readRuntimeConfig(import.meta.env, window.location.origin));
   return defaultClient;
 }
 
