@@ -91,7 +91,6 @@ export function isPolledDataset(dataset: unknown): boolean {
 
 export function isPolledQuery(query: Query): boolean {
   const [family] = query.queryKey;
-  if (family === "payout-policy") return true;
   const dataset = query.queryKey[4];
   return (family === "dataset" || family === "dataset-count") && isPolledDataset(dataset);
 }

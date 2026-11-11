@@ -4,8 +4,7 @@
 }
 .totals-heading,
 .totals-heading-title,
-.totals-card-title,
-.totals-footer {
+.totals-card-title {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -22,11 +21,16 @@
   color: var(--ui-text-muted);
   font-size: 12px;
 }
-.totals-update,
-.totals-footer,
-.totals-card-footer {
+.totals-update {
   color: var(--ui-text-muted);
   font-size: var(--ui-font-caption);
+}
+.totals-section-title {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: var(--ui-font-section);
+  font-weight: 600;
+  line-height: 1.4;
 }
 .totals-scope {
   padding-bottom: 12px;
@@ -61,7 +65,7 @@
 .totals-card-title {
   min-width: 0;
 }
-.totals-card-title h3 {
+.totals-card-label {
   margin: 0;
   font-size: 15px;
   line-height: 1.4;
@@ -243,23 +247,6 @@
 }
 .marketplace-totals-table tr[data-currency]:hover {
   background: var(--ui-hover-surface);
-}
-.totals-card-footer {
-  padding: 10px 12px;
-  border-top: 1px solid var(--ui-border);
-  font-size: 11px;
-}
-.totals-footer {
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10px 0;
-}
-.totals-footer details {
-  max-width: 100%;
-}
-.totals-footer summary {
-  cursor: pointer;
-  color: var(--ui-accent);
 }
 @media (max-width: 1199px) {
   .totals-cards-grid {

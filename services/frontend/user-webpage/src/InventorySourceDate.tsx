@@ -1,5 +1,5 @@
-import { Badge, Group, Text } from "@mantine/core";
-import { inventoryAge, inventorySourceDay } from "./inventory-coverage";
+import { Text } from "@mantine/core";
+import { INVENTORY_OVERDUE_DAYS, inventoryAge, inventorySourceDay } from "./inventory-coverage";
 
 export function InventorySourceDate({
   snapshotDate,
@@ -18,18 +18,17 @@ export function InventorySourceDate({
   const day = snapshot ?? inventorySourceDay(reportCreatedAt, marketplace);
   const age = inventoryAge(day, now, marketplace);
   return (
-    <Group gap={6} mt={4} className="inventory-source-date">
-      <Text size={compact ? "xs" : "sm"} c="dimmed">
-        {snapshot
-          ? `Stock as of ${snapshot}`
-          : `Stock date unavailable · Report ${day ?? "date unavailable"}`}
-        {day ? ` · ${age.label}` : ""}
-      </Text>
-      {age.overdue ? (
-        <Badge size="xs" color="orange" variant="light">
-          Overdue snapshot
-        </Badge>
-      ) : null}
-    </Group>
+    <Text
+      mt={4}
+      size={compact ? "xs" : "sm"}
+      c={age.overdue ? "#8a5000" : "dimmed"}
+      className="inventory-source-date"
+      title={`Dates more than ${String(INVENTORY_OVERDUE_DAYS)} calendar days old in this marketplace are out of date.`}
+    >
+      {snapshot ? "Stock as of " : "Stock date unavailable · Report "}
+      {day ? <time dateTime={day}>{day}</time> : "date unavailable"}
+      {day ? ` · ${age.label}` : ""}
+      {age.overdue ? " · Out of date" : ""}
+    </Text>
   );
 }

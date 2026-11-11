@@ -1,6 +1,7 @@
 import type { InventoryFilterOptions, InventorySearchValues } from "./api/inventory.ts";
 import type { FilterOption } from "./filter-options.ts";
 import marketplaces from "./generated/marketplaces.json" with { type: "json" };
+import { sourceCodeLabel } from "./categories.ts";
 
 const normalizeStatus = (value: string | null) =>
   value?.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ?? "";
@@ -17,18 +18,27 @@ const HEALTH_URGENCY = new Map([
   ["healthy", 0],
 ]);
 const RECOMMENDATIONS = new Map([
-  ["editlisting", { label: "Edit listing", tone: "listing", urgency: 50 }],
-  ["gotorestock", { label: "Restock", tone: "restock", urgency: 40 }],
-  ["restock", { label: "Restock", tone: "restock", urgency: 40 }],
-  ["restockinventory", { label: "Restock", tone: "restock", urgency: 40 }],
-  ["sendtofba", { label: "Send to FBA", tone: "shipment", urgency: 30 }],
-  ["advertiselisting", { label: "Advertise listing", tone: "unknown", urgency: 20 }],
+  ["gotorestock", { label: "Restock", tone: "replenishment", urgency: 50 }],
+  ["restock", { label: "Restock", tone: "replenishment", urgency: 50 }],
+  ["restockinventory", { label: "Restock", tone: "replenishment", urgency: 50 }],
+  ["sendtofba", { label: "Send to FBA", tone: "replenishment", urgency: 50 }],
+  ["createshippingplan", { label: "Create shipping plan", tone: "replenishment", urgency: 50 }],
+  ["gotostranded", { label: "Resolve stranded inventory", tone: "attention", urgency: 40 }],
+  ["editlisting", { label: "Edit listing", tone: "listing", urgency: 30 }],
+  ["lowerprice", { label: "Lower price", tone: "unknown", urgency: 20 }],
+  ["advertiselisting", { label: "Advertise listing", tone: "unknown", urgency: 10 }],
   ["noexcessinventory", { label: "No excess inventory", tone: "unknown", urgency: 0 }],
   ["noactionrequired", { label: "No action required", tone: "unknown", urgency: 0 }],
+  [
+    "norestockexcessactionrequired",
+    { label: "No restock or excess action required", tone: "unknown", urgency: 0 },
+  ],
 ]);
 
 export const recommendationLabel = (value: string | null) =>
-  value === null ? "Unavailable" : (RECOMMENDATIONS.get(normalizeStatus(value))?.label ?? value);
+  value === null
+    ? "Unavailable"
+    : (RECOMMENDATIONS.get(normalizeStatus(value))?.label ?? sourceCodeLabel(value));
 export const recommendationTone = (value: string | null) =>
   RECOMMENDATIONS.get(normalizeStatus(value))?.tone ?? "unknown";
 

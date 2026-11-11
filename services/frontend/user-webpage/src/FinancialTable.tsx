@@ -1,6 +1,6 @@
 import "./FinancialTable.css";
 import { useId, useRef, type ReactNode } from "react";
-import { Group, Paper, Table, Text } from "@mantine/core";
+import { Group, Paper, Table } from "@mantine/core";
 import type { TableDatasetKey } from "./api";
 import type { useFinanceTable } from "./use-finance-table";
 import { TableScrollControls } from "./TableScrollControls";
@@ -28,14 +28,9 @@ export function FinancialTable({
   return (
     <>
       <FloatingTableHeader target={scrollTarget} />
-      <Group gap="xs" justify="space-between" mb="xs" mih={22}>
-        <Text size="xs" c="dimmed">
-          Column headings offer filters and ordering. Select a row or press Enter for details.
-        </Text>
-        <Group gap="xs">
-          <TableScrollControls target={scrollTarget} targetId={scrollId} />
-          {status}
-        </Group>
+      <Group gap="xs" justify="flex-end" mb="xs" mih={22}>
+        <TableScrollControls target={scrollTarget} targetId={scrollId} />
+        {status}
       </Group>
       <Paper withBorder className="table-card" data-dataset={dataset} aria-busy={isBusy}>
         <div

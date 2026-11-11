@@ -1,5 +1,5 @@
 import type { CanonicalRow } from "./api/types.ts";
-import { transactionTypeLabel } from "./categories.ts";
+import { sourceCodeLabel } from "./categories.ts";
 import { FEE_FAMILIES, type FeeFamily } from "./fee-family-definitions.ts";
 
 const SOURCE_LABELS = { FINANCES: "Finances", DATA_KIOSK: "Data Kiosk" };
@@ -34,7 +34,7 @@ export function resolveFeeFamily(source: string, type: string): FeeFamily {
   return (
     familiesByType.get(JSON.stringify([source, type])) ?? {
       id: `source:${source}:${encodeURIComponent(type)}`,
-      label: `${transactionTypeLabel(type)} · ${SOURCE_LABELS[source]}`,
+      label: `${sourceCodeLabel(type)} · ${SOURCE_LABELS[source]}`,
       description: `Unrecognized ${SOURCE_LABELS[source]} type ${type}. Its amount remains separate; no cross-source correspondence is assumed.`,
       financesTypes: source === "FINANCES" ? [type] : [],
       dataKioskTypes: source === "DATA_KIOSK" ? [type] : [],

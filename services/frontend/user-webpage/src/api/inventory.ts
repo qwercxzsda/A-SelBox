@@ -202,7 +202,7 @@ export function createInventoryApi(transport: ApiTransport) {
             limit: String(LOOKUP_PAGE_SIZE),
             offset: String(captures.length),
           }),
-          "Inventory snapshot coverage",
+          "Inventory availability",
           signal,
           false,
         );

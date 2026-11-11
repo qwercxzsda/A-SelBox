@@ -62,7 +62,7 @@ for (const width of [1440, 1920, 834, 390]) {
       const heading = card.locator(".totals-card-heading");
       const geometry = await heading.evaluate((element) => {
         const box = element.getBoundingClientRect();
-        const title = element.querySelector("h3").getBoundingClientRect();
+        const title = element.querySelector(".totals-card-label").getBoundingClientRect();
         const control = element.querySelector(".totals-date-control").getBoundingClientRect();
         const style = globalThis.getComputedStyle(element);
         return {

@@ -54,6 +54,10 @@ test("type match actions and clear keep keyboard focus in the option search", as
   await signIn(page);
   const menu = await openColumn(page, "Type");
   const search = menu.getByLabel("Search type", { exact: true });
+  await expect(search).toHaveAttribute("placeholder", "Groups or individual types");
+  expect(
+    await search.evaluate((input) => [...input.labels].map((label) => label.textContent)),
+  ).toEqual(["Search"]);
   await search.fill("refund");
   for (const action of ["Select matches", "Deselect matches", "Select matches", "Clear type"]) {
     const button = menu.getByRole("button", { name: action, exact: true });

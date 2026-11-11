@@ -1,7 +1,7 @@
 import marketplaces from "./generated/marketplaces.json" with { type: "json" };
 import transactionTypes from "./generated/transaction-types.json" with { type: "json" };
 import type { AppAccount, DatasetFilterField, TableDatasetKey } from "./api/types.ts";
-import { humanizeCode, transactionTypeLabel } from "./categories.ts";
+import { humanizeCode, sourceCodeLabel } from "./categories.ts";
 
 type AccessRole = AppAccount["access_role"];
 
@@ -52,7 +52,7 @@ export function localFilterValues(
 /** Menus and literal search use the same displayed labels for source and type keys. */
 export function filterOptionLabel(field: DatasetFilterField, value: string): string {
   return field === "component_type"
-    ? transactionTypeLabel(value)
+    ? sourceCodeLabel(value)
     : field === "source"
       ? humanizeCode(value)
       : value;

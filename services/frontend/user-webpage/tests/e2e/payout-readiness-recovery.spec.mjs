@@ -1,37 +1,31 @@
 import { expect, test } from "@playwright/test";
-import { mockSupabase, signIn } from "./fixtures.mjs";
-import { applyReportMonth } from "./table-actions.mjs";
+import { openReviewReadiness, readiness } from "./payout-readiness-fixtures.mjs";
 
 const companyId = (index) => `0198b50b-701a-7000-8000-${String(index + 1).padStart(12, "0")}`;
-const readiness = (page) =>
-  page.getByRole("region", { name: "April 2026 payout readiness", exact: true });
 
 async function openReadiness(page, companyCount = 1, requirementCount = 26) {
-  const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "administrator";
-  fixture.payoutReadinessRows = Array.from({ length: companyCount }, (_, index) => ({
-    company_id: companyId(index),
-    company_name: `Company ${String(index + 1).padStart(2, "0")}`,
-    month: "2026-04-01",
-    status: "BLOCKED",
-    reason: "SETUP_REQUIRED",
-    has_report: "false",
-    last_success_at: null,
-    next_attempt_at: null,
-  }));
-  fixture.payoutSetupBlockers = Array.from({ length: requirementCount }, (_, index) => ({
-    company_id: companyId(0),
-    month: "2026-04-01",
-    sku: `BLOCKED-${String(index).padStart(2, "0")}`,
-    reason: "MISSING_OWNERSHIP",
-    marketplace_name: "Amazon.com",
-    first_date: "2026-04-01",
-    last_date: "2026-04-30",
-    component_count: "1",
-  }));
-  await signIn(page);
-  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await applyReportMonth(page, "2026-04");
+  const fixture = await openReviewReadiness(page, (fixture) => {
+    fixture.payoutReadinessRows = Array.from({ length: companyCount }, (_, index) => ({
+      company_id: companyId(index),
+      company_name: `Company ${String(index + 1).padStart(2, "0")}`,
+      month: "2026-04-01",
+      status: "BLOCKED",
+      reason: "SETUP_REQUIRED",
+      has_report: "false",
+      last_success_at: null,
+      next_attempt_at: null,
+    }));
+    fixture.payoutSetupBlockers = Array.from({ length: requirementCount }, (_, index) => ({
+      company_id: companyId(0),
+      month: "2026-04-01",
+      sku: `BLOCKED-${String(index).padStart(2, "0")}`,
+      reason: "MISSING_OWNERSHIP",
+      marketplace_name: "Amazon.com",
+      first_date: "2026-04-01",
+      last_date: "2026-04-30",
+      component_count: "1",
+    }));
+  });
   await expect(readiness(page).getByText("Company 01", { exact: true })).toBeVisible();
   return fixture;
 }

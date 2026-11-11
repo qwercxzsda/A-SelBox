@@ -38,7 +38,6 @@ export function useFinancialReviewPeriod(
       ),
     staleTime: Infinity,
   });
-  const latestMonth = bounds.data?.lastMonth ?? "";
   const { year, years } = resolveReviewYear(scope.year, bounds.data);
   const periodAvailable = year !== "";
 
@@ -127,7 +126,6 @@ export function useFinancialReviewPeriod(
     familyQuery,
     familyTypes: compatibleFamilyTypes,
     familyOptions,
-    latestMonth,
     year,
     years,
     currencies,

@@ -21,7 +21,7 @@ test("source lookup preserves its submitted ID and page across closing, tabs and
 }, testInfo) => {
   const { table, lookup, trigger } = await secondPage(page);
   const submittedId = await lookup
-    .getByRole("textbox", { name: "Amazon transaction ID", exact: true })
+    .getByRole("textbox", { name: "Search Amazon transaction ID", exact: true })
     .inputValue();
   await lookup.getByRole("button", { name: "Close transaction lookup", exact: true }).click();
   await expect(lookup).toBeHidden();
@@ -35,13 +35,13 @@ test("source lookup preserves its submitted ID and page across closing, tabs and
   await expect(lookup).toBeHidden();
   await trigger.click();
   await expect(
-    lookup.getByRole("textbox", { name: "Amazon transaction ID", exact: true }),
+    lookup.getByRole("textbox", { name: "Search Amazon transaction ID", exact: true }),
   ).toHaveValue(submittedId);
   await expect(table.locator("tbody tr").first()).toContainText("26.00");
   await page.reload();
   await expect(lookup).toBeVisible();
   await expect(
-    lookup.getByRole("textbox", { name: "Amazon transaction ID", exact: true }),
+    lookup.getByRole("textbox", { name: "Search Amazon transaction ID", exact: true }),
   ).toHaveValue(submittedId);
   await expect(table.locator("tbody tr").first()).toContainText("26.00");
   await page
@@ -134,13 +134,27 @@ test("an open source record exposes a failed background refresh and allows retry
   await expect(drawer.getByRole("group", { name: "source record", exact: true })).toBeFocused();
 });
 
-test("a fresh transaction search starts at its first page", async ({ page }) => {
-  const { state, table } = await secondPage(page);
+test("clearing edits only the lookup input, and submitting a new transaction starts at page one", async ({
+  page,
+}) => {
+  const { state, table, lookup } = await secondPage(page);
+  const input = lookup.getByRole("textbox", { name: "Search Amazon transaction ID", exact: true });
+  const requestCount = state.requests.length;
+  await lookup.getByRole("button", { name: "Clear search", exact: true }).click();
+  await expect(input).toHaveValue("");
+  await expect(input).toBeFocused();
+  await expect(
+    lookup.getByRole("button", { name: "Find transaction", exact: true }),
+  ).toBeDisabled();
+  await expect(table.locator("tbody tr").first()).toContainText("26.00");
+  expect(state.requests).toHaveLength(requestCount);
   const nextId = "ANOTHER-EXACT-TRANSACTION";
   state.rows.forEach((row) => {
     row.native_transaction_id = nextId;
   });
-  await page.getByRole("textbox", { name: "Amazon transaction ID", exact: true }).fill(nextId);
+  await input.fill(nextId);
+  await expect(table.locator("tbody tr").first()).toContainText("26.00");
+  expect(state.requests).toHaveLength(requestCount);
   await page.getByRole("button", { name: "Find transaction", exact: true }).click();
   await expect(table.locator("tbody tr").first()).toContainText("1.00");
   expect(state.requests.at(-1)).toMatchObject({ p_native_transaction_id: nextId, p_offset: 0 });

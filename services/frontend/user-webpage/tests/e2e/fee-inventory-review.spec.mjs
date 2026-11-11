@@ -73,14 +73,17 @@ for (const role of ["administrator", "member"]) {
     await signIn(page);
     await page.getByRole("tab", { name: "Inventory", exact: true }).click();
     const top = page.getByRole("navigation", { name: "Inventory pagination, top", exact: true });
-    const bottom = page.getByRole("navigation", { name: "Pagination", exact: true });
+    const bottom = page.getByRole("navigation", {
+      name: "Inventory navigation at bottom",
+      exact: true,
+    });
     await expect(top.getByText("27 inventory items", { exact: true })).toBeVisible();
     await expect(top.getByRole("button", { name: "Next", exact: true })).toBeInViewport();
     await top.getByRole("button", { name: "Next", exact: true }).click();
     await expect(top.getByLabel("Page number")).toHaveValue("2");
-    await expect(bottom.getByLabel("Page number")).toHaveValue("2");
+    await expect(bottom.getByText("Page 2 of 2", { exact: true })).toBeVisible();
     await expect(page.locator(".inventory-sku")).toHaveText(["SKU-24", "SKU-25"]);
-    await bottom.getByRole("button", { name: "Previous", exact: true }).click();
+    await bottom.getByRole("button", { name: "Previous inventory items", exact: true }).click();
     await expect(top.getByLabel("Page number")).toHaveValue("1");
     await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.com");
     await page.getByLabel("Search", { exact: true }).fill("SKU-25");

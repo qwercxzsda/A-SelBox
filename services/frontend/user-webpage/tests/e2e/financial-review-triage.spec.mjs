@@ -78,7 +78,7 @@ test("a zero-valued one-source period explains availability before its chart", a
     fixture.financialReviewRecords = [];
   });
   await categories(page).getByRole("tab", { name: "SelBox", exact: true }).click();
-  await expect(page.getByLabel("Amount currency: MXN", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Amount currency: MXN", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveCount(0);
   await expect(summary(page).locator(".financial-review-summary-value")).toHaveText([
     "0.00 MXN",

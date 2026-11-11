@@ -52,6 +52,7 @@ export function InventoryRecommendationLabel({ action }: { action: string | null
       inherit
       className="inventory-action-label"
       data-tone={recommendationTone(action)}
+      title={action ?? undefined}
     >
       {action === null ? "—" : recommendationLabel(action)}
     </Text>

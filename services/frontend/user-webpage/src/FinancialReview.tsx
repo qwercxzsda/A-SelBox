@@ -1,9 +1,10 @@
-import { Tabs, Text } from "@mantine/core";
+import { Tabs } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { FinancialReviewMonths } from "./FinancialReviewMonths";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { REVIEW_CATEGORIES, reviewCategory } from "./financial-review-categories";
 import { createReviewScope, decodeReviewScope } from "./financial-review-view";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 
 export function FinancialReview({
   identity,
@@ -24,32 +25,47 @@ export function FinancialReview({
   );
   if (identity.account.access_role !== "administrator") return null;
   return (
-    <Tabs
-      value={category}
-      onChange={(value) => {
-        setCategory(reviewCategory(value));
-      }}
-    >
-      <Text size="xs" c="dimmed" mb={4}>
-        Comparison category · Each category compares Finances with Data Kiosk.
-      </Text>
-      <Tabs.List aria-label="Financial review">
-        {REVIEW_CATEGORIES.map(({ value, label }) => (
-          <Tabs.Tab key={value} value={value}>
-            {label}
-          </Tabs.Tab>
-        ))}
-      </Tabs.List>
-      <Tabs.Panel value={category} pt="md">
-        <FinancialReviewMonths
-          key={category}
-          category={category}
-          scope={scope}
-          onScopeChange={setScope}
-          identity={identity}
-          onRetry={onRetry}
-        />
-      </Tabs.Panel>
-    </Tabs>
+    <>
+      <WorkspaceHeader
+        title="Financial review"
+        help={
+          <>
+            <p>
+              Compare Finances and Data Kiosk by marketplace, year, currency, and fee family. This
+              view includes all source accounts and companies.
+            </p>
+            <p>{REVIEW_CATEGORIES.find(({ value }) => value === category)?.description}</p>
+            <p>
+              Differences are diagnostic and do not change company payouts. Open a month for source
+              records and saved report snapshots.
+            </p>
+          </>
+        }
+      />
+      <Tabs
+        value={category}
+        onChange={(value) => {
+          setCategory(reviewCategory(value));
+        }}
+      >
+        <Tabs.List aria-label="Financial review">
+          {REVIEW_CATEGORIES.map(({ value, label }) => (
+            <Tabs.Tab key={value} value={value}>
+              {label}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        <Tabs.Panel value={category} pt="md">
+          <FinancialReviewMonths
+            key={category}
+            category={category}
+            scope={scope}
+            onScopeChange={setScope}
+            identity={identity}
+            onRetry={onRetry}
+          />
+        </Tabs.Panel>
+      </Tabs>
+    </>
   );
 }

@@ -165,7 +165,9 @@ test("an older unfiltered count cannot replace the selected SKU count", async ({
       .poll(() => fixture.countRequests[0].completed || fixture.countRequests[0].failure)
       .toBeTruthy();
     await expect(pagination(page, 1, 1)).toBeVisible();
-    await expect(page.getByRole("row")).toHaveCount(2);
+    await expect(
+      page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+    ).toHaveCount(2);
     expect(fixture.countRequests.map(({ count }) => count)).toEqual([60, 1]);
   } finally {
     release.resolve();
@@ -235,7 +237,9 @@ test("a shrinking publication refreshes rows before its delayed count clamps and
     release.resolve();
     await expect(pagination(page, 1, 1)).toBeVisible();
     await expect(rowWithSku(page, "UPDATED-001")).toBeVisible();
-    await expect(page.getByRole("row")).toHaveCount(6);
+    await expect(
+      page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+    ).toHaveCount(6);
     await expect(page.getByRole("alert")).toHaveCount(0);
     expect(fixture.countRequests).toHaveLength(2);
   } finally {
@@ -361,7 +365,9 @@ test("an empty next page cancels an older pending count before accepting the new
     fixture.totalCount = 5;
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(pagination(page, 1, 1)).toBeVisible();
-    await expect(page.getByRole("row")).toHaveCount(6);
+    await expect(
+      page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+    ).toHaveCount(6);
     release.resolve();
     await expect
       .poll(() => fixture.countRequests[0].completed || fixture.countRequests[0].failure)
@@ -384,7 +390,9 @@ test("a first count smaller than the displayed first page refreshes that page", 
   };
   await signIn(page);
   await expect(pagination(page, 1, 1)).toBeVisible();
-  await expect(page.getByRole("row")).toHaveCount(6);
+  await expect(
+    page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+  ).toHaveCount(6);
   const pages = fixture.requests.filter(({ args }) => args?.p_offset === 0);
   await expect.poll(() => pages.filter(({ completed }) => completed).length).toBe(2);
   for (const request of pages.filter(({ completed }) => !completed)) {
@@ -401,7 +409,9 @@ test("new rows that contradict a cached count trigger a fresh count without a re
   await expect(pagination(page, 1, 1)).toBeVisible();
   fixture.totalCount = 30;
   await sortBy(page, "Date (UTC)", "Oldest first");
-  await expect(page.getByRole("row")).toHaveCount(26);
+  await expect(
+    page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+  ).toHaveCount(26);
   await expect(pagination(page, 1, 2)).toBeVisible();
   expect(fixture.countRequests.map(({ count }) => count)).toEqual([10, 30]);
 });

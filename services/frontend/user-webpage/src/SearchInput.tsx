@@ -3,16 +3,23 @@ import { CloseButton, TextInput, type CloseButtonProps, type TextInputProps } fr
 
 interface SearchInputProps extends Omit<
   TextInputProps,
-  "value" | "defaultValue" | "onChange" | "rightSection" | "rightSectionPointerEvents"
+  | "value"
+  | "defaultValue"
+  | "onChange"
+  | "rightSection"
+  | "rightSectionPointerEvents"
+  | "label"
+  | "description"
 > {
   inputRef?: RefObject<HTMLInputElement | null>;
+  placeholder: string;
   value: string;
   onChange: (value: string) => void;
   clearLabel?: string;
   clearButtonSize?: CloseButtonProps["size"];
 }
 
-/** Keep the typing position when clearing removes the currently focused button. */
+/** One visible label and contextual placeholder; clearing keeps the typing position. */
 export function SearchInput({
   inputRef,
   value,
@@ -27,6 +34,7 @@ export function SearchInput({
     <TextInput
       {...props}
       ref={input}
+      label="Search"
       value={value}
       onChange={(event) => {
         onChange(event.currentTarget.value);

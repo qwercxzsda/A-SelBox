@@ -2,7 +2,7 @@ import { useId } from "react";
 import { FinancialAmounts } from "./FinancialAmounts";
 import { Accordion, Button, Group, Table, Text } from "@mantine/core";
 import type { CurrencyTotal, TransactionTypeTotal } from "./api/types";
-import { transactionTypeLabel } from "./categories";
+import { sourceCodeLabel } from "./categories";
 import { formatMoney } from "./decimal";
 import type { TransactionTypeGroup } from "./type-breakdown-groups";
 
@@ -29,7 +29,7 @@ function AmountRow({
   total: TransactionTypeTotal;
   onSelectRecords: SelectRecords;
 }) {
-  const label = transactionTypeLabel(total.type);
+  const label = sourceCodeLabel(total.type);
   return (
     <Table.Tr aria-label={`${label} amounts`}>
       <Table.Th scope="row">
@@ -67,7 +67,7 @@ function MobileType({
   total: TransactionTypeTotal;
   onSelectRecords: SelectRecords;
 }) {
-  const label = transactionTypeLabel(total.type);
+  const label = sourceCodeLabel(total.type);
   return (
     <article className="type-breakdown-type" aria-label={`${label} amounts`}>
       <Group justify="space-between" gap="xs" align="start">

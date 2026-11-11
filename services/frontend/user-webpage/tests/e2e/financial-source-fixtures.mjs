@@ -82,7 +82,7 @@ export async function openSourceLookup(page, options = {}) {
   const lookup = sourceLookup(page);
   await expect(lookup).toBeVisible();
   await lookup
-    .getByRole("textbox", { name: "Amazon transaction ID", exact: true })
+    .getByRole("textbox", { name: "Search Amazon transaction ID", exact: true })
     .fill(options.nativeId ?? transaction);
   await lookup.getByRole("button", { name: "Find transaction", exact: true }).click();
   const table = lookup.getByRole("table", { name: "Amazon transaction matches", exact: true });

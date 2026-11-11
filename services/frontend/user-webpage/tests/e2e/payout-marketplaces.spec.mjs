@@ -61,7 +61,7 @@ for (const [role, width] of [
       page.getByText("Readiness covers all marketplaces for each company and month.", {
         exact: true,
       }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     const scope = "Market Company · June 2026 · Amazon.de · EUR";
     await page.getByRole("button", { name: `Show versions for ${scope}`, exact: true }).click();
     const history = page.getByRole("region", { name: `Report versions for ${scope}`, exact: true });

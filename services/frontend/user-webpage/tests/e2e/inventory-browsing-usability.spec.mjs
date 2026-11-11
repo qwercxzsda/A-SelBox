@@ -17,7 +17,7 @@ async function openInventory(page) {
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(page.getByRole("button", { name: "Show transactions for QA-001" })).toBeVisible();
-  await expect(page.getByText("Latest imported reports", { exact: true })).toBeVisible();
+  await expect(page.getByText("Latest imported reports", { exact: true })).toHaveCount(0);
 }
 
 test("inventory column controls reach recommendations without visiting the final row", async ({
@@ -58,11 +58,14 @@ test("bottom paging returns to the first inventory rows when a page is cached", 
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openInventory(page);
-  const bottom = page.getByRole("navigation", { name: "Pagination", exact: true });
+  const bottom = page.getByRole("navigation", {
+    name: "Inventory navigation at bottom",
+    exact: true,
+  });
   const top = page.getByRole("navigation", { name: "Inventory pagination, top", exact: true });
-  await bottom.getByRole("button", { name: "Next", exact: true }).click();
+  await bottom.getByRole("button", { name: "Next inventory items", exact: true }).click();
   await expect(page.getByRole("button", { name: "Show transactions for QA-026" })).toBeVisible();
-  await bottom.getByRole("button", { name: "Previous", exact: true }).click();
+  await bottom.getByRole("button", { name: "Previous inventory items", exact: true }).click();
   await expect(top).toBeInViewport();
   await expect(page.getByRole("button", { name: "Show transactions for QA-001" })).toBeInViewport();
   await expect(page.locator(".inventory-page-start")).toBeFocused();

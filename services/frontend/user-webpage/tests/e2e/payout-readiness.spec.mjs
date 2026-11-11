@@ -1,10 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { applyReportMonth } from "./table-actions.mjs";
+import { openReviewReadiness, readiness } from "./payout-readiness-fixtures.mjs";
 
 const COMPANY = "0198b50b-701a-7000-8000-000000000001";
-const readiness = (page) =>
-  page.getByRole("region", { name: "April 2026 payout readiness", exact: true });
 function setup(fixture, administrator) {
   fixture.roles["member-a"] = administrator ? "administrator" : "member";
   fixture.companyIds["member-a"] = COMPANY;
@@ -34,19 +33,11 @@ function setup(fixture, administrator) {
     },
   ];
 }
-async function open(page) {
-  await signIn(page);
-  await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
-  await applyReportMonth(page, "2026-04");
-  await expect(readiness(page).getByText("Blocked", { exact: true })).toBeVisible();
-}
 
-test("administrator can identify a blocked mature month and navigate to its SKU setup without generating reports", async ({
+test("administrator can inspect blocked payout setup within Financial review snapshots", async ({
   page,
 }) => {
-  const fixture = await mockSupabase(page);
-  setup(fixture, true);
-  await open(page);
+  const fixture = await openReviewReadiness(page, (state) => setup(state, true));
   await expect(readiness(page)).toContainText("SKU ownership or fee coverage needs setup");
   expect(
     fixture.payoutReadinessRequests.some(({ endpoint }) =>
@@ -59,39 +50,38 @@ test("administrator can identify a blocked mature month and navigate to its SKU 
   const setupTable = page.getByRole("table", { name: "Payout setup requirements", exact: true });
   await expect(setupTable).toContainText("Assign company ownership");
   await expect(setupTable).toContainText("2026-04-03");
-  await setupTable.getByRole("button", { name: "UNASSIGNED-SKU", exact: true }).click();
-  await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
+  await expect(setupTable).toContainText("UNASSIGNED-SKU");
+  await expect(setupTable.getByRole("button", { name: "UNASSIGNED-SKU", exact: true })).toHaveCount(
+    0,
   );
   expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
 });
 
-test("members get their own generic setup status without unassigned SKU details", async ({
-  page,
-}) => {
-  const fixture = await mockSupabase(page);
-  setup(fixture, false);
-  await open(page);
-  await expect(readiness(page)).toContainText("An administrator needs to complete");
-  await expect(page.getByText("UNASSIGNED-SKU", { exact: true })).toHaveCount(0);
-  await expect(
-    readiness(page).getByRole("button", { name: "View setup requirements", exact: true }),
-  ).toHaveCount(0);
-  expect(
-    fixture.payoutReadinessRequests.some(({ endpoint }) =>
-      endpoint.endsWith("payout_setup_blockers"),
-    ),
-  ).toBe(false);
-});
+for (const administrator of [false, true]) {
+  test(`${administrator ? "administrator" : "member"} payout browsing has no readiness or policy requests`, async ({
+    page,
+  }) => {
+    const fixture = await mockSupabase(page);
+    setup(fixture, administrator);
+    await signIn(page);
+    await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
+    await applyReportMonth(page, "2026-04");
+    await expect(page.getByText("No matching reports", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: /payout readiness/ })).toHaveCount(0);
+    await expect(page.getByText("UNASSIGNED-SKU", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Check readiness above", { exact: false })).toHaveCount(0);
+    expect(fixture.payoutReadinessRequests ?? []).toHaveLength(0);
+    expect(fixture.events.some(({ endpoint }) => endpoint.endsWith("payout_report_policy"))).toBe(
+      false,
+    );
+  });
+}
 
 test("readiness uses lightweight revision checks and changes automatically after completion", async ({
   page,
 }) => {
   await page.clock.install();
-  const fixture = await mockSupabase(page);
-  setup(fixture, true);
-  await open(page);
+  const fixture = await openReviewReadiness(page, (state) => setup(state, true));
   const requests = () =>
     fixture.payoutReadinessRequests.filter(({ params }) => params.get("p_month") === "2026-04-01")
       .length;

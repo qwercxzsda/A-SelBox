@@ -54,7 +54,9 @@ test("an uncounted empty RPC page refreshes its separate count and clamps naviga
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-  await expect(page.getByRole("row")).toHaveCount(6);
+  await expect(
+    page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+  ).toHaveCount(6);
   await expect(page.getByRole("alert")).toHaveCount(0);
   const recovery = fixture.requests.slice(before).filter(({ args }) => args?.p_offset === 25);
   expect(recovery.map(({ args }) => args.p_include_count)).toEqual([false]);

@@ -5,7 +5,7 @@ import { applyDates, applySummaryDates } from "./table-actions.mjs";
 
 async function expectCornerControl(header) {
   const geometry = await header.evaluate((element) => {
-    const heading = element.querySelector("h3").getBoundingClientRect();
+    const heading = element.querySelector(".totals-card-label").getBoundingClientRect();
     const control = element.querySelector("button").getBoundingClientRect();
     const bounds = element.getBoundingClientRect();
     const padding = Number.parseFloat(

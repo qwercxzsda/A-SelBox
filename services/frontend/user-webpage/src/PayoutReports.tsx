@@ -8,7 +8,6 @@ import { AppliedTableFilters } from "./AppliedTableFilters";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { PaginationBar } from "./PaginationBar";
 import { PayoutReportsTable } from "./PayoutReportsTable";
-import { PayoutStatus } from "./PayoutStatus";
 import { RowDetail } from "./RowDetail";
 import { UpdateStatus } from "./UpdateStatus";
 import { useFinanceTable } from "./use-finance-table";
@@ -24,6 +23,8 @@ import { revealSection } from "./reveal-section";
 import { DatasetCountStatus } from "./DatasetCountStatus";
 import { pageRangeSummary } from "./pagination";
 import { reviewPeriodKey } from "./financial-review-scope-key";
+import { WorkspaceHeader } from "./WorkspaceHeader";
+import { DatasetHelp } from "./DatasetHelp";
 
 export function PayoutReports({
   identity,
@@ -34,7 +35,6 @@ export function PayoutReports({
   fixedMonth = false,
   currency,
   marketplace,
-  onConfigureSku,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
@@ -42,7 +42,6 @@ export function PayoutReports({
   fixedMonth?: boolean;
   currency?: string;
   marketplace?: string;
-  onConfigureSku?: (sku: string) => void;
 } & ViewStateProps<DatasetViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -110,22 +109,9 @@ export function PayoutReports({
 
   return (
     <>
-      {reviewMode ? (
-        <Text mb="sm" role="note" c="dimmed" size="sm">
-          Review the supporting records and account controls for a saved report. These details are
-          exclusive to administrators and are excluded from the company payout amount.
-        </Text>
+      {!reviewMode ? (
+        <WorkspaceHeader title="Payout reports" help={<DatasetHelp dataset="payouts" />} />
       ) : null}
-      <Text size="xs" c="dimmed" mb="sm">
-        Reports are separate for each company, month, and marketplace. Currencies remain separate
-        amount units.
-      </Text>
-      <PayoutStatus
-        identity={identity}
-        filters={filters}
-        compact={fixedMonth}
-        onConfigureSku={onConfigureSku}
-      />
       {query.error ? (
         <Alert color="red" role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -173,7 +159,6 @@ export function PayoutReports({
           <SearchInput
             inputRef={searchInput}
             className="search-field"
-            label="Search"
             type="search"
             value={search}
             placeholder={DATASET_PRESENTATION.payouts.searchPlaceholder}
@@ -268,7 +253,7 @@ export function PayoutReports({
             <Text fw={600}>{hasRefinements ? "No matching reports" : "No payout reports yet"}</Text>
             <Text c="dimmed" size="sm">
               {hasRefinements
-                ? "Check readiness above for pending or blocked months, or adjust the column filters and search."
+                ? "Adjust the column filters or search to find reports."
                 : "Reports will appear automatically once a month is mature and its required data is available."}
             </Text>
             {hasRefinements ? (

@@ -93,8 +93,8 @@ export function FinancialReviewChartValues({
           Open month details
         </Button>
       </Group>
-      <Text size="xs" c="dimmed" mt="xs">
-        {currency} · Hover or focus a month, or choose one above.
+      <Text size="sm" c="dimmed" mt="xs">
+        {currency}
       </Text>
       <DifferenceValues
         monthly={point.row.difference}

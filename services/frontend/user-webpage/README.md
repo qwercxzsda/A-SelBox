@@ -42,11 +42,13 @@ retaining scoped drafts. URL values are validated against the current account's 
 passwords, tokens, and financial amounts do not enter workspace links. Initial sign-in preserves a
 report link; explicit sign-out clears workspace navigation fields.
 
-Selections are alternatives within one filter; different filters intersect. Search is literal and
-case-insensitive. Type menus group readable labels and exact source codes; Select matches and
-Deselect matches affect only the visible matches. Selection filters apply immediately. Applied chips
-expose the active values and support individual removal. Clearing an empty filtered result preserves
-ordering and page size.
+Selections are alternatives within one filter; different filters intersect. Table and option
+searches are literal and case-insensitive. Search fields use one visible Search label and a
+placeholder naming the searchable values, with no explanatory subtitle. Context-specific accessible
+names distinguish fields for assistive technology. Type menus group readable labels and exact source
+codes; Select matches and Deselect matches affect only the visible matches. Selection filters apply
+immediately. Applied chips expose the active values and support individual removal. Clearing an
+empty filtered result preserves ordering and page size.
 
 Type cells use a compact column, with the readable type first and the group used by the Type filter
 beneath in smaller, muted text. The original type code remains available on hover. SKU values use
@@ -169,15 +171,21 @@ Inventory is read-only. It displays the latest successful daily capture per sell
 historical sales, available/inbound stock, health, days of supply, and recommendations. Details show
 secondary metrics and source dates. Missing metrics remain distinct from zero. Sales ordering
 compares original currencies without conversion; selecting one marketplace avoids that ambiguity.
-Health and recommendation ordering use the
+Recommendation labels use consistent sentence case, including unfamiliar source codes, with the
+original source value on hover. Replenishment actions (Restock, Send to FBA, Create shipping plan)
+come first in urgency order, followed by stranded inventory, listing fixes, pricing, advertising,
+and no-action recommendations. Unknown or missing values remain last. Health and recommendation
+ordering use the
 [documented urgency ranks](../../../docs/inventory_daily_captures.md#dates-latest-reads-and-access).
 
-Coverage includes successful empty captures and distinguishes missing snapshots, no authorized
-items, and filters with no matches. Failed coverage reads never become a no-snapshot claim. Rows use
-the stock snapshot date when available and explicitly identify a fallback report date otherwise.
-Dates older than two calendar days in their marketplace are overdue; a recent processing timestamp
-does not make an old source fresh. Stock dates and fallback report dates use the marketplace's time
-zone from generated source metadata. Exact report and processing timestamps remain available in UTC.
+Capture discovery includes successful empty captures and distinguishes missing snapshots, no
+authorized items, and filters with no matches. Failed reads never become a no-snapshot claim. Each
+row combines its stock date and age in one line; dates older than two marketplace-local calendar
+days add an inline **Out of date** warning. There is no separate freshness panel or warning badge.
+Missing stock dates are explicitly labelled with the report date as a fallback, and future dates
+remain marked for checking. A recent processing timestamp does not make an old source fresh. Stock
+dates and fallback report dates use the marketplace's time zone from generated source metadata.
+Exact report and processing timestamps remain available in UTC in item details.
 
 Only capture/SKU identity is persisted for an open item. Its values follow the freshly loaded page;
 a changed or removed capture closes the drawer. Paging, filtering, and sorting clear selection.
@@ -190,19 +198,21 @@ Payout reports group the latest saved company/month/marketplace snapshots, keepi
 separate as amount units. Month, Marketplace, and Company filters, visible month/year search, and
 on-demand Versions history support browsing. Source or fee changes may leave the preceding snapshot
 visible until the automatic worker publishes its replacement. The browser never generates reports.
-Selected-month readiness distinguishes incomplete setup, pending work, completed reports, and no
-activity; administrators can inspect setup requirements and open the affected SKU in Current fees.
+Each report row shows its saved timestamp and a green Latest label identifying the newest saved
+version. The report list has no separate maturity or readiness panel. Administrators can inspect
+processing and setup diagnostics in Financial review's Saved report snapshots section.
 
 Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
 company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.
 The headline uses frozen header amounts; Type breakdowns and records are calculated from the saved
-source and terms versions through `payout_report_totals` and `payout_report_records`. Readiness
-covers the whole company/month even when the list is filtered to a marketplace. Historical reports
-preserve their original totals and version references. Administrator diagnostics load native
-aggregates from each report's saved source inputs. The frontend computes comparisons with exact
-decimals, using retrieval coverage to distinguish an absent source from a covered zero; payout
-amounts stay frozen. The [payout contract](../../../docs/company_payout_reports.md) defines
-eligibility, maturity, completeness, zero reports, and agreement with their source inputs.
+source and terms versions through `payout_report_totals` and `payout_report_records`. Financial
+review's readiness diagnostics cover the whole company/month even when snapshots are filtered to a
+marketplace. Historical reports preserve their original totals and version references. Administrator
+diagnostics load native aggregates from each report's saved source inputs. The frontend computes
+comparisons with exact decimals, using retrieval coverage to distinguish an absent source from a
+covered zero; payout amounts stay frozen. The
+[payout contract](../../../docs/company_payout_reports.md) defines eligibility, maturity,
+completeness, zero reports, and agreement with their source inputs.
 
 Financial review shares Marketplace, Year, and the **Fee families** checkbox menu across Finances,
 Data Kiosk, and SelBox categories. These selections scope the yearly totals, chart, monthly rows,
@@ -234,10 +244,17 @@ diagnostics over saved source inputs.
 ## Design conventions
 
 Use the shared [Mantine theme](src/design-system.ts), [design tokens](src/design-system.css), and
-[WorkspaceIntro](src/WorkspaceIntro.tsx). Semantic heading levels and accessible names must match
-content structure and visible labels while retaining the intended visual size. Use sentence case,
-Previous/Next, Rows, and the source name Finances consistently. Explain the scope of exclusive
-amounts and exclusive fee-period end dates.
+[WorkspaceHeader](src/WorkspaceHeader.tsx). Every workspace tab starts with one clear page title
+matching its tab label, with related actions aligned in the same header. Semantic heading levels and
+accessible names follow the content structure.
+
+Put optional explanations in [HelpPopover](src/HelpPopover.tsx), reached through a small, muted
+question-circle control beside the relevant title or heading. Popovers show the explanation without
+repeating the page title; their accessible names still identify the context. Help opens on hover or
+keyboard focus, pins on click or tap, and dismisses with Escape, outside interaction, or its close
+button. Keep help text readable and concise. Field labels, units, errors, draft/save feedback, and
+source-age warnings remain visible; do not repeat generic instructional sentences above tables. Use
+sentence case, Previous/Next, Rows, and the source name Finances consistently.
 
 Controls expose hover and keyboard-focus feedback without shifting layout. Native `:hover` remains
 available to mouse/trackpad input on touch-capable devices. Disabled controls keep their disabled

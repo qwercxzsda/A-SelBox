@@ -16,6 +16,7 @@ import { inventoryRowId } from "./inventory-row";
 import { inspectableRowProps } from "./inspectable-row";
 import { InventorySourceDate } from "./InventorySourceDate";
 import { TableScrollControls } from "./TableScrollControls";
+import { HelpPopover } from "./HelpPopover";
 
 const OVERVIEW = INVENTORY_METRICS.overview.filter(
   ([key]) => key === "available_quantity" || key === "inbound_quantity",
@@ -89,37 +90,19 @@ export function InventoryTable({
       : undefined;
   return (
     <>
-      <Group gap="xs" justify="space-between">
-        <Text size="xs" c="dimmed">
-          Select a row for inventory details. Select a SKU to view its transactions.
-        </Text>
+      <Group gap="xs" justify="flex-end">
         <TableScrollControls target={scrollTarget} targetId={scrollId} />
       </Group>
-      {viewState.sortColumn === "sales_amount_90d" ? (
-        <Text size="sm" role="note" className="inventory-sales-note">
-          Sales ordering compares original currency amounts without conversion. Select one
-          marketplace before comparing sales across items.
-        </Text>
-      ) : null}
-      <Text size="sm" c="dimmed" className="inventory-scroll-hint" id="inventory-scroll-hint">
-        Scroll horizontally to see all columns. You can focus the table and use the arrow keys.
-      </Text>
       <div
         id={scrollId}
         ref={scrollTarget}
         className="inventory-scroll"
         role="region"
         aria-label="Inventory items"
-        aria-describedby="inventory-scroll-hint"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll wide tables horizontally.
         tabIndex={0}
       >
-        <Table className="inventory-table" highlightOnHover>
-          <Table.Caption>
-            Latest imported snapshot for each seller and marketplace. Quantities are reported
-            estimates. Unavailable values appear last. Health and recommendations sort by urgency,
-            with unknown values last.
-          </Table.Caption>
+        <Table className="inventory-table" aria-label="Inventory records" highlightOnHover>
           <Table.Thead>
             <Table.Tr>
               <Table.Th scope="col" aria-sort={ariaSort("sku")}>
@@ -130,10 +113,15 @@ export function InventoryTable({
                 />
               </Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("sales_amount_90d")}>
-                <ColumnMenu label="Sales · last 90 days" sort={sort("sales_amount_90d")} />
-                <Text size="xs" fw={400} c="dimmed">
-                  Original currencies · no conversion
-                </Text>
+                <Group gap={4} wrap="nowrap">
+                  <ColumnMenu label="Sales · last 90 days" sort={sort("sales_amount_90d")} />
+                  <HelpPopover label="Sales amount help">
+                    <p>
+                      Sales use original currencies without conversion. Select one marketplace
+                      before comparing amounts.
+                    </p>
+                  </HelpPopover>
+                </Group>
               </Table.Th>
               <Table.Th scope="col">Inventory overview</Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("health_status")}>

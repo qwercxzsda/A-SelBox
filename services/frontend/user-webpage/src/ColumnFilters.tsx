@@ -29,7 +29,7 @@ export function OptionSearch({
   search,
   onChange,
   onResetScroll,
-  placeholder = "Find an option",
+  placeholder = label,
 }: {
   inputRef?: RefObject<HTMLInputElement | null>;
   label: string;
@@ -46,7 +46,7 @@ export function OptionSearch({
   return (
     <SearchInput
       inputRef={inputRef}
-      label={`Search ${label.toLowerCase()}`}
+      aria-label={`Search ${label.toLowerCase()}`}
       placeholder={placeholder}
       data-autofocus
       value={search}

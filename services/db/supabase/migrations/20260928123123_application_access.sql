@@ -674,14 +674,18 @@ select
         when 'healthy' then 0
     end as health_status_urgency,
     case lower(regexp_replace(i.recommended_action, '[^a-zA-Z0-9]', '', 'g'))
-        when 'editlisting' then 50
-        when 'gotorestock' then 40
-        when 'restock' then 40
-        when 'restockinventory' then 40
-        when 'sendtofba' then 30
-        when 'advertiselisting' then 20
+        when 'gotorestock' then 50
+        when 'restock' then 50
+        when 'restockinventory' then 50
+        when 'sendtofba' then 50
+        when 'createshippingplan' then 50
+        when 'gotostranded' then 40
+        when 'editlisting' then 30
+        when 'lowerprice' then 20
+        when 'advertiselisting' then 10
         when 'noexcessinventory' then 0
         when 'noactionrequired' then 0
+        when 'norestockexcessactionrequired' then 0
     end as recommended_action_urgency
 from public.latest_inventory_captures as c
 inner join private.inventory_items as i on c.capture_id = i.capture_id

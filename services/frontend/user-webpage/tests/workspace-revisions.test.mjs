@@ -166,8 +166,7 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
   }
 });
 
-test("polling refreshes account lists and eligibility, while payouts follow revision tokens", () => {
-  assert.equal(isPolledQuery({ queryKey: ["payout-policy", "u"] }), true);
+test("polling refreshes account lists while payouts follow revision tokens", () => {
   assert.equal(isPolledQuery({ queryKey: ["inventory", "u"] }), false);
   for (const dataset of ["accounts", "payouts", "live", "finances", "data_kiosk", "fees"]) {
     const expected = dataset === "accounts";

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialReviewTypes } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
-import { humanizeCode, transactionTypeLabel } from "./categories";
+import { humanizeCode, sourceCodeLabel } from "./categories";
 import type { FinancialReviewSourceProps } from "./financial-review-source-state";
 
 export function FinancialReviewTypes({
@@ -79,7 +79,7 @@ export function FinancialReviewTypes({
                 className="ui-text-action"
                 size="compact-xs"
                 variant="subtle"
-                aria-label={`View records for ${humanizeCode(row.source ?? "")} · ${transactionTypeLabel(row.component_type ?? "")}`}
+                aria-label={`View records for ${humanizeCode(row.source ?? "")} · ${sourceCodeLabel(row.component_type ?? "")}`}
                 onClick={() => {
                   change({
                     source: row.source === "FINANCES" ? "FINANCES" : "DATA_KIOSK",

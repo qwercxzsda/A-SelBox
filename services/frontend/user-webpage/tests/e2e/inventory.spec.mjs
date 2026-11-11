@@ -50,10 +50,11 @@ for (const user of ["member", "administrator"]) {
       "Reserved—",
     );
     await details.getByText("Source capture", { exact: true }).click();
-    await expect(details.getByText("2026-09-27", { exact: true })).toBeVisible();
-    await expect(details.getByText("2026-09-28", { exact: true })).toBeVisible();
-    await expect(details.getByText("2026-09-28 03:00:00 UTC", { exact: true })).toBeVisible();
-    await expect(details.getByText("2026-09-28 04:00:00 UTC", { exact: true })).toBeVisible();
+    const source = details.getByRole("region", { name: "Source capture", exact: true });
+    await expect(source.getByText("2026-09-27", { exact: true })).toBeVisible();
+    await expect(source.getByText("2026-09-28", { exact: true })).toBeVisible();
+    await expect(source.getByText("2026-09-28 03:00:00 UTC", { exact: true })).toBeVisible();
+    await expect(source.getByText("2026-09-28 04:00:00 UTC", { exact: true })).toBeVisible();
     await expect(details.getByText("Inbound received", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Send to FBA|Create shipment/ })).toHaveCount(0);
     await expect(
@@ -187,7 +188,10 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await page.getByRole("checkbox", { name: "Send to FBA", exact: true }).check();
   await page.getByRole("button", { name: "Least urgent first", exact: true }).click();
   await expect(skus).toHaveText(["SEND"]);
-  await expect(region.locator(".inventory-action-label")).toHaveAttribute("data-tone", "shipment");
+  await expect(region.locator(".inventory-action-label")).toHaveAttribute(
+    "data-tone",
+    "replenishment",
+  );
   const readsBeforeDetails = inventory.requests.length;
   await region.getByText("Amazon.com", { exact: true }).click();
   const details = page.getByRole("dialog", { name: "Inventory details", exact: true });
@@ -283,7 +287,7 @@ test("recommendation badges keep readable text and high contrast across desktop 
     "Edit listing",
     "Restock",
     "Send to FBA",
-    "CustomRecommendation",
+    "Custom recommendation",
   ]);
   const colors = await badges.evaluateAll((elements) =>
     elements.map((element) => {
@@ -307,7 +311,8 @@ test("recommendation badges keep readable text and high contrast across desktop 
     }),
   );
   for (const { contrast } of colors) expect(contrast).toBeGreaterThanOrEqual(4.5);
-  expect(new Set(colors.slice(0, 3).map(({ background }) => background)).size).toBe(3);
+  expect(colors[1].background).toBe(colors[2].background);
+  expect(colors[0].background).not.toBe(colors[1].background);
   for (const width of [1920, 1440, 834, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(
@@ -508,11 +513,13 @@ test("inventory stays within narrow screens and its columns are keyboard reachab
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   const region = page.getByRole("region", { name: "Inventory items" });
   await expect(region.locator(".inventory-health-label")).toHaveText("Unknown source health");
-  await expect(region.locator(".inventory-action-label")).toHaveText("UnknownSourceAction");
+  await expect(region.locator(".inventory-action-label")).toHaveText("Unknown source action");
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.evaluate(() => globalThis.scrollTo(0, 0));
-    await expect(page.getByText(/Scroll horizontally to see all columns/)).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Scroll table columns", exact: true }),
+    ).toBeVisible();
     expect(
       await page.evaluate(
         () => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth,

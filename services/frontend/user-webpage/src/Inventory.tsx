@@ -9,13 +9,14 @@ import { InventoryDetail } from "./InventoryDetail";
 import { inventoryRowId } from "./inventory-row";
 import { PaginationBar } from "./PaginationBar";
 import { lastPageIndex } from "./pagination";
-import { WorkspaceIntro } from "./WorkspaceIntro";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { RowsSelect } from "./RowsSelect";
 import { useInventoryData } from "./use-inventory-data";
-import { InventoryCoverage } from "./InventoryCoverage";
 import { InventoryAppliedFilters } from "./InventoryAppliedFilters";
 import { inventoryEmptyMessage } from "./inventory-coverage";
 import { SearchInput } from "./SearchInput";
+import { ListPageNavigation } from "./ListPageNavigation";
+import { revealSection } from "./reveal-section";
 import "./Inventory.css";
 
 export function Inventory({
@@ -106,15 +107,33 @@ export function Inventory({
   };
   return (
     <Stack gap="md" className="inventory-panel">
-      <WorkspaceIntro
+      <WorkspaceHeader
         title="Inventory"
-        description="Daily snapshots for approximate replenishment planning. Sales are historical, not a forecast. A dash means unavailable; zero is a reported value. Source dates can differ from the capture date."
+        help={
+          <>
+            <p>Latest imported stock and replenishment recommendations for each marketplace.</p>
+            <ul>
+              <li>Select a SKU to view its transactions, or a row to open inventory details.</li>
+              <li>
+                Use column headings to filter or sort. Replenishment actions have the highest
+                priority.
+              </li>
+              <li>
+                Each row shows its stock date and age. Dates more than two marketplace-local days
+                old are marked Out of date.
+              </li>
+              <li>
+                Sales are historical; quantities are estimates. A dash means unavailable, while zero
+                is a reported value.
+              </li>
+            </ul>
+          </>
+        }
       />
       <Group align="end" className="inventory-filters">
         <SearchInput
           inputRef={searchInput}
-          label="Search"
-          placeholder="SKU, marketplace, health or recommendation"
+          placeholder="SKU, marketplace, health, or recommendation"
           value={viewState.search}
           type="search"
           onChange={(search) => {
@@ -169,18 +188,12 @@ export function Inventory({
         onChange={changeFilters}
         focusTarget={searchInput}
       />
-      {captures.isSuccess ? (
-        <InventoryCoverage captures={captures.data} marketplace={viewState.marketplace} now={now} />
-      ) : captures.isPending ? (
-        <Text size="sm" c="dimmed" role="status">
-          Checking inventory snapshot coverage…
-        </Text>
-      ) : (
+      {captures.isError && rows.length === 0 ? (
         <Alert role="alert" color="red">
-          Could not check inventory snapshot coverage. {getErrorMessage(captures.error)} Updates
-          retry automatically.
+          Could not check inventory availability. {getErrorMessage(captures.error)} Updates retry
+          automatically.
         </Alert>
-      )}
+      ) : null}
       {filterOptions.isError && !query.isError ? (
         <Alert role="alert" color="red">
           Could not load inventory filter options. {getErrorMessage(filterOptions.error)} Updates
@@ -214,7 +227,11 @@ export function Inventory({
         onSelect={selectRow}
         now={now}
       />
-      {!query.isPending && !query.isError && !availability.isError && rows.length === 0 ? (
+      {!query.isPending &&
+      !query.isError &&
+      !captures.isError &&
+      !availability.isError &&
+      rows.length === 0 ? (
         <Text role="status">
           {inventoryEmptyMessage({
             captures: captures.isSuccess ? captures.data : undefined,
@@ -224,7 +241,24 @@ export function Inventory({
           })}
         </Text>
       ) : null}
-      <PaginationBar {...pagination} />
+      {rows.length > 10 || viewState.pageIndex > 0 ? (
+        <ListPageNavigation
+          labels={{
+            navigation: "Inventory navigation at bottom",
+            items: "inventory items",
+            back: "Back to inventory filters",
+          }}
+          pageIndex={viewState.pageIndex}
+          pageCount={pageCount}
+          canPrevious={pagination.canPrevious}
+          canNext={pagination.canNext}
+          isBusy={pagination.isBusy}
+          onPageChange={changePage}
+          onBackToFilters={() => {
+            revealSection(searchInput.current);
+          }}
+        />
+      ) : null}
       <InventoryDetail
         row={selectedRow}
         onClose={() => {

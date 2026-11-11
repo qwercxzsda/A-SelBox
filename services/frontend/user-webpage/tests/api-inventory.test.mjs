@@ -235,13 +235,29 @@ test("inventory status filters combine exact values and missing values with sear
   }
 });
 
-test("inventory menus preserve unknown source labels, selected stale values, and exact nullable keys", () => {
-  assert.equal(recommendationLabel("EditListing"), "Edit listing");
+test("recommendation labels are readable while menus preserve source values and nullable keys", () => {
+  for (const [source, label] of [
+    ["EditListing", "Edit listing"],
+    ["Edit listing", "Edit listing"],
+    ["GoToRestock", "Restock"],
+    ["RESTOCK_INVENTORY", "Restock"],
+    ["SendToFBA", "Send to FBA"],
+    ["CreateShippingPlan", "Create shipping plan"],
+    ["GoToStranded", "Resolve stranded inventory"],
+    ["Lower price", "Lower price"],
+    ["Advertise listing", "Advertise listing"],
+    ["NoExcessInventory", "No excess inventory"],
+    ["NoRestockExcessActionRequired", "No restock or excess action required"],
+    ["NoActionRequired", "No action required"],
+    ["OtherSourceAction", "Other source action"],
+    ["REVIEW_FBA_ACTION", "Review FBA action"],
+    ["ReviewFBAAction", "Review FBA action"],
+    ["  Other   source action  ", "Other source action"],
+  ])
+    assert.equal(recommendationLabel(source), label);
   assert.equal(recommendationTone("Edit listing"), "listing");
-  assert.equal(recommendationLabel("GoToRestock"), "Restock");
-  assert.equal(recommendationLabel("SendToFBA"), "Send to FBA");
-  assert.equal(recommendationLabel("OtherSourceAction"), "OtherSourceAction");
   assert.equal(recommendationTone("OtherSourceAction"), "unknown");
+  assert.equal(recommendationLabel(null), "Unavailable");
   const options = inventoryFilterOptions([null, "Unavailable"], ["Old value"]);
   assert.equal(options.length, 3);
   assert.deepEqual(
@@ -255,6 +271,9 @@ test("inventory menus preserve unknown source labels, selected stale values, and
   };
   assert.deepEqual(resolveInventorySearch(" send to fba ", catalog).recommendations, ["SendToFBA"]);
   assert.deepEqual(resolveInventorySearch("othErsource", catalog).recommendations, [
+    "OtherSourceAction",
+  ]);
+  assert.deepEqual(resolveInventorySearch("other source action", catalog).recommendations, [
     "OtherSourceAction",
   ]);
   assert.deepEqual(resolveInventorySearch("Unavailable", catalog).health_statuses, [null]);
@@ -314,7 +333,7 @@ test("health filter choices prioritize urgent known statuses over alphabetical u
   );
 });
 
-test("recommendation menus use action priorities and normalize known aliases without changing filter values", () => {
+test("recommendation menus put replenishment first without changing exact source filters", () => {
   const values = [
     "NoExcessInventory",
     "Advertise listing",
@@ -325,28 +344,40 @@ test("recommendation menus use action priorities and normalize known aliases wit
     "Edit listing",
     "No action required",
     "A custom recommendation",
+    "CreateShippingPlan",
+    "GoToStranded",
+    "Lower price",
+    "NoRestockExcessActionRequired",
     null,
   ];
   const choices = inventoryFilterOptions(values, [], "recommended_action");
   assert.deepEqual(
     choices.map(({ label }) => label),
     [
-      "Edit listing",
-      "Edit listing",
+      "Create shipping plan",
       "Restock",
       "Restock",
       "Send to FBA",
+      "Resolve stranded inventory",
+      "Edit listing",
+      "Edit listing",
+      "Lower price",
       "Advertise listing",
       "No action required",
       "No excess inventory",
+      "No restock or excess action required",
       "A custom recommendation",
       "Unavailable",
     ],
   );
   assert.deepEqual(new Set(choices.map(({ value }) => JSON.parse(value))), new Set(values));
+  for (const choice of choices)
+    assert.equal(choice.title, JSON.parse(choice.value) ?? "No value in the source report");
   assert.equal(recommendationTone("EDIT_LISTING"), "listing");
-  assert.equal(recommendationTone("restock inventory"), "restock");
-  assert.equal(recommendationTone("SEND_TO_FBA"), "shipment");
+  assert.equal(recommendationTone("restock inventory"), "replenishment");
+  assert.equal(recommendationTone("SEND_TO_FBA"), "replenishment");
+  assert.equal(recommendationTone("CreateShippingPlan"), "replenishment");
+  assert.equal(recommendationTone("GoToStranded"), "attention");
   assert.equal(recommendationLabel("A custom recommendation"), "A custom recommendation");
   assert.deepEqual(
     resolveInventorySearch("no excess inventory", {
@@ -356,4 +387,14 @@ test("recommendation menus use action priorities and normalize known aliases wit
     }).recommendations,
     ["NoExcessInventory"],
   );
+  for (const [search, expected] of [
+    ["shipping plan", ["CreateShippingPlan"]],
+    ["resolve stranded", ["GoToStranded"]],
+    ["no restock or excess", ["NoRestockExcessActionRequired"]],
+  ])
+    assert.deepEqual(
+      resolveInventorySearch(search, { skus: [], health_statuses: [], recommendations: values })
+        .recommendations,
+      expected,
+    );
 });

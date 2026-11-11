@@ -66,9 +66,6 @@ export function CompanyCreateForm({
         <Title order={3} size="h5">
           Add company
         </Title>
-        <Text size="sm" c="dimmed">
-          Create a company, then assign SKUs in Current fees or members in User access.
-        </Text>
         <form
           aria-label="Create company"
           onSubmit={(event) => {

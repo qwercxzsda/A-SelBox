@@ -39,15 +39,6 @@ function reportRecords(fixture, report) {
 }
 
 export async function respondWithPayouts(fixture, { url, request, user, reply }) {
-  if (url.pathname.endsWith("/payout_report_policy"))
-    return reply(
-      fixture.payoutPolicy ?? {
-        mature_cutoff_date: "2026-07-27",
-        latest_month: "2026-06-01",
-        mature_cutoff_months: 2,
-      },
-      fixture.payoutPolicyStatus ?? 200,
-    );
   if (request.method() !== "POST") return reply({}, 405);
   const args = request.postDataJSON();
   const reportId = args.p_report_id;

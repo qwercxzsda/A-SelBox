@@ -285,7 +285,7 @@ for (const role of ["member", "administrator"]) {
     const companyColumn = columnHeader(page, "Company");
     await expect(companyColumn).toHaveCount(role === "administrator" ? 1 : 0);
     await expect(columnHeader(page, "Source")).toHaveCount(1);
-    const header = page.locator("header");
+    const header = page.locator(".topbar");
     await expect(header.getByRole("heading")).toHaveCount(1);
     await expect(
       header.getByRole("heading", { name: "A-SelBox", level: 1, exact: true }),

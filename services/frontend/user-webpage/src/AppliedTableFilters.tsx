@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { Button, Group, Text, Tooltip } from "@mantine/core";
 import type { DatasetFilters, TableDatasetKey } from "./api";
-import { humanizeCode, transactionTypeLabel } from "./categories";
+import { humanizeCode, sourceCodeLabel } from "./categories";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { companyLabel } from "./view-model";
 
@@ -53,7 +53,7 @@ export function AppliedTableFilters({
     { label: "Source", values: filters.sources.map(humanizeCode), clear: { sources: [] } },
     {
       label: "Type",
-      values: typeLabels ?? filters.types.map(transactionTypeLabel),
+      values: typeLabels ?? filters.types.map(sourceCodeLabel),
       summary: typeLabels?.length
         ? `${typeLabels[0]}${typeLabels.length > 1 ? ` +${String(typeLabels.length - 1)}` : ""}`
         : undefined,

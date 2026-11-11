@@ -1,0 +1,84 @@
+.help-trigger {
+  flex-shrink: 0;
+  color: var(--ui-text-muted);
+  border-radius: 50%;
+}
+
+.help-trigger:hover,
+.help-trigger:focus-visible,
+.help-trigger[aria-expanded="true"] {
+  color: var(--ui-text);
+  background: transparent;
+}
+
+.help-trigger svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.72;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.help-trigger:hover svg,
+.help-trigger:focus-visible svg,
+.help-trigger[aria-expanded="true"] svg {
+  opacity: 1;
+}
+
+.help-trigger-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+.help-popover {
+  max-height: min(560px, calc(100dvh - 32px));
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 16px;
+  border-color: var(--ui-border);
+  border-radius: var(--ui-radius);
+  color: var(--ui-text);
+}
+
+.help-popover-close {
+  float: right;
+  margin: -4px -4px 2px 8px;
+}
+
+.help-popover-content {
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.help-popover-content > :first-child {
+  margin-top: 0;
+}
+
+.help-popover-content > :last-child {
+  margin-bottom: 0;
+}
+
+.help-popover-content p {
+  margin: 0 0 10px;
+}
+
+.help-popover-content ul,
+.help-popover-content ol {
+  padding-inline-start: 20px;
+  margin-block: 0 10px;
+}
+
+.help-popover-content li + li {
+  margin-top: 6px;
+}
+
+@media (pointer: coarse) {
+  .help-trigger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

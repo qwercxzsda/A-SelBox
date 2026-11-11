@@ -5,6 +5,7 @@ import { DateFilter } from "./DateFilter";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import { MarketplaceTotalsTable } from "./MarketplaceTotalsTable";
 import { TotalsDateControl } from "./TotalsDateControl";
+import { HelpPopover } from "./HelpPopover";
 import {
   TOTALS_PERIODS,
   TOTALS_PERIOD_LABELS,
@@ -47,9 +48,21 @@ export function CurrentTotals({
     <section className="current-totals" aria-label="Current totals" aria-busy={loading}>
       <div className="totals-heading">
         <div className="totals-heading-title">
-          <Title order={2} className="ui-workspace-intro-title">
+          <Title order={3} className="totals-section-title">
             Current totals
           </Title>
+          <HelpPopover label="Current totals help">
+            <p>
+              Totals combine Finances and Data Kiosk company amounts and exclude SelBox. Select a
+              company amount to open its breakdown.
+            </p>
+            <p>
+              Last day and Last month are the previous UTC calendar periods based on the latest
+              accessible transaction, independent of filters.
+            </p>
+            <p>{coverageNote}</p>
+            <p>Records missing ownership or fees are excluded from known company amounts.</p>
+          </HelpPopover>
           <span className="totals-market-count">
             {groups.length} {groups.length === 1 ? "marketplace" : "marketplaces"}
           </span>
@@ -58,13 +71,11 @@ export function CurrentTotals({
           </span>
         </div>
       </div>
-      <div className="totals-scope">
-        <SummaryFilters
-          filters={appliedFilters}
-          compact
-          emptyLabel="Finances and Data Kiosk only"
-        />
-      </div>
+      {appliedFilters.length > 0 ? (
+        <div className="totals-scope">
+          <SummaryFilters filters={appliedFilters} compact />
+        </div>
+      ) : null}
       {errors.length > 0 ? (
         <Alert color="red" role="alert" mb="sm">
           <Group justify="space-between" gap="xs">
@@ -90,20 +101,21 @@ export function CurrentTotals({
         className="totals-cards-grid"
         style={
           {
-            "--totals-card-rows": groups.length + 3,
+            "--totals-card-rows": groups.length + 2,
             "--totals-table-rows": groups.length + 1,
           } as CSSProperties
         }
       >
         {TOTALS_PERIODS.map((period) => {
           const title = TOTALS_PERIOD_LABELS[period];
-          const available = groups.filter((group) => group[period].length > 0).length;
           const state = states[period];
           return (
             <article key={period} className="totals-period-card" aria-label={`${title} totals`}>
               <div className="totals-card-heading">
                 <div className="totals-card-title">
-                  <Title order={3}>{title}</Title>
+                  <Title order={4} className="totals-card-label">
+                    {title}
+                  </Title>
                 </div>
                 <TotalsDateControl
                   period={period}
@@ -116,26 +128,9 @@ export function CurrentTotals({
                 />
               </div>
               <MarketplaceTotalsTable {...{ groups, period, state, onOpenBreakdown }} />
-              <div className="totals-card-footer">
-                {state.pending
-                  ? "Loading totals…"
-                  : `${String(available)} of ${String(groups.length)} with totals`}
-              </div>
             </article>
           );
         })}
-      </div>
-      <div className="totals-footer">
-        <span>Finances + Data Kiosk · Select a company amount for its breakdown.</span>
-        <details>
-          <summary>About these totals</summary>
-          <Text size="xs" c="dimmed" mt="xs">
-            Totals and their records exclude SelBox amounts. Every marketplace uses the UTC period
-            shown at the top of each card. Last day and month are based on the latest accessible
-            transaction, independent of filters. Uncalculated records are excluded from known
-            company amounts. {coverageNote}
-          </Text>
-        </details>
       </div>
       <Modal
         opened={choosingDates}

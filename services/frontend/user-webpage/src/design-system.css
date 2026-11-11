@@ -166,32 +166,36 @@ body {
   box-shadow: inset 3px 0 0 var(--ui-accent);
 }
 
-.ui-workspace-intro {
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
   min-width: 0;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ui-border);
 }
 
-.ui-workspace-intro-copy {
-  flex: 1 1 20rem;
+.workspace-header-title {
   min-width: 0;
+  min-height: 36px;
 }
 
-.ui-workspace-intro-title {
+.workspace-header-title h2 {
   margin: 0;
   color: var(--ui-text);
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
-.ui-workspace-intro-description {
-  color: var(--ui-text-muted);
-  font-size: var(--ui-font-data);
-  line-height: 1.6;
-}
-
-.ui-workspace-intro-title + .ui-workspace-intro-description {
-  margin-top: 4px;
+.workspace-header-actions {
+  min-width: 0;
+  margin-inline-start: auto;
 }
 
 /* Safari enlarges focused small-text controls. Size controls before focus,
@@ -203,6 +207,10 @@ body {
 }
 
 @media (max-width: 720px) {
+  .workspace-header-title h2 {
+    font-size: 22px;
+  }
+
   .ui-drawer-header {
     padding-inline: 16px;
   }

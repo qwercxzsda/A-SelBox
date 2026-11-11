@@ -6,6 +6,7 @@ import { FinancialReviewChartPlot } from "./FinancialReviewChartPlot";
 import { FinancialReviewChartLegend } from "./FinancialReviewChartLegend";
 import { FinancialReviewChartValues } from "./FinancialReviewChartValues";
 import { buildFinancialReviewFamilySeries } from "./financial-review-family-series";
+import { HelpPopover } from "./HelpPopover";
 export function FinancialReviewTrend({
   rows,
   currency,
@@ -51,9 +52,24 @@ export function FinancialReviewTrend({
       aria-label="Monthly and running differences"
     >
       <Group justify="space-between" gap="sm" mb="sm">
-        <Text fw={600} size="sm">
-          Difference across months
-        </Text>
+        <Group gap="xs">
+          <Text fw={600} size="sm">
+            Difference across months
+          </Text>
+          <HelpPopover label="Difference chart help">
+            <p>
+              Bars show monthly Finances − Data Kiosk. Lines accumulate available months from
+              January; months without source records remain gaps.
+            </p>
+            <p>
+              {familyChart
+                ? "Family lines are lighter than the total, and positive and negative bars stack separately. "
+                : ""}
+              Hover or focus a month to inspect its values, or choose a month below. Open month
+              details to see the source records.
+            </p>
+          </HelpPopover>
+        </Group>
         <Group gap="md" className="financial-review-trend-legend">
           <span>
             <i className="financial-review-monthly-key" />
@@ -67,7 +83,7 @@ export function FinancialReviewTrend({
       </Group>
       {!familyChart ? (
         <Group justify="space-between" gap="xs" mb="sm">
-          <Text size="xs" c="dimmed" role="status">
+          <Text size="sm" c="dimmed" role="status">
             {familyLoading
               ? "Fee-family details are loading. Showing total differences."
               : familyError
@@ -106,13 +122,6 @@ export function FinancialReviewTrend({
         onInspect={setInspectedMonth}
         onSelect={onSelect}
       />
-      <Text component="figcaption" size="xs" c="dimmed" mt="lg">
-        Bars show monthly Finances − Data Kiosk. Lines accumulate available months from January.{" "}
-        {familyChart
-          ? "Family lines are softer than the total. Positive and negative bars stack separately. "
-          : ""}
-        Months without source records remain gaps.
-      </Text>
     </Paper>
   );
 }

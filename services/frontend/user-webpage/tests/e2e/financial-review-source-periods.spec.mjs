@@ -19,7 +19,6 @@ test("recent partial months enter totals, currencies, families and records indep
       policyRequests.push(request);
   });
   const fixture = await openFinancialReview(page, (state) => {
-    state.payoutPolicyStatus = 503;
     state.currentSourceCoverage = ["FINANCES", "DATA_KIOSK"].map((source) => ({
       source,
       seller_namespace: "seller-one",
@@ -37,9 +36,7 @@ test("recent partial months enter totals, currencies, families and records indep
   await expect(totals(page)).toContainText("13.75 USD");
   await expect(totals(page)).toContainText("Source retrieval coverage is incomplete");
   await expect(table(page).getByRole("cell").last()).toHaveText("13.75");
-  await expect(page.locator(".financial-review-scope-note")).toContainText(
-    "Source records through July 2026",
-  );
+  await expect(page.locator(".financial-review-summary-period")).toContainText("July 2026");
   await table(page).getByRole("button", { name: "Open review for July 2026", exact: true }).click();
   await expect(drawer(page)).toContainText("Retrieval coverage may be incomplete");
   await expect(
@@ -72,10 +69,9 @@ test("recent partial months enter totals, currencies, families and records indep
   expect(policyRequests).toHaveLength(0);
 });
 
-test("reload restores a recent month even when payout policy is unavailable", async ({ page }) => {
-  const fixture = await openFinancialReview(page);
+test("reload restores a recent month from its source scope", async ({ page }) => {
+  await openFinancialReview(page);
   await table(page).getByRole("button", { name: "Open review for July 2026", exact: true }).click();
-  fixture.payoutPolicyStatus = 503;
   await page.reload();
   await expect(drawer(page).getByRole("heading", { name: "July 2026", exact: true })).toBeVisible();
   await expect(
@@ -88,7 +84,6 @@ test("reload restores a recent month even when payout policy is unavailable", as
 
 test("a recent January supplies the latest available year and currency", async ({ page }) => {
   await openFinancialReview(page, (state) => {
-    state.payoutPolicyStatus = 503;
     state.financialReviewTotals = [
       { month: "2025-12-01", currency: "USD", ...reviewAmounts() },
       { month: "2026-01-01", currency: "JPY", ...reviewAmounts() },
@@ -96,7 +91,8 @@ test("a recent January supplies the latest available year and currency", async (
   });
   await expect(year(page)).toHaveValue("2026");
   await expect(year(page).locator("option")).toHaveText(["2026", "2025"]);
-  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toHaveCount(0);
+  await expect(totals(page)).toContainText("JPY");
   await expect(currency(page)).toHaveCount(0);
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveText([
     "January 2026",

@@ -96,7 +96,7 @@ export function FinancialReviewMonthContent({
         Differences can reflect missing data, timing or scope. Data Kiosk may not cover every source
         type.
       </Text>
-      {rows.length ? <FinancialReviewSourceDetails {...scope} total={rows[0]} /> : null}
+      <FinancialReviewSourceDetails {...scope} total={rows[0]} />
       <DetailSection
         stateKey={`financial-review:snapshots:${category}:${reviewPeriodKey(month, marketplace, currency)}`}
         title="Saved report snapshots"

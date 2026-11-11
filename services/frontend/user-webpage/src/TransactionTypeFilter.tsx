@@ -125,11 +125,8 @@ export function TransactionTypeFilter({
         search={search}
         onChange={setSearch}
         onResetScroll={onResetScroll}
-        placeholder="Search groups or individual types"
+        placeholder="Groups or individual types"
       />
-      <Text size="xs" c="dimmed">
-        Select a group, or expand it to choose individual types.
-      </Text>
       <Group justify="space-between" gap="xs">
         <Text size="xs" c="dimmed" aria-live="polite">
           {filter.value.length === 0

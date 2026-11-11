@@ -71,7 +71,7 @@ export const DATASET_PRESENTATION = {
     label: "User access",
     description:
       "Select a user to assign, change, or revoke company membership. Administrator access is managed by the database manager.",
-    searchPlaceholder: "Search by email",
+    searchPlaceholder: "Email",
     emptyMessage: "No users match this view.",
   },
 } satisfies Record<DatasetKey, WorkspacePresentation> &

@@ -5,7 +5,6 @@ import marketplaces from "../src/generated/marketplaces.json" with { type: "json
 import {
   inventoryAge,
   inventoryEmptyMessage,
-  inventoryReportRanges,
   inventorySourceDay,
 } from "../src/inventory-coverage.ts";
 
@@ -97,30 +96,11 @@ test("unknown marketplaces and invalid clock values remain unavailable without a
   }
 });
 
-test("marketplace report ranges retain the oldest source date across captures and unknown dates", () => {
-  const sources = [
-    { marketplace_name: "Amazon.co.jp", report_created_at: "invalid" },
-    { marketplace_name: "Amazon.com", report_created_at: "2026-10-18T01:00:00Z" },
-    { marketplace_name: "Amazon.com", report_created_at: "2026-10-03T03:00:00Z" },
-    { marketplace_name: "Amazon.com", report_created_at: "invalid" },
-    { marketplace_name: "Amazon.de", report_created_at: "2026-10-16T01:00:00Z" },
-  ];
-  const ranges = inventoryReportRanges(sources, "");
-  assert.deepEqual(ranges, [
-    { marketplaceName: "Amazon.co.jp", oldestDay: null, newestDay: null },
-    { marketplaceName: "Amazon.com", oldestDay: "2026-10-02", newestDay: "2026-10-17" },
-    { marketplaceName: "Amazon.de", oldestDay: "2026-10-16", newestDay: "2026-10-16" },
-  ]);
-  assert.equal(inventoryAge(ranges[1].oldestDay, now, ranges[1].marketplaceName).overdue, true);
-  assert.deepEqual(inventoryReportRanges(sources, "Amazon.com"), [ranges[1]]);
-  assert.deepEqual(inventoryReportRanges(sources, "Amazon.fr"), []);
-});
-
 test("inventory empty states distinguish missing coverage, empty captures, company assignment and filtered matches", () => {
   const scope = { captures, marketplace: "Amazon.com", hasItems: false, member: false };
   assert.equal(
     inventoryEmptyMessage({ ...scope, captures: undefined }),
-    "No inventory rows to show. Snapshot coverage has not been confirmed yet.",
+    "Checking inventory availability…",
   );
   assert.equal(
     inventoryEmptyMessage({ ...scope, captures: [] }),

@@ -12,18 +12,20 @@ const scenarios = [
     medium: "Low stock",
     least: "Healthy",
     unknown: "Unknown source health",
+    unknownLabel: "Unknown source health",
     urgency: [40, 30, 0],
   },
   {
     column: "recommended_action",
     label: "Recommendation",
     user: "administrator",
-    urgent: "EditListing",
-    urgentAlias: "Edit listing",
-    medium: "GoToRestock",
-    least: "SendToFBA",
+    urgent: "GoToRestock",
+    urgentAlias: "RESTOCK_INVENTORY",
+    medium: "EditListing",
+    least: "NoActionRequired",
     unknown: "UnknownSourceAction",
-    urgency: [50, 40, 30],
+    unknownLabel: "Unknown source action",
+    urgency: [50, 30, 0],
   },
 ];
 
@@ -94,7 +96,7 @@ for (const scenario of scenarios) {
     await navigation.getByRole("button", { name: "Next", exact: true }).click();
     await expect(skus).toHaveText(["Z-urgent-23", "Z-urgent-24", "B-unknown", "C-unavailable"]);
     await heading.click();
-    await page.getByRole("checkbox", { name: scenario.unknown, exact: true }).check();
+    await page.getByRole("checkbox", { name: scenario.unknownLabel, exact: true }).check();
     await page.getByRole("checkbox", { name: "Unavailable", exact: true }).check();
     await page.keyboard.press("Escape");
     await expect(skus).toHaveText(["B-unknown", "C-unavailable"]);
@@ -103,5 +105,115 @@ for (const scenario of scenarios) {
     );
     expect(inventory.requests.at(-1).get("and")).toContain(`${scenario.column}.is.null`);
     expect(inventory.requests.at(-1).get("offset")).toBe("0");
+  });
+}
+
+const recommendations = [
+  ["GoToRestock", "Restock", 50],
+  ["CreateShippingPlan", "Create shipping plan", 50],
+  ["SendToFBA", "Send to FBA", 50],
+  ["GoToStranded", "Resolve stranded inventory", 40],
+  ["Edit listing", "Edit listing", 30],
+  ["Lower price", "Lower price", 20],
+  ["Advertise listing", "Advertise listing", 10],
+  ["NoRestockExcessActionRequired", "No restock or excess action required", 0],
+  ["NoExcessInventory", "No excess inventory", 0],
+  ["NoActionRequired", "No action required", 0],
+  ["UnknownSourceAction", "Unknown source action", null],
+  ["REVIEW_FBA_ACTION", "Review FBA action", null],
+  [null, "—", null],
+];
+
+for (const width of [1440, 390]) {
+  test(`recommendation labels stay consistent in rows, details, filters, and search at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const auth = await mockSupabase(page);
+    auth.roles["member-a"] = "administrator";
+    const inventory = await mockInventory(
+      page,
+      recommendations.map(([action, , urgency], index) =>
+        inventoryRow(`LABEL-${String(index + 1).padStart(2, "0")}`, {
+          recommended_action: action,
+          recommended_action_urgency: urgency,
+        }),
+      ),
+    );
+    await signIn(page);
+    await page.getByRole("tab", { name: "Inventory", exact: true }).click();
+    const region = page.getByRole("region", { name: "Inventory items", exact: true });
+    await expect(region.locator("tbody tr")).toHaveCount(recommendations.length);
+    for (const [index, [raw, label]] of recommendations.entries()) {
+      const value = region.locator("tbody tr").nth(index).locator(".inventory-action-label");
+      await expect(value).toHaveText(label);
+      if (raw !== null) expect(await value.getAttribute("title")).toContain(raw);
+    }
+
+    const stranded = region.locator("tbody tr").nth(3).locator(".inventory-action-label");
+    await stranded.scrollIntoViewIfNeeded();
+    await stranded.click();
+    const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
+    await expect(detail.locator(".inventory-action-label")).toHaveText(
+      "Resolve stranded inventory",
+    );
+    expect(await detail.locator(".inventory-action-label").getAttribute("title")).toContain(
+      "GoToStranded",
+    );
+    await detail.getByRole("button", { name: "Close inventory details", exact: true }).click();
+    await expect(detail).toBeHidden();
+
+    await region.getByRole("button", { name: "Recommendation", exact: true }).click();
+    const options = page.getByRole("dialog", { name: "Recommendation options", exact: true });
+    const expectedLabels = [
+      "Create shipping plan",
+      "Restock",
+      "Send to FBA",
+      "Resolve stranded inventory",
+      "Edit listing",
+      "Lower price",
+      "Advertise listing",
+      "No action required",
+      "No excess inventory",
+      "No restock or excess action required",
+      "Review FBA action",
+      "Unavailable",
+      "Unknown source action",
+    ];
+    await expect(options.getByRole("checkbox")).toHaveCount(expectedLabels.length);
+    expect(
+      await options
+        .getByRole("checkbox")
+        .evaluateAll((inputs) =>
+          inputs.map((input) => [...input.labels].map((label) => label.textContent).join(" ")),
+        ),
+    ).toEqual(expectedLabels);
+    await options
+      .getByRole("checkbox", { name: "Resolve stranded inventory", exact: true })
+      .check();
+    await page.keyboard.press("Escape");
+    await expect(region.locator(".inventory-sku")).toHaveText(["LABEL-04"]);
+    expect(inventory.requests.at(-1).get("and")).toContain(
+      'recommended_action.in.("GoToStranded")',
+    );
+
+    await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
+    const search = page.getByRole("searchbox", { name: "Search", exact: true });
+    await search.fill("shipping plan");
+    await expect(region.locator(".inventory-sku")).toHaveText(["LABEL-02"]);
+    expect(inventory.requests.at(-1).get("and")).toContain(
+      'recommended_action.in.("CreateShippingPlan")',
+    );
+    await search.fill("review fba action");
+    await expect(region.locator(".inventory-sku")).toHaveText(["LABEL-12"]);
+    await expect(region.locator(".inventory-action-label")).toHaveText("Review FBA action");
+    expect(inventory.requests.at(-1).get("and")).toContain(
+      'recommended_action.in.("REVIEW_FBA_ACTION")',
+    );
+    expect(
+      await page.evaluate(
+        () => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1,
+      ),
+    ).toBe(true);
   });
 }

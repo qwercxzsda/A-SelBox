@@ -1,10 +1,10 @@
-import { Button, Text } from "@mantine/core";
+import { Button, Group, Text } from "@mantine/core";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { CanonicalRow } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { DetailSection } from "./DetailSection";
-import { AmountPrecisionNote } from "./AmountPrecisionNote";
+import { HelpPopover } from "./HelpPopover";
 import { buildFinancialReviewFamilies } from "./financial-review-families";
 import type { FinancialReviewMonthScope } from "./financial-review-source-state";
 import {
@@ -23,11 +23,9 @@ function FamilyDefinition({ row }: { row: CanonicalRow }) {
       <Text size="sm" fw={600}>
         {row.family}
       </Text>
-      <Text size="xs" c="dimmed">
-        {row.description}
-      </Text>
       <details>
         <summary>Family definition</summary>
+        <Text size="sm">{row.description}</Text>
         <Text size="xs">Defined Finances types: {row.finances_definition ?? "Unavailable"}</Text>
         <Text size="xs">
           Defined Data Kiosk types: {row.data_kiosk_definition ?? "Unavailable"}
@@ -69,50 +67,58 @@ function FeeFamilyTable({
   );
   return (
     <>
-      <Text size="xs" c="dimmed" mb="sm">
-        Each source type belongs to one economic family. Related charges, refunds and corrections
-        are combined using their original signs. Difference = Finances − Data Kiosk. A missing side
-        is zero only when retrieval coverage includes the period. Source-only amounts are
-        diagnostic; matching family definitions do not guarantee matching dates or complete records.
-      </Text>
+      <Group gap="xs" justify="space-between" mb="sm">
+        <Text size="sm" fw={500}>
+          Finances − Data Kiosk
+        </Text>
+        <HelpPopover label="Fee family comparison help">
+          <p>
+            Each source type belongs to one economic family. Related charges, refunds, and
+            corrections retain their original signs. Families are ordered by the largest absolute
+            difference.
+          </p>
+          <p>
+            A missing side is zero only when retrieval coverage includes the period. Source-only
+            amounts are diagnostic; matching family definitions do not guarantee matching dates or
+            complete records.
+          </p>
+          <p>
+            Month counts include months with that family's records. Amounts display two decimals;
+            totals use original precision, so displayed rows may not add up exactly.
+          </p>
+        </HelpPopover>
+      </Group>
       {rows.length ? (
-        <>
-          <Text size="xs" c="dimmed" mb="sm">
-            Largest absolute difference first. Source-only families are identified separately from
-            missing rows in paired families. Month counts cover months with that family's records.
-          </Text>
-          <DetailTable
-            label={label}
-            minWidth={onSelectFamily ? 920 : 820}
-            rows={rankedRows}
-            rowKey={(row) => row.family_id ?? ""}
-            columns={[
-              { key: "family", label: "Fee family" },
-              { key: "finances_amount", label: `Finances (${currency})`, kind: "amount" },
-              { key: "data_kiosk_amount", label: `Data Kiosk (${currency})`, kind: "amount" },
-              { key: "difference", label: `Difference (${currency})`, kind: "amount" },
-              { key: "coverage", label: "Source coverage" },
-              ...(onSelectFamily ? [{ key: "focus", label: "Investigate" }] : []),
-            ]}
-            renderCell={(row, column) =>
-              column.key === "family" ? (
-                <FamilyDefinition row={row} />
-              ) : column.key === "focus" && onSelectFamily ? (
-                <Button
-                  size="compact-xs"
-                  variant="light"
-                  aria-label={`Show only ${row.family ?? "this family"}`}
-                  onClick={() => {
-                    if (row.family_id) onSelectFamily(row.family_id);
-                  }}
-                >
-                  Show only
-                </Button>
-              ) : undefined
-            }
-          />
-          <AmountPrecisionNote />
-        </>
+        <DetailTable
+          label={label}
+          minWidth={onSelectFamily ? 920 : 820}
+          rows={rankedRows}
+          rowKey={(row) => row.family_id ?? ""}
+          columns={[
+            { key: "family", label: "Fee family" },
+            { key: "finances_amount", label: `Finances (${currency})`, kind: "amount" },
+            { key: "data_kiosk_amount", label: `Data Kiosk (${currency})`, kind: "amount" },
+            { key: "difference", label: `Difference (${currency})`, kind: "amount" },
+            { key: "coverage", label: "Source coverage" },
+            ...(onSelectFamily ? [{ key: "focus", label: "Investigate" }] : []),
+          ]}
+          renderCell={(row, column) =>
+            column.key === "family" ? (
+              <FamilyDefinition row={row} />
+            ) : column.key === "focus" && onSelectFamily ? (
+              <Button
+                size="compact-xs"
+                variant="light"
+                aria-label={`Show only ${row.family ?? "this family"}`}
+                onClick={() => {
+                  if (row.family_id) onSelectFamily(row.family_id);
+                }}
+              >
+                Show only
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
     </>
   );
@@ -148,7 +154,7 @@ export function FinancialReviewFamilyBreakdown({
   return (
     <DetailSection
       title="Fee family breakdown"
-      headingOrder={2}
+      headingOrder={3}
       stateKey={`financial-review:family-breakdown:${category}`}
       collapsible
     >
@@ -174,9 +180,7 @@ export function FinancialReviewFamilyBreakdown({
 
 export function FinancialReviewFamilies(scope: FinancialReviewMonthScope) {
   const { families, currency } = scope;
-  const query = useQuery({
-    ...monthlyFamilyTypesQueryOptions(scope),
-  });
+  const query = useQuery(monthlyFamilyTypesQueryOptions(scope));
   const sourceQuery = useQuery(monthlySourceTotalsQueryOptions(scope));
   const consistent = useSourceRevisionGuard(query.data);
   const sourceConsistent = useSourceRevisionGuard(sourceQuery.data);

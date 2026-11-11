@@ -152,14 +152,28 @@ test("Finances provides an independent exact Amazon ID lookup with current and r
       p_search_types: [],
     });
   const mainScope = mainRequest().args;
+  await page.getByRole("button", { name: "Finances help", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "Finances help", exact: true });
+  await expect(help).toContainText(
+    "Find by transaction ID searches all retained captures, regardless of table filters.",
+  );
+  await page.keyboard.press("Escape");
+  await expect(help).toBeHidden();
   const trigger = sourceLookupTrigger(page);
   await expect(sourceLookup(page)).toBeHidden();
   await captureResponsiveReview(page, testInfo, "finances-lookup-toolbar");
   await trigger.click();
   const lookup = sourceLookup(page);
-  const transactionId = lookup.getByRole("textbox", { name: "Amazon transaction ID", exact: true });
+  const transactionId = lookup.getByRole("textbox", {
+    name: "Search Amazon transaction ID",
+    exact: true,
+  });
   await expect(transactionId).toBeFocused();
-  await expect(lookup).toContainText(
+  await expect(transactionId).toHaveAttribute("placeholder", "Exact Amazon transaction ID");
+  expect(
+    await transactionId.evaluate((input) => [...input.labels].map((label) => label.textContent)),
+  ).toEqual(["Search"]);
+  await expect(lookup).not.toContainText(
     "Enter an exact Amazon transaction ID. Searches all retained captures; table filters do not apply.",
   );
   await transactionId.fill(native);

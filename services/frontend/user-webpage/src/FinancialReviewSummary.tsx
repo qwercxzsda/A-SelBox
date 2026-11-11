@@ -22,10 +22,10 @@ export function FinancialReviewSummary({
 }) {
   return (
     <section className="financial-review-summary" aria-label={`${year} review totals`}>
-      <Text size="xs" c="dimmed" className="financial-review-summary-period">
+      <Text size="sm" c="dimmed" className="financial-review-summary-period">
         {formatRecordMonth(rows[0].month ?? "")} –{" "}
         {formatRecordMonth(rows[rows.length - 1].month ?? "")} · {rows.length}{" "}
-        {rows.length === 1 ? "month" : "months"} with source records
+        {rows.length === 1 ? "month" : "months"}
       </Text>
       {TOTALS.map(([field, label]) => (
         <Paper

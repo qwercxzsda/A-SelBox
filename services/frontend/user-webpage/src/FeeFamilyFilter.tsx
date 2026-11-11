@@ -1,5 +1,5 @@
-import { Button, Stack, Text } from "@mantine/core";
-import { useRef } from "react";
+import { Button, Group, Text } from "@mantine/core";
+import type { Ref } from "react";
 import { ColumnMenu } from "./ColumnMenu";
 import { buildFeeFamilyOptions } from "./fee-family-catalog";
 import type { FeeFamily } from "./fee-family-definitions";
@@ -19,23 +19,18 @@ export function FeeFamilyScope({ families }: { families: readonly string[] }) {
 export function FeeFamilyFilter({
   families,
   options,
-  loading,
-  error,
   onChange,
-  onRetry,
+  triggerRef,
 }: {
   families: string[];
   options: FeeFamily[];
-  loading: boolean;
-  error: boolean;
   onChange: (families: string[]) => void;
-  onRetry: () => void;
+  triggerRef: Ref<HTMLButtonElement>;
 }) {
-  const trigger = useRef<HTMLButtonElement>(null);
   return (
-    <Stack gap="xs" className="fee-family-filter">
+    <div className="fee-family-filter">
       <ColumnMenu
-        triggerRef={trigger}
+        triggerRef={triggerRef}
         label="Fee families"
         filter={{
           kind: "selection",
@@ -48,26 +43,31 @@ export function FeeFamilyFilter({
           onChange,
         }}
       />
-      {loading ? (
-        <Text size="xs" c="dimmed" role="status">
-          Loading fee families…
-        </Text>
-      ) : null}
-      {error ? (
-        <Text size="xs" c="red" role="alert">
-          Could not load fee families.
-          <Button
-            variant="subtle"
-            size="compact-xs"
-            onClick={() => {
-              trigger.current?.focus();
-              onRetry();
-            }}
-          >
-            Retry fee families
-          </Button>
-        </Text>
-      ) : null}
-    </Stack>
+    </div>
   );
+}
+
+export function FeeFamilyStatus({
+  loading,
+  error,
+  onRetry,
+}: {
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+}) {
+  return error ? (
+    <Group gap="xs">
+      <Text size="xs" c="red" role="alert">
+        Could not load fee families.
+      </Text>
+      <Button variant="subtle" size="compact-xs" onClick={onRetry}>
+        Retry fee families
+      </Button>
+    </Group>
+  ) : loading ? (
+    <Text size="xs" c="dimmed" role="status">
+      Loading fee families…
+    </Text>
+  ) : null;
 }

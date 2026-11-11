@@ -3,6 +3,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { formatExactDecimal, formatMoney } from "../../src/decimal.ts";
 import { parseCsv } from "../../src/api/csv.ts";
+import { recommendationLabel } from "../../src/inventory-options.ts";
 import { reviewInventoryLayout } from "./inventory-ui-review.mjs";
 
 const QUANTITIES = [
@@ -23,15 +24,6 @@ const QUANTITIES = [
   ["Total days of supply", "total_days_of_supply"],
   ["Recommended ship-in units", "recommended_ship_in_units"],
 ];
-const RECOMMENDATION_LABELS = new Map([
-  ["EditListing", "Edit listing"],
-  ["SendToFBA", "Send to FBA"],
-  ["GoToRestock", "Restock"],
-  ["NoExcessInventory", "No excess inventory"],
-  ["NoActionRequired", "No action required"],
-  ["AdvertiseListing", "Advertise listing"],
-]);
-
 const itemCount = (count) => `${count} inventory ${count === 1 ? "item" : "items"}`;
 const inventoryRegion = (page) =>
   page.getByRole("region", { name: "Inventory items", exact: true });
@@ -111,7 +103,7 @@ async function verifyMetrics(page, sample) {
   );
   await expect(detail.locator(".inventory-health-label")).toHaveText(field("health_status") ?? "—");
   await expect(detail.locator(".inventory-action-label")).toHaveText(
-    RECOMMENDATION_LABELS.get(field("recommended_action")) ?? field("recommended_action") ?? "—",
+    field("recommended_action") === null ? "—" : recommendationLabel(field("recommended_action")),
   );
   const source = detail.getByRole("button", { name: "Source capture", exact: true });
   if ((await source.getAttribute("aria-expanded")) !== "true") await source.click();

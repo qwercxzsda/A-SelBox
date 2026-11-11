@@ -121,21 +121,22 @@ ownership by exact SKU alone. An absent SKU or empty latest capture never falls 
 per-SKU stock. Namespaces describe source provenance, not ownership; quantities across marketplaces
 or namespaces are not an assumed physical total.
 
-The browser uses those minimal capture references to display marketplace coverage independently of
-item filters. A missing capture, a completed empty capture, and a member with no authorized items
+The browser uses those minimal capture references to distinguish marketplace availability independently
+of item filters. A missing capture, a completed empty capture, and a member with no authorized items
 have distinct empty states; a member is never told that another company's stock is empty. For an
 empty filtered result, a one-row authorized item probe distinguishes no available items from no
 matches. Capture discovery is paged and contains no financial amounts or item data.
 
-Report dates are visible by marketplace, and each item shows its actual snapshot date when supplied.
-A missing snapshot date is labelled explicitly, with the report date as a fallback. Source dates
-more than two marketplace-local calendar days old are marked overdue; dates beyond the marketplace's
+Each item combines its source date and age in one row caption, with an inline Out of date warning
+when needed. There is no separate marketplace freshness panel. A missing snapshot date is labelled
+explicitly, with the report date as a fallback. Source dates
+more than two marketplace-local calendar days old are out of date; dates beyond the marketplace's
 current day receive a future-date warning. The browser uses generated IANA time zones from the same
 definitions as capture creation. Stock calendar dates stay intact; fallback report timestamps convert
 to the marketplace's date. On-screen age updates do not request new data. Exact report and processing
 timestamps remain in UTC; reprocessing does not reset source age.
 Visible filter chips name and individually clear persisted criteria. Sales ordering remains in the
-original currencies; the heading and active-sort note explain that limitation beside the table.
+original currencies; the Sales amount help control beside the column heading explains that scope.
 
 `public.inventory_filter_options()` returns complete distinct `skus`, `health_statuses`, and
 `recommendations` arrays from the same current, authorized rows. Text uses deterministic C ordering;
@@ -151,17 +152,28 @@ first for "Most urgent first"; unknown labels and absent values remain last in e
 The database orders the full filtered result before pagination, with exact SKU, marketplace, and
 capture ID as stable ties. Source labels and normalized captures are unchanged.
 
-| Health priority | Rank | Recommendation priority                  | Rank |
-| --------------- | ---: | ---------------------------------------- | ---: |
-| Out of stock    |   40 | Edit listing                             |   50 |
-| Low stock       |   30 | Restock                                  |   40 |
-| Excess          |   20 | Send to FBA                              |   30 |
-| Healthy         |    0 | Advertise listing                        |   20 |
-|                 |      | No excess inventory / No action required |    0 |
+| Recommendation priority                                                         | Rank |
+| ------------------------------------------------------------------------------- | ---: |
+| Restock / Send to FBA / Create shipping plan                                    |   50 |
+| Resolve stranded inventory                                                      |   40 |
+| Edit listing                                                                    |   30 |
+| Lower price                                                                     |   20 |
+| Advertise listing                                                               |   10 |
+| No excess inventory / No action required / No restock or excess action required |    0 |
+
+Replenishment actions share the highest rank as an action category. Their labels do not indicate
+shipment progress or equal stockout risk; recommended ship dates, stock coverage, and inbound
+inventory do not affect this ordering. Their row labels use the strongest emphasis;
+stranded inventory uses an amber warning, listing maintenance uses blue, and routine or no-action
+labels use neutral styling. Health ordering remains Out of stock (40), Low stock (30),
+Excess (20), and Healthy (0).
 
 Matching ignores case, spaces, and punctuation. Excess also recognizes `ExcessStock`,
 `ExcessInventory`, `HighStock`, and `Overstock`; Restock recognizes `GoToRestock` and
-`RestockInventory`. Unrecognized labels are preserved and have no inferred rank.
+`RestockInventory`. Recommendation display labels use sentence case and preserve acronyms such as
+FBA. Camel-case, underscore, and whitespace variants have consistent display text. Unknown values
+are formatted for readability but remain unranked. Original source values remain unchanged in
+storage, exact filters, and hover text; search matches both source values and displayed labels.
 
 All three private tables use RLS. Members read latest items for currently owned SKUs; administrators also
 see unassigned items and retained history. A caller-checked private helper exposes minimal latest

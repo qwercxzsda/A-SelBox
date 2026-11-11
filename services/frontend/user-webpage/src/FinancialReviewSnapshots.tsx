@@ -1,6 +1,7 @@
 import { reviewPeriodKey } from "./financial-review-scope-key";
 import type { Identity } from "./auth-session";
 import { PayoutReports } from "./PayoutReports";
+import { PayoutReadiness } from "./PayoutReadiness";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { createDatasetViewState, type DatasetViewState } from "./workspace-view-state";
 import { decodeDatasetView } from "./workspace-view-codec";
@@ -33,19 +34,22 @@ export function FinancialReviewSnapshots({
     },
   });
   return (
-    <PayoutReports
-      identity={identity}
-      viewState={scoped(view)}
-      onViewStateChange={(update) => {
-        setView((current) =>
-          scoped(typeof update === "function" ? update(scoped(current)) : update),
-        );
-      }}
-      onRetry={onRetry}
-      reviewMode
-      fixedMonth
-      currency={currency}
-      marketplace={marketplace}
-    />
+    <>
+      <PayoutReadiness identity={identity} month={month} companyIds={view.filters.companyIds} />
+      <PayoutReports
+        identity={identity}
+        viewState={scoped(view)}
+        onViewStateChange={(update) => {
+          setView((current) =>
+            scoped(typeof update === "function" ? update(scoped(current)) : update),
+          );
+        }}
+        onRetry={onRetry}
+        reviewMode
+        fixedMonth
+        currency={currency}
+        marketplace={marketplace}
+      />
+    </>
   );
 }

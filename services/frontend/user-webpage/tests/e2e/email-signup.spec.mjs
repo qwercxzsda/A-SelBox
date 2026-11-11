@@ -58,7 +58,7 @@ test("immediate signup opens an Unassigned account and does not fetch company ca
   await fillSignup(page);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
-  await expect(page.locator("header")).toContainText("Unassigned");
+  await expect(page.locator(".topbar")).toContainText("Unassigned");
   await expect(page.getByRole("tab")).toHaveCount(0);
   expect(fixture.identityRequests).toHaveLength(0);
   expect(fixture.requests).toHaveLength(0);
@@ -112,8 +112,8 @@ test("email confirmation verifies Auth identity and removes tokens from the URL 
   });
   await page.goto(`/#${params}`);
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
-  await expect(page.locator("header")).toContainText(email);
-  await expect(page.locator("header")).toContainText("Unassigned");
+  await expect(page.locator(".topbar")).toContainText(email);
+  await expect(page.locator(".topbar")).toContainText("Unassigned");
   expect(new URL(page.url()).hash).toBe("");
   expect(fixture.sessionUserRequests).toEqual([
     { user: "member-a", accessToken: "token-member-a" },

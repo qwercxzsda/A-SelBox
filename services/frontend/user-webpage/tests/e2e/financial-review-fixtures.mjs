@@ -142,11 +142,6 @@ function setupCurrentReview(fixture) {
 }
 
 export function setupFinancialReview(fixture) {
-  fixture.payoutPolicy = {
-    mature_cutoff_date: "2026-08-27",
-    latest_month: "2026-07-01",
-    mature_cutoff_months: 2,
-  };
   fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = REVIEW_COMPANY;
   fixture.companyNames[REVIEW_COMPANY] = "Review Company";

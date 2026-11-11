@@ -125,3 +125,53 @@ for (const focused of ["removed record", "retained filter"]) {
     await expect(focused === "removed record" ? results : source).toBeFocused();
   });
 }
+
+test("an aggregate refresh failure preserves the open source controls through recovery", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const { fixture, drawer, table } = await openRecords(page);
+  const source = drawer.getByLabel("Record source", { exact: true });
+  await source.focus();
+  fixture.financialReviewStatusForRequest = ({ endpoint }) =>
+    endpoint === "current_source_totals" ? 403 : 200;
+  fixture.revisions.finances = "1";
+  await page.clock.fastForward(60_000);
+  const totals = drawer.getByRole("group", { name: "account totals", exact: true });
+  await expect(totals.getByRole("alert")).toContainText("Could not load account totals.");
+  await expect(source).toBeFocused();
+  await expect(table.locator("tbody tr")).toHaveCount(50);
+
+  fixture.financialReviewStatusForRequest = null;
+  fixture.revisions.finances = "2";
+  await page.clock.fastForward(60_000);
+  await expect(totals.getByRole("alert")).toHaveCount(0);
+  await expect(totals.getByText("Loading account totals…", { exact: true })).toHaveCount(0);
+  await expect(source).toBeFocused();
+});
+
+for (const removed of ["month", "currency"]) {
+  test(`a successful refresh closes a review whose ${removed} no longer has source records`, async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const { fixture, drawer } = await openRecords(page);
+    await drawer.getByLabel("Record source", { exact: true }).focus();
+    fixture.financialReviewTotals = fixture.financialReviewTotals.filter((row) =>
+      removed === "month" ? row.month !== "2026-07-01" : row.currency !== "USD",
+    );
+    fixture.financialReviewRecords = [];
+    fixture.revisions.finances = "1";
+    await page.clock.fastForward(60_000);
+    await expect(drawer).toBeHidden();
+    const july = page.getByRole("button", { name: "Open review for July 2026", exact: true });
+    if (removed === "month") {
+      await expect(july).toHaveCount(0);
+      await expect(page.locator(".financial-review-months")).toBeFocused();
+    } else {
+      await expect(page.locator(".financial-review-months")).toBeFocused();
+      await expect(july).toBeVisible();
+      await expect(page.getByText("Monthly amounts · EUR", { exact: true })).toBeVisible();
+    }
+  });
+}

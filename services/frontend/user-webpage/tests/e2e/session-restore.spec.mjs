@@ -71,8 +71,8 @@ for (const originalRole of ["member", "administrator"]) {
       await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(
         nextRole === "administrator" ? 1 : 0,
       );
-      await expect(page.locator("header")).toContainText("member-a@example.test");
-      await expect(page.locator("header")).not.toContainText("cached-wrong@example.test");
+      await expect(page.locator(".topbar")).toContainText("member-a@example.test");
+      await expect(page.locator(".topbar")).not.toContainText("cached-wrong@example.test");
       expect(fixture.revisionRequests.at(-1).user).toBe("member-a");
       expect(fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/app_accounts")).toBe(
         false,
@@ -269,7 +269,7 @@ test("reload uses a changed company assignment and never restores the previous c
     await expect(page.getByText("ALPHA-001", { exact: true })).toHaveCount(0);
     release.resolve();
     await expect(rowWithSku(page, "REASSIGNED-001")).toBeVisible();
-    await expect(page.locator("header")).toContainText("Company Reassigned");
+    await expect(page.locator(".topbar")).toContainText("Company Reassigned");
     await expect(page.getByText("ALPHA-001", { exact: true })).toHaveCount(0);
     expect(fixture.authRequests).toBe(1);
   } finally {
@@ -328,7 +328,7 @@ test("a late abandoned refresh cannot overwrite a different member's newly signe
         }),
     );
     await expect(rowWithSku(page, "BRAVO-001")).toBeVisible();
-    await expect(page.locator("header")).toContainText("member-b@example.test");
+    await expect(page.locator(".topbar")).toContainText("member-b@example.test");
     await expect(page.getByText("ALPHA-001", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);
     expect(await storedSession(page)).toEqual(memberBSession);

@@ -207,15 +207,3 @@ test("payout type totals page exact groups across namespaces and detail filters 
   await client.fetchPayoutRecords("token", COMPANY_ID, true, 0, undefined, ['a"b', "x,y"]);
   assert.equal(calls.length, 3);
 });
-
-test("payout eligibility comes from the server and validates calendar dates", async () => {
-  const policy = {
-    mature_cutoff_date: "2026-07-27",
-    latest_month: "2026-06-01",
-    mature_cutoff_months: 2,
-  };
-  const client = createApiClient(SETTINGS, async () => responseJson(policy));
-  assert.deepEqual(await client.fetchPayoutPolicy("token"), policy);
-  policy.mature_cutoff_date = "2026-02-30";
-  await assert.rejects(client.fetchPayoutPolicy("token"), /valid calendar date/);
-});

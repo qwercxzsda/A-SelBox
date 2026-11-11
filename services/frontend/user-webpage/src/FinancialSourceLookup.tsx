@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Drawer, Group, Text, TextInput } from "@mantine/core";
+import { Button, Drawer, Group, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialSourceTransactions } from "./api";
 import {
@@ -15,6 +15,7 @@ import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { LookupPagination } from "./LookupPagination";
 import { revealSection } from "./reveal-section";
+import { SearchInput } from "./SearchInput";
 
 export function FinancialSourceLookup({ identity }: { identity: Identity }) {
   const [opened, setOpened] = useWorkspacePreference(
@@ -97,10 +98,6 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
           title="Find Amazon transaction"
           closeButtonProps={{ "aria-label": "Close transaction lookup" }}
         >
-          <Text size="sm" c="dimmed" mb="md">
-            Enter an exact Amazon transaction ID. Searches all retained captures; table filters do
-            not apply.
-          </Text>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -110,16 +107,15 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
             }}
           >
             <Group align="end" mb="sm">
-              <TextInput
-                ref={inputRef}
+              <SearchInput
+                inputRef={inputRef}
                 data-autofocus
-                label="Amazon transaction ID"
+                aria-label="Search Amazon transaction ID"
+                placeholder="Exact Amazon transaction ID"
                 value={input}
                 maxLength={512}
                 style={{ flex: 1, minWidth: 220 }}
-                onChange={(event) => {
-                  setInput(event.currentTarget.value);
-                }}
+                onChange={setInput}
               />
               <Button type="submit" disabled={!input.trim()}>
                 Find transaction

@@ -14,7 +14,8 @@ import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { AmountOrderingLimitError } from "./api/amount-ordering";
 import { PayoutReports } from "./PayoutReports";
 import { AppliedTableFilters } from "./AppliedTableFilters";
-import { WorkspaceIntro } from "./WorkspaceIntro";
+import { WorkspaceHeader } from "./WorkspaceHeader";
+import { DatasetHelp } from "./DatasetHelp";
 import { filterOptions, transactionTypeValues } from "./filter-options";
 import { transactionTypeSelectionLabels } from "./transaction-type-groups";
 import { RowsSelect } from "./RowsSelect";
@@ -22,7 +23,6 @@ import { CompanyMembership } from "./CompanyMembership";
 import { useBrowserOnline } from "./use-browser-online";
 import { useRef } from "react";
 import { FinancialSourceLookup } from "./FinancialSourceLookup";
-import { ActivityEligibilityHelp } from "./ActivityEligibilityHelp";
 import { SearchInput } from "./SearchInput";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { pageRangeSummary } from "./pagination";
@@ -33,7 +33,6 @@ interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   dataset: TableDatasetKey;
   onRetry: () => Promise<void>;
   onAddCompany?: () => void;
-  onConfigureSku?: (sku: string) => void;
 }
 
 export function FinanceDataset(props: FinanceDatasetProps) {
@@ -74,17 +73,19 @@ function StandardFinanceDataset({
   }
   return (
     <>
-      <WorkspaceIntro
-        description={presentation.description}
-        actions={
-          dataset === "accounts" && onAddCompany ? (
-            <Button variant="light" onClick={onAddCompany}>
-              Add company
-            </Button>
-          ) : undefined
-        }
-      />
-      {dataset === "finances" ? <ActivityEligibilityHelp /> : null}
+      {dataset !== "live" ? (
+        <WorkspaceHeader
+          title={presentation.label}
+          help={<DatasetHelp dataset={dataset} />}
+          actions={
+            dataset === "accounts" && onAddCompany ? (
+              <Button variant="light" onClick={onAddCompany}>
+                Add company
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : null}
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -119,8 +120,6 @@ function StandardFinanceDataset({
             <SearchInput
               inputRef={searchInput}
               className="search-field"
-              label="Search"
-              description={dataset === "live" ? "Search records only" : undefined}
               type="search"
               value={search}
               placeholder={presentation.searchPlaceholder}

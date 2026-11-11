@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialReviewRecords } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
-import { transactionTypeLabel } from "./categories";
+import { sourceCodeLabel } from "./categories";
 import {
   reviewFamilyStateKey,
   type FinancialReviewSourceProps,
@@ -92,14 +92,14 @@ export function FinancialReviewRecords({
             size="xs"
             variant="light"
             aria-label="Clear selected type"
-            title={transactionTypeLabel(state.type)}
+            title={sourceCodeLabel(state.type)}
             rightSection={<span aria-hidden="true">×</span>}
             onClick={(event) => {
               if (event.detail === 0) sourceInput.current?.focus();
               change({ type: "", recordPage: 0 });
             }}
           >
-            <span className="applied-table-filter-text">{transactionTypeLabel(state.type)}</span>
+            <span className="applied-table-filter-text">{sourceCodeLabel(state.type)}</span>
           </Button>
         ) : null}
       </Group>

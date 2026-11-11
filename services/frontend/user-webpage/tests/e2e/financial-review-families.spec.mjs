@@ -421,7 +421,7 @@ test("source coverage failures keep selected family comparisons unavailable unti
   await expect(page.getByRole("alert").filter({ has: retry })).toContainText(
     "Could not load source coverage and available currencies.",
   );
-  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Amount currency: USD", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "2026 review totals", exact: true })).toHaveCount(
     0,
   );

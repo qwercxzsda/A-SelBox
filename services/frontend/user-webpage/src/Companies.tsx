@@ -10,7 +10,7 @@ import { RowsSelect } from "./RowsSelect";
 import { CompanyDetails } from "./CompanyDetails";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { PAGE_SIZES } from "./view-model";
-import { WorkspaceIntro } from "./WorkspaceIntro";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { SearchInput } from "./SearchInput";
 import "./Companies.css";
 
@@ -99,9 +99,19 @@ export function Companies({
 
   return (
     <Stack gap="md" className="companies-panel">
-      <WorkspaceIntro
-        title="Company directory"
-        description="Manage companies and review their saved SKU assignments."
+      <WorkspaceHeader
+        title="Companies"
+        help={
+          <>
+            <p>
+              Create companies and expand a company to review its saved SKU assignments and members.
+            </p>
+            <p>
+              Assign SKUs in Current fees and manage company membership in User access. Selecting a
+              SKU opens its transactions.
+            </p>
+          </>
+        }
       />
       {returnLabel ? (
         <Alert color="cyan">
@@ -131,7 +141,7 @@ export function Companies({
       <Group align="flex-end" gap="md" className="company-list-toolbar">
         <SearchInput
           inputRef={searchInput}
-          label="Search companies"
+          aria-label="Search companies"
           placeholder="Company name or ID"
           className="company-list-search"
           value={state.search}

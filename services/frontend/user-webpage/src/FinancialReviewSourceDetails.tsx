@@ -19,7 +19,7 @@ import { revealSection } from "./reveal-section";
 export function FinancialReviewSourceDetails({
   total,
   ...scope
-}: FinancialReviewMonthScope & { total: CanonicalRow }) {
+}: FinancialReviewMonthScope & { total?: CanonicalRow }) {
   const { category, month, currency, marketplace, families } = scope;
   const periodKey = reviewPeriodKey(month, marketplace, currency);
   const [state, setSaved] = useWorkspacePreference(
@@ -37,9 +37,14 @@ export function FinancialReviewSourceDetails({
   return (
     <>
       <Text size="xs" c="dimmed" mt="lg" mb="sm">
-        {marketplace} · Records in {currency} · Finances:{" "}
-        {total.finances_row_count ?? "Unavailable"} · Data Kiosk:{" "}
-        {total.data_kiosk_row_count ?? "Unavailable"}
+        {marketplace} · Records in {currency}
+        {total ? (
+          <>
+            {" "}
+            · Finances: {total.finances_row_count ?? "Unavailable"} · Data Kiosk:{" "}
+            {total.data_kiosk_row_count ?? "Unavailable"}
+          </>
+        ) : null}
       </Text>
       <DetailSection
         stateKey={`financial-review:families:${category}:${periodKey}`}

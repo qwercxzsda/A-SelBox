@@ -1,11 +1,10 @@
 import { useRef } from "react";
-import { Alert, Badge, Button, Group, NativeSelect, Text } from "@mantine/core";
+import { Alert, Button, Group, NativeSelect } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { FinancialReviewMonthDetail } from "./FinancialReviewMonthDetail";
 import { FinancialReviewMonthTable } from "./FinancialReviewMonthTable";
 import { FinancialReviewSummary } from "./FinancialReviewSummary";
 import { FinancialReviewTrend } from "./FinancialReviewTrend";
-import { formatRecordMonth } from "./date-display";
 import {
   createMonthlyReviewView,
   decodeMonthlyReviewView,
@@ -15,11 +14,10 @@ import { useWorkspacePreference } from "./use-workspace-preference";
 import { useFinancialReviewPeriod } from "./use-financial-review-period";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { revealSection } from "./reveal-section";
-import { WorkspaceIntro } from "./WorkspaceIntro";
-import { FeeFamilyFilter, FeeFamilyScope } from "./FeeFamilyFilter";
+import { FeeFamilyFilter, FeeFamilyScope, FeeFamilyStatus } from "./FeeFamilyFilter";
 import { FinancialReviewFamilyBreakdown } from "./FinancialReviewFamilies";
 import { normalizeFeeFamilyIds } from "./fee-family-catalog";
-import { REVIEW_CATEGORIES, type ReviewCategory } from "./financial-review-categories";
+import type { ReviewCategory } from "./financial-review-categories";
 import marketplaces from "./generated/marketplaces.json";
 import "./FinancialTable.css";
 import "./FinancialReview.css";
@@ -45,7 +43,6 @@ export function FinancialReviewMonths({
     familyQuery,
     familyTypes,
     familyOptions,
-    latestMonth,
     year,
     years,
     currencies,
@@ -60,7 +57,16 @@ export function FinancialReviewMonths({
     decodeMonthlyReviewView,
   );
   const listRef = useRef<HTMLDivElement>(null);
-  const selectedMonth = months.includes(view.selectedMonth ?? "") ? view.selectedMonth : null;
+  const familyTrigger = useRef<HTMLButtonElement>(null);
+  // Only a successful overview can establish that the open month no longer exists.
+  const overviewReady =
+    !loading && bounds.isSuccess && totalsQuery.isSuccess && comparisonQuery.isSuccess;
+  const selectedMonth =
+    view.selectedMonth &&
+    ((months.includes(view.selectedMonth) && (!view.currency || view.currency === currency)) ||
+      (!overviewReady && view.currency && view.selectedMonth.startsWith(`${year}-`)))
+      ? view.selectedMonth
+      : null;
   const { rememberOpener, restoreFocus } = useDrawerFocusReturn({
     opened: selectedMonth !== null,
     fallbackRef: listRef,
@@ -88,73 +94,55 @@ export function FinancialReviewMonths({
 
   return (
     <div ref={listRef} className="financial-review-months" tabIndex={-1}>
-      <WorkspaceIntro
-        description={REVIEW_CATEGORIES.find(({ value }) => value === category)?.description}
-      />
-      <Group className="financial-review-scope" justify="space-between" align="end" gap="md">
-        <Group gap="sm" align="end">
+      <div className="financial-review-scope">
+        <NativeSelect
+          label="Marketplace"
+          value={scope.marketplace}
+          data={marketplaces}
+          onChange={(event) => {
+            changeScope({ ...scope, marketplace: event.currentTarget.value, currency: "" });
+          }}
+        />
+        <NativeSelect
+          label="Year"
+          value={year}
+          data={years.length ? years : [{ value: "", label: loading ? "Loading…" : "No years" }]}
+          disabled={!years.length}
+          onChange={(event) => {
+            changeScope({ ...scope, year: event.currentTarget.value });
+          }}
+        />
+        <FeeFamilyFilter
+          triggerRef={familyTrigger}
+          families={scope.families}
+          options={familyOptions}
+          onChange={(families) => {
+            changeScope({ ...scope, currency, families: normalizeFeeFamilyIds(families) });
+          }}
+        />
+        {currencies.length > 1 ? (
           <NativeSelect
-            label="Marketplace"
-            value={scope.marketplace}
-            data={marketplaces}
+            className="financial-review-currency"
+            label="Currency"
+            value={currency}
+            data={currencies}
             onChange={(event) => {
-              changeScope({ ...scope, marketplace: event.currentTarget.value, currency: "" });
+              changeScope({ ...scope, year, currency: event.currentTarget.value });
             }}
           />
-          <NativeSelect
-            label="Year"
-            value={year}
-            data={years.length ? years : [{ value: "", label: loading ? "Loading…" : "No years" }]}
-            disabled={!years.length}
-            onChange={(event) => {
-              changeScope({ ...scope, year: event.currentTarget.value });
-            }}
-          />
-          {currencies.length > 1 ? (
-            <NativeSelect
-              label="Currency"
-              description="Amounts stay separate by currency"
-              value={currency}
-              data={currencies}
-              onChange={(event) => {
-                changeScope({ ...scope, year, currency: event.currentTarget.value });
-              }}
-            />
-          ) : currency ? (
-            <Badge variant="light" aria-label={`Amount currency: ${currency}`}>
-              {currency}
-            </Badge>
-          ) : null}
-          <FeeFamilyFilter
-            families={scope.families}
-            options={familyOptions}
-            loading={year !== "" && currency !== "" && familyQuery.isPending}
-            error={familyQuery.isError}
-            onChange={(families) => {
-              changeScope({ ...scope, currency, families: normalizeFeeFamilyIds(families) });
-            }}
-            onRetry={() => void familyQuery.refetch()}
-          />
-        </Group>
-        <Text size="xs" c="dimmed" className="financial-review-scope-note">
-          {latestMonth
-            ? `Source records through ${formatRecordMonth(latestMonth)}`
-            : bounds.isError
-              ? "Available source months unavailable"
-              : bounds.isPending
-                ? "Checking available source months…"
-                : "No source months available"}
-          <br />
-          {scope.marketplace} · All source accounts and companies
-        </Text>
-      </Group>
-      <div className="financial-review-family-context">
-        <FeeFamilyScope families={scope.families} />
-        <Text size="xs" c="dimmed">
-          The selected families apply to period totals, monthly and running differences, and source
-          records.
-        </Text>
+        ) : null}
       </div>
+      <Group className="financial-review-family-context" justify="space-between" gap="xs">
+        <FeeFamilyScope families={scope.families} />
+        <FeeFamilyStatus
+          loading={year !== "" && currency !== "" && familyQuery.isPending}
+          error={familyQuery.isError}
+          onRetry={() => {
+            familyTrigger.current?.focus();
+            void familyQuery.refetch();
+          }}
+        />
+      </Group>
       {bounds.isError ? (
         <Alert color="red" role="alert" mb="sm">
           Could not load available review periods.
@@ -252,7 +240,7 @@ export function FinancialReviewMonths({
       <FinancialReviewMonthDetail
         category={category}
         marketplace={scope.marketplace}
-        currency={currency}
+        currency={view.currency ?? currency}
         families={scope.families}
         onRetry={onRetry}
         identity={identity}

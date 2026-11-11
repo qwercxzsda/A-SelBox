@@ -23,7 +23,7 @@ test("Germany and France stay separate in EUR and preserve family scope through 
   const fixture = await openFinancialReview(page, setupMarketplaceReview);
   await marketplace(page).selectOption("Amazon.de");
   await expect(periodAmounts(page)).toHaveText(["-190.00 EUR", "-155.00 EUR", "-35.00 EUR"]);
-  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveCount(0);
   await chooseFamilies(page, ["Monthly storage"]);
   await expect(periodAmounts(page)).toHaveText(["-150.00 EUR", "-130.00 EUR", "-20.00 EUR"]);

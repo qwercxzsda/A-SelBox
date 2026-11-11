@@ -159,8 +159,6 @@ export const fetchTransactionTypeTotals = (
   options: FetchTransactionTypeTotalsOptions,
 ): Promise<TransactionTypeTotal[]> => getDefaultClient().fetchTransactionTypeTotals(options);
 
-export const fetchPayoutPolicy = (accessToken: string, signal?: AbortSignal) =>
-  getDefaultClient().fetchPayoutPolicy(accessToken, signal);
 export const fetchPayoutHistory = (options: FetchPayoutHistoryOptions): Promise<PageResult> =>
   getDefaultClient().fetchPayoutHistory(options);
 export const fetchPayoutVersion = (options: FetchPayoutVersionOptions) =>

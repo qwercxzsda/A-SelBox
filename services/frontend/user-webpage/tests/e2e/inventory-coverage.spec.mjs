@@ -43,15 +43,18 @@ test("old inventory exposes source age before opening metadata and separates pro
       available_quantity: "0",
     }),
   ]);
-  await expect(coverage(page)).toContainText("Report 2026-10-03 · 15 days old");
-  await expect(coverage(page).getByText("Overdue report", { exact: true })).toBeVisible();
-  await expect(items(page)).toContainText("Stock as of 2026-10-03 · 15 days old");
+  await expect(coverage(page)).toHaveCount(0);
+  await expect(page.getByText("Latest imported reports", { exact: true })).toHaveCount(0);
+  await expect(items(page).locator(".inventory-source-date")).toHaveText(
+    "Stock as of 2026-10-03 · 15 days old · Out of date",
+  );
+  await expect(items(page).locator(".inventory-source-date .mantine-Badge-root")).toHaveCount(0);
   await expect(items(page).getByText("Available", { exact: true }).locator("..")).toHaveText(
     "Available0",
   );
   await items(page).locator("tbody tr").first().click();
   const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
-  await expect(detail).toContainText("Stock as of 2026-10-03 · 15 days old");
+  await expect(detail).toContainText("Stock as of 2026-10-03 · 15 days old · Out of date");
   await expect(detail).toContainText("Amazon report created 2026-10-03 14:00:00 UTC");
   await expect(detail).toContainText("Processed 2026-10-17 04:00:00 UTC");
   await expect(detail).toContainText("processing does not refresh the source stock");
@@ -116,7 +119,7 @@ test("members see authorized-item availability without a global stock-empty clai
     ),
   ).toBeVisible();
   await expect(page.getByText(/snapshots contain no inventory items/)).toHaveCount(0);
-  await expect(coverage(page)).toContainText("Amazon.com");
+  await expect(coverage(page)).toHaveCount(0);
 });
 
 test("active filters show each value, survive F5 and clear individually without discarding other criteria", async ({
@@ -166,7 +169,7 @@ test("active filters show each value, survive F5 and clear individually without 
   ).toBe(true);
 });
 
-test("coverage failures do not become a no-snapshot claim and retry with lightweight checks", async ({
+test("availability failures do not become a no-snapshot claim and retry with lightweight checks", async ({
   page,
 }) => {
   await page.clock.install();
@@ -176,17 +179,42 @@ test("coverage failures do not become a no-snapshot claim and retry with lightwe
   inventory.captures = [capture()];
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "Could not check inventory snapshot coverage",
-  );
+  await expect(page.getByRole("alert")).toContainText("Could not check inventory availability");
   await expect(page.getByText(/No inventory snapshot has been imported/)).toHaveCount(0);
   inventory.coverageFailed = false;
   await page.clock.fastForward(60_000);
-  await expect(coverage(page)).toContainText("Amazon.com");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.getByText(
+      "An inventory snapshot is available, but no items from it are assigned to your company.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   const reads = inventory.captureRequests.length;
   await page.clock.fastForward(60_000);
   expect(inventory.captureRequests).toHaveLength(reads);
   expect(fixture.revisionRequests.length).toBeGreaterThan(0);
+});
+
+test("visible inventory keeps its own date warning when the capture lookup fails", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-10-18T12:00:00Z") });
+  await mockSupabase(page);
+  const inventory = await mockInventory(page, [
+    inventoryRow("AVAILABLE", { ...capture(), snapshot_date: "2026-10-03" }),
+  ]);
+  inventory.coverageFailed = true;
+  await signIn(page);
+  await page.getByRole("tab", { name: "Inventory", exact: true }).click();
+  await expect(items(page).locator(".inventory-source-date")).toHaveText(
+    "Stock as of 2026-10-03 · 15 days old · Out of date",
+  );
+  await page.clock.fastForward(2_000);
+  await expect.poll(() => inventory.captureRequests.length).toBeGreaterThanOrEqual(2);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(coverage(page)).toHaveCount(0);
+  await expect(page.getByText("Checking inventory availability…", { exact: true })).toHaveCount(0);
 });
 
 test("age updates at marketplace midnight without reloading successful inventory pages", async ({
@@ -196,14 +224,17 @@ test("age updates at marketplace midnight without reloading successful inventory
   const { inventory } = await setup(page, [
     inventoryRow("AGING", { ...capture(), snapshot_date: null }),
   ]);
-  await expect(coverage(page)).toContainText("2 days old");
-  await expect(items(page)).toContainText("Stock date unavailable · Report 2026-10-03");
-  await expect(coverage(page).getByText("Overdue report", { exact: true })).toHaveCount(0);
+  await expect(coverage(page)).toHaveCount(0);
+  await expect(items(page).locator(".inventory-source-date")).toHaveText(
+    "Stock date unavailable · Report 2026-10-03 · 2 days old",
+  );
+  await expect(items(page)).not.toContainText("Out of date");
   const reads = inventory.requests.length;
   const captureReads = inventory.captureRequests.length;
   await page.clock.fastForward(61_000);
-  await expect(coverage(page)).toContainText("3 days old");
-  await expect(coverage(page).getByText("Overdue report", { exact: true })).toBeVisible();
+  await expect(items(page).locator(".inventory-source-date")).toHaveText(
+    "Stock date unavailable · Report 2026-10-03 · 3 days old · Out of date",
+  );
   expect(inventory.requests).toHaveLength(reads);
   expect(inventory.captureRequests).toHaveLength(captureReads);
 });
@@ -235,8 +266,9 @@ test("phone inventory keeps next-local-day stock fresh while warning about genui
       .filter({ hasText: `LOCAL-${code}` });
     await expect(row).toContainText("Stock as of 2026-11-06 · Today");
     await expect(row).not.toContainText("Future source date");
+    await expect(row).not.toContainText("Out of date");
   }
-  await expect(coverage(page)).toContainText("Report 2026-11-06 · Today");
+  await expect(coverage(page)).toHaveCount(0);
   const future = items(page).locator("tbody tr").filter({ hasText: "LOCAL-US" });
   await expect(future).toContainText("Future source date — check source");
   await page.screenshot({
@@ -261,12 +293,14 @@ test("sales sorting explains original currencies at the point of comparison", as
   ]);
   await expect(
     items(page).getByText("Original currencies · no conversion", { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await columnTrigger(items(page), "Sales · last 90 days").click();
   await page.getByRole("button", { name: "Highest first", exact: true }).click();
-  await expect(
-    page.getByRole("note").filter({ hasText: "Sales ordering compares original currency amounts" }),
-  ).toBeVisible();
+  await items(page).getByRole("button", { name: "Sales amount help", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "Sales amount help", exact: true });
+  await expect(help).toContainText("Sales use original currencies without conversion.");
+  await expect(help).toContainText("Select one marketplace before comparing amounts.");
+  await help.getByRole("button", { name: "Close Sales amount help", exact: true }).click();
   await expect(items(page).locator(".inventory-sku")).toHaveText(["YEN", "DOLLARS"]);
   await expect(items(page)).toContainText("90,000.00 JPY");
   await expect(items(page)).toContainText("1,000.00 USD");

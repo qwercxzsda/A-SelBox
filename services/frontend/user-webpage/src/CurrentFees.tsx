@@ -7,9 +7,9 @@ import { SkuConfigurationList } from "./SkuConfigurationList";
 import type { useSkuConfiguration } from "./use-sku-configuration";
 import { newSkuItem, resolveSkuConfiguration } from "./sku-configuration-form";
 import type { Identity } from "./auth-session";
-import { DATASET_PRESENTATION, getErrorMessage } from "./view-model";
+import { getErrorMessage } from "./view-model";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
-import { WorkspaceIntro } from "./WorkspaceIntro";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { useFeeEditor } from "./use-fee-editor";
 import { FeeDraftStatus } from "./FeeDraftStatus";
 
@@ -60,9 +60,21 @@ export function CurrentFees({
     : null;
   return (
     <Stack ref={panelRef} tabIndex={-1} gap="md" className="fee-panel">
-      <WorkspaceIntro
-        title="Assignments and fees"
-        description={DATASET_PRESENTATION.fees.description}
+      <WorkspaceHeader
+        title="Current fees"
+        help={
+          <>
+            <p>
+              Review each SKU's company assignment and marketplace fee periods. Select a SKU to view
+              its transactions.
+            </p>
+            <p>
+              {administrator
+                ? "Edits are saved as drafts. Review changes lets you check the full batch before publishing; closing an editor keeps unfinished work."
+                : "Your company's assignments and fee periods are read-only. Contact an administrator to change them."}
+            </p>
+          </>
+        }
         actions={
           administrator ? (
             <Group gap="xs" align="flex-start">

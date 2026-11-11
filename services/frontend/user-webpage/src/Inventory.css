@@ -1,4 +1,4 @@
-.inventory-panel > .ui-workspace-intro {
+.inventory-panel > .workspace-header {
   margin-bottom: 0;
 }
 
@@ -22,23 +22,9 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.inventory-coverage-markets > * {
-  min-width: 0;
-  flex: 0 1 auto;
-}
 .inventory-source-date {
   max-width: 100%;
-}
-.inventory-source-date p {
   overflow-wrap: anywhere;
-}
-.inventory-sales-note {
-  padding: 0.5rem 0.75rem;
-  border-inline-start: 3px solid var(--ui-accent);
-  background: var(--ui-surface-header);
-}
-.inventory-scroll-hint {
-  display: none;
 }
 .inventory-scroll {
   max-width: 100%;
@@ -110,32 +96,18 @@
   color: var(--ui-text);
   overflow-wrap: anywhere;
 }
-.inventory-action-label[data-tone="listing"] {
+.inventory-action-label[data-tone="replenishment"] {
   background: var(--mantine-color-red-0);
   color: var(--mantine-color-red-9);
 }
-.inventory-action-label[data-tone="restock"] {
+.inventory-action-label[data-tone="attention"] {
   background: #fff4da;
   color: #805000;
 }
-.inventory-action-label[data-tone="shipment"] {
+.inventory-action-label[data-tone="listing"] {
   background: var(--mantine-color-blue-0);
   color: var(--mantine-color-blue-9);
 }
-.inventory-table caption {
-  caption-side: bottom;
-  padding: 0.6rem;
-  color: var(--ui-text-muted);
-  font-size: var(--ui-font-caption);
-  text-align: left;
-}
-
-@media (max-width: 1200px) {
-  .inventory-scroll-hint {
-    display: block;
-  }
-}
-
 @media (max-width: 720px) {
   .inventory-filters > :first-child {
     flex-basis: 100%;

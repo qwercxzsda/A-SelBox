@@ -326,13 +326,6 @@ test("source revisions refresh visible review data while unchanged and fee check
   fixture.revisions.fees = "new-fees";
   await checkFinancialReviewUpdates(page, fixture);
   expect(currentReads(fixture)).toHaveLength(reads);
-  fixture.payoutPolicy = {
-    mature_cutoff_date: "2026-08-28",
-    latest_month: "2026-07-01",
-    mature_cutoff_months: 2,
-  };
-  await checkFinancialReviewUpdates(page, fixture);
-  expect(currentReads(fixture)).toHaveLength(reads);
   fixture.financialReviewTotals[0].finances_amount = "-98.25";
   fixture.revisions.data_kiosk = "another-source-change";
   await checkFinancialReviewUpdates(page, fixture);

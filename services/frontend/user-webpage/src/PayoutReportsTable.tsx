@@ -1,6 +1,6 @@
 import { inspectableRowProps } from "./inspectable-row";
 import { Fragment, useId, useRef, useState, type ReactNode } from "react";
-import { Badge, Button, Group, Paper, Table, Text } from "@mantine/core";
+import { Badge, Button, Group, Paper, Table } from "@mantine/core";
 import type { CanonicalRow, DatasetFilters } from "./api";
 import type { DatasetSort } from "./api/types";
 import type { Identity } from "./auth-session";
@@ -62,17 +62,9 @@ export function PayoutReportsTable({
   const reportColumns = columns.filter((column) => column.key !== "start_date");
   return (
     <>
-      <Group justify="space-between" gap="xs" mb="xs" mih={22}>
-        <Text size="xs" c="dimmed">
-          {fixedMonth
-            ? "Saved reports for this month. "
-            : `Filter by month, marketplace${identity.account.access_role === "administrator" ? ", or company" : ""} in the column headings. `}
-          Select a report for details, or show its previous versions.
-        </Text>
-        <Group gap="xs">
-          <TableScrollControls target={scrollTarget} targetId={scrollId} />
-          {status}
-        </Group>
+      <Group justify="flex-end" gap="xs" mb="xs" mih={22}>
+        <TableScrollControls target={scrollTarget} targetId={scrollId} />
+        {status}
       </Group>
       <Paper withBorder className="table-card payout-reports-card" aria-busy={isBusy}>
         <div
@@ -159,7 +151,12 @@ export function PayoutReportsTable({
                               {column.key === "created_at" ? (
                                 <div className="payout-report-updated">
                                   <Group gap={6} wrap="nowrap">
-                                    <Badge size="xs" variant="light" color="teal">
+                                    <Badge
+                                      size="xs"
+                                      variant="light"
+                                      color="teal"
+                                      title="Newest saved version"
+                                    >
                                       Latest
                                     </Badge>
                                     <TableCellValue

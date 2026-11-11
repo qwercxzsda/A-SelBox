@@ -70,11 +70,9 @@ export async function mockSupabase(page) {
     )
       return respondWithSkuConfiguration(fixture, context);
     if (
-      [
-        "/rest/v1/rpc/payout_report_policy",
-        "/rest/v1/rpc/payout_report_totals",
-        "/rest/v1/rpc/payout_report_records",
-      ].includes(url.pathname)
+      ["/rest/v1/rpc/payout_report_totals", "/rest/v1/rpc/payout_report_records"].includes(
+        url.pathname,
+      )
     )
       return respondWithPayouts(fixture, context);
     if ([...url.searchParams.values()].some((value) => /\b(sum|count|avg|min|max)\(/.test(value)))

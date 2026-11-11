@@ -28,7 +28,7 @@ const LABELS: Record<string, string> = {
   RELEASED: "Released",
 };
 
-const TYPE_ACRONYMS = new Set([
+const SOURCE_ACRONYMS = new Set([
   "FBA",
   "VAT",
   "GST",
@@ -54,15 +54,15 @@ const TYPE_ACRONYMS = new Set([
   "INR",
   "BRL",
 ]);
-const TYPE_COUNTRY_CODES = new Set(["GB", "BE", "DE", "ES", "FR", "IT", "NL"]);
-const TYPE_WORDS = new Map([
+const SOURCE_COUNTRY_CODES = new Set(["GB", "BE", "DE", "ES", "FR", "IT", "NL"]);
+const SOURCE_WORDS = new Map([
   ["amazon", "Amazon"],
   ["vine", "Vine"],
   ["fulfilment", "fulfillment"],
 ]);
 
-/** Display source type codes consistently without changing their filter/group identity. */
-export function transactionTypeLabel(value: string): string {
+/** Format source codes consistently without changing their stored or filter identity. */
+export function sourceCodeLabel(value: string): string {
   return value
     .split("/")
     .map((segment) => {
@@ -75,8 +75,8 @@ export function transactionTypeLabel(value: string): string {
       return words
         .map((word, index) => {
           const acronym = word.toUpperCase();
-          if (TYPE_ACRONYMS.has(acronym) || TYPE_COUNTRY_CODES.has(word)) return acronym;
-          const text = TYPE_WORDS.get(word.toLowerCase()) ?? word.toLowerCase();
+          if (SOURCE_ACRONYMS.has(acronym) || SOURCE_COUNTRY_CODES.has(word)) return acronym;
+          const text = SOURCE_WORDS.get(word.toLowerCase()) ?? word.toLowerCase();
           return index === 0 ? text.charAt(0).toUpperCase() + text.slice(1) : text;
         })
         .join(" ");

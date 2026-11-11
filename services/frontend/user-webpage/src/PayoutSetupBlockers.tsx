@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
-import { Button, Text } from "@mantine/core";
+import { Text } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { fetchPayoutSetupBlockers } from "./api";
 import { DetailData } from "./DetailData";
@@ -14,12 +14,10 @@ export function PayoutSetupBlockers({
   identity,
   companyId,
   month,
-  onConfigureSku,
 }: {
   identity: Identity;
   companyId: string;
   month: string;
-  onConfigureSku?: (sku: string) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const [pageIndex, setPageIndex] = useWorkspacePreference(
@@ -71,24 +69,11 @@ export function PayoutSetupBlockers({
               { key: "last_date", label: "Last affected date" },
             ]}
             renderCell={(row, column) =>
-              column.key === "reason" ? (
-                row.reason === "MISSING_OWNERSHIP" ? (
-                  "Assign company ownership"
-                ) : (
-                  "Add fee coverage"
-                )
-              ) : column.key === "sku" && row.sku && onConfigureSku ? (
-                <Button
-                  className="ui-text-action"
-                  variant="subtle"
-                  size="compact-sm"
-                  onClick={() => {
-                    onConfigureSku(row.sku ?? "");
-                  }}
-                >
-                  {row.sku}
-                </Button>
-              ) : undefined
+              column.key === "reason"
+                ? row.reason === "MISSING_OWNERSHIP"
+                  ? "Assign company ownership"
+                  : "Add fee coverage"
+                : undefined
             }
           />
         ) : null}

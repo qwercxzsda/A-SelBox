@@ -132,19 +132,17 @@ test("year and currency stay shared across categories and reloads, including una
   await expect(table(page).locator("tbody tr")).toHaveCount(12);
   await category(page, "SelBox").click();
   await expect(year(page)).toHaveValue("2025");
-  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
   await expect(table(page)).toContainText("No source records for Amazon.com in EUR in 2025.");
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
   await page.reload();
   await expect(category(page, "SelBox")).toHaveAttribute("aria-selected", "true");
   await expect(year(page)).toHaveValue("2025");
-  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
+  await expect(table(page)).toContainText("No source records for Amazon.com in EUR in 2025.");
   await category(page, "Data Kiosk").click();
   await expect(table(page).locator("tbody tr")).toHaveCount(12);
   await year(page).selectOption("2024");
   await expect(table(page)).toContainText("No source records for Amazon.com in EUR in 2024.");
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
-  await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toBeVisible();
   await year(page).selectOption("2020");
   await expect(currency(page)).toHaveValue("EUR");
   await expect(currency(page).locator("option")).toContainText(["EUR", "USD"]);
@@ -167,13 +165,17 @@ test("a marketplace with only yen derives its unit and keeps zero differences vi
     ];
   });
   await expect(year(page)).toHaveValue("2025");
-  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "2025 review totals", exact: true })).toContainText(
+    "JPY",
+  );
   await expect(currency(page)).toHaveCount(0);
   await expect(row(page, "December 2025")).toContainText("-100.00");
   await expect(row(page, "December 2025").getByRole("cell").last()).toHaveText("0.00");
   await page.reload();
   await expect(year(page)).toHaveValue("2025");
-  await expect(page.getByLabel("Amount currency: JPY", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "2025 review totals", exact: true })).toContainText(
+    "JPY",
+  );
   await expect(row(page, "December 2025")).toBeVisible();
 });
 

@@ -137,7 +137,12 @@ export function PayoutReportHistory({
                   return (
                     <Table.Tr key={rowId(row)} data-version={isLatest ? "latest" : "previous"}>
                       <Table.Td>
-                        <Badge size="xs" variant="light" color={isLatest ? "teal" : "gray"}>
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color={isLatest ? "teal" : "gray"}
+                          title={isLatest ? "Newest saved version" : undefined}
+                        >
                           {isLatest ? "Latest" : "Previous version"}
                         </Badge>
                         <Text size="xs" mt={4}>

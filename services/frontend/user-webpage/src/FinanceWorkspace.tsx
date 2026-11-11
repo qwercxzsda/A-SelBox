@@ -27,6 +27,8 @@ import {
 import { normalizeDatasetFilters } from "./dataset-filters";
 import { Companies } from "./Companies";
 import { useWorkspaceNavigationFocus } from "./use-workspace-navigation-focus";
+import { WorkspaceHeader } from "./WorkspaceHeader";
+import { DatasetHelp } from "./DatasetHelp";
 
 interface WorkspaceProps {
   identity: Identity;
@@ -137,16 +139,6 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     }));
     setDataset("live");
   }
-  function configureSku(sku: string) {
-    setFeeViewState((current) => ({
-      ...current,
-      search: sku,
-      onlyIncomplete: false,
-      pageIndex: 0,
-      expanded: [...new Set([...current.expanded, sku])],
-    }));
-    setDataset("fees");
-  }
   return (
     <>
       {props.updateError ? (
@@ -201,15 +193,18 @@ export function FinanceWorkspace(props: WorkspaceProps) {
         </Tabs.List>
         <Tabs.Panel value={dataset} pt="md">
           {dataset === "live" ? (
-            <TransactionSummaries
-              identity={props.identity}
-              onRetry={props.onRetry}
-              companyIds={transactions.filters.companyIds}
-              skus={transactions.filters.skus}
-              marketplaces={transactions.filters.marketplaces}
-              dateRange={{ from: transactions.filters.dateFrom, to: transactions.filters.dateTo }}
-              onPeriodSelect={selectPeriod}
-            />
+            <>
+              <WorkspaceHeader title="Transactions" help={<DatasetHelp dataset="live" />} />
+              <TransactionSummaries
+                identity={props.identity}
+                onRetry={props.onRetry}
+                companyIds={transactions.filters.companyIds}
+                skus={transactions.filters.skus}
+                marketplaces={transactions.filters.marketplaces}
+                dateRange={{ from: transactions.filters.dateFrom, to: transactions.filters.dateTo }}
+                onPeriodSelect={selectPeriod}
+              />
+            </>
           ) : null}
           {dataset === "companies" ? (
             <Companies
@@ -246,9 +241,6 @@ export function FinanceWorkspace(props: WorkspaceProps) {
             <FinanceDataset
               key={dataset}
               dataset={dataset}
-              onConfigureSku={
-                props.identity.account.access_role === "administrator" ? configureSku : undefined
-              }
               onAddCompany={() => {
                 addCompany("accounts");
               }}

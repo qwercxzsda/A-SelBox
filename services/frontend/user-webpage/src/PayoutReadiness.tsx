@@ -52,14 +52,10 @@ export function PayoutReadiness({
   identity,
   month,
   companyIds,
-  onConfigureSku,
-  marketplaceFiltered = false,
 }: {
   identity: Identity;
   month: string;
   companyIds: string[];
-  onConfigureSku?: (sku: string) => void;
-  marketplaceFiltered?: boolean;
 }) {
   const listRef = useRef<HTMLElement>(null);
   const scope = `payout-readiness:${month}:${JSON.stringify([...companyIds].sort())}`;
@@ -73,7 +69,6 @@ export function PayoutReadiness({
     () => [] as string[],
     decodeDetailStrings,
   );
-  const administrator = identity.account.access_role === "administrator";
   const query = useQuery({
     queryKey: ["payout-readiness", identity.session.user.id, month, companyIds, pageIndex],
     queryFn: ({ signal }) =>
@@ -98,11 +93,9 @@ export function PayoutReadiness({
       <Text size="sm" fw={600} mb="xs">
         {formatRecordMonth(month)} readiness
       </Text>
-      {marketplaceFiltered ? (
-        <Text size="xs" c="dimmed" mb="xs">
-          Readiness covers all marketplaces for each company and month.
-        </Text>
-      ) : null}
+      <Text size="xs" c="dimmed" mb="xs">
+        Readiness covers all marketplaces for each company and month.
+      </Text>
       {query.isPending ? (
         <Text size="sm" role="status">
           Checking payout readiness…
@@ -123,9 +116,7 @@ export function PayoutReadiness({
           const companyId = row.company_id ?? "";
           const setup = row.status === "BLOCKED" && row.reason === "SETUP_REQUIRED";
           const description = setup
-            ? administrator
-              ? "SKU ownership or fee coverage needs setup. Review the requirements below."
-              : "An administrator needs to complete SKU ownership or fee setup."
+            ? "SKU ownership or fee coverage needs setup. Review the requirements below."
             : row.status === "BLOCKED" && row.reason === "SOURCE_REQUIRED"
               ? "Required source data is incomplete or incompatible. Automatic processing will retry after updates."
               : status.description;
@@ -140,7 +131,7 @@ export function PayoutReadiness({
                     {status.label}
                   </Badge>
                 </Group>
-                {setup && administrator ? (
+                {setup ? (
                   <Button
                     variant="subtle"
                     size="compact-xs"
@@ -167,13 +158,8 @@ export function PayoutReadiness({
                   Next automatic attempt: {formatRecordDate(row.next_attempt_at)}
                 </Text>
               ) : null}
-              {setup && administrator && expanded.includes(companyId) ? (
-                <PayoutSetupBlockers
-                  identity={identity}
-                  companyId={companyId}
-                  month={month}
-                  onConfigureSku={onConfigureSku}
-                />
+              {setup && expanded.includes(companyId) ? (
+                <PayoutSetupBlockers identity={identity} companyId={companyId} month={month} />
               ) : null}
             </div>
           );

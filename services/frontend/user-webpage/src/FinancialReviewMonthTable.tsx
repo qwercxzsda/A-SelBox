@@ -33,8 +33,8 @@ export function FinancialReviewMonthTable({
   return (
     <>
       <Group justify="space-between" gap="xs" mb="xs">
-        <Text size="xs" c="dimmed">
-          All amounts in {currency}. Based on months with source records. Open a month for details.
+        <Text size="sm" fw={600}>
+          Monthly amounts{currency ? ` · ${currency}` : ""}
         </Text>
         <Group gap="xs">
           <UpdateStatus active={isBusy}>Updating monthly summaries…</UpdateStatus>

@@ -108,7 +108,7 @@ async function assertHoverScrolling(page, menu, column) {
   const pageTop = await page.evaluate(() => globalThis.scrollY);
   for (const target of [
     menu.getByText(`${column} options`, { exact: true }),
-    menu.getByText(`Search ${column.toLowerCase()}`, { exact: true }),
+    menu.getByText("Search", { exact: true }),
     search,
     menu.getByRole("checkbox").first().locator(".."),
   ]) {

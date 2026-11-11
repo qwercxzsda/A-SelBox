@@ -79,41 +79,8 @@ function decodePayoutRecords(
   return { rows, totalCount };
 }
 
-interface PayoutPolicy {
-  mature_cutoff_date: string;
-  latest_month: string;
-  mature_cutoff_months: number;
-}
-
 export function createPayoutApi(transport: ApiTransport) {
   return {
-    async fetchPayoutPolicy(accessToken: string, signal?: AbortSignal): Promise<PayoutPolicy> {
-      const value = await transport.postRpc(
-        accessToken,
-        "payout_report_policy",
-        {},
-        "Payout policy",
-        signal,
-      );
-      if (
-        !isJsonObject(value) ||
-        typeof value.mature_cutoff_date !== "string" ||
-        typeof value.latest_month !== "string" ||
-        typeof value.mature_cutoff_months !== "number" ||
-        !Number.isSafeInteger(value.mature_cutoff_months) ||
-        value.mature_cutoff_months < 1
-      )
-        throw new Error("Payout policy returned invalid dates");
-      requireCalendarDate(value.mature_cutoff_date);
-      requireCalendarDate(value.latest_month);
-      if (!value.latest_month.endsWith("-01"))
-        throw new Error("Payout policy returned an invalid month");
-      return {
-        mature_cutoff_date: value.mature_cutoff_date,
-        latest_month: value.latest_month,
-        mature_cutoff_months: value.mature_cutoff_months,
-      };
-    },
     async fetchPayoutRecords(
       accessToken: string,
       reportId: string,

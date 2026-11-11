@@ -65,7 +65,7 @@ export function SkuConfigurationList({
         <SearchInput
           inputRef={searchInput}
           className="fee-list-search"
-          label="Search SKUs"
+          aria-label="Search SKUs"
           placeholder={administrator ? "SKU or company" : "SKU"}
           value={search}
           onChange={(search) => {

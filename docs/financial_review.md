@@ -66,13 +66,16 @@ Kiosk comparison. Summary validation applies that grouping without relabeling di
 ## Yearly overview and monthly details
 
 **Marketplace**, **Year**, and **Fee families** define one shared scope across the three category tabs.
-The **Comparison category** caption identifies Finances, Data Kiosk, and SelBox as accounting
-categories; each category compares Finances with Data Kiosk.
+The category tabs select Finances, Data Kiosk, or SelBox accounting categories; each compares
+Finances with Data Kiosk. Header help explains that scope, with contextual help beside chart and
+family comparison headings.
 The initial marketplace is Amazon.com and the initial year is the latest available source year
 for that marketplace/category. Native financial channels remain separate from their retail
 marketplaces. Currency is an amount unit derived from the selected marketplace's actual period
-rows, never a way to infer the marketplace. With one unit it is shown as a label; a secondary currency
-selector appears when multiple units are available. An explicit unit remains selected even if its
+rows, never a way to infer the marketplace. Amounts identify their currency without a separate
+single-currency badge in the controls. A currency selector appears after Fee families only when
+multiple units are available. Loading and error feedback sits below the control row so the
+Fee families button stays in place. An explicit unit remains selected even if its
 scope becomes empty. Changing marketplace clears the unit and open month. Automatic selection
 prefers USD when available, then another available unit; it does not add a navigation-history step.
 Opening a month records its actual unit in the same action so its URL and nested selections retain

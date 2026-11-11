@@ -32,12 +32,20 @@ for (const role of ["administrator", "member"]) {
     if (role === "administrator") await selectColumnOptions(page, "Company", ["Monthly Company"]);
     await expect(page.getByLabel("Report company")).toHaveCount(0);
     await applyReportMonth(page, "2026-07");
-    await expect(page.getByText("This month is not mature yet.", { exact: false })).toBeVisible();
-    await expect(
-      page.getByText("Reports are generated automatically", { exact: false }),
-    ).toBeVisible();
+    await expect(page.getByText("No matching reports", { exact: true })).toBeVisible();
+    await expect(page.getByText("This month is not mature yet.", { exact: false })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: /payout readiness/ })).toHaveCount(0);
     await applyReportMonth(page, "2026-06");
     await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole("table", { name: "Financial records", exact: true })
+        .getByText("Latest", { exact: true }),
+    ).toBeVisible();
+    expect(fixture.payoutReadinessRequests ?? []).toHaveLength(0);
+    expect(fixture.events.some(({ endpoint }) => endpoint.endsWith("payout_report_policy"))).toBe(
+      false,
+    );
     await expect(page.getByRole("button", { name: /generate|refresh|reload/i })).toHaveCount(0);
     expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
     await captureResponsiveReview(page, testInfo, `${role}-payout-reports`);

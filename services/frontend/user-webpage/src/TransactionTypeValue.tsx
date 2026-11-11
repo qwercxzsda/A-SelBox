@@ -1,9 +1,9 @@
-import { transactionTypeLabel } from "./categories";
+import { sourceCodeLabel } from "./categories";
 import { transactionTypeGroupLabel } from "./transaction-type-groups";
 import "./TransactionTypeValue.css";
 
 export function TransactionTypeValue({ value }: { value: string }) {
-  const label = transactionTypeLabel(value);
+  const label = sourceCodeLabel(value);
   const group = transactionTypeGroupLabel(value);
   return (
     <span

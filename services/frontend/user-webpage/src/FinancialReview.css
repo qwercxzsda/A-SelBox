@@ -4,13 +4,14 @@
 }
 
 .financial-review-scope {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) 110px max-content 110px;
+  align-items: end;
+  gap: 12px;
   margin-bottom: 18px;
 }
 .financial-review-scope .mantine-NativeSelect-root {
-  min-width: 110px;
-}
-.financial-review-scope-note {
-  text-align: right;
+  min-width: 0;
 }
 
 .financial-review-family-context {
@@ -341,6 +342,17 @@
 }
 
 @media (max-width: 720px) {
+  .financial-review-scope {
+    grid-template-columns: minmax(0, 1fr) 110px;
+  }
+  .financial-review-scope .fee-family-filter,
+  .financial-review-currency {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .financial-review-currency {
+    width: 160px;
+  }
   .financial-review-chart-family-values {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
@@ -358,9 +370,6 @@
   .financial-review-summary-value {
     font-size: 19px;
     text-align: right;
-  }
-  .financial-review-scope-note {
-    text-align: left;
   }
   .financial-review-trend-plot {
     height: 155px;

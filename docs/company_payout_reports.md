@@ -363,12 +363,13 @@ The [source-allocation contract](source_allocation.md#data-kiosk-coverage-for-na
 defines the verified Data Kiosk coverage mappings. These affect required input coverage, while
 reports retain each component's native marketplace and fee scope.
 
-## Automatic report readiness
+## Readiness diagnostics
 
-The payout list defaults to the latest eligible month and shows readiness for the selected month,
-scoped to selected companies across all marketplaces. Financial review's saved snapshots follow its
-selected review month; a recent month has no saved payouts until it becomes eligible.
-Marketplace filters narrow the report list, not readiness. Statuses distinguish Pending,
+The payout list shows the newest saved version with a green Latest label and its saved timestamp.
+It does not display a separate eligibility or readiness panel. Administrators inspect readiness in
+Financial review's Saved report snapshots section for the selected review month and companies.
+A recent month has no saved payouts until it becomes eligible. Marketplace filters narrow the
+snapshot list, not readiness. Statuses distinguish Pending,
 Updating (new inputs pending while a previous report exists), Blocked, Complete, No activity,
 Not scheduled (no current SKU assignment and no report), and Not mature. A zero-valued record still
 counts as activity; No activity means the saved header's `component_count` is zero.
@@ -379,8 +380,8 @@ their own company's status and receive generic setup/source/processing reasons w
 errors or SKU identities. Administrators may expand a setup block using
 `public.payout_setup_blockers(p_company_id, p_month, p_limit, p_offset)`. This on-demand query reuses
 the generator's authoritative month/source/ownership/fee rules and preserves zero-value components.
-It lists missing owner mappings or fee periods with affected dates and marketplaces. Selecting a SKU
-opens its configuration; it does not publish ownership or fee changes.
+It lists missing owner mappings or fee periods with affected dates and marketplaces. Configuration
+changes are made in Current fees; inspecting diagnostics does not publish changes.
 
 The company-scoped payouts revision changes when refresh state changes, including
 failed attempts with no report publication. Successful status reads stay cached until that token or

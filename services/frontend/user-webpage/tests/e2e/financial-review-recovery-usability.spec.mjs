@@ -7,9 +7,7 @@ test("failed review period checks stop describing the scope as loading", async (
       params.get("select") === "activity_date" ? 403 : 200;
   });
   await expect(page.getByRole("alert")).toContainText("Could not load available review periods.");
-  await expect(page.locator(".financial-review-scope-note")).not.toContainText(
-    "Checking available source months…",
-  );
+  await expect(page.getByText("Checking available source months…", { exact: true })).toHaveCount(0);
 });
 
 for (const periods of [true, false]) {
@@ -36,8 +34,6 @@ for (const periods of [true, false]) {
       page.getByRole("button", { name: "Open review for July 2026", exact: true }),
     ).toBeVisible();
     await expect(page.locator(".financial-review-months")).toBeFocused();
-    await expect(page.locator(".financial-review-scope-note")).toContainText(
-      "Source records through July 2026",
-    );
+    await expect(page.locator(".financial-review-summary-period")).toContainText("July 2026");
   });
 }

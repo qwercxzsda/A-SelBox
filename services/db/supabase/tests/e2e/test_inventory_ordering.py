@@ -94,14 +94,18 @@ class InventoryOrderingTests(LocalWorkflowCase):
             (None, None),
         )
         action_cases = (
-            ("Edit listing", 50),
-            ("GoToRestock", 40),
-            ("Restock", 40),
-            ("Restock inventory", 40),
-            ("SendToFBA", 30),
-            ("Advertise_listing", 20),
+            ("GoToRestock", 50),
+            ("Restock", 50),
+            ("Restock inventory", 50),
+            ("SendToFBA", 50),
+            ("CreateShippingPlan", 50),
+            ("Go to stranded", 40),
+            ("Edit listing", 30),
+            ("LowerPrice", 20),
+            ("Advertise_listing", 10),
             ("NoExcessInventory", 0),
             ("No action required", 0),
+            ("NoRestockExcessActionRequired", 0),
             ("Unfamiliar source action", None),
             (None, None),
         )
@@ -109,8 +113,9 @@ class InventoryOrderingTests(LocalWorkflowCase):
         expected: list[dict[str, object]] = []
         items: list[dict[str, object]] = []
         for repeat in range(5):
-            for index, (health, action) in enumerate(zip(health_cases, action_cases, strict=True)):
-                number = repeat * len(health_cases) + index
+            for index, action in enumerate(action_cases):
+                health = health_cases[index % len(health_cases)]
+                number = repeat * len(action_cases) + index
                 sku = f"{self.seller}-{99 - number:02d}"
                 expected.append(
                     {
@@ -129,7 +134,7 @@ class InventoryOrderingTests(LocalWorkflowCase):
                         "recommended_action": action[0],
                     }
                 )
-                # Thirty rows for the first member cross the 25-row page boundary;
+                # Three groups for the first member cross the 25-row page boundary;
                 # another member and unassigned source rows must remain hidden.
                 if repeat < 4:
                     self.assign(sku, companies[0 if repeat < 3 else 1])
@@ -138,10 +143,11 @@ class InventoryOrderingTests(LocalWorkflowCase):
         member_id, first_member = self.create_member(companies[0])
         _, second_member = self.create_member(companies[1])
         _, unprovisioned = self.create_auth_user()
+        first_member_end, second_member_end = 3 * len(action_cases), 4 * len(action_cases)
         for token, rows in (
             (administrator, expected),
-            (first_member, expected[:30]),
-            (second_member, expected[30:40]),
+            (first_member, expected[:first_member_end]),
+            (second_member, expected[first_member_end:second_member_end]),
             (unprovisioned, []),
         ):
             for column in ("health_status", "recommended_action"):

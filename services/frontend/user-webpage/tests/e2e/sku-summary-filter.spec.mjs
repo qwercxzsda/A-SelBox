@@ -359,7 +359,7 @@ test("signing into another member changes the access-scoped anchor and clears UI
   await expect(totals(page).selected).toContainText("Choose dates");
   await expect(
     totals(page).summaries.getByRole("region", { name: "Applied filters", exact: true }),
-  ).toHaveText("Finances and Data Kiosk only");
+  ).toHaveCount(0);
   await totals(page)
     .day.getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
     .click();
