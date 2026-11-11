@@ -19,7 +19,8 @@ create function public.transaction_count(
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
     p_search_sources text[] default null,
-    p_currency text default null
+    p_currency text default null,
+    p_include_selbox boolean default true
 ) returns text
 language plpgsql stable security invoker
 set search_path = ''
@@ -28,6 +29,9 @@ declare
     finances_policy_is_sufficient boolean;
     kiosk_policy_is_sufficient boolean;
 begin
+    if p_include_selbox is null then
+        raise exception 'SelBox inclusion preference is required' using errcode = '22023';
+    end if;
     if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
         raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
     end if;
@@ -58,12 +62,13 @@ begin
             select count(*) as row_count
             from private.finances_activity_components as t
             where t.category in ('FINANCES', 'SELBOX')
+                and (p_include_selbox or t.category = 'FINANCES')
                 and (
                     finances_policy_is_sufficient
                     or t.is_current
                 )
-                and (p_date_from is null or t.posted_date >= p_date_from)
-                and (p_date_to is null or t.posted_date <= p_date_to)
+                and (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (p_currency is null or t.currency = p_currency)
                 and (
                     coalesce(cardinality(p_company_ids), 0) = 0
@@ -104,8 +109,8 @@ begin
                         where h.current_version_id = t.version_id
                     )
                 )
-                and (p_date_from is null or t.activity_date >= p_date_from)
-                and (p_date_to is null or t.activity_date <= p_date_to)
+                and (p_date_from is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (p_currency is null or t.currency = p_currency)
                 and (
                     coalesce(cardinality(p_company_ids), 0) = 0
@@ -138,7 +143,7 @@ end;
 $$;
 revoke all on function public.transaction_count(
     date, date, uuid[], text[], text[], text[], text[], boolean,
-    text[], text[], text[], text[], text
+    text[], text[], text[], text[], text, boolean
 )
 from public, anon, authenticated, service_role;
 
@@ -178,8 +183,8 @@ begin
     if p_dataset = 'finances' then
         return (
             select count(*)::text from private.finances_component_details as t
-            where (p_date_from is null or t.posted_date >= p_date_from)
-                and (p_date_to is null or t.posted_date <= p_date_to)
+            where (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
@@ -194,8 +199,8 @@ begin
     end if;
     return (
         select count(*)::text from private.data_kiosk_component_details as t
-        where (p_date_from is null or t.activity_date >= p_date_from)
-            and (p_date_to is null or t.activity_date <= p_date_to)
+        where (p_date_from is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= p_date_from::timestamp at time zone 'UTC')
+            and (p_date_to is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < (p_date_to + 1)::timestamp at time zone 'UTC')
             and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
             and (coalesce(cardinality(p_marketplaces), 0) = 0
                 or t.marketplace_name = any(p_marketplaces))

@@ -48,6 +48,7 @@ class SummaryRpcTests(LocalWorkflowCase):
             self.assertIsNone(payload["next_offset"])
             self.assertEqual(len(payload["rows"]), 1)
             row = payload["rows"][0]
+            self.assertEqual(row["marketplace_name"], "Amazon.com")
             self.assertEqual(row["currency"], "USD")
             self.assertIsNone(row["component_type"])
             self.assertEqual(row["row_count"], expected_count)
@@ -72,6 +73,7 @@ class SummaryRpcTests(LocalWorkflowCase):
                 )
                 self.assertEqual(len(payload["rows"]), 1)
                 grouped = payload["rows"][0]
+                self.assertIsNone(grouped["marketplace_name"])
                 self.assertNotIn(grouped["component_type"], types)
                 types.add(grouped["component_type"])
                 grouped_count += int(grouped["row_count"])

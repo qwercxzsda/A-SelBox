@@ -1,5 +1,6 @@
 import { DATA_KIOSK_COLUMNS, FINANCES_COLUMNS } from "../api-fixtures.mjs";
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
+import { timestampedSource } from "../transaction-time-fixtures.mjs";
 import { sourceTransactionPageParams } from "../transaction-page-fixtures.mjs";
 import { amountOrderLimitExceeded, AMOUNT_ORDER_LIMIT_RESPONSE } from "./amount-ordering.mjs";
 
@@ -9,7 +10,9 @@ export async function respondWithSourceRows(fixture, { request, url, user, reply
     url.search = sourceTransactionPageParams(args).toString();
     const finances = args.p_dataset === "finances";
     const dataset = finances ? "finances" : "data_kiosk";
-    const sourceRows = finances ? fixture.financesRows : fixture.kioskRows;
+    const sourceRows = (finances ? fixture.financesRows : fixture.kioskRows).map((row) =>
+      timestampedSource(row, dataset),
+    );
     const entry = {
       user,
       params: url.searchParams,

@@ -3,6 +3,8 @@ import type { PageResult } from "./api/types";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { financialAmountColumns, type DetailColumn } from "./detail-columns";
+import { TransactionTime } from "./TransactionTime";
+import { Text } from "@mantine/core";
 
 const RECORD_COLUMNS: DetailColumn[] = [
   { key: "activity_date", label: "Date", kind: "date" },
@@ -20,6 +22,7 @@ export function FinancialRecords({
   currency,
   label = "Amount records",
   authoritative = true,
+  transactionTimeline = false,
 }: {
   query: UseQueryResult<PageResult>;
   pageIndex: number;
@@ -27,6 +30,7 @@ export function FinancialRecords({
   currency: string;
   label?: string;
   authoritative?: boolean;
+  transactionTimeline?: boolean;
 }) {
   const rows = query.data?.rows ?? [];
   return (
@@ -37,12 +41,30 @@ export function FinancialRecords({
       emptyMessage="No records match this selection."
       pagination={{ pageIndex, totalCount: query.data?.totalCount ?? null, onPageChange }}
     >
+      {transactionTimeline ? (
+        <Text size="xs" c="dimmed" mb="sm">
+          Finances and Data Kiosk records for this UTC period. SelBox amounts are excluded.
+        </Text>
+      ) : null}
       {rows.length > 0 ? (
         <DetailTable
           label={label}
-          columns={[...RECORD_COLUMNS, ...financialAmountColumns(currency, authoritative)]}
+          columns={[
+            ...RECORD_COLUMNS.map((column) =>
+              transactionTimeline && column.key === "activity_date"
+                ? { ...column, key: "activity_at", label: "Date (UTC)" }
+                : column,
+            ),
+            ...financialAmountColumns(currency, authoritative),
+          ]}
           rows={rows}
           rowKey={(row) => [row.report_id, row.source, row.source_row_id].filter(Boolean).join(":")}
+          renderCell={
+            transactionTimeline
+              ? (row, column) =>
+                  column.key === "activity_at" ? <TransactionTime row={row} /> : undefined
+              : undefined
+          }
         />
       ) : null}
     </DetailData>

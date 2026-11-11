@@ -5,6 +5,7 @@ import { TransactionTypeValue } from "./TransactionTypeValue";
 import { formatExactDecimal, formatMoney } from "./decimal";
 import { formatRecordDate, formatRecordMonth } from "./date-display";
 import { companyLabel, type ColumnDefinition } from "./view-model";
+import { TransactionTime } from "./TransactionTime";
 
 function codeLabel(key: string, value: string): string {
   if (key === "activity_eligible") return value === "true" ? "Included" : "Exclusive";
@@ -20,6 +21,7 @@ export function TableCellValue({
   companies: Map<string, string>;
   row: CanonicalRow;
 }) {
+  if (column.key === "activity_at") return <TransactionTime row={row} />;
   if (row.resolution_status === "NOT_APPLICABLE" && column.key === "fee_rate_percent") {
     return (
       <span className="muted-value" title="Fee not applicable">

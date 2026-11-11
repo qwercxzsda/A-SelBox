@@ -64,10 +64,10 @@ def acquisition(
     """Prepare an immutable archive manifest locally; preprocessing publishes metadata."""
     from services.db.supabase.tests.source_fixtures import archive_document, new_id
 
-    captured_at = datetime.now(UTC)
     start_date, end_date = date.fromisoformat(start), date.fromisoformat(end)
     local_start = datetime.combine(start_date, time.min, ZoneInfo(time_zone))
     local_end = datetime.combine(end_date + timedelta(days=1), time.min, ZoneInfo(time_zone))
+    captured_at = max(datetime.now(UTC), local_end.astimezone(UTC) + timedelta(minutes=3))
     identifier = new_id()
     coverage = FinancesCoverageMarketplace(marketplace_id, marketplace, time_zone)
     document = document_from_payload(archive_document(digest))
@@ -79,8 +79,10 @@ def acquisition(
         api_version=FINANCES_API_VERSION,
         capture_started_at=captured_at,
         downloaded_at=captured_at,
-        query_start_date=start_date,
-        query_end_date=end_date,
+        posted_after=local_start.astimezone(UTC),
+        posted_before=local_end.astimezone(UTC),
+        reconciliation_start_date=start_date,
+        reconciliation_end_date=end_date,
         marketplace_ids=(marketplace_id,),
         api_metadata={
             "coverage_marketplaces": [source_json(coverage)],
@@ -164,7 +166,7 @@ def _number(value: object) -> Numeric | None:
     return None if value is None else Numeric(str(value))
 
 
-def _transaction(
+def finance_transaction(
     row: dict[str, object], capture: FinancesAcquisition, index: int
 ) -> FinancesTransaction:
     market = capture.coverage_marketplaces[0]
@@ -217,6 +219,8 @@ def _transaction(
 def _summaries(
     capture: FinancesAcquisition, transactions: tuple[FinancesTransaction, ...]
 ) -> tuple[FinancesSummary, ...]:
+    if capture.reconciliation_start_date is None or capture.reconciliation_end_date is None:
+        raise ValueError("Summary fixtures require complete reconciliation dates.")
     market = capture.coverage_marketplaces[0]
     summary_market = (
         "Amazon.com" if market.marketplace_name == "Non-Amazon US" else market.marketplace_name
@@ -232,8 +236,8 @@ def _summaries(
             marketplace_name=summary_market,
             account_type=account,
             currency=currency,
-            period_start=capture.query_start_date,
-            period_end=capture.query_end_date,
+            period_start=capture.reconciliation_start_date,
+            period_end=capture.reconciliation_end_date,
             net_proceeds=sum(
                 (
                     row.total_amount
@@ -261,7 +265,9 @@ def _finances_capture(
     version: str,
 ) -> tuple[str, str | None]:
     capture = self.finances_acquisitions[acquisition_id]
-    transactions = tuple(_transaction(row, capture, index) for index, row in enumerate(rows, 1))
+    transactions = tuple(
+        finance_transaction(row, capture, index) for index, row in enumerate(rows, 1)
+    )
     prepared = PreparedFinances(transactions, _summaries(capture, transactions))
     # Keep the test-owned transaction open; production publication uses a nested savepoint.
     self.connection.execute("select 1")

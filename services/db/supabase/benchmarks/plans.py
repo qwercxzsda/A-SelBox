@@ -110,7 +110,7 @@ def _marketplace_page_parts(
         cross join lateral (""",
         "t.marketplace_name = selected_marketplaces.marketplace_name",
         ") as market_page "
-        f"order by activity_date {direction} nulls {nulls}, source {tie}, source_row_id {tie} "
+        f"order by activity_at {direction} nulls {nulls}, source {tie}, source_row_id {tie} "
         "limit $8::bigint",
     )
 
@@ -132,12 +132,11 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
         marketplace_candidates = _uses_marketplace_candidates(definition, args)
         replacements = (
             direction,
-            "source_amount" if amount else "activity_date",
+            "source_amount" if amount else "activity_at",
             ""
             if amount
             else (
-                f"order by activity_date {direction} nulls {nulls}, "
-                f"source {tie}, source_row_id {tie}"
+                f"order by activity_at {direction} nulls {nulls}, source {tie}, source_row_id {tie}"
             ),
             materialization,
             cap,
@@ -163,17 +162,22 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
             ("text[]", args.get("p_search_sources")),
             ("boolean", amount),
             ("text", args.get("p_currency")),
+            ("boolean", args.get("p_include_selbox", True)),
         ]
     else:
         dataset = args.get("p_dataset")
         if dataset not in ("finances", "data_kiosk"):
             raise ValueError("Raw dataset must be finances or data_kiosk")
         finances = dataset == "finances"
-        date = "posted_date" if finances else "activity_date"
+        timestamp = (
+            "t.posted_at"
+            if finances
+            else "private.data_kiosk_activity_at(t.activity_date,t.marketplace_name)"
+        )
         replacements = (
             "finances_component_details" if finances else "data_kiosk_component_details",
-            date,
-            "amount" if amount else date,
+            timestamp,
+            "t.amount" if amount else timestamp,
             direction,
             tie,
             nulls,
@@ -220,6 +224,7 @@ def _read_query(
         "p_types": ("text[]", args.get("p_types")),
         "p_fee_applicable": ("boolean", args.get("p_fee_applicable")),
         "p_currency": ("text", args.get("p_currency")),
+        "p_include_selbox": ("boolean", args.get("p_include_selbox", True)),
         "p_group_by_type": ("boolean", args.get("p_group_by_type", False)),
         "p_limit": ("integer", args.get("p_limit", 1000)),
         "p_offset": ("bigint", args.get("p_offset", 0)),

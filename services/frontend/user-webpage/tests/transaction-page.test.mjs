@@ -22,6 +22,7 @@ const row = (overrides = {}) => ({
   ...Object.fromEntries(DATASET_CONFIG.live.selectColumns.map((column) => [column, column])),
   ...Object.fromEntries(DECIMAL_COLUMNS.map((column) => [column, EXACT_AMOUNT])),
   source: "FINANCES",
+  activity_at: "2026-11-06T07:59:59.999999Z",
   source_row_id: "row-1",
   ...overrides,
 });
@@ -31,7 +32,7 @@ const request = (overrides = {}) => ({
   pageIndex: 0,
   pageSize: 25,
   search: "",
-  sort: { column: "activity_date", direction: "desc" },
+  sort: { column: "activity_at", direction: "desc" },
   ...overrides,
 });
 const filters = (overrides = {}) => ({
@@ -62,7 +63,7 @@ test("transaction pages use the authenticated REST function for both date direct
     const result = await client.fetchDatasetPage(
       request({
         search: " \n\t ",
-        sort: { column: "activity_date", direction },
+        sort: { column: "activity_at", direction },
         pageIndex: 2,
         signal,
       }),

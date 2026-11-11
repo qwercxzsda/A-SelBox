@@ -10,7 +10,7 @@ from services.sync.src.amazon.marketplace_names import (
 )
 from services.sync.src.amazon.marketplaces import get_credential_scope
 from services.sync.src.finances.marketplaces import coverage_marketplaces
-from services.sync.src.finances.query_windows import transaction_query_parameters
+from services.sync.src.finances.query_windows import reconciliation_interval
 
 # Independent expected identities: do not derive these from the registry under test.
 CHANNELS = (
@@ -99,16 +99,12 @@ class MarketplaceTests(unittest.TestCase):
             if scope_name != "EU":
                 continue
             with self.subTest(channel=channel_name):
-                params = transaction_query_parameters(
-                    coverage_marketplaces(scope_name, (channel_id,)),
-                    date(2026, 10, 25),
-                    date(2026, 10, 25),
-                    observed_at=datetime(2026, 10, 27, tzinfo=UTC),
-                )
                 self.assertEqual(
-                    params,
-                    {
-                        "postedAfter": "2026-10-24T22:00:00+00:00",
-                        "postedBefore": "2026-10-25T23:00:00+00:00",
-                    },
+                    reconciliation_interval(
+                        coverage_marketplaces(scope_name, (channel_id,)),
+                        datetime(2026, 10, 24, 22, tzinfo=UTC),
+                        datetime(2026, 10, 25, 23, tzinfo=UTC),
+                        observed_at=datetime(2026, 10, 27, tzinfo=UTC),
+                    ),
+                    (date(2026, 10, 25), date(2026, 10, 25)),
                 )

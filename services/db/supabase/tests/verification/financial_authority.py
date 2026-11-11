@@ -26,22 +26,26 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
     source_totals = connection.execute(
         """
         with facts as (
-            select t.currency,t.amount
+            select t.marketplace_name,t.currency,t.amount
             from private.finances_component_details t
             where t.is_current and t.activity_eligible
-                and t.category in ('FINANCES','SELBOX')
+                and t.category = 'FINANCES'
             union all
-            select t.currency,t.amount
+            select h.marketplace_name,t.currency,t.amount
             from private.data_kiosk_day_components t
             join private.data_kiosk_days h on h.current_version_id=t.version_id
             where t.category='DATA_KIOSK'
-        ) select currency,sum(amount),count(*) from facts group by currency
+        ) select marketplace_name,currency,sum(amount),count(*) from facts
+        group by marketplace_name,currency
         """,
     ).fetchall()
-    expected = {currency: [amount, count] for currency, amount, count in source_totals}
+    expected = {
+        (marketplace, currency): [amount, count]
+        for marketplace, currency, amount, count in source_totals
+    }
     minimum = connection.execute(
         "select least((select min(posted_date) from private.finances_transaction_versions),"
-        "(select min(activity_date) from private.data_kiosk_days))"
+        "(select min(activity_date) from private.data_kiosk_days)) - 1"
     ).fetchall()[0][0]
     actual = as_user(
         connection, administrator, "select public.transaction_totals(p_date_from => %s)", (minimum,)
@@ -49,10 +53,13 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
     require(
         expected
         == {
-            row["currency"]: [Decimal(row["reported_amount"]), int(row["row_count"])]
+            (row["marketplace_name"], row["currency"]): [
+                Decimal(row["reported_amount"]),
+                int(row["row_count"]),
+            ]
             for row in actual
         },
-        "Administrator totals differ from eligible Finances/SelBox components and Data Kiosk costs",
+        "Administrator totals differ from eligible Finances components and Data Kiosk costs",
     )
     excluded = connection.execute(
         "select count(*) from private.data_kiosk_day_components c "
@@ -62,7 +69,7 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
     return mature_cutoff_date, {
         "mature_cutoff_date": mature_cutoff_date.isoformat(),
         "latest_month": policy["latest_month"],
-        "exact_currency_totals_match": True,
+        "exact_marketplace_currency_totals_match": True,
         "authoritative_row_count": sum(values[1] for values in expected.values()),
         "supporting_data_kiosk_rows_excluded": excluded,
     }

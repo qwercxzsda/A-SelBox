@@ -278,7 +278,7 @@ test("view decoders whitelist table controls and preserve exact SKU text", () =>
   });
   assert.equal(value.live.pagination.pageIndex, 0);
   assert.equal(value.live.pagination.pageSize, 25);
-  assert.deepEqual(value.live.sorting, [{ id: "activity_date", desc: true }]);
+  assert.deepEqual(value.live.sorting, [{ id: "activity_at", desc: true }]);
   assert.deepEqual(value.live.filters.skus, [" padded SKU "]);
   assert.equal(value.live.selectedRowId, "finances:one");
   assert.equal("access_token" in value.live, false);

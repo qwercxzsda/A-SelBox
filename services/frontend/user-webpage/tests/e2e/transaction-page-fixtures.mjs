@@ -3,7 +3,7 @@ export function transactionPageParams(args) {
   const params = transactionFilterParams(args);
   params.set("limit", String(args.p_limit));
   params.set("offset", String(args.p_offset));
-  const column = args.p_order_by === "amount" ? "source_amount" : "activity_date";
+  const column = args.p_order_by === "amount" ? "source_amount" : "activity_at";
   const tieDirection = args.p_order_by === "amount" ? "asc" : args.p_direction;
   const nulls =
     args.p_order_by !== "amount" && args.p_direction === "desc" ? "nullsfirst" : "nullslast";
@@ -16,10 +16,9 @@ export function transactionPageParams(args) {
 
 export function sourceTransactionPageParams(args) {
   const params = sourceTransactionFilterParams(args);
-  const date = args.p_dataset === "finances" ? "posted_date" : "activity_date";
   params.set("limit", String(args.p_limit));
   params.set("offset", String(args.p_offset));
-  const column = args.p_order_by === "amount" ? "amount" : date;
+  const column = args.p_order_by === "amount" ? "amount" : "activity_at";
   const tieDirection = args.p_order_by === "amount" ? "asc" : args.p_direction;
   const nulls =
     args.p_order_by !== "amount" && args.p_direction === "desc" ? "nullsfirst" : "nullslast";
@@ -28,12 +27,10 @@ export function sourceTransactionPageParams(args) {
 }
 
 export function sourceTransactionFilterParams(args) {
-  const date = args.p_dataset === "finances" ? "posted_date" : "activity_date";
   const params = new URLSearchParams();
   addSearch(params, args);
   if (args.p_dataset === "data_kiosk") params.set("amount", "not.is.null");
-  if (args.p_date_from) params.append(date, `gte.${args.p_date_from}`);
-  if (args.p_date_to) params.append(date, `lte.${args.p_date_to}`);
+  addUtcDates(params, args);
   for (const [field, values] of [
     ["sku", args.p_skus],
     ["marketplace_name", args.p_marketplaces],
@@ -48,9 +45,9 @@ export function transactionFilterParams(args) {
   const params = new URLSearchParams();
   addSearch(params, args);
   if (args.p_currency) params.set("currency", `eq.${args.p_currency}`);
+  if (args.p_include_selbox === false) params.set("category", 'in.("FINANCES","DATA_KIOSK")');
   if (args.p_fee_applicable !== null) params.set("fee_applicable", String(args.p_fee_applicable));
-  if (args.p_date_from) params.append("activity_date", `gte.${args.p_date_from}`);
-  if (args.p_date_to) params.append("activity_date", `lte.${args.p_date_to}`);
+  addUtcDates(params, args);
   if (args.p_company_ids.length > 0)
     params.set("company_id", `in.(${[...args.p_company_ids].sort().join(",")})`);
   for (const [field, values] of [
@@ -76,5 +73,14 @@ function addSearch(params, args) {
     if (Object.values(values).some((selection) => !Array.isArray(selection)))
       throw new Error("Active transaction searches require all exact value arrays");
     params.set("or", JSON.stringify(values));
+  }
+}
+
+function addUtcDates(params, args) {
+  if (args.p_date_from) params.append("activity_at", `gte.${args.p_date_from}T00:00:00.000000Z`);
+  if (args.p_date_to) {
+    const next = new Date(`${args.p_date_to}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    params.append("activity_at", `lt.${next.toISOString().replace(".000Z", ".000000Z")}`);
   }
 }

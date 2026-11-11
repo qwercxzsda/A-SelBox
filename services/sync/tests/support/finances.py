@@ -125,8 +125,10 @@ def finances_acquisition(
         api_version="2024-06-19",
         capture_started_at=at,
         downloaded_at=at,
-        query_start_date=start,
-        query_end_date=end,
+        posted_after=datetime.fromisoformat(request["postedAfter"]),
+        posted_before=datetime.fromisoformat(request["postedBefore"]),
+        reconciliation_start_date=start,
+        reconciliation_end_date=end,
         marketplace_ids=("ATVPDKIKX0DER",),
         documents=tuple(pages),
         api_metadata={

@@ -26,8 +26,13 @@ export function parseRecordTimestamp(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/** Keep calendar dates intact and show API timestamps consistently in UTC. */
-export function formatRecordDate(value: string): string {
+/** Keep calendar dates intact; omit the UTC suffix when the surrounding label supplies it. */
+export function formatRecordDate(
+  value: string,
+  { includeTimeZone = true }: { includeTimeZone?: boolean } = {},
+): string {
   const parsed = parseRecordTimestamp(value);
-  return parsed ? `${parsed.toISOString().slice(0, 19).replace("T", " ")} UTC` : value;
+  if (!parsed) return value;
+  const timestamp = parsed.toISOString().slice(0, 19).replace("T", " ");
+  return includeTimeZone ? `${timestamp} UTC` : timestamp;
 }

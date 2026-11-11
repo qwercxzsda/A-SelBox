@@ -1,5 +1,20 @@
-const SELECTABLE_COLUMNS = new Set(["sku", "marketplace_name", "source", "component_type"]);
-const DATE_COLUMNS = ["activity_date", "posted_date", "created_at", "start_date", "end_date"];
+import { timestampedTransaction } from "./transaction-time-fixtures.mjs";
+
+const SELECTABLE_COLUMNS = new Set([
+  "sku",
+  "marketplace_name",
+  "source",
+  "component_type",
+  "category",
+]);
+const DATE_COLUMNS = [
+  "activity_date",
+  "activity_at",
+  "posted_date",
+  "created_at",
+  "start_date",
+  "end_date",
+];
 const NUMERIC_COLUMNS = new Set(["amount", "source_amount", "company_amount"]);
 
 function decimalParts(value) {
@@ -32,7 +47,7 @@ function matchesSearch(row, filter) {
 
 /** Emulate the documented REST filters and RPC fee selection used by browser fixtures. */
 export function filterRecordRows(rows, params) {
-  return rows.filter((row) => {
+  return (params.has("activity_at") ? rows.map(timestampedTransaction) : rows).filter((row) => {
     const currency = params.get("currency");
     if (currency?.startsWith("eq.") && row.currency !== currency.slice(3)) return false;
     if (currency === "is.null" && row.currency !== null && row.currency !== undefined) return false;
@@ -69,6 +84,11 @@ export function filterRecordRows(rows, params) {
         if (
           filter.startsWith("lte.") &&
           (row[key] === null || row[key] === undefined || row[key] > filter.slice(4))
+        )
+          return false;
+        if (
+          filter.startsWith("lt.") &&
+          (row[key] === null || row[key] === undefined || row[key] >= filter.slice(3))
         )
           return false;
       }

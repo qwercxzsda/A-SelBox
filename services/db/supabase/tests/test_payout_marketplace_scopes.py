@@ -13,7 +13,7 @@ from services.db.supabase.tests.payout_fixtures import (
     report_source_rows,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
-from services.db.supabase.tests.verification.payout_estimates import verify_estimate_parity
+from services.db.supabase.tests.verification.payout_source_parity import verify_payout_source_parity
 from services.db.supabase.tests.verification.payouts import independent_payout_totals
 
 
@@ -88,7 +88,7 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
             generate_payout_reports(self, inputs.company),
             [(report, False) for report, _ in generated],
         )
-        parity = verify_estimate_parity(self.connection, self.administrator())
+        parity = verify_payout_source_parity(self.connection, self.administrator())
         self.assertEqual(parity["company_marketplace_currency_reports"], 2)
         self.connection.execute("set constraints all immediate")
 

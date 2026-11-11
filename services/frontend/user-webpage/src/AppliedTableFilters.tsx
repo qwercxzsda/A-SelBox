@@ -41,7 +41,7 @@ export function AppliedTableFilters({
       clear: { companyIds: [] },
     },
     {
-      label: dataset === "payouts" ? "Report month" : "Date",
+      label: dataset === "payouts" ? "Report month" : "Date (UTC)",
       values:
         filters.dateFrom || filters.dateTo
           ? [dataset === "payouts" ? filters.dateFrom.slice(0, 7) : dateLabel]
@@ -84,6 +84,7 @@ export function AppliedTableFilters({
         .filter(({ values }) => values.length > 0)
         .map(({ label, values, summary, clear }) => {
           const description = `${label}: ${values.join(", ")}`;
+          const visibleLabel = `${label}: ${summary ?? (values.length === 1 ? values[0] : `${String(values.length)} selected`)}`;
           return (
             <Tooltip
               key={label}
@@ -97,18 +98,14 @@ export function AppliedTableFilters({
                 className="applied-table-filter"
                 size="compact-xs"
                 variant="light"
-                aria-label={`Clear ${label.toLowerCase()} filter: ${values.join(", ")}`}
+                aria-label={`${visibleLabel}. Clear filter.`}
                 onClick={(event) => {
                   if (event.detail === 0) focusTarget?.current?.focus();
                   onChange(clear);
                 }}
                 rightSection={<span aria-hidden="true">×</span>}
               >
-                <span className="applied-table-filter-text">
-                  {label}:{" "}
-                  {summary ??
-                    (values.length === 1 ? values[0] : `${String(values.length)} selected`)}
-                </span>
+                <span className="applied-table-filter-text">{visibleLabel}</span>
               </Button>
             </Tooltip>
           );

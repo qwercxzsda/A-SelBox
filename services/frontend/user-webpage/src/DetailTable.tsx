@@ -2,19 +2,20 @@ import { Table } from "@mantine/core";
 import { useResizeObserver } from "@mantine/hooks";
 import type { ReactNode } from "react";
 import type { CanonicalRow } from "./api";
-import { humanizeCode, transactionTypeLabel } from "./categories";
+import { humanizeCode } from "./categories";
+import { TransactionTypeValue } from "./TransactionTypeValue";
 import { formatAmount, formatExactDecimal } from "./decimal";
 import type { DetailColumn } from "./detail-columns";
 import { TableColumnLabel } from "./TableColumnLabel";
 import "./DetailTable.css";
 
-function cellText(row: CanonicalRow, column: DetailColumn) {
+function cellContent(row: CanonicalRow, column: DetailColumn) {
   const value = row[column.key];
   if (column.kind === "amount") return formatAmount(value);
   if (column.kind === "number") return formatExactDecimal(value);
   if (value === null) return column.empty ?? "—";
   if (column.kind === "source") return humanizeCode(value);
-  if (column.kind === "type") return transactionTypeLabel(value);
+  if (column.kind === "type") return <TransactionTypeValue value={value} />;
   return value;
 }
 
@@ -81,7 +82,7 @@ export function DetailTable({
                 const content = renderCell?.(row, column);
                 return (
                   <Table.Td key={column.key} data-kind={column.kind} data-nowrap={column.nowrap}>
-                    {content === undefined ? cellText(row, column) : content}
+                    {content === undefined ? cellContent(row, column) : content}
                   </Table.Td>
                 );
               })}

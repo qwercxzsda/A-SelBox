@@ -109,7 +109,7 @@ def _cases(base: str, bearer: str) -> list[Case]:
     first, _ = _page(base, {"p_limit": 25, "p_include_count": False}, bearer)
     if not first["rows"]:
         raise RuntimeError("Benchmark identity has no visible transactions")
-    latest = date.fromisoformat(first["rows"][0]["activity_date"])
+    latest = date.fromisoformat(first["rows"][0]["activity_at"][:10])
     marketplace = next(row["marketplace_name"] for row in first["rows"] if row["marketplace_name"])
     recent = {
         "p_date_from": (latest - timedelta(days=59)).isoformat(),

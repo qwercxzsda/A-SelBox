@@ -88,6 +88,7 @@ class TransactionPageValidationTests(TransactionPageFixture):
             {"p_direction": None},
             {"p_direction": "sideways"},
             {"p_include_count": None},
+            {"p_include_selbox": None},
             {"p_date_from": "2026-06-17", "p_date_to": "2026-06-16"},
             {"p_date_from": "-infinity"},
             {"p_date_to": "infinity"},

@@ -6,10 +6,14 @@ create table private.finances_acquisitions (
     api_version text not null check (api_version = '2024-06-19'),
     capture_started_at timestamptz not null,
     downloaded_at timestamptz not null check (downloaded_at >= capture_started_at),
-    query_start_date date not null check (isfinite(query_start_date)),
-    query_end_date date not null check (
-        isfinite(query_end_date) and query_end_date >= query_start_date
+    posted_after timestamptz not null check (isfinite(posted_after)),
+    posted_before timestamptz check (
+        isfinite(posted_before) and posted_before > posted_after
     ),
+    reconciliation_start_date date check (isfinite(reconciliation_start_date)),
+    reconciliation_end_date date check (isfinite(reconciliation_end_date)),
+    check ((reconciliation_start_date is null) = (reconciliation_end_date is null)),
+    check (reconciliation_end_date >= reconciliation_start_date),
     marketplace_ids text[] not null check (cardinality(marketplace_ids) > 0),
     api_metadata jsonb not null check (jsonb_typeof(api_metadata) = 'object'),
     documents jsonb not null check (

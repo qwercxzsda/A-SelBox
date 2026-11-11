@@ -49,8 +49,9 @@ new Amazon observation. Inventory follows the original report creation time.
 ## Download and archive
 
 Retrieve every page, including continuation tokens on empty pages. Finance requests use the declared
-seller/marketplace roster and explicit monthly date windows; Data Kiosk retains the pinned query,
-schema and ordered document inventory. Finished retrieval is evidence of the request's result, not
+seller/marketplace roster and UTC timestamp bounds. Routine Finance refreshes start at the maturity
+cutoff and omit the upper bound, including available current-day activity; Data Kiosk retains the
+pinned query, schema and ordered document inventory. Finished retrieval is evidence of the request's result, not
 Amazon finality. `postedAfter` filters posting time, so older Finance changes need another retrieval
 of the affected period.
 
@@ -70,10 +71,12 @@ enter logs. Missing or corrupt archived input fails offline replay without conta
 
 ## Finances preprocessing
 
-Python checks identity/scope, lifecycle links, monetary partitions and every required Summary
-control against the complete proposed transaction set. A previously accepted ID missing from the
-same retrieval scope rejects the batch. All accepted changes and observation memberships publish
-atomically; failures leave prior selections intact and create local logs only.
+Python checks identity/scope, lifecycle links and monetary partitions for every observed transaction.
+Summary controls compare only the separate interval of complete marketplace-local days inside the
+UTC retrieval window. Partial boundary days remain valid observations without claiming complete-day
+coverage. A previously accepted ID missing from the comparable UTC retrieval interval rejects the
+batch. All accepted changes and observation memberships publish atomically; failures leave prior
+selections intact and create local logs only.
 
 PostgreSQL enforces structural keys, immutable records, child inventories and consistent selected
 pointers. It does not repeat Finance business validation. See the [six-table model and validation
@@ -119,7 +122,8 @@ Finance capture cannot certify a changed whole month through an older batch.
 
 Changed source/terms inputs rotate revision tokens and request payout work. Browser reads reload only
 when relevant tokens change. The payout worker uses published data and never downloads from Amazon.
-The maturity cutoff is an eligibility policy, separate from retrieval and publication success.
+The maturity cutoff sets payout eligibility and the default Finance refresh lookback. Neither
+retrieval nor publication establishes Amazon finality.
 
 ## Immutable history
 

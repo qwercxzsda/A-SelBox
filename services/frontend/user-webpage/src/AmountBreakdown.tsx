@@ -18,7 +18,7 @@ export interface RecordSelection {
   revision?: number;
 }
 
-/** Estimates and saved reports use the same totals, type drilldown, and records. */
+/** Current totals and saved reports use the same totals, type drilldown, and records. */
 export function AmountBreakdown({
   currency,
   totals,

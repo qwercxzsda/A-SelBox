@@ -98,8 +98,6 @@ export function locationPreference(
   const tab = decodeWorkspaceTab(p.get("tab"), account);
   const selected = reportSelection(p);
   if (name === "tab") return tab;
-  if (name === "summary-currency" && tab === "live")
-    return isCurrency(p.get("currency")) ? p.get("currency") : "USD";
   if (name === "datasets" && isTableDataset(tab)) {
     const views = isJsonObject(saved) ? saved : {};
     const view = readDatasetLocation(p, tab);
@@ -139,10 +137,6 @@ export function workspaceLocation(url: URL, account: AppAccount, preferences: Pr
     const views = preferences.get("datasets");
     const view = decodeDatasetView(isJsonObject(views) ? views[tab] : null, tab);
     writeDatasetLocation(p, view);
-    if (tab === "live") {
-      const currency = preferences.get("summary-currency");
-      p.set("currency", isCurrency(currency) ? currency : "USD");
-    }
     if (tab === "payouts") {
       const history = decodePayoutHistoryState(preferences.get("payout-report-history"));
       if (history.selected?.reportId === view.selectedRowId) selected = history.selected;

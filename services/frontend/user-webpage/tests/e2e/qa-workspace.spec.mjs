@@ -1,47 +1,58 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn, rowWithSku } from "./fixtures.mjs";
 import { financesRow } from "./api-fixtures.mjs";
-import { summaryBucket, summaryCards, summaryAmount } from "./summary-fixtures.mjs";
+import { summaryBucket, summaryPeriods, summaryAmount } from "./summary-fixtures.mjs";
 import {
   setupFinancialReview,
   setupManyFinancialReviewRows,
 } from "./financial-review-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
 
-test("summary currency stays chosen when filtering removes it and dates have an explicit entry point", async ({
+test("marketplace totals remain explicit through filtering and reload, with a date entry point", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
   fixture.aggregateRows = [
-    {
-      ...summaryBucket("2026-07-31", "100", { currency: "JPY" }),
-      marketplace_name: "Amazon.co.jp",
-    },
-    { ...summaryBucket("2026-07-31", "5"), marketplace_name: "Amazon.com" },
+    summaryBucket("2026-08-01", "0"),
+    summaryBucket("2026-07-31", "100", { currency: "JPY", marketplace: "Amazon.co.jp" }),
+    summaryBucket("2026-07-31", "5"),
   ];
   await signIn(page);
-  const { summaries, day, selected } = summaryCards(page);
-  await summaries.getByLabel("Summary currency", { exact: true }).selectOption("JPY");
-  await expect(summaryAmount(day, "Reported amount")).toHaveText("100.00 JPY");
+  const { summaries, day, selected } = summaryPeriods(page, "Amazon.com");
+  const japan = summaryPeriods(page, "Amazon.co.jp").day;
+
+  await expect(
+    summaryAmount(summaryPeriods(page, "Amazon.co.jp").day, "Reported amount", "JPY"),
+  ).toHaveText("100.00 JPY");
+
+  await expect(summaryAmount(day, "Reported amount")).toHaveText("5.00 USD");
+  await expect(summaries.getByRole("combobox")).toHaveCount(0);
   await columnTrigger(page, "Marketplace").click();
   const menu = page.getByRole("dialog", { name: "Marketplace options", exact: true });
   await menu.getByRole("checkbox", { name: "Amazon.com", exact: true }).check();
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
-  await expect(day).toContainText("No transactions in JPY.");
-  await expect(summaries.getByLabel("Summary currency", { exact: true })).toHaveValue("JPY");
+  await expect(japan).toHaveCount(0);
+
+  await expect(summaryAmount(day, "Reported amount")).toHaveText("5.00 USD");
   await page.reload();
-  await expect(summaries.getByLabel("Summary currency", { exact: true })).toHaveValue("JPY");
-  await selected.getByRole("button", { name: "Choose dates", exact: true }).click();
+  await expect(japan).toHaveCount(0);
+
+  await expect(summaryAmount(day, "Reported amount")).toHaveText("5.00 USD");
+
+  await summaries.getByRole("button", { name: "Choose dates · UTC", exact: true }).click();
   const dates = page.getByRole("dialog", { name: "Choose summary dates", exact: true });
   await dates.getByLabel("From date").fill("2026-07-01");
   await dates.getByLabel("To date").fill("2026-07-31");
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();
-  await expect(selected).toContainText("No transactions in JPY.");
-  await summaries.getByLabel("Summary currency", { exact: true }).selectOption("USD");
+
   await expect(summaryAmount(selected, "Reported amount")).toHaveText("5.00 USD");
+
   await expect(
-    selected.getByRole("button", { name: "View Selected dates by type", exact: true }),
-  ).toContainText("View by type");
+    selected.getByRole("button", {
+      name: "View Selected dates for Amazon.com in USD by type",
+      exact: false,
+    }),
+  ).toHaveAttribute("aria-haspopup", "dialog");
 });
 
 test("offline status distinguishes cached information from a paused new view and resumes automatically", async ({

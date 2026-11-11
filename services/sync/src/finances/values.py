@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import cast
 
 from ..amazon.datetimes import as_utc
+from ..amazon.finances.client import FinancesOperation
 from ..numeric import Numeric
 
 ACCOUNT_TYPES = {
@@ -57,12 +58,27 @@ def money(value: object) -> tuple[Numeric, str]:
     return Numeric(obj["currencyAmount"]), currency
 
 
-def decode_page(body: bytes) -> Mapping[str, object]:
+def decode_page(body: bytes, operation: FinancesOperation) -> Mapping[str, object]:
+    """Read the same native envelope during acquisition and offline preprocessing."""
     raw: object = json.loads(body, parse_float=Decimal, parse_int=int)
     obj = object_value(raw)
     if obj.get("errors"):
         raise ValueError("Failed Finances response cannot establish coverage.")
-    return object_value(obj["payload"]) if "payload" in obj else obj
+    # Summary's published model is direct-root; live responses also use payload.
+    payload = object_value(
+        obj.get("payload", obj) if operation == "summary" else obj.get("payload")
+    )
+    key = "transactions" if operation == "transactions" else "summaries"
+    if not isinstance(payload.get(key), list):
+        raise ValueError("Finances response is missing its record inventory.")
+    return payload
+
+
+def continuation_token(payload: Mapping[str, object]) -> str | None:
+    token = payload.get("nextToken")
+    if token is not None and (not isinstance(token, str) or not token.strip()):
+        raise ValueError("Finances continuation token must be nonempty text or null.")
+    return token
 
 
 def related_ids(value: object) -> dict[str, str]:

@@ -1,4 +1,4 @@
-"""A company month is one exact financial basis across every source namespace."""
+"""Payouts retain their source-local monthly basis independently of the UTC timeline."""
 
 from datetime import date, timedelta
 from decimal import Decimal
@@ -15,9 +15,10 @@ from services.db.supabase.tests.payout_fixtures import (
 )
 from services.db.supabase.tests.rpc_support import assert_rpc_security
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.verification.payout_source_parity import source_period_totals
 
 
-class PayoutEstimateAlignmentTests(SourceModelFixture):
+class PayoutSourceParityTests(SourceModelFixture):
     def read_payout_totals(
         self, user: str, report: str, *, grouped: bool = True
     ) -> dict[str, object]:
@@ -36,30 +37,27 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
         marketplace = cast(tuple[str], scope)[0]
         self.assertIsNotNone(marketplace)
         for grouped in (False, True):
-            estimate = self.as_user(
+            current = source_period_totals(
+                self.connection,
                 user,
-                "select public.transaction_totals('2026-06-01','2026-06-30',"
-                "array[%s]::uuid[],p_marketplaces=>array[%s]::text[],"
-                "p_currency=>%s,p_group_by_type=>%s)",
-                (company, marketplace, currency, grouped),
-            )[0][0]
-            self.assertEqual(self.read_payout_totals(user, report, grouped=grouped), estimate)
-        page = cast(
-            dict[str, object],
-            self.as_user(
-                user,
-                "select public.transaction_page(p_limit=>1000,p_date_from=>'2026-06-01',"
-                "p_date_to=>'2026-06-30',p_company_ids=>array[%s]::uuid[],"
-                "p_marketplaces=>array[%s]::text[],p_currency=>%s)",
-                (company, marketplace, currency),
-            )[0][0],
-        )
-        live = {
-            (row["source"], row["source_row_id"]): tuple(
-                Decimal(cast(str, row[field]))
-                for field in ("source_amount", "fee_amount", "company_amount")
+                date(2026, 6, 1),
+                date(2026, 6, 30),
+                company,
+                currency,
+                marketplace,
+                grouped,
             )
-            for row in cast(list[dict[str, object]], page["rows"])
+            self.assertEqual(self.read_payout_totals(user, report, grouped=grouped), current)
+        live = {
+            (source, str(source_id)): (amount, fee, company_amount)
+            for source, source_id, amount, fee, company_amount in self.as_user(
+                user,
+                "select source,source_row_id,source_amount,fee_amount,company_amount "
+                "from public.live_company_components where authoritative "
+                "and activity_date between '2026-06-01' and '2026-06-30' "
+                "and company_id=%s::uuid and marketplace_name=%s and currency=%s",
+                (company, marketplace, currency),
+            )
         }
         frozen = {
             (source, row_id): amounts
@@ -71,7 +69,6 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             )
         }
         self.assertEqual(live, {key: tuple(value) for key, value in frozen.items()})
-        self.assertEqual(page["total_count"], str(len(frozen)))
 
     def test_all_namespaces_currencies_types_and_rows_match_for_company_and_administrator(
         self,
@@ -187,7 +184,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
             (0,),
         )
 
-    def test_zero_kiosk_amount_keeps_original_fee_rules_in_estimate_and_payout(self) -> None:
+    def test_zero_kiosk_amount_keeps_original_fee_rules_in_current_source_and_payout(self) -> None:
         inputs = prepare_payout(self)
         self.kiosk(
             2,
@@ -326,7 +323,7 @@ class PayoutEstimateAlignmentTests(SourceModelFixture):
                 with self.assertRaises(psycopg.errors.InvalidParameterValue):
                     self.as_user(member, query, (currency,))
 
-    def test_zero_only_month_is_visible_in_estimate_and_latest_report(self) -> None:
+    def test_zero_only_month_is_visible_in_current_source_and_latest_report(self) -> None:
         company, _ = self.owner()
         empty = generate_payout_reports(self, company)[0][0]
         self.kiosk(1, [self.component("0")])

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
-from decimal import Decimal
 from typing import TypedDict, cast
 
 from psycopg import sql
 
 from .common import Connection
-from .datasets import DATASETS, canonical_rows
+from .datasets import DATASETS, Dataset, canonical_rows
 from .search_cases import SEARCH_COLUMNS, SearchCase
 from .search_resolution import resolve_search_values
 from .transport import request
@@ -28,15 +27,40 @@ class Payload(TypedDict):
     total_count: str | None
 
 
+def reference_relation(dataset: Dataset) -> sql.Composable:
+    if dataset.key != "live":
+        timestamp = (
+            sql.SQL("e.posted_at")
+            if dataset.key == "finances"
+            else sql.SQL(
+                "((e.activity_date + 1)::timestamp at time zone "
+                "private.marketplace_time_zone(e.marketplace_name)) - interval '1 microsecond'"
+            )
+        )
+        return sql.SQL("(select e.*, {} as activity_at from {} e)").format(
+            timestamp, sql.Identifier("public", dataset.relation)
+        )
+    return sql.SQL(
+        "(select c.*, case when c.source = 'FINANCES' then f.posted_at "
+        "else ((c.activity_date + 1)::timestamp at time zone "
+        "private.marketplace_time_zone(c.marketplace_name)) - interval '1 microsecond' "
+        "end as activity_at from public.live_company_components c "
+        "left join private.finances_transaction_versions f "
+        "on c.source = 'FINANCES' and f.id = c.source_version_id)"
+    )
+
+
+def calendar_column(dataset: Dataset) -> sql.Composable:
+    return sql.SQL("(v.{} at time zone 'UTC')::date").format(sql.Identifier(dataset.date_column))
+
+
 def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
     clauses: list[sql.Composable] = [sql.SQL("true")]
     params: list[object] = []
     for value, comparison in ((case.date_from, sql.SQL(">=")), (case.date_to, sql.SQL("<="))):
         if value is not None:
             clauses.append(
-                sql.SQL("v.{} {} %s::date").format(
-                    sql.Identifier(case.dataset.date_column), comparison
-                )
+                sql.SQL("{} {} %s::date").format(calendar_column(case.dataset), comparison)
             )
             params.append(value)
     for field, values, data_type in (
@@ -72,7 +96,7 @@ def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
 def read_reference(connection: Connection, user: str, case: SearchCase) -> Payload | None:
     """Use the existing view under the same actor; never sort an over-cap reference."""
     predicate, params = view_filter(case)
-    relation = sql.Identifier("public", case.dataset.relation)
+    relation = reference_relation(case.dataset)
     with connection.transaction():
         connection.execute("set local role authenticated")
         connection.execute(
@@ -114,7 +138,8 @@ def read_reference(connection: Connection, user: str, case: SearchCase) -> Paylo
         )
         rows = connection.execute(
             sql.SQL(
-                "select row_to_json(r)::text from (select {} from {} v where {} "
+                "select (select jsonb_object_agg(key,value) from "
+                "jsonb_each_text(to_jsonb(r)))::text from (select {} from {} v where {} "
                 "order by {} limit 25 offset %s) r"
             ).format(
                 sql.SQL(", ").join(sql.Identifier("v", field) for field in case.dataset.columns),
@@ -124,15 +149,7 @@ def read_reference(connection: Connection, user: str, case: SearchCase) -> Paylo
             ),
             [*params, case.offset],
         ).fetchall()
-    decoded: list[Row] = []
-    for (value,) in rows:
-        raw = json.loads(value, parse_float=Decimal, parse_int=str)
-        decoded.append(
-            {
-                field: str(entry) if isinstance(entry, Decimal) else entry
-                for field, entry in raw.items()
-            }
-        )
+    decoded = [cast(Row, json.loads(value)) for (value,) in rows]
     return {"rows": canonical_rows(decoded), "total_count": str(count[0])}
 
 
@@ -187,16 +204,16 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
             predicate, params = view_filter(blank)
             scope = connection.execute(
                 sql.SQL(
-                    "select v.sku,v.marketplace_name::text,v.component_type,v.{},v.currency "
+                    "select v.sku,v.marketplace_name::text,v.component_type,{},v.currency "
                     "from {} v where {} and v.sku is not null and v.marketplace_name is not null "
-                    "group by v.sku,v.marketplace_name,v.component_type,v.{},v.currency "
-                    "having count(*) between 1 and 10000 order by count(*) desc,v.sku,v.{} limit 1"
+                    "group by v.sku,v.marketplace_name,v.component_type,{},v.currency "
+                    "having count(*) between 1 and 10000 order by count(*) desc,v.sku,{} limit 1"
                 ).format(
-                    sql.Identifier(dataset.date_column),
-                    sql.Identifier("public", dataset.relation),
+                    calendar_column(dataset),
+                    reference_relation(dataset),
                     predicate,
-                    sql.Identifier(dataset.date_column),
-                    sql.Identifier(dataset.date_column),
+                    calendar_column(dataset),
+                    calendar_column(dataset),
                 ),
                 params,
             ).fetchone()

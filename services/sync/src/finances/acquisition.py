@@ -4,8 +4,6 @@ import json
 import logging
 from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
-from decimal import Decimal
-from typing import cast
 from uuid import uuid7
 
 from ..amazon.finances.client import FINANCES_API_VERSION, FinancesClient, FinancesOperation
@@ -20,7 +18,8 @@ from .acquisition_models import (
     FinancesCoverageMarketplace,
     validate_coverage_scope,
 )
-from .query_windows import transaction_query_parameters
+from .query_windows import reconciliation_interval, transaction_query_parameters
+from .values import continuation_token, decode_page
 
 DEFAULT_MAX_FINANCES_PAGES = 1000
 _LOG = logging.getLogger(__name__)
@@ -33,8 +32,8 @@ def download_finances_acquisition(
     seller_namespace: str,
     amazon_scope: str,
     marketplaces: Sequence[FinancesCoverageMarketplace],
-    query_start_date: date,
-    query_end_date: date,
+    posted_after: datetime,
+    posted_before: datetime | None = None,
     max_pages: int = DEFAULT_MAX_FINANCES_PAGES,
 ) -> FinancesAcquisition:
     """Archive a regional capture and return its local offline input manifest.
@@ -47,11 +46,6 @@ def download_finances_acquisition(
     scope = validate_amazon_scope(amazon_scope)
     if type(max_pages) is not int or max_pages < 1:
         raise ValueError("Finances page limit must be a positive integer.")
-    if (query_start_date.year, query_start_date.month) != (
-        query_end_date.year,
-        query_end_date.month,
-    ):
-        raise ValueError("Finances acquisitions must remain within one calendar month.")
     if len({market.marketplace_id for market in marketplaces}) != len(marketplaces):
         raise ValueError("Finances coverage marketplaces must be unique.")
     validate_coverage_scope(scope, tuple(marketplaces))
@@ -59,47 +53,23 @@ def download_finances_acquisition(
         "finances",
         seller_namespace=seller,
         amazon_scope=scope,
-        query_start_date=query_start_date.isoformat(),
-        query_end_date=query_end_date.isoformat(),
+        posted_after=posted_after.isoformat(),
+        posted_before=posted_before.isoformat() if posted_before is not None else None,
     ) as activity:
         started = datetime.now(UTC)
         identifier = uuid7()
         activity.context["candidate_acquisition_id"] = str(identifier)
-        parameters = transaction_query_parameters(
-            marketplaces, query_start_date, query_end_date, observed_at=started
+        parameters = transaction_query_parameters(posted_after, posted_before, observed_at=started)
+        reconciliation_start, reconciliation_end = reconciliation_interval(
+            marketplaces, posted_after, posted_before, observed_at=started
         )
         documents = _download_pages(
             client, storage, "transactions", parameters, max_pages, activity
         )
-        summary_available = False
-        summary_archive_start = len(activity.verified_archives)
-        try:
-            summary_pages = _download_pages(
-                client,
-                storage,
-                "summary",
-                {
-                    "periodStart": query_start_date.isoformat(),
-                    "periodEnd": query_end_date.isoformat(),
-                },
-                max_pages,
-                activity,
-            )
-        except Exception as error:
-            _LOG.warning("Finances Summary unavailable [exception_type=%s].", type(error).__name__)
-            for archive in activity.verified_archives[summary_archive_start:]:
-                _LOG.warning(
-                    "Finances incomplete Summary archive retained: %s", json.dumps(archive)
-                )
-            if activity.pending_archive is not None:
-                _LOG.warning(
-                    "Finances Summary archive upload unconfirmed: %s",
-                    json.dumps(activity.pending_archive),
-                )
-            activity.step("summary_unavailable")
-        else:
-            documents.extend(summary_pages)
-            summary_available = True
+        summary_pages = _download_summary(
+            client, storage, reconciliation_start, reconciliation_end, max_pages, activity
+        )
+        documents.extend(summary_pages)
         activity.step("manifest_validation", page_number=None, operation=None)
         acquisition = FinancesAcquisition(
             id=identifier,
@@ -108,17 +78,52 @@ def download_finances_acquisition(
             api_version=FINANCES_API_VERSION,
             capture_started_at=started,
             downloaded_at=datetime.now(UTC),
-            query_start_date=query_start_date,
-            query_end_date=query_end_date,
+            posted_after=posted_after,
+            posted_before=posted_before,
+            reconciliation_start_date=reconciliation_start,
+            reconciliation_end_date=reconciliation_end,
             marketplace_ids=tuple(m.marketplace_id for m in marketplaces),
             documents=tuple(documents),
             api_metadata={
                 "coverage_marketplaces": [source_json(m) for m in marketplaces],
-                "summary_available": summary_available,
+                "summary_available": bool(summary_pages),
             },
         )
         activity.step("archive_complete")
         return acquisition
+
+
+def _download_summary(
+    client: FinancesClient,
+    storage: ArchiveStorage,
+    start: date | None,
+    end: date | None,
+    max_pages: int,
+    activity: AcquisitionLog,
+) -> list[ArchivedFinancesPage]:
+    if start is None or end is None:
+        return []
+    archive_start = len(activity.verified_archives)
+    try:
+        return _download_pages(
+            client,
+            storage,
+            "summary",
+            {"periodStart": start.isoformat(), "periodEnd": end.isoformat()},
+            max_pages,
+            activity,
+        )
+    except Exception as error:
+        _LOG.warning("Finances Summary unavailable [exception_type=%s].", type(error).__name__)
+        for archive in activity.verified_archives[archive_start:]:
+            _LOG.warning("Finances incomplete Summary archive retained: %s", json.dumps(archive))
+        if activity.pending_archive is not None:
+            _LOG.warning(
+                "Finances Summary archive upload unconfirmed: %s",
+                json.dumps(activity.pending_archive),
+            )
+        activity.step("summary_unavailable")
+        return []
 
 
 def _download_pages(
@@ -143,7 +148,7 @@ def _download_pages(
             storage, response.content, source_compression=None, acquisition_log=activity
         )
         # Even malformed source JSON remains archived before parsing is attempted.
-        token = _next_token(response.content, operation)
+        token = continuation_token(decode_page(response.content, operation))
         if token is not None and token in seen_tokens:
             raise ValueError("Finances pagination repeated a continuation token.")
         if token is not None:
@@ -166,26 +171,3 @@ def _download_pages(
         if token is None:
             return pages
     raise ValueError("Finances pagination exceeded the configured page limit.")
-
-
-def _next_token(content: bytes, operation: FinancesOperation) -> str | None:
-    decoded: object = json.loads(content, parse_float=Decimal)
-    if not isinstance(decoded, dict):
-        raise ValueError("Finances response must be a JSON object.")
-    envelope = cast(dict[str, object], decoded)
-    # Finances' published Summary model is direct-root, while the live service
-    # also wraps it in payload/statusCode. Preserve either exact HTTP form.
-    payload = (
-        envelope.get("payload", envelope) if operation == "summary" else envelope.get("payload")
-    )
-    if not isinstance(payload, dict):
-        raise ValueError("Finances response is missing its payload.")
-    body = cast(dict[str, object], payload)
-    if not isinstance(
-        body.get("transactions" if operation == "transactions" else "summaries"), list
-    ):
-        raise ValueError("Finances response is missing its record inventory.")
-    token = body.get("nextToken")
-    if token is not None and (not isinstance(token, str) or not token.strip()):
-        raise ValueError("Finances continuation token must be nonempty text or null.")
-    return token

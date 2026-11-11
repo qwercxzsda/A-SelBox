@@ -89,8 +89,8 @@ def publish_report(
     if not fixture.connection.execute(
         "select 1 from private.finances_preprocess_batches p "
         "join private.finances_acquisitions a on a.id=p.acquisition_id "
-        "where a.seller_namespace=%s and a.query_start_date<=%s "
-        "and a.query_end_date>=%s limit 1",
+        "where a.seller_namespace=%s and a.reconciliation_start_date<=%s "
+        "and a.reconciliation_end_date>=%s limit 1",
         (fixture.seller, start_date, end_date),
     ).fetchone():
         fixture.finances([], acquisition_id=fixture.acquisition(start=start_date, end=end_date))

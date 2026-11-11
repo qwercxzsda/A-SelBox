@@ -3,7 +3,9 @@
 import json
 import unittest
 from dataclasses import asdict, replace
+from datetime import datetime, time, timedelta
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from services.sync.src.archives.storage import archive_document
 from services.sync.src.finances.acquisition_models import ArchivedFinancesPage, FinancesAcquisition
@@ -40,11 +42,14 @@ def candidate(
             rows.append(row)
     acquisition = finances_acquisition(storage, rows)
     markets = coverage_marketplaces("EU", (retail_id, channel_id))
+    start, end = acquisition.reconciliation_start_date, acquisition.reconciliation_end_date
+    if start is None or end is None:
+        raise ValueError("Fixture requires a reconciliation interval")
+    zone = ZoneInfo(markets[0].time_zone)
+    after = datetime.combine(start, time.min, zone)
+    before = datetime.combine(end + timedelta(days=1), time.min, zone)
     parameters = transaction_query_parameters(
-        markets,
-        acquisition.query_start_date,
-        acquisition.query_end_date,
-        observed_at=acquisition.capture_started_at,
+        after, before, observed_at=acquisition.capture_started_at
     )
     summary = {
         "partnerMetadata": {
@@ -52,8 +57,8 @@ def candidate(
             "marketplaceId": retail_id,
             "accountType": "STANDARD_ORDERS",
         },
-        "periodStart": acquisition.query_start_date.isoformat(),
-        "periodEnd": acquisition.query_end_date.isoformat(),
+        "periodStart": start.isoformat(),
+        "periodEnd": end.isoformat(),
         "netProceeds": {"currencyCode": "EUR", "currencyAmount": summary_amount},
     }
     summary_page = ArchivedFinancesPage(
@@ -62,8 +67,8 @@ def candidate(
         marketplace_id=None,
         is_terminal=True,
         request_parameters={
-            "periodStart": acquisition.query_start_date.isoformat(),
-            "periodEnd": acquisition.query_end_date.isoformat(),
+            "periodStart": start.isoformat(),
+            "periodEnd": end.isoformat(),
         },
         requested_at=acquisition.capture_started_at,
         received_at=acquisition.downloaded_at,
@@ -74,6 +79,8 @@ def candidate(
     acquisition = replace(
         acquisition,
         amazon_scope="EU",
+        posted_after=after,
+        posted_before=before,
         marketplace_ids=(retail_id, channel_id),
         api_metadata={
             "summary_available": True,

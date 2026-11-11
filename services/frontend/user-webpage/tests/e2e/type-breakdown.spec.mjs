@@ -2,11 +2,20 @@ import { liveRow, skuAssignments } from "./api-fixtures.mjs";
 import { applyDates, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
-import { summaryBucket, summaryCards, summaryAmount, typeBucket } from "./summary-fixtures.mjs";
+import {
+  summaryBucket,
+  summaryCard,
+  summaryPeriods,
+  summaryAmount,
+  typeBucket,
+} from "./summary-fixtures.mjs";
 
 const drawer = (page) => page.getByRole("dialog", { name: "Amounts by type", exact: true });
-const view = (page, title) =>
-  page.getByRole("button", { name: `View ${title} by type`, exact: true });
+const view = (page, title, currency = "USD") =>
+  page.getByRole("button", {
+    name: `View ${title} for Amazon.com in ${currency} by type`,
+    exact: false,
+  });
 
 async function closeBreakdown(page) {
   await drawer(page).getByRole("button", { name: "Close breakdown", exact: true }).click();
@@ -21,7 +30,7 @@ async function expandGroups(page) {
   }
 }
 
-test("breakdowns load lazily for the card dates and all types, independently of source and search filters", async ({
+test("breakdowns load lazily for the chosen period and all types, independently of source and search filters", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -34,6 +43,7 @@ test("breakdowns load lazily for the card dates and all types, independently of 
       knownCompanyCount: 3,
     }),
     summaryBucket("2026-03-15", "50"),
+    summaryBucket("2026-03-16", "0"),
   ];
   fixture.breakdownRows = [
     typeBucket("PRINCIPAL", "100.123456789012345678", {
@@ -59,12 +69,16 @@ test("breakdowns load lazily for the card dates and all types, independently of 
   ];
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
-  const { day } = summaryCards(page);
-  await expect(view(page, "Latest day")).toBeVisible();
+
+  await expect(view(page, "Last day")).toBeVisible();
+
   await expect(view(page, "Selected dates")).toHaveCount(0);
   expect(fixture.breakdownRequests).toHaveLength(0);
 
-  await day.getByRole("button", { name: /^Filter transactions to / }).click();
+  await summaryCard(page, "Last day")
+    .getByRole("button", { name: /^Filter transactions to / })
+    .click();
+
   await expect(view(page, "Selected dates")).toBeVisible();
   await expect(drawer(page)).toHaveCount(0);
   expect(fixture.breakdownRequests).toHaveLength(0);
@@ -78,7 +92,7 @@ test("breakdowns load lazily for the card dates and all types, independently of 
   const tableRequestCount = fixture.requests.length;
   const summaryRequestCount = fixture.aggregateRequests.length;
 
-  await view(page, "Latest month").click();
+  await view(page, "Last month").click();
   await expandGroups(page);
   const dialog = drawer(page);
   const table = dialog.getByRole("table", { name: "Transaction type amounts", exact: true });
@@ -106,21 +120,25 @@ test("breakdowns load lazily for the card dates and all types, independently of 
     false,
   ]);
   for (const { params, args, endpoint } of fixture.breakdownRequests) {
-    expect(params.getAll("activity_date")).toEqual(["gte.2026-02-01", "lte.2026-02-28"]);
+    expect(params.getAll("activity_at")).toEqual([
+      "gte.2026-02-01T00:00:00.000000Z",
+      "lt.2026-03-01T00:00:00.000000Z",
+    ]);
     expect(params.get("currency")).toBe("eq.USD");
     expect(endpoint).toBe("/rest/v1/rpc/transaction_totals");
     expect(args.p_group_by_type).toBe(true);
     expect(params.get("and")).toBeNull();
-    for (const excluded of ["or", "source", "sku", "marketplace_name", "component_type"]) {
+    expect(args.p_marketplaces).toEqual(["Amazon.com"]);
+    for (const excluded of ["or", "source", "sku", "component_type"]) {
       expect(params.get(excluded)).toBeNull();
     }
   }
   expect(fixture.requests).toHaveLength(tableRequestCount);
   expect(fixture.aggregateRequests).toHaveLength(summaryRequestCount);
   await closeBreakdown(page);
-  expect(fixture.requests.at(-1).params.getAll("activity_date")).toEqual([
-    "gte.2026-03-15",
-    "lte.2026-03-15",
+  expect(fixture.requests.at(-1).params.getAll("activity_at")).toEqual([
+    "gte.2026-03-15T00:00:00.000000Z",
+    "lt.2026-03-16T00:00:00.000000Z",
   ]);
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("TARGET");
 });
@@ -133,24 +151,24 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
     summaryBucket("2026-02-05", "10"),
     summaryBucket("2026-03-15", "20", { currency: "EUR" }),
     summaryBucket("2026-03-15", "50"),
+    summaryBucket("2026-03-16", "0"),
   ];
   fixture.breakdownRowsForRequest = ({ params }) => {
-    const dates = params.getAll("activity_date");
+    const dates = params.getAll("activity_at");
     if (dates.length === 1)
       return [typeBucket("OPEN_RANGE", "60"), typeBucket("OPEN_RANGE", "20", { currency: "EUR" })];
     return [typeBucket("USD_ONLY", "50"), typeBucket("EUR_ONLY", "20", { currency: "EUR" })];
   };
   await signIn(page);
-  await view(page, "Latest day").click();
+
+  await view(page, "Last day").click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "USD only amounts", exact: true }),
   ).toBeVisible();
   await closeBreakdown(page);
-  await summaryCards(page)
-    .summaries.getByLabel("Summary currency", { exact: true })
-    .selectOption("EUR");
-  await view(page, "Latest day").click();
+
+  await view(page, "Last day", "EUR").click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "EUR only amounts", exact: true }),
@@ -161,10 +179,8 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
     "eq.USD",
     "eq.EUR",
   ]);
-  await summaryCards(page)
-    .summaries.getByLabel("Summary currency", { exact: true })
-    .selectOption("USD");
-  await view(page, "Latest day").click();
+
+  await view(page, "Last day").click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "USD only amounts", exact: true }),
@@ -174,15 +190,16 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
 
   await applyDates(page, "2026-02-05", "");
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(summaryCards(page).summaries).toHaveCount(0);
+  await expect(summaryPeriods(page).summaries).toHaveCount(0);
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
+
   await view(page, "Selected dates").click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "Open range amounts", exact: true }),
   ).toBeVisible();
-  expect(fixture.breakdownRequests.at(-1).params.getAll("activity_date")).toEqual([
-    "gte.2026-02-05",
+  expect(fixture.breakdownRequests.at(-1).params.getAll("activity_at")).toEqual([
+    "gte.2026-02-05T00:00:00.000000Z",
   ]);
   await closeBreakdown(page);
   await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
@@ -191,17 +208,19 @@ test("breakdown cache separates currencies and open date ranges, and clearing da
   );
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await applyDates(page, "", "2026-02-05");
+
   await view(page, "Selected dates").click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "Open range amounts", exact: true }),
   ).toBeVisible();
-  expect(fixture.breakdownRequests.at(-1).params.getAll("activity_date")).toEqual([
-    "lte.2026-02-05",
+  expect(fixture.breakdownRequests.at(-1).params.getAll("activity_at")).toEqual([
+    "lt.2026-02-06T00:00:00.000000Z",
   ]);
   expect(fixture.breakdownRequests).toHaveLength(4);
   await closeBreakdown(page);
   await applyDates(page);
+
   await expect(view(page, "Selected dates")).toHaveCount(0);
   expect(fixture.breakdownRequests).toHaveLength(4);
 });
@@ -210,11 +229,12 @@ test("a forbidden breakdown is not retried automatically and the explicit retry 
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.aggregateRows = [summaryBucket("2026-03-15", "7.125")];
+  fixture.aggregateRows = [summaryBucket("2026-03-15", "7.125"), summaryBucket("2026-03-16", "0")];
   fixture.breakdownRows = [typeBucket("PRINCIPAL", "7.125")];
   fixture.breakdownStatus = 403;
   await signIn(page);
-  await view(page, "Latest day").click();
+
+  await view(page, "Last day").click();
   await expect(drawer(page).getByRole("alert")).toContainText("HTTP 403");
   expect(fixture.breakdownRequests).toHaveLength(1);
   fixture.breakdownStatus = 200;
@@ -233,15 +253,19 @@ test("signing into another account and role never displays the previous breakdow
   const fixture = await mockSupabase(page);
   fixture.roles["member-b"] = "administrator";
   fixture.aggregateRowsByUser = {
-    "member-a": [summaryBucket("2026-03-15", "41.123456789012345678")],
-    "member-b": [summaryBucket("2026-03-15", "907")],
+    "member-a": [
+      summaryBucket("2026-03-15", "41.123456789012345678"),
+      summaryBucket("2026-03-16", "0"),
+    ],
+    "member-b": [summaryBucket("2026-03-15", "907"), summaryBucket("2026-03-16", "0")],
   };
   fixture.breakdownRowsByUser = {
     "member-a": [typeBucket("ALPHA_ONLY", "41.123456789012345678")],
     "member-b": [typeBucket("BRAVO_ONLY", "907")],
   };
   await signIn(page);
-  await view(page, "Latest day").click();
+
+  await view(page, "Last day").click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "Alpha only amounts", exact: true }),
@@ -257,7 +281,8 @@ test("signing into another account and role never displays the previous breakdow
     }
   };
   await signIn(page, "member-b");
-  await view(page, "Latest day").click();
+
+  await view(page, "Last day").click();
   await started.promise;
   await expect(
     drawer(page).getByRole("status", { name: "Loading amounts by type", exact: true }),
@@ -279,10 +304,13 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     const fixture = await mockSupabase(page);
     const precise = "12345678901234567890.123456789012345678";
-    fixture.aggregateRows = [summaryBucket("2026-03-15", precise)];
+    fixture.aggregateRows = [
+      summaryBucket("2026-03-15", precise),
+      summaryBucket("2026-03-16", "0"),
+    ];
     fixture.breakdownRows = [typeBucket("PRINCIPAL", precise)];
     await signIn(page);
-    const trigger = view(page, "Latest day");
+    const trigger = view(page, "Last day");
     await trigger.focus();
     await trigger.press("Enter");
     await expandGroups(page);

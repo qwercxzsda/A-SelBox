@@ -9,22 +9,33 @@ versions across successful preprocessing batches.
 Company allocation remains separate from Amazon account reconciliation. Finances supplies
 Finances and SelBox category amounts. Data Kiosk supplies its allocated company-cost category at all
 dates. Data Kiosk counterparts in other categories remain available for administrator comparisons.
-The two-calendar-month [maturity policy](source_allocation.md) controls payout eligibility only,
-not current source selection or Amazon finality.
+The two-calendar-month [maturity policy](source_allocation.md) controls payout eligibility and the
+default refresh lookback. It does not switch current source selection or establish Amazon finality.
 
 ## Acquisition scope and archives
 
-Each acquisition declares one seller credential scope, a date range within one calendar month,
-and its marketplace roster. Requests remain regional and unfiltered by marketplace, account,
-status, order or SKU. Marketplace filtering can omit US merchant-fulfilled activity.
+Each acquisition declares one seller credential scope, a UTC `posted_after` timestamp, an optional
+exclusive `posted_before` timestamp, and its marketplace roster. Routine refreshes start at
+`private.mature_cutoff_date()` at UTC midnight and omit `postedBefore`. Amazon then applies its
+default upper bound of approximately two minutes before the request. Current-day records are
+accepted; retrieval does not wait for a marketplace's local midnight or split at month boundaries.
+Requests remain regional and unfiltered by marketplace, account, status, order or SKU. Marketplace
+filtering can omit US merchant-fulfilled activity.
 [Amazon API reference](https://developer-docs.amazon/sp-api/reference/listtransactions).
 
-The UTC request envelope covers each declared marketplace's local midnight through the exclusive
-midnight after the last requested date, including daylight-saving rules. Records in the envelope's
-padding remain archived but do not enter the requested local-date scope. Follow every continuation
-token, even after an empty page. Completing retrieval establishes what was fetched, not that Amazon
-has supplied every economic event or will never revise it. `postedAfter` filters posting dates,
-not modification dates; older changes require explicitly retrieving their posting periods again.
+Every continuation keeps the same `postedAfter` and optional `postedBefore`, including after empty
+pages. Capture and page timestamps record when the requests ran; an omitted upper parameter does
+not assert one exact server snapshot time across all pages. Completing retrieval establishes what
+was fetched, not that Amazon has supplied every economic event or will never revise it.
+`postedAfter` filters posting dates, not modification dates. Repeated overlapping refreshes pick up
+changes inside the lookback; older corrections need an explicit historical request.
+
+The separate nullable `reconciliation_start_date` and `reconciliation_end_date` identify the common
+interval of whole marketplace-local days entirely inside the retrieval window. For an open-ended
+request, that interval stops before the conservative capture-start-minus-two-minutes boundary.
+Amazon Summary checks apply only to those complete days. Partial boundary days still contribute
+observed transactions, but never claim reconciled payout coverage. If no complete common local day
+fits inside the request, both reconciliation dates are null and no Summary is requested.
 
 Raw transaction and Summary pages remain exact XZ archives in private `source-archives` Storage.
 Each manifest retains request parameters, operation/page numbers, capture times, document/archive
@@ -40,9 +51,11 @@ and Amazon.it respectively. This [verified Summary grouping](evidence/finances_s
 does not relabel transactions, company fee matching, Data Kiosk comparisons or report scopes.
 Currency never supplies a missing marketplace.
 
-The downloader splits requests at month boundaries and enforces Amazon's date-window limits.
-Historical marketplace coverage may need an explicit known roster; unsupported source markets fail
-preprocessing. Credentials stay in service configuration and never enter archive manifests.
+The downloader enforces Amazon's timestamp/history limits, including the maximum 180-day request
+window. Explicit `--posted-after` and optional `--posted-before` timestamps support historical
+retrieval without changing the rolling default. Historical marketplace coverage may need an
+explicit known roster; unsupported source markets fail preprocessing. Credentials stay in service
+configuration and never enter archive manifests.
 
 ## Six-table model
 
@@ -76,20 +89,23 @@ not whatever is current today.
 
 Python validates the complete candidate before writing accepted evidence:
 
-- Verify archive integrity, pagination, declared marketplace/date scope and native identities.
+- Verify archive integrity, pagination, declared marketplace/timestamp scope and native identities.
 - Reject conflicting duplicates and a previously accepted ID missing from the later retrieval's
-  comparable scope. Existing records outside that scope do not count as missing.
+  comparable UTC interval. Existing records outside that interval do not count as missing.
 - Validate native dates, currencies, nested amount partitions, supported monetary paths and the
   complete component inventory.
 - Resolve original/release links using incoming and accepted identities. An affected transaction
   outside the proposed capture cannot have its eligibility silently changed.
-- Match every required Amazon Summary account/currency scope, including zero-activity scopes.
+- Match every required Amazon Summary account/currency scope within the separate complete-day
+  reconciliation interval, including zero-activity scopes. Partial boundary days are not included
+  in that comparison.
 - Reject older acquisitions that would replace newer accepted observations.
 
 A failure leaves previous current selections intact and is logged locally. A successful publication
 locks the relevant seller/credential scope and shares the payout-input guard, then writes acquisition
 metadata, batch, new versions/components, all memberships and pointer changes in one transaction.
-It never combines unvalidated partial captures into a certified monthly result.
+It can publish current-day observations without certifying those partial days as complete monthly
+inputs. Payout coverage requires reconciled complete-day evidence matching the selected versions.
 
 PostgreSQL enforces keys, same-identity references, immutable records, complete child inventories,
 and atomic selection. It does not repeat the Finance amount, lifecycle or Summary checks.
@@ -123,7 +139,8 @@ releases by another transaction's `RELEASE_TRANSACTION_ID`. Original `DEFERRED` 
 `DEFERRED_RELEASED` activity and directly released events remain eligible. Equal amounts, orders or
 SKUs do not prove duplication. Contradictory links, self-links and unsupported statuses fail.
 
-For the same seller, mapped Summary marketplace, account type, currency and requested local dates:
+For the same seller, mapped Summary marketplace, account type, currency and declared complete-day
+reconciliation interval:
 
 ```text
 sum(eligible native transaction totals)
@@ -131,19 +148,23 @@ sum(eligible native transaction totals)
     = listSummary.netProceeds
 ```
 
-Summary is independently retrieved account evidence, never another company component. Missing,
-unavailable or mismatched controls reject the whole preprocessing batch. Exact Summary response
-bytes remain in the archives; successful batch membership records the precise input versions that
-passed validation. A match does not certify Data Kiosk's SKU cost allocation.
+Summary is independently retrieved account evidence, never another company component. When a
+complete-day reconciliation interval is declared, missing, unavailable or mismatched controls reject
+the whole preprocessing batch. A capture with no such interval can publish its validated transaction
+observations without a Summary control, but supplies no reconciled day coverage. Exact Summary
+response bytes remain in the archives; successful batch membership identifies the versions used in
+the comparison. Transactions outside the reconciliation interval remain observations, not proof of
+complete account totals for those days. A match does not certify Data Kiosk's SKU cost allocation.
 [Amazon Summary scope](https://developer-docs.amazon/sp-api/docs/retrieve-financial-summary).
 
 ## Payouts, history and reads
 
 Payouts reference transaction versions directly through `private.payout_report_finances_versions`,
 alongside Data Kiosk day versions and SKU terms. Saved reports keep those exact contents and compact
-coverage intervals after current selections change. Publication checks required successful source
-coverage, not Finance business equations again. Reprocessing unchanged normalized versions does
-not create another payout report merely because a new batch observed them.
+coverage intervals after current selections change. Publication checks required reconciled source
+coverage and matching current transaction versions, not Finance business equations again. Reprocessing
+unchanged normalized versions does not create another payout report merely because a new batch
+observed them.
 
 Finance acquisitions, batches, memberships, transaction versions and components have no history
 cap. Data Kiosk applies the same immutable-history policy to complete-day versions and their batch

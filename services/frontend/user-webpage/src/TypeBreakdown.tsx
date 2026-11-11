@@ -45,7 +45,7 @@ export function TypeBreakdown({
         {title}
       </Title>
       <Text c="dimmed" size="sm" mt={4} mb="sm">
-        Dates: {periodLabel} · {currency}
+        Dates: {periodLabel} · UTC · {currency}
       </Text>
       <SummaryFilters filters={appliedFilters} />
       <AmountBreakdown

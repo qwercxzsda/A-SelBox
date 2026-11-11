@@ -56,7 +56,7 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await selectOption(page, "Marketplace", "Amazon.com");
   await selectOption(page, "Source", "Data Kiosk");
   await selectOption(page, "Type", "FBA storage fee");
-  const dates = await openColumn(page, "Date");
+  const dates = await openColumn(page, "Date (UTC)");
   await dates.getByLabel("From date", { exact: true }).fill("2026-09-03");
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-02");
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();
@@ -66,10 +66,15 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();
   const table = page.getByRole("table", { name: "Financial records", exact: true });
   await expect(table.getByRole("row")).toHaveCount(4);
-  await expect(table.getByRole("cell", { name: "2026-09-02", exact: true })).toHaveCount(2);
-  await expect(table.getByRole("cell", { name: "2026-09-03", exact: true })).toHaveCount(1);
+  await expect(table.getByRole("columnheader", { name: /^Date \(UTC\)/ })).toBeVisible();
+  await expect(table.locator("time").filter({ hasText: "2026-09-03 06:59:59" })).toHaveCount(2);
+  await expect(table.locator("time").filter({ hasText: "2026-09-02 06:59:59" })).toHaveCount(1);
+  await expect(table.locator("time").filter({ hasText: "UTC" })).toHaveCount(0);
   const params = fixture.requests.at(-1).params;
-  expect(params.getAll("activity_date")).toEqual(["gte.2026-09-02", "lte.2026-09-03"]);
+  expect(params.getAll("activity_at")).toEqual([
+    "gte.2026-09-02T00:00:00.000000Z",
+    "lt.2026-09-04T00:00:00.000000Z",
+  ]);
   expect(params.get("sku")).toBe('in.("TARGET")');
   expect(params.get("marketplace_name")).toBe('in.("Amazon.com")');
   expect(params.get("source")).toBe('in.("DATA_KIOSK")');
@@ -87,7 +92,7 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await expect(sourceMenu.getByRole("checkbox")).toHaveCount(2);
   await expect(sourceMenu.getByLabel("Search source", { exact: true })).toHaveCount(0);
   await sourceMenu.getByRole("button", { name: "Close options", exact: true }).click();
-  const restoredDates = await openColumn(page, "Date");
+  const restoredDates = await openColumn(page, "Date (UTC)");
   await expect(restoredDates.getByLabel("From date", { exact: true })).toHaveValue("2026-09-02");
   await expect(restoredDates.getByLabel("To date", { exact: true })).toHaveValue("2026-09-03");
   await restoredDates.getByLabel("From date", { exact: true }).fill("2026-09-10");
@@ -184,13 +189,13 @@ test("one date or numeric ordering applies at a time while source and date filte
   ];
   await signIn(page);
   await selectOption(page, "Source", "Finances");
-  const dates = await openColumn(page, "Date");
+  const dates = await openColumn(page, "Date (UTC)");
   await dates.getByLabel("From date", { exact: true }).fill("2026-09-01");
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-03");
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();
   for (const [label, ordering, column, direction, firstSku] of [
     ["Reported amount", "Lowest first", "source_amount", "asc", "ORDER-A-001"],
-    ["Date", "Oldest first", "activity_date", "asc", "ORDER-C-001"],
+    ["Date (UTC)", "Oldest first", "activity_at", "asc", "ORDER-C-001"],
   ]) {
     const menu = await openColumn(page, label);
     await menu.getByRole("button", { name: ordering, exact: true }).click();
@@ -205,14 +210,17 @@ test("one date or numeric ordering applies at a time while source and date filte
       `${column}.${direction}.nullslast,source.asc,source_row_id.asc`,
     );
     expect(params.get("source")).toBe('in.("FINANCES")');
-    expect(params.getAll("activity_date")).toEqual(["gte.2026-09-01", "lte.2026-09-03"]);
+    expect(params.getAll("activity_at")).toEqual([
+      "gte.2026-09-01T00:00:00.000000Z",
+      "lt.2026-09-04T00:00:00.000000Z",
+    ]);
   }
-  const dateMenu = await openColumn(page, "Date");
+  const dateMenu = await openColumn(page, "Date (UTC)");
   await dateMenu.getByRole("button", { name: "Clear dates", exact: true }).click();
-  await expect.poll(() => fixture.requests.at(-1).params.getAll("activity_date")).toEqual([]);
+  await expect.poll(() => fixture.requests.at(-1).params.getAll("activity_at")).toEqual([]);
   expect(fixture.requests.at(-1).params.get("source")).toBe('in.("FINANCES")');
   expect(fixture.requests.at(-1).params.get("order")).toBe(
-    "activity_date.asc.nullslast,source.asc,source_row_id.asc",
+    "activity_at.asc.nullslast,source.asc,source_row_id.asc",
   );
 });
 

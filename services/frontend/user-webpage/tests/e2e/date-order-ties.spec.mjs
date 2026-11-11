@@ -30,6 +30,7 @@ for (const [dataset, tab] of [
         source_row_id: uuid(id),
         source,
         activity_date: "2026-09-01",
+        activity_at: "2026-09-02T06:59:59.999999Z",
         posted_date: "2026-09-01",
         source_amount: "10",
         amount: "10",
@@ -66,7 +67,7 @@ for (const [dataset, tab] of [
 
     await verifyBothPages([...ascending].reverse());
     expect(fixture.requests.at(-1).args).toMatchObject({ p_order_by: "date", p_direction: "desc" });
-    await sortBy(page, "Date", "Oldest first");
+    await sortBy(page, "Date (UTC)", "Oldest first");
     await verifyBothPages(ascending);
     expect(fixture.requests.at(-1).args).toMatchObject({ p_order_by: "date", p_direction: "asc" });
     for (const [label, direction] of [

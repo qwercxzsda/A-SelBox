@@ -6,9 +6,9 @@ import {
   decodeSummaryBreakdown,
 } from "../src/detail-view-state.ts";
 
-test("restored estimate scope excludes cached amounts and validates query bounds", () => {
+test("restored summary scope excludes cached amounts and validates query bounds", () => {
   const input = {
-    title: "Selected dates",
+    title: "Last month",
     currency: "USD",
     period: {
       label: "June 2026",
@@ -20,10 +20,14 @@ test("restored estimate scope excludes cached amounts and validates query bounds
   const restored = decodeSummaryBreakdown(input);
   assert.deepEqual(restored.period, { label: "June 2026", range: input.period.range });
   assert.deepEqual(restored.scope, input.scope);
+  for (const title of ["Last day", "Last month", "Selected dates"])
+    assert.equal(decodeSummaryBreakdown({ ...input, title }).title, title);
   for (const invalid of [
     { ...input, currency: "usd" },
     { ...input, scope: { ...input.scope, companyIds: ["not-a-company"] } },
     { ...input, scope: { ...input.scope, skus: ["SKU", "SKU"] } },
+    { ...input, scope: { ...input.scope, marketplaces: [] } },
+    { ...input, scope: { ...input.scope, marketplaces: ["Amazon.com", "Amazon.co.jp"] } },
     { ...input, period: { ...input.period, range: { from: "2026-02-30", to: "2026-03-01" } } },
   ])
     assert.equal(decodeSummaryBreakdown(invalid), null);

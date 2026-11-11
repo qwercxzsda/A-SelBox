@@ -77,7 +77,7 @@ for (const [dataset, tab] of [
       await expect(alert.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
       await expect(page.getByText("No matching records", { exact: true })).toHaveCount(0);
       await expect(page.getByLabel("Search", { exact: true })).toBeEnabled();
-      const menu = await openColumn(page, "Date");
+      const menu = await openColumn(page, "Date (UTC)");
       await expect(menu.getByLabel("From date", { exact: true })).toBeEnabled();
       await menu.getByRole("button", { name: "Close options", exact: true }).click();
       await alert.getByRole("button", { name: "Order by date", exact: true }).click();
@@ -85,7 +85,7 @@ for (const [dataset, tab] of [
       await expect(
         page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
       ).toHaveCount(26);
-      await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "descending");
+      await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "descending");
     } finally {
       release.resolve();
     }

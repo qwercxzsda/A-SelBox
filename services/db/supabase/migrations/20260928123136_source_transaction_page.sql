@@ -9,8 +9,8 @@ create function public.source_transaction_page(
     p_search_marketplaces text[] default null
 ) returns jsonb language plpgsql stable security invoker
 set search_path = '' set plan_cache_mode = 'force_custom_plan' as $$
-declare fact_relation text; entry_relation text; date_column text;
-    sort_column text; sort_direction text; tie_direction text; sort_nulls text;
+declare fact_relation text; entry_relation text; timestamp_expression text;
+    sort_expression text; sort_direction text; tie_direction text; sort_nulls text;
     candidate_cap text; candidate_materialization text; result jsonb;
 begin
     if not private.financial_account_visible() then
@@ -27,8 +27,9 @@ begin
     perform private.validate_transaction_filters(null,null,null,p_search_skus,p_search_marketplaces,null,p_search_types);
     fact_relation:=case p_dataset when 'finances' then 'finances_component_details' else 'data_kiosk_component_details' end;
     entry_relation:=case p_dataset when 'finances' then 'finances_preprocess_entries' else 'data_kiosk_preprocess_entries' end;
-    date_column:=case p_dataset when 'finances' then 'posted_date' else 'activity_date' end;
-    sort_column:=case p_order_by when 'amount' then 'amount' else date_column end;
+    timestamp_expression:=case p_dataset when 'finances' then 't.posted_at'
+        else 'private.data_kiosk_activity_at(t.activity_date,t.marketplace_name)' end;
+    sort_expression:=case p_order_by when 'amount' then 't.amount' else timestamp_expression end;
     sort_direction:=case p_direction when 'asc' then 'asc' else 'desc' end;
     tie_direction:=case p_order_by when 'date' then sort_direction else 'asc' end;
     sort_nulls:=case when p_order_by='date' and p_direction='desc' then 'first' else 'last' end;
@@ -36,8 +37,9 @@ begin
     candidate_materialization:=case p_order_by when 'amount' then 'materialized' else 'not materialized' end;
     execute format($query$
       with matching as not materialized (
-        select t.id,t.%3$I as sort_value from private.%1$I t
-        where ($1::date is null or t.%2$I >= $1) and ($2::date is null or t.%2$I <= $2)
+        select t.id,%2$s as activity_at,%3$s as sort_value from private.%1$I t
+        where ($1::date is null or %2$s >= $1::timestamp at time zone 'UTC')
+          and ($2::date is null or %2$s < ($2 + 1)::timestamp at time zone 'UTC')
           and (coalesce(cardinality($3::text[]),0)=0 or t.sku=any($3))
           and (coalesce(cardinality($4::text[]),0)=0 or t.marketplace_name=any($4))
           and (coalesce(cardinality($5::text[]),0)=0 or t.component_type=any($5))
@@ -48,7 +50,9 @@ begin
         select * from candidates order by sort_value %4$s nulls %6$s,id %5$s limit $6 offset $7
       ), result_rows as (
         select p.sort_value,p.id,
-          (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(e))) as payload
+          (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(e)))
+            || jsonb_build_object('activity_at',
+              to_char(p.activity_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) as payload
         from page p join public.%7$I e on e.id=p.id
       )
       select case when $12 and (select count(*) from candidates)>10000 then null::jsonb
@@ -56,7 +60,7 @@ begin
           'rows',(select coalesce(jsonb_agg(payload order by sort_value %4$s nulls %6$s,id %5$s),'[]'::jsonb) from result_rows),
           'total_count',case when $8 then (select count(*)::text from matching) end)
         end
-    $query$,fact_relation,date_column,sort_column,sort_direction,tie_direction,sort_nulls,entry_relation,candidate_cap,candidate_materialization)
+    $query$,fact_relation,timestamp_expression,sort_expression,sort_direction,tie_direction,sort_nulls,entry_relation,candidate_cap,candidate_materialization)
     into result using p_date_from,p_date_to,p_skus,p_marketplaces,p_types,p_limit,p_offset,
         p_include_count,p_search_skus,p_search_types,p_search_marketplaces,p_order_by='amount';
     if result is null then raise exception 'Amount ordering is limited to 10,000 matching transactions. Narrow your filters or order by date.' using errcode='22023'; end if;
@@ -86,19 +90,23 @@ service_role;
 -- Exact immutable source references are independent of the current selection.
 create function public.financial_source_record(p_source text, p_row_id uuid, p_version_id uuid)
 returns jsonb language plpgsql stable security invoker set search_path = '' as $$
-declare source_record jsonb;
+declare source_record jsonb; source_timestamp timestamptz;
 begin
     if not private.is_administrator() then raise exception 'Administrator access is required' using errcode='42501'; end if;
     if p_source is null or p_source not in ('FINANCES','DATA_KIOSK') or p_row_id is null or p_version_id is null then
         raise exception 'A valid source row and revision are required' using errcode='22023'; end if;
     if p_source='FINANCES' then
-        select to_jsonb(t) into source_record from public.finances_preprocess_entries t
+        select to_jsonb(t),t.posted_at
+        into source_record,source_timestamp from public.finances_preprocess_entries t
         where t.id=p_row_id and t.version_id=p_version_id;
     else
-        select to_jsonb(t) into source_record from public.data_kiosk_preprocess_entries t
+        select to_jsonb(t),private.data_kiosk_activity_at(t.activity_date,t.marketplace_name)
+        into source_record,source_timestamp from public.data_kiosk_preprocess_entries t
         where t.id=p_row_id and t.version_id=p_version_id;
     end if;
-    return (select jsonb_object_agg(key,value) from jsonb_each_text(source_record));
+    return (select jsonb_object_agg(key,value) from jsonb_each_text(source_record))
+        || jsonb_build_object('activity_at',
+            to_char(source_timestamp at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
 end;
 $$;
 create function public.financial_source_transaction_lookup(
@@ -112,7 +120,8 @@ begin
     if p_limit>100 or p_native_transaction_id is null or length(btrim(p_native_transaction_id))=0 or length(p_native_transaction_id)>512 then
         raise exception 'A valid exact Amazon transaction ID is required' using errcode='22023'; end if;
     with records as materialized (
-        select t.*,case when t.is_current then 'Current' else 'Retained' end as capture_status
+        select t.*,case when t.is_current then 'Current' else 'Retained' end as capture_status,
+            to_char(t.posted_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as activity_at
         from public.finances_preprocess_entries t where t.native_transaction_id=p_native_transaction_id
         order by t.id limit p_limit offset p_offset
     ) select coalesce(jsonb_agg((select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(r))) order by r.id),'[]'::jsonb)

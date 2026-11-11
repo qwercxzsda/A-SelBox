@@ -103,7 +103,9 @@ test("selecting a type filters source records by exact source and type and F5 re
   await selectMonth(page);
   const type = typesTable(page)
     .getByRole("row")
-    .filter({ has: page.getByRole("cell", { name: "FBA storage fee", exact: true }) });
+    .filter({
+      has: page.locator(".transaction-type-label").filter({ hasText: /^FBA storage fee$/ }),
+    });
   await type.getByRole("button", { name: /^View records for / }).click();
   await expect(recordsTable(page).locator("tbody tr")).toHaveCount(26);
   let request = currentReads(fixture, "financial_review_records").at(-1);

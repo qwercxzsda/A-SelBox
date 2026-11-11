@@ -16,17 +16,19 @@ filter can narrow the caller's visible data but cannot expand it.
 The SKU discovery RPC additionally requires a current stored Administrator account.
 Members use their assigned SKUs and cannot call that administrator endpoint.
 
-Current transaction reads use eligible Finances activity in the `FINANCES` and `SELBOX`
-categories and Data Kiosk components in the `DATA_KIOSK` category at every date. There is no
+The main transaction list uses eligible Finances activity in the `FINANCES` and `SELBOX`
+categories and Data Kiosk components in the `DATA_KIOSK` category at every date. Current totals and
+their contributing-record drawers exclude `SELBOX`, retaining only `FINANCES` and `DATA_KIOSK`. There is no
 age-based source switch or substitute sales source when Finances is absent. Transaction rows
 represent normalized source components; diagnostic comparisons and analysis rows never enter
 pages, counts or totals. Members see only their assigned company amounts. Actual SelBox rows
-have zero company contribution and remain administrator-only; company and SKU filters omit them.
+have zero company contribution and remain administrator-only; company and SKU filters also omit them.
 Strict reads validate required coverage, selected preprocessing labels, ownership and fees for
-the requested dates. Only monthly payout publication uses the two-calendar-month eligibility
-cutoff. Source changes and reassignment affect current reads without changing saved reports.
+the requested dates. The two-calendar-month cutoff governs monthly payout eligibility and the
+default Finance refresh lookback; it does not hide older imported rows. Source changes and
+reassignment affect current reads without changing saved reports.
 
-Date bounds are inclusive, finite calendar dates. If both are supplied, the start cannot exceed the
+Date bounds are inclusive, finite calendar dates in the RPC's declared date basis. If both are supplied, the start cannot exceed the
 end. Selection arrays are one-dimensional and cannot contain null members. Omitted, null, or empty
 arrays mean no ordinary selection restriction. Search arrays have separate NULL/empty semantics
 described below. Marketplace arguments use `text[]`; clients send JSON string
@@ -43,7 +45,7 @@ zero alone never makes a row supporting detail.
 
 ## Transaction pages
 
-[`public.transaction_page`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
+[`public.transaction_page`](../services/db/supabase/migrations/20260928123134_transaction_page.sql)
 accepts:
 
 | Parameter                                                                      | Default | Meaning                                                                                                           |
@@ -62,17 +64,27 @@ accepts:
 | `p_include_count`                                                              | `true`  | Whether to include an exact matching-row count.                                                                   |
 | `p_fee_applicable`                                                             | `null`  | `true`: applicable source Type; `false`: other Types; null: both.                                                 |
 | `p_currency`                                                                   | `null`  | Optional three-letter uppercase currency code, applied before pagination and counting.                            |
+| `p_include_selbox` | `true` | Include SelBox account activity in the main list and latest-date discovery. Summary record drilldowns pass `false`. |
 
 Response: `{ "rows": [...], "total_count": "123" }`. With counting disabled, `total_count` is null.
 An empty page still receives the full matching count when requested. Rows retain source identity,
 metadata, current terms and fee references, quantities, amounts, and resolution diagnostics.
+`activity_date` remains the original marketplace-local accounting date. `activity_at` is a UTC ISO
+timestamp: Finances uses its exact `posted_at`; Data Kiosk is booked at the last microsecond before
+the next marketplace-local midnight. This Data Kiosk instant is an explicit reporting convention,
+not an Amazon event timestamp. Named IANA zones account for daylight-saving changes. Source dates
+continue to select fee periods and payout months.
+
+UTC bounds include the start day's UTC midnight and exclude midnight after the end day.
+Every Transactions total, record drawer, and main-list date filter uses this interval and the same
+reporting timestamp. There is no alternative date basis.
 
 Filters, text search, and RLS apply before candidate selection. For date ordering the database takes
 at most `offset + limit` eligible candidates per source, merges them, selects the page, and only
 then resolves metadata and fees. Date ordering reverses the full
-`(activity_date, source, source_row_id)` tuple: all ascending for oldest-first, all descending for
+`(activity_at, source, source_row_id)` tuple: all ascending for oldest-first, all descending for
 newest-first. Dates use `NULLS LAST` for ascending and `NULLS FIRST` for descending, matching
-forward/backward scans of one ascending date/ID index per source; source dates are non-null. Amount
+forward/backward scans of ascending instant/ID indexes; reporting instants are non-null. Amount
 ordering keeps ascending source/ID ties and `NULLS LAST` in both directions. A combined page/count
 response uses one statement and snapshot.
 
@@ -136,8 +148,11 @@ validation follow the transaction page contract.
 Response: `{ "rows": [...], "total_count": "123" }`, with a null count when disabled. Rows contain
 the normalized source-view fields, including exact numeric strings. The frontend selects its
 supported display fields from that response.
-Finances orders by `posted_date` or `amount`; Data Kiosk uses `activity_date` or `amount`. Date
-ordering reverses both date and row ID together, with the same null placement as Transactions.
+Both source pages add `activity_at`, using the same UTC instant as Transactions: Finances uses
+`posted_at`, and Data Kiosk uses its assumed marketplace-local day end. Date filters select UTC
+calendar days and date ordering uses that instant; original local dates remain in the source
+fields. Date ordering reverses both timestamp and row ID together, with the same null placement
+as Transactions.
 Amount ordering keeps ascending row-ID ties and nulls last. Pagination and counting include
 retained zero-amount components; Data Kiosk's all-zero calculation inputs are filtered during
 preprocessing.
@@ -173,9 +188,9 @@ search arguments.
 
 ## Exact transaction counts
 
-[`public.transaction_count`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
-accepts the same date, company, SKU, marketplace, source, Type, fee-applicability, and currency filters as the
-page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
+[`public.transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
+accepts the same date, company, SKU, marketplace, source, Type, fee-applicability, currency, and
+`p_include_selbox` filters as the page RPC, including all four `p_search_*` arrays. It returns one exact count string, such as `"123"`, including `"0"`
 for no matching rows. There are no paging or ordering parameters.
 
 The function counts eligible source facts without resolving company fees.
@@ -183,7 +198,7 @@ Search uses the same exact OR-set predicates as the page request. The
 frontend can show rows before this separate request finishes, and reuses counts across page/order
 changes until the relevant revision invalidates them.
 
-[`public.source_transaction_count`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
+[`public.source_transaction_count`](../services/db/supabase/migrations/20260928123132_transaction_counts.sql)
 accepts required `p_dataset` and optional `p_date_from`, `p_date_to`, `p_skus`, `p_marketplaces`,
 `p_types`, `p_search_skus`, `p_search_types`, and `p_search_marketplaces` (all null by default). It returns the same exact count string and shares
 raw source visibility/search rules with `source_transaction_page`. No page, ordering, or financial
@@ -224,59 +239,78 @@ name. ISO month text in generated report names and currency search remain availa
 
 ## Period totals and Type breakdowns
 
-[`public.transaction_totals`](../services/db/supabase/migrations/20260928123130_transaction_read_rules.sql)
+[`public.transaction_totals`](../services/db/supabase/migrations/20260928123138_transaction_totals.sql)
 accepts:
 
-| Parameter                                   | Default | Meaning                                                    |
-| ------------------------------------------- | ------- | ---------------------------------------------------------- |
-| `p_date_from`, `p_date_to`                  | `null`  | At least one inclusive date bound is required.             |
-| `p_company_ids`, `p_skus`, `p_marketplaces` | `null`  | Same current-owner and typed selection semantics as pages. |
-| `p_currency`                                | `null`  | Optional three-letter uppercase currency code.             |
-| `p_group_by_type`                           | `false` | Add raw component type to currency grouping.               |
-| `p_limit`                                   | `1000`  | Integer group-page size, 1–1,000.                          |
-| `p_offset`                                  | `0`     | Same safe-integer bound as page offsets.                   |
+| Parameter                                 | Default | Meaning                                                        |
+| ----------------------------------------- | ------- | -------------------------------------------------------------- |
+| `p_date_from`, `p_date_to`                  | `null`  | At least one inclusive date bound is required.                  |
+| `p_company_ids`, `p_skus`, `p_marketplaces` | `null`  | Same current-owner and typed selection semantics as pages.      |
+| `p_currency`                              | `null`  | Optional three-letter uppercase currency code.                  |
+| `p_group_by_type`                         | `false` | Use currency/Type groups instead of marketplace/currency groups. |
+| `p_limit`                                 | `1000`  | Integer group-page size, 1–1,000.                                |
+| `p_offset`                                | `0`     | Same safe-integer bound as page offsets.                         |
 
 Response: `{ "rows": [...], "next_offset": 1000 }`; the continuation is null on the last page. Each
-row contains `currency`, `component_type`, `reported_amount`, `service_fee`, `company_amount`,
-`row_count`, and `known_company_count`. `component_type` is null for currency-only grouping. All
+row contains `marketplace_name`, `currency`, `component_type`, `reported_amount`, `service_fee`,
+`company_amount`, `row_count`, and `known_company_count`. Period totals group by marketplace and
+currency, with null `component_type`. Type breakdowns group by currency and raw component type
+within the requested marketplace scope, with null `marketplace_name`. All
 five numeric fields are strings or, for unknown monetary sums, null.
 
-`row_count` includes every eligible source row. Retained SelBox rows
-have a known zero company amount, so they do not signal missing ownership or fees. `known_company_count` counts rows with a known
+Totals include only eligible `FINANCES` components from Finances and `DATA_KIOSK` costs from Data Kiosk.
+`SELBOX` amounts are excluded from all amounts, row counts, and Type groups. `row_count` counts
+these contributing company-financial rows. `known_company_count` counts rows with a known
 company amount, allowing the UI to identify incomplete fee coverage. Monetary sums retain SQL sum
 semantics: known amounts contribute; an entirely unknown sum is null. No matching facts produce an
 empty `rows` array, not a fabricated zero-currency group.
 
 Facts are filtered first and combined by SKU, marketplace, date, currency, optional Type, and
-fee applicability and whether the amount is retained by SelBox before resolving ownership and
+fee applicability before resolving ownership and
 fee periods. Exact sums remain equivalent to
-individual row calculations. Groups sort by currency and raw Type using database `C` collation; one
+individual row calculations. Groups sort by marketplace, currency, and raw Type using database `C`
+collation, with null grouping fields first; one
 extra group determines continuation without another exact source-row count.
 
 The materialized current-terms projection includes only SKU keys in those filtered fact
 groups. It preserves invoker RLS and left joins, including missing-ownership and missing-rate
 diagnostics; it does not materialize unrelated assignments for financial projection.
 
-Only company, SKU, and marketplace selections scope every summary card. Date selection scopes the
-Selected dates card; Latest day and Latest month use their independently chosen periods. Source,
-Type, fee-applicability, and search selections do not change these summary contracts. Period
-discovery and the Latest month rule belong to the frontend; this RPC calculates the supplied range.
+Only company, SKU, and marketplace selections scope all current totals. UTC date selection scopes the
+Selected dates card; Last day and Last month each use one shared UTC period that UI filters do not change.
+Source, Type, fee-applicability, and search selections do not change these summary contracts.
+Period discovery reads `public.transaction_page` with `p_limit = 1`, descending date ordering,
+`p_include_count = false`, and no company, SKU, marketplace, date, source, type, fee, or search filters.
+The latest row visible under the authenticated account's RLS has an `activity_at` that determines the UTC anchor date; its source-local `activity_date` does not. Last day uses the preceding UTC
+calendar day, even when that day has no transactions. An empty page means no latest period.
+This reuses the page RPC's current-source eligibility, ownership, and RLS rules.
+Last month always uses the calendar month preceding the latest UTC transaction's month, including
+when the anchor date is month-end. Neither rule certifies complete source coverage.
+The totals RPC calculates the supplied UTC range once for all selected marketplaces. A marketplace
+without transactions in that common range is empty; it does not fall back to an older local period.
+The browser displays all marketplace/currency totals together, and opening a Type breakdown retains
+the selected group's exact marketplace and currency. Its record page passes `p_include_selbox=false`
+so records and counts use the same contributing categories. The regular Transactions list and the
+unfiltered latest-date discovery continue to include SelBox activity.
 
-For one company, full mature month, exact marketplace, and currency with complete valid inputs, the
-estimate matches the latest automatically generated payout after that report has
-captured the current source and terms versions. Both aggregate across source
-namespaces within that marketplace. A narrowed SKU selection represents only part of the report;
-an unfiltered administrator estimate can also include seller-wide controls that are not
-company payout amounts. The browser presents amount types and their contributing
-records together for both live estimates and saved reports.
+For fully calculated totals, exact `reported_amount + service_fee = company_amount`. Incomplete
+ownership or fee configuration retains the reported amounts but leaves the affected company amounts
+unknown; the UI identifies the known subtotal. Independently rounded display values can differ by a cent.
+
+Transactions uses UTC calendar periods, while saved payouts preserve source-local accounting months.
+The amounts of a UTC month can therefore differ at its boundaries from the same named payout month.
+Current source allocations for a complete marketplace-local month match its refreshed report when
+source and terms versions are identical. A narrowed SKU selection represents only part of the report;
+an unfiltered administrator total spans all companies and may include unresolved company-financial rows.
+The browser presents amount types and contributing records for both current totals and saved reports.
 
 ## Saved payout totals
 
 `public.payout_report_totals` uses the same `{ "rows": [...], "next_offset": ... }`
 response and exact numeric strings as `transaction_totals`. It accepts required
 `p_report_id` plus `p_group_by_type` (default `false`), `p_limit` (default `1000`),
-and `p_offset` (default `0`). Group paging uses the same bounds and currency/Type
-ordering as live totals. It is stable, uses invoker security and an empty search
+and `p_offset` (default `0`). Group paging uses the same bounds and the currency/Type
+ordering of live Type breakdowns. It is stable, uses invoker security and an empty search
 path, and is executable only by authenticated application users with access to
 the saved report under RLS.
 
@@ -335,7 +369,7 @@ it intentionally has no dataset, current-version, or occurrence filter. SKU stri
 exact, including case, punctuation, Unicode, and surrounding whitespace.
 
 Administrator discovery seeks to the first nonnull source SKU and then repeatedly
-seeks to the next greater value in the existing `(sku, date)` indexes. These seeks use the SKU
+seeks to the next greater value in the existing SKU indexes. These seeks use the SKU
 columns' native deterministic collation; the final combined catalog is deduplicated and ordered
 with `C` collation. The recursive work stays inside one SQL statement and snapshot. Every lookup
 retains caller RLS, and registered-only SKUs still come from the ordinary registry read.
@@ -347,6 +381,7 @@ indexes Finance parent metadata separately from its compact component values.
 
 | Source/table                 | Key                                                                                            | Purpose                                                       |
 | ---------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Finance transaction versions | `(posted_at, id)`; `(marketplace_name, posted_at)` | UTC instant filtering and chronological list candidates. |
 | Finance transaction versions | `(posted_date, id)`                                                                            | Posting-date candidates across retained versions.             |
 | Finance transaction versions | `(marketplace_name, posted_date)`                                                              | Native-marketplace/date selection.                            |
 | Finance components           | `(sku, version_id)`                                                                            | Exact SKU selection and joining its version metadata.         |
@@ -355,6 +390,7 @@ indexes Finance parent metadata separately from its compact component values.
 | Finance stable transactions  | Unique seller/scope/native ID; current version/batch keys                                      | Identity and current selection.                               |
 | Finance batch membership     | Primary `(batch_id, transaction_id)`; version/batch index                                      | Exact observed input sets and observation lookup.             |
 | Data Kiosk days              | `(activity_date, id)`; `(marketplace_name, activity_date, id)`                                  | Date and marketplace candidates shared by all versions.        |
+| Data Kiosk days | `(data_kiosk_activity_at(activity_date, marketplace_name), id)` | Assumed end-of-day UTC filtering and chronological candidates. |
 | Data Kiosk components        | `(sku, version_id)`; `(component_type, version_id)`                                            | Exact SKU/Type selection and joining its day metadata.          |
 | Data Kiosk batch membership  | Unique `(batch_id, day_id)`; version/day indexes                                               | Exact observed day contents and historical interpretation.     |
 

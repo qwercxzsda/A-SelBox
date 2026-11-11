@@ -17,7 +17,7 @@ test("Transactions use page-first REST reads and reuse counts while both date an
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   expect(fixture.requests.at(-1).args).toMatchObject({ p_offset: 25, p_include_count: false });
 
-  await sortBy(page, "Date", "Oldest first");
+  await sortBy(page, "Date (UTC)", "Oldest first");
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   expect(fixture.requests.at(-1).args).toMatchObject({
     p_direction: "asc",
@@ -33,8 +33,8 @@ test("Transactions use page-first REST reads and reuse counts while both date an
   );
   expect(fixture.countRequests).toHaveLength(1);
 
-  await sortBy(page, "Date", "Newest first");
-  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "descending");
+  await sortBy(page, "Date (UTC)", "Newest first");
+  await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "descending");
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill("Amazon");
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");

@@ -25,6 +25,9 @@ export function datasetRecord(dataset, overrides = {}) {
   return Object.assign(
     Object.fromEntries(DATASET_CONFIG[dataset].selectColumns.map((column) => [column, column])),
     dataset === "payouts" ? { marketplace_name: "Amazon.com" } : {},
+    ["live", "finances", "data_kiosk"].includes(dataset)
+      ? { activity_at: "2026-11-06T07:59:59.999999Z" }
+      : {},
     overrides,
   );
 }
@@ -88,6 +91,7 @@ export function typeTotalsRequest(overrides = {}) {
 
 export function aggregateRow(overrides = {}) {
   return {
+    marketplace_name: "Amazon.com",
     currency: "USD",
     reported_amount: "1",
     service_fee: "0",

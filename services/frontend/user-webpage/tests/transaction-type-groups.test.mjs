@@ -5,6 +5,7 @@ import {
   searchTransactionTypeGroups,
   transactionTypeGroups,
   transactionTypeSelectionLabels,
+  transactionTypeGroupLabel,
 } from "../src/transaction-type-groups.ts";
 
 const catalog = filterOptions("component_type", transactionTypeValues("live", "administrator"));
@@ -49,6 +50,9 @@ test("the real type catalog is a complete, stable partition preserving exact opt
     ],
   );
   const members = forward.flatMap(({ options }) => options);
+  for (const group of forward)
+    for (const option of group.options)
+      assert.equal(transactionTypeGroupLabel(option.value), group.label);
   assert.equal(members.length, frozen.length);
   assert.deepEqual(new Set(members), new Set(frozen));
   assert.deepEqual(
@@ -115,6 +119,7 @@ test("role and source scopes are preserved and unfamiliar selected keys stay in 
       );
     }
   assert.deepEqual(transactionTypeGroups([]), []);
+  assert.equal(transactionTypeGroupLabel("UNKNOWN_STORAGE_TAX_FEE"), "Other fees & adjustments");
 });
 
 test("complete groups have short selection labels while partial groups keep original labels", () => {

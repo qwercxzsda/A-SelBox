@@ -24,7 +24,7 @@ test("the summary date dialog exposes a named close action and returns keyboard 
   await page.setViewportSize({ width: 390, height: 256 });
   await mockSupabase(page);
   await signIn(page);
-  const opener = page.getByRole("button", { name: "Choose dates", exact: true });
+  const opener = page.getByRole("button", { name: "Choose dates · UTC", exact: true });
   await opener.focus();
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Choose summary dates", exact: true });
@@ -43,7 +43,7 @@ for (const width of [390, 640]) {
     await page.setViewportSize({ width, height: 256 });
     await mockSupabase(page);
     await signIn(page);
-    const menu = await openColumn(page, "Date");
+    const menu = await openColumn(page, "Date (UTC)");
     const from = menu.getByLabel("From date", { exact: true });
     const to = menu.getByLabel("To date", { exact: true });
     const apply = menu.getByRole("button", { name: "Apply dates", exact: true });

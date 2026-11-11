@@ -16,7 +16,7 @@ and API contracts are [access control](../../../docs/access_control.md),
 
 | Tab                   | Purpose                                                | Access                                                        |
 | --------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
-| Transactions          | Current company amounts, fees, and estimated totals    | Members see their company; administrators see all companies   |
+| Transactions          | Current company amounts, fees, and current totals      | Members see their company; administrators see all companies   |
 | Current fees          | SKU assignments, fee periods, and batch editing        | Members read their settings; administrators edit              |
 | Inventory             | Latest daily inventory captures and recommendations    | Members see their assigned SKUs; administrators see all items |
 | Finances / Data Kiosk | Retained source components and provenance              | Administrators                                                |
@@ -32,21 +32,25 @@ the Auth server's settings. See [Configuration](#configuration) for callback and
 ### Navigation and tables
 
 Each workspace tab has an associated panel. Filters, raw search text, ordering, page size, selected
-records, expanded sections, summary currency, and fee drafts survive tab changes and reloads within
-the same account scope. Session storage belongs to this browser tab and Supabase project. Storage
-failures show a warning; editing remains available in memory.
+records, expanded sections, and fee drafts survive tab changes and reloads within the same account
+scope. Session storage belongs to this browser tab and Supabase project. Storage failures show a
+warning; editing remains available in memory.
 
 Supported read-only state also appears in the URL: tab, filters/search, ordering/page, selected
-record, summary currency, Financial review scope, and exact report identity. Back/Forward restores
-that state while retaining scoped drafts. URL values are validated against the current account's
-permissions. Drafts, passwords, tokens, and financial amounts do not enter workspace links. Initial
-sign-in preserves a report link; explicit sign-out clears workspace navigation fields.
+record, Financial review scope, and exact report identity. Back/Forward restores that state while
+retaining scoped drafts. URL values are validated against the current account's permissions. Drafts,
+passwords, tokens, and financial amounts do not enter workspace links. Initial sign-in preserves a
+report link; explicit sign-out clears workspace navigation fields.
 
 Selections are alternatives within one filter; different filters intersect. Search is literal and
 case-insensitive. Type menus group readable labels and exact source codes; Select matches and
 Deselect matches affect only the visible matches. Selection filters apply immediately. Applied chips
 expose the active values and support individual removal. Clearing an empty filtered result preserves
 ordering and page size.
+
+Type cells use a compact column, with the readable type first and the group used by the Type filter
+beneath in smaller, muted text. The original type code remains available on hover. SKU values use
+the same medium weight as date and type labels; Company amount values use bold text.
 
 Financial and inventory paging and sorting run on the server. Current fees pages its complete loaded
 configuration. Previous/Next remains available while a separate count loads; page-number entry
@@ -59,25 +63,66 @@ Transactions pins Company amount at desktop widths of at least 1100px. Long list
 column headings while scrolling; the original table provides the accessible semantics. Detail tables
 preserve their scope and pagination within the drawer.
 
-### Financial amounts and estimates
+### Financial amounts and current totals
 
 Financial values remain decimal strings with exact calculations. Displays round to two decimal
 places, including yen and zero, with ties away from zero. Totals sum exact values before rounding.
 Rates retain their precision. Missing values display a dash; known zero amounts remain zero.
-Timestamp displays use UTC, with the original value available in the title.
+Timestamp displays use UTC, with the original value available in the title. Transactions, Finances,
+and Data Kiosk lists label the compact column Date (UTC) and omit the repeated UTC suffix from each
+row. Dates appear on the first line with the time beneath in smaller, muted text. Data Kiosk's
+assumed marketplace day-end explanation is available on the time's tooltip and accessible
+description.
 
-Transactions' three estimated-total cards follow company, SKU, and marketplace selections:
+Transactions' current totals follow company, SKU, and marketplace selections. Three cards show Last
+day, Last month, and Selected dates together. Each card contains a compact list of the selected
+marketplaces and their currencies, with Reported amount, Service fee, and Company amount. The cards
+grow vertically with the selected marketplaces; they have no fixed-height list or internal vertical
+scrolling. They appear side by side on wide screens, with matching marketplace rows aligned across
+all three cards even when currency counts differ, and stack on narrower screens.
 
-- Latest day uses the latest transaction date in that scope.
-- Latest month uses that date's month if it is the last calendar day, otherwise the previous month.
-  This rule does not certify complete source coverage.
-- Selected dates requires at least one date bound and allows an open start or end.
+Current totals, type breakdowns, and their record lists include only allocation categories
+`FINANCES` and `DATA_KIOSK`. `SELBOX` entries contribute neither amounts nor record counts to these
+summaries. Category and source are distinct: a SelBox entry supplied by the Finances API is still
+excluded. For fully calculated records, Company amount equals Reported amount plus the signed
+Service fee before display rounding. Missing ownership or fee configuration preserves the existing
+Known amount warnings and partial sums.
 
-Summary currency applies to these cards and their details. Record search, Source, Type, Fee rate,
-ordering, and pagination do not change the cards; record dates affect only Selected dates. A
-currency stays selected when its scope becomes empty. Choose dates opens the range editor, a period
-link filters Transactions, and View by type opens the amount breakdown. Selecting a type or category
+An empty Marketplace filter means all marketplaces in that filter's catalog. An explicit selection
+lists exactly those marketplaces, including markets with no matching transactions. Empty markets
+remain visible without fabricated zero amounts.
+
+All three cards use one marketplace order: transaction presence in Selected dates first, then Last
+month, then Last day, with alphabetical order breaking ties. Presence means at least one
+contributing record in any currency, including zero-amount records; neither amount size nor record
+count affects the order. Markets with no transactions in any of the three periods appear at the
+bottom.
+
+- Last day uses the UTC calendar day before the latest transaction date accessible to the signed-in
+  account, including eligible SelBox activity when finding that anchor. UI filters do not change the
+  anchor; company, SKU, and marketplace selections change only the amounts. Every marketplace uses
+  that same previous day, even when it has no transactions.
+- Last month always uses the calendar month before the latest transaction's UTC month, including
+  when the latest transaction is on the last day of a month. This rule does not certify complete
+  source coverage.
+- Selected dates uses the same UTC date range as the transaction list. It requires at least one date
+  bound and allows an open start or end.
+
+Record search, Source, Type, Fee rate, ordering, and pagination do not change the totals; record
+dates affect only Selected dates. Amounts are never combined across marketplaces or currencies. Each
+card has one date control at the upper right combining its period and UTC label. Last day and Last
+month use a filter icon to apply that period to the list. Selected dates uses a calendar icon to
+open the picker; ranges omit repeated month/year text, and an empty range shows Choose dates.
+Selecting a company amount opens its breakdown for that marketplace, currency, and UTC period. Every
+summary and record list uses the same timestamp and date boundaries. Selecting a type or category
 narrows its record list; Show all records and Back to amounts preserve a clear return path.
+
+The main Transactions list still includes eligible SelBox entries for administrators. Transactions,
+Finances, and Data Kiosk use UTC timestamps for display, date filtering, and ordering. Finances
+retains the actual posting instant. A Data Kiosk daily component is booked at the last microsecond
+before the next midnight in its marketplace's time zone, then displayed in UTC. This is an explicit
+end-of-day convention because Data Kiosk provides daily aggregates rather than activity timestamps.
+Original marketplace dates continue to determine fees and payout periods.
 
 Transactions, Finances, and Data Kiosk support Date or Reported amount ordering. Amount ordering is
 bounded to 10,000 matching rows; larger scopes explain how to narrow the result or use date order.
@@ -157,7 +202,7 @@ preserve their original totals and version references. Administrator diagnostics
 aggregates from each report's saved source inputs. The frontend computes comparisons with exact
 decimals, using retrieval coverage to distinguish an absent source from a covered zero; payout
 amounts stay frozen. The [payout contract](../../../docs/company_payout_reports.md) defines
-eligibility, maturity, completeness, zero reports, and agreement with estimates.
+eligibility, maturity, completeness, zero reports, and agreement with their source inputs.
 
 Financial review shares Marketplace, Year, and the **Fee families** checkbox menu across Finances,
 Data Kiosk, and SelBox categories. These selections scope the yearly totals, chart, monthly rows,
@@ -268,9 +313,9 @@ VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_PUBLISHABLE_KEY=<public publishable key for that instance>
 ```
 
-Use an API URL reachable from the browser; local ports can differ. A public `anon` JWT is also
-accepted. Secret and `service_role` keys must never enter `VITE_` settings. HTTPS is required except
-for local hosts. Missing configuration has no implicit fallback.
+Use an API URL reachable from the browser; local ports can differ. The browser requires an
+`sb_publishable_` key. Secret and `service_role` keys must never enter `VITE_` settings. HTTPS is
+required except for local hosts. Missing configuration has no implicit fallback.
 
 For a reverse proxy that serves the app and Supabase on one origin, explicitly set
 `VITE_SUPABASE_URL=same-origin` and keep the public key configured. The browser resolves the API
@@ -330,3 +375,8 @@ docker run --rm -u "$(id -u):$(id -g)" \
 
 Open `http://127.0.0.1:5173`. Browser fixtures and engine runs establish client behavior; production
 data, external mail delivery, and physical-device/screen-reader behavior require separate checks.
+
+A separate static preview serves built assets and does not follow source edits. Rebuild it with its
+real public configuration and activate the new assets after frontend or API contract changes, then
+verify Current totals on that preview itself. The `build:check` output uses dummy API settings and
+must not be served as the configured preview.

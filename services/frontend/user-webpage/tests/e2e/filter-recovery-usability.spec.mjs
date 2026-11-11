@@ -69,9 +69,9 @@ for (const target of ["column", "summary"]) {
     await mockSupabase(page);
     await signIn(page);
     let dialog;
-    if (target === "column") dialog = await openColumn(page, "Date");
+    if (target === "column") dialog = await openColumn(page, "Date (UTC)");
     else {
-      await page.getByRole("button", { name: "Choose dates", exact: true }).click();
+      await page.getByRole("button", { name: "Choose dates · UTC", exact: true }).click();
       dialog = page.getByRole("dialog", { name: "Choose summary dates", exact: true });
     }
     const from = dialog.getByLabel("From date", { exact: true });

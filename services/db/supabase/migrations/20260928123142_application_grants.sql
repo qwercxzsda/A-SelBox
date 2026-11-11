@@ -91,7 +91,7 @@ private.member_policy_covers_current_version(regclass) to authenticated;
 
 grant execute on function public.transaction_count(
     date, date, uuid[], text[], text[], text[], text[], boolean,
-    text[], text[], text[], text[], text
+    text[], text[], text[], text[], text, boolean
 )
 to authenticated;
 grant execute on function public.source_transaction_count(
@@ -100,7 +100,7 @@ grant execute on function public.source_transaction_count(
 
 grant execute on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text
+    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text, boolean
 ) to authenticated;
 
 grant execute on function public.source_transaction_page(
@@ -133,8 +133,12 @@ grant execute on function private.latest_inventory_capture_references() to authe
 grant execute on function public.inventory_filter_options() to authenticated;
 
 -- Successful Finance coverage metadata is needed for administrator source summaries.
-grant select (id, seller_namespace, query_start_date, query_end_date, api_metadata)
-on private.finances_acquisitions to authenticated;
+grant select (
+    id, seller_namespace, amazon_scope, marketplace_ids, capture_started_at,
+    posted_after, posted_before, reconciliation_start_date, reconciliation_end_date, api_metadata
+) on private.finances_acquisitions to authenticated;
+grant execute on function private.current_finances_reconciled_days(text[], date, date, text)
+to authenticated;
 
 grant execute on function private.read_source_totals(
     uuid, date, date, text, text, text, public.allocation_category, integer, bigint
@@ -142,3 +146,6 @@ grant execute on function private.read_source_totals(
     date, date, text, text, text, public.allocation_category, integer, bigint
 ), public.report_source_totals(uuid, text, integer, bigint)
 to authenticated;
+
+grant execute on function private.marketplace_time_zone(text),
+private.data_kiosk_activity_at(date, text) to authenticated;

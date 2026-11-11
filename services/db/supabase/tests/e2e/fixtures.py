@@ -182,8 +182,10 @@ def archived_finances(
         api_version=FINANCES_API_VERSION,
         capture_started_at=observed,
         downloaded_at=observed,
-        query_start_date=START,
-        query_end_date=end_date,
+        posted_after=datetime.fromisoformat(pages[0][1]["postedAfter"]),
+        posted_before=datetime.fromisoformat(pages[0][1]["postedBefore"]),
+        reconciliation_start_date=START,
+        reconciliation_end_date=end_date,
         marketplace_ids=(MARKETPLACE_ID,),
         documents=tuple(documents),
         api_metadata={

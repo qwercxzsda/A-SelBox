@@ -39,7 +39,7 @@ export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description:
-      "Current Finances activity with Data Kiosk costs, using each SKU’s current company and fee rules.",
+      "Dates, ordering, filters and totals use UTC. Finances keeps its actual posting time; Data Kiosk is placed at the end of its reported marketplace day.",
     searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
@@ -90,7 +90,7 @@ function column(key: string, label: string, kind: CellKind = "text"): ColumnDefi
 
 export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]> = {
   live: [
-    column("activity_date", "Date", "date"),
+    column("activity_at", "Date (UTC)", "date"),
     column("company_id", "Company", "company"),
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
@@ -104,7 +104,7 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("company_amount", "Company amount", "money"),
   ],
   finances: [
-    column("posted_date", "Date", "date"),
+    column("activity_at", "Date (UTC)", "date"),
     column("activity_eligible", "Activity eligibility", "code"),
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
@@ -114,7 +114,7 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("quantity", "Quantity", "number"),
   ],
   data_kiosk: [
-    column("activity_date", "Date", "date"),
+    column("activity_at", "Date (UTC)", "date"),
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
     column("category", "Category", "code"),

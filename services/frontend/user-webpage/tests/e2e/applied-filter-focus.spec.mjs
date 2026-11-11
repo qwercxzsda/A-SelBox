@@ -19,13 +19,13 @@ for (const clearAll of [false, true]) {
     const search = page.getByLabel("Search", { exact: true });
     await search.fill("Amazon");
     await page.getByLabel("Rows", { exact: true }).selectOption("50");
-    await sortBy(page, "Date", "Oldest first");
+    await sortBy(page, "Date (UTC)", "Oldest first");
     await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
     if (clearAll) await applyDates(page, "2026-01-01");
     const filters = page.getByRole("group", { name: "Applied table filters", exact: true });
     await filters
       .getByRole("button", {
-        name: clearAll ? "Clear filters" : "Clear marketplace filter: Amazon.com",
+        name: clearAll ? "Clear filters" : "Marketplace: Amazon.com. Clear filter.",
         exact: true,
       })
       .focus();
@@ -34,7 +34,7 @@ for (const clearAll of [false, true]) {
     await expect(search).toBeFocused();
     await expect(search).toHaveValue("Amazon");
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-    await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
+    await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "ascending");
   });
 }
 
@@ -85,7 +85,7 @@ test("clearing the last payout month chip returns keyboard focus to its search",
   await applyReportMonth(page, "2026-06");
   const filters = page.getByRole("group", { name: "Applied table filters", exact: true });
   await filters
-    .getByRole("button", { name: "Clear report month filter: 2026-06", exact: true })
+    .getByRole("button", { name: "Report month: 2026-06. Clear filter.", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect(filters).toHaveCount(0);
@@ -99,7 +99,7 @@ test("pointer removal of a financial chip does not focus the search field", asyn
   await signIn(page);
   await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
   await page
-    .getByRole("button", { name: "Clear marketplace filter: Amazon.com", exact: true })
+    .getByRole("button", { name: "Marketplace: Amazon.com. Clear filter.", exact: true })
     .click();
   await expect(page.getByLabel("Search", { exact: true })).not.toBeFocused();
 });

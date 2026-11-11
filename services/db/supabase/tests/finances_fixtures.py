@@ -1,9 +1,10 @@
 """Small authentic-shaped Finances captures shared by archive integration tests."""
 
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import cast
 from uuid import uuid7
+from zoneinfo import ZoneInfo
 
 from services.sync.src.amazon.finances.client import FINANCES_API_VERSION
 from services.sync.src.archives.storage import ArchiveStorage, archive_document
@@ -72,8 +73,12 @@ def finances_capture(
 ) -> FinancesAcquisition:
     now = observed_at or datetime.now(UTC)
     market = FinancesCoverageMarketplace("ATVPDKIKX0DER", "Amazon.com", "America/Los_Angeles")
+    posted_after = datetime.combine(start, time.min, ZoneInfo(market.time_zone)).astimezone(UTC)
+    posted_before = datetime.combine(
+        end + timedelta(days=1), time.min, ZoneInfo(market.time_zone)
+    ).astimezone(UTC)
     requests = {
-        "transactions": transaction_query_parameters((market,), start, end, observed_at=now),
+        "transactions": transaction_query_parameters(posted_after, posted_before, observed_at=now),
         "summary": {"periodStart": start.isoformat(), "periodEnd": end.isoformat()},
     }
     total = sum(
@@ -106,8 +111,10 @@ def finances_capture(
         api_version=FINANCES_API_VERSION,
         capture_started_at=now,
         downloaded_at=now,
-        query_start_date=start,
-        query_end_date=end,
+        posted_after=posted_after,
+        posted_before=posted_before,
+        reconciliation_start_date=start,
+        reconciliation_end_date=end,
         marketplace_ids=(market.marketplace_id,),
         api_metadata={"coverage_marketplaces": [source_json(market)], "summary_available": True},
         documents=tuple(

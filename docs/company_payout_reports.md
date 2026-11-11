@@ -6,7 +6,8 @@ they never identify a marketplace. New reports require at least one currently as
 An eligible company/month with no monetary scope produces a zero report with no marketplace
 or currency invented.
 The month end must be strictly before `mature_cutoff_date`, calculated from the
-database UTC date and `mature_cutoff_months = 2`. This controls publication eligibility only.
+database UTC date and `mature_cutoff_months = 2`. The same cutoff supplies the default Finance
+refresh lookback; it does not limit reads of already imported activity.
 The [source/category policy](source_allocation.md) supplies the same amounts for live and saved
 reads of the same revisions, independently of activity age.
 
@@ -97,20 +98,19 @@ single-report publisher rejects it with SQLSTATE `23514` and
 `Payout reports require at least one currently assigned SKU`. Historical assignments
 or previous reports alone do not make a company eligible.
 
-## Comparing estimates and saved reports
+## Comparing current amounts and saved reports
 
-Select the same company, full mature calendar month, exact marketplace, and currency to compare a
-live estimate with its latest marketplace payout report. When the company has current SKU
-assignments, coverage is complete, ownership and fees resolve, and automatic
-generation has caught up to the current inputs,
-their company amount, source amount, service fee, amount types, and contributing
-records agree across all source namespaces. A SKU filter narrows the estimate further.
+Current source allocations for the same company, full mature marketplace-local month, exact
+marketplace, and currency match its latest payout report when coverage is complete, ownership and
+fees resolve, and automatic generation has captured the same input versions. This comparison includes
+all source namespaces. Transactions totals use UTC reporting periods, so the same named UTC month can
+include a different set of boundary records and must not be treated as the payout's local month.
 
-Estimates use current inputs; reports freeze the versions used when saved. A
-source or fee change can therefore change an estimate before the scheduled worker
+Current allocations use current inputs; reports freeze the versions used when saved. A
+source or fee change can therefore change current amounts before the scheduled worker
 captures the new report. The previous saved report remains available during that
 interval. If the company loses its last SKU assignment, its saved reports remain
-historical snapshots and no longer track current estimates until a SKU is assigned again.
+historical snapshots and no longer track current amounts until a SKU is assigned again.
 Recent activity follows the same source/category rule in Transactions, but its month is not yet
 eligible for a saved payout. Both views use the same amount-by-type and record layout.
 
@@ -146,11 +146,12 @@ complete upstream acquisition/preprocessing. A zero total can also result from
 amounts that cancel each other or from authoritative zero-amount rows; those
 reports retain their component rows and ordinary coverage requirements.
 
-A scope containing authoritative company rows requires complete successful Finance coverage and
-Data Kiosk day versions, including when its total is zero. Finance
-preprocessing has already matched the required account/currency Summary controls before accepting
-the batch. Empty successful observations require their own controls; missing Finance inputs are
-not invented as zero.
+A scope containing authoritative company rows requires complete reconciled Finance coverage and
+Data Kiosk day versions, including when its total is zero. Finance coverage uses only the acquisition's
+complete local-day reconciliation interval. Rolling captures may also contain partial-day observations;
+those records do not extend reconciled coverage. The required Summary controls must match, and their
+batch membership must still match the selected current transaction versions. Empty reconciled days
+require their own controls; missing Finance inputs are not invented as zero.
 
 A company with no identifiable source scope can still have an explicit empty
 input inventory. Incomplete source coverage, unresolved ownership or missing applicable fees block
@@ -182,9 +183,10 @@ previous marketplace/currency scope whose amounts disappeared. Existing snapshot
 
 ## Saved inputs
 
-Publication selects current source versions after checking successful period coverage, ownership,
-fees and compatible Finance/Data Kiosk preprocessing labels within each seller namespace. Label
-checks include successful empty Finance coverage. The [Finance preprocessing contract](finances_transactions.md#activity-and-summary-validation)
+Publication selects current source versions after checking reconciled period coverage, ownership,
+fees and compatible Finance/Data Kiosk preprocessing labels within each seller namespace. Finance
+coverage must match the current transaction versions; an older reconciled batch cannot certify a
+changed version observed only in a partial-day capture. Label checks include reconciled empty days. The [Finance preprocessing contract](finances_transactions.md#activity-and-summary-validation)
 owns component, lifecycle and Summary validation; payout generation does not repeat those checks.
 
 Each report directly references immutable contents through three manifests:

@@ -1,5 +1,7 @@
 """Benchmark summary oracles preserve live authority and authenticated scope."""
 
+import unittest
+from datetime import date
 from itertools import product
 from typing import Any, cast
 
@@ -7,9 +9,28 @@ from services.db.supabase.benchmarks.aggregation_measurement import (
     Case,
     _canonical,  # pyright: ignore[reportPrivateUsage]
     _reference,  # pyright: ignore[reportPrivateUsage]
+    summary_cases,
 )
 from services.db.supabase.tests.financial_fixtures import FinancialFixture
 from services.db.supabase.tests.local_database import require_row
+
+
+class SummaryBenchmarkPeriodTests(unittest.TestCase):
+    def test_periods_match_the_previous_utc_day_and_month_without_month_end_exceptions(
+        self,
+    ) -> None:
+        for latest, day, start, end in (
+            (date(2026, 11, 30), "2026-11-29", "2026-10-01", "2026-10-31"),
+            (date(2026, 1, 1), "2025-12-31", "2025-12-01", "2025-12-31"),
+            (date(2024, 3, 31), "2024-03-30", "2024-02-01", "2024-02-29"),
+        ):
+            with self.subTest(latest=latest):
+                cases = {
+                    case.name: case.arguments
+                    for case in summary_cases(latest, "Amazon.com", "USD", include_skus=False)
+                }
+                self.assertEqual(cases["last_day"], {"p_date_from": day, "p_date_to": day})
+                self.assertEqual(cases["last_month"], {"p_date_from": start, "p_date_to": end})
 
 
 class AggregationBenchmarkReferenceTests(FinancialFixture):
@@ -17,7 +38,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
         company, _ = self.financial_fixture()
         member, administrator = self.member(company), self.administrator()
         for (role, user, expected_count), grouped in product(
-            (("member", member, 10), ("administrator", administrator, 18)), (False, True)
+            (("member", member, 10), ("administrator", administrator, 17)), (False, True)
         ):
             with self.subTest(role=role, grouped=grouped), self.connection.transaction():
                 self.connection.execute(

@@ -13,42 +13,59 @@ from services.sync.tests.support.finances import finances_acquisition
 
 
 class ManifestTests(unittest.TestCase):
-    def test_bundle_round_trip_and_atomic_extension_preserve_completed_captures(self) -> None:
+    def test_manifest_round_trip_is_atomic_and_cannot_replace_another_capture(self) -> None:
         storage = MemoryArchiveStorage()
         first, second = finances_acquisition(storage), finances_acquisition(storage)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "capture.json"
-            write_finances_manifest(path, (first,))
-            self.assertEqual(read_finances_manifest(path), (first,))
-            write_finances_manifest(path, (first, second))
-            self.assertEqual(read_finances_manifest(path), (first, second))
+            write_finances_manifest(path, first)
+            self.assertEqual(read_finances_manifest(path), first)
+            self.assertEqual(json.loads(path.read_text())["id"], str(first.id))
+            with self.assertRaises(FileExistsError):
+                write_finances_manifest(path, second)
+            self.assertEqual(read_finances_manifest(path), first)
             self.assertEqual(list(Path(directory).iterdir()), [path])
 
-    def test_duplicate_manifest_identity_is_rejected(self) -> None:
+    def test_manifest_requires_one_complete_acquisition_object(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture.json"
+            path.write_text("[]")
+            with self.assertRaisesRegex(ValueError, "must be an object"):
+                read_finances_manifest(path)
+            path.write_text("{}")
+            with self.assertRaises(KeyError):
+                read_finances_manifest(path)
+
+    def test_download_cli_writes_one_acquisition_manifest(self) -> None:
         acquisition = finances_acquisition(MemoryArchiveStorage())
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "capture.json"
-            write_finances_manifest(path, (acquisition, acquisition))
-            with self.assertRaisesRegex(ValueError, "repeats"):
-                read_finances_manifest(path)
-            path.write_text(json.dumps({"format_version": 2, "acquisitions": []}))
-            with self.assertRaisesRegex(ValueError, "Unsupported"):
-                read_finances_manifest(path)
-
-    def test_cli_consumes_manifest_path_and_download_has_no_database_argument(self) -> None:
-        args = preprocess_finances.build_parser().parse_args(["capture.json"])
-        self.assertEqual(args.manifest, Path("capture.json"))
-        args = download_finances.build_parser().parse_args(
-            [
-                "--start-date",
-                "2026-08-01",
-                "--end-date",
-                "2026-08-31",
-                "--manifest-output",
-                "capture.json",
-            ]
-        )
-        self.assertFalse(hasattr(args, "database_url"))
+            with (
+                patch.object(download_finances, "load_lwa_credentials"),
+                patch.object(
+                    download_finances,
+                    "fetch_financial_marketplace_ids",
+                    return_value=("ATVPDKIKX0DER",),
+                ),
+                patch.object(download_finances, "archive_storage_from_args"),
+                patch.object(download_finances, "FinancesHttpClient"),
+                patch.object(
+                    download_finances, "download_finances_acquisition", return_value=acquisition
+                ),
+            ):
+                self.assertEqual(
+                    download_finances.main(
+                        [
+                            "--posted-after",
+                            "2026-09-11T00:00:00Z",
+                            "--manifest-output",
+                            str(path),
+                            "--no-load-dotenv",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(read_finances_manifest(path), acquisition)
 
     def test_existing_download_manifest_fails_before_credentials_or_network(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -57,10 +74,10 @@ class ManifestTests(unittest.TestCase):
             with patch.object(download_finances, "load_lwa_credentials") as credentials:
                 result = download_finances.main(
                     [
-                        "--start-date",
-                        "2026-08-01",
-                        "--end-date",
-                        "2026-08-31",
+                        "--posted-after",
+                        "2026-08-01T00:00:00Z",
+                        "--posted-before",
+                        "2026-09-01T00:00:00Z",
                         "--manifest-output",
                         str(path),
                         "--no-load-dotenv",
@@ -71,12 +88,17 @@ class ManifestTests(unittest.TestCase):
             credentials.assert_not_called()
 
     def test_offline_preprocessing_never_contacts_amazon(self) -> None:
+        acquisition = finances_acquisition(MemoryArchiveStorage())
         with (
+            patch.object(
+                preprocess_finances, "read_finances_manifest", return_value=acquisition
+            ) as read,
             patch.object(preprocess_finances, "archive_storage_from_args", return_value=Mock()),
             patch.object(preprocess_finances, "PostgresDatabaseConnection"),
             patch.object(
-                preprocess_finances, "preprocess_finances_manifest", return_value=("run",)
+                preprocess_finances, "preprocess_finances_acquisition", return_value="run"
             ) as workflow,
         ):
             self.assertEqual(preprocess_finances.main(["capture.json", "--no-load-dotenv"]), 0)
-        self.assertEqual(workflow.call_args.args[2], Path("capture.json"))
+        read.assert_called_once_with(Path("capture.json"))
+        self.assertEqual(workflow.call_args.args[2], acquisition)

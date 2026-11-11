@@ -55,6 +55,11 @@ Company calculations require resolved ownership and applicable fee periods.
 Actual SelBox amounts can include balance movements and are not automatically profit.
 A saved payout report records a calculation, not payment approval or execution.
 
+The Transactions totals, type breakdowns, and their contributing-record drawers include only the
+`FINANCES` and `DATA_KIOSK` allocation categories. Reported amounts and service fees therefore
+reconcile to company amounts when all contributing rows are calculated. The main transaction list
+retains `SELBOX` activity for inspection, and the shared latest-date anchor still considers that list.
+
 Current SKU assignment corrects live ownership retroactively. It is not a dated
 transfer. Saved reports preserve the ownership and fees selected at publication.
 Refunds retain their own activity-date fee rate under the existing policy.
@@ -62,7 +67,8 @@ Refunds retain their own activity-date fee rate under the existing policy.
 ## Summary controls and payout eligibility
 
 Finances native totals independently reconcile to Amazon `listSummary` using the
-same seller, account type, currency and local date interval. Summary is a control,
+same seller, account type, currency and complete local-date reconciliation interval. Partial
+boundary days from rolling UTC retrieval remain observations outside that comparison. Summary is a control,
 not a second monetary input. `Non-Amazon US`, `Non-Amazon DE` and `Non-Amazon IT` contribute to the
 Amazon.com, Amazon.de and Amazon.it Summary groups respectively. Raw facts and company marketplace
 attribution retain each native channel. The successful batch membership records both channels when
@@ -76,12 +82,14 @@ remain nonzero even when the Finances/Summary difference is zero.
 [Payout reports](company_payout_reports.md) cover one company, exact marketplace, currency, and full
 calendar month whose end is strictly before `private.mature_cutoff_date()`. That date is the
 current UTC date minus two calendar months; calendar arithmetic clamps an unavailable day to the
-month's end. This policy controls payout eligibility only. It does not limit Transactions or
-Financial review, switch authoritative sources, or promise that Amazon will never revise a record. Nonempty company scopes require complete successful source
-coverage, compatible current preprocessing labels and resolved ownership/fees. Finance preprocessing
-verifies Summary before accepted database publication. Missing or mismatched controls reject the whole batch and
-preserve the prior accepted source state. Payout selection checks successful period coverage and
-selects current transaction/day versions directly; it does not repeat Finance business checks.
+month's end. The same cutoff supplies the default UTC `postedAfter` for Finance refreshes. It does
+not hide older imported Transactions or Financial review data, switch authoritative sources, or
+promise that Amazon will never revise a record. Nonempty company scopes require complete reconciled
+source coverage, compatible current preprocessing labels and resolved ownership/fees. Finance
+preprocessing verifies Summary for every declared reconciliation interval; missing or mismatched
+required controls reject the whole batch and preserve prior accepted state. Partial-day observations
+can update live transactions, but cannot certify payout coverage. Payout selection checks reconciled
+period coverage against current transaction versions; it does not repeat Finance business equations.
 
 Empty assigned companies can retain explicit zero reports without inventing a
 marketplace or currency, or claiming that an unobserved seller was inactive. Source publications

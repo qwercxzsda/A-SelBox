@@ -30,6 +30,7 @@ test("search uses visible transaction text and excludes hidden or computed field
     "company_id",
     "source_row_id",
     "activity_date",
+    "activity_at",
     "posted_date",
     "fee_rate_percent",
     "source_amount",

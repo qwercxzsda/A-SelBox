@@ -24,6 +24,7 @@ _ROW_COLUMNS = {
     "seller_namespace",
     "marketplace_name",
     "activity_date",
+    "activity_at",
     "sku",
     "component_type",
     "currency",
@@ -59,6 +60,7 @@ TRANSACTION_PARAMETER_TYPES = {
     "p_order_by": "text",
     **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
     "p_currency": "text",
+    "p_include_selbox": "boolean",
 }
 
 
@@ -83,8 +85,9 @@ class TransactionPageFixture(FinancialFixture):
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
             if options.get(name) is not None:
                 predicates.append(
-                    sql.SQL("activity_date {} %s::date").format(
-                        sql.SQL(cast(LiteralString, comparison))
+                    sql.SQL("{} {} %s::date").format(
+                        sql.SQL("(activity_at at time zone 'UTC')::date"),
+                        sql.SQL(cast(LiteralString, comparison)),
                     )
                 )
                 parameters.append(options[name])
@@ -99,6 +102,8 @@ class TransactionPageFixture(FinancialFixture):
                     )
                 )
                 parameters.append(options[name])
+        if options.get("p_include_selbox") is False:
+            predicates.append(sql.SQL("category <> 'SELBOX'"))
         if options.get("p_skus"):
             predicates.append(sql.SQL("category <> 'SELBOX'"))
         if options.get("p_fee_applicable") is not None:
@@ -113,7 +118,7 @@ class TransactionPageFixture(FinancialFixture):
         nulls = "first" if date_order and direction == "desc" else "last"
         ordering = sql.SQL("{} {} nulls {}, source {}, source_row_id {}").format(
             sql.Identifier(
-                "source_amount" if options.get("p_order_by") == "amount" else "activity_date"
+                "source_amount" if options.get("p_order_by") == "amount" else "activity_at"
             ),
             sql.SQL(direction),
             sql.SQL(nulls),
@@ -125,12 +130,20 @@ class TransactionPageFixture(FinancialFixture):
             for column in _NUMERIC_COLUMNS
         )
         query = sql.SQL(
-            "with matching as not materialized ("
-            " select * from public.live_company_components where {predicates}"
+            "with source_rows as (select c.*, case when c.source = 'FINANCES' then f.posted_at "
+            " else ((c.activity_date + 1)::timestamp at time zone "
+            " private.marketplace_time_zone(c.marketplace_name)) - interval '1 microsecond' "
+            " end as activity_at from public.live_company_components c "
+            " left join private.finances_transaction_versions f "
+            " on c.source='FINANCES' and f.id=c.source_version_id), "
+            "matching as not materialized ("
+            " select * from source_rows where {predicates}"
             "), page as (select * from matching order by {ordering} limit %s offset %s) "
             "select jsonb_build_object("
             " 'rows', coalesce((select jsonb_agg("
-            "   (to_jsonb(p) - 'authoritative') || jsonb_build_object({numeric_strings})"
+            "   (to_jsonb(p) - 'authoritative') || jsonb_build_object({numeric_strings}, "
+            " 'activity_at', to_char(p.activity_at at time zone 'UTC', "
+            ' \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\'))'
             "   order by {ordering}) from page p), '[]'::jsonb),"
             " 'total_count', case when %s then (select count(*)::text from matching) end)"
         ).format(

@@ -9,7 +9,7 @@ const sorted = (values) => [...values].sort();
 const typesSent = (fixture) => fixture.requests.at(-1)?.args?.p_types ?? [];
 const search = (menu) => menu.getByLabel("Search type", { exact: true });
 const checkbox = (menu, name) => menu.getByRole("checkbox", { name, exact: true });
-const typeChip = (page) => page.getByRole("button", { name: /^Clear type filter:/ });
+const typeChip = (page) => page.getByRole("button", { name: /^Type: / });
 
 async function start(page, role = "administrator") {
   const fixture = await mockSupabase(page);

@@ -2,8 +2,7 @@
 
 Newly downloaded `listTransactions` and `listSummary` responses matched **19 independent
 account controls** across five seller credential scopes. This record preserves the Amazon-source
-findings. The implementation used for the dated checks has since been replaced; its SQL publisher,
-daily Finance snapshots and test-suite counts are not current application contracts.
+findings observed on October 14, 2026.
 
 ## Captured source results
 

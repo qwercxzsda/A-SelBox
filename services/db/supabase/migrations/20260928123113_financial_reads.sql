@@ -4,12 +4,14 @@
 -- Compare membership rather than observation timestamps: unchanged revisions
 -- can be shared by several successful runs. This is a current-input selection
 -- guard, never another component/Summary financial validation.
-create function private.finances_batch_matches_current(p_batch_id uuid, p_start date, p_end date)
+create function private.finances_batch_matches_current(
+    p_batch_id uuid, p_start date, p_end date
+)
 returns boolean language sql stable security invoker set search_path = '' as $$
     select exists (
         select 1 from private.finances_preprocess_batches p
         join private.finances_acquisitions a on a.id = p.acquisition_id
-        where p.id = p_batch_id and a.query_start_date <= p_start and a.query_end_date >= p_end
+        where p.id = p_batch_id and a.reconciliation_start_date <= p_start and a.reconciliation_end_date >= p_end
             and not exists (
                 select 1 from private.finances_preprocess_batch_transactions m
                 join private.finances_transaction_versions r on r.id = m.version_id
@@ -30,6 +32,73 @@ returns boolean language sql stable security invoker set search_path = '' as $$
                     )
             )
     );
+$$;
+
+-- Compare each candidate batch's interval once, before expanding the small day
+-- calendar. This avoids rescanning a whole regional batch for every market/day.
+create function private.current_finances_reconciled_days(
+    p_sellers text[], p_start date, p_end date, p_marketplace text
+) returns table (
+    seller_namespace text, marketplace_name text, activity_date date, preprocess_version text
+) language sql stable security invoker set search_path = '' as $$
+    with candidates as materialized (
+        select b.id as batch_id,a.id as acquisition_id,a.seller_namespace::text,a.amazon_scope,
+            a.marketplace_ids,a.api_metadata,a.capture_started_at,b.created_at,
+            b.preprocess_version::text,
+            greatest(p_start,a.reconciliation_start_date) as start_date,
+            least(p_end,a.reconciliation_end_date) as end_date
+        from private.finances_acquisitions a
+        join private.finances_preprocess_batches b on b.acquisition_id=a.id
+        where (p_sellers is null or a.seller_namespace=any(p_sellers))
+            and a.reconciliation_start_date<=p_end and a.reconciliation_end_date>=p_start
+            and (p_marketplace is null or exists (
+                select 1 from jsonb_array_elements(a.api_metadata->'coverage_marketplaces') market
+                where market->>'marketplace_name'=p_marketplace
+            ))
+    ), mismatches as materialized (
+        -- A reconciled member was superseded, including movement out of its old day.
+        select c.batch_id,v.marketplace_name,v.posted_date
+        from candidates c
+        join private.finances_preprocess_batch_transactions m on m.batch_id=c.batch_id
+        join private.finances_transaction_versions v on v.id=m.version_id
+        join private.finances_transactions t on t.id=m.transaction_id
+        where v.posted_date between p_start and p_end
+            and v.posted_date between c.start_date and c.end_date
+            and (p_marketplace is null or v.marketplace_name=p_marketplace)
+            and t.current_version_id is distinct from m.version_id
+        union
+        -- A current transaction/version was not part of that reconciled observation.
+        select c.batch_id,v.marketplace_name,v.posted_date
+        from candidates c
+        join private.finances_transactions t
+            on t.seller_namespace=c.seller_namespace and t.amazon_scope=c.amazon_scope
+        join private.finances_transaction_versions v on v.id=t.current_version_id
+            and v.marketplace_id=any(c.marketplace_ids)
+            and v.posted_date between c.start_date and c.end_date
+        left join private.finances_preprocess_batch_transactions m
+            on m.batch_id=c.batch_id and m.transaction_id=t.id and m.version_id=t.current_version_id
+        where v.posted_date between p_start and p_end
+            and (p_marketplace is null or v.marketplace_name=p_marketplace)
+            and m.transaction_id is null
+    ), ranked as (
+        select c.seller_namespace,market->>'marketplace_name' as marketplace_name,
+            day.value::date as activity_date,c.preprocess_version,
+            row_number() over (
+                partition by c.seller_namespace,market->>'marketplace_name',day.value::date
+                order by c.capture_started_at desc,c.acquisition_id desc,c.created_at desc,c.batch_id desc
+            ) as position
+        from candidates c
+        cross join lateral jsonb_array_elements(c.api_metadata->'coverage_marketplaces') market
+        cross join lateral generate_series(c.start_date::timestamp,c.end_date::timestamp,
+            interval '1 day') day(value)
+        where (p_marketplace is null or market->>'marketplace_name'=p_marketplace)
+            and not exists (
+                select 1 from mismatches m where m.batch_id=c.batch_id
+                    and m.marketplace_name=market->>'marketplace_name'
+                    and m.posted_date=day.value::date
+            )
+    ) select seller_namespace,marketplace_name,activity_date,preprocess_version
+        from ranked where position=1;
 $$;
 
 create function private.assert_company_source_scope(
@@ -61,9 +130,10 @@ begin
         left join private.finances_acquisitions a on a.id=r.acquisition_id
         where r.id is null or r.preprocess_version<>p_preprocess_version
             or a.seller_namespace<>p_seller_namespace
-            or a.query_start_date>p_end or a.query_end_date<p_start
+            or a.reconciliation_start_date is null
+            or a.reconciliation_start_date>p_end or a.reconciliation_end_date<p_start
             or not private.finances_batch_matches_current(
-                r.id,greatest(p_start,a.query_start_date),least(p_end,a.query_end_date))
+                r.id,greatest(p_start,a.reconciliation_start_date),least(p_end,a.reconciliation_end_date))
     ) then raise exception 'Missing or incompatible required Finances run' using errcode='23514'; end if;
     if exists (
         select 1 from (select distinct private.finances_data_kiosk_marketplace(value) name

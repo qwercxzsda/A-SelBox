@@ -1,7 +1,7 @@
 import { liveRow, skuAssignments } from "./api-fixtures.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { summaryBucket, summaryCards } from "./summary-fixtures.mjs";
+import { summaryBucket, summaryPeriods } from "./summary-fixtures.mjs";
 import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
 
 const tableFor = (page) => page.getByRole("table", { name: "Financial records", exact: true });
@@ -40,7 +40,8 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
   await applyDates(page, "2026-09-01", "2026-09-01");
-  const summaries = summaryCards(page);
+  const summaries = summaryPeriods(page);
+
   await expect(summaries.selected.getByRole("button", { name: /View/ })).toBeVisible();
   const totalsBefore = await summaries.summaries.innerText();
   const summaryRequestsBefore = fixture.aggregateRequests.length;
@@ -129,15 +130,17 @@ for (const width of [1280, 390]) {
     }
     const type = rowWithSku(page, "QUANTITY-001").locator('[data-column="component_type"] > span');
     expect(await type.getAttribute("title")).toContain(longType);
-    const metrics = await type.evaluate((element) => ({
+    const primary = type.locator(".transaction-type-label");
+    await expect(type.locator(".transaction-type-group")).toHaveText("Other fees & adjustments");
+    const metrics = await primary.evaluate((element) => ({
       width: element.getBoundingClientRect().width,
       height: element.getBoundingClientRect().height,
       lineHeight: Number.parseFloat(globalThis.getComputedStyle(element).lineHeight),
     }));
-    expect(metrics.width).toBeLessThanOrEqual(320);
+    expect(metrics.width).toBeLessThanOrEqual(224);
     expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight + 1);
-    await expect(type).toHaveCSS("overflow", "hidden");
-    await expect(type).toHaveCSS("text-overflow", "ellipsis");
+    await expect(primary).toHaveCSS("overflow", "hidden");
+    await expect(primary).toHaveCSS("text-overflow", "ellipsis");
     expect(
       await page.evaluate(
         () => globalThis.document.documentElement.scrollWidth - globalThis.innerWidth,

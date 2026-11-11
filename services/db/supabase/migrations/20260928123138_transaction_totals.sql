@@ -43,53 +43,53 @@ begin
             select t.sku, t.marketplace_name,
                 t.posted_date as activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end as component_type,
-                t.amount::numeric as reported_amount, t.category = 'SELBOX' as retained,
+                t.amount::numeric as reported_amount,
                 t.fee_base::numeric as fee_base
             from private.finances_activity_components as t
-            where t.category in ('FINANCES', 'SELBOX')
+            where t.category = 'FINANCES'
                 and (finances_policy_is_sufficient or t.is_current)
-                and (p_date_from is null or t.posted_date >= p_date_from)
-                and (p_date_to is null or t.posted_date <= p_date_to)
+                and (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where t.category <> 'SELBOX' and o.sku = t.sku
+                    where o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
                 and (coalesce(cardinality(p_skus), 0) = 0
-                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
+                    or t.sku = any(p_skus))
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
             union all
             select t.sku, t.marketplace_name, t.activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end,
-                t.amount::numeric, t.category = 'SELBOX', t.fee_base::numeric
+                t.amount::numeric, t.fee_base::numeric
             from private.data_kiosk_component_details as t
             where t.category = 'DATA_KIOSK'
                 and (kiosk_policy_is_sufficient or exists (
                     select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
                 ))
-                and (p_date_from is null or t.activity_date >= p_date_from)
-                and (p_date_to is null or t.activity_date <= p_date_to)
+                and (p_date_from is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where t.category <> 'SELBOX' and o.sku = t.sku
+                    where o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
                 and (coalesce(cardinality(p_skus), 0) = 0
-                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
+                    or t.sku = any(p_skus))
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
         ),
         fact_groups as materialized (
             select f.sku, f.marketplace_name, f.activity_date,
-                f.currency, f.component_type, f.retained, f.fee_base is not null as fee_applicable,
+                f.currency, f.component_type, f.fee_base is not null as fee_applicable,
                 sum(f.reported_amount) as reported_amount, sum(f.fee_base) as fee_base,
                 count(*)::numeric as row_count
             from facts as f
             group by f.sku, f.marketplace_name, f.activity_date,
-                f.currency, f.component_type, f.retained, f.fee_base is not null
+                f.currency, f.component_type, f.fee_base is not null
         ),
         selected_terms as materialized (
             select sku, terms_version_id, company_id
@@ -97,20 +97,19 @@ begin
             where exists (
                 select 1 from fact_groups as selected
                 where selected.sku = terms.sku
-                    and not selected.retained
             )
         ),
         calculated as (
-            select g.currency, g.component_type, g.reported_amount, g.row_count, g.retained,
-                case when g.retained then 0::numeric
-                    when o.company_id is null then null
+            select case when not p_group_by_type then g.marketplace_name end as marketplace_name,
+                g.currency, g.component_type, g.reported_amount, g.row_count,
+                case when o.company_id is null then null
                     when not g.fee_applicable then 0::numeric
                     when p.id is not null
                         then private.calculate_service_fee(g.fee_base, p.fee_rate_percent)
                 end as service_fee
             from fact_groups as g
             left join selected_terms as o
-                on g.sku = o.sku and not g.retained
+                on g.sku = o.sku
             left join public.sku_fee_periods as p
                 on o.terms_version_id = p.terms_version_id
                     and g.marketplace_name = p.marketplace_name
@@ -118,34 +117,37 @@ begin
                     and g.fee_applicable and o.company_id is not null
         ),
         totals as (
-            select c.currency, c.component_type,
+            select c.marketplace_name, c.currency, c.component_type,
                 sum(c.reported_amount) as reported_amount,
                 sum(c.service_fee) as service_fee,
-                sum(case when c.retained then 0::numeric
-                    else c.reported_amount + c.service_fee end) as company_amount,
+                sum(c.reported_amount + c.service_fee) as company_amount,
                 sum(c.row_count) as row_count,
                 sum(case when c.service_fee is not null then c.row_count else 0 end)
                     as known_company_count
             from calculated as c
-            group by c.currency, c.component_type
+            group by c.marketplace_name, c.currency, c.component_type
         ),
         selected as materialized (
             select t.* from totals as t
-            order by t.currency collate "C", t.component_type collate "C" nulls first
+            order by t.marketplace_name collate "C" nulls first,
+                t.currency collate "C", t.component_type collate "C" nulls first
             limit p_limit + 1 offset p_offset
         ),
         page as (
             select s.* from selected as s
-            order by s.currency collate "C", s.component_type collate "C" nulls first
+            order by s.marketplace_name collate "C" nulls first,
+                s.currency collate "C", s.component_type collate "C" nulls first
             limit p_limit
         )
         select jsonb_build_object(
             'rows', coalesce((select jsonb_agg(jsonb_build_object(
+                'marketplace_name', p.marketplace_name,
                 'currency', p.currency, 'component_type', p.component_type,
                 'reported_amount', p.reported_amount::text, 'service_fee', p.service_fee::text,
                 'company_amount', p.company_amount::text, 'row_count', p.row_count::text,
                 'known_company_count', p.known_company_count::text
-            ) order by p.currency collate "C", p.component_type collate "C" nulls first)
+            ) order by p.marketplace_name collate "C" nulls first,
+                p.currency collate "C", p.component_type collate "C" nulls first)
                 from page as p), '[]'::jsonb),
             'next_offset', case when (select count(*) from selected) > p_limit
                 then p_offset + p_limit end

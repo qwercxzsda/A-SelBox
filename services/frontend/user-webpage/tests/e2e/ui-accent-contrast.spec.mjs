@@ -6,7 +6,16 @@ import { summaryBucket } from "./summary-fixtures.mjs";
 
 async function contrast(locator) {
   return locator.evaluate((element) => {
-    const parse = (color) => color.match(/[\d.]+/g).map(Number);
+    const canvas = globalThis.document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d");
+    const parse = (color) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+      return [red, green, blue, alpha / 255];
+    };
     const luminance = (rgb) => {
       const channels = rgb
         .slice(0, 3)
@@ -68,14 +77,27 @@ for (const width of [1440, 390]) {
     fixture.roles["member-a"] = "administrator";
     fixture.companyIds["member-a"] = COMPANY;
     fixture.skuConfigurationItems = [item("S1")];
-    fixture.aggregateRows = [summaryBucket("2026-06-30", "120")];
+    fixture.aggregateRows = [summaryBucket("2026-06-30", "120"), summaryBucket("2026-07-01", "0")];
     await mockInventory(page, [inventoryRow("S1", { company_id: COMPANY })]);
     await signIn(page);
-    const period = page.locator(".estimated-summary-period").first();
+    const totals = page.getByRole("region", { name: "Current totals", exact: true });
+    const day = totals.getByRole("table", { name: "Last day marketplace totals", exact: true });
+    const period = totals
+      .getByRole("article", { name: "Last day totals", exact: true })
+      .getByRole("button", {
+        name: "Filter transactions to Jun 30, 2026 · UTC",
+        exact: true,
+      });
     await expect(period).toBeVisible();
     expect(await contrast(period)).toBeGreaterThanOrEqual(4.5);
-    const breakdownLinks = page.getByText("View by type →", { exact: true });
-    await expect(breakdownLinks).toHaveCount(2);
+    await period.hover();
+    expect(await contrast(period)).toBeGreaterThanOrEqual(4.5);
+    const selectedControl = totals.getByRole("button", { name: "Choose dates · UTC", exact: true });
+    expect(await contrast(selectedControl)).toBeGreaterThanOrEqual(4.5);
+    await selectedControl.hover();
+    expect(await contrast(selectedControl)).toBeGreaterThanOrEqual(4.5);
+    const breakdownLinks = day.getByRole("button", { name: /by type: / });
+    await expect(breakdownLinks).toHaveCount(1);
     for (const link of await breakdownLinks.all()) {
       await expect(link).toBeVisible();
       expect(await contrast(link)).toBeGreaterThanOrEqual(4.5);

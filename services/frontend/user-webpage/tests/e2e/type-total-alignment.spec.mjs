@@ -62,10 +62,16 @@ async function setRecords(page, rows, user = "member-a", role = "member") {
   return fixture;
 }
 
-async function openEstimate(page, user = "member-a") {
+async function openSummary(page, user = "member-a") {
   await signIn(page, user);
   await applyDates(page, "2026-06-01", date);
-  await page.getByRole("button", { name: "View Selected dates by type", exact: true }).click();
+
+  await page
+    .getByRole("button", {
+      name: "View Selected dates for Amazon.com in USD by type",
+      exact: false,
+    })
+    .click();
   return page.getByRole("dialog", { name: "Amounts by type", exact: true });
 }
 
@@ -154,9 +160,9 @@ for (const [user, role] of [
         report_id: reportId,
         authoritative: "true",
       }));
-      const estimate = await openEstimate(page, user);
+      const summary = await openSummary(page, user);
       const expected = ["50.00 USD", "-45.00 USD", "5.00 USD"];
-      await assertTotals(estimate, expected);
+      await assertTotals(summary, expected);
       const groups = [
         [
           "Sales and refunds",
@@ -175,9 +181,9 @@ for (const [user, role] of [
           ["FBA_STORAGE_FEE"],
         ],
       ];
-      for (const [name, amounts] of groups) await assertHeaderAmounts(estimate, name, amounts);
+      for (const [name, amounts] of groups) await assertHeaderAmounts(summary, name, amounts);
       for (const [index, field] of fields.entries()) {
-        const rendered = await estimate
+        const rendered = await summary
           .locator(`.type-breakdown-groups [data-amount="${field}"] .type-breakdown-group-value`)
           .allTextContents();
         expect(rendered).toHaveLength(groups.length);
@@ -187,7 +193,7 @@ for (const [user, role] of [
         );
         expect(`${sum.toFixed(2)} USD`).toBe(expected[index]);
       }
-      const records = estimate.getByRole("table", { name: "Amount records", exact: true });
+      const records = summary.getByRole("table", { name: "Amount records", exact: true });
       await expect(records.getByRole("row")).toHaveCount(rows.length + 1);
       for (const row of rows) {
         const cells = recordRow(records, row.sku).getByRole("cell");
@@ -199,10 +205,8 @@ for (const [user, role] of [
             }),
           );
       }
-      await estimate
-        .getByRole("button", { name: "Sales and refunds details", exact: true })
-        .click();
-      const sales = estimate.getByRole("region", {
+      await summary.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
+      const sales = summary.getByRole("region", {
         name: "Sales and refunds subtotal",
         exact: true,
       });
@@ -214,17 +218,15 @@ for (const [user, role] of [
       await expect(recordRow(records, "PRODUCT_SALES-001")).toBeVisible();
       await expect(recordRow(records, "PRODUCT_REFUNDS-002")).toBeVisible();
       expect(fixture.summaryRecordRequests.at(-1).args.p_types).toEqual(groups[0][2]);
-      await estimate
+      await summary
         .getByRole("button", { name: "View Product refunds records", exact: true })
         .click();
       await expect(records.getByRole("row")).toHaveCount(2);
       await expect(recordRow(records, "PRODUCT_REFUNDS-002")).toBeVisible();
       expect(fixture.summaryRecordRequests.at(-1).args.p_types).toEqual(["PRODUCT_REFUNDS"]);
-      await estimate
-        .getByRole("button", { name: "Sales and refunds details", exact: true })
-        .click();
+      await summary.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
       for (const [name] of groups) {
-        const group = estimate.getByRole("button", { name: `${name} details`, exact: true });
+        const group = summary.getByRole("button", { name: `${name} details`, exact: true });
         await group.scrollIntoViewIfNeeded();
         const bounds = await group.evaluate((element) => {
           const box = element.getBoundingClientRect();
@@ -239,14 +241,14 @@ for (const [user, role] of [
         expect(bounds.right).toBeLessThanOrEqual(width);
         expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.width + 1);
       }
-      await estimate
+      await summary
         .getByRole("region", { name: "Breakdown total", exact: true })
         .scrollIntoViewIfNeeded();
       await page.screenshot({
         path: testInfo.outputPath("type-total-alignment.png"),
         animations: "disabled",
       });
-      await estimate.getByRole("button", { name: "Close breakdown", exact: true }).click();
+      await summary.getByRole("button", { name: "Close breakdown", exact: true }).click();
       await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
       await page.getByRole("cell", { name: "5.00 USD", exact: true }).last().click();
       const payout = page.getByRole("dialog", { name: "Selected row details", exact: true });
@@ -274,16 +276,16 @@ for (const scenario of [
 ]) {
   test(`every displayed total preserves ${scenario.label} amounts`, async ({ page }) => {
     await setRecords(page, scenario.rows);
-    const estimate = await openEstimate(page);
-    await assertTotals(estimate, scenario.expected, true);
-    await assertHeaderAmounts(estimate, "Sales and refunds", ["100.00 USD", "—", "—"], true);
+    const summary = await openSummary(page);
+    await assertTotals(summary, scenario.expected, true);
+    await assertHeaderAmounts(summary, "Sales and refunds", ["100.00 USD", "—", "—"], true);
     await expect(
-      estimate.getByRole("region", { name: "Breakdown total", exact: true }),
+      summary.getByRole("region", { name: "Breakdown total", exact: true }),
     ).toContainText("1 transaction has uncalculated amounts.");
-    const records = estimate.getByRole("table", { name: "Amount records", exact: true });
+    const records = summary.getByRole("table", { name: "Amount records", exact: true });
     await expect(recordRow(records, "PRODUCT_SALES-001").getByRole("cell").nth(8)).toHaveText("—");
     if (scenario.rows.length > 1) {
-      await assertHeaderAmounts(estimate, "Monthly inventory storage fee", [
+      await assertHeaderAmounts(summary, "Monthly inventory storage fee", [
         "0.00 USD",
         "0.00 USD",
         "0.00 USD",

@@ -177,9 +177,10 @@ failed publications.
 
 ## Live read contract
 
-A strict read selects declared successful Finance batch memberships and
-Data Kiosk marketplace/day coverage for every date. It requires complete compatible
-source versions and applies the source policy before calculating money.
+A strict read selects reconciled Finance batch memberships and complete Data Kiosk
+marketplace/day coverage for every date. The Finance memberships must still match current
+transaction versions. It requires compatible preprocessing versions and applies the source policy
+before calculating money.
 It resolves SKU ownership independently of fee eligibility, then joins the
 selected terms version and its marketplace period covering the source activity date.
 
@@ -261,23 +262,25 @@ These partial sums support live administration. Payout publication rejects missi
 applicable fees; its [coverage rules](company_payout_reports.md#empty-aggregates)
 distinguish scopes with authoritative rows from empty aggregates.
 
-### Dashboard estimates and source authority
+### Current totals and source authority
 
-Dashboard and strict reads apply the same [source policy](source_allocation.md). Dashboard totals
-sum imported authoritative rows; strict reads additionally require complete declared coverage and
-resolved ownership/fees. Authoritative zero-amount rows remain in dashboard pages,
+Current totals and strict reads apply the same [source policy](source_allocation.md). Current totals
+sum imported authoritative company rows; strict reads additionally require reconciled coverage and
+resolved ownership/fees. Authoritative zero-amount rows remain in transaction pages,
 counts, totals, and payout records and retain the same ownership and applicable
 fee requirements as other rows. Verified empty days satisfy coverage. Comparison
 and analysis rows do not add money.
 
-Company amounts use exact SKU ownership and the signed fee formula above. SelBox category rows have no company ownership, require no fee configuration, and contribute zero
-to company amounts. Company and SKU selections exclude those account rows. See the
+Company amounts use exact SKU ownership and the signed fee formula above. SelBox category rows have
+no company ownership or applicable service fee. They remain in the administrator transaction list,
+but are excluded from current totals, breakdowns, and their contributing records. See the
 [summary API](transaction_query_contracts.md#period-totals-and-type-breakdowns) for request scope.
 
-For the same company, full mature month, exact marketplace, and currency, a complete estimate and the
-latest payout report agree after automatic generation has captured the current
-inputs. Both combine all source namespaces. Reports retain their saved ownership
-and fee versions; a newer live correction appears in the next successful refresh.
+Current allocations and the latest payout report agree for the same company, full mature
+marketplace-local month, marketplace, currency, and input versions. Both combine all source
+namespaces. The website's totals use UTC periods, which can include different boundary records.
+Reports retain their saved ownership and fee versions; a newer correction appears in the next
+successful refresh.
 
 ## Access and performance
 

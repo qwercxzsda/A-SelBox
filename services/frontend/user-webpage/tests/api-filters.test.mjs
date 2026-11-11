@@ -92,7 +92,7 @@ test("empty selections preserve the unfiltered request", async () => {
   assert.deepEqual(requests[0], requests[1]);
 });
 
-test("company, SKU, and marketplace selections compose across table and dedicated summary RPCs", async () => {
+test("company, SKU, and marketplace selections scope records and totals without changing the UTC anchor", async () => {
   const requests = [];
   const signal = new AbortController().signal;
   const client = createApiClient(SETTINGS, async (url, init) => {
@@ -169,20 +169,33 @@ test("company, SKU, and marketplace selections compose across table and dedicate
   assert.deepEqual(table.args.p_skus, [...new Set(skus)]);
   assert.deepEqual(table.args.p_marketplaces, [...new Set(marketplaces)]);
   for (const request of requests) assert.ok(request.init.signal instanceof AbortSignal);
-  for (const { args, init } of requests.slice(1)) {
+  for (const { args, init } of requests.slice(2)) {
     assert.deepEqual([...args.p_company_ids].sort(), [...new Set(companyIds)].sort());
     assert.deepEqual([...args.p_skus].sort(), [...new Set(skus)].sort());
     assert.deepEqual([...args.p_marketplaces].sort(), [...new Set(marketplaces)].sort());
     assert.equal(new Headers(init.headers).has("Prefer"), false);
   }
   const latest = requests[1].args;
-  assert.equal(latest.p_limit, 1);
-  assert.equal(latest.p_include_count, false);
-  assert.equal(latest.p_date_from, null);
-  assert.equal(latest.p_date_to, null);
-  assert.deepEqual(latest.p_sources, []);
-  assert.deepEqual(latest.p_types, []);
-  assert.equal(latest.p_fee_applicable, null);
+  assert.deepEqual(latest, {
+    p_limit: 1,
+    p_offset: 0,
+    p_direction: "desc",
+    p_order_by: "date",
+    p_include_count: false,
+    p_date_from: null,
+    p_date_to: null,
+    p_company_ids: [],
+    p_skus: [],
+    p_marketplaces: [],
+    p_sources: [],
+    p_types: [],
+    p_fee_applicable: null,
+    p_search_skus: null,
+    p_search_types: null,
+    p_search_marketplaces: null,
+    p_search_sources: null,
+  });
+  assert.equal(requests[1].endpoint, "/rest/v1/rpc/transaction_page");
   for (const { args, endpoint } of requests.slice(2)) {
     assert.equal(endpoint, "/rest/v1/rpc/transaction_totals");
     assert.equal(args.p_date_from, dates.dateFrom);
@@ -221,7 +234,7 @@ test("empty or omitted summary scopes leave requests unchanged", async () => {
   assert.ok(urls.every((url) => !new URL(url).searchParams.has("marketplace_name")));
 });
 
-test("invalid SKU and marketplace values fail before HTTP for tables and all summaries", async () => {
+test("invalid SKU and marketplace values fail before HTTP for tables and period/type totals", async () => {
   let requests = 0;
   const client = createApiClient(SETTINGS, async () => {
     requests += 1;
@@ -244,10 +257,6 @@ test("invalid SKU and marketplace values fail before HTTP for tables and all sum
         /valid (SKU|marketplace) values/,
       );
       await assert.rejects(
-        client.fetchLatestTransactionDate(latestDateRequest(scope)),
-        /valid (SKU|marketplace) values/,
-      );
-      await assert.rejects(
         client.fetchTransactionPeriodTotals(periodTotalsRequest(scope)),
         /valid (SKU|marketplace) values/,
       );
@@ -260,24 +269,37 @@ test("invalid SKU and marketplace values fail before HTTP for tables and all sum
   assert.equal(requests, 0);
 });
 
-test("latest-date company selections use typed arrays and remove duplicate IDs", async () => {
-  const selections = [];
-  const client = createApiClient(SETTINGS, async (_url, init) => {
-    selections.push(JSON.parse(init.body).p_company_ids);
+test("latest UTC discovery ignores every UI selection, including malformed UI state", async () => {
+  const requests = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    assert.equal(new URL(url).pathname, "/rest/v1/rpc/transaction_page");
+    requests.push(JSON.parse(init.body));
     return responseJson({ rows: [], total_count: null });
   });
-  for (const companyIds of [
-    [COMPANY_ID],
-    [OTHER_COMPANY_ID, COMPANY_ID],
-    [COMPANY_ID, OTHER_COMPANY_ID, COMPANY_ID],
+  for (const uiState of [
+    {},
+    { companyIds: [COMPANY_ID], skus: ["SKU"], marketplaces: ["Amazon.com"] },
+    { companyIds: "invalid", skus: null, marketplaces: [undefined] },
+    {
+      dateFrom: "invalid",
+      dateTo: "2020-01-01",
+      sources: ["DATA_KIOSK"],
+      types: ["PRODUCT_SALES"],
+      feeApplicability: ["applicable"],
+      search: "filtered",
+    },
   ]) {
-    await client.fetchLatestTransactionDate(latestDateRequest({ companyIds }));
+    assert.equal(await client.fetchLatestTransactionDate(latestDateRequest(uiState)), null);
   }
-  assert.deepEqual(selections, [
-    [COMPANY_ID],
-    [COMPANY_ID, OTHER_COMPANY_ID],
-    [COMPANY_ID, OTHER_COMPANY_ID],
-  ]);
+  assert.equal(requests.length, 4);
+  for (const request of requests.slice(1)) assert.deepEqual(request, requests[0]);
+  assert.deepEqual(requests[0].p_company_ids, []);
+  assert.deepEqual(requests[0].p_skus, []);
+  assert.deepEqual(requests[0].p_marketplaces, []);
+  assert.equal(requests[0].p_date_from, null);
+  assert.equal(requests[0].p_date_to, null);
+  assert.equal(requests[0].p_limit, 1);
+  assert.equal(requests[0].p_include_count, false);
 });
 
 test("invalid company UUIDs and company filters on other datasets fail before HTTP", async () => {
@@ -298,10 +320,6 @@ test("invalid company UUIDs and company filters on other datasets fail before HT
   ]) {
     await assert.rejects(
       client.fetchDatasetPage(pageRequest("live", { filters: datasetFilters({ companyIds }) })),
-      /valid company IDs/,
-    );
-    await assert.rejects(
-      client.fetchLatestTransactionDate(latestDateRequest({ companyIds })),
       /valid company IDs/,
     );
     await assert.rejects(

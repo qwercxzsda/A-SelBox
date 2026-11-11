@@ -40,7 +40,7 @@ test("only the exact amount-limit contract is exposed and failed RPCs never fall
   for (const [dataset, column, code, message, status] of [
     ["live", "source_amount", "22023", "private SQL detail", 400],
     ["live", "source_amount", "42501", AMOUNT_ORDER_LIMIT_MESSAGE, 400],
-    ["live", "activity_date", "22023", AMOUNT_ORDER_LIMIT_MESSAGE, 400],
+    ["live", "activity_at", "22023", AMOUNT_ORDER_LIMIT_MESSAGE, 400],
     ["data_kiosk", "amount", "22023", AMOUNT_ORDER_LIMIT_MESSAGE, 503],
   ]) {
     let requests = 0;

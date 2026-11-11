@@ -51,10 +51,10 @@ export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   if (
     typeof family === "string" &&
     [
-      "transaction-latest-date",
-      "transaction-period-totals",
-      "transaction-type-totals",
-      "transaction-summary-records",
+      "transaction-latest-utc-date",
+      "company-period-totals",
+      "company-type-totals",
+      "company-summary-records",
     ].includes(family)
   ) {
     return FINANCIAL_REVISION_SOURCES;

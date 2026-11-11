@@ -78,7 +78,7 @@ test("F5 restores the selected payout, marketplace, type, and record page", asyn
   );
 });
 
-test("F5 restores an estimate drilldown and fetches current values for its saved scope", async ({
+test("F5 restores an summary drilldown and fetches current values for its saved scope", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -89,7 +89,13 @@ test("F5 restores an estimate drilldown and fetches current values for its saved
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "55", { rowCount: 55 })];
   await signIn(page);
   await applyDates(page, "2026-06-01", "2026-06-30");
-  await page.getByRole("button", { name: "View Selected dates by type", exact: true }).click();
+
+  await page
+    .getByRole("button", {
+      name: "View Selected dates for Amazon.com in USD by type",
+      exact: false,
+    })
+    .click();
   let drawer = page.getByRole("dialog", { name: "Amounts by type", exact: true });
   await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
   await drawer.getByRole("button", { name: "View Product sales records", exact: true }).click();

@@ -52,12 +52,19 @@ const FILTER_GROUPS: Record<BreakdownGroupId, GroupId> = {
 
 const KNOWN_TYPES = new Set(transactionTypes.map(({ type }) => type));
 
+function transactionTypeGroupId(value: string): GroupId {
+  return KNOWN_TYPES.has(value) ? FILTER_GROUPS[transactionTypeBreakdownGroupId(value)] : "other";
+}
+
+/** Row sublabels use the same taxonomy as the Type filter. */
+export function transactionTypeGroupLabel(value: string): string {
+  return GROUPS[transactionTypeGroupId(value)];
+}
+
 export function transactionTypeGroups(options: readonly FilterOption[]): TransactionTypeGroup[] {
   const groups = new Map<GroupId, FilterOption[]>();
   for (const option of options) {
-    const id = KNOWN_TYPES.has(option.value)
-      ? FILTER_GROUPS[transactionTypeBreakdownGroupId(option.value)]
-      : "other";
+    const id = transactionTypeGroupId(option.value);
     const entries = groups.get(id) ?? [];
     entries.push(option);
     groups.set(id, entries);

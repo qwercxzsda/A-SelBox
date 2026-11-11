@@ -1,12 +1,21 @@
-import type { CurrencyTotal } from "./api";
-import type { PeriodDefinition } from "./estimated-periods";
+import type { DatasetFilters, MarketplaceCurrencyTotal } from "./api";
+import type { PeriodDefinition, TotalsPeriod } from "./summary-periods";
 
-export interface SummaryPeriod extends PeriodDefinition {
-  totals: CurrencyTotal[];
-}
+export type TransactionSummaryScope = Pick<DatasetFilters, "companyIds" | "skus" | "marketplaces">;
 
 export interface SummaryState {
-  period: SummaryPeriod | null;
+  definition: PeriodDefinition | null;
   pending: boolean;
   error: string | null;
 }
+
+export interface MarketplaceSummary extends Record<TotalsPeriod, MarketplaceCurrencyTotal[]> {
+  marketplace: string;
+}
+
+export type OpenSummaryBreakdown = (
+  period: PeriodDefinition,
+  title: string,
+  currency: string,
+  marketplace: string,
+) => void;

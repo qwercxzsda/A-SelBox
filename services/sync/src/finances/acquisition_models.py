@@ -17,11 +17,16 @@ from ..amazon.scopes import validate_amazon_scope
 from ..archives.models import ArchivedDocument
 from ..database.seller_namespaces import validate_seller_namespace
 from ..frozen_values import freeze_mapping
+from .query_windows import (
+    comparable_end_at,
+    reconciliation_interval,
+    transaction_query_parameters,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class FinancesCoverageMarketplace:
-    """A validated market in the regional acquisition's local-day coverage."""
+    """A validated marketplace in the regional transaction capture."""
 
     marketplace_id: str
     marketplace_name: str
@@ -79,8 +84,10 @@ class FinancesAcquisition:
     api_version: str
     capture_started_at: datetime
     downloaded_at: datetime
-    query_start_date: date
-    query_end_date: date
+    posted_after: datetime
+    posted_before: datetime | None
+    reconciliation_start_date: date | None
+    reconciliation_end_date: date | None
     marketplace_ids: tuple[str, ...]
     documents: tuple[ArchivedFinancesPage, ...]
     api_metadata: Mapping[str, object]
@@ -96,15 +103,12 @@ class FinancesAcquisition:
             raise ValueError("Unsupported Finances API version.")
         if as_utc(self.capture_started_at) > as_utc(self.downloaded_at):
             raise ValueError("Finances acquisition completion precedes its start.")
-        if type(self.query_start_date) is not date or type(self.query_end_date) is not date:
-            raise TypeError("Finances acquisition coverage requires local calendar dates.")
-        if self.query_start_date > self.query_end_date:
-            raise ValueError("Finances acquisition coverage is reversed.")
-        if (self.query_start_date.year, self.query_start_date.month) != (
-            self.query_end_date.year,
-            self.query_end_date.month,
-        ):
-            raise ValueError("Finances acquisitions must remain within one calendar month.")
+        object.__setattr__(self, "posted_after", as_utc(self.posted_after))
+        if self.posted_before is not None:
+            object.__setattr__(self, "posted_before", as_utc(self.posted_before))
+        parameters = transaction_query_parameters(
+            self.posted_after, self.posted_before, observed_at=self.capture_started_at
+        )
         if not self.marketplace_ids or len(set(self.marketplace_ids)) != len(self.marketplace_ids):
             raise ValueError("Finances coverage marketplace inventory must be nonempty and unique.")
         for marketplace_id in self.marketplace_ids:
@@ -116,12 +120,21 @@ class FinancesAcquisition:
         if tuple(market.marketplace_id for market in coverage) != self.marketplace_ids:
             raise ValueError("Finances coverage metadata differs from its marketplace inventory.")
         validate_coverage_scope(self.amazon_scope, coverage)
-        self._validate_documents(summary_available)
+        expected = reconciliation_interval(
+            coverage, self.posted_after, self.posted_before, observed_at=self.capture_started_at
+        )
+        if (self.reconciliation_start_date, self.reconciliation_end_date) != expected:
+            raise ValueError("Finances reconciliation dates differ from complete captured days.")
+        if self.reconciliation_start_date is None and summary_available:
+            raise ValueError("Finances partial-day capture cannot declare Summary coverage.")
+        self._validate_documents(summary_available, parameters)
         object.__setattr__(
             self, "api_metadata", freeze_mapping(self.api_metadata, field_name="api_metadata")
         )
 
-    def _validate_documents(self, summary_available: bool) -> None:
+    def _validate_documents(
+        self, summary_available: bool, transaction_parameters: Mapping[str, str]
+    ) -> None:
         """Require complete page chains with one unchanged regional scope per operation."""
         chains: dict[FinancesOperation, list[ArchivedFinancesPage]] = defaultdict(list)
         for page in self.documents:
@@ -143,18 +156,27 @@ class FinancesAcquisition:
             if [page.is_terminal for page in pages] != [False] * (len(pages) - 1) + [True]:
                 raise ValueError("Only the final Finances page can be terminal.")
             base = dict(pages[0].request_parameters)
-            keys = (
-                {"postedAfter", "postedBefore"}
+            expected = (
+                transaction_parameters
                 if operation == "transactions"
-                else {"periodStart", "periodEnd"}
+                else {
+                    "periodStart": str(self.reconciliation_start_date),
+                    "periodEnd": str(self.reconciliation_end_date),
+                }
             )
-            if set(base) != keys:
-                raise ValueError("Finances page one must use unfiltered date-range parameters.")
-            if operation == "summary" and base != {
-                "periodStart": self.query_start_date.isoformat(),
-                "periodEnd": self.query_end_date.isoformat(),
-            }:
-                raise ValueError("Finances Summary scope differs from acquisition dates.")
+            if set(base) != set(expected):
+                raise ValueError("Finances page scope differs from its declared request bounds.")
+            if operation == "transactions":
+                if any(
+                    as_utc(datetime.fromisoformat(base[key]))
+                    != as_utc(datetime.fromisoformat(value))
+                    for key, value in expected.items()
+                ):
+                    raise ValueError(
+                        "Finances page timestamps differ from declared request bounds."
+                    )
+            elif base != expected:
+                raise ValueError("Finances Summary scope differs from its reconciliation interval.")
             for page in pages[1:]:
                 parameters = dict(page.request_parameters)
                 token = parameters.pop("nextToken", None)
@@ -162,6 +184,11 @@ class FinancesAcquisition:
                     raise ValueError(
                         "Finances continuation pages must retain identical request scope."
                     )
+
+    @property
+    def comparable_end_at(self) -> datetime:
+        """Exclusive upper bound safe for comparing absent prior observations."""
+        return comparable_end_at(self.posted_before, self.capture_started_at)
 
     @property
     def coverage_marketplaces(self) -> tuple[FinancesCoverageMarketplace, ...]:

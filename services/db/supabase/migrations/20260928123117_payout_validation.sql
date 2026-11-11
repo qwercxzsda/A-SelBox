@@ -54,31 +54,18 @@ language sql stable set search_path = '' as $$
 $$;
 
 -- Choose successful coverage at creation time; these observation labels are not
--- stored as report identity. Empty Finance captures still contribute coverage.
+-- stored as report identity. Only independently reconciled days whose observed
+-- versions still match the current marketplace can supply Finance coverage.
+-- Unchanged versions can reuse older proof after an unreconciled refresh, and
+-- empty reconciled captures still supply coverage for genuinely empty days.
 create function private.current_payout_source_days(
     p_sellers text[], p_start date, p_end date, p_marketplace text
 ) returns table (
     source text, seller_namespace text, marketplace_name text,
     activity_date date, preprocess_version text
 ) language sql stable security invoker set search_path = '' as $$
-    with finance_days as (
-        select a.seller_namespace::text, market->>'marketplace_name' as marketplace_name,
-            day.value::date as activity_date, b.preprocess_version::text,
-            row_number() over (
-                partition by a.seller_namespace,market->>'marketplace_name',day.value::date
-                order by a.capture_started_at desc,a.id desc,b.created_at desc,b.id desc
-            ) as position
-        from private.finances_acquisitions a
-        join private.finances_preprocess_batches b on b.acquisition_id=a.id
-        cross join lateral jsonb_array_elements(a.api_metadata->'coverage_marketplaces') market
-        cross join lateral generate_series(greatest(p_start,a.query_start_date)::timestamp,
-            least(p_end,a.query_end_date)::timestamp,interval '1 day') day(value)
-        where a.seller_namespace=any(p_sellers)
-            and a.query_start_date<=p_end and a.query_end_date>=p_start
-            and (p_marketplace is null or market->>'marketplace_name'=p_marketplace)
-    )
     select 'FINANCES'::text,seller_namespace,marketplace_name,activity_date,preprocess_version
-    from finance_days where position=1
+    from private.current_finances_reconciled_days(p_sellers,p_start,p_end,p_marketplace)
     union all
     select 'DATA_KIOSK',d.seller_namespace::text,d.marketplace_name,d.activity_date,b.preprocess_version::text
     from private.data_kiosk_days d

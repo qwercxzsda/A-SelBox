@@ -1,4 +1,4 @@
-"""Bounded summary RPCs preserve the complete view's exact sums and authorization."""
+"""Bounded summaries preserve contributing company-financial sums and authorization."""
 
 from itertools import combinations, product
 from typing import LiteralString, cast
@@ -54,11 +54,13 @@ class TransactionTotalsTests(SourceModelFixture):
 
     def expected(self, user: str | None, **options: object) -> dict[str, object]:
         options = {"p_date_from": "2026-01-01", **options}
-        predicates: list[sql.Composable] = [sql.SQL("authoritative")]
+        predicates: list[sql.Composable] = [
+            sql.SQL("authoritative and category in ('FINANCES', 'DATA_KIOSK')")
+        ]
         parameters: list[object] = []
         for name, column, comparison, type_name in (
-            ("p_date_from", "activity_date", ">=", "date"),
-            ("p_date_to", "activity_date", "<=", "date"),
+            ("p_date_from", "utc_date", ">=", "date"),
+            ("p_date_to", "utc_date", "<=", "date"),
             ("p_currency", "currency", "=", "text"),
         ):
             if options.get(name) is not None:
@@ -82,20 +84,31 @@ class TransactionTotalsTests(SourceModelFixture):
                     )
                 )
                 parameters.append(options[name])
-        if options.get("p_skus"):
-            predicates.append(sql.SQL("category <> 'SELBOX'"))
         query = sql.SQL("""
-            with totals as (select currency,
+            with source_rows as (
+                select c.*, (case when c.source='FINANCES' then f.posted_at
+                    else ((c.activity_date+1)::timestamp at time zone
+                        private.marketplace_time_zone(c.marketplace_name))
+                        - interval '1 microsecond'
+                    end at time zone 'UTC')::date as utc_date
+                from public.live_company_components c
+                left join private.finances_transaction_versions f
+                    on c.source='FINANCES' and f.id=c.source_version_id
+            ), totals as (select
+                case when not %s::boolean then marketplace_name end as marketplace_name,
+                currency,
                 case when %s::boolean then component_type end as component_type,
                 sum(source_amount)::text as reported_amount,
                 sum(fee_amount)::text as service_fee,
                 sum(company_amount)::text as company_amount,
                 count(*)::text as row_count,
                 count(company_amount)::text as known_company_count
-            from public.live_company_components where {predicates}
-            group by 1,2) select * from totals
-            order by currency collate "C", component_type collate "C" nulls first
+            from source_rows where {predicates}
+            group by 1,2,3) select * from totals
+            order by marketplace_name collate "C" nulls first,
+                currency collate "C", component_type collate "C" nulls first
         """).format(predicates=sql.SQL(" and ").join(predicates))
+        parameters.insert(0, options.get("p_group_by_type", False))
         parameters.insert(0, options.get("p_group_by_type", False))
         result = (
             self.connection.execute(query, parameters).fetchall()
@@ -104,7 +117,7 @@ class TransactionTotalsTests(SourceModelFixture):
                 user, cast(LiteralString, query.as_string(self.connection)), parameters
             )
         )
-        keys = ("currency", "component_type", *_NUMERIC_FIELDS)
+        keys = ("marketplace_name", "currency", "component_type", *_NUMERIC_FIELDS)
         rows = [dict(zip(keys, row, strict=True)) for row in result]
         offset, limit = (
             cast(int, options.get("p_offset", 0)),
@@ -120,7 +133,9 @@ class TransactionTotalsTests(SourceModelFixture):
         self.assertEqual(actual, self.expected(user, **options))
         self.assertEqual(set(actual), {"rows", "next_offset"})
         for row in cast(list[dict[str, object]], actual["rows"]):
-            self.assertEqual(set(row), {"currency", "component_type", *_NUMERIC_FIELDS})
+            self.assertEqual(
+                set(row), {"marketplace_name", "currency", "component_type", *_NUMERIC_FIELDS}
+            )
             for key in _NUMERIC_FIELDS:
                 self.assertTrue(row[key] is None or isinstance(row[key], str))
             self.assertIsNotNone(row["row_count"])
@@ -205,6 +220,43 @@ class TransactionTotalsTests(SourceModelFixture):
         self.assertEqual(row["known_company_count"], "2")
         self.assertEqual(row["company_amount"], "7")
         self.assert_matches_view(self.member(company), p_group_by_type=True)
+
+    def test_marketplace_currency_groups_remain_separate_and_page_in_order(self) -> None:
+        company, _ = self.owner()
+        self.finances(
+            [
+                self.transaction("10.25", 3, description="Shipping"),
+                self.transaction("20.75", 4, description="Shipping")
+                | {"marketplace_name": "Amazon.ca"},
+                self.transaction("3.50", 5, description="Shipping") | {"currency": "EUR"},
+            ]
+        )
+        for user in (self.administrator(), self.member(company)):
+            result = self.assert_matches_view(user)
+            rows = cast(list[dict[str, object]], result["rows"])
+            self.assertEqual(
+                [
+                    (row["marketplace_name"], row["currency"], row["reported_amount"])
+                    for row in rows
+                ],
+                [
+                    ("Amazon.ca", "USD", "20.75"),
+                    ("Amazon.com", "EUR", "3.50"),
+                    ("Amazon.com", "USD", "10.25"),
+                ],
+            )
+            for offset, row in enumerate(rows):
+                page = self.assert_matches_view(user, p_limit=1, p_offset=offset)
+                self.assertEqual(page["rows"], [row])
+                self.assertEqual(page["next_offset"], offset + 1 if offset < 2 else None)
+            grouped = self.assert_matches_view(user, p_group_by_type=True, p_currency="USD")
+            types = cast(list[dict[str, object]], grouped["rows"])
+            self.assertEqual(len(types), 1)
+            self.assertIsNone(types[0]["marketplace_name"])
+            self.assertEqual(types[0]["reported_amount"], "31.00")
+            self.assert_matches_view(
+                user, p_group_by_type=True, p_currency="USD", p_marketplaces=["Amazon.com"]
+            )
 
     def test_reprocessing_and_ownership_changes_are_current(self) -> None:
         first, sku = self.owner()

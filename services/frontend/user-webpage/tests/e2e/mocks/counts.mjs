@@ -1,5 +1,6 @@
 import { liveRow } from "../api-fixtures.mjs";
 import { filterRecordRows } from "../record-fixtures.mjs";
+import { timestampedTransaction, timestampedSource } from "../transaction-time-fixtures.mjs";
 import {
   transactionFilterParams,
   sourceTransactionFilterParams,
@@ -20,7 +21,12 @@ export async function respondWithCount(fixture, { request, url, user, reply, tra
     finances: fixture.financesRows,
     data_kiosk: fixture.kioskRows,
   }[dataset];
-  const actualCount = filterRecordRows(sourceRows, params).length;
+  const actualCount = filterRecordRows(
+    dataset === "live"
+      ? sourceRows.map(timestampedTransaction)
+      : sourceRows.map((row) => timestampedSource(row, dataset)),
+    params,
+  ).length;
   const count =
     fixture.countTotalForRequest?.({ user, dataset, params, args, count: actualCount }) ??
     actualCount;

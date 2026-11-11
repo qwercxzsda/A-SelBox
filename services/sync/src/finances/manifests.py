@@ -3,7 +3,6 @@
 import json
 import os
 import tempfile
-from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
@@ -14,15 +13,10 @@ from .acquisition_serialization import (
 )
 
 
-def write_finances_manifest(path: Path, acquisitions: Sequence[FinancesAcquisition]) -> None:
-    """Replace a complete manifest atomically; private source metadata stays local."""
-    if not acquisitions:
-        raise ValueError("A Finances manifest requires at least one complete acquisition.")
+def write_finances_manifest(path: Path, acquisition: FinancesAcquisition) -> None:
+    """Create one complete capture manifest atomically, without replacing another capture."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "format_version": 1,
-        "acquisitions": [finances_acquisition_payload(a) for a in acquisitions],
-    }
+    payload = finances_acquisition_payload(acquisition)
     temporary: str | None = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -33,29 +27,15 @@ def write_finances_manifest(path: Path, acquisitions: Sequence[FinancesAcquisiti
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        Path(temporary).replace(path)
+        os.link(temporary, path)
     finally:
         if temporary is not None and Path(temporary).exists():
             Path(temporary).unlink()
 
 
-def read_finances_manifest(path: Path) -> tuple[FinancesAcquisition, ...]:
+def read_finances_manifest(path: Path) -> FinancesAcquisition:
     with path.open(encoding="utf-8") as stream:
         decoded: object = json.load(stream)
     if not isinstance(decoded, dict):
         raise ValueError("Finances local manifest must be an object.")
-    payload = cast(dict[str, object], decoded)
-    if payload.get("format_version") != 1:
-        raise ValueError("Unsupported Finances local manifest format.")
-    values = payload.get("acquisitions")
-    if not isinstance(values, list) or not values:
-        raise ValueError("Finances local manifest requires complete acquisition objects.")
-    entries = cast(list[object], values)
-    if any(not isinstance(entry, dict) for entry in entries):
-        raise ValueError("Finances local manifest requires complete acquisition objects.")
-    result = tuple(
-        finances_acquisition_from_payload(cast(dict[str, object], entry)) for entry in entries
-    )
-    if len({acquisition.id for acquisition in result}) != len(result):
-        raise ValueError("Finances local manifest repeats an acquisition identity.")
-    return result
+    return finances_acquisition_from_payload(cast(dict[str, object], decoded))

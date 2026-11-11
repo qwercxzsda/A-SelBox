@@ -25,8 +25,9 @@ or diagnostic output.
   and `amazon/marketplaces.py`.
 - Storage uses `SUPABASE_URL` (default `http://127.0.0.1:54321`) and the server-only
   `SUPABASE_SERVICE_ROLE_KEY`. Keys are read from the environment, never arguments.
-- `--database-url` defaults to local PostgreSQL on port 54322 for preprocessing and the
-  Data Kiosk/inventory downloaders. Finance downloading uses Storage and a local manifest only.
+- `--database-url` defaults to local PostgreSQL on port 54322. Finance downloading reads the
+  database maturity cutoff when `--posted-after` is omitted; explicit timestamp bounds need only
+  Storage and a local manifest. Data Kiosk/inventory downloads and all preprocessing use PostgreSQL.
   Database writers require trusted administrator access; Finance publishes its validated batch
   through one Python-owned database transaction.
 - Download commands use `--seller-namespace` to identify source provenance across financial and
@@ -49,8 +50,7 @@ not split days, classify amounts, or load companies and fees.
 ```sh
 conda run -n A-SelBox python -m services.sync.src.cli.download_finances \
   --scope NA --seller-namespace seller-na \
-  --start-date 2026-08-01 --end-date 2026-08-31 \
-  --manifest-output /private/path/finances-august.json
+  --manifest-output /private/path/finances-refresh.json
 
 conda run -n A-SelBox python -m services.sync.src.cli.download_data_kiosk \
   --scope NA --seller-namespace seller-na \
@@ -61,32 +61,42 @@ conda run -n A-SelBox python -m services.sync.src.cli.download_inventory \
   --scope NA --seller-namespace seller-na --marketplace-id ATVPDKIKX0DER
 ```
 
-Dates are inclusive marketplace-local calendar days. Data Kiosk validates the
-complete explicit window before querying; `--max-pages`, `--max-poll-attempts`,
-and `--poll-interval-seconds` bound acquisition work. Use `--help` for command options.
-Each complete download logs its ID. Finances writes an atomic local manifest bundle to
-`--manifest-output`; it requires no database connection and refuses an existing output file.
-Completed monthly captures remain in the bundle if a later month fails. Other downloaders
-continue publishing their acquisition metadata to PostgreSQL. An incomplete source traversal logs diagnostics and
-publishes no partial successful manifest. Independently completed downloads stay available.
+Finance defaults to the database's `private.mature_cutoff_date()` at UTC midnight as
+`postedAfter`, and omits `postedBefore`. Amazon's default upper bound is approximately two minutes
+before its request time. The single regional capture includes available current-day transactions
+and may span several calendar months. `--posted-after` overrides the start with an offset-bearing
+timestamp; optional `--posted-before` supplies an exclusive timestamp for historical retrieval.
+
+Data Kiosk dates remain inclusive marketplace-local calendar days. It validates the complete
+explicit window before querying; `--max-pages`, `--max-poll-attempts`, and
+`--poll-interval-seconds` bound acquisition work. Use `--help` for command options.
+Each complete download logs its ID. Finances writes one acquisition object as an atomic local
+manifest to `--manifest-output` and refuses an existing output file. Other downloaders publish their
+acquisition metadata to PostgreSQL. An incomplete source traversal logs diagnostics and publishes no partial
+successful manifest. Independently completed downloads stay available.
 
 Finances uses SP-API v2024-06-19 `listTransactions` and `listSummary`. It obtains the
 seller's participating marketplace roster and sends unfiltered regional requests, including all
 statuses and account types. Verified Non-Amazon US, DE, and IT channels retain their native identities
 and marketplace-local dates. `--marketplace-id`
 overrides the declared coverage roster; it does not filter the API request. Unexpected source
-marketplaces fail preprocessing. Each acquisition covers at most one calendar month, finishes
-pagination, and archives the exact decoded HTTP response bytes. Missing Summary access does not
-discard the downloaded archives or local manifest, but prevents successful preprocessing.
+marketplaces fail preprocessing. Each acquisition finishes pagination with identical timestamp
+arguments on every page and archives the exact decoded HTTP response bytes.
+
+Summary is requested only for the common interval of complete marketplace-local days inside the
+UTC retrieval window. Partial first/last days are imported as observations without claiming reconciled
+coverage. Missing Summary access for a declared interval preserves the archives and local manifest
+but prevents successful preprocessing; a capture containing no complete common local day requests
+no Summary and supplies no reconciled payout coverage.
 
 For historical periods, repeat `--marketplace-id` for the complete historical roster when older
 inactive marketplaces no longer appear in current participation discovery.
 
-Only finished local days can be captured, with the final UTC boundary at least two minutes old.
-The downloader rejects ranges outside its rolling two-year history bound. Amazon can lag by
-48 hours and later update past transactions; a complete API response is not financial finality.
-Re-fetch overlapping historical dates to observe those changes. The CLI uses explicit dates and
-does not install a source-download scheduler. See the
+Finances requests must fit Amazon's 180-day maximum window and rolling two-year history bound.
+The rolling default overlaps prior imports to observe late records and corrections; historical
+changes outside that lookback need an explicit request. Amazon can lag by 48 hours and later
+update past transactions, so a complete API response is not financial finality. The CLI does not
+install a source-download scheduler. See the
 [Finances contract](../../docs/finances_transactions.md) for capture and reconciliation rules.
 
 Inventory requests a full `GET_FBA_INVENTORY_PLANNING_DATA` report for one marketplace. It defaults
@@ -127,13 +137,13 @@ recovery, and an abrupt process termination may leave only the preceding events.
 
 ## Offline preprocessing
 
-Finances takes the local manifest written by its downloader. Data Kiosk and inventory take
-saved acquisition IDs. These commands need PostgreSQL and private Storage access and make
+Finances takes the single-acquisition manifest written by its downloader. Data Kiosk and inventory
+take saved acquisition IDs. These commands need PostgreSQL and private Storage access and make
 no Amazon requests:
 
 ```sh
 conda run -n A-SelBox python -m services.sync.src.cli.preprocess_finances \
-  /private/path/finances-august.json
+  /private/path/finances-refresh.json
 
 conda run -n A-SelBox python -m services.sync.src.cli.preprocess_data_kiosk \
   --acquisition-id ACQUISITION_UUID
@@ -143,9 +153,11 @@ conda run -n A-SelBox python -m services.sync.src.cli.preprocess_inventory \
 ```
 
 Preprocessing checks archive integrity before parsing. Missing or corrupt input fails locally.
-Finance preprocessing also validates the complete proposed transaction state against accepted
-state and independent Summary controls under a seller/scope lock. Missing previously accepted
-transactions, stale captures, or failed controls roll back the whole batch. Acquisitions and
+Finance preprocessing also validates the proposed transaction state against accepted state under a
+seller/scope lock. Missing previously accepted transactions inside the comparable UTC request
+interval, stale captures, or failed required Summary controls roll back the whole batch. Summary
+checks cover only the declared complete-day reconciliation interval; current partial-day
+transactions outside it still undergo identity, lifecycle and exact monetary validation. Acquisitions and
 preprocessing batches enter PostgreSQL together only after successful validation; failed attempts
 remain in local logs and their downloaded archives/manifests. Data Kiosk and inventory retain
 their saved acquisition metadata when preprocessing fails.

@@ -56,14 +56,21 @@ class SourceTransactionPageTests(SourceModelFixture):
         )
 
     def expected(self, user: str, dataset: str, **options: object) -> dict[str, object]:
-        date_column = "posted_date" if dataset == "finances" else "activity_date"
+        date_column = "activity_at"
+        timestamp_expression = (
+            "posted_at"
+            if dataset == "finances"
+            else "((activity_date + 1)::timestamp at time zone "
+            "private.marketplace_time_zone(marketplace_name)) - interval '1 microsecond'"
+        )
         predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
             if options.get(name) is not None:
                 predicates.append(
                     sql.SQL("{} {} %s::date").format(
-                        sql.Identifier(date_column), sql.SQL(cast(LiteralString, comparison))
+                        sql.SQL("(activity_at at time zone 'UTC')::date"),
+                        sql.SQL(cast(LiteralString, comparison)),
                     )
                 )
                 parameters.append(options[name])
@@ -85,14 +92,18 @@ class SourceTransactionPageTests(SourceModelFixture):
             sql.SQL(ties),
         )
         query = sql.SQL(
-            "with matching as not materialized (select * from public.{view} where {predicates}), "
+            "with source_rows as (select e.*, {timestamp} as activity_at from public.{view} e), "
+            "matching as not materialized (select * from source_rows where {predicates}), "
             "page as (select * from matching order by {ordering} limit %s offset %s) "
             "select jsonb_build_object('rows', coalesce((select jsonb_agg("
             "(select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(p))) "
+            "|| jsonb_build_object('activity_at', to_char(p.activity_at at time zone 'UTC', "
+            '\'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\')) '
             "order by {ordering}) from page p), '[]'::jsonb), "
             "'total_count', case when %s then (select count(*)::text from matching) end)"
         ).format(
             view=sql.Identifier(dataset + "_preprocess_entries"),
+            timestamp=sql.SQL(cast(LiteralString, timestamp_expression)),
             predicates=sql.SQL(" and ").join(predicates),
             ordering=ordering,
         )
@@ -261,6 +272,53 @@ class SourceTransactionPageTests(SourceModelFixture):
                     "rows"
                 ],
             )
+
+    def test_source_utc_boundaries_order_and_counts_match_transaction_instants(self) -> None:
+        self.finances(
+            [
+                self.transaction(str(index), index, activity_date=day) | {"posted_at": instant}
+                for index, day, instant in (
+                    (1, "2026-11-05", "2026-11-05T23:59:59.999999Z"),
+                    (2, "2026-11-05", "2026-11-06T00:00:00Z"),
+                    (3, "2026-11-06", "2026-11-06T23:59:59.999999Z"),
+                    (4, "2026-11-06", "2026-11-07T00:00:00Z"),
+                )
+            ]
+        )
+        self.kiosk(1, [self.component("-10")], activity_date="2026-11-05")
+        self.kiosk(2, [self.component("-20")], activity_date="2026-11-06")
+        administrator = self.administrator()
+        self.connection.execute("set local timezone='Asia/Seoul'")
+        for dataset, expected in (
+            ("finances", ["2026-11-06T23:59:59.999999Z", "2026-11-06T00:00:00.000000Z"]),
+            ("data_kiosk", ["2026-11-06T07:59:59.999999Z"]),
+        ):
+            with self.subTest(dataset=dataset):
+                result = self.assert_matches_view(
+                    administrator, dataset, p_date_from="2026-11-06", p_date_to="2026-11-06"
+                )
+                rows = cast(list[dict[str, object]], result["rows"])
+                self.assertEqual([row["activity_at"] for row in rows], expected)
+                self.assertEqual(result["total_count"], str(len(expected)))
+                self.assertEqual(
+                    self.as_user(
+                        administrator,
+                        "select public.source_transaction_count(%s,p_date_from=>'2026-11-06',"
+                        "p_date_to=>'2026-11-06')",
+                        (dataset,),
+                    )[0][0],
+                    str(len(expected)),
+                )
+                ascending = self.assert_matches_view(
+                    administrator,
+                    dataset,
+                    p_date_from="2026-11-06",
+                    p_date_to="2026-11-06",
+                    p_direction="asc",
+                )
+                self.assertEqual(ascending["rows"], list(reversed(rows)))
+                if dataset == "data_kiosk":
+                    self.assertEqual(rows[0]["activity_date"], "2026-11-05")
 
     def test_invoker_signature_and_execution_grants(self) -> None:
         assert_rpc_contract(self, "source_transaction_page", _PARAMETER_TYPES)

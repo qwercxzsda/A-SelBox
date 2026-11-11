@@ -27,7 +27,7 @@ for (const width of [1440, 390]) {
         "right",
       );
     const storage = table.getByRole("row").filter({
-      has: page.getByRole("cell", { name: "FBA storage fee", exact: true }),
+      has: page.locator(".transaction-type-label").filter({ hasText: /^FBA storage fee$/ }),
     });
     await expect(storage).toHaveAttribute("aria-selected", "false");
     await scroll.scrollIntoViewIfNeeded();

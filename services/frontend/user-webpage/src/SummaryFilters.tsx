@@ -9,9 +9,11 @@ export interface SummaryFilter {
 export function SummaryFilters({
   filters,
   compact = false,
+  emptyLabel = "All transactions",
 }: {
   filters: SummaryFilter[];
   compact?: boolean;
+  emptyLabel?: string;
 }) {
   const activeFilters = filters.filter((filter) => filter.values.length > 0);
 
@@ -22,7 +24,7 @@ export function SummaryFilters({
       data-compact={compact || undefined}
     >
       {activeFilters.length === 0 ? (
-        <p>All transactions</p>
+        <p>{emptyLabel}</p>
       ) : (
         <dl>
           {activeFilters.map(({ label, values }) => (

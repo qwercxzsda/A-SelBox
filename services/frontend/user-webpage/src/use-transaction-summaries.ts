@@ -2,60 +2,59 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
   fetchLatestTransactionDate,
   fetchTransactionPeriodTotals,
-  type CurrencyTotal,
-  type DatasetFilters,
+  type MarketplaceCurrencyTotal,
 } from "./api";
 import {
   summaryPeriods,
   selectedPeriod,
+  TOTALS_PERIOD_LABELS,
   type DateRange,
   type PeriodDefinition,
-} from "./estimated-periods";
-import type { SummaryState } from "./summary-types";
+} from "./summary-periods";
+import type { MarketplaceSummary, SummaryState, TransactionSummaryScope } from "./summary-types";
 import type { Identity } from "./auth-session";
 import { getErrorMessage } from "./view-model";
 import { normalizeSelections } from "./dataset-filters";
+import { summaryMarketplaces, sortMarketplaceSummaries } from "./summary-marketplaces";
 
-export type TransactionSummaryScope = Pick<DatasetFilters, "companyIds" | "skus" | "marketplaces">;
-
-function usePeriodTotals(
+function periodQueryOptions(
   identity: Identity,
-  period: PeriodDefinition | null,
+  range: DateRange | null,
   scope: TransactionSummaryScope,
 ) {
   const { session, account } = identity;
-  return useQuery({
+  return {
     queryKey: [
-      "transaction-period-totals",
+      "company-period-totals",
       session.user.id,
       account.access_role,
       account.company_id,
       scope,
-      period?.range.from,
-      period?.range.to,
+      range?.from,
+      range?.to,
     ],
-    enabled: period !== null,
-    queryFn: ({ signal }) => {
-      if (period === null) throw new Error("Select a period to load totals.");
+    enabled: range !== null,
+    queryFn: ({ signal }: { signal: AbortSignal }) => {
+      if (range === null) throw new Error("Select a period to load totals.");
       return fetchTransactionPeriodTotals({
         accessToken: session.access_token,
-        dateFrom: period.range.from,
-        dateTo: period.range.to,
+        dateFrom: range.from,
+        dateTo: range.to,
         ...scope,
         signal,
       });
     },
-  });
+  };
 }
 
 function summaryState(
-  period: PeriodDefinition | null,
-  query: UseQueryResult<CurrencyTotal[]>,
+  definition: PeriodDefinition | null,
+  query: UseQueryResult<MarketplaceCurrencyTotal[]>,
   title: string,
 ): SummaryState {
   return {
-    period: period && query.data !== undefined ? { ...period, totals: query.data } : null,
-    pending: period !== null && query.isPending,
+    definition,
+    pending: definition !== null && query.isPending,
     error: query.error ? `${title}: ${getErrorMessage(query.error)}` : null,
   };
 }
@@ -72,37 +71,53 @@ export function useTransactionSummaries(
     skus: normalizeSelections(filters.skus),
     marketplaces: normalizeSelections(filters.marketplaces),
   };
+  // The common calendar anchor follows account visibility, never UI filters.
   const latest = useQuery({
     queryKey: [
-      "transaction-latest-date",
+      "transaction-latest-utc-date",
       session.user.id,
       account.access_role,
       account.company_id,
-      scope,
     ],
     queryFn: ({ signal }) =>
-      fetchLatestTransactionDate({ accessToken: session.access_token, signal, ...scope }),
+      fetchLatestTransactionDate({ accessToken: session.access_token, signal }),
   });
-  const periods = summaryPeriods(latest.data ?? null);
-  const selected = selectedPeriod(dateRange);
-  const dayQuery = usePeriodTotals(identity, periods.day, scope);
-  const monthQuery = usePeriodTotals(identity, periods.month, scope);
-  const selectedQuery = usePeriodTotals(identity, selected, scope);
-  const day = summaryState(periods.day, dayQuery, "Latest day");
-  const month = summaryState(periods.month, monthQuery, "Latest month");
+  const periods = { ...summaryPeriods(latest.data ?? null), selected: selectedPeriod(dateRange) };
+  const dayQuery = useQuery(periodQueryOptions(identity, periods.day?.range ?? null, scope));
+  const monthQuery = useQuery(periodQueryOptions(identity, periods.month?.range ?? null, scope));
+  const selectedQuery = useQuery(
+    periodQueryOptions(identity, periods.selected?.range ?? null, scope),
+  );
   const discoveryError = latest.error
     ? `Latest transaction date: ${getErrorMessage(latest.error)}`
     : null;
+  const states = {
+    day: summaryState(periods.day, dayQuery, TOTALS_PERIOD_LABELS.day),
+    month: summaryState(periods.month, monthQuery, TOTALS_PERIOD_LABELS.month),
+    selected: summaryState(periods.selected, selectedQuery, TOTALS_PERIOD_LABELS.selected),
+  };
+  for (const period of ["day", "month"] as const) {
+    states[period].pending ||= latest.isPending;
+    states[period].error = discoveryError ?? states[period].error;
+  }
+  const groups: MarketplaceSummary[] = summaryMarketplaces(scope.marketplaces).map(
+    (marketplace) => ({
+      marketplace,
+      day: periods.day
+        ? (dayQuery.data ?? []).filter((total) => total.marketplace === marketplace)
+        : [],
+      month: periods.month
+        ? (monthQuery.data ?? []).filter((total) => total.marketplace === marketplace)
+        : [],
+      selected: periods.selected
+        ? (selectedQuery.data ?? []).filter((total) => total.marketplace === marketplace)
+        : [],
+    }),
+  );
   return {
     scope,
-    day: { ...day, pending: latest.isPending || day.pending, error: discoveryError ?? day.error },
-    month: {
-      ...month,
-      pending: latest.isPending || month.pending,
-      error: discoveryError ?? month.error,
-    },
-    selected: summaryState(selected, selectedQuery, "Selected dates"),
-    selectionActive: selected !== null,
+    groups: sortMarketplaceSummaries(groups),
+    states,
     loading: [latest, dayQuery, monthQuery, selectedQuery].some((query) => query.isFetching),
   };
 }

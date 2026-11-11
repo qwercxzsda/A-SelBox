@@ -1,11 +1,10 @@
 """Raw amount/date pages preserve their exact view results through real Auth and REST."""
 
-import csv
-import io
 from typing import cast
 
 from services.db.supabase.benchmarks.datasets import DATASETS, Dataset, canonical_rows
 from services.db.supabase.benchmarks.search_cases import SearchCase
+from services.db.supabase.benchmarks.table_verification import read_reference
 from services.db.supabase.tests.e2e.fixtures import (
     archived_data_kiosk,
     archived_finances,
@@ -22,36 +21,11 @@ EXACT_AMOUNT = "9007199254740993.123456789012345678901"
 EXACT_QUANTITY = "9007199254740993"
 
 
-def reference_parameters(case: SearchCase) -> dict[str, str]:
-    """Use direct view reads as an independent oracle for the page RPC."""
-    dataset = case.dataset
-    column = dataset.date_column if case.order_by == "date" else dataset.amount_column
-    nulls = "nullsfirst" if case.descending_date else "nullslast"
-    tie_direction = "desc" if case.descending_date else "asc"
-    parameters = {
-        "select": ",".join(dataset.columns),
-        "order": ",".join(
-            [
-                f"{column}.{case.direction}.{nulls}",
-                *(name + "." + tie_direction for name in dataset.tie_columns),
-            ]
-        ),
-        "limit": "25",
-        "offset": str(case.offset),
-    }
-    if dataset.key == "live":
-        parameters["authoritative"] = "eq.true"
-    if case.marketplace is not None:
-        parameters["marketplace_name"] = "eq." + case.marketplace
-    return parameters
-
-
 class RawOrderingTests(LocalWorkflowCase):
     def publish_sources(self, seller: str) -> None:
-        acquisition = archived_finances(
+        finances = archived_finances(
             self.storage, seller, sale_amount=EXACT_AMOUNT, quantity=int(EXACT_QUANTITY)
         )
-        finances = acquisition
         kiosk = persist_data_kiosk_acquisition(
             self.database, archived_data_kiosk(self.storage, seller)
         )
@@ -61,21 +35,21 @@ class RawOrderingTests(LocalWorkflowCase):
             preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
 
     def assert_equivalent(
-        self, token: str, dataset: Dataset, order_by: str, direction: str, sellers: set[str]
+        self,
+        actor: str,
+        token: str,
+        dataset: Dataset,
+        order_by: str,
+        direction: str,
+        sellers: set[str],
     ) -> None:
         case = SearchCase(dataset, "authenticated", order_by, direction, marketplace="Amazon.com")
-        reference = self.stack.request(
-            "GET",
-            "/rest/v1/" + dataset.relation,
-            token=token,
-            params=reference_parameters(case),
-            headers={"Accept": "text/csv", "Prefer": "count=exact"},
-        )
-        self.assertEqual(reference.status_code, 200)
-        expected = canonical_rows(
-            list(csv.DictReader(io.StringIO(reference.text), quoting=csv.QUOTE_NOTNULL))
-        )
-        total = reference.headers["Content-Range"].rsplit("/", 1)[1]
+        with self.database.connection() as connection:
+            reference = read_reference(connection, actor, case)
+        if reference is None:
+            self.fail("Small ordering fixture unexpectedly exceeded the amount limit")
+        expected = reference["rows"]
+        total = reference["total_count"]
         response = self.stack.request(
             "POST",
             "/rest/v1/rpc/" + dataset.endpoint,
@@ -125,13 +99,23 @@ class RawOrderingTests(LocalWorkflowCase):
         self.publish_sources(self.seller)
         self.publish_sources(other_seller)
         member_id, member = self.create_member(company)
-        _, administrator = self.create_administrator()
+        administrator_id, administrator = self.create_administrator()
         _, outsider = self.create_auth_user()
-        for token, sellers in (
-            (member, {self.seller}),
-            (administrator, {self.seller, other_seller}),
+        for actor, token, sellers in (
+            (member_id, member, {self.seller}),
+            (administrator_id, administrator, {self.seller, other_seller}),
         ):
             for dataset in DATASETS:
+                if dataset.key != "live" and token == member:
+                    denied = self.stack.request(
+                        "POST",
+                        "/rest/v1/rpc/" + dataset.endpoint,
+                        token=token,
+                        json=SearchCase(dataset, "member_denied", "date", "desc").arguments(),
+                    )
+                    self.assertEqual(denied.status_code, 403)
+                    self.assertEqual(denied.json()["code"], "42501")
+                    continue
                 for order_by in ("amount", "date"):
                     for direction in ("asc", "desc"):
                         with self.subTest(
@@ -140,7 +124,9 @@ class RawOrderingTests(LocalWorkflowCase):
                             direction=direction,
                             administrator=token == administrator,
                         ):
-                            self.assert_equivalent(token, dataset, order_by, direction, sellers)
+                            self.assert_equivalent(
+                                actor, token, dataset, order_by, direction, sellers
+                            )
                 args = SearchCase(dataset, "invalid", "amount", "desc").arguments()
                 for patch, code in (
                     ({"p_marketplaces": ["not-a-marketplace"]}, "22023"),
@@ -171,10 +157,14 @@ class RawOrderingTests(LocalWorkflowCase):
                 empty = self.stack.request(
                     "POST", "/rest/v1/rpc/" + dataset.endpoint, token=token, json=args
                 )
-                self.assertEqual(empty.status_code, 200)
-                self.assertEqual(
-                    cast(dict[str, object], empty.json()), {"rows": [], "total_count": "0"}
-                )
+                if dataset.key == "live":
+                    self.assertEqual(empty.status_code, 200)
+                    self.assertEqual(
+                        cast(dict[str, object], empty.json()), {"rows": [], "total_count": "0"}
+                    )
+                else:
+                    self.assertEqual(empty.status_code, 403)
+                    self.assertEqual(empty.json()["code"], "42501")
             denied = self.stack.request("POST", "/rest/v1/rpc/" + dataset.endpoint, json=args)
             self.assertIn(denied.status_code, (401, 403))
             self.assertEqual(denied.json()["code"], "42501")

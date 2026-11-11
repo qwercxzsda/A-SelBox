@@ -10,7 +10,7 @@ import { Inventory } from "./Inventory";
 import { FinancialReview } from "./FinancialReview";
 import { useSkuConfiguration } from "./use-sku-configuration";
 import { TransactionSummaries } from "./TransactionSummaries";
-import type { DateRange } from "./estimated-periods";
+import type { DateRange } from "./summary-periods";
 import {
   createDatasetViewState,
   createFeeViewState,
@@ -36,13 +36,6 @@ interface WorkspaceProps {
 }
 
 export function FinanceWorkspace(props: WorkspaceProps) {
-  const [selectedSummaryCurrency, setSelectedSummaryCurrency] = useWorkspacePreference<
-    string | null
-  >(
-    "summary-currency",
-    () => "USD",
-    (value) => (typeof value === "string" && /^[A-Z]{3}$/.test(value) ? value : "USD"),
-  );
   const [dataset, setDataset] = useWorkspacePreference<
     DatasetKey | "inventory" | "financial-review" | "companies"
   >(
@@ -133,6 +126,7 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     }));
     setDataset("live");
   }
+
   function showSkuTransactions(sku: string) {
     updateDatasetView("live", (previous) => ({
       ...previous,
@@ -209,8 +203,6 @@ export function FinanceWorkspace(props: WorkspaceProps) {
           {dataset === "live" ? (
             <TransactionSummaries
               identity={props.identity}
-              selectedCurrency={selectedSummaryCurrency}
-              onCurrencyChange={setSelectedSummaryCurrency}
               onRetry={props.onRetry}
               companyIds={transactions.filters.companyIds}
               skus={transactions.filters.skus}

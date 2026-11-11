@@ -1,7 +1,7 @@
 """Atomically accept validated transaction revisions and complete observation memberships."""
 
 from collections.abc import Mapping, Sequence
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, LiteralString
 from uuid import uuid7
 
@@ -67,15 +67,32 @@ def publish_finances(
             ),
         )
         _persist_transactions(cursor, acquisition, candidate.transactions, accepted, batch_id)
-        months = {acquisition.query_start_date.replace(day=1)}
-        incoming_ids = {row.native_transaction_id for row in candidate.transactions}
-        months.update(
-            row["posted_date"].replace(day=1)
-            for row in accepted
-            if row["native_transaction_id"] in incoming_ids
+        _request_refresh(
+            cursor, _affected_months(acquisition, candidate.transactions, accepted), scope_expanded
         )
-        _request_refresh(cursor, months, scope_expanded)
     return batch_id
+
+
+def _affected_months(
+    acquisition: FinancesAcquisition,
+    transactions: Sequence[FinancesTransaction],
+    accepted: Sequence[Mapping[str, Any]],
+) -> set[date]:
+    """Refresh changed records' old/new months and newly reconciled empty months."""
+    months = {row.posted_date.replace(day=1) for row in transactions}
+    incoming_ids = {row.native_transaction_id for row in transactions}
+    months.update(
+        row["posted_date"].replace(day=1)
+        for row in accepted
+        if row["native_transaction_id"] in incoming_ids
+    )
+    start, end = acquisition.reconciliation_start_date, acquisition.reconciliation_end_date
+    if start is not None and end is not None:
+        month = start.replace(day=1)
+        while month <= end:
+            months.add(month)
+            month = (month + timedelta(days=32)).replace(day=1)
+    return months
 
 
 def _current_transactions(
@@ -102,15 +119,16 @@ def _overlapping_observations(
     cursor.execute(
         "SELECT a.id,a.capture_started_at FROM private.finances_acquisitions a "
         "WHERE a.seller_namespace=%s AND a.amazon_scope=%s "
-        "AND a.query_start_date<=%s AND a.query_end_date>=%s "
+        "AND a.posted_after<%s "
+        "AND coalesce(a.posted_before,a.capture_started_at-interval '2 minutes')>%s "
         "AND a.marketplace_ids && %s::text[] "
         "AND EXISTS(SELECT 1 FROM private.finances_preprocess_batches r WHERE "
         "r.acquisition_id=a.id)",
         (
             acquisition.seller_namespace,
             acquisition.amazon_scope,
-            acquisition.query_end_date,
-            acquisition.query_start_date,
+            acquisition.comparable_end_at,
+            acquisition.posted_after,
             list(acquisition.marketplace_ids),
         ),
     )
@@ -132,8 +150,9 @@ def _persist_acquisition(cursor: Cursor[dict[str, Any]], acquisition: FinancesAc
     cursor.execute(
         "INSERT INTO private.finances_acquisitions "
         "(id,seller_namespace,amazon_scope,api_version,capture_started_at,downloaded_at,"
-        "query_start_date,query_end_date,marketplace_ids,api_metadata,documents) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        "posted_after,posted_before,reconciliation_start_date,reconciliation_end_date,"
+        "marketplace_ids,api_metadata,documents) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (
             str(acquisition.id),
             acquisition.seller_namespace,
@@ -141,8 +160,10 @@ def _persist_acquisition(cursor: Cursor[dict[str, Any]], acquisition: FinancesAc
             acquisition.api_version,
             acquisition.capture_started_at,
             acquisition.downloaded_at,
-            acquisition.query_start_date,
-            acquisition.query_end_date,
+            acquisition.posted_after,
+            acquisition.posted_before,
+            acquisition.reconciliation_start_date,
+            acquisition.reconciliation_end_date,
             list(acquisition.marketplace_ids),
             Jsonb(payload["api_metadata"]),
             Jsonb(payload["documents"]),
@@ -298,7 +319,7 @@ def _copy_rows(
 def _scope_expanded(
     cursor: Cursor[dict[str, Any]], acquisition: FinancesAcquisition, prepared: PreparedFinances
 ) -> bool:
-    """New seller/SKU history or complete marketplace coverage affects older reports."""
+    """New SKU history or marketplace participation can affect older reports."""
     skus = sorted(
         {
             component.sku

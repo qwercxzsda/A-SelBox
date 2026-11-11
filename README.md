@@ -1,8 +1,9 @@
 # A-SelBox
 
 A-SelBox archives Amazon Finances transactions, Summary controls, and Data Kiosk documents, then
-preprocesses those inputs into immutable transaction versions and Data Kiosk day versions. PostgreSQL calculates company amounts and
-fees from the selected sources and SKU terms. The scheduled worker saves immutable monthly
+preprocesses those inputs into immutable transaction versions and Data Kiosk day versions.
+PostgreSQL calculates company amounts and fees from the selected sources and SKU terms.
+The scheduled worker saves immutable monthly
 [payout reports](docs/company_payout_reports.md) per company, marketplace, and currency, retaining
 the exact inputs used. Source and fee changes refresh eligible reports as dates mature.
 
@@ -26,8 +27,10 @@ and source coverage.
 One named enum category selects the allocation: `FINANCES`, `SELBOX`,
 `DATA_KIOSK`, or `ANALYSIS_ONLY`. Finances supplies direct company facts and
 account controls; selected Data Kiosk components supply company costs.
-Analysis-only components stay outside strict financial totals. Dashboard estimates
-combine all eligible transaction sources, as described in the query contract. Finance batches
+Analysis-only components stay outside strict financial totals. Current totals include only the
+`FINANCES` and `DATA_KIOSK` company categories; the administrator transaction list also retains
+eligible SelBox activity. Lists and current totals use UTC periods. Original marketplace-local
+dates determine fee periods and saved payout months. Finance batches
 record exact observed transaction versions and reuse unchanged contents. Data Kiosk batches likewise
 record reusable complete-day versions, including empty days. Both retain independent Amazon observation ordering.
 Application accounts use three roles: Administrator (`administrator`), Member (`member`),

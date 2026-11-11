@@ -26,10 +26,11 @@ cleanup status and writes results atomically.
 
 - **Pages and counts:** member/administrator newest, oldest, and marketplace reads with and without a 60-day range. A separate
   exact count starts after page rows arrive; its result must match the combined page/count response.
-- **Summaries and options:** latest-day/month and 60-day totals, Type/currency groups, marketplace totals, and the
+- **Summaries and options:** previous-day/month and 60-day totals, Type/currency groups, marketplace totals, and the
   administrator's complete SKU catalog, including historical facts and registered-only SKUs. Untimed
   authorized SQL provides independent exact-value references. Only current RPCs are timed;
-  general REST aggregates stay disabled.
+  general REST aggregates stay disabled. The day and month immediately precede the latest visible
+  UTC transaction date; month-end does not change that rule.
 - **Search and amount ordering:** Transactions for members and administrators, plus both raw source
   datasets for administrators. Exact OR search sets resolve from raw SKU,
   Type, Marketplace, and Source values before timing; currency is excluded. Filtered date and amount

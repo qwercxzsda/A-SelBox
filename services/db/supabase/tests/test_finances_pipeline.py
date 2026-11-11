@@ -2,12 +2,13 @@
 
 import json
 from dataclasses import replace
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import cast
 
 import psycopg
 
+from services.db.supabase.tests.finances_fixtures import finances_capture
 from services.db.supabase.tests.integration_support import DatabaseTestCase, TransactionDatabase
 from services.db.supabase.tests.local_database import require_row
 from services.sync.src.archives.storage import archive_document, load_document_archive
@@ -300,6 +301,37 @@ class FinancesPipelineTests(DatabaseTestCase):
             (True,),
         )
 
+    def test_multi_month_empty_reconciliation_refreshes_every_covered_month(self) -> None:
+        self.accept(*self.capture([native_transaction("A")]))
+        company = self.completed_old_month()
+        months = [date(2026, 8, 1), date(2026, 9, 1), date(2026, 10, 1)]
+        self.connection.execute(
+            "INSERT INTO private.payout_report_refresh_state "
+            "(company_id,month,requested_revision,completed_revision) "
+            "SELECT %s,month,17,17 FROM unnest(%s::date[]) month "
+            "ON CONFLICT(company_id,month) DO UPDATE SET "
+            "requested_revision=17,completed_revision=17",
+            (company, months),
+        )
+        acquisition = finances_capture(
+            self.storage,
+            [],
+            seller="seller-one",
+            start=date(2026, 8, 31),
+            end=date(2026, 10, 1),
+        )
+        self.accept(acquisition, prepare_finances_acquisition(acquisition, self.storage))
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT month,requested_revision,completed_revision "
+                "FROM private.payout_report_refresh_state "
+                "WHERE company_id=%s AND month=ANY(%s::date[]) ORDER BY month",
+                (company, months),
+            ).fetchall(),
+            [(month, 18, 17) for month in months],
+        )
+        self.assertEqual(self.old_month_revisions(company), (17, 17))
+
     def test_new_sku_on_existing_native_id_requeues_historical_scope(self) -> None:
         self.accept(*self.capture([native_transaction("A")]))
         company = self.completed_old_month()
@@ -329,9 +361,8 @@ class FinancesPipelineTests(DatabaseTestCase):
                 page = replace(
                     page,
                     request_parameters=transaction_query_parameters(
-                        (market,),
-                        acquisition.query_start_date,
-                        acquisition.query_end_date,
+                        acquisition.posted_after,
+                        acquisition.posted_before,
                         observed_at=acquisition.capture_started_at,
                     ),
                 )

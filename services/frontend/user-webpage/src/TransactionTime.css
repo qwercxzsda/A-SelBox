@@ -1,0 +1,19 @@
+.transaction-time {
+  display: grid;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.transaction-date {
+  font-size: var(--ui-font-data);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.transaction-clock {
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+}

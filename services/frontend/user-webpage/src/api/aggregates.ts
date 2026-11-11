@@ -1,4 +1,4 @@
-import type { CurrencyTotal, TransactionTypeTotal } from "./types.ts";
+import type { CurrencyTotal, MarketplaceCurrencyTotal, TransactionTypeTotal } from "./types.ts";
 import { isCurrency, isJsonObject } from "./validation.ts";
 
 function aggregateCount(row: Record<string, unknown>, field: string): number {
@@ -28,12 +28,15 @@ function requireTotalRow(value: unknown): Record<string, unknown> {
   return value;
 }
 
-export function decodeCurrencyTotals(rows: unknown[]): CurrencyTotal[] {
+export function decodeMarketplaceCurrencyTotals(rows: unknown[]): MarketplaceCurrencyTotal[] {
   return rows.map((value) => {
     const row = requireTotalRow(value);
     if (row.component_type !== undefined && row.component_type !== null)
-      throw new Error("Aggregation returned an invalid currency group");
-    return decodeTotalFields(row);
+      throw new Error("Aggregation returned an invalid marketplace currency group");
+    const marketplace = row.marketplace_name;
+    if (typeof marketplace !== "string" || !marketplace.trim() || marketplace.includes("\0"))
+      throw new Error("Aggregation returned an invalid marketplace");
+    return { marketplace, ...decodeTotalFields(row) };
   });
 }
 

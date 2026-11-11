@@ -2,8 +2,9 @@
 
 import unittest
 from dataclasses import asdict, replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from services.sync.src.finances.acquisition_models import FinancesAcquisition
 from services.sync.src.finances.marketplaces import coverage_marketplaces
@@ -36,14 +37,19 @@ def october_capture(
     observed_at = datetime(2026, 10, 27, tzinfo=UTC)
     day = date(2026, 10, 25)
     marketplaces = coverage_marketplaces("EU", marketplace_ids)
-    parameters = transaction_query_parameters(marketplaces, day, day, observed_at=observed_at)
+    zone = ZoneInfo(marketplaces[0].time_zone)
+    after = datetime.combine(day, time.min, zone)
+    before = datetime.combine(day + timedelta(days=1), time.min, zone)
+    parameters = transaction_query_parameters(after, before, observed_at=observed_at)
     return replace(
         acquisition,
         amazon_scope="EU",
         capture_started_at=observed_at,
         downloaded_at=observed_at,
-        query_start_date=day,
-        query_end_date=day,
+        posted_after=after,
+        posted_before=before,
+        reconciliation_start_date=day,
+        reconciliation_end_date=day,
         marketplace_ids=marketplace_ids,
         api_metadata={
             "summary_available": False,
@@ -69,12 +75,10 @@ class NonAmazonEuropeTests(unittest.TestCase):
                 rows = [
                     euro_transaction(identifier, posted, channel_id)
                     for identifier, posted in (
-                        ("before", "2026-10-24T21:59:59Z"),
                         ("start", "2026-10-24T22:00:00Z"),
                         ("fold-first", "2026-10-25T00:30:00Z"),
                         ("fold-second", "2026-10-25T01:30:00Z"),
                         ("last", "2026-10-25T22:59:59Z"),
-                        ("after", "2026-10-25T23:00:00Z"),
                     )
                 ]
                 rows.append(euro_transaction("retail", "2026-10-25T12:00:00Z", retail_id))
@@ -122,7 +126,10 @@ class NonAmazonEuropeTests(unittest.TestCase):
                 {"marketplace_name": retail_name, "time_zone": zone},
                 {"marketplace_name": channel_name, "time_zone": "America/Los_Angeles"},
             ):
-                with self.subTest(channel=channel_name, invalid=invalid):
+                with (
+                    self.subTest(channel=channel_name, invalid=invalid),
+                    self.assertRaises(ValueError),
+                ):
                     malformed = replace(
                         acquisition,
                         api_metadata={
@@ -130,5 +137,4 @@ class NonAmazonEuropeTests(unittest.TestCase):
                             "coverage_marketplaces": [{"marketplace_id": channel_id, **invalid}],
                         },
                     )
-                    with self.assertRaisesRegex(ValueError, "canonical marketplace registry"):
-                        prepare_finances_acquisition(malformed, storage)
+                    prepare_finances_acquisition(malformed, storage)

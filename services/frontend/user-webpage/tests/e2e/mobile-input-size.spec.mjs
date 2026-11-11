@@ -56,7 +56,7 @@ async function checkWorkspaceControls(page, mobile) {
   await expect(typeMenu.getByRole("checkbox").first()).toBeVisible();
   await checkPageWidth(page);
   await typeMenu.getByRole("button", { name: "Done", exact: true }).click();
-  const dateMenu = await openColumn(page, "Date");
+  const dateMenu = await openColumn(page, "Date (UTC)");
   await checkControl(dateMenu.getByLabel("From date", { exact: true }), mobile);
   await checkControl(dateMenu.getByLabel("To date", { exact: true }), mobile);
   await dateMenu.getByRole("button", { name: "Close options", exact: true }).click();

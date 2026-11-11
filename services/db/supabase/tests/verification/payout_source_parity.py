@@ -1,5 +1,6 @@
-"""Compare live monthly estimates with frozen reports using authenticated reads."""
+"""Compare source-local financial allocations with frozen payout reports."""
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -28,13 +29,45 @@ def normalized_totals(value: dict[str, Any]) -> set[tuple[Any, ...]]:
     }
 
 
+def source_period_totals(
+    connection: Connection,
+    user: str,
+    start: date,
+    end: date,
+    company: str,
+    currency: str,
+    marketplace: str,
+    grouped: bool,
+) -> dict[str, Any]:
+    """Payout periods follow source accounting dates, not the Transactions UTC calendar."""
+    return as_user(
+        connection,
+        user,
+        """
+        with totals as (
+            select currency, case when %s then component_type end as component_type,
+                sum(source_amount)::text as reported_amount,
+                sum(fee_amount)::text as service_fee, sum(company_amount)::text as company_amount,
+                count(*)::text as row_count, count(company_amount)::text as known_company_count
+            from public.live_company_components
+            where authoritative and activity_date between %s and %s
+                and company_id=%s::uuid and currency=%s and marketplace_name=%s
+            group by 1,2
+        ) select jsonb_build_object('rows',coalesce(jsonb_agg(to_jsonb(t)
+            order by currency collate "C",component_type collate "C" nulls first),'[]'::jsonb),
+            'next_offset',null) from totals t
+        """,
+        (grouped, start, end, company, currency, marketplace),
+    )[0][0]
+
+
 def verify_record_parity(
     connection: Connection, user: str, report: tuple[Any, ...]
 ) -> tuple[int, int]:
-    """Every paginated live record must have the same saved source and amounts."""
+    """Each source-local allocation must have the same saved source and amounts."""
     report_id, company, start, end, currency, *_ = report
     marketplace = report[8]
-    require(marketplace is not None, "Monetary estimate comparison requires a named marketplace")
+    require(marketplace is not None, "Monetary source comparison requires a named marketplace")
     expected = {
         (
             source,
@@ -56,47 +89,31 @@ def verify_record_parity(
             (report_id,),
         )
     }
-    actual: set[tuple[Any, ...]] = set()
-    offset = 0
-    while True:
-        page = as_user(
+    actual = {
+        (source, str(source_id), str(day), sku, component_type, amount, fee, company_amount)
+        for source, source_id, day, sku, component_type, amount, fee, company_amount in as_user(
             connection,
             user,
-            "select public.transaction_page(p_date_from=>%s,p_date_to=>%s,"
-            "p_company_ids=>array[%s]::uuid[],p_currency=>%s,p_marketplaces=>array[%s]::text[],"
-            "p_limit=>1000,p_offset=>%s,p_include_count=>true)",
-            (start, end, company, currency, marketplace, offset),
-        )[0][0]
-        require(int(page["total_count"]) == len(expected), "Estimate record count differs")
-        for row in page["rows"]:
-            actual.add(
-                (
-                    row["source"],
-                    row["source_row_id"],
-                    row["activity_date"],
-                    row["sku"],
-                    row["component_type"],
-                    Decimal(row["source_amount"]),
-                    Decimal(row["fee_amount"]),
-                    Decimal(row["company_amount"]),
-                )
-            )
-        offset += len(page["rows"])
-        if len(page["rows"]) < 1000:
-            break
-    require(actual == expected, "Live estimate records differ from frozen payout records")
-    require(offset == len(actual), "Paginated estimate records were duplicated")
+            "select source,source_row_id,activity_date,sku,component_type,"
+            "source_amount,fee_amount,company_amount "
+            "from public.live_company_components where authoritative "
+            "and activity_date between %s and %s "
+            "and company_id=%s::uuid and currency=%s and marketplace_name=%s",
+            (start, end, company, currency, marketplace),
+        )
+    }
+    require(actual == expected, "Current source allocations differ from frozen payout records")
     return len(actual), sum(row[5] == 0 for row in actual)
 
 
-def verify_estimate_parity(connection: Connection, administrator: str) -> dict[str, object]:
+def verify_payout_source_parity(connection: Connection, administrator: str) -> dict[str, object]:
     """Match latest complete monthly reports, types, and records for both roles."""
     reports = connection.execute(
         "select id,company_id,start_date,end_date,currency,source_amount,fee_amount,"
         "company_amount,marketplace_name from public.latest_company_payout_reports "
         "where currency is not null"
     ).fetchall()
-    require(bool(reports), "No monetary reports were available for estimate comparison")
+    require(bool(reports), "No monetary reports were available for source comparison")
     members = dict(
         connection.execute(
             "select company_id,user_id::text from public.app_accounts where access_role='member'"
@@ -107,9 +124,7 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
     type_groups = 0
     for report in reports:
         report_id, company, start, end, currency, source, fee, amount, marketplace = report
-        require(
-            marketplace is not None, "Monetary estimate comparison requires a named marketplace"
-        )
+        require(marketplace is not None, "Monetary source comparison requires a named marketplace")
         for user in (administrator, members[company]):
             for grouped in (False, True):
                 frozen = as_user(
@@ -118,17 +133,12 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
                     "select public.payout_report_totals(%s,p_group_by_type=>%s)",
                     (report_id, grouped),
                 )[0][0]
-                live = as_user(
-                    connection,
-                    user,
-                    "select public.transaction_totals(p_date_from=>%s,p_date_to=>%s,"
-                    "p_company_ids=>array[%s]::uuid[],p_currency=>%s,"
-                    "p_marketplaces=>array[%s]::text[],p_group_by_type=>%s)",
-                    (start, end, company, currency, marketplace, grouped),
-                )[0][0]
+                live = source_period_totals(
+                    connection, user, start, end, company, currency, marketplace, grouped
+                )
                 require(
                     normalized_totals(live) == normalized_totals(frozen),
-                    "Monthly estimate and frozen payout totals differ",
+                    "Current source and frozen payout totals differ",
                 )
                 if not grouped:
                     amounts = [
@@ -150,5 +160,5 @@ def verify_estimate_parity(connection: Connection, administrator: str) -> dict[s
         "zero_amount_records": zero_amount_records,
         "administrator_and_member_totals_match": True,
         "exact_type_amounts_and_counts_match": True,
-        "paginated_records_and_amounts_match": True,
+        "source_records_and_amounts_match": True,
     }

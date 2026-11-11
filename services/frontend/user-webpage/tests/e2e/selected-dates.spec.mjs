@@ -1,14 +1,15 @@
 import { liveRow, skuAssignments } from "./api-fixtures.mjs";
-import { applyDates, columnTrigger } from "./table-actions.mjs";
+import { applyDates, applySummaryDates, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import {
   summaryBucket,
-  summaryCards as cards,
+  summaryCard,
+  summaryPeriods as periods,
   summaryAmount as amount,
 } from "./summary-fixtures.mjs";
 
-test("period shortcuts reset pagination and preserve refinements after a tab roundtrip", async ({
+test("the UTC period shortcut resets list pagination and preserves refinements after a tab roundtrip", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -34,14 +35,19 @@ test("period shortcuts reset pagination and preserve refinements after a tab rou
     summaryBucket("2026-02-01", "1"),
     summaryBucket("2026-02-28", "31", { rowCount: 31 }),
     summaryBucket("2026-03-15", "130", { rowCount: 32 }),
+    summaryBucket("2026-03-16", "0"),
   ];
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
-  const { day, month, selected } = cards(page);
+  const { day, month, selected } = periods(page);
+
   await expect(amount(day, "Reported amount")).toHaveText("130.00 USD");
+
   await expect(amount(month, "Reported amount")).toHaveText("32.00 USD");
-  await expect(selected).toContainText("Select a date range to see totals.");
-  await expect(selected.locator("dl")).toHaveCount(0);
+
+  await expect(selected).toContainText("Choose dates");
+
+  await expect(selected.locator("[data-amount-field]")).toHaveCount(0);
   const aggregateRequests = fixture.aggregateRequests.length;
 
   await page.getByLabel("Search", { exact: true }).fill("TARGET");
@@ -59,32 +65,39 @@ test("period shortcuts reset pagination and preserve refinements after a tab rou
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
   const ordering = fixture.requests.at(-1).params.get("order");
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(cards(page).summaries).toHaveCount(0);
+  await expect(periods(page).summaries).toHaveCount(0);
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
-  await month.getByRole("button", { name: /^Filter transactions to / }).click();
+
+  await summaryCard(page, "Last month")
+    .getByRole("button", { name: "Filter transactions to February 2026 · UTC", exact: true })
+    .click();
   await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
+
   await expect(amount(selected, "Reported amount")).toHaveText("32.00 USD");
-  expect(fixture.requests.at(-1).params.getAll("activity_date")).toEqual([
-    "gte.2026-02-01",
-    "lte.2026-02-28",
+  expect(fixture.requests.at(-1).params.getAll("activity_at")).toEqual([
+    "gte.2026-02-01T00:00:00.000000Z",
+    "lt.2026-03-01T00:00:00.000000Z",
   ]);
   expect(fixture.requests.at(-1).params.get("offset")).toBe("0");
 
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
-  const dayShortcut = day.getByRole("button", { name: /^Filter transactions to / });
-  await dayShortcut.focus();
-  await dayShortcut.press("Enter");
+  await applyDates(page, "2026-03-15", "2026-03-15");
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
+
   await expect(amount(selected, "Reported amount")).toHaveText("130.00 USD");
-  await expect(selected).toContainText("32 records");
+
+  await expect(selected.getByLabel("32 records", { exact: true })).toBeVisible();
   const request = fixture.requests.at(-1).params;
-  expect(request.getAll("activity_date")).toEqual(["gte.2026-03-15", "lte.2026-03-15"]);
+  expect(request.getAll("activity_at")).toEqual([
+    "gte.2026-03-15T00:00:00.000000Z",
+    "lt.2026-03-16T00:00:00.000000Z",
+  ]);
   expect(request.get("offset")).toBe("0");
   expect(request.get("source")).toBe('in.("FINANCES")');
   expect(request.get("or")).toContain("TARGET");
@@ -103,6 +116,7 @@ test("manual dates include endpoints, support open ranges, and expose currencies
     summaryBucket("2026-01-11", "5"),
     summaryBucket("2026-02-05", "20"),
     summaryBucket("2026-03-15", "40"),
+    summaryBucket("2026-03-16", "0"),
   ];
   fixture.liveRows = fixture.aggregateRows.map((row, index) => ({
     ...liveRow("RANGE", index + 1),
@@ -111,58 +125,71 @@ test("manual dates include endpoints, support open ranges, and expose currencies
     source_amount: row.reported_amount,
   }));
   await signIn(page);
-  const { summaries, day, month, selected } = cards(page);
+  const { summaries, day, month, selected } = periods(page);
+
   await expect(amount(day, "Reported amount")).toHaveText("40.00 USD");
+
   await expect(amount(month, "Reported amount")).toHaveText("20.00 USD");
-  await expect(summaries.getByLabel("Summary currency", { exact: true })).toHaveValue("USD");
+  await expect(summaries.getByRole("combobox")).toHaveCount(0);
   const aggregateRequests = fixture.aggregateRequests.length;
 
-  await applyDates(page, "2026-01-10", "2026-01-11");
+  await applySummaryDates(page, "2026-01-10", "2026-01-11");
+
   await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
   expect(fixture.aggregateRequests).toHaveLength(aggregateRequests + 1);
-  const currency = summaries.getByLabel("Summary currency", { exact: true });
-  await expect(currency.locator("option")).toHaveText(["JPY", "USD"]);
-  await currency.selectOption("JPY");
-  await expect(amount(selected, "Reported amount")).toHaveText("100.12 JPY");
-  await expect(selected).toContainText("2 records");
-  await expect(day).toContainText("No transactions in JPY.");
+
+  await expect(selected.locator('tr[data-currency="JPY"]')).toBeVisible();
+
+  await expect(selected.locator('tr[data-currency="USD"]')).toBeVisible();
+
+  await expect(amount(selected, "Reported amount", "JPY")).toHaveText("100.12 JPY");
+
+  await expect(selected.getByLabel("2 records", { exact: true })).toBeVisible();
+
+  await expect(day.locator('tr[data-currency="JPY"]')).toHaveCount(0);
   expect(fixture.aggregateRequests).toHaveLength(aggregateRequests + 1);
 
-  await applyDates(page, "2026-01-11", "");
-  await expect(amount(selected, "Reported amount")).toHaveText("0.00 JPY");
+  await applySummaryDates(page, "2026-01-11", "");
+
+  await expect(amount(selected, "Reported amount", "JPY")).toHaveText("0.00 JPY");
   await expect
-    .poll(() => fixture.requests.at(-1).params.getAll("activity_date"))
-    .toEqual(["gte.2026-01-11"]);
-  await currency.selectOption("USD");
+    .poll(() => fixture.requests.at(-1).params.getAll("activity_at"))
+    .toEqual(["gte.2026-01-11T00:00:00.000000Z"]);
+
   await expect(amount(selected, "Reported amount")).toHaveText("65.00 USD");
 
-  await applyDates(page, "", "2026-01-10");
-  await currency.selectOption("JPY");
-  await expect(amount(selected, "Reported amount")).toHaveText("100.12 JPY");
+  await applySummaryDates(page, "", "2026-01-10");
+
+  await expect(amount(selected, "Reported amount", "JPY")).toHaveText("100.12 JPY");
   await expect
-    .poll(() => fixture.requests.at(-1).params.getAll("activity_date"))
-    .toEqual(["lte.2026-01-10"]);
-  await applyDates(page, "2026-01-20", "2026-01-25");
-  await expect(selected).toContainText("No transactions in JPY.");
-  await expect(selected.locator("dl")).toHaveCount(0);
+    .poll(() => fixture.requests.at(-1).params.getAll("activity_at"))
+    .toEqual(["lt.2026-01-11T00:00:00.000000Z"]);
+  await applySummaryDates(page, "2026-01-20", "2026-01-25");
+
+  await expect(selected).toContainText("No transactions");
+
+  await expect(selected.locator("[data-amount-field]")).toHaveCount(0);
   const periodRequestCount = fixture.aggregateRequests.length;
   expect(periodRequestCount).toBe(aggregateRequests + 4);
 
-  await columnTrigger(page, "Date").click();
+  await columnTrigger(page, "Date (UTC)").click();
   await page
-    .getByRole("dialog", { name: "Date options", exact: true })
+    .getByRole("dialog", { name: "Date (UTC) options", exact: true })
     .getByRole("button", { name: "Clear dates", exact: true })
     .click();
-  await expect(selected).toContainText("Select a date range to see totals.");
-  await expect(selected.locator("dl")).toHaveCount(0);
-  await expect(day).toContainText("No transactions in JPY.");
-  await currency.selectOption("USD");
+
+  await expect(selected).toContainText("Choose dates");
+
+  await expect(selected.locator("[data-amount-field]")).toHaveCount(0);
+
+  await expect(day.locator('tr[data-currency="JPY"]')).toHaveCount(0);
+
   await expect(amount(day, "Reported amount")).toHaveText("40.00 USD");
   expect(fixture.aggregateRequests).toHaveLength(periodRequestCount);
 });
 
 for (const width of [320, 390]) {
-  test(`three estimated cards fit ${width}px and the date shortcut works with Space`, async ({
+  test(`three totals cards fit ${width}px and the shared date chooser works with Space`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 });
@@ -172,31 +199,32 @@ for (const width of [320, 390]) {
     fixture.aggregateRows = [
       summaryBucket("2026-02-05", "20"),
       summaryBucket("2026-03-15", precise),
+      summaryBucket("2026-03-16", "0"),
     ];
     await signIn(page);
-    const { summaries, day, selected } = cards(page);
+    const { summaries, day, selected } = periods(page);
+
     await expect(amount(day, "Reported amount")).toHaveText(displayed);
-    const shortcut = day.getByRole("button", { name: /^Filter transactions to / });
+    const shortcut = summaries.getByRole("button", { name: "Choose dates · UTC", exact: true });
     await shortcut.focus();
     await shortcut.press("Space");
+    const chooser = page.getByRole("dialog", { name: "Choose summary dates", exact: true });
+    await chooser.getByLabel("From date", { exact: true }).fill("2026-03-15");
+    await chooser.getByLabel("To date", { exact: true }).fill("2026-03-15");
+    await chooser.getByRole("button", { name: "Apply dates", exact: true }).click();
+
     await expect(amount(selected, "Reported amount")).toHaveText(displayed);
-    const articles = summaries.getByRole("article");
-    await expect(articles).toHaveCount(3);
-    const dimensions = await articles.evaluateAll((elements) =>
-      elements.map((element) => {
-        const bounds = element.getBoundingClientRect();
-        return {
-          left: bounds.left,
-          right: bounds.right,
-          width: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        };
-      }),
-    );
-    for (const bounds of dimensions) {
-      expect(bounds.left).toBeGreaterThanOrEqual(0);
-      expect(bounds.right).toBeLessThanOrEqual(width);
-      expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.width + 1);
+    const bounds = await summaries.boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    await expect(summaries.getByRole("article")).toHaveCount(3);
+    for (const title of ["Last day", "Last month", "Selected dates"]) {
+      const card = summaries.getByRole("article", { name: `${title} totals`, exact: true });
+      const dimensions = await card.evaluate((element) => ({
+        height: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+      }));
+      expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.height + 1);
     }
     expect(
       await page.locator("html").evaluate((element) => element.scrollWidth),

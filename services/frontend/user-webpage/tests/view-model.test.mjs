@@ -45,7 +45,7 @@ test("every displayed sort uses a real allowed API column", () => {
     displayColumns("live", false)
       .filter((column) => column.sortable)
       .map((column) => column.key),
-    ["activity_date", "source_amount"],
+    ["activity_at", "source_amount"],
   );
 });
 

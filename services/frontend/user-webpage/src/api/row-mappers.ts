@@ -2,6 +2,7 @@ import { DATASET_CONFIG } from "./config.ts";
 import type { CanonicalRow, TableDatasetKey } from "./types.ts";
 import { isJsonObject } from "./validation.ts";
 import { payoutMarketplace } from "../payout-report-scope.ts";
+import { parseRecordTimestamp } from "../date-display.ts";
 
 export function mapDatasetRows(dataset: TableDatasetKey, records: unknown[]): CanonicalRow[] {
   const config = DATASET_CONFIG[dataset];
@@ -21,6 +22,11 @@ export function mapDatasetRows(dataset: TableDatasetKey, records: unknown[]): Ca
       }
     }
     if (dataset === "payouts") payoutMarketplace(row);
+    if (
+      (dataset === "live" || dataset === "finances" || dataset === "data_kiosk") &&
+      (!row.activity_at || !parseRecordTimestamp(row.activity_at))
+    )
+      throw new Error("Data response has an invalid transaction timestamp");
     return row;
   });
 }

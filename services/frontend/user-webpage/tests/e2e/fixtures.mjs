@@ -104,8 +104,8 @@ export async function mockSupabase(page) {
       throw new Error(`Unexpected test API request: ${url.pathname}`);
     const args = request.postDataJSON();
     url.search = transactionPageParams(args).toString();
-    if (args?.p_limit === 1 && args.p_include_count === false)
-      return respondWithLatestDate(fixture, context, args);
+    if (args.p_limit === 1 && args.p_include_count === false)
+      return respondWithLatestDate(fixture, context);
     return respondWithTransactions(fixture, context, args);
   });
   await page.goto("/");

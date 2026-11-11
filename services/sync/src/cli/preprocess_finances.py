@@ -6,7 +6,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from ..database.connection import PostgresDatabaseConnection
-from ..finances.workflow import preprocess_finances_manifest
+from ..finances.manifests import read_finances_manifest
+from ..finances.workflow import preprocess_finances_acquisition
 from .archive_common import add_archive_arguments, archive_storage_from_args
 from .common import initialize_cli
 
@@ -23,10 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = initialize_cli(build_parser(), argv)
     try:
+        acquisition = read_finances_manifest(args.manifest)
         storage = archive_storage_from_args(args)
         with PostgresDatabaseConnection(args.database_url) as database:
-            runs = preprocess_finances_manifest(database, storage, args.manifest)
-        logger.info("Finances manifest preprocessing complete [run_count=%s].", len(runs))
+            batch_id = preprocess_finances_acquisition(database, storage, acquisition)
+        logger.info("Finances preprocessing complete [batch_id=%s].", batch_id)
         return 0
     except Exception as error:
         logger.error("Finances preprocessing failed [exception_type=%s].", type(error).__name__)

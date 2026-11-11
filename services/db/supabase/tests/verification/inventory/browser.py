@@ -21,7 +21,7 @@ def verify_browser(
         "apiUrl": stack.api_url.replace("127.0.0.1", "host.docker.internal").replace(
             "localhost", "host.docker.internal"
         ),
-        "anonKey": stack.anon_key,
+        "publishableKey": stack.publishable_key,
         "accounts": accounts,
     }
     # Ephemeral login credentials and the public browser key travel over stdin,

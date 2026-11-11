@@ -92,10 +92,13 @@ posting dates, not modification dates. Original/release links must identify each
 activity contribution; statuses alone are insufficient. Missing or conflicting
 required identity/linkage information fails preprocessing instead of guessing.
 
-Finances pages and Summary responses have no common snapshot token. Python rejects an observation
-when Summary is unavailable or mismatched; no accepted acquisition, batch, transaction version or
-membership enters PostgreSQL. Prior accepted state remains selected. A fixed maturity cutoff is a
-business eligibility rule, not proof that Amazon will never revise the period.
+Finances pages and Summary responses have no common snapshot token. An omitted `postedBefore`
+uses Amazon's approximately request-time-minus-two-minutes default, without promising one frozen
+upper cutoff across all pages. Python validates Summary only for the declared complete local-day
+interval inside that retrieval. If a required control is unavailable or mismatched, the batch is
+rejected and prior accepted state remains selected. Partial boundary-day transactions can be
+accepted without certifying those days as reconciled. The maturity cutoff sets payout eligibility
+and the routine refresh lookback; it does not prove that Amazon will never revise older periods.
 
 Historical access is finite. Retain raw captures independently of Amazon's
 retrieval window, including data needed to reproduce saved reports. See the

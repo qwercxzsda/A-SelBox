@@ -1,0 +1,29 @@
+.transaction-type {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.transaction-type-label {
+  display: block;
+  min-width: 0;
+  font-size: var(--ui-font-data);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.transaction-type-group {
+  display: block;
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.transaction-type.missing-value .transaction-type-label {
+  font-weight: 600;
+}

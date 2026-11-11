@@ -15,7 +15,7 @@ async function setup(page) {
   const fixture = await mockSupabase(page);
   setupFinancialReview(fixture);
   fixture.skuConfigurationItems = [item("S1", { company_id: REVIEW_COMPANY })];
-  fixture.aggregateRows = [summaryBucket("2026-09-01", "10")];
+  fixture.aggregateRows = [summaryBucket("2026-09-01", "10"), summaryBucket("2026-09-02", "0")];
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
   await mockInventory(page, [inventoryRow("GESTURE-SKU", { company_id: REVIEW_COMPANY })]);
   await signIn(page);
@@ -55,7 +55,9 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
   await checkPanelGestures(page, details);
   await closePanel(page, details);
 
-  await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
+  await page
+    .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
+    .click();
   const breakdown = drawer(page, "Amounts by type");
   await checkPanelGestures(page, breakdown);
   await closePanel(page, breakdown);

@@ -159,7 +159,7 @@ try {
   for await (const chunk of process.stdin) input += chunk;
   const config = JSON.parse(input);
   process.env.VITE_SUPABASE_URL = config.apiUrl;
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = config.anonKey;
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = config.publishableKey;
   server = await createServer({
     server: { host: "127.0.0.1", port: 5179, strictPort: true },
     logLevel: "silent",

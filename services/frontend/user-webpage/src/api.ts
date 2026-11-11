@@ -12,7 +12,7 @@ import type {
 } from "./api/financial-review.ts";
 import type {
   Company,
-  CurrencyTotal,
+  MarketplaceCurrencyTotal,
   FetchDatasetPageOptions,
   FetchDatasetCountOptions,
   FetchLatestTransactionDateOptions,
@@ -40,6 +40,7 @@ export type {
   CanonicalRow,
   Company,
   CurrencyTotal,
+  MarketplaceCurrencyTotal,
   DatasetFilters,
   DatasetKey,
   TableDatasetKey,
@@ -152,7 +153,7 @@ export const fetchLatestTransactionDate = (
 
 export const fetchTransactionPeriodTotals = (
   options: FetchTransactionPeriodTotalsOptions,
-): Promise<CurrencyTotal[]> => getDefaultClient().fetchTransactionPeriodTotals(options);
+): Promise<MarketplaceCurrencyTotal[]> => getDefaultClient().fetchTransactionPeriodTotals(options);
 
 export const fetchTransactionTypeTotals = (
   options: FetchTransactionTypeTotalsOptions,

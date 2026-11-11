@@ -16,12 +16,12 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("Amazon");
   await page.getByLabel("Rows", { exact: true }).selectOption("50");
   await expect(rowWithSku(page, "ALPHA-050")).toBeVisible();
-  await columnTrigger(page, "Date").click();
+  await columnTrigger(page, "Date (UTC)").click();
   await page
-    .getByRole("dialog", { name: "Date options", exact: true })
+    .getByRole("dialog", { name: "Date (UTC) options", exact: true })
     .getByRole("button", { name: "Oldest first", exact: true })
     .click();
-  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
+  await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "ascending");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
@@ -36,7 +36,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
   await expect(page.getByRole("form", { name: "Page 2 of 3", exact: true })).toBeVisible();
-  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
+  await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "ascending");
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("GROUP-001");
@@ -248,7 +248,6 @@ test("Transactions retains zero Data Kiosk rows in pagination and counting", asy
     })),
   ];
   await signIn(page);
-  await expect(rowWithSku(page, "FINANCES-ZERO-001")).toBeVisible();
   await expect(rowWithSku(page, "KIOSK-ZERO-001")).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     26,
@@ -257,6 +256,7 @@ test("Transactions retains zero Data Kiosk rows in pagination and counting", asy
   await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "KIOSK-NONZERO-001")).toBeVisible();
+  await expect(rowWithSku(page, "FINANCES-ZERO-001")).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     6,
   );

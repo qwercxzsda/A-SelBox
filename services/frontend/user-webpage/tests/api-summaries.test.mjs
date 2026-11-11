@@ -4,29 +4,17 @@ import { createApiClient } from "../src/api/client.ts";
 import {
   SETTINGS,
   aggregateRow,
-  assertRpcRequest,
   datasetRecord,
+  assertRpcRequest,
   responseJson,
   latestDateRequest,
   periodTotalsRequest,
 } from "./api-fixtures.mjs";
 
-test("latest date uses the shared one-row page RPC without table refinements or an exact count", async () => {
-  const signal = new AbortController().signal;
-  let requests = 0;
+test("one shared UTC anchor uses the latest accessible transaction without any UI filter", async () => {
   const client = createApiClient(SETTINGS, async (url, init) => {
-    requests += 1;
-    assert.equal(new URL(url).pathname, "/rest/v1/rpc/transaction_page");
-    assert.equal(init.method, "POST");
-    assert.deepEqual(JSON.parse(init.body), {
-      p_limit: 1,
-      p_offset: 0,
-      p_direction: "desc",
-      p_order_by: "date",
-      p_search_skus: null,
-      p_search_types: null,
-      p_search_marketplaces: null,
-      p_search_sources: null,
+    const args = assertRpcRequest(assert, url, init, "transaction_page");
+    assert.deepEqual(args, {
       p_date_from: null,
       p_date_to: null,
       p_company_ids: [],
@@ -35,73 +23,86 @@ test("latest date uses the shared one-row page RPC without table refinements or 
       p_sources: [],
       p_types: [],
       p_fee_applicable: null,
+      p_search_skus: null,
+      p_search_types: null,
+      p_search_marketplaces: null,
+      p_search_sources: null,
+      p_limit: 1,
+      p_offset: 0,
+      p_direction: "desc",
+      p_order_by: "date",
       p_include_count: false,
     });
-    assert.equal(new Headers(init.headers).get("Accept"), "application/json");
-    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-access");
-    assert.equal(new Headers(init.headers).has("Prefer"), false);
-    assert.ok(init.signal instanceof AbortSignal);
     return responseJson({
-      rows: [datasetRecord("live", { activity_date: "2024-02-29" })],
+      rows: [
+        datasetRecord("live", {
+          activity_date: "2026-11-06",
+          activity_at: "2026-11-07T07:59:59.999999Z",
+        }),
+      ],
       total_count: null,
     });
   });
   assert.equal(
     await client.fetchLatestTransactionDate(
       latestDateRequest({
-        signal,
+        companyIds: ["not-a-company"],
+        skus: ["anything"],
+        marketplaces: ["Amazon.co.jp"],
         dateFrom: "2020-01-01",
         dateTo: "2020-01-31",
         sources: ["DATA_KIOSK"],
         types: ["PRODUCT_SALES"],
-        search: "ignored table text",
+        search: "ignored",
+        feeApplicability: ["applicable"],
       }),
     ),
-    "2024-02-29",
+    "2026-11-07",
   );
-  assert.equal(requests, 1);
 });
 
-test("latest date distinguishes an empty scope from malformed or multiple rows", async () => {
+test("UTC anchor converts timestamp offsets instead of trusting the source calendar date", async () => {
+  const client = createApiClient(SETTINGS, async () =>
+    responseJson({
+      rows: [
+        datasetRecord("live", {
+          activity_date: "2026-11-07",
+          activity_at: "2026-11-07T00:15:00+09:00",
+        }),
+      ],
+      total_count: null,
+    }),
+  );
+  assert.equal(await client.fetchLatestTransactionDate(latestDateRequest()), "2026-11-06");
+});
+
+test("latest date distinguishes no accessible transactions from invalid page results", async () => {
   const empty = createApiClient(SETTINGS, async () =>
     responseJson({ rows: [], total_count: null }),
   );
   assert.equal(await empty.fetchLatestTransactionDate(latestDateRequest()), null);
   for (const rows of [
-    [datasetRecord("live", { activity_date: null })],
-    [datasetRecord("live", { activity_date: "" })],
-    [datasetRecord("live", { activity_date: "2026-02-29" })],
-    [datasetRecord("live", { activity_date: "0000-01-01" })],
-    [datasetRecord("live", { activity_date: "2026-09-19T00:00:00Z" })],
-    [datasetRecord("live", { activity_date: undefined })],
     [null],
-    [
-      datasetRecord("live", { activity_date: "2026-09-19" }),
-      datasetRecord("live", { activity_date: "2026-09-18" }),
-    ],
+    ...[null, "", "not-a-timestamp", "2026-11-07T00:00:00", undefined].map((activity_at) => [
+      datasetRecord("live", { activity_at }),
+    ]),
+    [datasetRecord("live"), datasetRecord("live")],
   ]) {
     const client = createApiClient(SETTINGS, async () => responseJson({ rows, total_count: null }));
     await assert.rejects(client.fetchLatestTransactionDate(latestDateRequest()));
   }
 });
 
-test("latest-date cancellation reaches the request and preserves the original abort reason", async () => {
+test("latest-date cancellation preserves the original abort reason", async () => {
   const controller = new AbortController();
-  const client = createApiClient(SETTINGS, async (url, { signal, body }) => {
-    assert.ok(signal instanceof AbortSignal);
+  const client = createApiClient(SETTINGS, async (url, { signal }) => {
     assert.equal(new URL(url).pathname, "/rest/v1/rpc/transaction_page");
-    assert.deepEqual(JSON.parse(body).p_skus, ["Cancel SKU"]);
-    assert.deepEqual(JSON.parse(body).p_marketplaces, ["Amazon.com"]);
-    return new Promise((_resolve, reject) => {
-      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
-    });
+    return new Promise((_resolve, reject) =>
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
+    );
   });
   const pending = client.fetchLatestTransactionDate(
-    latestDateRequest({
-      signal: controller.signal,
-      skus: ["Cancel SKU"],
-      marketplaces: ["Amazon.com"],
-    }),
+    latestDateRequest({ signal: controller.signal }),
   );
   const rejected = assert.rejects(pending, (error) => error === controller.signal.reason);
   controller.abort();
@@ -159,6 +160,7 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
     ),
     [
       {
+        marketplace: "Amazon.com",
         currency: "EUR",
         reportedAmount: "50",
         serviceFee: null,
@@ -167,6 +169,7 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
         missingFeeCount: 1,
       },
       {
+        marketplace: "Amazon.com",
         currency: "USD",
         reportedAmount: "200.123456789012345678",
         serviceFee: "-10",
@@ -211,6 +214,29 @@ test("period totals validate date bounds before HTTP and support open-ended rang
   assert.equal(requests[0].p_date_to, null);
   assert.equal(requests[1].p_date_from, null);
   assert.equal(requests[1].p_date_to, "2024-02-29");
+});
+
+test("period totals preserve separate marketplaces sharing a currency across pages", async () => {
+  const rows = [
+    aggregateRow({ marketplace_name: "Amazon.ca", reported_amount: "12.75" }),
+    aggregateRow({ marketplace_name: "Amazon.com", reported_amount: "85.25" }),
+  ];
+  const client = createApiClient(SETTINGS, async (_url, init) => {
+    const { p_offset: offset } = JSON.parse(init.body);
+    return responseJson({ rows: [rows[offset]], next_offset: offset === 0 ? 1 : null });
+  });
+  const totals = await client.fetchTransactionPeriodTotals(periodTotalsRequest());
+  assert.deepEqual(
+    totals.map(({ marketplace, currency, reportedAmount }) => ({
+      marketplace,
+      currency,
+      reportedAmount,
+    })),
+    [
+      { marketplace: "Amazon.ca", currency: "USD", reportedAmount: "12.75" },
+      { marketplace: "Amazon.com", currency: "USD", reportedAmount: "85.25" },
+    ],
+  );
 });
 
 test("totals reject malformed, truncated, oversized, repeated, or non-advancing pages", async () => {
@@ -271,6 +297,12 @@ test("totals reject invalid financial fields and preserve missing-fee informatio
     { company_amount: "Infinity" },
     { currency: "usd" },
     { currency: null },
+    { marketplace_name: null },
+    { marketplace_name: undefined },
+    { marketplace_name: "" },
+    { marketplace_name: " " },
+    { marketplace_name: "Amazon\0com" },
+    { marketplace_name: 1 },
     { known_company_count: "2" },
     { known_company_count: 1 },
     { row_count: "0" },

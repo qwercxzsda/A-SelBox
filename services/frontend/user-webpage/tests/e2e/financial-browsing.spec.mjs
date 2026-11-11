@@ -15,7 +15,7 @@ for (const role of ["administrator", "member"]) {
     fixture.assignments = skuAssignments(fixture.skuOptions);
     await signIn(page);
     await page.getByLabel("Rows", { exact: true }).selectOption("50");
-    await sortBy(page, "Date", "Oldest first");
+    await sortBy(page, "Date (UTC)", "Oldest first");
     await applyDates(page, "2026-09-01", "2026-09-30");
     await selectColumnOptions(page, "SKU", ["ALPHA-001", "ALPHA-002"]);
     await selectColumnOptions(page, "Source", ["Finances"]);
@@ -23,16 +23,16 @@ for (const role of ["administrator", "member"]) {
     await expect(filters).toContainText("3 filters applied");
     await expect(filters).toContainText("SKU: 2 selected");
     await expect(filters).toContainText("Source: Finances");
-    await expect(filters).toContainText("Date: 2026-09-01 – 2026-09-30");
+    await expect(filters).toContainText("Date (UTC): 2026-09-01 – 2026-09-30");
     await expect(
-      filters.getByRole("button", { name: /^Clear sku filter: ALPHA-001, ALPHA-002$/ }),
+      filters.getByRole("button", { name: /^SKU: 2 selected\. Clear filter\.$/ }),
     ).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath(`${role}-filters-1440.png`),
       animations: "disabled",
     });
 
-    await filters.getByRole("button", { name: /^Clear sku filter:/ }).click();
+    await filters.getByRole("button", { name: /^SKU: / }).click();
     await expect(filters).toContainText("2 filters applied");
     await expect(
       page.getByRole("table", { name: "Financial records" }).locator("tbody tr"),
@@ -48,7 +48,7 @@ for (const role of ["administrator", "member"]) {
       page.getByRole("table", { name: "Financial records" }).locator("tbody tr"),
     ).toHaveCount(40);
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-    await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
+    await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "ascending");
   });
 }
 
@@ -66,6 +66,9 @@ test("wide financial columns remain reachable at the top without reloading rows"
   const right = page.getByRole("button", { name: "Scroll table right", exact: true });
   const left = page.getByRole("button", { name: "Scroll table left", exact: true });
   await expect(left).toBeDisabled();
+  await page.getByRole("group", { name: "Record controls", exact: true }).evaluate((element) => {
+    element.scrollIntoView({ block: "start" });
+  });
   await expect(right).toBeInViewport();
   const reads = fixture.requests.length;
   await right.click();

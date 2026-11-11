@@ -24,7 +24,7 @@ for (const role of ["administrator", "member"]) {
 
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();
     await page.getByLabel("Rows", { exact: true }).selectOption("50");
-    await sortBy(page, "Date", "Oldest first");
+    await sortBy(page, "Date (UTC)", "Oldest first");
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
     await applyDates(page, "2026-01-01", "2026-01-31");

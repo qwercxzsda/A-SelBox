@@ -137,20 +137,19 @@ test("session verification reads the token's user from Auth rather than cached d
   }
 });
 
-test("client configuration accepts public keys and rejects secret or service-role keys", () => {
-  const legacyKey = (role) =>
+test("client configuration requires a publishable key and rejects JWT and secret keys", () => {
+  const jwtKey = (role) =>
     ["header", Buffer.from(JSON.stringify({ role })).toString("base64url"), "signature"].join(".");
-  for (const publishableKey of [SETTINGS.publishableKey, legacyKey("anon")]) {
-    assert.doesNotThrow(() => createApiClient({ ...SETTINGS, publishableKey }));
-  }
+  assert.doesNotThrow(() => createApiClient(SETTINGS));
   for (const publishableKey of [
     "sb_secret_must_not_reach_browser",
-    legacyKey("service_role"),
+    jwtKey("anon"),
+    jwtKey("service_role"),
     "",
   ]) {
     assert.throws(
       () => createApiClient({ ...SETTINGS, publishableKey }),
-      /publishable key or legacy anon/,
+      /publishable key is required/,
     );
   }
 });

@@ -28,11 +28,10 @@ test("read-only transaction navigation round trips without losing reload filters
   const prefs = new Map([
     ["tab", "live"],
     ["datasets", { live: view }],
-    ["summary-currency", "JPY"],
   ]);
   const url = workspaceLocation(origin, admin, prefs);
   assert.deepEqual(locationPreference(url, admin, "datasets", {}), { live: view });
-  assert.equal(locationPreference(url, admin, "summary-currency", null), "JPY");
+  assert.equal(url.searchParams.has("currency"), false);
 });
 
 test("report links retain exact historical identity while drafts and amounts stay out of the URL", () => {

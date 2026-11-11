@@ -23,6 +23,7 @@ export const FINANCES_COLUMNS = [
   "fee_base",
   "posted_date",
   "posted_at",
+  "activity_at",
   "transaction_type",
   "transaction_status",
   "account_type",
@@ -32,6 +33,7 @@ export const FINANCES_COLUMNS = [
 ];
 
 export const DATA_KIOSK_COLUMNS = [
+  "activity_at",
   "id",
   "version_id",
   "day_id",
@@ -161,6 +163,7 @@ export const LIVE_COLUMNS = [
   "seller_namespace",
   "marketplace_name",
   "activity_date",
+  "activity_at",
   "sku",
   "component_type",
   "currency",

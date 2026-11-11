@@ -33,6 +33,12 @@ class FinancialSourceLookupTests(SourceModelFixture):
             record = cast(dict[str, object], record)
             self.assertEqual(record["amount"], row[2])
             self.assertEqual(record["id"], str(row[0]))
+            self.assertEqual(
+                record["activity_at"],
+                "2026-06-15T12:00:00.000000Z"
+                if source == "FINANCES"
+                else "2026-06-16T06:59:59.999999Z",
+            )
             self.assertTrue(
                 all(value is None or isinstance(value, str) for value in record.values())
             )
@@ -62,6 +68,7 @@ class FinancialSourceLookupTests(SourceModelFixture):
         self.assertIsInstance(rows, list)
         rows = cast(list[dict[str, str]], rows)
         self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["activity_at"] == "2026-06-15T12:00:00.000000Z" for row in rows))
         self.assertEqual(
             {(row["version_id"], row["capture_status"], row["amount"]) for row in rows},
             {(old, "Retained", "4.100000001"), (current, "Current", "4.100000002")},

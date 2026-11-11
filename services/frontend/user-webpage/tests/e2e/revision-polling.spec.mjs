@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { feeRow, kioskRow, financesRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { summaryAmount, summaryBucket, summaryCards, typeBucket } from "./summary-fixtures.mjs";
+import { summaryAmount, summaryBucket, summaryPeriods, typeBucket } from "./summary-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
 
 const completedPolls = (fixture) => fixture.revisionRequests.filter(({ completed }) => completed);
@@ -19,7 +19,11 @@ async function setup(page, role = "member") {
   await page.clock.install();
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = role;
-  fixture.aggregateRows = [summaryBucket("2026-08-31", "20"), summaryBucket("2026-09-01", "10")];
+  fixture.aggregateRows = [
+    summaryBucket("2026-08-31", "20"),
+    summaryBucket("2026-09-01", "10"),
+    summaryBucket("2026-09-02", "0"),
+  ];
   fixture.breakdownRows = [typeBucket("PRINCIPAL", "10")];
   fixture.assignments = [skuAssignment(1)];
   fixture.feeRows = [feeRow(0)];
@@ -28,15 +32,21 @@ async function setup(page, role = "member") {
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
-  await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("10.00 USD");
-  await expect(summaryAmount(summaryCards(page).month, "Reported amount")).toHaveText("20.00 USD");
+
+  await expect(summaryAmount(summaryPeriods(page).day, "Reported amount")).toHaveText("10.00 USD");
+
+  await expect(summaryAmount(summaryPeriods(page).month, "Reported amount")).toHaveText(
+    "20.00 USD",
+  );
   await expect.poll(() => completedPolls(fixture).length).toBe(1);
   return fixture;
 }
 
 async function finishPoll(page, fixture, count) {
   await expect.poll(() => completedPolls(fixture).length).toBeGreaterThan(count);
-  await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+  await expect(page.getByText("Updating…", { exact: true }).filter({ visible: true })).toHaveCount(
+    0,
+  );
 }
 
 test("initial sign-in captures revisions before loading dependent lookups and financial data", async ({
@@ -78,7 +88,10 @@ test("unchanged periodic revisions perform one small request and retain every fi
   page,
 }) => {
   const fixture = await setup(page);
-  await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
+
+  await page
+    .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
+    .click();
   await expect(page.getByRole("region", { name: "Breakdown total", exact: true })).toBeVisible();
   const financial = financialRequests(fixture);
   const identity = fixture.identityRequests.length;
@@ -116,7 +129,10 @@ for (const source of ["finances", "data_kiosk"]) {
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, initial);
     await expect(rowWithSku(page, "UPDATED-001")).toBeVisible();
-    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30.00 USD");
+
+    await expect(summaryAmount(summaryPeriods(page).day, "Reported amount")).toHaveText(
+      "30.00 USD",
+    );
     await expect.poll(() => fixture.optionRequests.length).toBeGreaterThan(options);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 
@@ -124,7 +140,10 @@ for (const source of ["finances", "data_kiosk"]) {
       .getByRole("dialog", { name: "SKU options", exact: true })
       .getByRole("button", { name: "Close options", exact: true })
       .click();
-    await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
+
+    await page
+      .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
+      .click();
     const total = page.getByRole("region", { name: "Breakdown total", exact: true });
     await expect(summaryAmount(total, "Reported amount")).toHaveText("10.00 USD");
     const details = fixture.breakdownRequests.length;
@@ -160,7 +179,7 @@ for (const [source, tab, other] of [
     fixture.aggregateRows[1] = summaryBucket("2026-09-01", "30");
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, pollCount);
-    await expect(summaryCards(page).summaries).toHaveCount(0);
+    await expect(summaryPeriods(page).summaries).toHaveCount(0);
     expect(fixture.aggregateRequests).toHaveLength(summaryRequests);
     expect(rows()).toBe(initialRows);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
@@ -173,7 +192,7 @@ for (const [source, tab, other] of [
     });
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, pollCount);
-    await expect(summaryCards(page).summaries).toHaveCount(0);
+    await expect(summaryPeriods(page).summaries).toHaveCount(0);
     expect(fixture.aggregateRequests).toHaveLength(summaryRequests);
     expect(rows()).toBe(initialRows);
     expect(fixture.identityRequests.length).toBeGreaterThan(identity);
@@ -189,8 +208,12 @@ for (const [source, tab, other] of [
     ).toBeVisible();
     expect(rows()).toBeGreaterThan(initialRows);
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-    await expect(summaryAmount(summaryCards(page).day, "Reported amount")).toHaveText("30.00 USD");
-    await expect(summaryAmount(summaryCards(page).day, "Service fee")).toHaveText("3.00 USD");
+
+    await expect(summaryAmount(summaryPeriods(page).day, "Reported amount")).toHaveText(
+      "30.00 USD",
+    );
+
+    await expect(summaryAmount(summaryPeriods(page).day, "Service fee")).toHaveText("3.00 USD");
   });
 }
 
@@ -522,7 +545,9 @@ test("a manual retry requested during an unrelated selective refresh runs when t
     release.resolve();
     await expect(rowWithSku(page, "FINANCES-1")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
-    await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+    await expect(
+      page.getByText("Updating…", { exact: true }).filter({ visible: true }),
+    ).toHaveCount(0);
   } finally {
     release.resolve();
   }

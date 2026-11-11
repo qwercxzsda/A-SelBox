@@ -1,21 +1,25 @@
-import { LIVE_COLUMNS, liveRow } from "../api-fixtures.mjs";
 import { filterRecordRows } from "../record-fixtures.mjs";
 import { transactionFilterParams } from "../transaction-page-fixtures.mjs";
-import { latestBucketDate, periodBucketTotals } from "../aggregate-fixtures.mjs";
+import { timestampedTransaction } from "../transaction-time-fixtures.mjs";
+import { LIVE_COLUMNS, liveRow } from "../api-fixtures.mjs";
+import { periodBucketTotals } from "../aggregate-fixtures.mjs";
 
-export async function respondWithLatestDate(fixture, { url, user, reply }, args) {
-  const entry = { user, params: url.searchParams, includeCount: args.p_include_count, args };
+export async function respondWithLatestDate(fixture, { request, url, user, reply }) {
+  const args = request.postDataJSON();
+  const params = transactionFilterParams(args);
+  const entry = { user, params, endpoint: url.pathname, args };
   fixture.latestRequests.push(entry);
   await fixture.beforeLatest(entry);
   if (fixture.latestStatus !== 200)
     return reply({ message: "Latest date fixture unavailable" }, fixture.latestStatus);
-  const date = latestBucketDate(
-    filterRecordRows(fixture.aggregateRowsByUser[user] ?? fixture.aggregateRows, url.searchParams),
-  );
-  const row = { ...liveRow("LATEST", 1, fixture.companyIds[user]), activity_date: date };
+  const rows = filterRecordRows(fixture.aggregateRowsByUser[user] ?? fixture.aggregateRows, params)
+    .map(timestampedTransaction)
+    .sort((left, right) => right.activity_at.localeCompare(left.activity_at));
+  const latest = rows[0];
+  const record = latest ? { ...liveRow("LATEST", 1, fixture.companyIds[user]), ...latest } : null;
   return reply({
-    rows: date
-      ? [Object.fromEntries(LIVE_COLUMNS.map((column) => [column, row[column] ?? null]))]
+    rows: record
+      ? [Object.fromEntries(LIVE_COLUMNS.map((column) => [column, record[column] ?? null]))]
       : [],
     total_count: null,
   });
@@ -28,6 +32,7 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
   const breakdown = args.p_group_by_type;
   const params = transactionFilterParams({
     ...args,
+    p_include_selbox: false,
     p_sources: [],
     p_types: [],
     p_fee_applicable: null,
@@ -49,7 +54,9 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
   if (status !== 200) return reply({ message: "Summary fixture unavailable" }, status);
   // Type fixtures already represent groups for the requested period, so they have no date column.
   const rowFilters = new URLSearchParams(params);
-  if (breakdown) rowFilters.delete("activity_date");
+  if (breakdown) {
+    rowFilters.delete("activity_at");
+  }
   const rows =
     (breakdown ? fixture.breakdownRowsForRequest?.(entry) : undefined) ??
     filterRecordRows(

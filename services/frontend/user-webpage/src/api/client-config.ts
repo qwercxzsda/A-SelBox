@@ -1,5 +1,3 @@
-import { isJsonObject } from "./validation.ts";
-
 export interface ApiClientConfig {
   supabaseUrl: string;
   publishableKey: string;
@@ -26,20 +24,7 @@ export function validateApiConfig(config: ApiClientConfig): ApiClientConfig {
 
   const publishableKey = config.publishableKey.trim();
   if (!/^sb_publishable_[A-Za-z0-9_-]+$/.test(publishableKey)) {
-    // Older local stacks use an anon JWT. Reject secret/service-role keys before
-    // constructing any request, including an Auth password request.
-    let payload: unknown;
-    try {
-      const parts = publishableKey.split(".");
-      if (parts.length !== 3) throw new Error("Invalid JWT");
-      const encoded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-      payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "="))) as unknown;
-    } catch {
-      throw new Error("A Supabase publishable key or legacy anon key is required");
-    }
-    if (!isJsonObject(payload) || payload.role !== "anon") {
-      throw new Error("A Supabase publishable key or legacy anon key is required");
-    }
+    throw new Error("A Supabase publishable key is required");
   }
   return { supabaseUrl: url.origin, publishableKey };
 }

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { summaryAmount, summaryBucket, summaryCards, typeBucket } from "./summary-fixtures.mjs";
+import { summaryAmount, summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 
 const GROUPS = [
   "Sales and refunds",
@@ -28,6 +28,7 @@ async function seedGroupedBreakdown(page) {
       knownCompanyCount: 5,
     }),
     summaryBucket("2026-03-15", "42", { currency: "EUR" }),
+    summaryBucket("2026-03-16", "0"),
   ];
   fixture.breakdownRows = [
     typeBucket("PRODUCT_REFUNDS", "-0.100000000000000001"),
@@ -59,7 +60,10 @@ for (const width of [1280, 320, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     const fixture = await seedGroupedBreakdown(page);
     await signIn(page);
-    await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
+
+    await page
+      .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
+      .click();
     const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
     const buttons = dialog.getByRole("button", { name: / details$/ });
     await expect(buttons).toHaveCount(GROUPS.length);
@@ -154,15 +158,15 @@ for (const width of [1280, 320, 390]) {
     ).toHaveCount(0);
     await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
     await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
-    await summaryCards(page)
-      .summaries.getByLabel("Summary currency", { exact: true })
-      .selectOption("EUR");
-    await page.getByRole("button", { name: "View Latest day by type", exact: true }).click();
+
+    await page
+      .getByRole("button", { name: "View Last day for Amazon.com in EUR by type", exact: false })
+      .click();
     await expect(buttons).toHaveCount(1);
     await expect(salesButton).toHaveAttribute("aria-expanded", "false");
     await salesButton.click();
     await expect(children).toHaveCount(1);
-    await expect(summaryAmount(total, "Company amount")).toHaveText("42.00 EUR");
+    await expect(summaryAmount(total, "Company amount", "EUR")).toHaveText("42.00 EUR");
     await expect(total).toContainText("1 record across 1 type");
     await expect(dialog).not.toContainText("USD");
     expect(fixture.breakdownRequests.map(({ params }) => params.get("currency"))).toEqual([

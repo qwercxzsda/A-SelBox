@@ -23,8 +23,16 @@ def finances_acquisition_from_payload(payload: Mapping[str, object]) -> Finances
         api_version=_text(payload["api_version"]),
         capture_started_at=_timestamp(payload["capture_started_at"]),
         downloaded_at=_timestamp(payload["downloaded_at"]),
-        query_start_date=_date(payload["query_start_date"]),
-        query_end_date=_date(payload["query_end_date"]),
+        posted_after=_timestamp(payload["posted_after"]),
+        posted_before=_timestamp(payload["posted_before"])
+        if payload["posted_before"] is not None
+        else None,
+        reconciliation_start_date=_date(payload["reconciliation_start_date"])
+        if payload["reconciliation_start_date"] is not None
+        else None,
+        reconciliation_end_date=_date(payload["reconciliation_end_date"])
+        if payload["reconciliation_end_date"] is not None
+        else None,
         marketplace_ids=tuple(_text(value) for value in _sequence(payload["marketplace_ids"])),
         documents=tuple(_page(_mapping(value)) for value in _sequence(payload["documents"])),
         api_metadata=_mapping(payload["api_metadata"]),

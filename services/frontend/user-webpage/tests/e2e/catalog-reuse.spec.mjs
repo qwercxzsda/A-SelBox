@@ -47,7 +47,7 @@ test("unchanged administrator renewal reuses catalog but renews credentials and 
   const source = await openColumn(page, "Source");
   await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
-  await sortBy(page, "Date", "Oldest first");
+  await sortBy(page, "Date (UTC)", "Oldest first");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
   const rows = fixture.requests.length;
@@ -59,7 +59,7 @@ test("unchanged administrator renewal reuses catalog but renews credentials and 
     page.getByRole("cell", { name: "Fresh company label", exact: true }).first(),
   ).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
-  await expect(columnHeader(page, "Date")).toHaveAttribute("aria-sort", "ascending");
+  await expect(columnHeader(page, "Date (UTC)")).toHaveAttribute("aria-sort", "ascending");
   expect(fixture.optionRequests).toHaveLength(1);
   expect(fixture.requests).toHaveLength(rows);
   expect(fixture.countRequests).toHaveLength(counts);

@@ -1,9 +1,10 @@
 import type { RecordSelection } from "./AmountBreakdown";
-import type { PeriodDefinition } from "./estimated-periods";
-import type { TransactionSummaryScope } from "./use-transaction-summaries";
+import type { PeriodDefinition } from "./summary-periods";
+import type { TransactionSummaryScope } from "./summary-types";
 import { requireDateRange } from "./api/filters.ts";
 import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
 import marketplaces from "./generated/marketplaces.json" with { type: "json" };
+import { TOTALS_PERIOD_LABELS } from "./summary-periods.ts";
 
 /** Persist the chosen scope, never a fetched financial result. */
 export interface SummaryBreakdownSelection {
@@ -54,7 +55,7 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     !isJsonObject(value.period.range) ||
     !isJsonObject(value.scope) ||
     typeof value.title !== "string" ||
-    !["Latest day", "Latest month", "Selected dates"].includes(value.title) ||
+    !Object.values(TOTALS_PERIOD_LABELS).includes(value.title) ||
     !isCurrency(value.currency) ||
     typeof value.period.label !== "string" ||
     value.period.label.length > 256 ||
@@ -77,6 +78,7 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     scope[field] = decoded;
   }
   if (
+    scope.marketplaces.length !== 1 ||
     scope.companyIds.some((id) => !isUuid(id)) ||
     scope.marketplaces.some((name) => !marketplaces.includes(name))
   )
@@ -90,5 +92,5 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
 }
 
 export function summaryBreakdownKey(value: SummaryBreakdownSelection | null): string {
-  return `estimate:${JSON.stringify(value && [value.period.range, value.currency, value.scope])}`;
+  return `summary:${JSON.stringify(value && [value.period.range, value.currency, value.scope])}`;
 }

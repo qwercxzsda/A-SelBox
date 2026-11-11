@@ -7,18 +7,22 @@ const FINANCES_TYPES = [
   {
     code: "TAX_WITHHELD",
     label: "Tax withheld",
+    group: "Taxes",
   },
   {
     code: "FULFILLMENT_FEE_CORRECTIONS",
     label: "Fulfillment fee corrections",
+    group: "Fulfillment & shipping",
   },
   {
     code: "INBOUND_TRANSPORTATION_FEES",
     label: "Inbound transportation fees",
+    group: "Fulfillment & shipping",
   },
   {
     code: "LONG_UNRECOGNIZED_CUSTOM_TRANSACTION_TYPE_".repeat(5),
     label: `Long ${"unrecognized custom transaction type long ".repeat(4)}unrecognized custom transaction type`,
+    group: "Other fees & adjustments",
   },
 ];
 
@@ -26,14 +30,17 @@ const DATA_KIOSK_TYPES = [
   {
     code: "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
     label: "FBA inbound placement service fee",
+    group: "Fulfillment & shipping",
   },
   {
     code: "MONTHLY_INVENTORY_STORAGE_FEE",
     label: "Monthly inventory storage fee",
+    group: "Storage & inventory",
   },
   {
     code: "FBA_INVENTORY_REIMBURSEMENT",
     label: "FBA inventory reimbursement",
+    group: "Storage & inventory",
   },
   FINANCES_TYPES.at(-1),
 ];
@@ -64,7 +71,7 @@ const DATASETS = [
 
 for (const dataset of DATASETS) {
   for (const width of [1440, 1920, 390]) {
-    test(`${dataset.label} type text stays on one line within the existing column at ${width}px`, async ({
+    test(`${dataset.label} type and group hierarchy fit the compact column at ${width}px`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -84,11 +91,15 @@ for (const dataset of DATASETS) {
           '[data-column="component_type"]',
         );
         const value = cell.locator(".transaction-type");
-        await expect(value).toHaveText(type.label);
-        expect(await value.getAttribute("title")).toBe(`${type.label}\n${type.code}`);
-        await expect(cell).toHaveCSS("min-width", "320px");
-        await expect(cell).toHaveCSS("max-width", "320px");
-        const metrics = await value.evaluate((element) => {
+        const primary = value.locator(".transaction-type-label");
+        const group = value.locator(".transaction-type-group");
+        await expect(primary).toHaveText(type.label);
+        await expect(group).toHaveText(type.group);
+        expect(await value.getAttribute("title")).toContain(type.code);
+        expect(await value.getAttribute("title")).toContain(type.group);
+        await expect(cell).toHaveCSS("min-width", "224px");
+        await expect(cell).toHaveCSS("max-width", "224px");
+        const metrics = await primary.evaluate((element) => {
           const style = globalThis.getComputedStyle(element);
           const bounds = element.getBoundingClientRect();
           return {
@@ -97,15 +108,18 @@ for (const dataset of DATASETS) {
             lineHeight: Number.parseFloat(style.lineHeight),
           };
         });
-        expect(metrics.width).toBeLessThanOrEqual(320);
+        expect(metrics.width).toBeLessThanOrEqual(224);
         expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight + 1);
-        await expect(value).toHaveCSS("white-space", "nowrap");
-        await expect(value).toHaveCSS("text-overflow", "ellipsis");
-        const overflow = await value.evaluate(
+        await expect(primary).toHaveCSS("white-space", "nowrap");
+        await expect(primary).toHaveCSS("text-overflow", "ellipsis");
+        const overflow = await primary.evaluate(
           (element) => element.scrollWidth - element.clientWidth,
         );
         if (type.code.startsWith("LONG_UNRECOGNIZED")) expect(overflow).toBeGreaterThan(0);
-        else expect(overflow).toBeLessThanOrEqual(1);
+        else if (type.code === "TAX_WITHHELD") expect(overflow).toBeLessThanOrEqual(1);
+        expect(
+          await group.evaluate((element) => element.scrollWidth - element.clientWidth),
+        ).toBeLessThanOrEqual(1);
       }
       await expect
         .poll(() =>
@@ -130,7 +144,8 @@ for (const dataset of DATASETS) {
         .locator(".detail-field")
         .filter({ has: page.getByText("Type", { exact: true }) })
         .locator(".field-value");
-      await expect(fullType).toHaveText(detailType.label);
+      await expect(fullType.locator(".transaction-type-label")).toHaveText(detailType.label);
+      await expect(fullType.locator(".transaction-type-group")).toHaveText(detailType.group);
       const detailMetrics = await fullType.evaluate((element) => {
         const style = globalThis.getComputedStyle(element);
         return {

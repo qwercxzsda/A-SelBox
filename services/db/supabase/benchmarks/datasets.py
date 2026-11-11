@@ -1,7 +1,5 @@
 """Current frontend projections and independently comparable source datasets."""
 
-import csv
-import json
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -14,6 +12,7 @@ LIVE_COLUMNS = (
     "seller_namespace",
     "marketplace_name",
     "activity_date",
+    "activity_at",
     "sku",
     "component_type",
     "currency",
@@ -40,6 +39,7 @@ FINANCES_COLUMNS = (
     "current_batch_id",
     "posted_date",
     "posted_at",
+    "activity_at",
     "marketplace_id",
     "marketplace_name",
     "account_type",
@@ -79,6 +79,7 @@ KIOSK_COLUMNS = (
     "seller_namespace",
     "marketplace_name",
     "activity_date",
+    "activity_at",
     "component_key",
     "sku",
     "category",
@@ -111,7 +112,7 @@ DATASETS = (
     Dataset(
         "live",
         "live_company_components",
-        "activity_date",
+        "activity_at",
         "source_amount",
         LIVE_COLUMNS,
         ("source", "source_row_id"),
@@ -119,7 +120,7 @@ DATASETS = (
     Dataset(
         "finances",
         "finances_preprocess_entries",
-        "posted_date",
+        "activity_at",
         "amount",
         FINANCES_COLUMNS,
         ("id",),
@@ -127,7 +128,7 @@ DATASETS = (
     Dataset(
         "data_kiosk",
         "data_kiosk_preprocess_entries",
-        "activity_date",
+        "activity_at",
         "amount",
         KIOSK_COLUMNS,
         ("id",),
@@ -136,30 +137,14 @@ DATASETS = (
 
 
 def canonical_rows(rows: list[dict[str, str | None]]) -> list[dict[str, str | None]]:
-    """Normalize timestamp/boolean representations; keep monetary values exact."""
+    """Normalize UTC timestamp spelling while preserving exact JSON text fields."""
+    timestamps = {"posted_at", "created_at", "activity_at"}
     return [
         {
             field: datetime.fromisoformat(value).isoformat()
-            if field in {"posted_at", "created_at"} and value is not None
-            else {"t": "true", "f": "false"}.get(value, value)
-            if field in {"activity_eligible", "is_current"} and value is not None
-            else _canonical_array(field, value)
-            if field in {"breakdown_path", "breakdown_indexes"} and value is not None
+            if field in timestamps and value is not None
             else value
             for field, value in row.items()
         }
         for row in rows
     ]
-
-
-def _canonical_array(field: str, value: str) -> str:
-    """Compare PostgreSQL CSV array text with JSON RPC array text losslessly."""
-    if value.startswith("["):
-        return json.dumps(json.loads(value), ensure_ascii=False)
-    if value == "{}":
-        return "[]"
-    values = next(csv.reader([value[1:-1]], escapechar="\\", doublequote=False))
-    return json.dumps(
-        [int(item) for item in values] if field == "breakdown_indexes" else values,
-        ensure_ascii=False,
-    )

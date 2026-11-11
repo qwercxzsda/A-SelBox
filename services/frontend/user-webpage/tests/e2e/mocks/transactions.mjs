@@ -1,5 +1,6 @@
 import { LIVE_COLUMNS, liveRow } from "../api-fixtures.mjs";
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
+import { timestampedTransaction } from "../transaction-time-fixtures.mjs";
 import { amountOrderLimitExceeded, AMOUNT_ORDER_LIMIT_RESPONSE } from "./amount-ordering.mjs";
 
 export async function respondWithTransactions(
@@ -30,7 +31,7 @@ export async function respondWithTransactions(
     Array.from({ length: fixture.totalCount }, (_, index) =>
       liveRow(prefix, index + 1, fixture.companyIds[user]),
     );
-  const matchedRows = filterRecordRows(sourceRows, url.searchParams);
+  const matchedRows = filterRecordRows(sourceRows.map(timestampedTransaction), url.searchParams);
   const filteredRows =
     fixture.liveRows === null ? matchedRows : sortRecordRows(matchedRows, url.searchParams);
   const count = filteredRows.length;

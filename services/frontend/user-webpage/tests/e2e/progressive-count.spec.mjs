@@ -93,7 +93,7 @@ test("financial counts survive page and sort changes and unchanged revision poll
   await expect(pagination(page, 1, 2)).toBeVisible();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(pagination(page, 2, 2)).toBeVisible();
-  await sortBy(page, "Date", "Oldest first");
+  await sortBy(page, "Date (UTC)", "Oldest first");
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await sortBy(page, "Reported amount", "Highest first");
   await expect.poll(() => fixture.requests.at(-1).args?.p_order_by).toBe("amount");
@@ -400,7 +400,7 @@ test("new rows that contradict a cached count trigger a fresh count without a re
   await signIn(page);
   await expect(pagination(page, 1, 1)).toBeVisible();
   fixture.totalCount = 30;
-  await sortBy(page, "Date", "Oldest first");
+  await sortBy(page, "Date (UTC)", "Oldest first");
   await expect(page.getByRole("row")).toHaveCount(26);
   await expect(pagination(page, 1, 2)).toBeVisible();
   expect(fixture.countRequests.map(({ count }) => count)).toEqual([10, 30]);

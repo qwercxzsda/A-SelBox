@@ -17,7 +17,7 @@ from services.sync.src.finances.acquisition_serialization import (
     finances_acquisition_payload,
 )
 from services.sync.src.finances.query_windows import (
-    monthly_query_windows,
+    reconciliation_interval,
     transaction_query_parameters,
 )
 
@@ -61,8 +61,8 @@ class AcquisitionTests(unittest.TestCase):
             seller_namespace="seller",
             amazon_scope="NA",
             marketplaces=(US,),
-            query_start_date=date(2026, 8, 1),
-            query_end_date=date(2026, 8, 31),
+            posted_after=datetime(2026, 8, 1, 7, tzinfo=UTC),
+            posted_before=datetime(2026, 9, 1, 7, tzinfo=UTC),
             max_pages=max_pages,
         )
         self.assertIsInstance(result, FinancesAcquisition)
@@ -116,13 +116,13 @@ class AcquisitionTests(unittest.TestCase):
         self.assertEqual([page.operation for page in acquisition.documents], ["transactions"])
         self.assertEqual(len(self.storage.objects), 2)
 
-    def test_atomic_empty_day_replacement_has_a_real_complete_capture(self) -> None:
+    def test_empty_result_preserves_its_complete_request_manifest(self) -> None:
         acquisition = self.download(
             FakeClient([b'{"payload":{"transactions":[]}}'], [b'{"summaries":[]}'])
         )
         self.assertTrue(acquisition.documents[0].is_terminal)
-        self.assertEqual(acquisition.query_start_date, date(2026, 8, 1))
-        self.assertEqual(acquisition.query_end_date, date(2026, 8, 31))
+        self.assertEqual(acquisition.reconciliation_start_date, date(2026, 8, 1))
+        self.assertEqual(acquisition.reconciliation_end_date, date(2026, 8, 31))
 
     def test_live_summary_envelope_is_supported_without_rewriting_archive(self) -> None:
         summary = b'{"payload":{"summaries":[]},"statusCode":200}'
@@ -132,35 +132,94 @@ class AcquisitionTests(unittest.TestCase):
             load_document_archive(self.storage, acquisition.documents[-1].document), summary
         )
 
+    def test_rolling_pagination_keeps_end_omitted_and_fetches_separate_summary(self) -> None:
+        client = FakeClient(
+            [
+                b'{"payload":{"transactions":[],"nextToken":"continue"}}',
+                b'{"payload":{"transactions":[]}}',
+            ],
+            [b'{"summaries":[]}'],
+        )
+        acquisition = download_finances_acquisition(
+            client,
+            self.storage,
+            seller_namespace="seller",
+            amazon_scope="NA",
+            marketplaces=(US,),
+            posted_after=datetime(2026, 8, 14, tzinfo=UTC),
+        )
+        self.assertIsNone(acquisition.posted_before)
+        self.assertTrue(
+            all("postedBefore" not in p for op, p in client.requests if op == "transactions")
+        )
+        self.assertEqual(client.requests[1][1], {**client.requests[0][1], "nextToken": "continue"})
+        self.assertEqual(
+            client.requests[-1],
+            ("summary", {"periodStart": "2026-08-14", "periodEnd": "2026-10-13"}),
+        )
+
+    def test_partial_day_capture_makes_no_summary_request(self) -> None:
+        client = FakeClient([b'{"payload":{"transactions":[]}}'])
+        acquisition = download_finances_acquisition(
+            client,
+            self.storage,
+            seller_namespace="seller",
+            amazon_scope="NA",
+            marketplaces=(US,),
+            posted_after=NOW.replace(hour=10),
+        )
+        self.assertEqual(len(client.requests), 1)
+        self.assertIsNone(acquisition.reconciliation_start_date)
+        self.assertIsNone(acquisition.reconciliation_end_date)
+        self.assertFalse(acquisition.api_metadata["summary_available"])
+
 
 class QueryWindowTests(unittest.TestCase):
-    def test_partitioned_windows_keep_monthly_summary_controls(self) -> None:
+    def test_rolling_request_omits_end_and_spans_months(self) -> None:
         self.assertEqual(
-            list(monthly_query_windows(date(2026, 7, 30), date(2026, 9, 2))),
-            [
-                (date(2026, 7, 30), date(2026, 7, 31)),
-                (date(2026, 8, 1), date(2026, 8, 31)),
-                (date(2026, 9, 1), date(2026, 9, 2)),
-            ],
+            transaction_query_parameters(datetime(2026, 8, 14, tzinfo=UTC), observed_at=NOW),
+            {"postedAfter": "2026-08-14T00:00:00+00:00"},
         )
 
-    def test_regional_envelope_covers_local_days_and_dst(self) -> None:
+    def test_reconciliation_uses_only_common_complete_days_and_accounts_for_dst(self) -> None:
         japan = FinancesCoverageMarketplace("A1VC38T7YXB528", "Amazon.co.jp", "Asia/Tokyo")
-        parameters = transaction_query_parameters(
-            (US, japan), date(2026, 3, 1), date(2026, 3, 31), observed_at=NOW
-        )
         self.assertEqual(
-            parameters,
-            {
-                "postedAfter": "2026-02-28T15:00:00+00:00",
-                "postedBefore": "2026-04-01T07:00:00+00:00",
-            },
+            reconciliation_interval(
+                (US, japan),
+                datetime(2026, 3, 1, tzinfo=UTC),
+                datetime(2026, 4, 1, 7, tzinfo=UTC),
+                observed_at=NOW,
+            ),
+            (date(2026, 3, 2), date(2026, 3, 31)),
         )
 
-    def test_recent_incomplete_days_and_unavailable_history_are_rejected(self) -> None:
-        for start, end in [
-            (date(2026, 10, 14), date(2026, 10, 14)),
-            (date(2024, 10, 13), date(2024, 10, 13)),
-        ]:
-            with self.subTest(start=start), self.assertRaises(ValueError):
-                transaction_query_parameters((US,), start, end, observed_at=NOW)
+    def test_partial_current_day_is_allowed_without_whole_day_reconciliation(self) -> None:
+        after = NOW.replace(hour=10)
+        self.assertEqual(
+            transaction_query_parameters(after, observed_at=NOW), {"postedAfter": after.isoformat()}
+        )
+        self.assertEqual(reconciliation_interval((US,), after, None, observed_at=NOW), (None, None))
+
+    def test_default_upper_bound_is_conservative_capture_start_minus_two_minutes(self) -> None:
+        capture = datetime(2026, 11, 11, 8, 1, tzinfo=UTC)
+        self.assertEqual(
+            reconciliation_interval(
+                (US,),
+                datetime(2026, 10, 1, tzinfo=UTC),
+                None,
+                observed_at=capture,
+            ),
+            (date(2026, 10, 1), date(2026, 11, 9)),
+        )
+
+    def test_recent_future_reversed_overlong_and_unavailable_bounds_are_rejected(self) -> None:
+        for after, before in (
+            (NOW, None),
+            (NOW.replace(minute=59), None),
+            (datetime(2026, 8, 1, tzinfo=UTC), NOW),
+            (datetime(2026, 8, 2, tzinfo=UTC), datetime(2026, 8, 1, tzinfo=UTC)),
+            (datetime(2026, 1, 1, tzinfo=UTC), None),
+            (datetime(2024, 10, 13, tzinfo=UTC), datetime(2024, 10, 14, tzinfo=UTC)),
+        ):
+            with self.subTest(after=after, before=before), self.assertRaises(ValueError):
+                transaction_query_parameters(after, before, observed_at=NOW)

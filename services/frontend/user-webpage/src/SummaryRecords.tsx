@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchDatasetPage } from "./api";
 import type { Identity } from "./auth-session";
-import type { DateRange } from "./estimated-periods";
-import type { TransactionSummaryScope } from "./use-transaction-summaries";
+import type { DateRange } from "./summary-periods";
+import type { TransactionSummaryScope } from "./summary-types";
 import { FinancialRecords } from "./FinancialRecords";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailPage } from "./detail-view-state";
 import { DETAIL_PAGE_SIZE } from "./api/pagination";
 
-export function EstimateRecords({
+export function SummaryRecords({
   identity,
   range,
   scope,
@@ -30,7 +30,7 @@ export function EstimateRecords({
   );
   const query = useQuery({
     queryKey: [
-      "transaction-summary-records",
+      "company-summary-records",
       identity.session.user.id,
       scope,
       range,
@@ -46,8 +46,9 @@ export function EstimateRecords({
         pageIndex,
         pageSize: DETAIL_PAGE_SIZE,
         search: "",
-        sort: { column: "activity_date", direction: "desc" },
+        sort: { column: "activity_at", direction: "desc" },
         currency,
+        includeSelbox: false,
         filters: {
           ...scope,
           dateFrom: range.from,
@@ -64,6 +65,7 @@ export function EstimateRecords({
       pageIndex={pageIndex}
       onPageChange={setPageIndex}
       currency={currency}
+      transactionTimeline
     />
   );
 }

@@ -11,7 +11,6 @@ import psycopg
 from psycopg import sql
 
 from services.db.supabase.tests.e2e.fixtures import (
-    END,
     START,
     archived_data_kiosk,
     archived_finances,
@@ -439,8 +438,8 @@ class LocalWorkflowTests(LocalWorkflowCase):
             self.storage,
             amazon_scope="NA",
             seller_namespace=self.seller,
-            query_start_date=START,
-            query_end_date=END,
+            posted_after=original.posted_after,
+            posted_before=original.posted_before,
             marketplaces=(
                 FinancesCoverageMarketplace("ATVPDKIKX0DER", "Amazon.com", "America/Los_Angeles"),
             ),

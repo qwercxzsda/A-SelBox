@@ -54,14 +54,14 @@ test("pagination, sorting, and literal search make server requests and reset the
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
   expect(fixture.requests.at(-1).params.get("offset")).toBe("25");
 
-  await columnTrigger(page, "Date").click();
+  await columnTrigger(page, "Date (UTC)").click();
   await page
-    .getByRole("dialog", { name: "Date options", exact: true })
+    .getByRole("dialog", { name: "Date (UTC) options", exact: true })
     .getByRole("button", { name: "Oldest first", exact: true })
     .click();
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   expect(fixture.requests.at(-1).params.get("order")).toBe(
-    "activity_date.asc.nullslast,source.asc,source_row_id.asc",
+    "activity_at.asc.nullslast,source.asc,source_row_id.asc",
   );
   expect(fixture.requests.at(-1).params.get("offset")).toBe("0");
 
@@ -72,7 +72,9 @@ test("pagination, sorting, and literal search make server requests and reset the
 
   fixture.liveRows = [{ ...liveRow("SPECIAL", 1), sku: "SKU.(special)" }];
   await page.getByLabel("Search", { exact: true }).fill("SKU.(special)");
-  await expect(page.getByRole("row")).toHaveCount(2);
+  await expect(
+    page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+  ).toHaveCount(2);
   expect(fixture.requests.at(-1).args.p_search_skus).toEqual(["SKU.(special)"]);
   expect(fixture.requests.at(-1).params.get("offset")).toBe("0");
 });
@@ -130,7 +132,9 @@ test("automatic refresh clamps a removed last page after its updated count arriv
   fixture.revisions.finances = "1";
   await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-  await expect(page.getByRole("row")).toHaveCount(6);
+  await expect(
+    page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
+  ).toHaveCount(6);
   await expect(page.getByRole("button", { name: "Previous", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -164,7 +168,7 @@ test("a delayed earlier search cannot replace newer search results", async ({ pa
   await expect(rowWithSku(page, "FRESH-001")).toBeVisible();
   release.resolve();
   await olderRequestSettled;
-  await page.getByRole("table").evaluate(
+  await page.getByRole("table", { name: "Financial records", exact: true }).evaluate(
     (element) =>
       new Promise((resolve) => {
         element.ownerDocument.defaultView.requestAnimationFrame(() => resolve());

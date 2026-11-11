@@ -14,6 +14,8 @@ from typing import Any, cast
 from psycopg import sql
 
 from .common import Connection, catalog_fingerprint, connect, digest, identities, synthetic_token
+from .datasets import DATASETS
+from .table_verification import reference_relation
 from .transport import request, rest_server
 
 Record = dict[str, Any]
@@ -27,12 +29,11 @@ class Case:
     is_sku_catalog: bool = False
 
 
-def _cases(latest: date, marketplace: str, currency: str, *, include_skus: bool) -> list[Case]:
-    month_end = (
-        latest
-        if (latest + timedelta(days=1)).day == 1
-        else latest.replace(day=1) - timedelta(days=1)
-    )
+def summary_cases(
+    latest: date, marketplace: str, currency: str, *, include_skus: bool
+) -> list[Case]:
+    last_day = latest - timedelta(days=1)
+    month_end = latest.replace(day=1) - timedelta(days=1)
     month = {
         "p_date_from": month_end.replace(day=1).isoformat(),
         "p_date_to": month_end.isoformat(),
@@ -43,11 +44,11 @@ def _cases(latest: date, marketplace: str, currency: str, *, include_skus: bool)
     }
     cases = [
         Case(
-            "latest_day",
+            "last_day",
             "transaction_totals",
-            {"p_date_from": latest.isoformat(), "p_date_to": latest.isoformat()},
+            {"p_date_from": last_day.isoformat(), "p_date_to": last_day.isoformat()},
         ),
-        Case("latest_month", "transaction_totals", month),
+        Case("last_month", "transaction_totals", month),
         Case(
             "month_types",
             "transaction_totals",
@@ -81,17 +82,21 @@ def _reference(connection: Connection, case: Case) -> list[Any]:
         return [row[0] for row in rows]
     grouped = case.arguments.get("p_group_by_type", False)
     query = sql.SQL(
-        "select currency,{kind} as component_type,sum(source_amount)::text as reported_amount,"
+        "select {marketplace} as marketplace_name,currency,{kind} as component_type,"
+        "sum(source_amount)::text as reported_amount,"
         "sum(fee_amount)::text as service_fee,sum(company_amount)::text as company_amount,"
         "count(*)::text as row_count,count(company_amount)::text as known_company_count "
-        "from public.live_company_components "
-        "where activity_date between %s::date and %s::date "
+        "from {source} as reference "
+        "where category in ('FINANCES', 'DATA_KIOSK') "
+        "and (activity_at at time zone 'UTC')::date between %s::date and %s::date "
         "and (%s::text is null or currency=%s::text) "
         "and (%s::text[] is null or marketplace_name=any(%s::text[])) "
         "group by currency{group}"
     ).format(
+        source=reference_relation(DATASETS[0]),
         kind=sql.SQL("component_type" if grouped else "null::text"),
-        group=sql.SQL(",component_type" if grouped else ""),
+        marketplace=sql.SQL("null::text" if grouped else "marketplace_name"),
+        group=sql.SQL(",component_type" if grouped else ",marketplace_name"),
     )
     rows = connection.execute(
         query,
@@ -105,6 +110,7 @@ def _reference(connection: Connection, case: Case) -> list[Any]:
         ),
     ).fetchall()
     fields = (
+        "marketplace_name",
         "currency",
         "component_type",
         "reported_amount",
@@ -125,7 +131,9 @@ def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, 
             (json.dumps({"sub": user, "role": "authenticated"}),),
         )
         latest_row = connection.execute(
-            "select max(activity_date) from public.live_company_components"
+            sql.SQL(
+                "select max((activity_at at time zone 'UTC')::date) from {} as reference"
+            ).format(reference_relation(DATASETS[0]))
         ).fetchone()
         if latest_row is None or latest_row[0] is None:
             raise RuntimeError("Summary benchmark identity has no visible transaction scope")
@@ -142,7 +150,7 @@ def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, 
         account = connection.execute(
             "select access_role from public.app_accounts where user_id=auth.uid()"
         ).fetchone()
-        cases = _cases(
+        cases = summary_cases(
             latest,
             scope[0],
             scope[1],
@@ -195,7 +203,7 @@ def _canonical(rows: list[Any], case: Case) -> list[Any]:
         return rows
     result: list[list[Any]] = []
     for row in rows:
-        entry: list[Any] = [row["currency"], row.get("component_type")]
+        entry: list[Any] = [row["marketplace_name"], row["currency"], row.get("component_type")]
         for key in ("reported_amount", "service_fee", "company_amount"):
             if row[key] is None:
                 entry.append(None)
@@ -207,7 +215,7 @@ def _canonical(rows: list[Any], case: Case) -> list[Any]:
                 entry.append("0" if number == 0 else exact)
         entry.extend(int(row[key]) for key in ("row_count", "known_company_count"))
         result.append(entry)
-    return sorted(result, key=lambda row: (row[0], row[1] or ""))
+    return sorted(result, key=lambda row: (row[0] or "", row[1], row[2] or ""))
 
 
 def measure(database: str, image: str, password: str, temporary: Path, repeat: int) -> Record:

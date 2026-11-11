@@ -26,10 +26,21 @@ export async function sortBy(page, label, direction) {
 }
 
 export async function applyDates(page, from = "", to = "") {
-  const menu = await openColumn(page, "Date");
+  const menu = await openColumn(page, "Date (UTC)");
   await menu.getByLabel("From date", { exact: true }).fill(from);
   await menu.getByLabel("To date", { exact: true }).fill(to);
   await menu.getByRole("button", { name: "Apply dates", exact: true }).click();
+}
+
+export async function applySummaryDates(page, from = "", to = "") {
+  await page
+    .getByRole("article", { name: "Selected dates totals", exact: true })
+    .getByRole("button", { name: /^(Choose dates · UTC|Change dates: )/ })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Choose summary dates", exact: true });
+  await dialog.getByLabel("From date", { exact: true }).fill(from);
+  await dialog.getByLabel("To date", { exact: true }).fill(to);
+  await dialog.getByRole("button", { name: "Apply dates", exact: true }).click();
 }
 
 export async function applyReportMonth(page, month) {

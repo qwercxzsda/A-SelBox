@@ -1,0 +1,301 @@
+.current-totals {
+  min-width: 0;
+  margin-bottom: 20px;
+}
+.totals-heading,
+.totals-heading-title,
+.totals-card-title,
+.totals-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.totals-heading {
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+.totals-market-count {
+  border-radius: 20px;
+  padding: 3px 9px;
+  background: var(--ui-surface-header);
+  color: var(--ui-text-muted);
+  font-size: 12px;
+}
+.totals-update,
+.totals-footer,
+.totals-card-footer {
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+}
+.totals-scope {
+  padding-bottom: 12px;
+}
+.totals-scope .summary-filters {
+  margin: 0;
+}
+.totals-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 0;
+  align-items: stretch;
+}
+.totals-period-card {
+  display: grid;
+  grid-row: span var(--totals-card-rows);
+  grid-template-rows: subgrid;
+  min-width: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+}
+.totals-card-heading {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-height: 56px;
+  padding: 10px 12px;
+}
+.totals-card-title {
+  min-width: 0;
+}
+.totals-card-title h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.totals-date-control {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+.totals-date-control:hover:not(:disabled) {
+  border-color: var(--ui-accent);
+  background: var(--ui-hover-surface);
+}
+.totals-date-control:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.totals-date-control:disabled {
+  cursor: default;
+  color: var(--ui-text-muted);
+}
+.totals-date-control-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.totals-calendar-icon,
+.totals-filter-icon,
+.totals-date-chevron {
+  flex: 0 0 auto;
+  color: var(--ui-text-muted);
+}
+.marketplace-totals-table {
+  display: grid;
+  grid-row: span var(--totals-table-rows);
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--ui-font-data);
+  font-variant-numeric: tabular-nums;
+}
+.marketplace-totals-table thead,
+.marketplace-totals-table tbody {
+  min-width: 0;
+}
+.marketplace-totals-table tbody {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.marketplace-totals-table tr {
+  display: grid;
+  grid-template-columns: 18% 26% 26% 30%;
+  align-items: center;
+}
+.marketplace-totals-table .totals-market-heading {
+  display: block;
+}
+.marketplace-totals-table th,
+.marketplace-totals-table td {
+  display: block;
+  min-width: 0;
+  position: relative;
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+.marketplace-totals-table thead th {
+  display: flex;
+  align-items: center;
+  border-block: 1px solid var(--ui-border);
+  background: var(--ui-surface-header);
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
+}
+.marketplace-totals-table thead tr {
+  align-items: stretch;
+}
+.marketplace-totals-table thead .totals-number {
+  justify-content: flex-end;
+}
+.marketplace-totals-table .totals-number {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.marketplace-totals-table .totals-market-heading th {
+  padding: 9px 10px 3px;
+  text-align: left;
+  border-top: 1px solid var(--ui-border);
+}
+.marketplace-totals-table tbody:first-of-type .totals-market-heading th {
+  border-top: 0;
+}
+.totals-market-heading-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
+}
+.totals-marketplace-name {
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.totals-marketplace-meta {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.totals-currency {
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+.totals-records {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.totals-company-action {
+  color: var(--ui-accent);
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  min-height: 28px;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-size: var(--ui-font-data);
+  font-weight: 600;
+}
+.totals-known-amount {
+  display: block;
+  margin-top: 2px;
+  color: #9b4c0b;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.marketplace-totals-table .totals-empty-row th {
+  padding-bottom: 9px;
+}
+.totals-empty-row .totals-marketplace-name {
+  color: var(--ui-text-muted);
+}
+.totals-empty-value {
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.marketplace-totals-table tr[data-currency]:hover {
+  background: var(--ui-hover-surface);
+}
+.totals-card-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--ui-border);
+  font-size: 11px;
+}
+.totals-footer {
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+}
+.totals-footer details {
+  max-width: 100%;
+}
+.totals-footer summary {
+  cursor: pointer;
+  color: var(--ui-accent);
+}
+@media (max-width: 1199px) {
+  .totals-cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 16px;
+  }
+  .totals-period-card {
+    display: block;
+    grid-row: auto;
+  }
+  .marketplace-totals-table {
+    grid-row: auto;
+    grid-template-rows: none;
+  }
+}
+@media (max-width: 420px) {
+  .totals-date-control {
+    min-height: 44px;
+  }
+  .totals-heading-title {
+    gap: 8px;
+  }
+  .totals-card-heading {
+    padding-inline: 10px;
+  }
+  .marketplace-totals-table th,
+  .marketplace-totals-table td {
+    padding-inline: 7px;
+  }
+  .marketplace-totals-table .totals-market-heading th {
+    padding-inline: 7px;
+  }
+  .marketplace-totals-table {
+    font-size: 12px;
+  }
+  .totals-company-action {
+    font-size: 12px;
+  }
+}

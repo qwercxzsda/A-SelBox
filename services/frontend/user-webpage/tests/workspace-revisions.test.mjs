@@ -122,12 +122,17 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
     "data_kiosk",
     "fees",
   ]);
-  assert.deepEqual(queryRevisionSources(["transaction-type-totals"]), [
+  assert.deepEqual(queryRevisionSources(["company-type-totals"]), [
     "finances",
     "data_kiosk",
     "fees",
   ]);
-  assert.deepEqual(queryRevisionSources(["transaction-summary-records"]), [
+  assert.deepEqual(queryRevisionSources(["transaction-latest-utc-date"]), [
+    "finances",
+    "data_kiosk",
+    "fees",
+  ]);
+  assert.deepEqual(queryRevisionSources(["company-summary-records"]), [
     "finances",
     "data_kiosk",
     "fees",
@@ -219,7 +224,7 @@ test("inventory tokens only invalidate inventory pages, while unchanged tokens p
     ["inventory", "u", "administrator", null],
     ["dataset", "u", "administrator", null, "live"],
     ["dataset-count", "u", "administrator", null, "live"],
-    ["transaction-type-totals", "u"],
+    ["company-type-totals", "u"],
     ["sku-configuration", "u", "administrator"],
   ];
   const unsubscribers = keys.map((key) =>

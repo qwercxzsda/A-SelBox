@@ -270,6 +270,33 @@ def markdown(schema: dict[str, dict[str, Any]]) -> str:
     lines = [
         "# Database schema",
         "",
+        "Transactions keeps marketplace-local `activity_date` for accounting and computes a "
+        "separate "
+        "`activity_at` in its page RPC for a UTC timeline. Finances retains the exact posting "
+        "timestamp; "
+        "Data Kiosk daily amounts are booked at the last microsecond before the next local "
+        "midnight. "
+        "This reporting convention does not rewrite source dates, fee-period selection, or "
+        "payout months. "
+        "Last day and Last month each use one shared UTC period derived from the authenticated "
+        "account's "
+        "accessible transactions, independently of UI filters. Selected dates, record "
+        "drilldowns, and the "
+        "main list also share UTC reporting dates and bounds. See the "
+        "[query contracts](transaction_query_contracts.md). Current totals and their record "
+        "drilldowns "
+        "include only Finances-category activity and Data Kiosk costs. SelBox account activity "
+        "remains "
+        "in the main transaction list and source records.",
+        "",
+        "Finance acquisitions separate UTC retrieval bounds (`posted_after`, optional "
+        "`posted_before`) "
+        "from nullable complete-day Summary coverage (`reconciliation_start_date`, "
+        "`reconciliation_end_date`). Rolling refreshes can publish current partial-day "
+        "observations; "
+        "only reconciled local days whose batch contents match the selected current versions "
+        "supply payout coverage.",
+        "",
         f"The fresh-install migrations define **{len(tables)} application tables, {columns} "
         f"table columns, {fks} foreign keys and {len(views)} ordinary views**. These figures "
         "and keys are generated from an isolated installation of the actual migrations, "

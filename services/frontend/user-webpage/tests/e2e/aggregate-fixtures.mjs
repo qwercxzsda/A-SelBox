@@ -1,30 +1,25 @@
 import { sumExactDecimals } from "../../src/decimal.ts";
-
-export function latestBucketDate(rows) {
-  return rows.reduce(
-    (latest, row) => (row.activity_date > (latest ?? "") ? row.activity_date : latest),
-    null,
-  );
-}
+import { filterRecordRows } from "./record-fixtures.mjs";
 
 export function periodBucketTotals(rows, params) {
-  const bounds = params.getAll("activity_date");
-  if (!bounds.some((bound) => bound.startsWith("gte.") || bound.startsWith("lte."))) {
+  const bounds = params.getAll("activity_at");
+  if (!bounds.some((bound) => /^(gte|lte|lt)\./.test(bound))) {
     throw new Error("Browser summary requests must have a date bound");
   }
-  const matching = rows.filter((row) =>
-    bounds.every((bound) =>
-      bound.startsWith("gte.")
-        ? row.activity_date >= bound.slice(4)
-        : bound.startsWith("lte.")
-          ? row.activity_date <= bound.slice(4)
-          : true,
-    ),
+  const matching = filterRecordRows(
+    rows.filter((row) => row.category === "FINANCES" || row.category === "DATA_KIOSK"),
+    params,
   );
-  const currencies = [...new Set(matching.map((row) => row.currency))].sort();
-  return currencies.map((currency) => {
-    const group = matching.filter((row) => row.currency === currency);
+  const groups = [
+    ...new Set(matching.map((row) => JSON.stringify([row.marketplace_name, row.currency]))),
+  ].sort();
+  return groups.map((key) => {
+    const [marketplace, currency] = JSON.parse(key);
+    const group = matching.filter(
+      (row) => row.marketplace_name === marketplace && row.currency === currency,
+    );
     return {
+      marketplace_name: marketplace,
       currency,
       reported_amount: sumExactDecimals(group.map((row) => row.reported_amount)),
       service_fee: sumExactDecimals(group.map((row) => row.service_fee)),

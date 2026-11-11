@@ -7,10 +7,11 @@ define API behavior; [access control](access_control.md) defines visibility.
 
 | Request              | Work performed                                                                                                                                                     |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Date-ordered page    | Filter authorized facts, select bounded candidates in date/ID order, merge sources, then resolve metadata and fees for the page.                                   |
+| Date-ordered page    | Filter authorized facts, select bounded candidates in UTC instant/ID order, merge sources, then resolve metadata and fees for the page.                                   |
 | Reported-amount page | Stop after 10,001 fully filtered matches; reject scopes above 10,000, otherwise sort and calculate the selected page.                                              |
 | Exact count          | Count authorized source facts without fee calculation. The browser renders rows first and caches counts independently of page and order. |
-| Period total         | Filter dates and scope, combine facts sharing fee inputs, resolve relevant terms and fees, then aggregate by currency and optional Type.                           |
+| Summary anchor | Read one latest authorized transaction by UTC timestamp, within the account's RLS visibility, without UI filters or an exact count; reuse the page RPC. |
+| Period total         | Filter company-financial categories, UTC timestamps and scope, combine facts sharing fee inputs, resolve terms and fees, then aggregate by marketplace/currency or currency/Type. |
 | Filter options       | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog.                              |
 | Assignments and fees | Load the caller's complete SKU configuration, deduplicate required source dates, and return compressed coverage ranges and setup gaps in one response.             |
 | Revision polling     | Read the current account and requested revision-token rows, then refresh only dependent queries when a revision changes.                                           |
@@ -36,21 +37,25 @@ so compatible facts from every namespace share one fee lookup. Raw rows retain t
 
 ### Indexes
 
-Finance indexes follow the normalized model: date and marketplace/date indexes are on
+Finance indexes follow the normalized model: local-date, UTC-instant, marketplace/date and marketplace/instant indexes are on
 `finances_transaction_versions`; SKU/version and Type/version indexes are on
 `finances_transaction_components`. Stable identities have seller/scope/native-ID uniqueness, native-ID
 lookup and current-pointer indexes. Membership keys connect successful batches to immutable
 versions without copying unchanged components. Filtering a Finance date page therefore joins
 transaction metadata to components.
 
-Data Kiosk indexes date/ID and marketplace/date on stable days, with compact SKU/version and
+Data Kiosk indexes local date/ID, marketplace/date and assumed end-of-day instant/ID on stable days, with compact SKU/version and
 Type/version keys on components. Membership and current-pointer indexes identify the exact
 observation without duplicating day metadata or component contents.
 The [index map](transaction_query_contracts.md#index-access-paths) lists the exact current keys.
+The end-of-day expression uses named IANA zones. PostgreSQL timezone-data upgrades that change
+historical conversion rules require rebuilding that expression index. Source dates and amounts
+remain unchanged.
 
 Finance publication uploads prepared rows in batches and switches pointers atomically after Python
 source validation. Component totals and Summary controls are not queried repeatedly by the payout
-worker. Payout selection uses current transaction/day versions and successful scope coverage.
+worker. Payout selection uses current transaction/day versions and complete-day reconciled coverage
+whose Finance batch membership still matches those current versions.
 New versions add storage only for changed normalized state; each observation still adds compact
 membership records.
 
@@ -69,8 +74,9 @@ The frontend computes comparisons with exact decimals, loads details lazily, and
 headline aggregates rather than totaling a page. Current responses include source revision tokens
 for cache consistency; saved report aggregates are cached by report ID and authorization identity.
 Current retrieval coverage comes from existing acquisition/batch/day metadata, not row counts.
-Finance coverage selects acquisitions with accepted batches, so repeated preprocessing does not
-expand the coverage query once per batch. Reports read their own compact saved coverage intervals
+Finance coverage uses complete-day reconciliation intervals whose batch membership still matches
+current transaction versions. It compares each candidate batch's requested interval before expanding
+daily coverage, excluding partial boundary days from rolling captures. Reports read their own compact saved coverage intervals
 alongside direct source-version references.
 The [Financial review contract](financial_review.md#read-contract) defines the native RPC payloads.
 

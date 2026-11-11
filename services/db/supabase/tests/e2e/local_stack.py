@@ -160,6 +160,7 @@ class LocalSupabaseStack:
         self.project_id = "aselbox_e2e_" + uuid4().hex[:12]
         self.api_url = ""
         self.database_url = ""
+        self.publishable_key = ""
         self.anon_key = ""
         self.service_key = ""
         self._cleanup = ExitStack()
@@ -257,6 +258,7 @@ class LocalSupabaseStack:
         require_local_endpoint(database_url, port=database_port, database=True)
         self.api_url = api_url
         self.database_url = database_url
+        self.publishable_key = _status_text(status, "PUBLISHABLE_KEY")
         self.anon_key = _status_text(status, "ANON_KEY")
         self.service_key = _status_text(status, "SERVICE_ROLE_KEY")
         # Fixture setup must not race the production scheduler. This stack is

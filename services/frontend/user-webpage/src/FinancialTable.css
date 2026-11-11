@@ -1,5 +1,6 @@
 .table-card {
-  --type-column-width: 20rem;
+  --date-column-width: 7.5rem;
+  --type-column-width: 14rem;
   overflow: hidden;
 }
 
@@ -17,6 +18,12 @@
   white-space: nowrap;
 }
 
+.table-card [data-column="activity_at"] {
+  width: var(--date-column-width);
+  min-width: var(--date-column-width);
+  max-width: var(--date-column-width);
+}
+
 .table-card [data-column="component_type"] {
   width: var(--type-column-width);
   min-width: var(--type-column-width);
@@ -24,18 +31,26 @@
 }
 
 .table-card .transaction-type {
-  display: block;
   max-width: var(--type-column-width);
+}
+
+.table-card .transaction-type-label {
   overflow: hidden;
-  font-size: var(--ui-font-data);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
 }
 
 .table-card .numeric {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.table-card td[data-column="sku"] {
+  font-weight: 500;
+}
+
+.table-card td[data-column="company_amount"] {
+  font-weight: 700;
 }
 
 .floating-table-header {

@@ -9,15 +9,15 @@ test("Back and Forward close stale date drafts and reopen the restored bounds", 
   await signIn(page);
   await applyDates(page, "2026-06-01", "2026-06-30");
   await applyDates(page, "2026-07-01", "2026-07-31");
-  const menu = await openColumn(page, "Date");
+  const menu = await openColumn(page, "Date (UTC)");
   await menu.getByLabel("From date", { exact: true }).fill("2026-08-01");
   await page.goBack();
   await expect(menu).toBeHidden();
-  await openColumn(page, "Date");
+  await openColumn(page, "Date (UTC)");
   await expect(menu.getByLabel("From date", { exact: true })).toHaveValue("2026-06-01");
   await page.goForward();
   await expect(menu).toBeHidden();
-  await openColumn(page, "Date");
+  await openColumn(page, "Date (UTC)");
   await expect(menu.getByLabel("From date", { exact: true })).toHaveValue("2026-07-01");
 });
 
@@ -66,7 +66,7 @@ test("200 percent equivalent viewport keeps long selection labels and menu actio
   });
   await page.screenshot({ path: testInfo.outputPath("long-label-menu-200-percent-layout.png") });
   await menu.getByRole("button", { name: "Done", exact: true }).click();
-  const dates = await openColumn(page, "Date");
+  const dates = await openColumn(page, "Date (UTC)");
   await dates.getByLabel("From date", { exact: true }).fill("2026-07-31");
   await dates.getByLabel("To date", { exact: true }).fill("2026-07-01");
   await dates.getByRole("button", { name: "Apply dates", exact: true }).click();

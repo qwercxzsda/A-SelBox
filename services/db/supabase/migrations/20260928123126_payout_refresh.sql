@@ -16,13 +16,17 @@ $$;
 
 -- This source lookup is used only to bootstrap companies with no refresh state.
 -- Completed companies use indexed month frontiers on later scheduler ticks.
--- Successful Finance coverage also includes all of its transaction posting dates,
--- so finding the earliest month never needs to scan the component payloads.
+-- Reconciled Finance coverage and current posting dates both contribute: rolling
+-- observations may precede the first independently reconciled interval. Parent
+-- versions suffice; there is no need to scan monetary component payloads.
 create function private.first_payout_source_month() returns date
 language sql stable security invoker set search_path = '' as $$
     select date_trunc('month',min(source_date))::date from (
-        select min(a.query_start_date) as source_date from private.finances_preprocess_batches p
+        select min(a.reconciliation_start_date) as source_date from private.finances_preprocess_batches p
         join private.finances_acquisitions a on a.id = p.acquisition_id
+        union all
+        select min(v.posted_date) from private.finances_transactions t
+        join private.finances_transaction_versions v on v.id=t.current_version_id
         union all
         select min(d.activity_date) from private.data_kiosk_days d
         where d.dataset_key = 'economics' and d.current_version_id is not null

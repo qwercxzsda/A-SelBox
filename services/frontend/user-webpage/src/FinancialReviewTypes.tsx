@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialReviewTypes } from "./api";
 import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
-import { TransactionTypeValue } from "./TransactionTypeValue";
 import { humanizeCode, transactionTypeLabel } from "./categories";
 import type { FinancialReviewSourceProps } from "./financial-review-source-state";
 
@@ -74,8 +73,6 @@ export function FinancialReviewTypes({
           rowKey={(row) => `${row.source ?? ""}:${row.component_type ?? ""}`}
           selectedRowKey={state.type ? `${state.source}:${state.type}` : null}
           renderCell={(row, column) => {
-            if (column.key === "component_type")
-              return <TransactionTypeValue value={row.component_type ?? ""} />;
             if (column.key !== "details") return undefined;
             return (
               <Button

@@ -1,20 +1,16 @@
-import { decodeCurrencyTotals, decodeTypeTotals } from "./aggregates.ts";
-import {
-  companySelectionValues,
-  requireCalendarDate,
-  requireDateRange,
-  textSelectionValues,
-} from "./filters.ts";
+import { decodeMarketplaceCurrencyTotals, decodeTypeTotals } from "./aggregates.ts";
+import { companySelectionValues, requireDateRange, textSelectionValues } from "./filters.ts";
 import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import { readOffsetRpcRows } from "./rpc-pagination.ts";
 import { requireAccessToken, type ApiTransport } from "./transport.ts";
 import { requireCurrency } from "./validation.ts";
+import { parseRecordTimestamp } from "../date-display.ts";
 import type {
-  CurrencyTotal,
+  MarketplaceCurrencyTotal,
   TransactionTypeTotal,
+  FetchLatestTransactionDateOptions,
   FetchDatasetPageOptions,
   PageResult,
-  FetchLatestTransactionDateOptions,
   FetchTransactionPeriodTotalsOptions,
   FetchTransactionTypeTotalsOptions,
 } from "./types.ts";
@@ -68,10 +64,10 @@ export function createSummaryApi(
   }
 
   return {
-    async fetchLatestTransactionDate(
-      options: FetchLatestTransactionDateOptions,
-    ): Promise<string | null> {
-      const { accessToken, signal, companyIds = [], skus = [], marketplaces = [] } = options;
+    async fetchLatestTransactionDate({
+      accessToken,
+      signal,
+    }: FetchLatestTransactionDateOptions): Promise<string | null> {
       const { rows } = await fetchDatasetPage({
         accessToken,
         signal,
@@ -79,35 +75,34 @@ export function createSummaryApi(
         pageIndex: 0,
         pageSize: 1,
         search: "",
-        sort: { column: "activity_date", direction: "desc" },
+        sort: { column: "activity_at", direction: "desc" },
+        includeCount: false,
         filters: {
-          companyIds,
-          skus,
-          marketplaces,
+          companyIds: [],
+          skus: [],
+          marketplaces: [],
           dateFrom: "",
           dateTo: "",
           sources: [],
           types: [],
           feeApplicability: [],
         },
-        includeCount: false,
       });
       if (rows.length === 0) return null;
       if (rows.length !== 1) throw new Error("Latest transaction date returned multiple rows");
-      const date = rows[0].activity_date;
-      try {
-        if (typeof date !== "string") throw new Error("Missing date");
-        requireCalendarDate(date);
-      } catch {
-        throw new Error("Latest transaction date returned an invalid date");
-      }
-      return date;
+      const value = rows[0].activity_at;
+      const timestamp = typeof value === "string" ? parseRecordTimestamp(value) : null;
+      if (timestamp === null)
+        throw new Error("Latest transaction date returned an invalid timestamp");
+      return timestamp.toISOString().slice(0, 10);
     },
 
     async fetchTransactionPeriodTotals(
       options: FetchTransactionPeriodTotalsOptions,
-    ): Promise<CurrencyTotal[]> {
-      return readTransactionTotals(options, null, decodeCurrencyTotals, (row) => row.currency);
+    ): Promise<MarketplaceCurrencyTotal[]> {
+      return readTransactionTotals(options, null, decodeMarketplaceCurrencyTotals, (row) =>
+        JSON.stringify([row.marketplace, row.currency]),
+      );
     },
 
     async fetchTransactionTypeTotals(

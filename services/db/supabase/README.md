@@ -66,11 +66,11 @@ disposable databases.
 | [payout_refresh](migrations/20260928123126_payout_refresh.sql)                               | Pending revision requests, maturity discovery, bounded processing, and retry backoff.                                        |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql)                     | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling.            |
 | [payout_invalidation](migrations/20260928123128_payout_invalidation.sql)                     | Transactional requests after source or terms changes and scope expansion.                                                    |
-| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Read indexes, shared filter/pagination validation, and current-policy eligibility.                                           |
+| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Local-day/UTC-instant indexes, timezone rules, filter/pagination validation, and current-policy eligibility.                                           |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql)                       | Exact authorized live and raw source counts.                                                                                 |
 | [transaction_page](migrations/20260928123134_transaction_page.sql)                           | Bounded live row selection before ownership and fee projection.                                                              |
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql)             | Bounded raw source pages, exact row/version detail, and indexed native transaction lookup retaining historical visibility.   |
-| [transaction_totals](migrations/20260928123138_transaction_totals.sql)                       | Currency/Type totals with grouping before fee lookup.                                                                        |
+| [transaction_totals](migrations/20260928123138_transaction_totals.sql)                       | UTC marketplace/currency totals and Type breakdowns.                                    |
 | [payout_schedule](migrations/20260928123139_payout_schedule.sql)                             | Five-minute pg_cron registration in the configured scheduler database.                                                       |
 | [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql)             | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics.                                        |
 | [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic administrator batches, and stale-write checks.              |
@@ -83,7 +83,9 @@ All browser financial reads use authenticated REST/RPC with invoker security and
 `transaction_page` and `source_transaction_page` select filtered, authorized rows before metadata
 and fee projection. `transaction_count` counts current authoritative source components;
 `source_transaction_count` counts raw facts independently.
-`transaction_totals` combines compatible facts before fee lookup. Administrator identity bootstrap
+`transaction_totals` includes only Finances-category activity and Data Kiosk costs, combining
+compatible facts before fee lookup. Its record drilldowns set `p_include_selbox=false`; the main
+transaction list keeps SelBox activity. Administrator identity bootstrap
 preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
 SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
 cursor page. Members reuse their current assignments. Source, Marketplace, and Type menus
@@ -106,7 +108,7 @@ totals queries project terms only for their selected page or grouped facts. Exis
 support these lookups. The [performance guide](../../../docs/database_performance.md#authorization-and-current-versions)
 explains the current authorization path and remaining inventory costs.
 
-Date ordering reverses the complete date/source/ID tuple. Reported amount ordering is limited to
+Transactions date ordering reverses the complete UTC instant/source/ID tuple. Finances uses its posting instant; Data Kiosk is booked at the last microsecond of its local day. Source dates still govern fees and payout months. Reported amount ordering is limited to
 10,000 fully filtered matches, with no dedicated amount index. Marketplace names use constrained
 text. Date, SKU, Type, marketplace, and ownership/version indexes support the measured access paths;
 the [performance guide](../../../docs/database_performance.md) explains their tradeoffs.

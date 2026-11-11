@@ -96,15 +96,17 @@ test("build validation needs no browser origin and still rejects unsafe URLs and
   );
   const jwt = (role) =>
     `header.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.signature`;
-  assert.doesNotThrow(() =>
-    validateBuildConfig({ ...environment, VITE_SUPABASE_PUBLISHABLE_KEY: jwt("anon") }),
-  );
-  for (const key of ["sb_secret_config_test", jwt("service_role"), "not-a-public-key"]) {
+  for (const key of [
+    "sb_secret_config_test",
+    jwt("anon"),
+    jwt("service_role"),
+    "not-a-public-key",
+  ]) {
     const config = { ...environment, VITE_SUPABASE_PUBLISHABLE_KEY: key };
-    assert.throws(() => validateBuildConfig(config), /publishable key or legacy anon/);
+    assert.throws(() => validateBuildConfig(config), /publishable key is required/);
     assert.throws(
       () => readRuntimeConfig(config, "https://app.example.invalid"),
-      /publishable key or legacy anon/,
+      /publishable key is required/,
     );
   }
 });

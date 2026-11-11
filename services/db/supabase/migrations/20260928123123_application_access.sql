@@ -183,13 +183,15 @@ for select to authenticated using (
 -- cannot distinguish application roles, so only these gated helpers expose them.
 create function private.read_finances_preprocess_results() returns table (
     id uuid, acquisition_id uuid, seller_namespace text, amazon_scope text,
-    query_start_date date, query_end_date date, preprocess_version text,
+    posted_after timestamptz, posted_before timestamptz,
+    reconciliation_start_date date, reconciliation_end_date date, preprocess_version text,
     transaction_count integer, component_count integer, created_at timestamptz
 ) language plpgsql stable security definer set search_path = '' as $$
 begin
     if not private.is_administrator() then raise exception 'Administrator access required' using errcode='42501'; end if;
     return query select r.id::uuid,r.acquisition_id::uuid,a.seller_namespace::text,a.amazon_scope::text,
-        a.query_start_date,a.query_end_date,r.preprocess_version::text,r.transaction_count,r.component_count,r.created_at
+        a.posted_after,a.posted_before,a.reconciliation_start_date,a.reconciliation_end_date,
+        r.preprocess_version::text,r.transaction_count,r.component_count,r.created_at
         from private.finances_preprocess_batches r join private.finances_acquisitions a on a.id=r.acquisition_id;
 end;
 $$;
@@ -537,16 +539,16 @@ begin
         into coverage from jsonb_array_elements(coverage) entry
         where entry->>'marketplace_name' is not distinct from scope_marketplace;
     else
-    with covered as (
-        select 'FINANCES'::text as source,a.seller_namespace::text,
-            greatest(a.query_start_date,scope_start) as start_date,
-            least(a.query_end_date,scope_end) as end_date
-        from private.finances_acquisitions a
-        where a.query_start_date<=scope_end and a.query_end_date>=scope_start
-            and exists (select 1 from jsonb_array_elements(a.api_metadata->'coverage_marketplaces') market
-                where market->>'marketplace_name'=scope_marketplace)
-            and exists (
-                select 1 from private.finances_preprocess_batches b where b.acquisition_id=a.id)
+    with finance_days as (
+        select seller_namespace,activity_date
+        from private.current_finances_reconciled_days(null,scope_start,scope_end,scope_marketplace)
+    ), finance_ranges as (
+        select seller_namespace,range_agg(daterange(activity_date,activity_date+1,'[)')) as periods
+        from finance_days group by seller_namespace
+    ), covered as (
+        select 'FINANCES'::text as source,f.seller_namespace,
+            lower(period) as start_date,upper(period)-1 as end_date
+        from finance_ranges f cross join lateral unnest(f.periods) period
         union
         select 'DATA_KIOSK',d.seller_namespace::text,d.activity_date,d.activity_date
         from private.data_kiosk_days d

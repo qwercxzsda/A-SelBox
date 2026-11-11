@@ -117,13 +117,13 @@ class FinancesPreprocessingTests(unittest.TestCase):
             revision_digest(first.transactions[0]), revision_digest(second.transactions[0])
         )
 
-    def test_local_midnight_edges_do_not_leak_adjacent_day_activity(self) -> None:
+    def test_records_outside_requested_timestamp_bounds_are_rejected(self) -> None:
         storage = MemoryArchiveStorage()
         outside = native_transaction("before", posted="2026-08-01T06:59:59Z")
         inside = native_transaction("inside", posted="2026-08-01T07:00:00Z")
-        result = prepare_finances_acquisition(
-            finances_acquisition(storage, [outside, inside]), storage
-        )
+        with self.assertRaisesRegex(ValueError, "outside its timestamp request"):
+            prepare_finances_acquisition(finances_acquisition(storage, [outside, inside]), storage)
+        result = prepare_finances_acquisition(finances_acquisition(storage, [inside]), storage)
         self.assertEqual([t.native_transaction_id for t in result.transactions], ["inside"])
 
     def test_unknown_marketplace_cannot_be_silently_dropped(self) -> None:
@@ -152,7 +152,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
             native_transaction(release="B", posted="2026-08-01T06:00:00Z"),
             native_transaction("B", status="RELEASED"),
         ]
-        with self.assertRaisesRegex(ValueError, "original in covered days"):
+        with self.assertRaisesRegex(ValueError, "outside its timestamp request"):
             prepare_finances_acquisition(finances_acquisition(storage, rows), storage)
 
     def test_summary_dates_must_equal_capture_scope(self) -> None:
@@ -160,7 +160,7 @@ class FinancesPreprocessingTests(unittest.TestCase):
         acquisition = finances_acquisition(storage, summary_amount="0")
         with self.assertRaises(ValueError):
             prepare_finances_acquisition(
-                replace(acquisition, query_end_date=date(2026, 8, 3)), storage
+                replace(acquisition, reconciliation_end_date=date(2026, 8, 3)), storage
             )
 
     def test_summary_cannot_control_another_sellers_transactions(self) -> None:

@@ -18,7 +18,7 @@ test("F5 retains transaction ordering, pagination and the selected row using fre
 }) => {
   const fixture = await mockSupabase(page);
   await signIn(page);
-  await columnTrigger(page, "Date").click();
+  await columnTrigger(page, "Date (UTC)").click();
   await page.getByRole("button", { name: "Oldest first", exact: true }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await rowWithSku(page, "ALPHA-026").click();
@@ -30,7 +30,7 @@ test("F5 retains transaction ordering, pagination and the selected row using fre
   ).toBeVisible();
   expect(fixture.requests.length).toBeGreaterThan(reads);
   expect(fixture.requests.at(-1).params.get("offset")).toBe("25");
-  expect(fixture.requests.at(-1).params.get("order")).toContain("activity_date.asc");
+  expect(fixture.requests.at(-1).params.get("order")).toContain("activity_at.asc");
 });
 
 test("F5 restores the fee tab, expanded SKU, unfinished editor and review reason", async ({

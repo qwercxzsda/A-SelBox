@@ -95,14 +95,14 @@ for (const [role, width] of [
     await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
     await selectColumnOptions(page, "SKU", [LONG_SKU]);
     const skuChip = appliedFilters(page).getByRole("button", {
-      name: `Clear sku filter: ${LONG_SKU}`,
+      name: `SKU: ${LONG_SKU}. Clear filter.`,
       exact: true,
     });
     await expectCenteredChip(skuChip);
     if (role === "administrator") {
       await expectCenteredChip(
         appliedFilters(page).getByRole("button", {
-          name: `Clear company filter: ${COMPANY_NAME}`,
+          name: `Company: ${COMPANY_NAME}. Clear filter.`,
           exact: true,
         }),
       );
@@ -122,7 +122,7 @@ for (const [role, width] of [
 
     await selectColumnOptions(page, "SKU", [OTHER_SKU]);
     const multipleSkus = appliedFilters(page).getByRole("button", {
-      name: /^Clear sku filter:/,
+      name: /^SKU: /,
     });
     await expect(multipleSkus).toContainText("SKU: 2 selected");
     await expectCenteredChip(multipleSkus);
@@ -130,15 +130,13 @@ for (const [role, width] of [
     await expect(multipleSkus).toHaveCount(0);
     await expect(
       appliedFilters(page).getByRole("button", {
-        name: "Clear marketplace filter: Amazon.com",
+        name: "Marketplace: Amazon.com. Clear filter.",
         exact: true,
       }),
     ).toBeVisible();
     await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
     await page.reload();
-    await expect(
-      appliedFilters(page).getByRole("button", { name: /^Clear sku filter:/ }),
-    ).toHaveCount(0);
+    await expect(appliedFilters(page).getByRole("button", { name: /^SKU: / })).toHaveCount(0);
     await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
     await expect.poll(() => fixture.requests.at(-1).args.p_skus).toEqual([]);
     expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Amazon.com"]);
@@ -147,7 +145,7 @@ for (const [role, width] of [
     );
     await expect(
       appliedFilters(page).getByRole("button", {
-        name: "Clear marketplace filter: Amazon.com",
+        name: "Marketplace: Amazon.com. Clear filter.",
         exact: true,
       }),
     ).toBeVisible();

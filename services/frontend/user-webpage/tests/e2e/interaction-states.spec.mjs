@@ -8,6 +8,12 @@ import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
 const panel = (page, name) => page.getByRole("dialog", { name, exact: true });
+const currentTotals = (page) => page.getByRole("region", { name: "Current totals", exact: true });
+const dayTotals = (page) =>
+  currentTotals(page).getByRole("table", { name: "Last day marketplace totals", exact: true });
+const summaryRow = (page) =>
+  dayTotals(page).getByRole("row", { name: "Amazon.com USD totals", exact: true });
+const summaryDetails = (page) => summaryRow(page).getByRole("button", { name: /by type: / });
 const firstRecord = (page, tableName = "Financial records") =>
   page
     .getByRole("table", { name: tableName, exact: true })
@@ -117,7 +123,7 @@ async function setup(page, administrator = true) {
   fixture.assignments = skuAssignments(["S1"], REVIEW_COMPANY);
   fixture.financesRows = [financesRow(1)];
   fixture.kioskRows = [kioskRow(1, "10")];
-  fixture.aggregateRows = [summaryBucket("2026-09-01", "10")];
+  fixture.aggregateRows = [summaryBucket("2026-09-01", "10"), summaryBucket("2026-09-02", "0")];
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
   await mockInventory(page, [inventoryRow("S1", { company_id: REVIEW_COMPANY })]);
   await signIn(page);
@@ -137,29 +143,49 @@ test("sign-in and sign-up actions visibly respond without moving and retain keyb
   await hoverChangesShade(page, button(page, "Already have an account? Sign in"));
 });
 
-test("summary cards and date links keep distinct keyboard and click actions with a visible type link", async ({
+test("summary rows, UTC period shortcuts and the date chooser keep distinct keyboard actions", async ({
   page,
 }) => {
-  await setup(page, false);
-  const card = page.getByRole("article", { name: "Latest day current totals", exact: true });
-  const open = button(card, "View Latest day by type");
-  const date = card.getByRole("button", { name: /^Filter transactions to / });
-  await expect(card.getByText("View by type →", { exact: true })).toBeVisible();
-  await hoverChangesShade(page, open);
-  await expect
-    .poll(async () => {
-      const { background } = await appearance(open);
-      return Number(background.match(/[,/]\s*([.\d]+)\s*\)$/)?.[1]);
-    })
-    .toBeCloseTo(0.03, 4);
+  const fixture = await setup(page, false);
+  const open = summaryDetails(page);
+  const date = button(currentTotals(page), "Choose dates · UTC");
+  await expect(date).toHaveAttribute("data-action", "select");
+  await expect(date.locator(".totals-calendar-icon")).toHaveCount(1);
+  await expect(date.locator(".totals-filter-icon")).toHaveCount(0);
+  await expect(date.locator(".totals-date-chevron")).toHaveCount(1);
+  await expect(open).toBeVisible();
+  await expect(currentTotals(page).getByRole("radiogroup")).toHaveCount(0);
+  for (const title of ["Last day", "Last month", "Selected dates"]) {
+    await expect(
+      currentTotals(page).getByRole("article", { name: `${title} totals`, exact: true }),
+    ).toBeVisible();
+  }
+  await hoverEmphasizesText(page, open);
   await expectKeyboardFocus(page, open);
-  await hoverEmphasizesText(page, date);
+  await hoverChangesShade(page, date);
   await expectKeyboardFocus(page, date);
   await date.press("Enter");
   await expect(panel(page, "Amounts by type")).toHaveCount(0);
-  await expect(
-    page.getByRole("article", { name: "Selected dates current totals", exact: true }),
-  ).toContainText("10.00 USD");
+  const dateDialog = panel(page, "Choose summary dates");
+  await expect(dateDialog).toBeVisible();
+  await dateDialog.getByRole("button", { name: "Close summary dates", exact: true }).click();
+  await expect(date).toBeFocused();
+  const period = currentTotals(page)
+    .getByRole("article", { name: "Last day totals", exact: true })
+    .getByRole("button", {
+      name: "Filter transactions to Sep 1, 2026 · UTC",
+      exact: true,
+    });
+  await expect(period).toHaveAttribute("data-action", "filter");
+  await expect(period.locator(".totals-filter-icon")).toHaveCount(1);
+  await expect(period.locator(".totals-calendar-icon")).toHaveCount(0);
+  await expect(period.locator(".totals-date-chevron")).toHaveCount(0);
+  await hoverChangesShade(page, period);
+  await expectKeyboardFocus(page, period);
+  await period.press("Enter");
+  await expect(panel(page, "Amounts by type")).toHaveCount(0);
+  await expect.poll(() => fixture.requests.at(-1)?.args.p_date_from).toBe("2026-09-01");
+  expect(fixture.requests.at(-1).args.p_date_to).toBe("2026-09-01");
   await open.focus();
   await open.press("Enter");
   const breakdown = panel(page, "Amounts by type");
@@ -176,9 +202,9 @@ test("workspace controls share hover feedback across every administrator tab", a
   const transactions = page.getByRole("tab", { name: "Transactions", exact: true });
   await hoverChangesShade(page, transactions);
   await expectKeyboardFocus(page, transactions);
-  await hoverChangesShade(page, button(page, "Date"));
-  await button(page, "Date").click();
-  const options = panel(page, "Date options");
+  await hoverChangesShade(page, button(page, "Date (UTC)"));
+  await button(page, "Date (UTC)").click();
+  const options = panel(page, "Date (UTC) options");
   await hoverChangesShade(page, button(options, "Close options"));
   await button(options, "Close options").click();
 
@@ -218,18 +244,17 @@ test("workspace controls share hover feedback across every administrator tab", a
   await expectKeyboardFocus(page, create);
 });
 
-test("SKU text actions share the date-link appearance in fees, inventory and companies", async ({
-  page,
-}) => {
+test("SKU text actions share accent styling in fees, inventory and companies", async ({ page }) => {
   await setup(page);
-  const date = page.locator(".estimated-summary-period").first();
-  const dateColor = (await appearance(date)).color;
+  const amountAction = summaryDetails(page);
+  await expect(amountAction).toBeVisible();
+  const accentColor = (await appearance(amountAction)).color;
   for (const name of ["Current fees", "Inventory", "Companies"]) {
     await page.getByRole("tab", { name, exact: true }).click();
     if (name === "Companies")
       await page.getByRole("button", { name: "Show details for Review Company: " }).click();
     const sku = button(page, "Show transactions for S1");
-    await expect(sku).toHaveCSS("color", dateColor);
+    await expect(sku).toHaveCSS("color", accentColor);
     await hoverEmphasizesText(page, sku);
     await expectKeyboardFocus(page, sku);
     if (name === "Current fees")
@@ -246,9 +271,11 @@ test("filter fields, checkbox labels and company choices have matching pointer f
   page,
 }) => {
   await setup(page);
-  const accent = (await appearance(page.locator(".estimated-summary-period").first())).color;
-  await button(page, "Date").click();
-  const dateOptions = panel(page, "Date options");
+  const amountAction = summaryDetails(page);
+  await expect(amountAction).toBeVisible();
+  const accent = (await appearance(amountAction)).color;
+  await button(page, "Date (UTC)").click();
+  const dateOptions = panel(page, "Date (UTC) options");
   const fromDate = dateOptions.getByLabel("From date", { exact: true });
   await hoverChangesShade(page, fromDate);
   await fromDate.focus();
@@ -295,19 +322,19 @@ test.describe("mouse input on a touch-configured browser", () => {
     await hoverChangesShade(page, button(page, "Toggle password visibility"));
   });
 
-  test("cards, links, tabs, menus, rows and company controls retain pointer feedback", async ({
+  test("totals, links, tabs, menus, rows and company controls retain pointer feedback", async ({
     page,
   }) => {
     await setup(page);
     expect(await page.evaluate(() => globalThis.matchMedia("(hover: hover)").matches)).toBe(false);
     await hoverChangesShade(page, button(page, "Sign out"));
-    await hoverChangesShade(page, button(page, "View Latest day by type"));
-    await hoverEmphasizesText(page, page.locator(".estimated-summary-period").first());
+    await hoverEmphasizesText(page, summaryDetails(page));
+    await hoverChangesShade(page, button(page, "Choose dates · UTC"));
     await hoverChangesShade(page, page.getByRole("tab", { name: "Transactions", exact: true }));
     await hoverChangesShade(page, firstRecord(page));
-    await hoverChangesShade(page, button(page, "Date"));
-    await button(page, "Date").click();
-    const options = panel(page, "Date options");
+    await hoverChangesShade(page, button(page, "Date (UTC)"));
+    await button(page, "Date (UTC)").click();
+    const options = panel(page, "Date (UTC) options");
     await hoverChangesShade(page, button(options, "Close options"));
     await hoverChangesShade(page, button(options, "Clear dates"));
     await hoverChangesShade(page, button(options, "Apply dates"));
@@ -337,20 +364,20 @@ test.describe("touch interaction", () => {
   }) => {
     await setup(page, false);
     expect(await page.evaluate(() => globalThis.matchMedia("(hover: hover)").matches)).toBe(false);
-    const open = button(page, "View Latest day by type");
-    // signIn uses a mouse click; move that pointer off the newly mounted card
-    // before comparing its idle appearance with the result of touch-only actions.
-    await page.mouse.move(0, 0);
+    const open = summaryDetails(page);
+    // Reset sign-in's synthetic mouse hover with a neutral touch before testing the action.
+    await currentTotals(page).getByRole("heading", { name: "Current totals", exact: true }).tap();
     await expect.poll(() => open.evaluate((element) => element.matches(":hover"))).toBe(false);
     await open.evaluate(async (element) => {
       await new Promise(globalThis.requestAnimationFrame);
       await Promise.all(element.getAnimations().map((animation) => animation.finished));
     });
-    const idleCard = await appearance(open);
+    const idleAction = await appearance(open);
     await open.tap();
     await expect(panel(page, "Amounts by type")).toBeVisible();
+    await waitForAnimations(panel(page, "Amounts by type"));
     await button(page, "Close breakdown").tap();
-    await expect.poll(() => appearance(open)).toEqual(idleCard);
+    await expect.poll(() => appearance(open)).toEqual(idleAction);
     await page.getByRole("tab", { name: "Inventory", exact: true }).tap();
     await button(page, "Show transactions for S1").tap();
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(

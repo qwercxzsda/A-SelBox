@@ -78,7 +78,7 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
     );
     await page.getByLabel("Search", { exact: true }).clear();
     await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
-    await sortBy(page, "Date", "Oldest first");
+    await sortBy(page, "Date (UTC)", "Oldest first");
     await expect.poll(() => fixture.requests.at(-1).args?.p_order_by).toBe("date");
     if (dataset === "live") {
       await expect(

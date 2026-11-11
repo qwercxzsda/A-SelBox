@@ -1,3 +1,11 @@
+export const TOTALS_PERIODS = ["day", "month", "selected"] as const;
+export type TotalsPeriod = (typeof TOTALS_PERIODS)[number];
+export const TOTALS_PERIOD_LABELS: Record<TotalsPeriod, string> = {
+  day: "Last day",
+  month: "Last month",
+  selected: "Selected dates",
+};
+
 export interface DateRange {
   from: string;
   to: string;
@@ -28,13 +36,10 @@ function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function estimateMonthRange(latestDate: string): DateRange {
+export function previousMonthRange(latestDate: string): DateRange {
   const start = new Date(`${latestDate}T00:00:00Z`);
-  const followingDay = new Date(start);
-  followingDay.setUTCDate(followingDay.getUTCDate() + 1);
-  const monthEndsOnLatestDate = followingDay.getUTCDate() === 1;
   start.setUTCDate(1);
-  if (!monthEndsOnLatestDate) start.setUTCMonth(start.getUTCMonth() - 1);
+  start.setUTCMonth(start.getUTCMonth() - 1);
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + 1);
   end.setUTCDate(0);
@@ -56,9 +61,12 @@ export function selectedPeriod(range: DateRange): PeriodDefinition | null {
 
 export function summaryPeriods(latestDate: string | null) {
   if (latestDate === null) return { day: null, month: null };
-  const monthRange = estimateMonthRange(latestDate);
+  const previousDay = new Date(`${latestDate}T00:00:00Z`);
+  previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+  const day = isoDate(previousDay);
+  const monthRange = previousMonthRange(latestDate);
   return {
-    day: { range: { from: latestDate, to: latestDate }, label: formatDate(latestDate) },
+    day: { range: { from: day, to: day }, label: formatDate(day) },
     month: {
       range: monthRange,
       label: monthFormatter.format(new Date(`${monthRange.from}T00:00:00Z`)),

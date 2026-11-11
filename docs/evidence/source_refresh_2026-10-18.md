@@ -1,8 +1,7 @@
 # Amazon source refresh — October 18, 2026
 
-This dated record preserves source coverage, Summary agreement and changed Data Kiosk responses.
-The former daily Finance schema, preview UI and deployment details are not current contracts.
-The original aggregate result file retains its dated execution metadata.
+This record preserves the source coverage, Summary agreement and Data Kiosk response changes
+observed on October 18, 2026. Its aggregate result file records that capture's counts and metadata.
 
 The database serving the public preview was refreshed from Amazon and verified to
 have daily capture coverage from **January 1 through October 16, 2026**, inclusive.

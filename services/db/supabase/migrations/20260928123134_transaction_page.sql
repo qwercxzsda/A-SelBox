@@ -2,8 +2,8 @@
 -- and fee calculation. Keeping offset + limit rows from each ordered source is
 -- sufficient for date pages, including deterministic source/ID ties. Amount
 -- ordering is limited to 10,000 fully filtered rows and needs no amount indexes.
--- Date direction reverses the complete date/source/ID order, matching a single
--- source date/ID index in either scan direction. Amount ties remain ascending.
+-- Date direction reverses the complete instant/source/ID order, matching a single
+-- source instant/ID index in either scan direction. Amount ties remain ascending.
 -- SECURITY INVOKER preserves fact, metadata, ownership, and fee RLS throughout.
 -- Only authenticated non-administrators with active fact RLS omit the duplicate
 -- current-pointer EXISTS: their unchanged fact policies already require it.
@@ -31,7 +31,8 @@ create function public.transaction_page(
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
     p_search_sources text[] default null,
-    p_currency text default null
+    p_currency text default null,
+    p_include_selbox boolean default true
 ) returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
@@ -51,6 +52,9 @@ declare
     candidate_limit bigint;
     result jsonb;
 begin
+    if p_include_selbox is null then
+        raise exception 'SelBox inclusion preference is required' using errcode = '22023';
+    end if;
     if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
         raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
     end if;
@@ -78,7 +82,7 @@ begin
     -- EXECUTE exposes the chosen native ordering to the planner; filter values
     -- and pagination stay bound parameters. There is one maintained query body.
     sort_direction := case p_direction when 'asc' then 'asc' else 'desc' end;
-    sort_column := case p_order_by when 'amount' then 'source_amount' else 'activity_date' end;
+    sort_column := case p_order_by when 'amount' then 'source_amount' else 'activity_at' end;
     sort_nulls := case when p_order_by = 'date' and p_direction = 'desc' then 'first' else 'last' end;
     tie_direction := case p_order_by when 'date' then sort_direction else 'asc' end;
     if p_order_by = 'amount' then
@@ -89,7 +93,7 @@ begin
         candidate_cap := 'limit 10001';
     else
         candidate_limit := p_offset + p_limit;
-        source_order := format('order by activity_date %s nulls %s, source %s, source_row_id %s',
+        source_order := format('order by activity_at %s nulls %s, source %s, source_row_id %s',
             sort_direction, sort_nulls, tie_direction, tie_direction);
         candidate_materialization := 'not materialized';
         candidate_cap := '';
@@ -125,6 +129,7 @@ begin
                     t.seller_namespace,
                     t.marketplace_name,
                     t.posted_date as activity_date,
+                    t.posted_at as activity_at,
                     t.sku,
                     t.component_type,
                     t.currency,
@@ -134,14 +139,15 @@ begin
                     t.category
                 from private.finances_activity_components as t
                 where t.category in ('FINANCES', 'SELBOX')
+                    and ($19::boolean or t.category = 'FINANCES')
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.finances_transaction_components'::regclass
                         ))
                         or t.is_current
                     )
-                    and ($1::date is null or t.posted_date >= $1)
-                    and ($2::date is null or t.posted_date <= $2)
+                    and ($1::date is null or t.posted_at >= $1::date::timestamp at time zone 'UTC')
+                    and ($2::date is null or t.posted_at < ($2::date + 1)::timestamp at time zone 'UTC')
                     and ($18::text is null or t.currency = $18)
                     and (
                         coalesce(cardinality($3::uuid[]), 0) = 0
@@ -181,6 +187,7 @@ begin
                     t.seller_namespace,
                     t.marketplace_name,
                     t.activity_date,
+                    private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) as activity_at,
                     t.sku,
                     t.component_type,
                     t.currency,
@@ -199,8 +206,8 @@ begin
                             where h.current_version_id = t.version_id
                         )
                     )
-                    and ($1::date is null or t.activity_date >= $1)
-                    and ($2::date is null or t.activity_date <= $2)
+                    and ($1::date is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= $1::date::timestamp at time zone 'UTC')
+                    and ($2::date is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < ($2::date + 1)::timestamp at time zone 'UTC')
                     and ($18::text is null or t.currency = $18)
                     and (
                         coalesce(cardinality($3::uuid[]), 0) = 0
@@ -292,7 +299,7 @@ begin
         result_rows as (
             select c.source, c.source_row_id::uuid, c.source_version_id::uuid,
                 c.preprocess_version::text, c.source_identity_id::uuid,
-                c.seller_namespace::text, c.marketplace_name, c.activity_date,
+                c.seller_namespace::text, c.marketplace_name, c.activity_date, c.activity_at,
                 c.sku::text, c.component_type::text, c.currency,
                 c.source_amount::numeric, c.quantity::numeric, c.fee_base::numeric,
                 c.category, c.sku_id::uuid, c.terms_version_id::uuid,
@@ -310,6 +317,7 @@ begin
             'rows', (
                 select coalesce(jsonb_agg(
                     to_jsonb(r) || jsonb_build_object(
+                        'activity_at', to_char(r.activity_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
                         'source_amount', r.source_amount::text,
                         'quantity', r.quantity::text,
                         'fee_base', r.fee_base::text,
@@ -325,7 +333,7 @@ begin
                 else public.transaction_count(
                 $1::date, $2::date, $3::uuid[], $4::text[],
                 $5::text[], $6::text[], $7::text[], $12::boolean,
-                $13::text[], $14::text[], $15::text[], $16::text[], $18::text
+                $13::text[], $14::text[], $15::text[], $16::text[], $18::text, $19::boolean
                 ) end
             end
         ) end
@@ -335,7 +343,7 @@ begin
     using p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
         p_sources, p_types, candidate_limit, p_limit, p_offset, p_include_count,
         p_fee_applicable, p_search_skus, p_search_types, p_search_marketplaces, p_search_sources,
-        p_order_by = 'amount', p_currency;
+        p_order_by = 'amount', p_currency, p_include_selbox;
     if result is null then
         raise exception 'Amount ordering is limited to 10,000 matching transactions. Narrow your filters or order by date.'
             using errcode = '22023';
@@ -345,7 +353,7 @@ end;
 $$;
 revoke all on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text
+    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text, boolean
 ) from public,
 anon,
 authenticated,

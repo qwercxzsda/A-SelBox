@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from datetime import UTC, date
+from datetime import UTC, datetime
 from typing import Any
 
 from ..allocation import AllocationCategory
@@ -76,7 +76,7 @@ def validate_finances_candidate(
     current = {str(row["native_transaction_id"]): row for row in accepted}
     for identifier, row in current.items():
         if (
-            _covered(acquisition, row["marketplace_id"], row["posted_date"])
+            _covered(acquisition, row["marketplace_id"], row["posted_at"])
             and identifier not in incoming
         ):
             raise ValueError(
@@ -117,18 +117,22 @@ def validate_finances_candidate(
     return result
 
 
-def _covered(acquisition: FinancesAcquisition, marketplace: str, day: date) -> bool:
+def _covered(acquisition: FinancesAcquisition, marketplace: str, posted_at: datetime) -> bool:
     return (
         marketplace in acquisition.marketplace_ids
-        and acquisition.query_start_date <= day <= acquisition.query_end_date
+        and acquisition.posted_after <= posted_at < acquisition.comparable_end_at
     )
 
 
 def _validate_transaction(
     acquisition: FinancesAcquisition, transaction: FinancesTransaction, pages: set[int]
 ) -> None:
-    if not _covered(acquisition, transaction.marketplace_id, transaction.posted_date):
-        raise ValueError("Finances transaction is outside declared complete coverage.")
+    if transaction.marketplace_id not in acquisition.marketplace_ids or not (
+        acquisition.posted_after
+        <= transaction.posted_at
+        < (acquisition.posted_before or acquisition.downloaded_at)
+    ):
+        raise ValueError("Finances transaction is outside its timestamp request.")
     if transaction.marketplace_name != financial_marketplace_name(transaction.marketplace_id):
         raise ValueError("Finances transaction has inconsistent marketplace metadata.")
     if (
@@ -219,15 +223,20 @@ def _summary_marketplace(name: str) -> str:
 
 
 def _validate_summary(acquisition: FinancesAcquisition, prepared: PreparedFinances) -> None:
+    start, end = acquisition.reconciliation_start_date, acquisition.reconciliation_end_date
+    if start is None or end is None:
+        if prepared.summaries or acquisition.api_metadata["summary_available"]:
+            raise ValueError("Finances partial-day capture cannot declare Summary coverage.")
+        return
     if acquisition.api_metadata["summary_available"] is not True:
         raise ValueError("Successful Finances preprocessing requires available Summary controls.")
     controls: dict[tuple[str, str, str], FinancesSummary] = {}
     for summary in prepared.summaries:
         if (summary.period_start, summary.period_end) != (
-            acquisition.query_start_date,
-            acquisition.query_end_date,
+            start,
+            end,
         ):
-            raise ValueError("Finances Summary does not cover the complete capture period.")
+            raise ValueError("Finances Summary does not cover the reconciliation interval.")
         key = (
             _summary_marketplace(summary.marketplace_name),
             summary.account_type,
@@ -246,6 +255,8 @@ def _validate_summary(acquisition: FinancesAcquisition, prepared: PreparedFinanc
         )
     totals: dict[tuple[str, str, str], Numeric] = {}
     for transaction in prepared.transactions:
+        if not start <= transaction.posted_date <= end:
+            continue
         key = (
             _summary_marketplace(transaction.marketplace_name),
             transaction.account_type,
