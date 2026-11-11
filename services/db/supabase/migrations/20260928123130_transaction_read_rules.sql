@@ -1,51 +1,5 @@
 -- Index parent metadata separately from compact monetary components.
 -- Reporting instants are separate from marketplace-local accounting dates.
-create function private.marketplace_time_zone(p_marketplace text) returns text
-language sql immutable strict parallel safe security invoker set search_path = '' as $$
-    select case p_marketplace
-        when 'Amazon.com' then 'America/Los_Angeles'
-        when 'Non-Amazon US' then 'America/Los_Angeles'
-        when 'Amazon.ca' then 'America/Vancouver'
-        when 'Amazon.com.mx' then 'America/Mexico_City'
-        when 'Amazon.com.br' then 'America/Sao_Paulo'
-        when 'Amazon.co.uk' then 'Europe/London'
-        when 'Amazon.de' then 'Europe/Berlin'
-        when 'Non-Amazon DE' then 'Europe/Berlin'
-        when 'Amazon.fr' then 'Europe/Paris'
-        when 'Amazon.it' then 'Europe/Rome'
-        when 'Non-Amazon IT' then 'Europe/Rome'
-        when 'Amazon.es' then 'Europe/Madrid'
-        when 'Amazon.nl' then 'Europe/Amsterdam'
-        when 'Amazon.se' then 'Europe/Stockholm'
-        when 'Amazon.pl' then 'Europe/Warsaw'
-        when 'Amazon.com.be' then 'Europe/Brussels'
-        when 'Amazon.ie' then 'Europe/Dublin'
-        when 'Amazon.com.tr' then 'Europe/Istanbul'
-        when 'Amazon.ae' then 'Asia/Dubai'
-        when 'Amazon.sa' then 'Asia/Riyadh'
-        when 'Amazon.eg' then 'Africa/Cairo'
-        when 'Amazon.in' then 'Asia/Kolkata'
-        when 'Amazon.co.za' then 'Africa/Johannesburg'
-        when 'Amazon.co.jp' then 'Asia/Tokyo'
-        when 'Amazon.com.au' then 'Australia/Sydney'
-        when 'Amazon.sg' then 'Asia/Singapore'
-    end;
-$$;
-
--- Data Kiosk provides a whole local day's amount, not a recorded event instant.
--- Book it at that day's last microsecond; convert the NEXT midnight first so
--- 23-hour and 25-hour local days retain their actual daylight-saving boundaries.
-create function private.data_kiosk_activity_at(p_date date, p_marketplace text)
-returns timestamptz language sql immutable strict parallel safe security invoker
-set search_path = '' as $$
-    select ((p_date + 1)::timestamp at time zone private.marketplace_time_zone(p_marketplace))
-        - interval '1 microsecond';
-$$;
-
-revoke all on function private.marketplace_time_zone(text),
-private.data_kiosk_activity_at(date, text)
-from public, anon, authenticated, service_role;
-
 create index finances_revisions_instant_idx
 on private.finances_transaction_versions (posted_at, id);
 create index finances_revisions_marketplace_instant_idx on private.finances_transaction_versions (
@@ -71,9 +25,7 @@ on private.data_kiosk_days (current_version_id) where current_version_id is not 
 create index data_kiosk_days_date_idx on private.data_kiosk_days (activity_date, id);
 create index data_kiosk_days_marketplace_date_idx
 on private.data_kiosk_days (marketplace_name, activity_date, id);
-create index data_kiosk_days_instant_idx on private.data_kiosk_days (
-    private.data_kiosk_activity_at(activity_date, marketplace_name), id
-);
+create index data_kiosk_versions_instant_idx on private.data_kiosk_day_versions (activity_at, id);
 create index data_kiosk_day_components_sku_idx
 on private.data_kiosk_day_components (sku, version_id);
 create index data_kiosk_day_components_type_idx on private.data_kiosk_day_components (

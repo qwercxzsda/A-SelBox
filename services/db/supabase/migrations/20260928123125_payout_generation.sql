@@ -59,7 +59,6 @@ begin
             'marketplace_name',scope.marketplace_name,
             'currency',scope.currency,'start_date',p_month,'end_date',month_end,
             'dataset_key','economics',
-            'report_name',to_char(p_month,'YYYY-MM') || ' payout report',
             'change_reason','Automatically generated monthly payout report'
         ));
         created := report_id = requested_report_id;

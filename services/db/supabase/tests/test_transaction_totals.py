@@ -87,13 +87,13 @@ class TransactionTotalsTests(SourceModelFixture):
         query = sql.SQL("""
             with source_rows as (
                 select c.*, (case when c.source='FINANCES' then f.posted_at
-                    else ((c.activity_date+1)::timestamp at time zone
-                        private.marketplace_time_zone(c.marketplace_name))
-                        - interval '1 microsecond'
+                    else k.activity_at
                     end at time zone 'UTC')::date as utc_date
                 from public.live_company_components c
                 left join private.finances_transaction_versions f
                     on c.source='FINANCES' and f.id=c.source_version_id
+                left join private.data_kiosk_day_versions k
+                    on c.source='DATA_KIOSK' and k.id=c.source_version_id
             ), totals as (select
                 case when not %s::boolean then marketplace_name end as marketplace_name,
                 currency,

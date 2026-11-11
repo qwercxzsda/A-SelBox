@@ -46,9 +46,7 @@ async function setup(page, role) {
 }
 
 for (const role of ["administrator", "member"]) {
-  test(`${role} finds payout months by their visible labels without depending on report names`, async ({
-    page,
-  }) => {
+  test(`${role} finds payout months by their browser-formatted labels`, async ({ page }) => {
     const fixture = await setup(page, role);
     const search = page.getByRole("searchbox", { name: "Search", exact: true });
     const table = page.getByRole("table", { name: "Financial records", exact: true });
@@ -65,10 +63,10 @@ for (const role of ["administrator", "member"]) {
     await expect(table.getByRole("heading", { name: "June 2026", exact: true })).toHaveCount(0);
     expect(
       fixture.requests
-        .filter((entry) => entry.dataset === "payouts")
+        .filter((entry) => entry.dataset === "payouts" && entry.params.has("or"))
         .at(-1)
         .params.get("or"),
-    ).toContain("month_label.imatch");
+    ).toContain('start_date.in.("2026-05-01")');
   });
 }
 

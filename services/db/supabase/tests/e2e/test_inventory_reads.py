@@ -1,4 +1,4 @@
-"""Urgency is ordered before REST pagination without changing current-SKU access."""
+"""Raw inventory reads retain exact statuses and ownership across transport pages."""
 
 from datetime import UTC, date, datetime
 from typing import cast
@@ -10,9 +10,10 @@ from services.sync.src.database.acquisitions import persist_inventory_acquisitio
 from services.sync.src.database.company_terms import create_company, publish_sku_terms
 from services.sync.src.database.inventory import publish_inventory_capture
 from services.sync.src.inventory.models import InventoryAcquisition, PreparedInventory
+from services.sync.src.inventory.vocabulary import HEALTH_STATUSES, RECOMMENDED_ACTIONS
 
 
-class InventoryOrderingTests(LocalWorkflowCase):
+class InventoryReadTests(LocalWorkflowCase):
     def publish_inventory(self, rows: list[dict[str, object]]) -> str:
         created = datetime(2026, 9, 29, 12, tzinfo=UTC)
         acquisition = InventoryAcquisition(
@@ -27,7 +28,7 @@ class InventoryOrderingTests(LocalWorkflowCase):
             report_created_at=created,
             downloaded_at=created,
             document=archive_document(
-                self.storage, b"Inventory urgency fixture", source_compression=None
+                self.storage, b"Inventory read fixture", source_compression=None
             ),
             api_metadata={"processingStatus": "DONE"},
         )
@@ -43,34 +44,23 @@ class InventoryOrderingTests(LocalWorkflowCase):
             company_id=company,
             expected_current_version_id=None,
             periods=(),
-            change_reason="Inventory urgency access fixture",
+            change_reason="Inventory read access fixture",
         )
 
     def assert_pages(
         self,
         token: str,
         expected: list[dict[str, object]],
-        column: str,
-        direction: str,
     ) -> None:
-        rank_column = column + "_urgency"
-
-        def sort_key(row: dict[str, object]) -> tuple[bool, int, str]:
-            rank = cast(int | None, row[rank_column])
-            value = 0 if rank is None else rank
-            return rank is None, -value if direction == "desc" else value, cast(str, row["sku"])
-
-        ordered = sorted(expected, key=sort_key)
+        ordered = sorted(expected, key=lambda row: cast(str, row["sku"]))
         for offset in range(0, max(1, len(ordered)), 25):
             response = self.stack.request(
                 "GET",
                 "/rest/v1/latest_inventory_items",
                 token=token,
                 params={
-                    "select": "sku,health_status,recommended_action,"
-                    "health_status_urgency,recommended_action_urgency",
-                    "order": f"{rank_column}.{direction}.nullslast,"
-                    "sku.asc,marketplace_name.asc,capture_id.asc",
+                    "select": "sku,health_status,recommended_action",
+                    "order": "sku.asc,marketplace_name.asc,capture_id.asc",
                     "offset": str(offset),
                     "limit": "25",
                 },
@@ -80,36 +70,10 @@ class InventoryOrderingTests(LocalWorkflowCase):
             self.assertEqual(response.json(), ordered[offset : offset + 25])
             self.assertEqual(response.headers["Content-Range"].rsplit("/", 1)[1], str(len(ordered)))
 
-    def test_urgency_ranks_sort_complete_authorized_rows_before_pagination(self) -> None:
-        health_cases = (
-            ("Out of stock", 40),
-            ("LOW_stock", 30),
-            ("Excess", 20),
-            ("ExcessStock", 20),
-            ("ExcessInventory", 20),
-            ("HighStock", 20),
-            ("Overstock", 20),
-            ("Healthy", 0),
-            ("Unfamiliar health status", None),
-            (None, None),
-        )
-        action_cases = (
-            ("GoToRestock", 50),
-            ("Restock", 50),
-            ("Restock inventory", 50),
-            ("SendToFBA", 50),
-            ("CreateShippingPlan", 50),
-            ("Go to stranded", 40),
-            ("Edit listing", 30),
-            ("LowerPrice", 20),
-            ("Advertise_listing", 10),
-            ("NoExcessInventory", 0),
-            ("No action required", 0),
-            ("NoRestockExcessActionRequired", 0),
-            ("Unfamiliar source action", None),
-            (None, None),
-        )
-        companies = [create_company(self.database, f"Urgency {self.seller} {n}") for n in (1, 2)]
+    def test_complete_current_authorized_rows_across_transport_pages(self) -> None:
+        health_cases = (*HEALTH_STATUSES, None)
+        action_cases = (*RECOMMENDED_ACTIONS, None)
+        companies = [create_company(self.database, f"Inventory {self.seller} {n}") for n in (1, 2)]
         expected: list[dict[str, object]] = []
         items: list[dict[str, object]] = []
         for repeat in range(5):
@@ -120,18 +84,16 @@ class InventoryOrderingTests(LocalWorkflowCase):
                 expected.append(
                     {
                         "sku": sku,
-                        "health_status": health[0],
-                        "recommended_action": action[0],
-                        "health_status_urgency": health[1],
-                        "recommended_action_urgency": action[1],
+                        "health_status": health,
+                        "recommended_action": action,
                     }
                 )
                 items.append(
                     {
                         "sku": sku,
                         "source_line_number": number + 2,
-                        "health_status": health[0],
-                        "recommended_action": action[0],
+                        "health_status": health,
+                        "recommended_action": action,
                     }
                 )
                 # Three groups for the first member cross the 25-row page boundary;
@@ -150,16 +112,14 @@ class InventoryOrderingTests(LocalWorkflowCase):
             (second_member, expected[first_member_end:second_member_end]),
             (unprovisioned, []),
         ):
-            for column in ("health_status", "recommended_action"):
-                for direction in ("asc", "desc"):
-                    with self.subTest(row_count=len(rows), column=column, direction=direction):
-                        self.assert_pages(token, rows, column, direction)
+            with self.subTest(row_count=len(rows)):
+                self.assert_pages(token, rows)
         revoked = self.set_membership(administrator, member_id, None)
         self.assertEqual(revoked.status_code, 200)
-        self.assert_pages(first_member, [], "health_status", "desc")
+        self.assert_pages(first_member, [])
         denied = self.stack.request(
             "GET",
             "/rest/v1/latest_inventory_items",
-            params={"order": "health_status_urgency.desc.nullslast"},
+            params={"order": "sku.asc"},
         )
         self.assertIn(denied.status_code, (401, 403))

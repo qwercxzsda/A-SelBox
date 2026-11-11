@@ -76,8 +76,9 @@ sum overlapping quantities or invent a minimum-stock-in-days value. Sales withou
 remain unavailable, and overlapping 90-day windows must not be summed as daily sales.
 
 The real Japan report tested on 2026-09-29 omitted health status and minimum inventory. Those fields
-correctly remain unavailable. Preserve unfamiliar health/recommendation labels; field availability
-can vary by marketplace.
+correctly remain unavailable. Field availability can vary by marketplace. Nonmissing health and
+recommendation values must match the fixed source vocabulary below; unsupported values fail
+preprocessing instead of silently creating a new category.
 
 ## Acquisition and offline preprocessing
 
@@ -89,8 +90,8 @@ can vary by marketplace.
    URLs or credentials in metadata. Successful raw archives and acquisitions are retained indefinitely.
 3. Preprocess a saved acquisition ID offline. Verify and decode the retained archive; never call
    Amazon or replace a failed parse with another source.
-4. Parse the complete TSV with exact SKU identity. Ignore unused columns, preserve unknown labels,
-   and diagnose missing/invalid optional metrics. Collapse identical duplicates; omit blank SKUs and
+4. Parse the complete TSV with exact SKU identity. Ignore unused columns, validate categorical
+   values, and diagnose missing/invalid optional metrics. Collapse identical duplicates; omit blank SKUs and
    ambiguous conflicting duplicates. A nonempty document with no usable SKU rows fails instead of
    publishing false empty stock. Unreadable bytes, wrong marketplace, and malformed rows also fail.
 5. Publish the complete capture under a lock on the natural day key. Check the expected existing
@@ -123,9 +124,9 @@ or namespaces are not an assumed physical total.
 
 The browser uses those minimal capture references to distinguish marketplace availability independently
 of item filters. A missing capture, a completed empty capture, and a member with no authorized items
-have distinct empty states; a member is never told that another company's stock is empty. For an
-empty filtered result, a one-row authorized item probe distinguishes no available items from no
-matches. Capture discovery is paged and contains no financial amounts or item data.
+have distinct empty states; a member is never told that another company's stock is empty. The complete
+authorized item snapshot distinguishes no available items from no filter matches. Capture discovery
+is paged and contains no financial amounts or item data.
 
 Each item combines its source date and age in one row caption, with an inline Out of date warning
 when needed. There is no separate marketplace freshness panel. A missing snapshot date is labelled
@@ -138,42 +139,44 @@ timestamps remain in UTC; reprocessing does not reset source age.
 Visible filter chips name and individually clear persisted criteria. Sales ordering remains in the
 original currencies; the Sales amount help control beside the column heading explains that scope.
 
-`public.inventory_filter_options()` returns complete distinct `skus`, `health_statuses`, and
-`recommendations` arrays from the same current, authorized rows. Text uses deterministic C ordering;
-nullable status/recommendation arrays retain one null option last. The authenticated invoker RPC
-does not accept a company identity or bypass RLS, and its single JSON result is not truncated by
-REST page limits. Browser searches resolve these exact values before the server applies filters,
-ordering, and pagination. Numeric sales sorting retains the source currency and amount.
+The browser loads every authorized row from `public.latest_inventory_items` using stable identity
+pages, then caches the complete snapshot. SKU options come from that snapshot. Health and
+recommendation options are constants checked against the preprocessing vocabulary, including a
+separate unavailable option for null. No read function discovers fixed categories. Database CHECK
+constraints accept exactly the same nonnull source values as preprocessing.
+Revision and account checks bracket item retrieval. The initial account must match the workspace
+identity before items are requested. A concurrent publication or access change rejects the partial
+load and allows the automatic retry to fetch a consistent snapshot.
 
-Health and recommendation sorting uses nullable integer ranks derived in
-`public.latest_inventory_items`: `health_status_urgency` and `recommended_action_urgency`.
-These are application priorities, not an urgency score supplied by Amazon. Higher ranks come
-first for "Most urgent first"; unknown labels and absent values remain last in either direction.
-The database orders the full filtered result before pagination, with exact SKU, marketplace, and
-capture ID as stable ties. Source labels and normalized captures are unchanged.
+The frontend applies search, filters, exact decimal sales comparisons, urgency ordering, and
+pagination to the complete snapshot. SQL exposes source facts without presentation ranks.
+Missing values remain last in either urgency direction; exact SKU, marketplace, and capture ID
+provide stable ties. The priorities below are UI choices, independent of the source contract.
 
-| Recommendation priority                                                         | Rank |
-| ------------------------------------------------------------------------------- | ---: |
-| Restock / Send to FBA / Create shipping plan                                    |   50 |
-| Resolve stranded inventory                                                      |   40 |
-| Edit listing                                                                    |   30 |
-| Lower price                                                                     |   20 |
-| Advertise listing                                                               |   10 |
-| No excess inventory / No action required / No restock or excess action required |    0 |
+| Accepted recommendation source value | Display label | UI priority |
+| --- | --- | ---: |
+| `GoToRestock` | Restock | 50 |
+| `SendToFBA` | Send to FBA | 50 |
+| `CreateShippingPlan` | Create shipping plan | 50 |
+| `GoToStranded` | Resolve stranded inventory | 40 |
+| `Edit listing` | Edit listing | 30 |
+| `Lower price` | Lower price | 20 |
+| `Advertise listing` | Advertise listing | 10 |
+| `NoExcessInventory` | No excess inventory | 0 |
+| `NoRestockExcessActionRequired` | No restock or excess action required | 0 |
 
 Replenishment actions share the highest rank as an action category. Their labels do not indicate
 shipment progress or equal stockout risk; recommended ship dates, stock coverage, and inbound
 inventory do not affect this ordering. Their row labels use the strongest emphasis;
 stranded inventory uses an amber warning, listing maintenance uses blue, and routine or no-action
-labels use neutral styling. Health ordering remains Out of stock (40), Low stock (30),
-Excess (20), and Healthy (0).
+labels use neutral styling. The complete health vocabulary is `Out of stock`, `Low stock`,
+`Excess`, and `Healthy`, with UI priorities 40, 30, 20, and 0 respectively.
 
-Matching ignores case, spaces, and punctuation. Excess also recognizes `ExcessStock`,
-`ExcessInventory`, `HighStock`, and `Overstock`; Restock recognizes `GoToRestock` and
-`RestockInventory`. Recommendation display labels use sentence case and preserve acronyms such as
-FBA. Camel-case, underscore, and whitespace variants have consistent display text. Unknown values
-are formatted for readability but remain unranked. Original source values remain unchanged in
-storage, exact filters, and hover text; search matches both source values and displayed labels.
+Preprocessing trims surrounding whitespace and recognizes explicit missing-value tokens such as
+blank, `-`, and `N/A`. Other category values must match exactly; case and punctuation do not create
+aliases. Unsupported values also fail on blank-SKU and conflicting duplicate rows before
+those rows can be omitted. Original archives retain the source bytes. The frontend maps accepted
+codes to explicit sentence-case labels and colors; search matches source values and display labels.
 
 All three private tables use RLS. Members read latest items for currently owned SKUs; administrators also
 see unassigned items and retained history. A caller-checked private helper exposes minimal latest
@@ -212,8 +215,8 @@ No recurring scheduler or deployment is installed by these commands.
 The read-only Inventory tab uses the same lightweight revision checks as Transactions. While
 visible and online it checks every 60 seconds; focus/visibility return checks when at least 30
 seconds stale, and reconnection checks immediately. Unchanged `inventory` and ownership (`fees`)
-tokens retain cached rows/counts and filter catalogs. Relevant changes reload the active page and
-catalog; failed reads retry on
+tokens retain the cached complete item snapshot. Relevant changes reload the snapshot and capture
+references; failed reads retry on
 the next check. These checks read the small token table, not capture headers or item rows, and never
 call Amazon. No manual reload or shipment controls are present.
 

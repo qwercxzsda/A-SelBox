@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import date
 
 from ..amazon.marketplace_names import validate_marketplace_name
-from .seller_namespaces import validate_seller_namespace
+from ..seller_namespaces import validate_seller_namespace
 from .values import normalize_uuid, required_date, required_text
 
 

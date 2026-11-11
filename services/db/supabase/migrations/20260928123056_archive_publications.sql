@@ -41,20 +41,20 @@ $$;
 
 create function private.publish_data_kiosk_acquisition(p_payload jsonb) returns uuid
 language plpgsql set search_path = '' as $$
-declare acquisition_payload private.data_kiosk_acquisitions; page jsonb; metadata jsonb;
-    page_index integer := 1; document_count integer := 0; next_token text;
+declare acquisition_payload private.data_kiosk_acquisitions; page jsonb;
+    page_index integer := 1; document_count integer := 0;
     existing private.data_kiosk_acquisitions;
 begin
     acquisition_payload := jsonb_populate_record(null::private.data_kiosk_acquisitions, p_payload);
     if jsonb_typeof(acquisition_payload.documents) is distinct from 'array' or jsonb_array_length(acquisition_payload.documents) = 0 then
         raise exception 'Complete ordered document inventory required' using errcode = '23514';
     end if;
-    if acquisition_payload.api_metadata is distinct from acquisition_payload.documents->0->'api_metadata'
-        or cardinality(acquisition_payload.marketplace_ids) is distinct from 1 then
-        raise exception 'Root query provenance and single marketplace coverage must match the inventory' using errcode = '23514';
+    if cardinality(acquisition_payload.marketplace_ids) is distinct from 1 then
+        raise exception 'One marketplace is required per acquisition' using errcode = '23514';
     end if;
+    -- The acquisition parser validates Amazon responses and traversal before publication.
+    -- SQL protects the normalized, complete manifest and its durable identities only.
     for page in select value from jsonb_array_elements(acquisition_payload.documents) loop
-        metadata := page->'api_metadata';
         if jsonb_typeof(page) is distinct from 'object'
             or not page ?& array['page_number','query_id','query_created_at','document_kind',
                 'is_terminal','document_id','document','api_metadata']
@@ -64,48 +64,29 @@ begin
             or jsonb_typeof(page->'query_id') is distinct from 'string'
             or jsonb_typeof(page->'query_created_at') is distinct from 'string'
             or jsonb_typeof(page->'document_kind') is distinct from 'string'
-            or jsonb_typeof(metadata) is distinct from 'object'
-            or jsonb_typeof(metadata->'createdTime') is distinct from 'string'
-            or jsonb_typeof(metadata->'queryId') is distinct from 'string'
-            or jsonb_typeof(metadata->'query') is distinct from 'string' then
+            or jsonb_typeof(page->'api_metadata') is distinct from 'object' then
             raise exception 'Missing or invalid Data Kiosk page metadata' using errcode = '23514';
         end if;
         if (page->>'page_number')::integer is distinct from page_index
             or btrim(page->>'query_id') = ''
             or page->>'query_id' <> btrim(page->>'query_id')
-            or metadata->>'queryId' is distinct from page->>'query_id'
-            or (metadata->>'createdTime')::timestamptz is distinct from (page->>'query_created_at')::timestamptz
-            or coalesce(metadata->>'processingStatus','') <> 'DONE'
-            or btrim(metadata->>'query') = ''
             or page->>'document_kind' not in ('DATA','NO_DATA')
-            or coalesce(metadata->>'errorDocumentId','') <> ''
             or (page->>'is_terminal')::boolean is distinct from (page_index = jsonb_array_length(acquisition_payload.documents))
             or (page_index = 1 and (page->>'query_id' is distinct from acquisition_payload.root_query_id
                 or (page->>'query_created_at')::timestamptz is distinct from acquisition_payload.root_query_created_at)) then
             raise exception 'Incomplete or inconsistent Data Kiosk page inventory' using errcode = '23514';
         end if;
-        if metadata ? 'pagination' and metadata->'pagination' <> 'null'::jsonb
-            and jsonb_typeof(metadata->'pagination') is distinct from 'object' then
-            raise exception 'Invalid Data Kiosk pagination metadata' using errcode = '23514';
-        end if;
-        next_token := metadata->'pagination'->>'nextToken';
-        if (next_token is null) is distinct from (page->>'is_terminal')::boolean
-            or (next_token is not null and (btrim(next_token) = '' or btrim(next_token) <> next_token)) then
-            raise exception 'Pagination metadata must establish complete traversal' using errcode = '23514';
-        end if;
         if page->>'document_kind' = 'DATA' then
             perform private.assert_archive_document(page->'document');
             if jsonb_typeof(page->'document_id') is distinct from 'string'
                 or btrim(page->>'document_id') = ''
-                or page->>'document_id' <> btrim(page->>'document_id')
-                or metadata->>'dataDocumentId' is distinct from page->>'document_id' then
+                or page->>'document_id' <> btrim(page->>'document_id') then
                 raise exception 'Data page document identity required' using errcode = '23514';
             end if;
             document_count := document_count + 1;
         elsif page->'document_id' is distinct from 'null'::jsonb
-            or page->'document' is distinct from 'null'::jsonb
-            or coalesce(metadata->>'dataDocumentId','') <> '' then
-            raise exception 'NO_DATA must be a verified successful empty page' using errcode = '23514';
+            or page->'document' is distinct from 'null'::jsonb then
+            raise exception 'An empty page cannot contain an archive reference' using errcode = '23514';
         end if;
         page_index := page_index + 1;
     end loop;

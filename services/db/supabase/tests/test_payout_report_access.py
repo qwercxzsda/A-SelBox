@@ -38,7 +38,6 @@ class PayoutReportAccessTests(SourceModelFixture):
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",
                 "dataset_key": "economics",
-                "report_name": "Complete source access",
                 "change_reason": "Freeze both source manifests and exclusion evidence",
             },
         )
@@ -61,7 +60,7 @@ class PayoutReportAccessTests(SourceModelFixture):
             ("select * from public.latest_company_payout_reports", 1, 1),
             (
                 "select * from public.latest_company_payout_reports "
-                "where month_label ~* 'June 2026'",
+                "where start_date = '2026-06-01'",
                 1,
                 1,
             ),
@@ -124,8 +123,10 @@ class PayoutReportAccessTests(SourceModelFixture):
             ):
                 self.as_user(user, "select public.report_source_totals(%s)", (report,))
         self.assertEqual(
-            self.as_user(owner, "select month_label from public.latest_company_payout_reports"),
-            [("June 2026",)],
+            self.as_user(
+                owner, "select start_date::text from public.latest_company_payout_reports"
+            ),
+            [("2026-06-01",)],
         )
         self.assertEqual(
             self.as_user(

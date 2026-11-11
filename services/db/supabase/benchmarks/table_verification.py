@@ -29,24 +29,19 @@ class Payload(TypedDict):
 
 def reference_relation(dataset: Dataset) -> sql.Composable:
     if dataset.key != "live":
-        timestamp = (
-            sql.SQL("e.posted_at")
-            if dataset.key == "finances"
-            else sql.SQL(
-                "((e.activity_date + 1)::timestamp at time zone "
-                "private.marketplace_time_zone(e.marketplace_name)) - interval '1 microsecond'"
-            )
-        )
+        if dataset.key == "data_kiosk":
+            return sql.Identifier("public", dataset.relation)
         return sql.SQL("(select e.*, {} as activity_at from {} e)").format(
-            timestamp, sql.Identifier("public", dataset.relation)
+            sql.SQL("e.posted_at"), sql.Identifier("public", dataset.relation)
         )
     return sql.SQL(
         "(select c.*, case when c.source = 'FINANCES' then f.posted_at "
-        "else ((c.activity_date + 1)::timestamp at time zone "
-        "private.marketplace_time_zone(c.marketplace_name)) - interval '1 microsecond' "
+        "else k.activity_at "
         "end as activity_at from public.live_company_components c "
         "left join private.finances_transaction_versions f "
-        "on c.source = 'FINANCES' and f.id = c.source_version_id)"
+        "on c.source = 'FINANCES' and f.id = c.source_version_id "
+        "left join private.data_kiosk_day_versions k "
+        "on c.source = 'DATA_KIOSK' and k.id = c.source_version_id)"
     )
 
 

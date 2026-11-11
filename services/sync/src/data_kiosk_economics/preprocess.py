@@ -24,6 +24,7 @@ from .acquisition_coverage import validate_acquisition_coverage
 from .components import build_components
 from .coverage import validate_requested_fields
 from .models import DataKioskDay, DataKioskTransaction
+from .timestamps import reporting_activity_at
 
 
 def prepare_data_kiosk_acquisition(
@@ -88,6 +89,7 @@ def _complete_day(
     day: date,
     components: tuple[DataKioskTransaction, ...],
 ) -> DataKioskDay:
+    activity_at = reporting_activity_at(day, marketplace_name)
     keys = [row.component_key for row in components]
     if len(keys) != len(set(keys)):
         raise ValueError("Data Kiosk day contains duplicate economic component identities.")
@@ -100,6 +102,7 @@ def _complete_day(
         {
             "marketplace_name": marketplace_name,
             "activity_date": day,
+            "activity_at": activity_at,
             "dataset_key": "economics",
             "complete": True,
             "components": [
@@ -117,7 +120,7 @@ def _complete_day(
             ],
         }
     )
-    return DataKioskDay(marketplace_name, day, digest, components)
+    return DataKioskDay(marketplace_name, day, activity_at, digest, components)
 
 
 def _canonical_number(value: Numeric | None) -> str | None:

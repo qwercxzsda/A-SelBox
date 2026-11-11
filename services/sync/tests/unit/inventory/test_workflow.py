@@ -61,6 +61,26 @@ class InventoryWorkflowTests(unittest.TestCase):
                 preprocess_inventory_acquisition(Mock(), storage, str(acquisition.id))
             publish.assert_not_called()
 
+    def test_unknown_source_categories_fail_before_publication(self) -> None:
+        for field in ("fba-inventory-level-health-status", "recommended-action"):
+            storage = MemoryArchiveStorage()
+            acquisition = saved_acquisition(
+                report_bytes(
+                    {"sku": "valid", "available": "2"},
+                    {"sku": "unknown", field: "Unsupported source value"},
+                ),
+                storage,
+            )
+            with (
+                self.subTest(field=field),
+                patch(MODULE + ".load_inventory_acquisition", return_value=acquisition),
+                patch(MODULE + ".current_inventory_capture", return_value=str(uuid7())),
+                patch(MODULE + ".publish_inventory_capture") as publish,
+                self.assertRaisesRegex(ValueError, "unsupported"),
+            ):
+                preprocess_inventory_acquisition(Mock(), storage, str(acquisition.id))
+            publish.assert_not_called()
+
     def test_repository_payload_keeps_decimal_exact_and_matches_saved_capture_scope(self) -> None:
         storage = MemoryArchiveStorage()
         content = report_bytes(

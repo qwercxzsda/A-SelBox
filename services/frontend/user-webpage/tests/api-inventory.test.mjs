@@ -2,27 +2,33 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { INVENTORY_CAPTURE_COLUMNS, INVENTORY_COLUMNS } from "../src/api/inventory.ts";
+import { inventoryPage } from "../src/inventory-view.ts";
 import {
   inventoryFilterOptions,
+  INVENTORY_HEALTH_VALUES,
+  INVENTORY_RECOMMENDATION_VALUES,
   recommendationLabel,
   recommendationTone,
-  resolveInventorySearch,
 } from "../src/inventory-options.ts";
 import { SETTINGS, csvRecord } from "./api-fixtures.mjs";
-
+const revisions = {
+  account: { user_id: "member", access_role: "member", company_id: "a" },
+  revisions: { inventory: "one", fees: "one" },
+};
+const revisionReply = (url) =>
+  new URL(url).pathname.endsWith("/workspace_revisions") ? Response.json(revisions) : null;
 function record(overrides = {}) {
   return {
     ...Object.fromEntries(INVENTORY_COLUMNS.map((column) => [column, null])),
     capture_id: "capture-one",
     capture_date: "2026-09-28",
     marketplace_name: "Amazon.com",
-    sku: ' SKU.*_%(),"\\ ',
+    sku: ' SKU.*_%()," ',
     report_created_at: "2026-09-28T03:00:00Z",
     preprocessed_at: "2026-09-28T04:00:00Z",
     ...overrides,
   };
 }
-
 const options = {
   search: "",
   skus: [],
@@ -33,9 +39,7 @@ const options = {
   marketplace: "",
   pageIndex: 0,
   pageSize: 25,
-  accessToken: "test-access",
 };
-
 test("inventory capture discovery retains empty capture references and handles smaller server pages without counts", async () => {
   const captures = [
     {
@@ -55,6 +59,7 @@ test("inventory capture discovery retains empty capture references and handles s
   ];
   const offsets = [];
   const client = createApiClient(SETTINGS, async (url, init) => {
+    if (revisionReply(url)) return revisionReply(url);
     const params = new URL(url).searchParams;
     const offset = Number(params.get("offset"));
     offsets.push(offset);
@@ -80,321 +85,222 @@ test("inventory capture discovery retains empty capture references and handles s
   await assert.rejects(incomplete.fetchInventoryCaptures("access"), /incomplete capture/);
 });
 
-test("unfiltered inventory availability reads one authorized reference in the marketplace scope", async () => {
+test("inventory loads every authorized row before display, preserving exact values and smaller server pages", async () => {
+  const records = [
+    record({ sku: "A", sales_amount_90d: "9007199254740993.123456789", available_quantity: "0" }),
+    record({ sku: "B" }),
+  ];
+  const offsets = [];
   const client = createApiClient(SETTINGS, async (url, init) => {
+    if (revisionReply(url)) return revisionReply(url);
     const params = new URL(url).searchParams;
-    assert.equal(params.get("select"), "capture_id");
-    assert.equal(params.get("limit"), "1");
-    assert.equal(params.get("marketplace_name"), "eq.Amazon.com");
+    const offset = Number(params.get("offset"));
+    offsets.push(offset);
+    assert.equal(new URL(url).pathname, "/rest/v1/latest_inventory_items");
+    assert.equal(params.get("order"), "capture_id.asc,sku.asc");
+    assert.equal(params.get("select"), INVENTORY_COLUMNS.join(","));
     assert.equal(params.has("and"), false);
     assert.equal(init.headers.Prefer, undefined);
-    return new Response("capture_id\nvisible-capture");
+    assert.equal(init.headers.Authorization, "Bearer access");
+    assert.ok(init.signal instanceof AbortSignal);
+    return new Response(
+      offset < records.length ? csvRecord(records[offset]) : INVENTORY_COLUMNS.join(","),
+    );
   });
-  assert.equal(await client.hasInventoryItems("access", "Amazon.com"), true);
-  const empty = createApiClient(SETTINGS, async () => new Response("capture_id\n"));
-  assert.equal(await empty.hasInventoryItems("access", ""), false);
-  await assert.rejects(empty.hasInventoryItems("access", "Amazon.fake"), /marketplace/);
-});
-
-test("inventory filters exact SKU text before stable pagination and keeps decimal precision and unknowns", async () => {
-  let captured;
-  const row = record({ sales_amount_90d: "9007199254740993.123456789", available_quantity: "0" });
-  const client = createApiClient(SETTINGS, async (url, init) => {
-    captured = { url: new URL(url), init };
-    return new Response(csvRecord(row), { headers: { "Content-Range": "25-25/26" } });
-  });
-  const signal = new AbortController().signal;
-  const page = await client.fetchInventoryPage({
-    ...options,
-    skus: [row.sku],
-    marketplace: "Amazon.com",
-    pageIndex: 1,
-    signal,
-  });
-  assert.equal(page.totalCount, 26);
-  assert.equal(page.rows[0].sales_amount_90d, "9007199254740993.123456789");
-  assert.equal(page.rows[0].available_quantity, "0");
-  assert.equal(page.rows[0].reserved_quantity, null);
-  assert.equal(captured.url.pathname, "/rest/v1/latest_inventory_items");
-  assert.equal(captured.url.searchParams.get("and"), `(sku.in.(${JSON.stringify(row.sku)}))`);
-  assert.equal(captured.url.searchParams.get("marketplace_name"), "eq.Amazon.com");
-  assert.equal(captured.url.searchParams.get("offset"), "25");
-  assert.equal(
-    captured.url.searchParams.get("order"),
-    "sku.asc.nullslast,marketplace_name.asc,capture_id.asc",
+  assert.deepEqual(
+    (await client.fetchInventoryRows("access", revisions.account)).map((row) => ({ ...row })),
+    records,
   );
-  assert.equal(captured.url.searchParams.has("or"), false);
-  assert.equal(captured.url.searchParams.get("select").includes("seller_namespace"), false);
-  assert.equal(captured.init.headers.Accept, "text/csv");
-  assert.equal(captured.init.headers.Prefer, "count=exact");
-  assert.equal(captured.init.headers.Authorization, "Bearer test-access");
-  assert.ok(captured.init.signal instanceof AbortSignal);
+  assert.deepEqual(offsets, [0, 1, 2]);
 });
 
-test("inventory handles shrinking pages, rejects incomplete projections and hides server errors", async () => {
-  const empty = createApiClient(
+test("incomplete, repeated, failed and aborted inventory reads never become partial success", async () => {
+  const repeated = createApiClient(
     SETTINGS,
-    async () => new Response(null, { status: 416, headers: { "Content-Range": "*/0" } }),
+    async (url) => revisionReply(url) ?? new Response(csvRecord(record())),
   );
-  assert.deepEqual(await empty.fetchInventoryPage({ ...options, pageIndex: 1 }), {
-    rows: [],
-    totalCount: 0,
-  });
-  const partial = createApiClient(SETTINGS, async () => new Response(csvRecord({ sku: "A" })));
-  await assert.rejects(partial.fetchInventoryPage(options), /incomplete row/);
+  await assert.rejects(repeated.fetchInventoryRows("access", revisions.account), /did not advance/);
+  const partial = createApiClient(
+    SETTINGS,
+    async (url) => revisionReply(url) ?? new Response(csvRecord({ sku: "A" })),
+  );
+  await assert.rejects(partial.fetchInventoryRows("access", revisions.account), /incomplete row/);
+  const [header, row] = csvRecord(record()).split("\n");
+  const oversized = createApiClient(
+    SETTINGS,
+    async (url) =>
+      revisionReply(url) ??
+      new Response([header, ...Array.from({ length: 1001 }, () => row)].join("\n")),
+  );
+  await assert.rejects(oversized.fetchInventoryRows("access", revisions.account), /too many rows/);
   const failed = createApiClient(
     SETTINGS,
-    async () => new Response("private server detail", { status: 403 }),
+    async () => new Response("private database detail", { status: 403 }),
   );
   await assert.rejects(
-    failed.fetchInventoryPage(options),
-    (error) => error.status === 403 && !error.message.includes("private server"),
+    failed.fetchInventoryRows("access", revisions.account),
+    (error) => error.status === 403 && !error.message.includes("private"),
   );
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(repeated.fetchInventoryRows("access", revisions.account, controller.signal));
 });
 
-test("inventory preserves control whitespace inside literal SKU filters", async () => {
-  let params;
-  const client = createApiClient(SETTINGS, async (url) => {
-    params = new URL(url).searchParams;
-    return new Response(csvRecord(record()));
-  });
-  await client.fetchInventoryPage({ ...options, skus: ["SKU\n\tvalue"] });
-  assert.equal(params.get("and"), '(sku.in.("SKU\n\tvalue"))');
-});
-
-test("invalid inventory scope or offsets fail before any request", async () => {
-  let reads = 0;
-  const client = createApiClient(SETTINGS, async () => {
-    reads += 1;
-    return new Response("");
-  });
-  for (const change of [
-    { pageIndex: -1 },
-    { pageSize: 0 },
-    { pageSize: 1001 },
-    { pageIndex: Number.MAX_SAFE_INTEGER },
-    { marketplace: "not-a-marketplace" },
-    { skus: ["bad\0sku"] },
-    { skus: [null] },
-    { healthStatuses: [false] },
-    { recommendations: [5] },
-    { sortColumn: "currency" },
-    { sortDirection: "sideways" },
-    { search: "active search" },
-    {
-      search: "",
-      searchValues: { skus: [], health_statuses: [], recommendations: [], marketplaces: [] },
-    },
-  ])
-    await assert.rejects(client.fetchInventoryPage({ ...options, ...change }));
-  assert.equal(reads, 0);
-});
-
-test("inventory status filters combine exact values and missing values with search, before numeric ordering", async () => {
-  let params;
-  const client = createApiClient(SETTINGS, async (url) => {
-    params = new URL(url).searchParams;
-    return new Response(csvRecord(record()));
-  });
-  await client.fetchInventoryPage({
-    ...options,
-    healthStatuses: ["Low stock", null],
-    recommendations: ["SendToFBA"],
-    sortColumn: "sales_amount_90d",
-    sortDirection: "desc",
-    search: "FBA",
-    searchValues: {
-      skus: [],
-      health_statuses: [],
-      recommendations: ["SendToFBA"],
-      marketplaces: [],
-    },
-  });
-  assert.equal(
-    params.get("and"),
-    '(or(health_status.in.("Low stock"),health_status.is.null),recommended_action.in.("SendToFBA"),or(recommended_action.in.("SendToFBA")))',
-  );
-  assert.equal(
-    params.get("order"),
-    "sales_amount_90d.desc.nullslast,sku.asc,marketplace_name.asc,capture_id.asc",
-  );
-  await client.fetchInventoryPage({
-    ...options,
-    search: "No results",
-    searchValues: { skus: [], health_statuses: [], recommendations: [], marketplaces: [] },
-  });
-  assert.equal(params.get("and"), "(sku.is.null)");
-  for (const column of ["health_status", "recommended_action"]) {
-    for (const direction of ["asc", "desc"]) {
-      await client.fetchInventoryPage({ ...options, sortColumn: column, sortDirection: direction });
-      assert.equal(
-        params.get("order"),
-        `${column}_urgency.${direction}.nullslast,sku.asc,marketplace_name.asc,capture_id.asc`,
-      );
-    }
-  }
-});
-
-test("recommendation labels are readable while menus preserve source values and nullable keys", () => {
-  for (const [source, label] of [
-    ["EditListing", "Edit listing"],
-    ["Edit listing", "Edit listing"],
-    ["GoToRestock", "Restock"],
-    ["RESTOCK_INVENTORY", "Restock"],
-    ["SendToFBA", "Send to FBA"],
-    ["CreateShippingPlan", "Create shipping plan"],
-    ["GoToStranded", "Resolve stranded inventory"],
-    ["Lower price", "Lower price"],
-    ["Advertise listing", "Advertise listing"],
-    ["NoExcessInventory", "No excess inventory"],
-    ["NoRestockExcessActionRequired", "No restock or excess action required"],
-    ["NoActionRequired", "No action required"],
-    ["OtherSourceAction", "Other source action"],
-    ["REVIEW_FBA_ACTION", "Review FBA action"],
-    ["ReviewFBAAction", "Review FBA action"],
-    ["  Other   source action  ", "Other source action"],
-  ])
-    assert.equal(recommendationLabel(source), label);
-  assert.equal(recommendationTone("Edit listing"), "listing");
-  assert.equal(recommendationTone("OtherSourceAction"), "unknown");
-  assert.equal(recommendationLabel(null), "Unavailable");
-  const options = inventoryFilterOptions([null, "Unavailable"], ["Old value"]);
-  assert.equal(options.length, 3);
-  assert.deepEqual(
-    options.map(({ value }) => JSON.parse(value)).sort(),
-    ["Old value", "Unavailable", null].sort(),
-  );
-  const catalog = {
-    skus: [" SKU.*_%() ", "Another"],
-    health_statuses: ["Low stock", null],
-    recommendations: ["SendToFBA", "OtherSourceAction"],
-  };
-  assert.deepEqual(resolveInventorySearch(" send to fba ", catalog).recommendations, ["SendToFBA"]);
-  assert.deepEqual(resolveInventorySearch("othErsource", catalog).recommendations, [
-    "OtherSourceAction",
-  ]);
-  assert.deepEqual(resolveInventorySearch("other source action", catalog).recommendations, [
-    "OtherSourceAction",
-  ]);
-  assert.deepEqual(resolveInventorySearch("Unavailable", catalog).health_statuses, [null]);
-  assert.deepEqual(resolveInventorySearch(".*_%()", catalog).skus, [" SKU.*_%() "]);
-  assert.equal(resolveInventorySearch("   ", catalog), null);
-});
-
-test("inventory filter catalogs use one authenticated complete RPC and reject malformed values", async () => {
-  const values = {
-    skus: ["A", "B"],
-    health_statuses: ["Healthy", null],
-    recommendations: ["SendToFBA", null],
-  };
-  let request;
-  const client = createApiClient(SETTINGS, async (url, init) => {
-    request = { url: new URL(url), init };
-    return Response.json(values);
-  });
-  assert.deepEqual(await client.fetchInventoryFilterOptions("access"), values);
-  assert.equal(request.url.pathname, "/rest/v1/rpc/inventory_filter_options");
-  assert.equal(request.init.method, "POST");
-  assert.equal(request.init.headers.Authorization, "Bearer access");
-  assert.deepEqual(JSON.parse(request.init.body), {});
-  const broken = createApiClient(SETTINGS, async () => Response.json({ ...values, skus: [null] }));
-  await assert.rejects(broken.fetchInventoryFilterOptions("access"), /invalid/);
-});
-
-test("health filter choices prioritize urgent known statuses over alphabetical unknowns", () => {
-  const values = [
-    null,
-    "Healthy",
-    "Unexpected health",
-    "Low stock",
-    "Excess",
-    "Out of stock",
-    "OUT_OF_STOCK",
-    "high_stock",
-    "overstock",
-    "Excess inventory",
+test("browser searches literal source values and display labels and combines filters before pagination", () => {
+  const rows = [
+    record({ sku: "A", health_status: "Low stock", recommended_action: "SendToFBA" }),
+    record({ sku: "B", health_status: "Low stock", recommended_action: "GoToRestock" }),
+    record(),
   ];
-  const choices = inventoryFilterOptions(values, ["Stale status"], "health_status");
-  const labels = choices.map(({ label }) => label);
-  assert.deepEqual(new Set(labels.slice(0, 2)), new Set(["Out of stock", "OUT_OF_STOCK"]));
-  assert.equal(labels[2], "Low stock");
+  const skus = (patch) => inventoryPage(rows, { ...options, ...patch }).rows.map((row) => row.sku);
+  assert.deepEqual(skus({ search: "send to fba" }), ["A"]);
+  assert.deepEqual(skus({ search: "sendtofba" }), ["A"]);
+  assert.deepEqual(skus({ search: ".*_%()" }), [rows[2].sku]);
+  assert.deepEqual(skus({ search: "unavailable" }), [rows[2].sku]);
+  assert.deepEqual(skus({ healthStatuses: ["Low stock"], recommendations: ["SendToFBA"] }), ["A"]);
+  assert.deepEqual(skus({ skus: [rows[2].sku], marketplace: "Amazon.ca" }), []);
   assert.deepEqual(
-    new Set(labels.slice(3, 7)),
-    new Set(["Excess", "Excess inventory", "high_stock", "overstock"]),
-  );
-  assert.equal(labels[7], "Healthy");
-  assert.deepEqual(
-    new Set(labels.slice(8)),
-    new Set(["Unexpected health", "Unavailable", "Stale status"]),
-  );
-  assert.deepEqual(
-    new Set(choices.map(({ value }) => JSON.parse(value))),
-    new Set([...values, "Stale status"]),
+    inventoryPage(rows, { ...options, healthStatuses: ["Low stock"], pageSize: 1, pageIndex: 1 }),
+    { rows: [rows[1]], totalCount: 2 },
   );
 });
 
-test("recommendation menus put replenishment first without changing exact source filters", () => {
-  const values = [
-    "NoExcessInventory",
-    "Advertise listing",
-    "SEND_TO_FBA",
-    "GoToRestock",
-    "restock inventory",
-    "EDIT_LISTING",
-    "Edit listing",
-    "No action required",
-    "A custom recommendation",
-    "CreateShippingPlan",
-    "GoToStranded",
-    "Lower price",
-    "NoRestockExcessActionRequired",
-    null,
+test("complete-set sorting preserves exact signed amounts, urgency ties, and nulls last in either direction", () => {
+  const rows = [
+    record({
+      sku: "B",
+      sales_amount_90d: "9007199254740993.000000002",
+      health_status: "Low stock",
+    }),
+    record({
+      sku: "A",
+      sales_amount_90d: "9007199254740993.000000001",
+      health_status: "Out of stock",
+    }),
+    record({ sku: "D", sales_amount_90d: "-9007199254740993.000000001", health_status: "Healthy" }),
+    record({ sku: "C", sales_amount_90d: "-9007199254740993.000000002", health_status: "Healthy" }),
+    record({ sku: "E" }),
   ];
-  const choices = inventoryFilterOptions(values, [], "recommended_action");
+  const order = (column, direction) =>
+    inventoryPage(rows, { ...options, sortColumn: column, sortDirection: direction }).rows.map(
+      (row) => row.sku,
+    );
+  assert.deepEqual(order("sales_amount_90d", "asc"), ["C", "D", "A", "B", "E"]);
+  assert.deepEqual(order("sales_amount_90d", "desc"), ["B", "A", "D", "C", "E"]);
+  assert.deepEqual(order("health_status", "desc"), ["A", "B", "C", "D", "E"]);
+  assert.deepEqual(order("health_status", "asc"), ["C", "D", "B", "A", "E"]);
   assert.deepEqual(
-    choices.map(({ label }) => label),
+    inventoryPage(rows, {
+      ...options,
+      sortColumn: "sales_amount_90d",
+      sortDirection: "desc",
+      pageIndex: 1,
+      pageSize: 2,
+    }).rows.map((row) => row.sku),
+    ["D", "C"],
+  );
+});
+
+test("fixed catalogs include the agreed vocabulary even when no source row currently uses it", () => {
+  assert.deepEqual(
+    inventoryFilterOptions(INVENTORY_HEALTH_VALUES, [], "health_status").map(({ label }) => label),
+    ["Out of stock", "Low stock", "Excess", "Healthy", "Unavailable"],
+  );
+  assert.deepEqual(
+    inventoryFilterOptions(INVENTORY_RECOMMENDATION_VALUES, [], "recommended_action").map(
+      ({ label }) => label,
+    ),
     [
       "Create shipping plan",
-      "Restock",
       "Restock",
       "Send to FBA",
       "Resolve stranded inventory",
       "Edit listing",
-      "Edit listing",
       "Lower price",
       "Advertise listing",
-      "No action required",
       "No excess inventory",
       "No restock or excess action required",
-      "A custom recommendation",
       "Unavailable",
     ],
   );
-  assert.deepEqual(new Set(choices.map(({ value }) => JSON.parse(value))), new Set(values));
-  for (const choice of choices)
-    assert.equal(choice.title, JSON.parse(choice.value) ?? "No value in the source report");
-  assert.equal(recommendationTone("EDIT_LISTING"), "listing");
-  assert.equal(recommendationTone("restock inventory"), "replenishment");
-  assert.equal(recommendationTone("SEND_TO_FBA"), "replenishment");
-  assert.equal(recommendationTone("CreateShippingPlan"), "replenishment");
-  assert.equal(recommendationTone("GoToStranded"), "attention");
-  assert.equal(recommendationLabel("A custom recommendation"), "A custom recommendation");
-  assert.deepEqual(
-    resolveInventorySearch("no excess inventory", {
-      skus: [],
-      health_statuses: [],
-      recommendations: values,
-    }).recommendations,
-    ["NoExcessInventory"],
-  );
-  for (const [search, expected] of [
-    ["shipping plan", ["CreateShippingPlan"]],
-    ["resolve stranded", ["GoToStranded"]],
-    ["no restock or excess", ["NoRestockExcessActionRequired"]],
-  ])
-    assert.deepEqual(
-      resolveInventorySearch(search, { skus: [], health_statuses: [], recommendations: values })
-        .recommendations,
-      expected,
+  assert.equal(recommendationLabel("GoToStranded"), "Resolve stranded inventory");
+  assert.equal(recommendationTone("Edit listing"), "listing");
+  assert.equal(recommendationLabel(null), "Unavailable");
+});
+
+test("inventory rejects a mixed snapshot when rows disappear between pages", async () => {
+  let revisionReads = 0;
+  const client = createApiClient(SETTINGS, async (url) => {
+    const params = new URL(url).searchParams;
+    if (new URL(url).pathname.endsWith("/workspace_revisions")) {
+      revisionReads += 1;
+      return Response.json({
+        ...revisions,
+        revisions: { ...revisions.revisions, inventory: String(revisionReads) },
+      });
+    }
+    return new Response(
+      params.get("offset") === "0" ? csvRecord(record()) : INVENTORY_COLUMNS.join(","),
     );
+  });
+  await assert.rejects(
+    client.fetchInventoryRows("access", revisions.account),
+    /changed while loading/,
+  );
+});
+
+test("inventory access changes during a complete read clear the old account scope", async () => {
+  for (const account of [
+    { ...revisions.account, company_id: "another-company" },
+    { ...revisions.account, access_role: "administrator", company_id: null },
+    { ...revisions.account, access_role: "unassigned", company_id: null },
+  ]) {
+    let revisionReads = 0;
+    const client = createApiClient(SETTINGS, async (url) => {
+      if (new URL(url).pathname.endsWith("/workspace_revisions")) {
+        revisionReads += 1;
+        return Response.json({
+          ...revisions,
+          account: revisionReads === 1 ? revisions.account : account,
+        });
+      }
+      return new Response(
+        new URL(url).searchParams.get("offset") === "0"
+          ? csvRecord(record())
+          : INVENTORY_COLUMNS.join(","),
+      );
+    });
+    await assert.rejects(
+      client.fetchInventoryRows("access", revisions.account),
+      (error) => error.status === 403,
+    );
+  }
+});
+
+test("unassigned accounts fail before an inventory data request", async () => {
+  const client = createApiClient(SETTINGS, async (url) => {
+    assert.ok(new URL(url).pathname.endsWith("/workspace_revisions"));
+    return Response.json({
+      ...revisions,
+      account: { ...revisions.account, access_role: "unassigned", company_id: null },
+    });
+  });
+  await assert.rejects(
+    client.fetchInventoryRows("access", revisions.account),
+    (error) => error.status === 403,
+  );
+});
+
+test("inventory rejects an account change before reading into the cached scope", async () => {
+  const client = createApiClient(SETTINGS, async (url) => {
+    assert.ok(new URL(url).pathname.endsWith("/workspace_revisions"));
+    return Response.json({
+      ...revisions,
+      account: { ...revisions.account, company_id: "new-company" },
+    });
+  });
+  await assert.rejects(
+    client.fetchInventoryRows("access", revisions.account),
+    (error) => error.status === 403,
+  );
 });

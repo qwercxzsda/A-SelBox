@@ -8,7 +8,7 @@ import psycopg
 from services.db.supabase.tests import test_date_ordering as date_fixture
 from services.db.supabase.tests import test_source_transaction_page as source_fixture
 from services.db.supabase.tests import test_transaction_page as live_fixture
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
 from services.sync.src.source_serialization import content_sha256
 
 _MARKETS = ("Amazon.com", "Amazon.ca")
@@ -64,6 +64,7 @@ class MarketplaceOrderingTests(SourceModelFixture):
                     "id": current[key],
                     "marketplace_name": marketplace,
                     "activity_date": day,
+                    "activity_at": kiosk_timestamp(day, marketplace),
                     "expected_current_version_id": None
                     if day_previous is None
                     else day_previous[key],

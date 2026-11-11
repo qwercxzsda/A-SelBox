@@ -54,11 +54,12 @@ Type cells use a compact column, with the readable type first and the group used
 beneath in smaller, muted text. The original type code remains available on hover. SKU values use
 the same medium weight as date and type labels; Company amount values use bold text.
 
-Financial and inventory paging and sorting run on the server. Current fees pages its complete loaded
-configuration. Previous/Next remains available while a separate count loads; page-number entry
-becomes editable when a bound is known. Enter applies a page number and Escape cancels the edit.
-Changing search or filters returns to page one. Clicking a record or pressing Enter/Space opens its
-details. Long lists have navigation at both ends; bottom paging returns to the list controls.
+Financial paging and factual sorting run on the server. Inventory filters, sorts, and pages its
+complete loaded snapshot in the browser; Current fees pages its loaded configuration. Previous/Next
+remains available while a separate financial count loads; page-number entry becomes editable when a
+bound is known. Enter applies a page number and Escape cancels the edit. Changing search or filters
+returns to page one. Clicking a record or pressing Enter/Space opens its details. Long lists have
+navigation at both ends; bottom paging returns to the list controls.
 
 Wide tables keep horizontal scrolling and Left/Right column controls near the table start.
 Transactions pins Company amount at desktop widths of at least 1100px. Long lists retain visual
@@ -171,12 +172,21 @@ Inventory is read-only. It displays the latest successful daily capture per sell
 historical sales, available/inbound stock, health, days of supply, and recommendations. Details show
 secondary metrics and source dates. Missing metrics remain distinct from zero. Sales ordering
 compares original currencies without conversion; selecting one marketplace avoids that ambiguity.
-Recommendation labels use consistent sentence case, including unfamiliar source codes, with the
-original source value on hover. Replenishment actions (Restock, Send to FBA, Create shipping plan)
-come first in urgency order, followed by stranded inventory, listing fixes, pricing, advertising,
-and no-action recommendations. Unknown or missing values remain last. Health and recommendation
-ordering use the
+Health and recommendation options come from fixed constants checked against the source vocabulary.
+Preprocessing rejects unsupported values, and database constraints guard the same contract. The
+frontend owns explicit display labels, colors, and priorities, with the source code on hover.
+Replenishment actions (Restock, Send to FBA, Create shipping plan) come first in urgency order,
+followed by stranded inventory, listing fixes, pricing, advertising, and no-action recommendations.
+Missing values remain last. Health and recommendation ordering use the
 [documented urgency ranks](../../../docs/inventory_daily_captures.md#dates-latest-reads-and-access).
+
+The API loads the complete authorized latest-item snapshot through stable identity pages. Search,
+filters, SKU options, exact decimal comparisons, urgency ordering, and display pagination operate on
+that snapshot in the browser. Changing a filter or page does not issue a data request. Database RLS
+still controls every transport page. Revision checks bracket snapshot loading and reject a load if
+inventory, ownership, or account access changes partway through; normal retry then reloads the
+complete snapshot. Later revision changes invalidate the cache. This design uses browser memory
+proportional to the latest authorized inventory, not historical captures.
 
 Capture discovery includes successful empty captures and distinguishes missing snapshots, no
 authorized items, and filters with no matches. Failed reads never become a no-snapshot claim. Each
@@ -190,7 +200,7 @@ Exact report and processing timestamps remain available in UTC in item details.
 Only capture/SKU identity is persisted for an open item. Its values follow the freshly loaded page;
 a changed or removed capture closes the drawer. Paging, filtering, and sorting clear selection.
 Inventory and ownership revisions refresh affected reads. Unchanged revision checks do not reload
-inventory rows or counts. Recommendations are informational, with no shipment or listing actions.
+inventory. Recommendations are informational, with no shipment or listing actions.
 
 ## Payout reports and Financial review
 

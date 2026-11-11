@@ -1,51 +1,50 @@
 """UTC transaction ordering is independent of marketplace-local accounting days."""
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import cast
 
 import psycopg
 
-from services.db.supabase.tests.local_database import require_row
+from services.db.supabase.tests.source_fixtures import new_id
 from services.db.supabase.tests.transaction_fixtures import TransactionPageFixture
-from services.sync.src.amazon.financial_channels import FINANCIAL_CHANNELS
-from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAME_BY_ID
-from services.sync.src.finances.marketplaces import financial_marketplace_timezone
 
 
 class TransactionTimestampTests(TransactionPageFixture):
-    def test_database_timezone_registry_matches_source_normalization(self) -> None:
-        markets = dict(MARKETPLACE_NAME_BY_ID)
-        markets.update(
-            {
-                identifier: channel.marketplace_name
-                for identifier, channel in FINANCIAL_CHANNELS.items()
-            }
+    def test_reporting_instant_is_pinned_to_immutable_source_version(self) -> None:
+        company, _ = self.owner()
+        rows = [self.component("-10")]
+        _, original = self.kiosk(1, rows)
+        corrected = "2026-06-16T07:59:59.999999+00:00"
+        _, current = self.kiosk(
+            2, [row | {"id": new_id()} for row in rows], expected=original, activity_at=corrected
         )
-        for identifier, name in markets.items():
-            self.assertEqual(
-                require_row(
-                    self.connection.execute(
-                        "select private.marketplace_time_zone(%s)", (name,)
-                    ).fetchone()
-                )[0],
-                financial_marketplace_timezone(identifier).key,
+        self.assertNotEqual(original, current)
+        self.assertEqual(
+            self.connection.execute(
+                "select activity_at from private.data_kiosk_day_versions where id=%s",
+                (original,),
+            ).fetchone(),
+            (datetime(2026, 6, 16, 6, 59, 59, 999999, tzinfo=UTC),),
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "select activity_at from private.data_kiosk_day_versions where id=%s",
+                (current,),
+            ).fetchone(),
+            (datetime.fromisoformat(corrected),),
+        )
+        page = self.page(self.member(company))
+        record = cast(list[dict[str, object]], page["rows"])[0]
+        self.assertEqual(record["activity_at"], "2026-06-16T07:59:59.999999Z")
+        self.assertEqual(record["activity_date"], "2026-06-15")
+        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+            self.connection.execute(
+                "update private.data_kiosk_day_versions "
+                "set activity_at=activity_at+interval '1 hour' "
+                "where id=%s",
+                (original,),
             )
-
-    def test_end_of_day_uses_next_local_midnight_and_daylight_saving(self) -> None:
-        for market, day, expected in (
-            ("Amazon.co.jp", "2026-11-06", "2026-11-06 14:59:59.999999+00:00"),
-            ("Amazon.com", "2026-11-06", "2026-11-07 07:59:59.999999+00:00"),
-            ("Amazon.com", "2026-03-08", "2026-03-09 06:59:59.999999+00:00"),
-            ("Amazon.com", "2026-11-01", "2026-11-02 07:59:59.999999+00:00"),
-            ("Non-Amazon US", "2026-11-06", "2026-11-07 07:59:59.999999+00:00"),
-        ):
-            with self.subTest(market=market, day=day):
-                value = require_row(
-                    self.connection.execute(
-                        "select private.data_kiosk_activity_at(%s::date, %s)", (day, market)
-                    ).fetchone()
-                )[0]
-                self.assertEqual(str(value), expected)
 
     def test_utc_order_filters_and_counts_keep_original_fee_dates(self) -> None:
         company, sku = self.owner()

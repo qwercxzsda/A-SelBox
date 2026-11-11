@@ -1,10 +1,11 @@
+import { INVENTORY_HEALTH_VALUES, INVENTORY_RECOMMENDATION_VALUES } from "./inventory-options.ts";
 import { DATASET_CONFIG } from "./api/config.ts";
 import type { AppAccount, DatasetKey, TableDatasetKey } from "./api/types.ts";
 import type {
   SkuConfigurationChange,
   SkuConfigurationPeriod,
 } from "./api/sku-configuration-types.ts";
-import { INVENTORY_SORT_COLUMNS } from "./api/inventory.ts";
+import { INVENTORY_SORT_COLUMNS } from "./inventory-view.ts";
 import { isJsonObject } from "./api/validation.ts";
 import { PAGE_SIZES, visibleDatasets } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
@@ -93,8 +94,12 @@ export function decodeInventoryView(value: unknown): InventoryViewState {
   return {
     search: text(value.search),
     skus: strings(value.skus),
-    healthStatuses: optionalStrings(value.healthStatuses),
-    recommendations: optionalStrings(value.recommendations),
+    healthStatuses: optionalStrings(value.healthStatuses).filter((entry) =>
+      INVENTORY_HEALTH_VALUES.includes(entry),
+    ),
+    recommendations: optionalStrings(value.recommendations).filter((entry) =>
+      INVENTORY_RECOMMENDATION_VALUES.includes(entry),
+    ),
     marketplace: text(value.marketplace),
     sortColumn: INVENTORY_SORT_COLUMNS.find((column) => column === value.sortColumn) ?? "sku",
     sortDirection: value.sortDirection === "desc" ? "desc" : "asc",

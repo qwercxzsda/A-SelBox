@@ -8,7 +8,7 @@ from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests import test_company_terms as terms_fixture
 from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
 from services.sync.src.amazon.marketplace_names import (
     MARKETPLACE_NAME_BY_ID,
     MARKETPLACE_NAMES,
@@ -87,7 +87,6 @@ class MarketplaceContractTests(SourceModelFixture):
             "start_date": "2026-06-01",
             "end_date": "2026-06-30",
             "dataset_key": "economics",
-            "report_name": "Marketplace constraints",
             "change_reason": "Exercise native source and saved component marketplaces",
         }
         self.call("publish_company_payout_report", payload)
@@ -238,6 +237,7 @@ class MarketplaceContractTests(SourceModelFixture):
                                 "id": new_id(),
                                 "marketplace_name": name,
                                 "activity_date": "2026-06-15",
+                                "activity_at": kiosk_timestamp("2026-06-15"),
                                 "expected_current_version_id": None,
                                 "expected_current_batch_id": None,
                                 "content_sha256": "a" * 64,

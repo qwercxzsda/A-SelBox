@@ -13,7 +13,7 @@ from ..archives.acquisition_logging import AcquisitionLog
 from ..archives.storage import ArchiveStorage, archive_document
 from ..database.acquisitions import persist_inventory_acquisition
 from ..database.connection import DatabaseConnection
-from ..database.seller_namespaces import validate_seller_namespace
+from ..seller_namespaces import validate_seller_namespace
 from .models import InventoryAcquisition, validate_inventory_scope
 from .reports import (
     DEFAULT_MAX_POLL_ATTEMPTS,

@@ -20,7 +20,7 @@ from ..archives.models import ArchivedDataKioskPage, DataKioskAcquisition
 from ..archives.storage import ArchiveStorage, archive_document
 from ..database.acquisitions import persist_data_kiosk_acquisition
 from ..database.connection import DatabaseConnection
-from ..database.seller_namespaces import validate_seller_namespace
+from ..seller_namespaces import validate_seller_namespace
 from .query_windows import validate_query_window
 
 

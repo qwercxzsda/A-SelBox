@@ -2,6 +2,7 @@ import { DATASET_CONFIG, isTableDataset, type DatasetConfig } from "./config.ts"
 import { parseTotalCount, parseExactCount } from "./content-range.ts";
 import { datasetFilterValues } from "./filters.ts";
 import { mapDatasetRows } from "./row-mappers.ts";
+import { payoutSearchFilter } from "./payout-search.ts";
 import { buildSearchFilter } from "./search.ts";
 import {
   decodeTransactionPage,
@@ -42,14 +43,15 @@ function validatePageRequest(
   }
 }
 
-function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchParams {
+async function buildMembershipParams(
+  transport: ApiTransport,
+  options: FetchDatasetCountOptions,
+): Promise<URLSearchParams> {
   const { dataset, search, filters } = options;
   if (options.includeSelbox !== undefined)
     throw new Error("SelBox selection is only available for Transactions");
   if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   const params = new URLSearchParams();
-  const searchFilter = buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
-  if (searchFilter !== null) params.set("or", searchFilter);
   const values = datasetFilterValues(dataset, filters);
   if (values.companyIds.length) params.set("company_id", `in.(${values.companyIds.join(",")})`);
   if (options.currency !== undefined) {
@@ -66,10 +68,18 @@ function buildMembershipParams(options: FetchDatasetCountOptions): URLSearchPara
     if (values.dateFrom) params.append("start_date", `gte.${values.dateFrom}`);
     if (values.dateTo) params.append("start_date", `lte.${values.dateTo}`);
   }
+  const searchFilter =
+    dataset === "payouts"
+      ? await payoutSearchFilter(transport, options.accessToken, search, options.signal)
+      : buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
+  if (searchFilter !== null) params.set("or", searchFilter);
   return params;
 }
 
-function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
+async function buildDatasetParams(
+  transport: ApiTransport,
+  options: FetchDatasetPageOptions,
+): Promise<URLSearchParams> {
   const { dataset, pageIndex, pageSize, sort } = options;
   const config = DATASET_CONFIG[dataset];
   const order = [
@@ -79,7 +89,7 @@ function buildDatasetParams(options: FetchDatasetPageOptions): URLSearchParams {
       : []),
     ...config.idColumns.filter((column) => column !== sort.column).map((column) => `${column}.asc`),
   ];
-  const params = buildMembershipParams(options);
+  const params = await buildMembershipParams(transport, options);
   params.set("select", config.selectColumns.join(","));
   params.set("limit", String(pageSize));
   params.set("offset", String(pageIndex * pageSize));
@@ -107,7 +117,7 @@ export function createDatasetApi(transport: ApiTransport) {
         );
       }
       const config = DATASET_CONFIG[dataset];
-      const params = buildMembershipParams(options);
+      const params = await buildMembershipParams(transport, options);
       params.set("select", config.idColumns.join(","));
       params.set("limit", "0");
       params.set("offset", "0");
@@ -151,7 +161,7 @@ export function createDatasetApi(transport: ApiTransport) {
       const result = await readCsvPage(
         options.accessToken,
         datasetEndpoint(options),
-        buildDatasetParams(options),
+        await buildDatasetParams(transport, options),
         config.label,
         options.signal,
         options.includeCount ?? true,

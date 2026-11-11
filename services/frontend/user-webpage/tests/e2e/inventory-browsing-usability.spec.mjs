@@ -10,7 +10,7 @@ async function openInventory(page) {
     Array.from({ length: 55 }, (_, index) =>
       inventoryRow(`QA-${String(index + 1).padStart(3, "0")}`, {
         health_status: index % 2 ? "Healthy" : "Low stock",
-        recommended_action: "Restock",
+        recommended_action: "GoToRestock",
       }),
     ),
   );

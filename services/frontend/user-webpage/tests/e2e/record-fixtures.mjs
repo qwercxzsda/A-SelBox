@@ -39,6 +39,8 @@ function matchesSearch(row, filter) {
     return Object.entries(JSON.parse(filter)).some(([field, values]) =>
       values.includes(row[field]),
     );
+  const dates = /start_date\.in\.\(([^)]*)\)/.exec(filter);
+  if (dates && JSON.parse(`[${dates[1]}]`).includes(row.start_date)) return true;
   return [...filter.matchAll(/(\w+)\.imatch\.("(?:\\.|[^"\\])*")/g)].some((match) => {
     const pattern = new RegExp(JSON.parse(match[2]), "i");
     return pattern.test(row[match[1]] ?? "");

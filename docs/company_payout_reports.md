@@ -20,8 +20,9 @@ source diagnostics, and input manifests remain administrator-only in the month's
 The list uses `public.latest_company_payout_reports`, which selects the newest saved report per
 company, month, nullable `marketplace_name`, and currency. A null marketplace is a distinct
 **Not specified** scope.
-Search matches the displayed month/year, report name, marketplace, and currency. The view derives
-`month_label` from `start_date`; company access is enforced by its invoker security and underlying RLS. The complete
+The frontend derives month labels from `start_date` and searches those labels, ISO months,
+marketplaces, and currencies. The database retains dates and scope rather than generated display
+names; company access is enforced by invoker security and underlying RLS. The complete
 `public.company_payout_reports` table retains earlier versions for history.
 
 ## Automatic generation

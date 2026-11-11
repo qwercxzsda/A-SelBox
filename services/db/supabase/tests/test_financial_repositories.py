@@ -30,7 +30,6 @@ class FinancialRepositoryTests(SourceModelFixture):
                 currency=None,
                 start_date=date(2026, 6, 1),
                 end_date=date(2026, 6, 30),
-                report_name="June report",
                 change_reason="No assignments cannot create a payout",
             )
         self.assertEqual(
@@ -99,7 +98,6 @@ class FinancialRepositoryTests(SourceModelFixture):
             currency="USD",
             start_date=date(2026, 6, 1),
             end_date=date(2026, 6, 30),
-            report_name="June report",
             change_reason="Freeze source and terms",
         )
         before = load_company_payout_report(database, report_id)

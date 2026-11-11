@@ -2,6 +2,7 @@
 
 import unittest
 from dataclasses import replace
+from datetime import timedelta
 from typing import Any, cast
 from unittest.mock import patch
 
@@ -24,6 +25,22 @@ from ...support.source_preprocessing import kiosk_acquisition
 
 
 class DataKioskDayVersionTests(unittest.TestCase):
+    def test_reporting_time_interpretation_is_part_of_immutable_day_contents(self) -> None:
+        storage = MemoryArchiveStorage()
+        acquisition = kiosk_acquisition(storage, complete_economics_document())
+        original = prepare_data_kiosk_acquisition(acquisition, storage)[0]
+        self.assertEqual(original.activity_at.isoformat(), "2026-08-02T06:59:59.999999+00:00")
+        changed_time = original.activity_at + timedelta(hours=1)
+        with patch(
+            "services.sync.src.data_kiosk_economics.preprocess.reporting_activity_at",
+            return_value=changed_time,
+        ):
+            changed = prepare_data_kiosk_acquisition(acquisition, storage)[0]
+        self.assertEqual(changed.activity_date, original.activity_date)
+        self.assertEqual(changed.transactions, original.transactions)
+        self.assertEqual(changed.activity_at, changed_time)
+        self.assertNotEqual(changed.content_sha256, original.content_sha256)
+
     def test_decimal_formatting_does_not_change_day_contents(self) -> None:
         storage = MemoryArchiveStorage()
         hashes: set[str] = set()
@@ -78,6 +95,8 @@ class DataKioskDayVersionTests(unittest.TestCase):
             )
         payload = cast(dict[str, Any], publish.call_args.args[2])
         published = payload["days"][0]
+        self.assertEqual(published["activity_date"], days[0].activity_date.isoformat())
+        self.assertEqual(published["activity_at"], days[0].activity_at.isoformat())
         self.assertEqual(published["expected_current_version_id"], "previous-version")
         self.assertEqual(published["expected_current_batch_id"], "previous-batch")
         self.assertEqual(

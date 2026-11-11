@@ -42,7 +42,7 @@ async function setupDesignWorkspace(page, role) {
       company_id: REVIEW_COMPANY,
       available: "0",
       health_status: "Out of stock",
-      recommended_action: "Restock",
+      recommended_action: "GoToRestock",
     }),
   ]);
   await signIn(page);

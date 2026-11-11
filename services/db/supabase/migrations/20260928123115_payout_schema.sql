@@ -23,7 +23,6 @@ create table public.company_payout_reports (
         and end_date = (start_date + interval '1 month - 1 day')::date
     ),
     dataset_key text not null check (dataset_key = 'economics'),
-    report_name private.nonblank not null,
     change_reason private.nonblank not null,
     -- Count all derived detail rows; monetary totals include authoritative rows only.
     component_count integer not null check (component_count >= 0),

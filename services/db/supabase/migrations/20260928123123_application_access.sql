@@ -266,9 +266,7 @@ using ((select private.is_administrator()) or company_id in (
 create view public.latest_company_payout_reports with (security_invoker = true) as
 select distinct on (
     r.company_id, r.start_date, r.marketplace_name, r.currency
-)
-    r.*,
-    to_char(r.start_date, 'FMMonth YYYY') as month_label
+) r.*
 from public.company_payout_reports as r
 where
     r.currency is not null or not exists (
@@ -660,67 +658,11 @@ select
     i.total_days_of_supply,
     i.recommended_ship_in_units,
     i.recommended_ship_in_date,
-    i.recommended_action,
-    -- Application priority for replenishment review, not an Amazon urgency score.
-    -- Unknown labels remain unranked instead of being treated as healthy/no action.
-    case lower(regexp_replace(i.health_status, '[^a-zA-Z0-9]', '', 'g'))
-        when 'outofstock' then 40
-        when 'lowstock' then 30
-        when 'excess' then 20
-        when 'excessstock' then 20
-        when 'excessinventory' then 20
-        when 'highstock' then 20
-        when 'overstock' then 20
-        when 'healthy' then 0
-    end as health_status_urgency,
-    case lower(regexp_replace(i.recommended_action, '[^a-zA-Z0-9]', '', 'g'))
-        when 'gotorestock' then 50
-        when 'restock' then 50
-        when 'restockinventory' then 50
-        when 'sendtofba' then 50
-        when 'createshippingplan' then 50
-        when 'gotostranded' then 40
-        when 'editlisting' then 30
-        when 'lowerprice' then 20
-        when 'advertiselisting' then 10
-        when 'noexcessinventory' then 0
-        when 'noactionrequired' then 0
-        when 'norestockexcessactionrequired' then 0
-    end as recommended_action_urgency
+    i.recommended_action
 from public.latest_inventory_captures as c
 inner join private.inventory_items as i on c.capture_id = i.capture_id
 left join public.company_skus as o on i.sku = o.sku;
 
--- Aggregate the complete authorized current catalog into one RPC result so
--- PostgREST page limits cannot truncate column-filter choices.
-create function public.inventory_filter_options() returns jsonb
-language sql stable security invoker
-set search_path = '' set plan_cache_mode = force_custom_plan as $$
-    select jsonb_build_object(
-        'skus', coalesce(
-            jsonb_agg(distinct i.sku collate "C" order by i.sku collate "C"),
-            '[]'::jsonb
-        ),
-        'health_statuses', coalesce(
-            jsonb_agg(
-                distinct i.health_status collate "C"
-                order by i.health_status collate "C" nulls last
-            ),
-            '[]'::jsonb
-        ),
-        'recommendations', coalesce(
-            jsonb_agg(
-                distinct i.recommended_action collate "C"
-                order by i.recommended_action collate "C" nulls last
-            ),
-            '[]'::jsonb
-        )
-    )
-    from public.latest_inventory_items as i;
-$$;
-
-revoke all on function public.inventory_filter_options()
-from public, anon, authenticated, service_role;
 revoke all on function private.latest_inventory_capture_references()
 from public, anon, authenticated, service_role;
 revoke all on public.latest_inventory_captures, public.latest_inventory_items

@@ -2,7 +2,6 @@
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { formatExactDecimal, formatMoney } from "../../src/decimal.ts";
-import { parseCsv } from "../../src/api/csv.ts";
 import { recommendationLabel } from "../../src/inventory-options.ts";
 import { reviewInventoryLayout } from "./inventory-ui-review.mjs";
 
@@ -29,58 +28,46 @@ const inventoryRegion = (page) =>
   page.getByRole("region", { name: "Inventory items", exact: true });
 const metric = (row, label) => row.getByText(label, { exact: true }).locator("..").locator("dd");
 
-/** Bind each action to its actual response; a matching cached count is not a completion signal. */
-async function readAfter(page, expectedParams, action) {
-  readStep = "waiting-response";
-  const ready = page.waitForResponse(
-    (response) => {
-      const url = new URL(response.url());
-      return (
-        response.request().method() === "GET" &&
-        url.pathname === "/rest/v1/latest_inventory_items" &&
-        Object.entries(expectedParams).every(([key, value]) => url.searchParams.get(key) === value)
-      );
-    },
-    { timeout: 30000 },
-  );
-  await action();
-  const response = await ready;
-  if (!response.ok()) throw new Error("Inventory request failed");
-  const rows = parseCsv(await response.text());
-  readStep = "rendering-response";
-  readRowCount = rows.length;
-  await expect(inventoryRegion(page).locator(".inventory-sku")).toHaveText(
-    rows.map((row) => row.sku),
-  );
+/** Inventory filtering and pagination operate on the complete browser snapshot. */
+async function visiblePage(page, pageIndex, totalCount) {
+  readStep = "rendering-page";
+  const pagination = page.getByRole("navigation", {
+    name: "Inventory pagination, top",
+    exact: true,
+  });
+  await expect(
+    pagination.getByRole("form", {
+      name: `Page ${pageIndex + 1} of ${Math.max(1, Math.ceil(totalCount / 100))}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  const skus = inventoryRegion(page).locator(".inventory-sku");
+  await expect(skus).toHaveCount(Math.min(100, totalCount - pageIndex * 100));
   await expect(
     page.getByRole("status").filter({ hasText: /^(Loading|Updating) inventory…$/ }),
   ).toHaveCount(0);
-  return rows;
+  const values = await skus.allTextContents();
+  readRowCount = values.length;
+  return values;
 }
 
 async function verifyCatalog(page, account) {
   await expect(page.getByText(itemCount(account.count), { exact: true }).first()).toBeVisible();
-  let rows = await readAfter(page, { limit: "100", offset: "0" }, () =>
-    page.getByLabel("Rows", { exact: true }).selectOption("100"),
-  );
-  const visible = rows.map((row) => row.sku);
+  await page.getByLabel("Rows", { exact: true }).selectOption("100");
+  const visible = await visiblePage(page, 0, account.count);
+  let pageIndex = 0;
   while (visible.length < account.count) {
-    const offset = visible.length;
-    rows = await readAfter(page, { limit: "100", offset: String(offset) }, () =>
-      page
-        .getByRole("navigation", { name: "Inventory pagination, top", exact: true })
-        .getByRole("button", { name: "Next", exact: true })
-        .click(),
-    );
+    await page
+      .getByRole("navigation", { name: "Inventory pagination, top", exact: true })
+      .getByRole("button", { name: "Next", exact: true })
+      .click();
+    pageIndex += 1;
+    const rows = await visiblePage(page, pageIndex, account.count);
     if (rows.length === 0) throw new Error("Inventory pages did not advance");
-    visible.push(...rows.map((row) => row.sku));
+    visible.push(...rows);
   }
   if (JSON.stringify([...visible].sort()) !== JSON.stringify([...account.skus].sort()))
     throw new Error("Visible SKU set mismatch");
-}
-
-function exactFilter(value) {
-  return "eq." + value;
 }
 
 async function verifyMetrics(page, sample) {
@@ -186,24 +173,15 @@ try {
     await inventoryRegion(page).getByRole("button", { name: "SKU", exact: true }).click();
     const skuSearch = page.getByLabel("Search sku", { exact: true });
     if (await skuSearch.count()) await skuSearch.fill(account.sample.sku);
-    const skuFilter = `(sku.in.(${JSON.stringify(account.sample.sku)}))`;
-    await readAfter(page, { and: skuFilter, offset: "0" }, () =>
-      page.getByRole("checkbox", { name: account.sample.sku, exact: true }).check(),
+    await page.getByRole("checkbox", { name: account.sample.sku, exact: true }).check();
+    await expect(inventoryRegion(page).locator(".inventory-sku")).toHaveText(
+      account.skus.filter((sku) => sku === account.sample.sku).slice(0, 100),
     );
     await page.keyboard.press("Escape");
     stage = role + ":marketplace-filter";
-    await readAfter(
-      page,
-      {
-        and: skuFilter,
-        marketplace_name: exactFilter(account.sample.marketplace_name),
-        offset: "0",
-      },
-      () =>
-        page
-          .getByLabel("Marketplace", { exact: true })
-          .selectOption(account.sample.marketplace_name),
-    );
+    await page
+      .getByLabel("Marketplace", { exact: true })
+      .selectOption(account.sample.marketplace_name);
     await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
     stage = role + ":metrics";
     await verifyMetrics(page, account.sample);

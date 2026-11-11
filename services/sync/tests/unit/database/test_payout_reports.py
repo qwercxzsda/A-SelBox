@@ -30,7 +30,6 @@ class TestPayoutReports(unittest.TestCase):
                 currency="USD",
                 start_date=date(2026, 1, 1),
                 end_date=date(2026, 1, 31),
-                report_name="January report",
                 change_reason="Initial saved report",
             )
         self.assertEqual(result, str(saved_id))
@@ -48,7 +47,6 @@ class TestPayoutReports(unittest.TestCase):
                 "start_date": "2026-01-01",
                 "end_date": "2026-01-31",
                 "dataset_key": "economics",
-                "report_name": "January report",
                 "change_reason": "Initial saved report",
             },
         )
@@ -63,7 +61,6 @@ class TestPayoutReports(unittest.TestCase):
             currency=None,
             start_date=date(2026, 1, 1),
             end_date=date(2026, 1, 31),
-            report_name="January report",
             change_reason="Empty reporting month",
         )
         self.assertEqual(result, str(saved_id))
@@ -80,7 +77,6 @@ class TestPayoutReports(unittest.TestCase):
             date(2026, 1, 31),
             "economics",
             "Amazon.co.jp",
-            "January",
             "Initial",
             4,
             3,
@@ -122,7 +118,6 @@ class TestPayoutReports(unittest.TestCase):
             date(2026, 6, 30),
             "economics",
             None,
-            "June empty report",
             "Explicit request",
             0,
             0,
@@ -143,10 +138,10 @@ class TestPayoutReports(unittest.TestCase):
             (Decimal(0), Decimal(0), Decimal(0)),
         )
         for index, value in (
-            (9, 1),
-            (13, Decimal(1)),
-            (14, Decimal(-1)),
-            (15, Decimal(1)),
+            (8, 1),
+            (12, Decimal(1)),
+            (13, Decimal(-1)),
+            (14, Decimal(1)),
         ):
             invalid = (*header[:index], value, *header[index + 1 :])
             with (
@@ -219,7 +214,6 @@ class TestPayoutReports(unittest.TestCase):
                     start_date=start,
                     end_date=end,
                     dataset_key=dataset,
-                    report_name="Report",
                     change_reason="Initial",
                 )
             self.assertFalse(database.execute_calls)

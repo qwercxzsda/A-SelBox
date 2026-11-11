@@ -270,12 +270,10 @@ def markdown(schema: dict[str, dict[str, Any]]) -> str:
     lines = [
         "# Database schema",
         "",
-        "Transactions keeps marketplace-local `activity_date` for accounting and computes a "
-        "separate "
-        "`activity_at` in its page RPC for a UTC timeline. Finances retains the exact posting "
-        "timestamp; "
-        "Data Kiosk daily amounts are booked at the last microsecond before the next local "
-        "midnight. "
+        "Transactions keeps marketplace-local `activity_date` for accounting and reads a "
+        "separate normalized `activity_at` for its UTC timeline. Finances retains the exact "
+        "posting timestamp; Data Kiosk preprocessing stores the last microsecond before the "
+        "next local midnight on each immutable day version. "
         "This reporting convention does not rewrite source dates, fee-period selection, or "
         "payout months. "
         "Last day and Last month each use one shared UTC period derived from the authenticated "

@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from ..database.config import LOCAL_SUPABASE_URL
-from ..database.seller_namespaces import DEFAULT_SELLER_NAMESPACE
+from ..seller_namespaces import DEFAULT_SELLER_NAMESPACE
 
 LOG_LEVELS: tuple[str, ...] = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 

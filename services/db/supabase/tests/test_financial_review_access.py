@@ -1,13 +1,13 @@
 """Administrator source reads retain explicit scopes, native values, and type detail."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import LiteralString, cast
 
 import psycopg
 from psycopg.errors import InvalidParameterValue
 
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
 
 
 class FinancialReviewAccessTests(SourceModelFixture):
@@ -49,11 +49,19 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 earlier = frontier - timedelta(days=1)
                 start = earlier.replace(day=1)
                 end = (frontier + timedelta(days=32)).replace(day=1)
+                # Historical calendar fixtures must remain within the acquisition's
+                # two-year source horizon regardless of the current wall clock.
+                acquisition = self.acquisition(
+                    start=start.isoformat(),
+                    end=(end - timedelta(days=1)).isoformat(),
+                    observed_at=datetime.combine(end, time.min, UTC) + timedelta(days=1),
+                )
                 self.finances(
                     [
                         self.transaction("10.000000001", activity_date=earlier.isoformat()),
                         self.transaction("999", 4, activity_date=frontier.isoformat()),
-                    ]
+                    ],
+                    acquisition_id=acquisition,
                 )
                 self.kiosk(
                     1,
@@ -401,6 +409,7 @@ class FinancialReviewAccessTests(SourceModelFixture):
                             "id": new_id(),
                             "marketplace_name": market,
                             "activity_date": "2026-06-15",
+                            "activity_at": kiosk_timestamp("2026-06-15", market),
                             "expected_current_version_id": None,
                             "expected_current_batch_id": None,
                             "content_sha256": "c" * 64,

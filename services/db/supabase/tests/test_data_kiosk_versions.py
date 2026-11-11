@@ -8,8 +8,12 @@ from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests.concurrency_support import wait_for_block
 from services.db.supabase.tests.local_database import DEFAULT_DATABASE_URL, require_row
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
-from services.sync.src.source_serialization import content_sha256
+from services.db.supabase.tests.source_fixtures import (
+    SourceModelFixture,
+    kiosk_content_hash,
+    kiosk_timestamp,
+    new_id,
+)
 
 
 class DataKioskVersionTests(SourceModelFixture):
@@ -30,9 +34,10 @@ class DataKioskVersionTests(SourceModelFixture):
                         "id": new_id(),
                         "marketplace_name": "Amazon.com",
                         "activity_date": day,
+                        "activity_at": kiosk_timestamp(day),
                         "expected_current_version_id": None,
                         "expected_current_batch_id": None,
-                        "content_sha256": content_sha256([]),
+                        "content_sha256": kiosk_content_hash(kiosk_timestamp(day), []),
                         "transactions": [],
                     }
                     for day in days
@@ -149,6 +154,7 @@ class DataKioskVersionTests(SourceModelFixture):
                                 "id": new_id(),
                                 "marketplace_name": "Amazon.com",
                                 "activity_date": "2026-06-15",
+                                "activity_at": kiosk_timestamp("2026-06-15"),
                                 "expected_current_version_id": first,
                                 "expected_current_batch_id": expected_batch,
                                 "content_sha256": "a" * 64,

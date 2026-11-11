@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiError, createApiClient } from "../src/api/client.ts";
 import { normalizeDatasetFilters } from "../src/dataset-filters.ts";
+import { workspaceRevisionReply } from "./api-fixtures.mjs";
 
 const SETTINGS = { supabaseUrl: "https://example.invalid", publishableKey: "sb_publishable_test" };
 const OPTIONS = { dataset: "live", search: "", accessToken: "test-token" };
@@ -96,7 +97,10 @@ test("all transaction counts use the same literal search RPC arguments as their 
 
 test("non-transaction counts retain filtered HEAD requests", async () => {
   const client = createApiClient(SETTINGS, async (url, init) => {
+    if (workspaceRevisionReply(url)) return workspaceRevisionReply(url);
     assert.equal(new URL(url).pathname, "/rest/v1/latest_company_payout_reports");
+    if (new URL(url).searchParams.get("select") === "id,start_date")
+      return new Response("id,start_date");
     assert.equal(init.method, "HEAD");
     assert.equal(init.headers.Prefer, "count=exact");
     assert.equal(init.body, undefined);
@@ -114,7 +118,10 @@ test("count validation and failed requests cannot invent zero or expose private 
     const client = createApiClient(SETTINGS, async () => new Response(JSON.stringify(value)));
     await assert.rejects(client.fetchDatasetCount(OPTIONS));
   }
-  const missing = createApiClient(SETTINGS, async () => new Response(null));
+  const missing = createApiClient(
+    SETTINGS,
+    async (url) => workspaceRevisionReply(url) ?? new Response(null),
+  );
   await assert.rejects(
     missing.fetchDatasetCount({ ...OPTIONS, dataset: "payouts", search: "anything" }),
     /not returned/,

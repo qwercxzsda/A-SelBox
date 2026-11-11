@@ -63,5 +63,5 @@ def kiosk_acquisition(
         query_end_date=end_date,
         downloaded_at=created,
         pages=tuple(pages),
-        api_metadata={},
+        api_metadata=pages[0].api_metadata,
     )

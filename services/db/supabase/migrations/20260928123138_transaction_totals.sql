@@ -69,8 +69,8 @@ begin
                 and (kiosk_policy_is_sufficient or exists (
                     select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
                 ))
-                and (p_date_from is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= p_date_from::timestamp at time zone 'UTC')
-                and (p_date_to is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < (p_date_to + 1)::timestamp at time zone 'UTC')
+                and (p_date_from is null or t.activity_at >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or t.activity_at < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
                     where o.sku = t.sku

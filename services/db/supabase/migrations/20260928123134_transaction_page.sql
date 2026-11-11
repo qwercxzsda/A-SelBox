@@ -187,7 +187,7 @@ begin
                     t.seller_namespace,
                     t.marketplace_name,
                     t.activity_date,
-                    private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) as activity_at,
+                    t.activity_at,
                     t.sku,
                     t.component_type,
                     t.currency,
@@ -206,8 +206,8 @@ begin
                             where h.current_version_id = t.version_id
                         )
                     )
-                    and ($1::date is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= $1::date::timestamp at time zone 'UTC')
-                    and ($2::date is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < ($2::date + 1)::timestamp at time zone 'UTC')
+                    and ($1::date is null or t.activity_at >= $1::date::timestamp at time zone 'UTC')
+                    and ($2::date is null or t.activity_at < ($2::date + 1)::timestamp at time zone 'UTC')
                     and ($18::text is null or t.currency = $18)
                     and (
                         coalesce(cardinality($3::uuid[]), 0) = 0

@@ -53,6 +53,9 @@ def prepare_inventory_report(content: bytes, *, marketplace_id: str) -> Prepared
             if len(values) != len(columns):
                 raise ValueError("Inventory report row width does not match its header.")
             source = dict(zip(columns, values, strict=True))
+            # Every source row must satisfy the categorical contract, even if its
+            # identity later proves unusable or duplicates another row.
+            item = prepare_inventory_item(source, line, diagnostics)
             sku = source["sku"]
             if not sku.strip():
                 diagnostics.append({"code": "BLANK_SKU", "source_line_number": line})
@@ -68,7 +71,7 @@ def prepare_inventory_report(content: bytes, *, marketplace_id: str) -> Prepared
                 diagnostics.append({"code": code, "source_line_number": line})
                 continue
             originals[sku] = fingerprint
-            rows[sku] = prepare_inventory_item(source, line, diagnostics)
+            rows[sku] = item
     except csv.Error:
         raise ValueError("Inventory report is malformed TSV.") from None
     if data_rows and not rows:

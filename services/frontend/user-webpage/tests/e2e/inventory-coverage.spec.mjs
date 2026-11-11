@@ -127,7 +127,7 @@ test("active filters show each value, survive F5 and clear individually without 
 }, testInfo) => {
   const { inventory } = await setup(page, [
     inventoryRow("OUT", { health_status: "Out of stock", recommended_action: "SendToFBA" }),
-    inventoryRow("LISTING", { health_status: "Healthy", recommended_action: "EditListing" }),
+    inventoryRow("LISTING", { health_status: "Healthy", recommended_action: "Edit listing" }),
     inventoryRow("UNKNOWN"),
   ]);
   await filter(page, "Inventory health status", "Out of stock");
@@ -137,8 +137,8 @@ test("active filters show each value, survive F5 and clear individually without 
   ).toBeVisible();
   await expect(chips(page)).toContainText("Health: Out of stock");
   await expect(chips(page)).toContainText("Recommendation: Edit listing");
-  expect(inventory.availabilityRequests).toHaveLength(1);
-  expect(inventory.availabilityRequests[0].get("and")).toBeNull();
+  expect(inventory.requests).toHaveLength(2);
+  expect(inventory.requests.every((request) => !request.has("and"))).toBe(true);
   await page.reload();
   await expect(
     chips(page).getByRole("button", { name: "Remove Health: Out of stock", exact: true }),

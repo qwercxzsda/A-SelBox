@@ -31,11 +31,17 @@ export function Inventory({
   const searchInput = useRef<HTMLInputElement>(null);
   const pageStart = useRef<HTMLDivElement>(null);
   const { selectedRowId, ...pageState } = viewState;
-  const { query, rows, denied, filterOptions, searchReady, captures, availability, hasItems } =
-    useInventoryData(identity, pageState);
-  const isLoading = query.isPending && (searchReady || filterOptions.isPending);
-  const isUnavailable =
-    denied || (!query.data && (query.isError || (!searchReady && filterOptions.isError)));
+  const {
+    query,
+    rows,
+    totalCount: itemCount,
+    denied,
+    skus,
+    captures,
+    hasItems,
+  } = useInventoryData(identity, pageState);
+  const isLoading = query.isPending;
+  const isUnavailable = denied || (!query.data && query.isError);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     // Age labels change without downloading inventory or waiting for a source revision.
@@ -46,7 +52,7 @@ export function Inventory({
       globalThis.clearInterval(timer);
     };
   }, []);
-  const totalCount = denied ? null : (query.data?.totalCount ?? null);
+  const totalCount = query.data && !denied ? itemCount : null;
   const finalPage = totalCount === null ? null : lastPageIndex(totalCount, viewState.pageSize);
   const pageCount = finalPage === null ? null : finalPage + 1;
   useEffect(() => {
@@ -194,12 +200,6 @@ export function Inventory({
           automatically.
         </Alert>
       ) : null}
-      {filterOptions.isError && !query.isError ? (
-        <Alert role="alert" color="red">
-          Could not load inventory filter options. {getErrorMessage(filterOptions.error)} Updates
-          retry automatically.
-        </Alert>
-      ) : null}
       {query.isError ? (
         <Alert role="alert" color="red">
           Could not load inventory. {getErrorMessage(query.error)}
@@ -210,11 +210,6 @@ export function Inventory({
       {isLoading || query.isFetching ? (
         <Text role="status">{query.isPending ? "Loading inventory…" : "Updating inventory…"}</Text>
       ) : null}
-      {availability.isError && rows.length === 0 ? (
-        <Alert role="alert" color="red">
-          Could not check unfiltered inventory availability. Updates retry automatically.
-        </Alert>
-      ) : null}
       <div ref={pageStart} tabIndex={-1} className="inventory-page-start">
         <PaginationBar {...pagination} ariaLabel="Inventory pagination, top" />
       </div>
@@ -223,15 +218,11 @@ export function Inventory({
         rows={rows}
         viewState={viewState}
         onChange={changeFilters}
-        filterOptions={filterOptions.data}
+        skus={skus}
         onSelect={selectRow}
         now={now}
       />
-      {!query.isPending &&
-      !query.isError &&
-      !captures.isError &&
-      !availability.isError &&
-      rows.length === 0 ? (
+      {!query.isPending && !query.isError && !captures.isError && rows.length === 0 ? (
         <Text role="status">
           {inventoryEmptyMessage({
             captures: captures.isSuccess ? captures.data : undefined,

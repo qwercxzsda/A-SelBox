@@ -146,19 +146,26 @@ class DataKioskSourceFactsTests(unittest.TestCase):
         storage = MemoryArchiveStorage()
         document = complete_economics_document()
         acquisition = kiosk_acquisition(storage, document)
+        for definition in (
+            acquisition.query_definition.replace("productId: MSKU", "productId: ASIN"),
+            acquisition.query_definition.replace(
+                "marketplaceIds:", 'mskus: ["SKU-1"] marketplaceIds:'
+            ),
+        ):
+            metadata = dict(acquisition.pages[0].api_metadata) | {"query": definition}
+            page = replace(acquisition.pages[0], api_metadata=metadata)
+            partial = replace(
+                acquisition,
+                query_definition=definition,
+                pages=(page,),
+                api_metadata=metadata,
+            )
+            with (
+                self.subTest(definition=definition),
+                self.assertRaisesRegex(ValueError, "complete unfiltered DAY/MSKU dataset"),
+            ):
+                prepare_data_kiosk_acquisition(partial, storage)
         for invalid in (
-            replace(
-                acquisition,
-                query_definition=acquisition.query_definition.replace(
-                    "productId: MSKU", "productId: ASIN"
-                ),
-            ),
-            replace(
-                acquisition,
-                query_definition=acquisition.query_definition.replace(
-                    "marketplaceIds:", 'mskus: ["SKU-1"] marketplaceIds:'
-                ),
-            ),
             replace(acquisition, schema_version="economicsPreview"),
             kiosk_acquisition(storage, document.replace(b'"ads":[],', b"")),
             kiosk_acquisition(
@@ -185,11 +192,11 @@ class DataKioskSourceFactsTests(unittest.TestCase):
             {"errorDocumentId": "error"},
             {"pagination": {"nextToken": "missing-page"}},
         ):
-            page = replace(
-                acquisition.pages[0],
-                api_metadata={**acquisition.pages[0].api_metadata, **overrides},
-            )
             with self.subTest(overrides=overrides), self.assertRaises(ValueError):
+                page = replace(
+                    acquisition.pages[0],
+                    api_metadata={**acquisition.pages[0].api_metadata, **overrides},
+                )
                 prepare_data_kiosk_acquisition(replace(acquisition, pages=(page,)), storage)
         with self.assertRaisesRegex(ValueError, "unfinished"):
             prepare_data_kiosk_acquisition(

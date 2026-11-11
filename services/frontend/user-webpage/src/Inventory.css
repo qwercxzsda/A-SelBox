@@ -75,15 +75,15 @@
   color: var(--ui-text);
   font-size: var(--ui-font-data);
 }
-.inventory-health-label[data-status="out of stock"] {
+.inventory-health-label[data-tone="critical"] {
   background: var(--mantine-color-red-0);
   color: var(--mantine-color-red-9);
 }
-.inventory-health-label[data-status="low stock"] {
+.inventory-health-label[data-tone="attention"] {
   background: #fff4da;
   color: #8a5000;
 }
-.inventory-health-label[data-status="healthy"] {
+.inventory-health-label[data-tone="healthy"] {
   background: #edf6e9;
   color: #386515;
 }

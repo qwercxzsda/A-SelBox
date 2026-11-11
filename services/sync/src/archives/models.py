@@ -6,13 +6,16 @@ from datetime import date, datetime
 from pathlib import PurePosixPath
 from uuid import UUID
 
+from ..amazon.data_kiosk.errors import DataKioskResponseError
 from ..amazon.data_kiosk.models import DataKioskDocumentKind
-from ..amazon.datetimes import as_utc
+from ..amazon.data_kiosk.query_builder import canonicalize_graphql_query
+from ..amazon.data_kiosk.responses import extract_done_document_ids, extract_pagination_token
+from ..amazon.datetimes import as_utc, parse_amazon_datetime
 from ..amazon.identifiers import validate_marketplace_id
 from ..amazon.scopes import validate_amazon_scope
 from ..canonical_values import validate_sha256
-from ..database.seller_namespaces import validate_seller_namespace
 from ..frozen_values import freeze_mapping
+from ..seller_namespaces import validate_seller_namespace
 
 
 def archive_path(value: str) -> str:
@@ -87,17 +90,40 @@ class ArchivedDataKioskPage:
         if type(self.is_terminal) is not bool:
             raise ValueError("Page terminal flag must be boolean.")
         if self.document_kind is DataKioskDocumentKind.DATA:
-            if not self.document_id or self.document is None:
+            if (
+                not self.document_id
+                or self.document_id != self.document_id.strip()
+                or self.document is None
+            ):
                 raise ValueError("A data page requires a complete archived document.")
         elif self.document_kind is DataKioskDocumentKind.NO_DATA:
             if self.document_id is not None or self.document is not None:
                 raise ValueError("A no-data page cannot claim document contents.")
+            if not self.is_terminal:
+                raise ValueError("A no-data page must complete the query traversal.")
         else:
             raise ValueError("Failed query pages cannot publish successful acquisitions.")
         if self.api_metadata.get("processingStatus") != "DONE":
             raise ValueError("Acquisition requires a successful terminal API response.")
         if self.api_metadata.get("queryId") != self.query_id:
             raise ValueError("Page API response identity does not match its manifest.")
+        created_time = self.api_metadata.get("createdTime")
+        if (
+            not isinstance(created_time, str)
+            or parse_amazon_datetime(created_time) != self.query_created_at
+        ):
+            raise ValueError("Data Kiosk page source creation time differs from its manifest.")
+        try:
+            token = extract_pagination_token(self.api_metadata, "getQuery")
+            source_document, error_document = extract_done_document_ids(self.api_metadata)
+        except DataKioskResponseError as exc:
+            raise ValueError("Data Kiosk page has malformed source provenance.") from exc
+        if bool(token) == self.is_terminal:
+            raise ValueError("Data Kiosk pagination provenance does not prove complete traversal.")
+        if error_document is not None:
+            raise ValueError("A Data Kiosk error response cannot establish successful coverage.")
+        if source_document != self.document_id:
+            raise ValueError("Data Kiosk response document identity differs from its archive.")
         object.__setattr__(
             self, "api_metadata", freeze_mapping(self.api_metadata, field_name="api_metadata")
         )
@@ -154,9 +180,19 @@ class DataKioskAcquisition:
         )
         if len(set(query_ids)) != len(query_ids) or len(set(document_ids)) != len(document_ids):
             raise ValueError("Acquisition query and document inventories must be unique.")
+        query = canonicalize_graphql_query(self.query_definition)
+        for page in self.pages:
+            source_query = page.api_metadata.get("query")
+            if (
+                not isinstance(source_query, str)
+                or canonicalize_graphql_query(source_query) != query
+            ):
+                raise ValueError("Data Kiosk page query differs from its acquisition definition.")
         object.__setattr__(
             self, "api_metadata", freeze_mapping(self.api_metadata, field_name="api_metadata")
         )
+        if self.api_metadata != root.api_metadata:
+            raise ValueError("Data Kiosk acquisition metadata must match its root page.")
 
 
 def _validate_identity(identifier: UUID, scope: str, downloaded_at: datetime) -> None:

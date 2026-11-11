@@ -2,7 +2,6 @@ import { createApiClient } from "./api/client.ts";
 import { readRuntimeConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
-import type { FetchInventoryPageOptions } from "./api/inventory.ts";
 import type { FinancialSourceSelection } from "./api/financial-source.ts";
 import type { CurrentSourceScope, ReportSourceScope } from "./api/source-totals.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
@@ -11,6 +10,7 @@ import type {
   FinancialReviewRecordFilters,
 } from "./api/financial-review.ts";
 import type {
+  AppAccount,
   Company,
   MarketplaceCurrencyTotal,
   FetchDatasetPageOptions,
@@ -85,14 +85,13 @@ export const fetchDatasetCount = (options: FetchDatasetCountOptions): Promise<nu
   getDefaultClient().fetchDatasetCount(options);
 export const fetchSkuOptions = (accessToken: string, signal?: AbortSignal): Promise<string[]> =>
   getDefaultClient().fetchSkuOptions(accessToken, signal);
-export const fetchInventoryPage = (options: FetchInventoryPageOptions) =>
-  getDefaultClient().fetchInventoryPage(options);
-export const fetchInventoryFilterOptions = (accessToken: string, signal?: AbortSignal) =>
-  getDefaultClient().fetchInventoryFilterOptions(accessToken, signal);
+export const fetchInventoryRows = (
+  accessToken: string,
+  expectedAccount: AppAccount,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchInventoryRows(accessToken, expectedAccount, signal);
 export const fetchInventoryCaptures = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchInventoryCaptures(accessToken, signal);
-export const hasInventoryItems = (accessToken: string, marketplace: string, signal?: AbortSignal) =>
-  getDefaultClient().hasInventoryItems(accessToken, marketplace, signal);
 
 export const fetchFinancialSourceRecord = (
   accessToken: string,

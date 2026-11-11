@@ -44,13 +44,13 @@ lookup and current-pointer indexes. Membership keys connect successful batches t
 versions without copying unchanged components. Filtering a Finance date page therefore joins
 transaction metadata to components.
 
-Data Kiosk indexes local date/ID, marketplace/date and assumed end-of-day instant/ID on stable days, with compact SKU/version and
-Type/version keys on components. Membership and current-pointer indexes identify the exact
+Data Kiosk indexes local date/ID and marketplace/date on stable days, and the preprocessed
+`activity_at`/ID on immutable day versions, with compact SKU/version and Type/version keys on
+components. Membership and current-pointer indexes identify the exact
 observation without duplicating day metadata or component contents.
 The [index map](transaction_query_contracts.md#index-access-paths) lists the exact current keys.
-The end-of-day expression uses named IANA zones. PostgreSQL timezone-data upgrades that change
-historical conversion rules require rebuilding that expression index. Source dates and amounts
-remain unchanged.
+Preprocessing computes the day-end instant using named IANA zones. A changed timezone interpretation
+creates a new normalized version on reprocessing; existing timestamps and indexes remain valid.
 
 Finance publication uploads prepared rows in batches and switches pointers atomically after Python
 source validation. Component totals and Summary controls are not queried repeatedly by the payout
@@ -81,6 +81,15 @@ alongside direct source-version references.
 The [Financial review contract](financial_review.md#read-contract) defines the native RPC payloads.
 
 ### Search and SKU discovery
+
+Inventory loads the complete authorized latest-item set in transport pages and performs search,
+exact decimal sorting, urgency ordering, and display pagination in the browser. Only latest
+captures are loaded, but memory and refresh transfer still grow with authorized inventory size.
+Changing a filter or page reuses the snapshot; unchanged revision checks do not reread it.
+Health/recommendation options are fixed constants, so they need no catalog query. Payout month
+search loads minimal authorized report date references, formats them in the browser, and sends
+matching dates as factual query filters. Revision checks reject a month catalog that changes
+during transport paging, so replacing a report cannot silently skip a month.
 
 The frontend matches literal, case-insensitive search text against complete local catalogs and sends
 exact SKU/Type/Marketplace/Source alternatives. Other column selections combine with search using

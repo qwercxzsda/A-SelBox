@@ -10,7 +10,7 @@ from ..amazon.finances.client import FINANCES_API_VERSION, FinancesClient, Finan
 from ..amazon.scopes import validate_amazon_scope
 from ..archives.acquisition_logging import AcquisitionLog
 from ..archives.storage import ArchiveStorage, archive_document
-from ..database.seller_namespaces import validate_seller_namespace
+from ..seller_namespaces import validate_seller_namespace
 from ..source_serialization import source_json
 from .acquisition_models import (
     ArchivedFinancesPage,

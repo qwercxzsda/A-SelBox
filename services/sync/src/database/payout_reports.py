@@ -30,7 +30,6 @@ class CompanyPayoutReport:
     end_date: date
     dataset_key: str
     marketplace_name: str | None
-    report_name: str
     change_reason: str
     component_count: int
     finances_version_count: int
@@ -82,7 +81,6 @@ def publish_company_payout_report(
     currency: str | None,
     start_date: date,
     end_date: date,
-    report_name: str,
     change_reason: str,
     dataset_key: str = "economics",
 ) -> str:
@@ -112,7 +110,6 @@ def publish_company_payout_report(
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "dataset_key": dataset_key,
-        "report_name": required_text(report_name, "report_name"),
         "change_reason": required_text(change_reason, "change_reason"),
     }
     return publish_json(
@@ -130,7 +127,7 @@ def load_company_payout_report(
         cursor.execute(
             """
             select id, company_id, currency, start_date, end_date,
-                dataset_key, marketplace_name, report_name,
+                dataset_key, marketplace_name,
                 change_reason, component_count,
                 finances_version_count, data_kiosk_version_count, terms_version_count,
                 source_amount, fee_amount, company_amount, created_at
@@ -172,9 +169,9 @@ def _optional_marketplace_name(value: object) -> str | None:
 
 
 def _report(row: Sequence[object]) -> CompanyPayoutReport:
-    if len(row) != 17:
+    if len(row) != 16:
         raise RuntimeError("The payout report query returned an invalid shape.")
-    created_at = row[16]
+    created_at = row[15]
     if not isinstance(created_at, datetime) or created_at.utcoffset() is None:
         raise RuntimeError("created_at must be a timezone-aware datetime.")
     report = CompanyPayoutReport(
@@ -185,15 +182,14 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
         end_date=required_date(row[4], "end_date"),
         dataset_key=required_text(row[5], "dataset_key"),
         marketplace_name=_optional_marketplace_name(row[6]),
-        report_name=required_text(row[7], "report_name"),
-        change_reason=required_text(row[8], "change_reason"),
-        component_count=nonnegative_count(row[9], "component_count"),
-        finances_version_count=nonnegative_count(row[10], "finances_version_count"),
-        data_kiosk_version_count=nonnegative_count(row[11], "data_kiosk_version_count"),
-        terms_version_count=nonnegative_count(row[12], "terms_version_count"),
-        source_amount=financial_amount(row[13], "source_amount"),
-        fee_amount=financial_amount(row[14], "fee_amount"),
-        company_amount=financial_amount(row[15], "company_amount"),
+        change_reason=required_text(row[7], "change_reason"),
+        component_count=nonnegative_count(row[8], "component_count"),
+        finances_version_count=nonnegative_count(row[9], "finances_version_count"),
+        data_kiosk_version_count=nonnegative_count(row[10], "data_kiosk_version_count"),
+        terms_version_count=nonnegative_count(row[11], "terms_version_count"),
+        source_amount=financial_amount(row[12], "source_amount"),
+        fee_amount=financial_amount(row[13], "fee_amount"),
+        company_amount=financial_amount(row[14], "company_amount"),
         created_at=created_at,
     )
     if report.currency is None and any(

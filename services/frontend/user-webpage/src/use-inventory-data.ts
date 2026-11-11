@@ -1,22 +1,16 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@mantine/hooks";
-import {
-  ApiError,
-  fetchInventoryCaptures,
-  fetchInventoryFilterOptions,
-  fetchInventoryPage,
-  hasInventoryItems,
-} from "./api";
+import { ApiError, fetchInventoryCaptures, fetchInventoryRows } from "./api";
 import type { Identity } from "./auth-session";
 import type { InventoryViewState } from "./workspace-view-state";
-import { resolveInventorySearch } from "./inventory-options";
+import { inventoryPage } from "./inventory-view";
 
 export function useInventoryData(
   identity: Identity,
   state: Omit<InventoryViewState, "selectedRowId">,
 ) {
   const [search] = useDebouncedValue(state.search.trim(), 250);
-  const queryState = { ...state, search };
   const scope = [
     identity.account.user_id,
     identity.account.access_role,
@@ -27,59 +21,30 @@ export function useInventoryData(
     queryFn: ({ signal }) => fetchInventoryCaptures(identity.session.access_token, signal),
     staleTime: Infinity,
   });
-  const filterOptions = useQuery({
-    queryKey: ["inventory", ...scope, "filter-options"],
-    queryFn: ({ signal }) => fetchInventoryFilterOptions(identity.session.access_token, signal),
-    staleTime: Infinity,
-  });
-  const searchValues = filterOptions.data
-    ? resolveInventorySearch(search, filterOptions.data)
-    : null;
-  const searchReady = !search || Boolean(filterOptions.data);
   const query = useQuery({
-    queryKey: ["inventory", ...scope, queryState, searchValues],
-    enabled: searchReady,
+    queryKey: ["inventory", ...scope, "items"],
     queryFn: ({ signal }) =>
-      fetchInventoryPage({
-        ...queryState,
-        searchValues,
-        accessToken: identity.session.access_token,
-        signal,
-      }),
+      fetchInventoryRows(identity.session.access_token, identity.account, signal),
+    staleTime: Infinity,
   });
   const denied = query.error instanceof ApiError && [401, 403].includes(query.error.status ?? 0);
-  const rows = denied ? [] : (query.data?.rows ?? []);
-  const itemFiltered = Boolean(
-    search || state.skus.length || state.healthStatuses.length || state.recommendations.length,
+  const page = useMemo(
+    () => inventoryPage(denied ? [] : (query.data ?? []), { ...state, search }),
+    [query.data, denied, state, search],
   );
-  const covered = captures.data?.some(
-    (capture) => !state.marketplace || capture.marketplace_name === state.marketplace,
+  const skus = useMemo(
+    () => (denied ? [] : [...new Set(query.data?.map((row) => row.sku))]),
+    [query.data, denied],
   );
-  const availability = useQuery({
-    queryKey: ["inventory", ...scope, "availability", state.marketplace],
-    queryFn: ({ signal }) =>
-      hasInventoryItems(identity.session.access_token, state.marketplace, signal),
-    enabled:
-      query.isSuccess &&
-      !query.isFetching &&
-      rows.length === 0 &&
-      itemFiltered &&
-      covered === true &&
-      !captures.isError,
-    staleTime: Infinity,
-  });
   return {
     query,
-    rows,
+    ...page,
     denied,
-    filterOptions,
-    searchReady,
+    skus,
     captures,
-    availability,
-    hasItems: itemFiltered
-      ? availability.data
-      : query.isSuccess
-        ? (query.data.totalCount ?? rows.length) > 0
+    hasItems:
+      query.data && !denied
+        ? query.data.some((row) => !state.marketplace || row.marketplace_name === state.marketplace)
         : undefined,
   };
 }

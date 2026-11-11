@@ -145,14 +145,12 @@ class PayoutIdempotencyTests(SourceModelFixture):
         self.assertNotEqual(first, second)
         self.assertEqual(self.report_totals(first), self.report_totals(second))
 
-    def test_trusted_publication_reuses_complete_snapshot_and_ignores_labels(self) -> None:
+    def test_trusted_publication_reuses_snapshot_without_rewriting_audit_reason(self) -> None:
         inputs = prepare_payout(self)
         first = publish_payout(self, inputs)
         before = payout_snapshot(self, first)
         self.assertEqual(
-            publish_payout(
-                self, inputs, report_name="Another label", change_reason="Changed explanation"
-            ),
+            publish_payout(self, inputs, change_reason="Changed explanation"),
             first,
         )
         self.assertEqual(payout_snapshot(self, first), before)

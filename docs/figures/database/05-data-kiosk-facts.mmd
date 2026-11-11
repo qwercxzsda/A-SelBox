@@ -18,6 +18,7 @@ erDiagram
     private_data_kiosk_day_versions["private.data_kiosk_day_versions"] {
         local_uuid id PK "NN"
         local_uuid day_id FK "NN"
+        timestamp_with_time_zone activity_at "NN"
         integer row_count "NN"
         sha256 content_sha256 "NN"
         timestamp_with_time_zone created_at "NN"

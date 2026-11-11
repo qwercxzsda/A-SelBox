@@ -64,7 +64,7 @@ export const DATASET_PRESENTATION = {
     label: "Payout reports",
     description:
       "Monthly payouts preserve company amounts in the Finances and Data Kiosk categories, plus service fees. Source comparisons are separate diagnostics and never change these saved amounts.",
-    searchPlaceholder: "Month, marketplace, or report name",
+    searchPlaceholder: "Month, marketplace, or currency",
     emptyMessage: "No payout reports match this view.",
   },
   accounts: {

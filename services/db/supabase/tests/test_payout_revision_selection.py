@@ -28,7 +28,6 @@ class PayoutRevisionSelectionTests(SourceModelFixture):
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",
                 "dataset_key": "economics",
-                "report_name": "June revision snapshot",
                 "change_reason": "Record exact selected contents and successful coverage",
             },
         )
@@ -49,6 +48,7 @@ class PayoutRevisionSelectionTests(SourceModelFixture):
             for row in self.connection.execute(
                 "select jsonb_build_object('id',private.uuid7(),"
                 "'activity_date',d.activity_date,'marketplace_name',d.marketplace_name,"
+                "'activity_at',v.activity_at,"
                 "'expected_current_version_id',d.current_version_id,"
                 "'expected_current_batch_id',d.current_batch_id,'content_sha256',v.content_sha256,"
                 "'transactions',(select coalesce(jsonb_agg("

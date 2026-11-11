@@ -6,9 +6,60 @@ import psycopg
 
 from services.db.supabase.tests.inventory_fixtures import InventoryFixture
 from services.db.supabase.tests.source_fixtures import new_id
+from services.sync.src.inventory.vocabulary import HEALTH_STATUSES, RECOMMENDED_ACTIONS
 
 
 class InventoryPublicationTests(InventoryFixture):
+    def test_preprocessing_status_contract_is_accepted_without_database_transformation(
+        self,
+    ) -> None:
+        statuses = (*HEALTH_STATUSES, None)
+        actions = (*RECOMMENDED_ACTIONS, None)
+        items = [
+            self.item(f"SKU-{index:02d}", line=index + 2)
+            | {"health_status": statuses[index % len(statuses)], "recommended_action": action}
+            for index, action in enumerate(actions)
+        ]
+        self.capture(self.acquire(), items)
+        self.assertEqual(
+            self.connection.execute(
+                "select sku,health_status,recommended_action "
+                "from private.inventory_items order by sku"
+            ).fetchall(),
+            [(item["sku"], item["health_status"], item["recommended_action"]) for item in items],
+        )
+
+    def test_unknown_or_fuzzy_status_values_reject_the_complete_publication(self) -> None:
+        acquisition = self.acquire()
+        for field, value in (
+            ("health_status", "FUTURE_AMAZON_LABEL"),
+            ("health_status", "LOW_stock"),
+            ("health_status", "healthy"),
+            ("health_status", ""),
+            ("recommended_action", "FUTURE_AMAZON_ACTION"),
+            ("recommended_action", "Restock inventory"),
+            ("recommended_action", "Go to stranded"),
+            ("recommended_action", ""),
+        ):
+            with (
+                self.subTest(field=field, value=value),
+                self.assertRaises(psycopg.errors.CheckViolation),
+                self.connection.transaction(),
+            ):
+                self.capture(
+                    acquisition, [self.item(), self.item("INVALID", line=3) | {field: value}]
+                )
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from private.inventory_daily_captures"
+            ).fetchone(),
+            (0,),
+        )
+        self.assertEqual(
+            self.connection.execute("select count(*) from private.inventory_items").fetchone(),
+            (0,),
+        )
+
     def test_acquisition_retry_reuses_identity_and_rejects_changed_source(self) -> None:
         payload = self.acquisition_payload()
         original = self.call("publish_inventory_acquisition", payload)
@@ -149,7 +200,7 @@ class InventoryPublicationTests(InventoryFixture):
             "sales_amount_90d": "123.456789",
             "currency": "USD",
             "days_of_supply": "2.5",
-            "health_status": "FUTURE_AMAZON_LABEL",
+            "health_status": "Low stock",
         }
         self.capture(acquisition, [metrics, self.item("UNKNOWN", None, 3)])
         self.assertEqual(
@@ -164,7 +215,7 @@ class InventoryPublicationTests(InventoryFixture):
                     Decimal("123.456789"),
                     Decimal("2.5"),
                     "2026-09-27",
-                    "FUTURE_AMAZON_LABEL",
+                    "Low stock",
                 ),
                 ("UNKNOWN", None, None, None, None, None),
             ],

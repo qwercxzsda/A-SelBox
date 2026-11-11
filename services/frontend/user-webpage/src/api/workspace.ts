@@ -24,6 +24,45 @@ export function parseAppAccount(value: Record<string, unknown>, userId: string):
   return { user_id, access_role: access_role as AppAccount["access_role"], company_id };
 }
 
+/** Read caller-bound account state and the requested publication tokens through one decoder. */
+export async function readWorkspaceRevisions(
+  transport: ApiTransport,
+  {
+    accessToken,
+    userId,
+    sources,
+    signal,
+  }: Omit<FetchWorkspaceRevisionsOptions, "userId"> & { userId?: string },
+): Promise<WorkspaceRevisionSnapshot> {
+  if (userId !== undefined && !userId.trim()) throw new Error("An Auth user ID is required");
+  const requested = [...new Set(sources)];
+  if (
+    requested.some(
+      (source) => !["finances", "data_kiosk", "fees", "inventory", "payouts"].includes(source),
+    )
+  )
+    throw new Error("Invalid workspace revision source");
+  const params = new URLSearchParams({ p_sources: `{${requested.join(",")}}` });
+  const operation = "Workspace access";
+  const value = await transport.requestJson(
+    `/rest/v1/rpc/workspace_revisions?${params.toString()}`,
+    { signal, cache: "no-store", headers: transport.authenticatedHeaders(accessToken) },
+    operation,
+  );
+  if (!isJsonObject(value) || !isJsonObject(value.account) || !isJsonObject(value.revisions))
+    throw new Error(`${operation} returned invalid revisions`);
+  const revisions: WorkspaceRevisions = {};
+  for (const source of requested) {
+    const revision = requiredJsonString(value.revisions, source);
+    if (!revision.trim()) throw new Error(`${operation} returned an empty revision`);
+    revisions[source] = revision;
+  }
+  return {
+    account: parseAppAccount(value.account, userId ?? requiredJsonString(value.account, "user_id")),
+    revisions,
+  };
+}
+
 /** One complete catalog; preserve PostgreSQL's ordering and exact SKU text. */
 function parseSkuCatalog(value: unknown, operation: string): string[] {
   if (!isJsonObject(value) || Object.keys(value).length !== 1 || !Array.isArray(value.values))
@@ -41,7 +80,7 @@ function parseSkuCatalog(value: unknown, operation: string): string[] {
 }
 
 export function createWorkspaceApi(transport: ApiTransport) {
-  const { requestJson, authenticatedHeaders, postRpc } = transport;
+  const { postRpc } = transport;
   return {
     async fetchSkuOptions(accessToken: string, signal?: AbortSignal): Promise<string[]> {
       const operation = "SKU options";
@@ -51,38 +90,9 @@ export function createWorkspaceApi(transport: ApiTransport) {
       return parseSkuCatalog(value, operation);
     },
 
-    async fetchWorkspaceRevisions({
-      accessToken,
-      userId,
-      sources,
-      signal,
-    }: FetchWorkspaceRevisionsOptions): Promise<WorkspaceRevisionSnapshot> {
-      if (!userId.trim()) throw new Error("An Auth user ID is required");
-      const requested = [...new Set(sources)];
-      if (
-        requested.some(
-          (source) => !["finances", "data_kiosk", "fees", "inventory", "payouts"].includes(source),
-        )
-      ) {
-        throw new Error("Invalid workspace revision source");
-      }
-      const params = new URLSearchParams({ p_sources: `{${requested.join(",")}}` });
-      const operation = "Workspace access";
-      const value = await requestJson(
-        `/rest/v1/rpc/workspace_revisions?${params.toString()}`,
-        { signal, cache: "no-store", headers: authenticatedHeaders(accessToken) },
-        operation,
-      );
-      if (!isJsonObject(value) || !isJsonObject(value.account) || !isJsonObject(value.revisions)) {
-        throw new Error(`${operation} returned invalid revisions`);
-      }
-      const revisions: WorkspaceRevisions = {};
-      for (const source of requested) {
-        const revision = requiredJsonString(value.revisions, source);
-        if (!revision.trim()) throw new Error(`${operation} returned an empty revision`);
-        revisions[source] = revision;
-      }
-      return { account: parseAppAccount(value.account, userId), revisions };
+    async fetchWorkspaceRevisions(options: FetchWorkspaceRevisionsOptions) {
+      if (!options.userId.trim()) throw new Error("An Auth user ID is required");
+      return readWorkspaceRevisions(transport, options);
     },
 
     async fetchCompanies(accessToken: string): Promise<Company[]> {

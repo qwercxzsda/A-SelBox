@@ -294,8 +294,9 @@ test("view decoders whitelist table controls and preserve exact SKU text", () =>
     "live",
   );
   assert.deepEqual(
-    decodeInventoryView({ healthStatuses: [null, "low", 1], sortColumn: "unsafe" }).healthStatuses,
-    [null, "low"],
+    decodeInventoryView({ healthStatuses: [null, "Low stock", "unknown", 1], sortColumn: "unsafe" })
+      .healthStatuses,
+    [null, "Low stock"],
   );
   assert.equal(decodeInventoryView({ sortColumn: "unsafe" }).sortColumn, "sku");
   const inventory = decodeInventoryView({

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiError, createApiClient } from "../src/api/client.ts";
 import { DATASET_CONFIG } from "../src/api/config.ts";
-import { datasetRecord } from "./api-fixtures.mjs";
+import { datasetRecord, workspaceRevisionReply } from "./api-fixtures.mjs";
 
 const SETTINGS = {
   supabaseUrl: "https://api.example.invalid",
@@ -313,6 +313,7 @@ test("transaction page responses reject lossy numbers and malformed counts or ro
 test("non-transaction datasets keep their existing CSV API", async () => {
   for (const dataset of ["payouts", "accounts"]) {
     const client = createApiClient(SETTINGS, async (url, init) => {
+      if (workspaceRevisionReply(url)) return workspaceRevisionReply(url);
       assert.equal(new URL(url).pathname, `/rest/v1/${DATASET_CONFIG[dataset].endpoint}`);
       assert.equal(init.headers.Accept, "text/csv");
       assert.equal(init.body, undefined);

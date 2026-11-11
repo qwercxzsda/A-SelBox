@@ -156,6 +156,16 @@ export function compareAbsoluteDecimals(
   return aFraction === bFraction ? 0 : aFraction < bFraction ? -1 : 1;
 }
 
+/** Compare signed amounts exactly without losing precision to JavaScript numbers. */
+export function compareDecimals(left: string, right: string): number {
+  const a = parseDecimal(left),
+    b = parseDecimal(right);
+  if (!a || !b) throw new Error("Cannot compare invalid decimal amounts");
+  if (a.negative !== b.negative) return a.negative ? -1 : 1;
+  const magnitude = compareAbsoluteDecimals(left, right);
+  return a.negative ? -magnitude : magnitude;
+}
+
 /** Round monetary display to cents, with decimal ties away from zero. */
 function roundAmount(parts: DecimalParts): DecimalParts {
   let cents = BigInt(parts.integer + parts.fraction.slice(0, 2).padEnd(2, "0"));

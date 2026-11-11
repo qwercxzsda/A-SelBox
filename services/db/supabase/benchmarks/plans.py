@@ -169,11 +169,7 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
         if dataset not in ("finances", "data_kiosk"):
             raise ValueError("Raw dataset must be finances or data_kiosk")
         finances = dataset == "finances"
-        timestamp = (
-            "t.posted_at"
-            if finances
-            else "private.data_kiosk_activity_at(t.activity_date,t.marketplace_name)"
-        )
+        timestamp = "t.posted_at" if finances else "t.activity_at"
         replacements = (
             "finances_component_details" if finances else "data_kiosk_component_details",
             timestamp,

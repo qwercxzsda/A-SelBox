@@ -5,6 +5,7 @@ from datetime import date
 from decimal import Decimal
 
 from services.sync.src.inventory.parser import prepare_inventory_report
+from services.sync.src.inventory.vocabulary import HEALTH_STATUSES, RECOMMENDED_ACTIONS
 
 from .fixtures import MARKETPLACE, report_bytes
 
@@ -24,8 +25,8 @@ class InventoryParserTests(unittest.TestCase):
                     "units-shipped-t90": "100",
                     "snapshot-date": "2026-09-20",
                     "Recommended ship-in date": "2026-10-02",
-                    "fba-inventory-level-health-status": "New Amazon label",
-                    "recommended-action": "A future action",
+                    "fba-inventory-level-health-status": "Low stock",
+                    "recommended-action": "GoToRestock",
                     "marketplace": "US",
                 }
             ),
@@ -40,8 +41,58 @@ class InventoryParserTests(unittest.TestCase):
         self.assertEqual(row["sales_amount_90d"], Decimal("1234.50"))
         self.assertEqual(row["snapshot_date"], date(2026, 9, 20))
         self.assertEqual(row["recommended_ship_in_date"], date(2026, 10, 2))
-        self.assertEqual(row["health_status"], "New Amazon label")
+        self.assertEqual(row["health_status"], "Low stock")
+        self.assertEqual(row["recommended_action"], "GoToRestock")
         self.assertIsNone(row["unfulfillable_quantity"])
+
+    def test_every_supported_source_category_is_preserved(self) -> None:
+        for field, target, values in (
+            ("fba-inventory-level-health-status", "health_status", HEALTH_STATUSES),
+            ("recommended-action", "recommended_action", RECOMMENDED_ACTIONS),
+        ):
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    result = prepare_inventory_report(
+                        report_bytes({"sku": "sku", field: f" {value} "}),
+                        marketplace_id=MARKETPLACE,
+                    )
+                    self.assertEqual(result.items[0][target], value)
+
+    def test_missing_categories_remain_unavailable(self) -> None:
+        for value in ("", "-", "--", "N/A", "NA", "null", "Not applicable"):
+            with self.subTest(value=value):
+                result = prepare_inventory_report(
+                    report_bytes(
+                        {
+                            "sku": "sku",
+                            "fba-inventory-level-health-status": value,
+                            "recommended-action": value,
+                        }
+                    ),
+                    marketplace_id=MARKETPLACE,
+                )
+                self.assertIsNone(result.items[0]["health_status"])
+                self.assertIsNone(result.items[0]["recommended_action"])
+
+    def test_unknown_categories_fail_entire_report_including_discarded_rows(self) -> None:
+        for field, value in (
+            ("fba-inventory-level-health-status", "New Amazon label"),
+            ("fba-inventory-level-health-status", "LOW_stock"),
+            ("recommended-action", "A future action"),
+            ("recommended-action", "go to restock"),
+        ):
+            for sku in ("new", "existing", " "):
+                with (
+                    self.subTest(field=field, value=value, sku=sku),
+                    self.assertRaisesRegex(ValueError, f"unsupported {field} at source line 3"),
+                ):
+                    prepare_inventory_report(
+                        report_bytes(
+                            {"sku": "existing", "available": "1"},
+                            {"sku": sku, field: value},
+                        ),
+                        marketplace_id=MARKETPLACE,
+                    )
 
     def test_documented_transfer_alias_matches_actual_source_without_ambiguity(self) -> None:
         for field in ("fc-transfer", "Reserved FC Transfer"):

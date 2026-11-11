@@ -14,6 +14,20 @@ export const SESSION = {
   user: { id: "user-1", email: "member@example.invalid" },
 };
 
+export function workspaceRevisionReply(url) {
+  if (!new URL(url).pathname.endsWith("/workspace_revisions")) return null;
+  return Response.json({
+    account: { user_id: "user-1", access_role: "member", company_id: "company-1" },
+    revisions: {
+      finances: "one",
+      data_kiosk: "one",
+      fees: "one",
+      inventory: "one",
+      payouts: "one",
+    },
+  });
+}
+
 export function responseJson(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,

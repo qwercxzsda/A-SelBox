@@ -15,8 +15,8 @@ from ..amazon.identifiers import validate_marketplace_id
 from ..amazon.marketplaces import get_credential_scope
 from ..amazon.scopes import validate_amazon_scope
 from ..archives.models import ArchivedDocument
-from ..database.seller_namespaces import validate_seller_namespace
 from ..frozen_values import freeze_mapping
+from ..seller_namespaces import validate_seller_namespace
 from .query_windows import (
     comparable_end_at,
     reconciliation_interval,

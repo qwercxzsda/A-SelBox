@@ -8,7 +8,7 @@ for (const [tab, label, placeholder] of [
   ["Finances", "Search", "SKU, type, or marketplace"],
   ["Data Kiosk", "Search", "SKU, type, or marketplace"],
   ["Current fees", "Search SKUs", "SKU or company"],
-  ["Payout reports", "Search", "Month, marketplace, or report name"],
+  ["Payout reports", "Search", "Month, marketplace, or currency"],
   ["Inventory", "Search", "SKU, marketplace, health, or recommendation"],
   ["Companies", "Search companies", "Company name or ID"],
   ["User access", "Search", "Email"],

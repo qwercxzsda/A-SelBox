@@ -109,8 +109,8 @@ begin
                         where h.current_version_id = t.version_id
                     )
                 )
-                and (p_date_from is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= p_date_from::timestamp at time zone 'UTC')
-                and (p_date_to is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < (p_date_to + 1)::timestamp at time zone 'UTC')
+                and (p_date_from is null or t.activity_at >= p_date_from::timestamp at time zone 'UTC')
+                and (p_date_to is null or t.activity_at < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (p_currency is null or t.currency = p_currency)
                 and (
                     coalesce(cardinality(p_company_ids), 0) = 0
@@ -199,8 +199,8 @@ begin
     end if;
     return (
         select count(*)::text from private.data_kiosk_component_details as t
-        where (p_date_from is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) >= p_date_from::timestamp at time zone 'UTC')
-            and (p_date_to is null or private.data_kiosk_activity_at(t.activity_date, t.marketplace_name) < (p_date_to + 1)::timestamp at time zone 'UTC')
+        where (p_date_from is null or t.activity_at >= p_date_from::timestamp at time zone 'UTC')
+            and (p_date_to is null or t.activity_at < (p_date_to + 1)::timestamp at time zone 'UTC')
             and (coalesce(cardinality(p_skus), 0) = 0 or t.sku = any(p_skus))
             and (coalesce(cardinality(p_marketplaces), 0) = 0
                 or t.marketplace_name = any(p_marketplaces))

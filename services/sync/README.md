@@ -168,7 +168,11 @@ ownership and fee edits do not change it.
 Inventory uses `INVENTORY_PREPROCESS_VERSION` (`inventory-v1`). Same-acquisition/parser replay is
 idempotent; successful preprocessing replaces that report day's entire capture. The
 [inventory contract](../../docs/inventory_daily_captures.md) defines optional metrics, duplicate-SKU
-handling and report-time semantics.
+handling and report-time semantics. Health and recommended actions use exact fixed source values
+from `src/inventory/vocabulary.py`. Unknown nonmissing values fail the entire report before
+publication, including on rows otherwise omitted for blank or conflicting SKU identities.
+Database CHECK constraints are a second guard. Frontend options, labels, colors, and priorities
+do not participate in preprocessing.
 
 The [type registry](../../docs/transaction_type_registry.md) owns supported native monetary paths,
 allocation categories and frontend type generation. The [Finances contract](../../docs/finances_transactions.md)

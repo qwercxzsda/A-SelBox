@@ -75,6 +75,7 @@ def _day_payload(day: DataKioskDay, selected: DataKioskSelection | None) -> dict
         "id": str(uuid7()),
         "marketplace_name": day.marketplace_name,
         "activity_date": day.activity_date.isoformat(),
+        "activity_at": day.activity_at.isoformat(),
         "content_sha256": day.content_sha256,
         "expected_current_version_id": selected.version_id if selected is not None else None,
         "expected_current_batch_id": selected.batch_id if selected is not None else None,

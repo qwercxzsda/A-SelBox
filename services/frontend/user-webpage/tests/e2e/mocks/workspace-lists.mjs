@@ -1,5 +1,4 @@
 import { DATASET_CONFIG } from "../../../src/api/config.ts";
-import { formatRecordMonth } from "../../../src/date-display.ts";
 import { filterRecordRows, sortRecordRows } from "../record-fixtures.mjs";
 
 export function respondWithWorkspaceLists(fixture, { request, url, user, reply, csvReply, track }) {
@@ -36,7 +35,6 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
           created_at: "2026-09-01T00:00:00Z",
         }));
   if (url.pathname.endsWith("/latest_company_payout_reports")) {
-    source = source.map((row) => ({ ...row, month_label: formatRecordMonth(row.start_date) }));
     const sorted = sortRecordRows(
       source,
       new URLSearchParams({ order: "created_at.desc,id.desc" }),
@@ -66,7 +64,7 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
   const offset = Number(url.searchParams.get("offset"));
   const limit = Number(url.searchParams.get("limit"));
   return csvReply(
-    DATASET_CONFIG[dataset].selectColumns,
+    url.searchParams.get("select")?.split(",") ?? DATASET_CONFIG[dataset].selectColumns,
     rows.slice(offset, offset + limit),
     rows.length,
     offset,

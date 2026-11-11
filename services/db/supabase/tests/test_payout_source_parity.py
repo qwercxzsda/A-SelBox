@@ -14,7 +14,7 @@ from services.db.supabase.tests.payout_fixtures import (
     report_source_rows,
 )
 from services.db.supabase.tests.rpc_support import assert_rpc_security
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
 from services.db.supabase.tests.verification.payout_source_parity import source_period_totals
 
 
@@ -142,6 +142,9 @@ class PayoutSourceParityTests(SourceModelFixture):
                         "id": new_id(),
                         "marketplace_name": marketplace,
                         "activity_date": (date(2026, 6, 1) + timedelta(days=day)).isoformat(),
+                        "activity_at": kiosk_timestamp(
+                            (date(2026, 6, 1) + timedelta(days=day)).isoformat(), marketplace
+                        ),
                         "expected_current_version_id": None,
                         "content_sha256": "c" * 64,
                         "transactions": [self.component("-1")] if day == 14 else [],

@@ -72,7 +72,6 @@ class LocalWorkflowTests(LocalWorkflowCase):
             currency="USD",
             start_date=START,
             end_date=month_end,
-            report_name="Frozen company report",
             change_reason="Initial source-backed report",
         )
         header = self.read_rows(

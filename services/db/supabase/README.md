@@ -41,6 +41,13 @@ sources, while keeping its own daily-capture tables. Each database object has on
 definition. SKU discovery and configuration reads share one module; validation and publication
 share another.
 
+The [responsibility contract](../../../README.md#responsibility-boundaries) keeps source
+interpretation in preprocessing and presentation in the frontend. Inventory stores constrained
+health/recommendation source values. Its read views select authorized latest facts without UI
+ranks, colors, or option catalogs. Payout headers store dates and audit provenance; the browser
+derives their display names. Data Kiosk's Amazon metadata and pagination validation run in Python;
+SQL publication enforces durable manifest integrity, identity, and atomicity.
+
 The migrations define a fresh installation of the financial source models, with no upgrade or
 conversion path for existing deployments. Verification installs these definitions only in
 disposable databases.
@@ -66,7 +73,7 @@ disposable databases.
 | [payout_refresh](migrations/20260928123126_payout_refresh.sql)                               | Pending revision requests, maturity discovery, bounded processing, and retry backoff.                                        |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql)                     | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling.            |
 | [payout_invalidation](migrations/20260928123128_payout_invalidation.sql)                     | Transactional requests after source or terms changes and scope expansion.                                                    |
-| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Local-day/UTC-instant indexes, timezone rules, filter/pagination validation, and current-policy eligibility.                                           |
+| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Local-day/UTC-instant indexes, filter/pagination validation, and current-policy eligibility.                                           |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql)                       | Exact authorized live and raw source counts.                                                                                 |
 | [transaction_page](migrations/20260928123134_transaction_page.sql)                           | Bounded live row selection before ownership and fee projection.                                                              |
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql)             | Bounded raw source pages, exact row/version detail, and indexed native transaction lookup retaining historical visibility.   |
@@ -108,7 +115,7 @@ totals queries project terms only for their selected page or grouped facts. Exis
 support these lookups. The [performance guide](../../../docs/database_performance.md#authorization-and-current-versions)
 explains the current authorization path and remaining inventory costs.
 
-Transactions date ordering reverses the complete UTC instant/source/ID tuple. Finances uses its posting instant; Data Kiosk is booked at the last microsecond of its local day. Source dates still govern fees and payout months. Reported amount ordering is limited to
+Transactions date ordering reverses the complete UTC instant/source/ID tuple. Finances uses its posting instant; Data Kiosk preprocessing stores the last microsecond of its local day on each immutable day version. Source dates still govern fees and payout months. Reported amount ordering is limited to
 10,000 fully filtered matches, with no dedicated amount index. Marketplace names use constrained
 text. Date, SKU, Type, marketplace, and ownership/version indexes support the measured access paths;
 the [performance guide](../../../docs/database_performance.md) explains their tradeoffs.
@@ -119,6 +126,11 @@ the same [source policy](../../../docs/source_allocation.md). Strict reads addit
 validate declared source coverage and ownership/fees. Administrator-only raw source tabs preserve
 comparison and analysis facts; public source pages/counts reject members and source-entry views
 return no member rows. Transactions and its direct live view contain only authoritative categories.
+
+Inventory transport pages return complete authorized latest facts. The browser assembles and
+caches them, then applies inventory search, filters, display priorities, and pagination locally.
+Fixed health/recommendation options never require a database request. Financial page/count RPCs
+remain appropriate for large factual queries; their ordering does not prescribe UI labels or colors.
 
 `workspace_revisions` reads the authenticated account and requested opaque tokens from the small
 `workspace_revision_tokens` table, without scanning source facts or inventory captures. Financial

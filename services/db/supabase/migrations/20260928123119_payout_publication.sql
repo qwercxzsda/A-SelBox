@@ -45,16 +45,16 @@ begin
         raise exception 'Complete payout publication scope required' using errcode = '23514';
     end if;
     if not p_payload ?& array['id','company_id','marketplace_name','currency','start_date','end_date',
-            'dataset_key','report_name','change_reason']
+            'dataset_key','change_reason']
         or exists (select 1 from jsonb_object_keys(p_payload) key where key <> all(
             array['id','company_id','marketplace_name','currency','start_date','end_date',
-                'dataset_key','report_name','change_reason'])) then
+                'dataset_key','change_reason'])) then
         raise exception 'Complete payout publication scope required' using errcode = '23514';
     end if;
     report_input := jsonb_populate_record(null::public.company_payout_reports,p_payload);
     if report_input.id is null or report_input.company_id is null
         or (report_input.currency is not null and report_input.currency !~ '^[A-Z]{3}$')
-        or report_input.report_name is null or report_input.change_reason is null
+        or report_input.change_reason is null
         or report_input.start_date is null or report_input.end_date is null
         or not isfinite(report_input.start_date) or not isfinite(report_input.end_date)
         or report_input.start_date > report_input.end_date
@@ -143,12 +143,12 @@ begin
     end if;
     insert into public.company_payout_reports (
         id,company_id,marketplace_name,currency,start_date,end_date,dataset_key,
-        report_name,change_reason,component_count,
+        change_reason,component_count,
         finances_version_count,data_kiosk_version_count,terms_version_count,source_coverage,
         source_amount,fee_amount,company_amount
     ) values (report_input.id,report_input.company_id,report_input.marketplace_name,report_input.currency,
         report_input.start_date,report_input.end_date,report_input.dataset_key,
-        report_input.report_name,report_input.change_reason,report_input.component_count,
+        report_input.change_reason,report_input.component_count,
         cardinality(finances_versions),cardinality(kiosk_versions),cardinality(used_terms),report_input.source_coverage,
         report_input.source_amount,report_input.fee_amount,report_input.company_amount);
     insert into private.payout_report_finances_versions(report_id,transaction_id,version_id)

@@ -5,8 +5,12 @@ from datetime import date, timedelta
 from typing import Any, cast
 
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
-from services.sync.src.source_serialization import content_sha256
+from services.db.supabase.tests.source_fixtures import (
+    SourceModelFixture,
+    kiosk_content_hash,
+    kiosk_timestamp,
+    new_id,
+)
 
 
 def fill_payout_kiosk_month(
@@ -40,9 +44,12 @@ def fill_payout_kiosk_month(
                     "id": new_id(),
                     "marketplace_name": marketplace,
                     "activity_date": current.isoformat(),
+                    "activity_at": kiosk_timestamp(current.isoformat(), marketplace),
                     "expected_current_version_id": None,
                     "expected_current_batch_id": None,
-                    "content_sha256": content_sha256([]),
+                    "content_sha256": kiosk_content_hash(
+                        kiosk_timestamp(current.isoformat(), marketplace), []
+                    ),
                     "transactions": [],
                 }
             )
@@ -72,7 +79,6 @@ def _payout_payload(company: str, **scope: object) -> dict[str, object]:
         "start_date": "2026-06-01",
         "end_date": "2026-06-30",
         "dataset_key": "economics",
-        "report_name": "Saved June report",
         "change_reason": "Initial publication",
         **scope,
     }
@@ -100,7 +106,6 @@ def publish_report(
             company_id,
             start_date=start_date,
             end_date=end_date,
-            report_name="Retained source evidence",
             change_reason="Freeze source revisions and successful coverage",
         ),
     )
@@ -277,6 +282,5 @@ def empty_report_payload(company: str) -> dict[str, object]:
         company,
         marketplace_name=None,
         currency=None,
-        report_name="June payout",
         change_reason="Verify current assignment requirement",
     )

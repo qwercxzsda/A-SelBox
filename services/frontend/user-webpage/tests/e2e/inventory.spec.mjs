@@ -64,7 +64,7 @@ for (const user of ["member", "administrator"]) {
   });
 }
 
-test("inventory server paging, exact punctuation filters and tab state stay independent of transactions", async ({
+test("inventory browser paging, exact punctuation filters and tab state stay independent of transactions", async ({
   page,
 }) => {
   await mockSupabase(page);
@@ -85,8 +85,8 @@ test("inventory server paging, exact punctuation filters and tab state stay inde
   await expect(page.getByText("SKU-024", { exact: true })).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill(special);
   await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
-  expect(fixture.requests.at(-1).get("offset")).toBe("0");
-  expect(fixture.requests.at(-1).get("and")).toContain(`sku.in.(${JSON.stringify(special)})`);
+  expect(fixture.requests).toHaveLength(2);
+  expect(fixture.requests.every((request) => !request.has("and"))).toBe(true);
   await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.com");
   await expect(
     page.getByText("No inventory matches these filters.", { exact: true }),
@@ -134,7 +134,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
         sales_amount_90d: String(index),
         currency: "USD",
         health_status: "Healthy",
-        recommended_action: "EditListing",
+        recommended_action: "Edit listing",
       }),
     ),
     inventoryRow("RESTOCK", {
@@ -163,9 +163,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await page.keyboard.press("Enter");
   await expect(skus.first()).toHaveText("RESTOCK");
   await expect(skus.nth(1)).toHaveText("SEND");
-  expect(inventory.requests.at(-1).get("order")).toBe(
-    "sales_amount_90d.desc.nullslast,sku.asc,marketplace_name.asc,capture_id.asc",
-  );
+  expect(inventory.requests.at(-1).get("order")).toBe("capture_id.asc,sku.asc");
   await expect(sales).toBeFocused();
   await page
     .getByRole("navigation", { name: "Inventory pagination, top", exact: true })
@@ -177,7 +175,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await page.getByRole("checkbox", { name: "RESTOCK", exact: true }).check();
   await page.keyboard.press("Escape");
   await expect(skus).toHaveText(["RESTOCK"]);
-  expect(inventory.requests.at(-1).get("offset")).toBe("0");
+  expect(inventory.requests).toHaveLength(2);
   await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
   await columnTrigger(region, "Inventory health status").click();
   await page.getByRole("checkbox", { name: "Unavailable", exact: true }).check();
@@ -216,24 +214,24 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await expect(columnTrigger(region, "Recommendation")).toBeVisible();
 });
 
-test("inventory sorting keeps exact large sales values, numeric ties and nulls in server order", async ({
+test("inventory sorting keeps exact large sales values, numeric ties and nulls in browser order", async ({
   page,
 }) => {
   await mockSupabase(page);
   await mockInventory(page, [
     inventoryRow("LARGER", {
       sales_amount_90d: "9007199254740993.000000002",
-      health_status_urgency: "3",
+      health_status: "Excess",
     }),
     inventoryRow("SMALLER", {
       sales_amount_90d: "9007199254740993.000000001",
-      health_status_urgency: "20",
+      health_status: "Low stock",
     }),
-    inventoryRow("TIE-B", { sales_amount_90d: "10.00", health_status_urgency: "20.0" }),
-    inventoryRow("TIE-A", { sales_amount_90d: "10", health_status_urgency: "20" }),
+    inventoryRow("TIE-B", { sales_amount_90d: "10.00", health_status: "Low stock" }),
+    inventoryRow("TIE-A", { sales_amount_90d: "10", health_status: "Low stock" }),
     inventoryRow("NEGATIVE", {
       sales_amount_90d: "-9007199254740993.000000001",
-      health_status_urgency: "0",
+      health_status: "Healthy",
     }),
     inventoryRow("UNKNOWN"),
   ]);
@@ -278,7 +276,7 @@ test("recommendation badges keep readable text and high contrast across desktop 
     inventoryRow("EDIT", { recommended_action: "Edit listing" }),
     inventoryRow("RESTOCK", { recommended_action: "GoToRestock" }),
     inventoryRow("SEND", { recommended_action: "SendToFBA" }),
-    inventoryRow("UNKNOWN", { recommended_action: "CustomRecommendation" }),
+    inventoryRow("UNKNOWN", { recommended_action: "NoExcessInventory" }),
   ]);
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
@@ -287,7 +285,7 @@ test("recommendation badges keep readable text and high contrast across desktop 
     "Edit listing",
     "Restock",
     "Send to FBA",
-    "Custom recommendation",
+    "No excess inventory",
   ]);
   const colors = await badges.evaluateAll((elements) =>
     elements.map((element) => {
@@ -347,27 +345,28 @@ test("inventory debounces typing while preserving raw search immediately across 
   await page.clock.runFor(249);
   expect(inventory.requests).toHaveLength(initialReads);
   await page.clock.runFor(1);
-  await expect.poll(() => inventory.requests.length).toBe(initialReads + 1);
+  expect(inventory.requests).toHaveLength(initialReads);
   // The debounce boundary is verified; let asynchronous query notifications settle.
   await page.clock.resume();
   await expect(page.locator(".inventory-sku")).toHaveText(["SEND"]);
-  expect(inventory.requests).toHaveLength(initialReads + 1);
+  expect(inventory.requests).toHaveLength(initialReads);
   // Reload before the next debounce can run, so this checks the raw saved input.
   await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 1000)));
   await search.fill(" restock ");
-  expect(inventory.requests).toHaveLength(initialReads + 1);
+  expect(inventory.requests).toHaveLength(initialReads);
   await page.reload();
   await page.clock.resume();
   await expect(search).toHaveValue(" restock ");
   await expect(page.locator(".inventory-sku")).toHaveText(["RESTOCK"]);
   await columnTrigger(page, "Sales · last 90 days").click();
   await page.getByRole("button", { name: "Highest first", exact: true }).click();
-  await expect
-    .poll(() => inventory.requests.at(-1).get("order"))
-    .toContain("sales_amount_90d.desc");
+  expect(inventory.requests).toHaveLength(initialReads + 2);
+  await expect(
+    page.getByRole("columnheader").filter({ has: columnTrigger(page, "Sales · last 90 days") }),
+  ).toHaveAttribute("aria-sort", "descending");
 });
 
-test("an inventory revision refreshes catalog search while unchanged checks read no options", async ({
+test("an inventory revision refreshes local search while unchanged checks read no items", async ({
   page,
 }) => {
   await page.clock.install();
@@ -379,14 +378,14 @@ test("an inventory revision refreshes catalog search while unchanged checks read
   await expect(
     page.getByText("No inventory matches these filters.", { exact: true }),
   ).toBeVisible();
-  const options = inventory.optionRequests.length;
+  const reads = inventory.requests.length;
   await poll(page, workspace);
-  expect(inventory.optionRequests).toHaveLength(options);
+  expect(inventory.requests).toHaveLength(reads);
   inventory.rows.push(inventoryRow("NEW-SKU"));
   workspace.revisions.inventory = "new-capture";
   await poll(page, workspace);
   await expect(page.locator(".inventory-sku")).toHaveText(["NEW-SKU"]);
-  expect(inventory.optionRequests).toHaveLength(options + 1);
+  expect(inventory.requests).toHaveLength(reads + 2);
 });
 
 const financialReads = (fixture) => ({
@@ -423,7 +422,7 @@ test("inventory retains data and retries failed revision checks without a manual
   await poll(page, workspace);
   await expect(page.getByText("RECOVERED", { exact: true })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
-  expect(inventory.requests).toHaveLength(reads + 1);
+  expect(inventory.requests).toHaveLength(reads + 2);
 });
 
 async function poll(page, fixture) {
@@ -462,18 +461,18 @@ for (const role of ["member", "administrator"]) {
     await poll(page, workspace);
     await expect(page.getByText("SECOND", { exact: true })).toBeVisible();
     await expect(page.getByText("FIRST", { exact: true })).toHaveCount(0);
-    expect(inventory.requests).toHaveLength(reads + 1);
+    expect(inventory.requests).toHaveLength(reads + 2);
     expect(financialReads(workspace)).toEqual(financial);
     expect(workspace.identityRequests).toHaveLength(catalogs);
 
     await poll(page, workspace);
-    expect(inventory.requests).toHaveLength(reads + 1);
+    expect(inventory.requests).toHaveLength(reads + 2);
     expect(financialReads(workspace)).toEqual(financial);
 
     // Source imports can update finance without rereading the unchanged inventory page.
     workspace.revisions.data_kiosk = "1";
     await poll(page, workspace);
-    expect(inventory.requests).toHaveLength(reads + 1);
+    expect(inventory.requests).toHaveLength(reads + 2);
     // Administrators update their shared SKU catalog; hidden financial data stays inactive.
     expect(financialReads(workspace)).toEqual({
       ...financial,
@@ -487,7 +486,7 @@ for (const role of ["member", "administrator"]) {
     workspace.revisions.fees = "1";
     await poll(page, workspace);
     await expect(page.getByText("NEW-OWNERSHIP", { exact: true })).toBeVisible();
-    expect(inventory.requests).toHaveLength(reads + 2);
+    expect(inventory.requests).toHaveLength(reads + 4);
     expect(workspace.identityRequests.length).toBeGreaterThan(previousCatalogs);
   });
 }
@@ -505,15 +504,17 @@ test("inventory stays within narrow screens and its columns are keyboard reachab
   });
   await mockInventory(page, [
     inventoryRow("LONG-SKU-WITH-SPACES AND PUNCTUATION_123", {
-      health_status: "Unknown source health",
-      recommended_action: "UnknownSourceAction",
+      health_status: "Out of stock",
+      recommended_action: "NoRestockExcessActionRequired",
     }),
   ]);
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   const region = page.getByRole("region", { name: "Inventory items" });
-  await expect(region.locator(".inventory-health-label")).toHaveText("Unknown source health");
-  await expect(region.locator(".inventory-action-label")).toHaveText("Unknown source action");
+  await expect(region.locator(".inventory-health-label")).toHaveText("Out of stock");
+  await expect(region.locator(".inventory-action-label")).toHaveText(
+    "No restock or excess action required",
+  );
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.evaluate(() => globalThis.scrollTo(0, 0));

@@ -5,13 +5,10 @@ import type { DatasetFilters, DatasetSort, TableDatasetKey } from "./api/types.t
 import { PAGE_SIZES } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import type { SkuConfigurationChange } from "./api/sku-configuration-types.ts";
-import type { FetchInventoryPageOptions } from "./api/inventory.ts";
+import type { InventoryPageOptions } from "./inventory-view.ts";
 import type { FeeRateChangeDraft } from "./sku-rate-change.ts";
 
-export type InventoryViewState = Omit<
-  FetchInventoryPageOptions,
-  "accessToken" | "signal" | "searchValues"
-> & { selectedRowId: string | null };
+export type InventoryViewState = InventoryPageOptions & { selectedRowId: string | null };
 
 export interface DatasetViewState {
   search: string;

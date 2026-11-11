@@ -28,7 +28,7 @@ begin
     fact_relation:=case p_dataset when 'finances' then 'finances_component_details' else 'data_kiosk_component_details' end;
     entry_relation:=case p_dataset when 'finances' then 'finances_preprocess_entries' else 'data_kiosk_preprocess_entries' end;
     timestamp_expression:=case p_dataset when 'finances' then 't.posted_at'
-        else 'private.data_kiosk_activity_at(t.activity_date,t.marketplace_name)' end;
+        else 't.activity_at' end;
     sort_expression:=case p_order_by when 'amount' then 't.amount' else timestamp_expression end;
     sort_direction:=case p_direction when 'asc' then 'asc' else 'desc' end;
     tie_direction:=case p_order_by when 'date' then sort_direction else 'asc' end;
@@ -100,7 +100,7 @@ begin
         into source_record,source_timestamp from public.finances_preprocess_entries t
         where t.id=p_row_id and t.version_id=p_version_id;
     else
-        select to_jsonb(t),private.data_kiosk_activity_at(t.activity_date,t.marketplace_name)
+        select to_jsonb(t),t.activity_at
         into source_record,source_timestamp from public.data_kiosk_preprocess_entries t
         where t.id=p_row_id and t.version_id=p_version_id;
     end if;

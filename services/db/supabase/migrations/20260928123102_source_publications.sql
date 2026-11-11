@@ -65,8 +65,8 @@ begin
             where v.day_id=current_day.id and v.content_sha256=day_payload->>'content_sha256';
         if published_version_id is null then
             published_version_id := (day_payload->>'id')::uuid;
-            insert into private.data_kiosk_day_versions(id,day_id,row_count,content_sha256)
-                values (published_version_id,current_day.id,
+            insert into private.data_kiosk_day_versions(id,day_id,activity_at,row_count,content_sha256)
+                values (published_version_id,current_day.id,(day_payload->>'activity_at')::timestamptz,
                     jsonb_array_length(day_payload->'transactions'),day_payload->>'content_sha256');
             insert into private.data_kiosk_day_components(id,version_id,component_key,sku,category,
                 component_type,amount,currency,quantity,fee_base)

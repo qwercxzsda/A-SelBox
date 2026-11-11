@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
 from typing import Literal, LiteralString
 from uuid import uuid7
 
@@ -11,12 +12,25 @@ from psycopg.types.json import Jsonb
 from services.db.supabase.tests.integration_support import DatabaseTestCase
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_finances import acquisition, finances
+from services.sync.src.data_kiosk_economics.timestamps import reporting_activity_at
 from services.sync.src.finances.acquisition_models import FinancesAcquisition
 from services.sync.src.source_serialization import content_sha256
 
 
 def new_id() -> str:
     return str(uuid7())
+
+
+def kiosk_timestamp(day: str, marketplace: str = "Amazon.com") -> str:
+    """Use preprocessing's normalized reporting instant in synthetic publications."""
+    return reporting_activity_at(date.fromisoformat(day), marketplace).isoformat()
+
+
+def kiosk_content_hash(activity_at: str, rows: Sequence[dict[str, object]]) -> str:
+    """Deduplicate synthetic day contents independently of generated component IDs."""
+    components = [{key: value for key, value in row.items() if key != "id"} for row in rows]
+    components.sort(key=lambda row: str(row["component_key"]))
+    return content_sha256({"activity_at": activity_at, "transactions": components})
 
 
 def archive_document(digest: str = "a") -> dict[str, object]:
@@ -260,16 +274,14 @@ class SourceModelFixture(DatabaseTestCase):
         acquisition_id: str | None = None,
         version: str = "v0",
         activity_date: str = "2026-06-15",
+        activity_at: str | None = None,
     ) -> tuple[str, str]:
         selected = self.connection.execute(
             "select current_batch_id from private.data_kiosk_days where seller_namespace=%s "
             "and marketplace_name='Amazon.com' and activity_date=%s and dataset_key='economics'",
             (self.seller, activity_date),
         ).fetchone()
-        normalized_rows = [
-            {key: value for key, value in row.items() if key != "id"} for row in rows
-        ]
-        normalized_rows.sort(key=lambda row: str(row["component_key"]))
+        timestamp = activity_at if activity_at is not None else kiosk_timestamp(activity_date)
         batch_id = self.call(
             "publish_data_kiosk_preprocess",
             {
@@ -283,11 +295,12 @@ class SourceModelFixture(DatabaseTestCase):
                         "id": new_id(),
                         "marketplace_name": "Amazon.com",
                         "activity_date": activity_date,
+                        "activity_at": timestamp,
                         "expected_current_version_id": expected,
                         "expected_current_batch_id": None
                         if selected is None or selected[0] is None
                         else str(selected[0]),
-                        "content_sha256": content_sha256(normalized_rows),
+                        "content_sha256": kiosk_content_hash(timestamp, rows),
                         "transactions": rows,
                     }
                 ],

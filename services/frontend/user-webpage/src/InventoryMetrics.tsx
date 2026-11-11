@@ -3,7 +3,7 @@ import type { InventoryRow } from "./api/inventory";
 import { formatRecordDate } from "./date-display";
 import { formatExactDecimal, formatMoney } from "./decimal";
 import type { InventoryMetricDefinition } from "./inventory-metrics";
-import { recommendationLabel, recommendationTone } from "./inventory-options";
+import { recommendationLabel, recommendationTone, healthTone } from "./inventory-options";
 
 export function InventoryMetrics({
   row,
@@ -39,7 +39,7 @@ export function InventoryMetrics({
 
 export function InventoryHealthLabel({ status }: { status: string | null }) {
   return (
-    <Text fw={600} inherit className="inventory-health-label" data-status={status?.toLowerCase()}>
+    <Text fw={600} inherit className="inventory-health-label" data-tone={healthTone(status)}>
       {status ?? "—"}
     </Text>
   );

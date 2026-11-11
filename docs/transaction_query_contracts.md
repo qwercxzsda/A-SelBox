@@ -72,7 +72,8 @@ metadata, current terms and fee references, quantities, amounts, and resolution 
 `activity_date` remains the original marketplace-local accounting date. `activity_at` is a UTC ISO
 timestamp: Finances uses its exact `posted_at`; Data Kiosk is booked at the last microsecond before
 the next marketplace-local midnight. This Data Kiosk instant is an explicit reporting convention,
-not an Amazon event timestamp. Named IANA zones account for daylight-saving changes. Source dates
+not an Amazon event timestamp. Preprocessing calculates and versions this instant using named IANA
+zones to account for daylight-saving changes; the database reads the stored value. Source dates
 continue to select fee periods and payout months.
 
 UTC bounds include the start day's UTC midnight and exclude midnight after the end day.
@@ -232,10 +233,13 @@ Company SKUs come from loaded current assignments. Administrators preload the co
 SKU catalog before the workspace is shown, including historical, unassigned, unregistered, and
 registered-only values. Source/fee revision changes reload that catalog before dependent search
 queries refresh. Resolved sets are part of page/count cache keys. Catalogs are not authorization:
-the backend enforces the same RLS even if a caller sends arbitrary values. Non-transaction account
-and payout searches use literal REST text filters. Payout Search includes the latest-report view's
-derived `month_label`, so a displayed month such as July 2026 matches independently of the report
-name. ISO month text in generated report names and currency search remain available.
+the backend enforces the same RLS even if a caller sends arbitrary values. Account searches use
+literal REST text filters. Payout search loads complete authorized report date references and matches
+the month/year formatted from `start_date` and the ISO month in the frontend. It sends the exact
+matching dates alongside literal marketplace/currency alternatives for database filtering and
+paging. Account and payout-revision checks bracket date-reference loading, rejecting a mixed
+snapshot if scheduled report publication changes it mid-read. Display labels and generated report
+names are not database fields.
 
 ## Period totals and Type breakdowns
 
@@ -390,7 +394,7 @@ indexes Finance parent metadata separately from its compact component values.
 | Finance stable transactions  | Unique seller/scope/native ID; current version/batch keys                                      | Identity and current selection.                               |
 | Finance batch membership     | Primary `(batch_id, transaction_id)`; version/batch index                                      | Exact observed input sets and observation lookup.             |
 | Data Kiosk days              | `(activity_date, id)`; `(marketplace_name, activity_date, id)`                                  | Date and marketplace candidates shared by all versions.        |
-| Data Kiosk days | `(data_kiosk_activity_at(activity_date, marketplace_name), id)` | Assumed end-of-day UTC filtering and chronological candidates. |
+| Data Kiosk day versions | `(activity_at, id)` | Preprocessed end-of-day UTC filtering and chronological candidates. |
 | Data Kiosk components        | `(sku, version_id)`; `(component_type, version_id)`                                            | Exact SKU/Type selection and joining its day metadata.          |
 | Data Kiosk batch membership  | Unique `(batch_id, day_id)`; version/day indexes                                               | Exact observed day contents and historical interpretation.     |
 

@@ -106,7 +106,6 @@ const PAYOUT_COLUMNS = [
   "start_date",
   "end_date",
   "dataset_key",
-  "report_name",
   "change_reason",
   "component_count",
   "finances_version_count",
@@ -129,7 +128,7 @@ const ACCOUNT_COLUMNS = [
 ] as const;
 
 // Transaction searches resolve these visible fields to exact catalog values locally.
-// Other REST datasets search their published text fields, including payout month labels.
+// Payout searches resolve browser-formatted month labels to factual dates.
 export const DATASET_CONFIG = {
   live: {
     label: "Transactions",
@@ -165,7 +164,7 @@ export const DATASET_CONFIG = {
     label: "Payout reports",
     endpoint: "latest_company_payout_reports",
     selectColumns: PAYOUT_COLUMNS,
-    searchColumns: ["month_label", "report_name", "marketplace_name", "currency"],
+    searchColumns: ["marketplace_name", "currency"],
     sortColumns: ["start_date"],
     defaultSort: { column: "start_date", direction: "desc" },
     idColumns: ["id"],

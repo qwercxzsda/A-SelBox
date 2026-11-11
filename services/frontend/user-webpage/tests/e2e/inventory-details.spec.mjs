@@ -245,9 +245,10 @@ test("inventory restores details only for a row on the current page and retains 
   await expect(details(page)).toHaveCount(0);
   await expect(row(page, "SKU-00")).toBeVisible();
   expect(fixture.requests.length).toBeGreaterThan(reads);
-  expect(fixture.requests.slice(reads).every((request) => request.get("offset") === "0")).toBe(
-    true,
-  );
+  expect(fixture.requests.slice(reads).map((request) => request.get("offset"))).toEqual([
+    "0",
+    "27",
+  ]);
   for (const action of [
     async () =>
       page

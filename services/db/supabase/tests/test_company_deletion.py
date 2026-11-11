@@ -147,11 +147,11 @@ class CompanyDeletionTests(SourceModelFixture):
         self.fee(sku, [("2026-01-01", None, "5")])
         self.connection.execute(
             "insert into public.company_payout_reports (company_id,currency,start_date,end_date,"
-            "dataset_key,report_name,change_reason,"
+            "dataset_key,change_reason,"
             "component_count,finances_version_count,"
             "data_kiosk_version_count,terms_version_count,"
             "source_amount,fee_amount,company_amount) "
-            "values (%s,null,'2026-06-01','2026-06-30','economics','Empty report',"
+            "values (%s,null,'2026-06-01','2026-06-30','economics',"
             "'Retained history',0,0,0,0,0,0,0)",
             (company,),
         )

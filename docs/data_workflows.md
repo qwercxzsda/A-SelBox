@@ -90,6 +90,20 @@ native fee subperiods; `(SKU, marketplace, day)` alone is not a component key. P
 adding parent totals to their child breakdowns. Missing amounts and quantities remain unknown rather
 than zero. Classification and fee eligibility belong to preprocessing.
 
+Preprocessing also assigns the UTC reporting `activity_at` for each complete day: convert the next
+marketplace-local midnight to UTC using the source timezone registry, then subtract one microsecond.
+This respects 23-hour and 25-hour days. The original `activity_date` still governs fee periods and
+payout months. The normalized instant is part of the immutable day version and content hash;
+changed interpretation produces a new version. PostgreSQL indexes and filters that stored value
+without a second timezone catalog or source-normalization function.
+
+Python validates Amazon acquisition metadata, successful processing status, document identity,
+and complete pagination before publication and again when constructing archived acquisition
+models for replay. SQL stores that raw metadata as evidence without interpreting Amazon API
+fields. Its publisher enforces normalized manifest structure, unique identities, and atomic
+idempotent writes. Seller-namespace validation lives in the source domain rather than a database
+repository, so acquisition and preprocessing models do not import persistence helpers.
+
 Validate `netProductSales = orderedProductSales - refundedProductSales` and
 `netUnitsSold = unitsOrdered - unitsRefunded`. Negative refunds retain their signs. Nonblank MSKU
 text stays verbatim. Unknown fees, missing required collections and invalid equations fail before

@@ -258,6 +258,7 @@ create index data_kiosk_batches_acquisition_idx on private.data_kiosk_preprocess
 create table private.data_kiosk_day_versions (
     id public.local_uuid primary key default private.uuid7(),
     day_id public.local_uuid not null references private.data_kiosk_days (id),
+    activity_at timestamptz not null check (isfinite(activity_at)),
     row_count integer not null check (row_count >= 0),
     content_sha256 private.sha256 not null,
     created_at timestamptz not null default now(),
@@ -308,6 +309,7 @@ select -- noqa: AM04
     d.seller_namespace,
     d.marketplace_name,
     d.activity_date,
+    v.activity_at,
     d.dataset_key,
     d.current_batch_id,
     t.version_id = d.current_version_id as is_current

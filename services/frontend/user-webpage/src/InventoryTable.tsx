@@ -1,10 +1,15 @@
 import { useId, useRef } from "react";
 import { Group, Table, Text } from "@mantine/core";
-import type { InventoryFilterOptions, InventoryRow, InventorySortColumn } from "./api/inventory";
+import type { InventoryRow } from "./api/inventory";
+import type { InventorySortColumn } from "./inventory-view";
 import { ColumnMenu } from "./ColumnMenu";
 import { SkuTransactionLink } from "./SkuTransactionLink";
 import type { InventoryViewState } from "./workspace-view-state";
-import { inventoryFilterOptions } from "./inventory-options";
+import {
+  inventoryFilterOptions,
+  INVENTORY_HEALTH_VALUES,
+  INVENTORY_RECOMMENDATION_VALUES,
+} from "./inventory-options";
 
 import { INVENTORY_METRICS } from "./inventory-metrics";
 import {
@@ -30,7 +35,7 @@ export function InventoryTable({
   rows,
   viewState,
   onChange,
-  filterOptions,
+  skus,
   onSelect,
   onShowTransactions,
   now,
@@ -38,7 +43,7 @@ export function InventoryTable({
   rows: InventoryRow[];
   viewState: InventoryViewState;
   onChange: (patch: Partial<InventoryViewState>) => void;
-  filterOptions?: InventoryFilterOptions;
+  skus: string[];
   onSelect: (id: string) => void;
   onShowTransactions: (sku: string) => void;
   now: number;
@@ -106,11 +111,7 @@ export function InventoryTable({
           <Table.Thead>
             <Table.Tr>
               <Table.Th scope="col" aria-sort={ariaSort("sku")}>
-                <ColumnMenu
-                  label="SKU"
-                  sort={sort("sku")}
-                  filter={selection("skus", filterOptions?.skus ?? [])}
-                />
+                <ColumnMenu label="SKU" sort={sort("sku")} filter={selection("skus", skus)} />
               </Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("sales_amount_90d")}>
                 <Group gap={4} wrap="nowrap">
@@ -128,14 +129,14 @@ export function InventoryTable({
                 <ColumnMenu
                   label="Inventory health status"
                   sort={sort("health_status")}
-                  filter={selection("healthStatuses", filterOptions?.health_statuses ?? [])}
+                  filter={selection("healthStatuses", INVENTORY_HEALTH_VALUES)}
                 />
               </Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("recommended_action")}>
                 <ColumnMenu
                   label="Recommendation"
                   sort={sort("recommended_action")}
-                  filter={selection("recommendations", filterOptions?.recommendations ?? [])}
+                  filter={selection("recommendations", INVENTORY_RECOMMENDATION_VALUES)}
                 />
               </Table.Th>
             </Table.Tr>

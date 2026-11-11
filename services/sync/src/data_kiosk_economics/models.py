@@ -1,7 +1,7 @@
 """Complete day versions and economic components without derived company amounts."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 from ..allocation import AllocationCategory
 from ..numeric import Numeric
@@ -28,5 +28,6 @@ class DataKioskTransaction:
 class DataKioskDay:
     marketplace_name: str
     activity_date: date
+    activity_at: datetime
     content_sha256: str
     transactions: tuple[DataKioskTransaction, ...]

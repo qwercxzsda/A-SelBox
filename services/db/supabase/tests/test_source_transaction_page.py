@@ -57,12 +57,7 @@ class SourceTransactionPageTests(SourceModelFixture):
 
     def expected(self, user: str, dataset: str, **options: object) -> dict[str, object]:
         date_column = "activity_at"
-        timestamp_expression = (
-            "posted_at"
-            if dataset == "finances"
-            else "((activity_date + 1)::timestamp at time zone "
-            "private.marketplace_time_zone(marketplace_name)) - interval '1 microsecond'"
-        )
+        timestamp_projection = ", e.posted_at as activity_at" if dataset == "finances" else ""
         predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
@@ -92,7 +87,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             sql.SQL(ties),
         )
         query = sql.SQL(
-            "with source_rows as (select e.*, {timestamp} as activity_at from public.{view} e), "
+            "with source_rows as (select e.* {timestamp_projection} from public.{view} e), "
             "matching as not materialized (select * from source_rows where {predicates}), "
             "page as (select * from matching order by {ordering} limit %s offset %s) "
             "select jsonb_build_object('rows', coalesce((select jsonb_agg("
@@ -103,7 +98,7 @@ class SourceTransactionPageTests(SourceModelFixture):
             "'total_count', case when %s then (select count(*)::text from matching) end)"
         ).format(
             view=sql.Identifier(dataset + "_preprocess_entries"),
-            timestamp=sql.SQL(cast(LiteralString, timestamp_expression)),
+            timestamp_projection=sql.SQL(cast(LiteralString, timestamp_projection)),
             predicates=sql.SQL(" and ").join(predicates),
             ordering=ordering,
         )

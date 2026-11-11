@@ -46,7 +46,7 @@ grant select (
 grant select (id, acquisition_id, preprocess_version, created_at)
 on private.data_kiosk_preprocess_batches to authenticated;
 grant select (
-    id, day_id
+    id, day_id, activity_at
 ) on private.data_kiosk_day_versions to authenticated;
 grant select on public.finances_preprocess_results, public.finances_preprocess_entries,
 public.data_kiosk_preprocess_results, public.data_kiosk_preprocess_entries,
@@ -130,7 +130,6 @@ grant select on private.inventory_acquisitions, private.inventory_daily_captures
 private.inventory_items, public.latest_inventory_captures,
 public.latest_inventory_items to authenticated;
 grant execute on function private.latest_inventory_capture_references() to authenticated;
-grant execute on function public.inventory_filter_options() to authenticated;
 
 -- Successful Finance coverage metadata is needed for administrator source summaries.
 grant select (
@@ -146,6 +145,3 @@ grant execute on function private.read_source_totals(
     date, date, text, text, text, public.allocation_category, integer, bigint
 ), public.report_source_totals(uuid, text, integer, bigint)
 to authenticated;
-
-grant execute on function private.marketplace_time_zone(text),
-private.data_kiosk_activity_at(date, text) to authenticated;

@@ -9,8 +9,8 @@ from ..amazon.datetimes import as_utc
 from ..amazon.marketplace_names import marketplace_name_from_id
 from ..amazon.marketplaces import get_marketplace_timezone, validate_marketplace_scope_pair
 from ..archives.models import ArchivedDocument
-from ..database.seller_namespaces import validate_seller_namespace
 from ..frozen_values import freeze_mapping
+from ..seller_namespaces import validate_seller_namespace
 
 INVENTORY_REPORT_TYPE = "GET_FBA_INVENTORY_PLANNING_DATA"
 INVENTORY_PREPROCESS_VERSION = "inventory-v1"

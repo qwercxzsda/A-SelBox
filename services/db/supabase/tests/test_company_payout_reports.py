@@ -27,7 +27,6 @@ class CompanyPayoutReportTests(SourceModelFixture):
                 "start_date": "2026-06-01",
                 "end_date": "2026-06-30",
                 "dataset_key": "economics",
-                "report_name": "June entitlement",
                 "change_reason": "Save exact source and terms inputs",
                 **scope,
             },

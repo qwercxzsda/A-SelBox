@@ -24,7 +24,7 @@ from services.sync.src.archives.models import (
     ArchivedDataKioskPage,
     DataKioskAcquisition,
 )
-from services.sync.src.archives.serialization import data_kiosk_payload
+from services.sync.src.archives.serialization import data_kiosk_from_payload, data_kiosk_payload
 from services.sync.src.archives.storage import archive_document, load_document_archive
 from services.sync.src.database.acquisitions import (
     load_data_kiosk_acquisition,
@@ -190,12 +190,9 @@ class TestAcquisitionManifests(DatabaseTestCase):
             invalid["api_metadata"] = metadata
             with (
                 self.subTest(key=key),
-                self.assertRaises(psycopg.errors.CheckViolation),
-                self.connection.transaction(),
+                self.assertRaises(ValueError),
             ):
-                self.connection.execute(
-                    "select private.publish_data_kiosk_acquisition(%s)", (Jsonb(invalid),)
-                )
+                persist_data_kiosk_acquisition(self.database, data_kiosk_from_payload(invalid))
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from private.data_kiosk_acquisitions"

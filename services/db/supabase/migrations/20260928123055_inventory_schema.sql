@@ -63,7 +63,9 @@ create table private.inventory_items (
     sales_amount_90d numeric check (sales_amount_90d::text not in ('NaN', 'Infinity', '-Infinity')),
     units_shipped_90d bigint check (units_shipped_90d >= 0),
     currency text check (currency ~ '^[A-Z]{3}$'),
-    health_status text,
+    health_status text check (health_status in (
+        'Excess', 'Healthy', 'Low stock', 'Out of stock'
+    )),
     minimum_inventory_units bigint check (minimum_inventory_units >= 0),
     days_of_supply numeric check (days_of_supply::text not in ('NaN', 'Infinity', '-Infinity')),
     total_days_of_supply numeric check (
@@ -71,7 +73,11 @@ create table private.inventory_items (
     ),
     recommended_ship_in_units bigint check (recommended_ship_in_units >= 0),
     recommended_ship_in_date date check (isfinite(recommended_ship_in_date)),
-    recommended_action text,
+    recommended_action text check (recommended_action in (
+        'Advertise listing', 'CreateShippingPlan', 'Edit listing', 'GoToRestock',
+        'GoToStranded', 'Lower price', 'NoExcessInventory',
+        'NoRestockExcessActionRequired', 'SendToFBA'
+    )),
     primary key (capture_id, sku),
     unique (capture_id, source_line_number),
     check (sales_amount_90d is null or currency is not null)

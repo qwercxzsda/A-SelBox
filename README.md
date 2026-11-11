@@ -75,6 +75,32 @@ Its Node tooling runs in Docker and connects to an explicitly configured Supabas
 
 ## Design
 
+### Responsibility boundaries
+
+Preprocessing owns source interpretation: archive verification, parsing, normalization,
+classification, and validation against the agreed source vocabularies. Unsupported inventory
+health or recommendation values fail the complete preprocessing run before publication.
+Known missing fields remain null; they are not unknown categories. Source parsers and models do
+not depend on database repositories or browser presentation rules. Workflow orchestration calls
+repositories only after source validation.
+
+PostgreSQL stores normalized facts, provenance, and immutable versions. Constraints provide a
+second integrity check. Atomic publication, concurrency checks, authorization, current-version
+selection, and financial aggregation belong here. Database objects do not define UI priorities,
+colors, display names, or catalogs of fixed source categories. Operational payout status and
+saved input manifests remain database facts; their wording and visual treatment belong to the UI.
+
+The frontend owns constant option lists, labels, colors, urgency ordering, search, and display
+pagination. Its inventory constants match the preprocessing vocabulary through contract tests;
+no database query discovers possible health statuses or recommendations. Inventory loads
+the complete authorized latest capture items before filtering and sorting, so priorities apply
+across pages. Large financial reads still use database filtering, ordering by factual columns,
+and pagination; those operations do not define presentation policy. Payout month labels derive
+from saved dates in the browser. Changes to a source vocabulary require coordinated preprocessing,
+constraint, and frontend catalog updates, verified by contract tests.
+
+### Contracts
+
 - [Data workflows](docs/data_workflows.md): archives, complete publications,
   source ordering, shared versions, immutable history, and exact values.
 - [Company ownership and fees](docs/company_fees.md): versioned terms,

@@ -60,6 +60,7 @@ def acquisition(
     marketplace_id: str = "ATVPDKIKX0DER",
     time_zone: str = "America/Los_Angeles",
     amazon_scope: str = "NA",
+    observed_at: datetime | None = None,
 ) -> str:
     """Prepare an immutable archive manifest locally; preprocessing publishes metadata."""
     from services.db.supabase.tests.source_fixtures import archive_document, new_id
@@ -67,7 +68,9 @@ def acquisition(
     start_date, end_date = date.fromisoformat(start), date.fromisoformat(end)
     local_start = datetime.combine(start_date, time.min, ZoneInfo(time_zone))
     local_end = datetime.combine(end_date + timedelta(days=1), time.min, ZoneInfo(time_zone))
-    captured_at = max(datetime.now(UTC), local_end.astimezone(UTC) + timedelta(minutes=3))
+    captured_at = observed_at or max(
+        datetime.now(UTC), local_end.astimezone(UTC) + timedelta(minutes=3)
+    )
     identifier = new_id()
     coverage = FinancesCoverageMarketplace(marketplace_id, marketplace, time_zone)
     document = document_from_payload(archive_document(digest))
