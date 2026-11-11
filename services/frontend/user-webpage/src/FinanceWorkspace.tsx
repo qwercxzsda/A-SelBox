@@ -1,9 +1,9 @@
 import { Alert, Button, Group, Tabs } from "@mantine/core";
 import { useEffect, type SetStateAction } from "react";
 import { UpdateStatus } from "./UpdateStatus";
-import type { DatasetKey, TableDatasetKey } from "./api";
+import type { TableDatasetKey } from "./api";
 import { FinanceDataset } from "./FinanceDataset";
-import { visibleDatasets, DATASET_PRESENTATION, companyLabel } from "./view-model";
+import { DATASET_PRESENTATION, companyLabel } from "./view-model";
 import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
 import { Inventory } from "./Inventory";
@@ -30,6 +30,20 @@ import { useWorkspaceNavigationFocus } from "./use-workspace-navigation-focus";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
 
+const TAB_GROUPS = [
+  ["live", "inventory", "payouts", "fees"],
+  ["accounts", "companies"],
+  ["finances", "data_kiosk", "financial-review"],
+] as const;
+type WorkspaceTab = (typeof TAB_GROUPS)[number][number];
+
+function tabLabel(tab: WorkspaceTab) {
+  if (tab === "inventory") return "Inventory";
+  if (tab === "companies") return "Companies";
+  if (tab === "financial-review") return "Financial review";
+  return DATASET_PRESENTATION[tab].label;
+}
+
 interface WorkspaceProps {
   identity: Identity;
   onRetry: () => Promise<void>;
@@ -38,9 +52,7 @@ interface WorkspaceProps {
 }
 
 export function FinanceWorkspace(props: WorkspaceProps) {
-  const [dataset, setDataset] = useWorkspacePreference<
-    DatasetKey | "inventory" | "financial-review" | "companies"
-  >(
+  const [dataset, setDataset] = useWorkspacePreference<WorkspaceTab>(
     "tab",
     () => "live",
     (value) => decodeWorkspaceTab(value, props.identity.account),
@@ -71,16 +83,10 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     setFeeViewState,
     dataset === "fees",
   );
-  const datasets = visibleDatasets(props.identity.account);
+  const tabGroups =
+    props.identity.account.access_role === "administrator" ? TAB_GROUPS : TAB_GROUPS.slice(0, 1);
   const transactions = datasetViews.live ?? createDatasetViewState("live");
-  const workspaceTitle =
-    dataset === "financial-review"
-      ? "Financial review"
-      : dataset === "inventory"
-        ? "Inventory"
-        : dataset === "companies"
-          ? "Companies"
-          : DATASET_PRESENTATION[dataset].label;
+  const workspaceTitle = tabLabel(dataset);
   const accountTitle =
     props.identity.account.access_role === "administrator"
       ? "Administrator"
@@ -169,27 +175,18 @@ export function FinanceWorkspace(props: WorkspaceProps) {
         className="dataset-tabs"
       >
         <Tabs.List aria-label="Workspace data">
-          {datasets.map((key) => (
-            <Tabs.Tab key={key} value={key} ref={dataset === key ? activeTab : undefined}>
-              {DATASET_PRESENTATION[key].label}
-            </Tabs.Tab>
-          ))}
-          {props.identity.account.access_role === "administrator" ? (
-            <Tabs.Tab value="companies" ref={dataset === "companies" ? activeTab : undefined}>
-              Companies
-            </Tabs.Tab>
-          ) : null}
-          <Tabs.Tab value="inventory" ref={dataset === "inventory" ? activeTab : undefined}>
-            Inventory
-          </Tabs.Tab>
-          {props.identity.account.access_role === "administrator" ? (
-            <Tabs.Tab
-              value="financial-review"
-              ref={dataset === "financial-review" ? activeTab : undefined}
-            >
-              Financial review
-            </Tabs.Tab>
-          ) : null}
+          {tabGroups.flatMap((group, groupIndex) =>
+            group.map((key, index) => (
+              <Tabs.Tab
+                key={key}
+                value={key}
+                ref={dataset === key ? activeTab : undefined}
+                data-group-start={groupIndex > 0 && index === 0 ? true : undefined}
+              >
+                {tabLabel(key)}
+              </Tabs.Tab>
+            )),
+          )}
         </Tabs.List>
         <Tabs.Panel value={dataset} pt="md">
           {dataset === "live" ? (

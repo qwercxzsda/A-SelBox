@@ -7,16 +7,16 @@ import { item } from "./sku-configuration-fixtures.mjs";
 
 const ADMIN_TABS = [
   "Transactions",
-  "Finances",
-  "Data Kiosk",
-  "Current fees",
+  "Inventory",
   "Payout reports",
+  "Current fees",
   "User access",
   "Companies",
-  "Inventory",
+  "Finances",
+  "Data Kiosk",
   "Financial review",
 ];
-const MEMBER_TABS = ["Transactions", "Current fees", "Payout reports", "Inventory"];
+const MEMBER_TABS = ["Transactions", "Inventory", "Payout reports", "Current fees"];
 const workspaceTabs = (page) => page.getByRole("tablist", { name: "Workspace data", exact: true });
 const helpButton = (page, title) =>
   page.getByRole("button", { name: `${title} help`, exact: true });
