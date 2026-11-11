@@ -1,11 +1,17 @@
-"""Inventory publication payloads for disposable database checks."""
+"""Inventory source models and publications for disposable database checks."""
 
-from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.source_fixtures import (
-    SourceModelFixture,
-    archive_document,
-    new_id,
+from dataclasses import replace
+from datetime import date
+
+from services.db.supabase.tests.integration_support import TransactionDatabase
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, archive_document, new_id
+from services.sync.src.database.acquisitions import (
+    load_inventory_acquisition,
+    persist_inventory_acquisition,
 )
+from services.sync.src.database.inventory import publish_inventory_capture
+from services.sync.src.inventory.models import PreparedInventory
+from services.sync.src.inventory.serialization import inventory_from_payload
 
 
 class InventoryFixture(SourceModelFixture):
@@ -28,37 +34,13 @@ class InventoryFixture(SourceModelFixture):
             **changes,
         }
 
-    def acquire(self, **changes: object) -> str:
-        return self.call("publish_inventory_acquisition", self.acquisition_payload(**changes))
-
-    def capture_payload(
-        self,
-        acquisition: str,
-        items: list[dict[str, object]],
-        *,
-        expected: str | None = None,
-        **changes: object,
-    ) -> dict[str, object]:
-        seller, marketplace, day = require_row(
-            self.connection.execute(
-                "select seller_namespace,marketplace_name,capture_date "
-                "from private.inventory_acquisitions where id=%s",
-                (acquisition,),
-            ).fetchone()
+    def persist_acquisition(self, payload: dict[str, object]) -> str:
+        return persist_inventory_acquisition(
+            TransactionDatabase(self.connection), inventory_from_payload(payload)
         )
-        return {
-            "id": new_id(),
-            "seller_namespace": seller,
-            "marketplace_name": marketplace,
-            "capture_date": str(day),
-            "acquisition_id": acquisition,
-            "preprocess_version": "inventory-v1",
-            "row_count": len(items),
-            "diagnostics": [],
-            "expected_current_capture_id": expected,
-            "items": items,
-            **changes,
-        }
+
+    def acquire(self, **changes: object) -> str:
+        return self.persist_acquisition(self.acquisition_payload(**changes))
 
     def capture(
         self,
@@ -66,11 +48,20 @@ class InventoryFixture(SourceModelFixture):
         items: list[dict[str, object]],
         *,
         expected: str | None = None,
-        **changes: object,
+        preprocess_version: str = "inventory-v1",
+        **scope_changes: object,
     ) -> str:
-        return self.call(
-            "publish_inventory_capture",
-            self.capture_payload(acquisition, items, expected=expected, **changes),
+        database = TransactionDatabase(self.connection)
+        source = load_inventory_acquisition(database, acquisition)
+        if "capture_date" in scope_changes:
+            scope_changes["capture_date"] = date.fromisoformat(str(scope_changes["capture_date"]))
+        source = replace(source, **scope_changes)
+        return publish_inventory_capture(
+            database,
+            source,
+            PreparedInventory(tuple(items), ()),
+            expected,
+            preprocess_version=preprocess_version,
         )
 
     @staticmethod

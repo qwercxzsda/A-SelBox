@@ -160,7 +160,7 @@ export function createAccountHandlers(fixture) {
             {
               code: "PT409",
               message: "Company cannot be deleted while it has linked records",
-              details: JSON.stringify(blockers),
+              details: JSON.stringify({ code: "COMPANY_DELETION_BLOCKED", reasons: blockers }),
               hint: null,
             },
             409,

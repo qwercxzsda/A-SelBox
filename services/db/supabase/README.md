@@ -36,7 +36,7 @@ data, migration records, or archives.
 
 The fresh-install baseline separates types and tables, publication and integrity rules,
 application reads, access policies, and revision tracking. Final grants and the REST reload run
-last. Inventory uses the same archive, publication, access, and revision modules as the financial
+last. Inventory shares integrity, access, and revision modules with the financial
 sources, while keeping its own daily-capture tables. Each database object has one editable
 definition. SKU discovery and configuration reads share one module; validation and publication
 share another.
@@ -45,12 +45,26 @@ The [responsibility contract](../../../README.md#responsibility-boundaries) keep
 interpretation in preprocessing and presentation in the frontend. Inventory stores constrained
 health/recommendation source values. Its read views select authorized latest facts without UI
 ranks, colors, or option catalogs. Payout headers store dates and audit provenance; the browser
-derives their display names. Data Kiosk's Amazon metadata and pagination validation run in Python;
-SQL publication enforces durable manifest integrity, identity, and atomicity.
+derives their display names. All source archive, page, and complete-day validation runs in Python.
+Typed Python repositories drive source writes; database constraints, locks, and deferred guards
+protect their atomicity and relational integrity. SQL does not repeat JSON manifest validation.
 
 The migrations define a fresh installation of the financial source models, with no upgrade or
 conversion path for existing deployments. Verification installs these definitions only in
 disposable databases.
+
+The module review separates deliberate database safeguards from source validation. Column
+constraints and deferred cross-row checks protect stored facts. Public write RPCs validate
+untrusted client commands and authorize each mutation. Read queries use persisted source
+classification and return facts; browser code owns labels, status presentation, and display order.
+Private financial readers validate their scalar request contract in Python and use SQL only for
+current-source relationships, coverage, and aggregation.
+
+Frontend database writes use four narrow RPCs: `create_company`, `delete_company`,
+`set_company_membership`, and `publish_sku_configuration`. These handlers authorize callers,
+validate the allowed request shape, and perform atomic changes with stale-write protection.
+Column types, foreign keys, `CHECK`, and exclusion constraints enforce field values. The SKU
+endpoint replaces complete ownership/fee terms; it does not expose a generic table-write API.
 
 | Module                                                                                       | Responsibility                                                                                                               |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -58,29 +72,27 @@ disposable databases.
 | [identity_schema](migrations/20260928123051_identity_schema.sql)                             | Companies, application accounts, globally unique SKUs, and immutable ownership/fee terms.                                    |
 | [financial_source_schema](migrations/20260928123052_financial_source_schema.sql)             | Six tables per financial source: stable identities, reusable immutable versions/components and exact successful batch membership. |
 | [inventory_schema](migrations/20260928123055_inventory_schema.sql)                           | Daily inventory acquisitions, captures, items, constraints, and indexes.                                                     |
-| [archive_publications](migrations/20260928123056_archive_publications.sql)                   | Immutable archive metadata and acquisition publication for Data Kiosk and Inventory; Finance publication is Python-owned.                          |
-| [source_publications](migrations/20260928123102_source_publications.sql)                     | Atomic Data Kiosk day publication and same-day Inventory capture replacement; Finance publication is Python-owned.                                 |
 | [application_identity](migrations/20260928123104_application_identity.sql)                   | Caller-bound roles, exact-SKU ownership, and current assignment/fee-period views.                                            |
 | [financial_rules](migrations/20260928123106_financial_rules.sql)                             | Mature cutoff, account visibility, and service-fee arithmetic.                        |
 | [financial_components](migrations/20260928123111_financial_components.sql)                   | Current and explicit-version company components with ownership and fees.                                                     |
-| [financial_reads](migrations/20260928123113_financial_reads.sql)                             | Strict complete and partial financial reads with declared source coverage.                                                   |
+| [financial_reads](migrations/20260928123113_financial_reads.sql)                             | Relational selected-version and coverage checks for strict/partial totals; Python validates trusted request values.                                                   |
 | [payout_schema](migrations/20260928123115_payout_schema.sql)                                 | Frozen payout headers, exact source/terms version manifests, derived records, and refresh state.                        |
 | [publication_integrity](migrations/20260928123116_publication_integrity.sql)                 | Default RLS/access denial, source archive bucket, immutable evidence, complete-child guards, and selected-pointer integrity. |
-| [payout_validation](migrations/20260928123117_payout_validation.sql)                         | Frozen-input integrity, coverage, provenance, and totals validation.                                                         |
+| [payout_validation](migrations/20260928123117_payout_validation.sql)                         | Frozen-input integrity, coverage, provenance, and one shared report aggregate used by publication and integrity checks.                                                         |
 | [payout_publication](migrations/20260928123119_payout_publication.sql)                       | Locked source capture across namespaces, company/marketplace/currency aggregation, and latest-report reuse.                  |
 | [application_access](migrations/20260928123123_application_access.sql)                       | Account, financial, payout, and inventory RLS policies and authorized REST projections.                                      |
-| [payout_generation](migrations/20260928123125_payout_generation.sql)                         | Atomic company/month generation, maturity policy, bounded readiness, and administrator setup diagnostics.                    |
-| [payout_refresh](migrations/20260928123126_payout_refresh.sql)                               | Pending revision requests, maturity discovery, bounded processing, and retry backoff.                                        |
+| [payout_generation](migrations/20260928123125_payout_generation.sql)                         | Atomic company/month generation, maturity policy, bounded operational facts, and administrator setup diagnostics.                    |
+| [payout_refresh](migrations/20260928123126_payout_refresh.sql)                               | Pending requests, maturity discovery, processing, constrained failure codes, and retry backoff.                                        |
 | [workspace_revisions](migrations/20260928123127_workspace_revisions.sql)                     | Transactional financial, inventory, ownership, company-label, and payout revision tokens and lightweight polling.            |
 | [payout_invalidation](migrations/20260928123128_payout_invalidation.sql)                     | Transactional requests after source or terms changes and scope expansion.                                                    |
-| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Local-day/UTC-instant indexes, filter/pagination validation, and current-policy eligibility.                                           |
+| [transaction_read_rules](migrations/20260928123130_transaction_read_rules.sql)               | Local-day/UTC-instant indexes, structural filter/page validation, and current-policy eligibility; source catalogs stay outside query validation.                                           |
 | [transaction_counts](migrations/20260928123132_transaction_counts.sql)                       | Exact authorized live and raw source counts.                                                                                 |
 | [transaction_page](migrations/20260928123134_transaction_page.sql)                           | Bounded live row selection before ownership and fee projection.                                                              |
 | [source_transaction_page](migrations/20260928123136_source_transaction_page.sql)             | Bounded raw source pages, exact row/version detail, and indexed native transaction lookup retaining historical visibility.   |
 | [transaction_totals](migrations/20260928123138_transaction_totals.sql)                       | UTC marketplace/currency totals and Type breakdowns.                                    |
 | [payout_schedule](migrations/20260928123139_payout_schedule.sql)                             | Five-minute pg_cron registration in the configured scheduler database.                                                       |
 | [sku_configuration_reads](migrations/20260928123140_sku_configuration_reads.sql)             | Complete SKU discovery, caller-scoped assignment/fee reads, and coverage diagnostics.                                        |
-| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Immutable terms publication, complete payload validation, atomic administrator batches, and stale-write checks.              |
+| [sku_configuration_publication](migrations/20260928123141_sku_configuration_publication.sql) | Narrow administrator command with closed payload shape, immutable terms publication, constraints, atomicity, and stale-write checks.              |
 | [application_grants](migrations/20260928123142_application_grants.sql)                       | Final explicit table, column, and function allowlist for the entire application.                                             |
 | [rest_api_configuration](migrations/20260928123144_rest_api_configuration.sql)               | Disable generated REST aggregation and issue the single final schema reload.                                                 |
 
@@ -162,19 +174,21 @@ inserts acquisition metadata, a successful preprocessing batch, new transaction 
 and exact membership, and switches current pointers in one transaction. Failed preprocessing writes
 local logs only. Parent metadata is normalized; raw transaction JSON stays in archived pages.
 
-Other trusted repositories publish through these private functions:
+Data Kiosk and Inventory repositories likewise use typed models and direct SQL writes within
+Python-managed transactions. Acquisition retries lock their natural identity and reuse unchanged
+metadata. Data Kiosk day writes lock identities in date order, preserve exact batch membership,
+reuse unchanged versions, and switch current pointers by observation order. Inventory locks one
+source/day and replaces its complete capture atomically. No source publisher parses JSON in SQL.
+
+Configuration and payout commands use these private functions:
 
 ```text
-private.publish_data_kiosk_acquisition(jsonb)
-private.publish_inventory_acquisition(jsonb)
-private.publish_data_kiosk_preprocess(jsonb)
-private.publish_inventory_capture(jsonb)
 private.publish_sku_terms(jsonb)
 private.publish_company_payout_report(jsonb)
 ```
 
-Finance source validation runs in Python; the database enforces structural references and immutable
-inventories. Data Kiosk and Inventory retain their private publication functions. Source imports do
+Source validation runs in Python; the database enforces structural references and immutable
+inventories. Source imports do
 not assign companies or create fees. Administrators publish configuration through
 `public.publish_sku_configuration`; its validation and authorization are defined in the
 [company-fee](../../../docs/company_fees.md) and [access](../../../docs/access_control.md) contracts.

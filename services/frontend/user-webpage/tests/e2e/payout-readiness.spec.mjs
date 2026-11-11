@@ -13,9 +13,13 @@ function setup(fixture, administrator) {
       company_id: COMPANY,
       company_name: "Payout Company",
       month: "2026-04-01",
-      status: "BLOCKED",
-      reason: "SETUP_REQUIRED",
-      has_report: "false",
+      eligible: "t",
+      mature: "t",
+      refresh_pending: "t",
+      failure_count: "1",
+      failure_reason: "SETUP_REQUIRED",
+      has_activity: "f",
+      has_report: "f",
       last_success_at: null,
       next_attempt_at: "2026-10-18T18:00:00Z",
     },
@@ -100,9 +104,11 @@ test("readiness uses lightweight revision checks and changes automatically after
   expect(requests()).toBe(original);
   fixture.payoutReadinessRows[0] = {
     ...fixture.payoutReadinessRows[0],
-    status: "COMPLETE",
-    reason: null,
-    has_report: "true",
+    refresh_pending: "f",
+    failure_count: "0",
+    failure_reason: null,
+    has_activity: "t",
+    has_report: "t",
     next_attempt_at: null,
   };
   fixture.revisions.payouts = "complete";

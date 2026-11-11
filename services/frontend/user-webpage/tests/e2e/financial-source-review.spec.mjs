@@ -34,10 +34,10 @@ async function sourceRoutes(page, records = []) {
           version_id: args.p_version_id,
         })
       : [
-          raw("finances", { capture_status: "Current" }),
+          raw("finances", { is_current: "true" }),
           raw("finances", {
             id: "0198b50b-701a-7000-8000-000000000043",
-            capture_status: "Retained",
+            is_current: "false",
           }),
         ];
     await route.fulfill({

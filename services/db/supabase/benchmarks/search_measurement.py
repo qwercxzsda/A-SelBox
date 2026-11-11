@@ -13,7 +13,7 @@ from urllib.error import HTTPError
 from .common import catalog_fingerprint, connect, digest, identities, synthetic_token
 from .search_cases import SearchCase
 from .table_verification import (
-    AMOUNT_ERROR,
+    AMOUNT_ERROR_DETAILS,
     AMOUNT_LIMIT,
     Payload,
     discover_cases,
@@ -33,7 +33,7 @@ def assert_cap_rejected(base: str, token: str, case: SearchCase) -> None:
         if (
             error.code != 400
             or payload.get("code") != "22023"
-            or payload.get("message") != AMOUNT_ERROR
+            or json.loads(payload.get("details") or "null") != AMOUNT_ERROR_DETAILS
         ):
             raise RuntimeError("Amount cap returned an unexpected API error") from None
     else:

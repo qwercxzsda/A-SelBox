@@ -71,16 +71,11 @@ export function createFinancialSourceApi(transport: ApiTransport) {
       if (!Array.isArray(records) || records.length > SOURCE_LOOKUP_PAGE_SIZE + 1)
         throw new Error("Amazon transaction lookup returned invalid rows");
       const rows = mapDatasetRows("finances", records);
-      for (let index = 0; index < rows.length; index += 1) {
-        const record: unknown = records[index];
-        if (
-          !isJsonObject(record) ||
-          (record.capture_status !== "Current" && record.capture_status !== "Retained")
-        )
-          throw new Error("Amazon transaction lookup returned an invalid capture status");
-        if (rows[index].native_transaction_id !== transactionId)
+      for (const row of rows) {
+        if (row.is_current !== "true" && row.is_current !== "false")
+          throw new Error("Amazon transaction lookup returned an invalid current selection");
+        if (row.native_transaction_id !== transactionId)
           throw new Error("Amazon transaction lookup returned a different transaction");
-        rows[index].capture_status = record.capture_status;
       }
       return {
         rows: rows.slice(0, SOURCE_LOOKUP_PAGE_SIZE),

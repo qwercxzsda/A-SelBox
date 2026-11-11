@@ -435,7 +435,7 @@ class AppAccessTests(LocalWorkflowCase):
         )
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(stale.json()["code"], "PT409")
-        self.assertEqual(stale.json()["message"], "SKU configuration changed while editing")
+        self.assertEqual(json.loads(stale.json()["details"]), {"code": "SKU_CONFIGURATION_STALE"})
         for relation in ("skus", "sku_terms_versions", "sku_fee_periods"):
             denied = self.stack.request(
                 "POST", "/rest/v1/" + relation, token=administrator_token, json={}

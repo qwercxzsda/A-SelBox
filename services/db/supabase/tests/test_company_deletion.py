@@ -27,15 +27,14 @@ class CompanyDeletionTests(SourceModelFixture):
         error = raised.exception
         self.assertEqual(error.sqlstate, "PT409")
         self.assertEqual(
-            error.diag.message_primary, "Company cannot be deleted while it has linked records"
-        )
-        self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.companies where id=%s", (company,)
             ).fetchone(),
             (1,),
         )
-        return cast(list[dict[str, object]], json.loads(error.diag.message_detail or "null"))
+        details = json.loads(error.diag.message_detail or "null")
+        self.assertEqual(details["code"], "COMPANY_DELETION_BLOCKED")
+        return cast(list[dict[str, object]], details["reasons"])
 
     def test_unused_company_deletes_and_missing_company_retry_makes_no_write(self) -> None:
         administrator, company = self.administrator(), self.empty_company()
@@ -160,7 +159,7 @@ class CompanyDeletionTests(SourceModelFixture):
             "values (%s,'2026-06-01')",
             (company,),
         )
-        self.assertEqual(
+        self.assertCountEqual(
             self.blockers(administrator, company),
             [
                 {"code": "members", "count": 1},

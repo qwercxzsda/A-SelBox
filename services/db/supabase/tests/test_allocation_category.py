@@ -2,7 +2,6 @@
 
 from decimal import Decimal
 
-import psycopg
 from psycopg import sql
 
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
@@ -56,9 +55,7 @@ class AllocationCategoryTests(SourceModelFixture):
             row.pop("category")
             with (
                 self.subTest(source=source),
-                self.assertRaises(
-                    ValueError if source == "FINANCES" else psycopg.errors.CheckViolation
-                ),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
                 if source == "FINANCES":
@@ -85,9 +82,7 @@ class AllocationCategoryTests(SourceModelFixture):
         for source in ("FINANCES", "DATA_KIOSK"):
             with (
                 self.subTest(source=source),
-                self.assertRaises(
-                    ValueError if source == "FINANCES" else psycopg.errors.NotNullViolation
-                ),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
                 if source == "FINANCES":
@@ -105,7 +100,7 @@ class AllocationCategoryTests(SourceModelFixture):
                 self.finances([self.transaction("-1", category=category)])
             with (
                 self.subTest(source="DATA_KIOSK", category=category),
-                self.assertRaises(psycopg.errors.InvalidTextRepresentation),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
                 self.kiosk(1, [self.component(category=category)])

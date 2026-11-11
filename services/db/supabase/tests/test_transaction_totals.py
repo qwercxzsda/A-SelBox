@@ -302,7 +302,7 @@ class TransactionTotalsTests(SourceModelFixture):
         self.assert_matches_view(member, p_group_by_type=True, p_limit=1, p_offset=9007199254740991)
         self.assert_matches_view(member, p_group_by_type=True, p_limit=2, p_offset=1)
 
-    def test_invalid_inputs_and_unsupported_marketplaces_are_rejected(self) -> None:
+    def test_invalid_input_shapes_are_rejected_and_unknown_marketplaces_match_nothing(self) -> None:
         user = self.administrator()
         invalid: tuple[dict[str, object], ...] = (
             {"p_date_from": None},
@@ -335,8 +335,10 @@ class TransactionTotalsTests(SourceModelFixture):
             for values in ([None], [value, None], [[value]]):
                 with self.assertRaises(psycopg.errors.InvalidParameterValue):
                     self.read_totals(user, **{name: values})
-        with self.assertRaises(psycopg.errors.InvalidParameterValue):
-            self.read_totals(user, p_marketplaces=["unknown"])
+        self.assertEqual(
+            self.read_totals(user, p_marketplaces=["unknown"]),
+            {"rows": [], "next_offset": None},
+        )
 
     def test_security_invoker_grants_and_anonymous_denial(self) -> None:
         assert_rpc_security(

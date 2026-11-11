@@ -13,8 +13,8 @@ test("amount page limits become actionable errors without exposing other databas
       responseJson(
         {
           code: "22023",
-          message: AMOUNT_ORDER_LIMIT_MESSAGE,
-          details: "private database detail",
+          message: "private database detail",
+          details: JSON.stringify({ code: "AMOUNT_ORDER_LIMIT", limit: 10000 }),
           hint: "private hint",
         },
         400,
@@ -36,24 +36,33 @@ test("amount page limits become actionable errors without exposing other databas
   }
 });
 
+const validDetails = JSON.stringify({ code: "AMOUNT_ORDER_LIMIT", limit: 10000 });
+
 test("only the exact amount-limit contract is exposed and failed RPCs never fall back", async () => {
-  for (const [dataset, column, code, message, status] of [
+  for (const [dataset, column, code, details, status] of [
     ["live", "source_amount", "22023", "private SQL detail", 400],
-    ["live", "source_amount", "42501", AMOUNT_ORDER_LIMIT_MESSAGE, 400],
-    ["live", "activity_at", "22023", AMOUNT_ORDER_LIMIT_MESSAGE, 400],
-    ["data_kiosk", "amount", "22023", AMOUNT_ORDER_LIMIT_MESSAGE, 503],
+    [
+      "live",
+      "source_amount",
+      "22023",
+      JSON.stringify({ code: "AMOUNT_ORDER_LIMIT", limit: 1 }),
+      400,
+    ],
+    ["live", "source_amount", "42501", validDetails, 400],
+    ["live", "activity_at", "22023", validDetails, 400],
+    ["data_kiosk", "amount", "22023", validDetails, 503],
   ]) {
     let requests = 0;
     const client = createApiClient(SETTINGS, async () => {
       requests += 1;
-      return responseJson({ code, message }, status);
+      return responseJson({ code, message: "private database detail", details }, status);
     });
     await assert.rejects(
       client.fetchDatasetPage(pageRequest(dataset, { sort: { column, direction: "desc" } })),
       (error) => {
         assert.ok(error instanceof ApiError);
         assert.equal(error.status, status);
-        assert.equal(error.message.includes(message), false);
+        assert.equal(error.message.includes("private"), false);
         return true;
       },
     );

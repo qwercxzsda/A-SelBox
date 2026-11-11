@@ -147,7 +147,7 @@ returns table (
 )
 language plpgsql volatile security invoker set search_path = '' as $$
 declare latest_month date; item record; month_created integer; month_reused integer;
-    failed_sqlstate text; failed_message text; ready_at timestamptz;
+    failed_sqlstate text; failed_message text; failed_detail text; ready_at timestamptz;
 begin
     if p_limit is null or p_limit not between 1 and 100 then
         raise exception 'Payout refresh limit must be between 1 and 100' using errcode='22023';
@@ -181,12 +181,15 @@ begin
             set constraints public.complete_company_payout_report deferred;
         exception when others then
             failed_sqlstate:=sqlstate; failed_message:=left(sqlerrm,1000);
+            -- Known worker failures supply a structured reason. Exception prose
+            -- remains private and never determines the public operational code.
+            get stacked diagnostics failed_detail = pg_exception_detail;
         end;
         if failed_sqlstate is null then
             update private.payout_report_refresh_state
             set completed_revision=greatest(completed_revision,item.requested_revision),
                 last_attempt_at=clock_timestamp(),last_success_at=clock_timestamp(),
-                last_error_sqlstate=null,last_error_message=null,failure_count=0,
+                last_error_sqlstate=null,last_error_message=null,last_failure_reason=null,failure_count=0,
                 next_attempt_at=case when requested_revision>item.requested_revision
                     then least(next_attempt_at,clock_timestamp()) else clock_timestamp() end
             where company_id=item.company_id and month=item.month;
@@ -196,6 +199,8 @@ begin
             update private.payout_report_refresh_state
             set last_attempt_at=clock_timestamp(),last_error_sqlstate=failed_sqlstate,
                 last_error_message=failed_message,
+                last_failure_reason=case when failed_detail in ('SETUP_REQUIRED','SOURCE_REQUIRED')
+                    then failed_detail else 'PROCESSING_FAILED' end,
                 next_attempt_at=case when requested_revision>item.requested_revision then least(next_attempt_at,clock_timestamp())
                     else clock_timestamp()+least(interval '6 hours',interval '5 minutes'*power(2,least(failure_count,7))) end,
                 failure_count=case when requested_revision>item.requested_revision then 0 else failure_count+1 end

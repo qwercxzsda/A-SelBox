@@ -8,7 +8,7 @@ import psycopg
 from services.db.supabase.tests import test_date_ordering as date_fixture
 from services.db.supabase.tests import test_source_transaction_page as source_fixture
 from services.db.supabase.tests import test_transaction_page as live_fixture
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp
 from services.sync.src.source_serialization import content_sha256
 
 _MARKETS = ("Amazon.com", "Amazon.ca")
@@ -49,10 +49,6 @@ class MarketplaceOrderingTests(SourceModelFixture):
                 self.component("3", category="ANALYSIS_ONLY"),
                 self.component("4", category="SELBOX") | {"sku": None},
             ]
-            # Equal IDs across sources require the Source tie-breaker as well as date/ID.
-            components[0]["id"] = finances_rows[-3]["id"]
-            key = marketplace, day
-            current[key] = new_id()
             selected = self.connection.execute(
                 "select current_batch_id from private.data_kiosk_days "
                 "where seller_namespace=%s and marketplace_name=%s and activity_date=%s "
@@ -61,13 +57,12 @@ class MarketplaceOrderingTests(SourceModelFixture):
             ).fetchone()
             days.append(
                 {
-                    "id": current[key],
                     "marketplace_name": marketplace,
                     "activity_date": day,
                     "activity_at": kiosk_timestamp(day, marketplace),
                     "expected_current_version_id": None
                     if day_previous is None
-                    else day_previous[key],
+                    else day_previous[marketplace, day],
                     "expected_current_batch_id": None
                     if selected is None or selected[0] is None
                     else str(selected[0]),
@@ -82,17 +77,29 @@ class MarketplaceOrderingTests(SourceModelFixture):
             )
         _, finances = self.finances(finances_rows, version=version)
         for marketplace in _MARKETS:
-            self.call(
-                "publish_data_kiosk_preprocess",
+            batch = self.publish_kiosk_days(
                 {
-                    "id": new_id(),
                     "acquisition_id": self.kiosk_acquisition(
-                        1 if day_previous is None else 2, start=_DAYS[0], end=_DAYS[-1]
+                        1 if day_previous is None else 2,
+                        start=_DAYS[0],
+                        end=_DAYS[-1],
+                        marketplace=marketplace,
                     ),
                     "preprocess_version": version,
                     "dataset_key": "economics",
                     "days": [day for day in days if day["marketplace_name"] == marketplace],
                 },
+            )
+            current.update(
+                {
+                    (marketplace, str(day)): str(version)
+                    for day, version in self.connection.execute(
+                        "select d.activity_date,m.version_id "
+                        "from private.data_kiosk_preprocess_batch_days m "
+                        "join private.data_kiosk_days d on d.id=m.day_id where m.batch_id=%s",
+                        (batch,),
+                    ).fetchall()
+                }
             )
         if finances is None:
             raise AssertionError("The populated Finance fixture needs a version.")

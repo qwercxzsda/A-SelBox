@@ -41,14 +41,12 @@ test("native ID lookup is exact, bounded, and distinguishes retained observation
       p_limit: 26,
       p_offset: 25,
     });
-    return responseJson(
-      Array.from({ length: 26 }, () => ({ ...record, capture_status: "Retained" })),
-    );
+    return responseJson(Array.from({ length: 26 }, () => ({ ...record, is_current: "false" })));
   });
   const result = await client.fetchFinancialSourceTransactions("access", "NATIVE-EXACT", 1);
   assert.equal(result.rows.length, 25);
   assert.equal(result.hasNext, true);
-  assert.equal(result.rows[0].capture_status, "Retained");
+  assert.equal(result.rows[0].is_current, "false");
   assert.equal(result.rows[0].amount, record.amount);
 });
 
@@ -71,7 +69,7 @@ test("lookup rejects malformed requests and mismatched native IDs", async () => 
     await assert.rejects(noRequest.fetchFinancialSourceTransactions("access", id));
   await assert.rejects(noRequest.fetchFinancialSourceTransactions("access", "native", -1));
   const client = createApiClient(SETTINGS, async () =>
-    responseJson([{ ...record, native_transaction_id: "wrong", capture_status: "Current" }]),
+    responseJson([{ ...record, native_transaction_id: "wrong", is_current: "true" }]),
   );
   await assert.rejects(client.fetchFinancialSourceTransactions("access", "NATIVE-EXACT"));
 });

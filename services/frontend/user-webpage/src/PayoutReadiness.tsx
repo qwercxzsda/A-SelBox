@@ -9,8 +9,12 @@ import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailPage, decodeDetailStrings } from "./detail-view-state";
 import { LookupPagination } from "./LookupPagination";
 import { revealSection } from "./reveal-section";
+import { payoutReadinessState } from "./payout-readiness";
 
-const STATUS: Partial<Record<string, { label: string; color: string; description: string }>> = {
+const STATUS: Record<
+  ReturnType<typeof payoutReadinessState>["status"],
+  { label: string; color: string; description: string }
+> = {
   PENDING: {
     label: "Pending",
     color: "blue",
@@ -111,13 +115,13 @@ export function PayoutReadiness({
       ) : null}
       <Stack gap="sm">
         {(query.data?.rows ?? []).map((row) => {
-          const status = STATUS[row.status ?? ""];
-          if (!status) return null;
-          const companyId = row.company_id ?? "";
-          const setup = row.status === "BLOCKED" && row.reason === "SETUP_REQUIRED";
+          const state = payoutReadinessState(row);
+          const status = STATUS[state.status];
+          const companyId = row.company_id;
+          const setup = state.status === "BLOCKED" && state.reason === "SETUP_REQUIRED";
           const description = setup
             ? "SKU ownership or fee coverage needs setup. Review the requirements below."
-            : row.status === "BLOCKED" && row.reason === "SOURCE_REQUIRED"
+            : state.status === "BLOCKED" && state.reason === "SOURCE_REQUIRED"
               ? "Required source data is incomplete or incompatible. Automatic processing will retry after updates."
               : status.description;
           return (
@@ -153,9 +157,9 @@ export function PayoutReadiness({
               <Text size="xs" c="dimmed">
                 {description}
               </Text>
-              {row.next_attempt_at ? (
+              {state.nextAttemptAt ? (
                 <Text size="xs" c="dimmed">
-                  Next automatic attempt: {formatRecordDate(row.next_attempt_at)}
+                  Next automatic attempt: {formatRecordDate(state.nextAttemptAt)}
                 </Text>
               ) : null}
               {setup && expanded.includes(companyId) ? (

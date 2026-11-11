@@ -1,5 +1,6 @@
 """Concurrent complete-configuration saves serialize and retain atomic CAS behavior."""
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import cast
@@ -60,7 +61,9 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
                     try:
                         save_configuration(worker, administrator, list(reversed(changes)))
                     except psycopg.Error as error:
-                        return error.sqlstate, error.diag.message_primary
+                        return error.sqlstate, str(
+                            json.loads(error.diag.message_detail or "{}").get("code")
+                        )
                 return None, None
 
             future = executor.submit(competing_save)
@@ -68,9 +71,7 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
                 wait_for_block(observer, "configuration-stale-worker", wait_event="advisory")
             finally:
                 winner.commit()
-            self.assertEqual(
-                future.result(timeout=12), ("PT409", "SKU configuration changed while editing")
-            )
+            self.assertEqual(future.result(timeout=12), ("PT409", "SKU_CONFIGURATION_STALE"))
             self.assertEqual(
                 observer.execute("select count(*) from public.sku_terms_versions").fetchone(), (4,)
             )

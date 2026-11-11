@@ -152,15 +152,18 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                     rowKey={(row) => row.id ?? ""}
                     columns={[
                       { key: "posted_date", label: "Date", kind: "date" },
-                      { key: "capture_status", label: "Capture" },
+                      { key: "is_current", label: "Capture" },
                       { key: "marketplace_name", label: "Marketplace" },
                       { key: "component_type", label: "Type", kind: "type" },
                       { key: "amount", label: "Amount", kind: "amount" },
                       { key: "currency", label: "Currency" },
                       { key: "details", label: "Details" },
                     ]}
-                    renderCell={(row, column) =>
-                      column.key === "details" ? (
+                    renderCell={(row, column) => {
+                      if (column.key === "is_current")
+                        return row.is_current === "true" ? "Current" : "Retained";
+                      if (column.key !== "details") return undefined;
+                      return (
                         <Button
                           variant="subtle"
                           size="compact-xs"
@@ -176,8 +179,8 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                         >
                           View source record
                         </Button>
-                      ) : undefined
-                    }
+                      );
+                    }}
                   />
                 ) : null}
                 {rows.length > 10 ? <LookupPagination {...pagination} bottom /> : null}

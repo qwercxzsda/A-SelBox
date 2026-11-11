@@ -77,3 +77,11 @@ class PreparedInventory:
 
     items: tuple[Mapping[str, object], ...]
     diagnostics: tuple[Mapping[str, object], ...]
+
+    def __post_init__(self) -> None:
+        for name in ("items", "diagnostics"):
+            object.__setattr__(
+                self,
+                name,
+                tuple(freeze_mapping(value, field_name=name) for value in getattr(self, name)),
+            )

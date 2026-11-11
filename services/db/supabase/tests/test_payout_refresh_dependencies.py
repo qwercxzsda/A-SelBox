@@ -9,7 +9,7 @@ from services.db.supabase.tests.payout_fixtures import (
     prepare_payout,
     refresh_payout_reports,
 )
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp
 
 
 class PayoutRefreshDependencyTests(SourceModelFixture):
@@ -95,16 +95,13 @@ class PayoutRefreshDependencyTests(SourceModelFixture):
         frozen = payout_snapshot(self, report)
         before = self.requested_revision(inputs.company)
         acquisition = self.kiosk_acquisition(1, start="2026-07-01", marketplace_id="A2EUQ1WTGCTBG2")
-        self.call(
-            "publish_data_kiosk_preprocess",
+        self.publish_kiosk_days(
             {
-                "id": new_id(),
                 "acquisition_id": acquisition,
                 "preprocess_version": "v0",
                 "dataset_key": "economics",
                 "days": [
                     {
-                        "id": new_id(),
                         "marketplace_name": "Amazon.ca",
                         "activity_date": "2026-07-01",
                         "activity_at": kiosk_timestamp("2026-07-01", "Amazon.ca"),

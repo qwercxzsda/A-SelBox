@@ -1,5 +1,6 @@
 """Validated manifests shared by acquisition and offline preprocessing."""
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -16,6 +17,10 @@ from ..amazon.scopes import validate_amazon_scope
 from ..canonical_values import validate_sha256
 from ..frozen_values import freeze_mapping
 from ..seller_namespaces import validate_seller_namespace
+
+SOURCE_ARCHIVE_BUCKET = "source-archives"
+_ARCHIVE_OBJECT_PATH = re.compile(r"^[A-Za-z0-9_/-]+[.]xz$")
+_MAX_ARCHIVE_LENGTH = 9223372036854775807
 
 
 def archive_path(value: str) -> str:
@@ -49,17 +54,16 @@ class ArchivedDocument:
     archive_check: str = "CRC64"
 
     def __post_init__(self) -> None:
-        archive_path(self.bucket)
-        if "/" in self.bucket:
-            raise ValueError("Archive bucket cannot contain a slash.")
+        if self.bucket != SOURCE_ARCHIVE_BUCKET:
+            raise ValueError("Source archives require the private source-archives bucket.")
         archive_path(self.object_path)
-        if not self.object_path.endswith(".xz"):
-            raise ValueError("Archive object must use an .xz suffix.")
+        if not _ARCHIVE_OBJECT_PATH.fullmatch(self.object_path):
+            raise ValueError("Archive object must use a canonical ASCII .xz key.")
         validate_sha256(self.document_sha256, "document_sha256")
         validate_sha256(self.archive_sha256, "archive_sha256")
         for length in (self.document_byte_length, self.archive_byte_length):
-            if type(length) is not int or length < 0:
-                raise ValueError("Archive and document lengths must be nonnegative integers.")
+            if type(length) is not int or not 0 <= length <= _MAX_ARCHIVE_LENGTH:
+                raise ValueError("Archive and document lengths must be nonnegative bigint values.")
         if self.archive_byte_length == 0:
             raise ValueError("A complete XZ archive cannot be empty.")
         if (self.archive_codec, self.archive_preset, self.archive_check) != ("xz", "2e", "CRC64"):

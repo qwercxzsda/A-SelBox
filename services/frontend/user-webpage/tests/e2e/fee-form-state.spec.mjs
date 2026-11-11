@@ -55,6 +55,7 @@ test("loading latest settings replaces every live field and checkpoints the new 
   fixture.configurationSaveError = {
     code: "PT409",
     message: "SKU configuration changed while editing",
+    details: JSON.stringify({ code: "SKU_CONFIGURATION_STALE" }),
   };
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();

@@ -67,8 +67,11 @@ create table private.payout_report_refresh_state (
     last_success_at timestamptz,
     last_error_sqlstate text check (last_error_sqlstate ~ '^[0-9A-Z]{5}$'),
     last_error_message text,
+    last_failure_reason text check (last_failure_reason in (
+        'SETUP_REQUIRED', 'SOURCE_REQUIRED', 'PROCESSING_FAILED'
+    )),
     primary key (company_id, month),
-    check (num_nonnulls(last_error_sqlstate, last_error_message) in (0, 2))
+    check (num_nonnulls(last_error_sqlstate, last_error_message, last_failure_reason) in (0, 3))
 );
 
 create index payout_report_refresh_pending_idx

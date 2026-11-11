@@ -2,14 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
 import { SETTINGS, COMPANY_ID, OTHER_COMPANY_ID, csvRecord } from "./api-fixtures.mjs";
+import { payoutReadinessState } from "../src/payout-readiness.ts";
 
 const row = {
   company_id: COMPANY_ID,
   company_name: "Company A",
   month: "2026-04-01",
-  status: "BLOCKED",
-  reason: "SETUP_REQUIRED",
-  has_report: "false",
+  eligible: "t",
+  mature: "t",
+  refresh_pending: "t",
+  failure_count: "1",
+  failure_reason: "SETUP_REQUIRED",
+  has_activity: "f",
+  has_report: "f",
   last_success_at: null,
   next_attempt_at: "2026-10-18T18:00:00Z",
 };
@@ -37,7 +42,15 @@ test("readiness loads only the requested month/company page without a count or s
     1,
     controller.signal,
   );
-  assert.deepEqual({ ...result.rows[0] }, row);
+  assert.deepEqual(result.rows[0], {
+    ...row,
+    eligible: true,
+    mature: true,
+    refresh_pending: true,
+    failure_count: 1,
+    has_report: false,
+    has_activity: false,
+  });
   assert.equal(result.hasNext, false);
 });
 
@@ -73,7 +86,10 @@ test("readiness rejects invalid request scope and untrusted response scope", asy
   await assert.rejects(noRequest.fetchPayoutSetupBlockers("access", "other", "2026-04"));
   for (const bad of [
     { ...row, month: "2026-05-01" },
-    { ...row, status: "SECRET" },
+    { ...row, failure_reason: "SECRET" },
+    { ...row, eligible: "yes" },
+    { ...row, has_activity: null },
+    { ...row, failure_count: "-1" },
     { ...row, company_id: "bad" },
   ]) {
     const client = createApiClient(SETTINGS, async () => new Response(csvRecord(bad)));
@@ -87,4 +103,44 @@ test("selected-company readiness cannot silently return another company's status
     async () => new Response(csvRecord({ ...row, company_id: OTHER_COMPANY_ID })),
   );
   await assert.rejects(client.fetchPayoutReadiness("access", "2026-04", [COMPANY_ID]));
+});
+
+test("readiness presentation is derived from operational facts in the browser", () => {
+  const facts = {
+    ...row,
+    eligible: true,
+    mature: true,
+    refresh_pending: false,
+    failure_count: 0,
+    failure_reason: null,
+    has_report: false,
+    has_activity: false,
+  };
+  for (const [changes, status, reason, nextAttemptAt] of [
+    [{}, "PENDING", null, null],
+    [{ refresh_pending: true }, "PENDING", null, row.next_attempt_at],
+    [{ refresh_pending: true, has_report: true }, "UPDATING", null, row.next_attempt_at],
+    [
+      { refresh_pending: true, failure_count: 1, failure_reason: "SOURCE_REQUIRED" },
+      "BLOCKED",
+      "SOURCE_REQUIRED",
+      row.next_attempt_at,
+    ],
+    [{ has_report: true, has_activity: true }, "COMPLETE", null, null],
+    [{ has_report: true }, "NO_ACTIVITY", null, null],
+    [{ eligible: false }, "NOT_SCHEDULED", "NO_ASSIGNED_SKUS", null],
+    [{ eligible: false, has_report: true, has_activity: true }, "COMPLETE", null, null],
+    [
+      { mature: false, refresh_pending: true, failure_count: 1, failure_reason: "SETUP_REQUIRED" },
+      "IMMATURE",
+      null,
+      null,
+    ],
+  ]) {
+    assert.deepEqual(payoutReadinessState({ ...facts, ...changes }), {
+      status,
+      reason,
+      nextAttemptAt,
+    });
+  }
 });

@@ -18,8 +18,8 @@ def publish_json(
 ) -> str:
     """Run a trusted publication statement in one transaction.
 
-    Acquisition and payout deduplication may return an existing ID. New source results and
-    fee versions instead require the exact ID generated for their payload.
+    Payout deduplication may return an existing ID. New fee versions instead require
+    the exact ID generated for their payload.
     """
     with (
         database.connection() as connection,

@@ -20,6 +20,7 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
         other, _ = self.owner("OTHER")
         # Inject a failure into the actual deferred header check. The worker must
         # roll back only that nonempty company/month, leaving the empty one valid.
+        # Matching words without a structured reason must not become a setup error.
         validation = str(
             require_row(
                 self.connection.execute(
@@ -31,7 +32,7 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
         rejected = validation.replace(
             "begin\n",
             "begin\n if new.component_count>0 then raise exception "
-            "'Deferred test validation failed' using errcode='23514'; end if;\n",
+            "'Unresolved ownership test failure' using errcode='23514'; end if;\n",
             1,
         )
         self.assertNotEqual(rejected, validation)
@@ -46,12 +47,12 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
         )
         self.assertEqual(
             self.connection.execute(
-                "select last_error_sqlstate,last_error_message "
+                "select last_error_sqlstate,last_error_message,last_failure_reason "
                 "from private.payout_report_refresh_state "
                 "where company_id=%s and month='2026-06-01'",
                 (inputs.company,),
             ).fetchone(),
-            ("23514", "Deferred test validation failed"),
+            ("23514", "Unresolved ownership test failure", "PROCESSING_FAILED"),
         )
         self.connection.execute(cast(LiteralString, validation))
         self.connection.execute(

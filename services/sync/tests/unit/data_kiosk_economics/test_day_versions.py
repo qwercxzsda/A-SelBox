@@ -3,8 +3,7 @@
 import unittest
 from dataclasses import replace
 from datetime import timedelta
-from typing import Any, cast
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from ....src.data_kiosk_economics.components import build_components
 from ....src.data_kiosk_economics.preprocess import prepare_data_kiosk_acquisition
@@ -25,6 +24,20 @@ from ...support.source_preprocessing import kiosk_acquisition
 
 
 class DataKioskDayVersionTests(unittest.TestCase):
+    def test_incomplete_duplicate_and_wrong_market_days_fail_before_persistence(self) -> None:
+        storage = MemoryArchiveStorage()
+        acquisition = kiosk_acquisition(storage, complete_economics_document())
+        days = prepare_data_kiosk_acquisition(acquisition, storage)
+        for invalid in (
+            days[:-1],
+            (days[0],) * len(days),
+            tuple(replace(day, marketplace_name="Amazon.ca") for day in days),
+        ):
+            database = Mock()
+            with self.subTest(days=invalid), self.assertRaisesRegex(ValueError, "every acquired"):
+                publish_data_kiosk(database, acquisition, invalid, {})
+            database.connection.assert_not_called()
+
     def test_reporting_time_interpretation_is_part_of_immutable_day_contents(self) -> None:
         storage = MemoryArchiveStorage()
         acquisition = kiosk_acquisition(storage, complete_economics_document())
@@ -74,7 +87,7 @@ class DataKioskDayVersionTests(unittest.TestCase):
             hashes.add(days[0].content_sha256)
         self.assertEqual(len(hashes), 6)
 
-    def test_publication_keeps_observation_selection_separate_from_typed_contents(self) -> None:
+    def test_observation_selection_is_separate_from_typed_contents(self) -> None:
         storage = MemoryArchiveStorage()
         document = complete_economics_document(fees=f"[{economics_fee('DisposalFee')}]")
         acquisition = kiosk_acquisition(storage, document)
@@ -87,33 +100,3 @@ class DataKioskDayVersionTests(unittest.TestCase):
             selected,
             {days[0].activity_date: DataKioskSelection("previous-version", "previous-batch")},
         )
-        with patch(
-            "services.sync.src.database.source_versions.publish_json", return_value="saved-batch"
-        ) as publish:
-            self.assertEqual(
-                publish_data_kiosk(database, acquisition, days, selected), "saved-batch"
-            )
-        payload = cast(dict[str, Any], publish.call_args.args[2])
-        published = payload["days"][0]
-        self.assertEqual(published["activity_date"], days[0].activity_date.isoformat())
-        self.assertEqual(published["activity_at"], days[0].activity_at.isoformat())
-        self.assertEqual(published["expected_current_version_id"], "previous-version")
-        self.assertEqual(published["expected_current_batch_id"], "previous-batch")
-        self.assertEqual(
-            set(published["transactions"][0]),
-            {
-                "id",
-                "component_key",
-                "sku",
-                "category",
-                "component_type",
-                "amount",
-                "currency",
-                "quantity",
-                "fee_base",
-            },
-        )
-        empty = payload["days"][1]
-        self.assertIsNone(empty["expected_current_version_id"])
-        self.assertIsNone(empty["expected_current_batch_id"])
-        self.assertEqual(empty["transactions"], [])

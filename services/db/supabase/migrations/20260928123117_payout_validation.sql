@@ -161,10 +161,11 @@ begin
     ) into incompatible,incomplete,coverage;
     if incompatible then
         raise exception 'Source preprocessing versions must agree within each namespace for a monthly payout'
-            using errcode='23514';
+            using errcode='23514', detail='SOURCE_REQUIRED';
     end if;
     if incomplete then
-        raise exception 'Complete successful source coverage is required for payout' using errcode='23514';
+        raise exception 'Complete successful source coverage is required for payout'
+            using errcode='23514', detail='SOURCE_REQUIRED';
     end if;
     return coverage;
 end;
@@ -230,6 +231,41 @@ begin
 end;
 $$;
 
+-- Publication and deferred integrity use the same relational calculation.
+-- Source interpretation is already frozen in the selected normalized versions.
+create function private.payout_report_aggregate(
+    p_report public.company_payout_reports,
+    p_finances_versions uuid[], p_data_kiosk_versions uuid[], p_terms_versions uuid[]
+) returns table (
+    has_amounts boolean, unresolved boolean, terms_version_ids uuid[], component_count bigint,
+    source_amount numeric, fee_amount numeric, company_amount numeric
+) language sql stable security invoker set search_path = '' as $$
+    with resolved as materialized (
+        select c.* from private.resolve_company_components(
+            p_finances_versions,p_data_kiosk_versions,p_terms_versions) c
+        where c.category <> 'SELBOX'
+            and (c.authoritative or (c.source = 'DATA_KIOSK' and c.company_id is not null))
+            and c.activity_date between (p_report).start_date and (p_report).end_date
+    ), scoped as (
+        select c.* from resolved c
+        where c.company_id = (p_report).company_id and c.currency = (p_report).currency
+            and c.marketplace_name is not distinct from (p_report).marketplace_name
+    ) select
+        exists(select 1 from resolved where authoritative and company_id = (p_report).company_id
+            and marketplace_name is not distinct from (p_report).marketplace_name
+            and ((p_report).currency is null or currency = (p_report).currency)),
+        exists(select 1 from resolved where authoritative and (company_id is null
+            or (company_id = (p_report).company_id and currency = (p_report).currency
+                and marketplace_name is not distinct from (p_report).marketplace_name
+                and resolution_status not in ('APPLIED','NOT_APPLICABLE')))),
+        (select coalesce(array_agg(distinct terms_version_id order by terms_version_id)
+            filter (where terms_version_id is not null),'{}'::uuid[]) from resolved),
+        count(*),coalesce(sum(source_amount) filter (where authoritative),0),
+        coalesce(sum(fee_amount) filter (where authoritative),0),
+        coalesce(sum(company_amount) filter (where authoritative),0)
+    from scoped;
+$$;
+
 -- Recalculate aggregate amounts and detail counts from immutable input manifests.
 -- Reports store no component copies; later reads use the same fixed calculation.
 -- Deferred checks validate private evidence as owner, independently of the
@@ -237,8 +273,7 @@ $$;
 create function private.check_company_payout_report() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare finances_versions uuid[]; kiosk_versions uuid[]; terms_versions uuid[];
-    component_total bigint; source_total numeric; fee_total numeric; company_total numeric;
-    used_terms bigint; unresolved boolean; has_amounts boolean;
+    aggregate record;
 begin
     select coalesce(array_agg(version_id order by transaction_id),'{}'::uuid[])
         into finances_versions from private.payout_report_finances_versions where report_id = new.id;
@@ -251,35 +286,14 @@ begin
         or cardinality(terms_versions) <> new.terms_version_count then
         raise exception 'Incomplete payout input inventory' using errcode = '23514';
     end if;
-    with resolved as materialized (
-        select c.* from private.resolve_company_components(finances_versions,kiosk_versions,terms_versions) c
-        where c.category <> 'SELBOX'
-          and (c.authoritative or (c.source = 'DATA_KIOSK' and c.company_id is not null))
-          and c.activity_date between new.start_date and new.end_date
-    ), scoped as (
-        select c.*
-        from resolved c where c.company_id = new.company_id and c.currency = new.currency
-            and c.marketplace_name is not distinct from new.marketplace_name
-    ) select
-        (select count(distinct terms_version_id) from resolved),
-        (select coalesce(bool_or(authoritative and company_id = new.company_id
-            and marketplace_name is not distinct from new.marketplace_name
-            and (new.currency is null or currency = new.currency)),false) from resolved),
-        (select coalesce(bool_or(authoritative and (company_id is null
-            or (company_id = new.company_id and currency = new.currency
-                and marketplace_name is not distinct from new.marketplace_name
-                and resolution_status not in ('APPLIED','NOT_APPLICABLE')))),false) from resolved),
-        count(*),coalesce(sum(source_amount) filter (where authoritative),0),
-        coalesce(sum(fee_amount) filter (where authoritative),0),
-        coalesce(sum(company_amount) filter (where authoritative),0)
-    into used_terms,has_amounts,unresolved,component_total,source_total,fee_total,company_total
-    from scoped;
-    perform private.assert_payout_sources(new,finances_versions,kiosk_versions,has_amounts);
-    if (has_amounts and used_terms <> new.terms_version_count)
-        or (new.currency is null and has_amounts) or unresolved then
+    select * into aggregate from private.payout_report_aggregate(
+        new,finances_versions,kiosk_versions,terms_versions);
+    perform private.assert_payout_sources(new,finances_versions,kiosk_versions,aggregate.has_amounts);
+    if (aggregate.has_amounts and cardinality(aggregate.terms_version_ids) <> new.terms_version_count)
+        or (new.currency is null and aggregate.has_amounts) or aggregate.unresolved then
         raise exception 'Payout contents do not match complete frozen source and terms inputs' using errcode = '23514';
     end if;
-    if (component_total,source_total,fee_total,company_total) is distinct from
+    if (aggregate.component_count,aggregate.source_amount,aggregate.fee_amount,aggregate.company_amount) is distinct from
         (new.component_count::bigint,new.source_amount::numeric,new.fee_amount::numeric,new.company_amount::numeric) then
         raise exception 'Payout totals or detail count differ from frozen inputs' using errcode = '23514';
     end if;

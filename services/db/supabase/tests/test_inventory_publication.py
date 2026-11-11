@@ -10,6 +10,17 @@ from services.sync.src.inventory.vocabulary import HEALTH_STATUSES, RECOMMENDED_
 
 
 class InventoryPublicationTests(InventoryFixture):
+    def test_acquisition_retry_preserves_equivalent_timestamp_offsets(self) -> None:
+        payload = self.acquisition_payload(report_created_at="2026-09-29T21:00:00+09:00")
+        original = self.persist_acquisition(payload)
+        self.assertEqual(self.persist_acquisition(payload | {"id": new_id()}), original)
+        self.assertEqual(
+            self.persist_acquisition(
+                payload | {"id": new_id(), "report_created_at": "2026-09-29T12:00:00Z"}
+            ),
+            original,
+        )
+
     def test_preprocessing_status_contract_is_accepted_without_database_transformation(
         self,
     ) -> None:
@@ -62,10 +73,8 @@ class InventoryPublicationTests(InventoryFixture):
 
     def test_acquisition_retry_reuses_identity_and_rejects_changed_source(self) -> None:
         payload = self.acquisition_payload()
-        original = self.call("publish_inventory_acquisition", payload)
-        self.assertEqual(
-            self.call("publish_inventory_acquisition", payload | {"id": new_id()}), original
-        )
+        original = self.persist_acquisition(payload)
+        self.assertEqual(self.persist_acquisition(payload | {"id": new_id()}), original)
         for changes in (
             {"document_sha256": "b" * 64},
             {"report_document_id": "different-document"},
@@ -74,10 +83,10 @@ class InventoryPublicationTests(InventoryFixture):
         ):
             with (
                 self.subTest(changes=changes),
-                self.assertRaises(psycopg.errors.CheckViolation),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
-                self.call("publish_inventory_acquisition", payload | changes)
+                self.persist_acquisition(payload | changes)
         for statement in (
             "delete from private.inventory_acquisitions",
             "update private.inventory_acquisitions set downloaded_at=now()",
@@ -131,22 +140,20 @@ class InventoryPublicationTests(InventoryFixture):
         later = self.acquire(report_created_at="2026-09-29T13:00:00Z")
         with self.assertRaises(psycopg.errors.SerializationFailure), self.connection.transaction():
             self.capture(later, [], expected=None)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.capture(later, [], expected=original, id=original)
         replacement = self.capture(later, [], expected=original)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+        with self.assertRaises(ValueError), self.connection.transaction():
             self.capture(first, [self.item()], expected=replacement)
-        for changes in (
-            {"seller_namespace": "wrong-seller"},
-            {"marketplace_name": "Amazon.ca"},
-            {"capture_date": "2026-09-30"},
+        for changes, error in (
+            ({"seller_namespace": "wrong-seller"}, psycopg.errors.ForeignKeyViolation),
+            ({"marketplace_name": "Amazon.ca"}, ValueError),
+            ({"capture_date": "2026-09-30"}, ValueError),
         ):
             with (
                 self.subTest(changes=changes),
-                self.assertRaises(psycopg.errors.CheckViolation),
+                self.assertRaises(error),
                 self.connection.transaction(),
             ):
-                self.capture(later, [], expected=replacement, **changes)
+                self.capture(later, [], **changes)
         self.assertEqual(
             self.connection.execute(
                 "select id::text from private.inventory_daily_captures"
@@ -183,8 +190,6 @@ class InventoryPublicationTests(InventoryFixture):
             self.capture(later, [self.item(), self.item(line=3)], expected=original)
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.capture(later, [self.item(quantity=-1)], expected=original)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.capture(later, [], expected=original, row_count=1)
         self.assertEqual(
             self.connection.execute(
                 "select c.id::text,i.available_quantity from private.inventory_daily_captures c "

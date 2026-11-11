@@ -141,13 +141,29 @@ test("global gaps and stale edits are safely decoded without losing structured i
       400,
       {
         code: "23514",
-        message: "SKU configuration is incomplete",
-        details: JSON.stringify({ issues: [issue] }),
+        message: "Private database diagnostic",
+        details: JSON.stringify({ code: "SKU_CONFIGURATION_INCOMPLETE", issues: [issue] }),
       },
       "incomplete",
     ],
-    [409, { code: "PT409", message: "SKU configuration changed while editing" }, "conflict"],
-    [400, { code: "23514", message: "Invalid SKU configuration" }, "invalid"],
+    [
+      409,
+      {
+        code: "PT409",
+        message: "Private database diagnostic",
+        details: JSON.stringify({ code: "SKU_CONFIGURATION_STALE" }),
+      },
+      "conflict",
+    ],
+    [
+      400,
+      {
+        code: "23514",
+        message: "Private database diagnostic",
+        details: JSON.stringify({ code: "SKU_CONFIGURATION_INVALID" }),
+      },
+      "invalid",
+    ],
   ]) {
     let calls = 0;
     const client = createApiClient(SETTINGS, async () => {
@@ -170,8 +186,11 @@ test("unexpected database errors and malformed issues remain private", async () 
     { code: "23514", message: "private database diagnostic", details: "secret contents" },
     {
       code: "23514",
-      message: "SKU configuration is incomplete",
-      details: JSON.stringify({ issues: [{ ...issue, kind: "secret diagnostic" }] }),
+      message: "Private database diagnostic",
+      details: JSON.stringify({
+        code: "SKU_CONFIGURATION_INCOMPLETE",
+        issues: [{ ...issue, kind: "secret diagnostic" }],
+      }),
     },
   ]) {
     const client = createApiClient(SETTINGS, async () => responseJson(body, 400));

@@ -36,9 +36,9 @@ class CompanyDeletionApiTests(LocalWorkflowCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["code"], "PT409")
         self.assertEqual(
-            response.json()["message"], "Company cannot be deleted while it has linked records"
+            json.loads(response.json()["details"]),
+            {"code": "COMPANY_DELETION_BLOCKED", "reasons": [{"code": "members", "count": 1}]},
         )
-        self.assertEqual(json.loads(response.json()["details"]), [{"code": "members", "count": 1}])
         self.assertEqual(len(self.read_rows("companies", member, id="eq." + company)), 1)
         self.assertEqual(self.read_rows("app_accounts", member)[0]["company_id"], company)
 

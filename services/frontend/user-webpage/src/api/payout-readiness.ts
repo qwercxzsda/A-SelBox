@@ -3,20 +3,69 @@ import { validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow } from "./types.ts";
 import { requireUuid } from "./validation.ts";
+import { parseExactCount } from "./content-range.ts";
 
 const PAYOUT_READINESS_PAGE_SIZE = 25;
-const PAYOUT_READINESS_STATUSES = [
-  "PENDING",
-  "UPDATING",
-  "BLOCKED",
-  "COMPLETE",
-  "NO_ACTIVITY",
-  "NOT_SCHEDULED",
-  "IMMATURE",
-] as const;
-interface PayoutReadinessPage {
-  rows: CanonicalRow[];
+const FAILURE_REASONS = ["SETUP_REQUIRED", "SOURCE_REQUIRED", "PROCESSING_FAILED"] as const;
+export interface PayoutReadinessFacts {
+  company_id: string;
+  company_name: string;
+  month: string;
+  eligible: boolean;
+  mature: boolean;
+  refresh_pending: boolean;
+  failure_count: number;
+  failure_reason: (typeof FAILURE_REASONS)[number] | null;
+  has_report: boolean;
+  has_activity: boolean;
+  last_success_at: string | null;
+  next_attempt_at: string | null;
+}
+interface PayoutReadinessPage<T> {
+  rows: T[];
   hasNext: boolean;
+}
+
+function booleanField(row: CanonicalRow, field: string): boolean {
+  if (row[field] === "t") return true;
+  if (row[field] === "f") return false;
+  throw new Error(`Payout readiness returned an invalid ${field}`);
+}
+
+function nullableText(row: CanonicalRow, field: string): string | null {
+  const value = row[field];
+  if (value === null || typeof value === "string") return value;
+  throw new Error(`Payout readiness omitted ${field}`);
+}
+
+function decodeReadiness(
+  row: CanonicalRow,
+  date: string,
+  companies: string[],
+): PayoutReadinessFacts {
+  const company = row.company_id ?? "";
+  requireUuid(company, "company");
+  if (companies.length && !companies.includes(company))
+    throw new Error("Payout readiness returned a different company");
+  if (row.month !== date || typeof row.company_name !== "string" || !row.company_name.trim())
+    throw new Error("Payout readiness returned an invalid scope");
+  const failureReason = FAILURE_REASONS.find((value) => value === row.failure_reason);
+  if (row.failure_reason !== null && !failureReason)
+    throw new Error("Payout readiness returned an invalid failure reason");
+  return {
+    company_id: company,
+    company_name: row.company_name,
+    month: date,
+    eligible: booleanField(row, "eligible"),
+    mature: booleanField(row, "mature"),
+    refresh_pending: booleanField(row, "refresh_pending"),
+    failure_count: parseExactCount(row.failure_count),
+    failure_reason: failureReason ?? null,
+    has_report: booleanField(row, "has_report"),
+    has_activity: booleanField(row, "has_activity"),
+    last_success_at: nullableText(row, "last_success_at"),
+    next_attempt_at: nullableText(row, "next_attempt_at"),
+  };
 }
 
 function monthDate(month: string): string {
@@ -33,7 +82,7 @@ function pageParams(pageIndex: number): Record<string, string> {
   };
 }
 
-function page(rows: CanonicalRow[]): PayoutReadinessPage {
+function page<T>(rows: T[]): PayoutReadinessPage<T> {
   if (rows.length > PAYOUT_READINESS_PAGE_SIZE + 1)
     throw new Error("Payout readiness returned an oversized page");
   return {
@@ -50,18 +99,15 @@ export function createPayoutReadinessApi(transport: ApiTransport) {
       companyIds: string[] = [],
       pageIndex = 0,
       signal?: AbortSignal,
-    ): Promise<PayoutReadinessPage> {
+    ): Promise<PayoutReadinessPage<PayoutReadinessFacts>> {
       const date = monthDate(month);
       const companies = companySelectionValues(companyIds);
       const params = new URLSearchParams({
         p_month: date,
         ...pageParams(pageIndex),
-        // RPC CSV header ordering is alphabetical on the deployed serializer.
+        // PostgREST orders RPC CSV headers alphabetically.
         select:
-          "company_id,company_name,month,status,reason,has_report,last_success_at,next_attempt_at"
-            .split(",")
-            .sort()
-            .join(","),
+          "company_id,company_name,eligible,failure_count,failure_reason,has_activity,has_report,last_success_at,mature,month,next_attempt_at,refresh_pending",
       });
       if (companies.length > 100) throw new Error("Choose at most 100 companies");
       if (companies.length) params.set("p_company_ids", `{${companies.join(",")}}`);
@@ -73,17 +119,7 @@ export function createPayoutReadinessApi(transport: ApiTransport) {
         signal,
         false,
       );
-      for (const row of result.rows) {
-        requireUuid(row.company_id ?? "", "company");
-        if (companies.length && !companies.includes(row.company_id ?? ""))
-          throw new Error("Payout readiness returned a different company");
-        if (
-          row.month !== date ||
-          !PAYOUT_READINESS_STATUSES.some((status) => status === row.status)
-        )
-          throw new Error("Payout readiness returned an invalid scope or status");
-      }
-      return page(result.rows);
+      return page(result.rows.map((row) => decodeReadiness(row, date, companies)));
     },
     async fetchPayoutSetupBlockers(
       accessToken: string,
@@ -91,16 +127,13 @@ export function createPayoutReadinessApi(transport: ApiTransport) {
       month: string,
       pageIndex = 0,
       signal?: AbortSignal,
-    ): Promise<PayoutReadinessPage> {
+    ): Promise<PayoutReadinessPage<CanonicalRow>> {
       requireUuid(companyId, "company");
       const params = new URLSearchParams({
         p_company_id: companyId,
         p_month: monthDate(month),
         ...pageParams(pageIndex),
-        select: "sku,reason,marketplace_name,first_date,last_date,component_count"
-          .split(",")
-          .sort()
-          .join(","),
+        select: "component_count,first_date,last_date,marketplace_name,reason,sku",
       });
       const result = await transport.readCsvPage(
         accessToken,

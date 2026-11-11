@@ -186,7 +186,7 @@ class CompanyTermsTests(SourceModelFixture):
         for periods in ([self.period(), self.period()], [self.period(rate="5.0000000")]):
             with self.assertRaises(psycopg.Error), self.connection.transaction():
                 self.publish_terms(identity, company, periods)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+        with self.assertRaises(psycopg.errors.NotNullViolation), self.connection.transaction():
             self.call("publish_sku_terms", {"periods": []})
         pending = new_id()
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
@@ -200,6 +200,7 @@ class CompanyTermsTests(SourceModelFixture):
                 "update public.skus set current_terms_version_id=%s where id=%s",
                 (pending, identity),
             )
+            self.connection.execute("set constraints all immediate")
         self.connection.execute("set constraints all immediate")
 
     def test_registered_identities_and_published_evidence_cannot_be_erased(self) -> None:

@@ -140,6 +140,7 @@ test("conflicts keep drafts and require explicit review of the latest saved sett
   fixture.configurationSaveError = {
     code: "PT409",
     message: "SKU configuration changed while editing",
+    details: JSON.stringify({ code: "SKU_CONFIGURATION_STALE" }),
   };
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
@@ -209,6 +210,7 @@ test("newly imported fee requirements for a changed SKU preserve its draft and b
     code: "23514",
     message: "SKU configuration is incomplete",
     details: JSON.stringify({
+      code: "SKU_CONFIGURATION_INCOMPLETE",
       issues: [
         {
           sku: "S1",

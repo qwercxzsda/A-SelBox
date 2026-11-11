@@ -146,14 +146,12 @@ class AcquisitionLoggingTests(unittest.TestCase):
         database.connection.return_value = MagicMock()
         connection = database.connection.return_value.__enter__.return_value
         cursor = connection.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value = (candidate_id,)
+        cursor.fetchone.side_effect = [{"isolation": "read committed"}, None]
         transaction = connection.transaction.return_value
         transaction.__exit__.side_effect = RuntimeError(ERROR_MARKER)
         with self.assertLogs(LOGGER, level="INFO") as captured, self.assertRaises(RuntimeError):
             download_kiosk_acquisition(MemoryArchiveStorage(), database=database)
 
-        cursor.execute.assert_called_once()
-        cursor.fetchone.assert_called_once()
         transaction.__exit__.assert_called_once_with(None, None, None)
         events = self._events(captured.records)
         failed = self._one(events, "acquisition_failed")

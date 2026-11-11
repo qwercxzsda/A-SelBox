@@ -15,10 +15,8 @@ from .search_resolution import resolve_search_values
 from .transport import request
 
 AMOUNT_LIMIT = 10_000
-AMOUNT_ERROR = (
-    "Amount ordering is limited to 10,000 matching transactions. "
-    "Narrow your filters or order by date."
-)
+AMOUNT_ERROR_DETAILS = {"code": "AMOUNT_ORDER_LIMIT", "limit": AMOUNT_LIMIT}
+
 Row = dict[str, str | None]
 
 

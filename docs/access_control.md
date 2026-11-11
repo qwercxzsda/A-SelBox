@@ -181,10 +181,10 @@ The server locks the company and rejects deletion with HTTP 409 (`PT409`) if it 
 any members, currently assigned SKUs, ownership/fee versions, payout reports, or
 payout refresh records. Every historical ownership/fee version counts, including
 versions with no fee periods and versions whose SKU has since moved elsewhere.
-The error message is `Company cannot be deleted while it has linked records`;
-`details` contains a JSON array of positive `{code, count}` entries using `members`,
-`assigned_skus`, `terms_versions`, `payout_reports`, and `payout_refreshes`. The UI
-displays these reasons instead of silently deleting, reassigning, or cascading
+The JSON `details` object has `code: "COMPANY_DELETION_BLOCKED"` and a `reasons` array of
+positive `{code, count}` entries using `members`,
+`assigned_skus`, `terms_versions`, `payout_reports`, and `payout_refreshes`. The frontend owns
+their ordering, labels, and explanatory text. The UI displays these reasons instead of silently deleting, reassigning, or cascading
 linked records. `other_records` is the safe fallback for an additional restrictive
 foreign key. The company lock serializes concurrent assignments/deletions; a
 successful deletion updates the existing fee/catalog revision at commit.
@@ -265,9 +265,9 @@ A stale edit returns HTTP 409. A successful response contains `published`, an ar
 | Publication result                 | SQLSTATE | Response                                                                     |
 | ---------------------------------- | -------- | ---------------------------------------------------------------------------- |
 | Caller is not an administrator     | `42501`  | Access denied before validating the submitted configuration.                 |
-| Stale selected terms               | `PT409`  | `SKU configuration changed while editing`; no changes published.             |
-| Missing owner or applicable fee    | `23514`  | `SKU configuration is incomplete`; `DETAIL` contains JSON `{issues: [...]}`. |
-| Malformed or invalid configuration | `23514`  | `Invalid SKU configuration`; no changes published.                           |
+| Stale selected terms               | `PT409`  | JSON `DETAIL` code `SKU_CONFIGURATION_STALE`; no changes published.             |
+| Missing owner or applicable fee    | `23514`  | JSON `DETAIL` code `SKU_CONFIGURATION_INCOMPLETE` with `issues: [...]`. |
+| Malformed or invalid configuration | `23514`  | JSON `DETAIL` code `SKU_CONFIGURATION_INVALID`; no changes published.                           |
 
 Each completeness issue has `sku`, `kind` (`missing_company` or `missing_fee`),
 `marketplace_name`, `valid_from`, and `valid_to`. Missing-company issues use null marketplace

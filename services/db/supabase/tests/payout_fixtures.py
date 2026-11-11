@@ -41,7 +41,6 @@ def fill_payout_kiosk_month(
         while current <= end and current not in existing:
             days.append(
                 {
-                    "id": new_id(),
                     "marketplace_name": marketplace,
                     "activity_date": current.isoformat(),
                     "activity_at": kiosk_timestamp(current.isoformat(), marketplace),
@@ -55,12 +54,13 @@ def fill_payout_kiosk_month(
             )
             current += timedelta(days=1)
         acquisition = fixture.kiosk_acquisition(
-            1, start=missing_start.isoformat(), end=(current - timedelta(days=1)).isoformat()
+            1,
+            start=missing_start.isoformat(),
+            end=(current - timedelta(days=1)).isoformat(),
+            marketplace=marketplace,
         )
-        fixture.call(
-            "publish_data_kiosk_preprocess",
+        fixture.publish_kiosk_days(
             {
-                "id": new_id(),
                 "acquisition_id": acquisition,
                 "preprocess_version": "v0",
                 "dataset_key": "economics",

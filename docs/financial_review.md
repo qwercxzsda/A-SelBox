@@ -248,7 +248,8 @@ than partial family totals.
 
 The administrator Finances tab also provides **Find Amazon transaction**, an explicit exact-ID lookup
 independent of SKU/type search and current table filters. It reads a bounded page across retained
-captures with an index on the native transaction ID. Results label **Current** versus **Retained**;
+captures with an index on the native transaction ID. The frontend labels the returned `is_current`
+flag as **Current** or **Retained**;
 each row is an amount component, and repeated observations are not added together. A record opens
 using both its row ID and version ID. All amount/quantity values are serialized as decimal text in
 PostgreSQL before JSON reaches the browser. Neither lookup is available to members, anonymous users,

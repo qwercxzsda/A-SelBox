@@ -2,10 +2,12 @@
 
 import unittest
 from copy import deepcopy
+from dataclasses import replace
 from typing import cast
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from services.sync.src.archives.serialization import data_kiosk_from_payload, data_kiosk_payload
+from services.sync.src.archives.storage import archive_document
 from services.sync.src.database.acquisitions import persist_data_kiosk_acquisition
 from services.sync.tests.support.archives import MemoryArchiveStorage
 from services.sync.tests.support.economics import complete_economics_document
@@ -13,6 +15,20 @@ from services.sync.tests.support.source_preprocessing import kiosk_acquisition
 
 
 class ArchiveSerializationTests(unittest.TestCase):
+    def test_archive_domain_guards_are_enforced_before_persistence(self) -> None:
+        manifest = archive_document(MemoryArchiveStorage(), b"source", source_compression=None)
+        for changes in (
+            {"bucket": "other-bucket"},
+            {"object_path": "unicode/한글.xz"},
+            {"object_path": "unsafe/file name.xz"},
+            {"object_path": "nested/../source.xz"},
+            {"document_byte_length": 2**63},
+            {"archive_byte_length": 2**63},
+            {"archive_byte_length": 0},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                replace(manifest, **changes)
+
     def test_inconsistent_api_provenance_fails_before_database_publication(self) -> None:
         storage = MemoryArchiveStorage()
         payload = data_kiosk_payload(kiosk_acquisition(storage, complete_economics_document()))
@@ -28,17 +44,17 @@ class ArchiveSerializationTests(unittest.TestCase):
             {"pagination": []},
         )
         for overrides in cases:
+            database = Mock()
             malformed = deepcopy(payload)
             pages = cast(list[dict[str, object]], malformed["documents"])
             metadata = cast(dict[str, object], pages[0]["api_metadata"])
             metadata.update(overrides)
             with (
                 self.subTest(overrides=overrides),
-                patch("services.sync.src.database.acquisitions.publish_json") as publish,
                 self.assertRaises(ValueError),
             ):
-                persist_data_kiosk_acquisition(Mock(), data_kiosk_from_payload(malformed))
-            publish.assert_not_called()
+                persist_data_kiosk_acquisition(database, data_kiosk_from_payload(malformed))
+            database.connection.assert_not_called()
 
     def test_root_metadata_and_exact_document_identity_are_validated_in_source_model(self) -> None:
         storage = MemoryArchiveStorage()

@@ -23,7 +23,7 @@ from ..source_serialization import content_sha256
 from .acquisition_coverage import validate_acquisition_coverage
 from .components import build_components
 from .coverage import validate_requested_fields
-from .models import DataKioskDay, DataKioskTransaction
+from .models import DataKioskDay, DataKioskTransaction, validate_component_keys
 from .timestamps import reporting_activity_at
 
 
@@ -90,9 +90,7 @@ def _complete_day(
     components: tuple[DataKioskTransaction, ...],
 ) -> DataKioskDay:
     activity_at = reporting_activity_at(day, marketplace_name)
-    keys = [row.component_key for row in components]
-    if len(keys) != len(set(keys)):
-        raise ValueError("Data Kiosk day contains duplicate economic component identities.")
+    validate_component_keys(components)
     components = tuple(
         row
         for row in components

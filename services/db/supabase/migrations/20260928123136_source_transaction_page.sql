@@ -63,7 +63,10 @@ begin
     $query$,fact_relation,timestamp_expression,sort_expression,sort_direction,tie_direction,sort_nulls,entry_relation,candidate_cap,candidate_materialization)
     into result using p_date_from,p_date_to,p_skus,p_marketplaces,p_types,p_limit,p_offset,
         p_include_count,p_search_skus,p_search_types,p_search_marketplaces,p_order_by='amount';
-    if result is null then raise exception 'Amount ordering is limited to 10,000 matching transactions. Narrow your filters or order by date.' using errcode='22023'; end if;
+    if result is null then
+        raise exception 'Amount ordering exceeds the row limit' using errcode='22023',
+            detail='{"code":"AMOUNT_ORDER_LIMIT","limit":10000}';
+    end if;
     return result;
 end;
 $$;
@@ -120,7 +123,7 @@ begin
     if p_limit>100 or p_native_transaction_id is null or length(btrim(p_native_transaction_id))=0 or length(p_native_transaction_id)>512 then
         raise exception 'A valid exact Amazon transaction ID is required' using errcode='22023'; end if;
     with records as materialized (
-        select t.*,case when t.is_current then 'Current' else 'Retained' end as capture_status,
+        select t.*,
             to_char(t.posted_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as activity_at
         from public.finances_preprocess_entries t where t.native_transaction_id=p_native_transaction_id
         order by t.id limit p_limit offset p_offset

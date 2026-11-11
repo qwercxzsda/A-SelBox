@@ -1,4 +1,4 @@
-import { isJsonObject } from "./validation.ts";
+import { rpcErrorDetails } from "./rpc-error-details.ts";
 import { parseConfigurationIssues } from "./sku-configuration-codec.ts";
 import type { SkuConfigurationIssue } from "./sku-configuration-types.ts";
 
@@ -18,26 +18,24 @@ export class SkuConfigurationError extends Error {
   }
 }
 
-/** Expose only the guarded publisher's fixed messages and validated gap fields. */
+/** Derive user messages from fixed machine codes and validated gap facts. */
 export function skuConfigurationRpcError(body: unknown): SkuConfigurationError | null {
-  if (!isJsonObject(body)) return null;
-  if (body.code === "PT409" && body.message === "SKU configuration changed while editing")
+  const error = rpcErrorDetails(body);
+  if (!error) return null;
+  if (error.sqlstate === "PT409" && error.detail.code === "SKU_CONFIGURATION_STALE")
     return new SkuConfigurationError(
       "conflict",
       "A SKU changed while you were editing. Load its latest saved settings before saving.",
     );
-  if (body.code !== "23514") return null;
-  if (body.message === "Invalid SKU configuration")
+  if (error.sqlstate !== "23514") return null;
+  if (error.detail.code === "SKU_CONFIGURATION_INVALID")
     return new SkuConfigurationError(
       "invalid",
       "Check the selected companies, fee rates, and date ranges. No changes were saved.",
     );
-  if (body.message !== "SKU configuration is incomplete" || typeof body.details !== "string")
-    return null;
+  if (error.detail.code !== "SKU_CONFIGURATION_INCOMPLETE") return null;
   try {
-    const details: unknown = JSON.parse(body.details);
-    if (!isJsonObject(details)) return null;
-    const issues = parseConfigurationIssues(details.issues);
+    const issues = parseConfigurationIssues(error.detail.issues);
     if (issues.length === 0) return null;
     return new SkuConfigurationError(
       "incomplete",

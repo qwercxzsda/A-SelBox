@@ -1,28 +1,33 @@
 """Offline replay verifies retained bytes and sends one complete optimistic replacement."""
 
 import unittest
-from collections.abc import Mapping
-from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid7
 
 from services.sync.src.archives.storage import ArchiveIntegrityError
 from services.sync.src.database.acquisitions import load_inventory_acquisition
 from services.sync.src.database.connection import DatabaseConnection
-from services.sync.src.database.inventory import (
-    publish_inventory_capture,
-)
-from services.sync.src.inventory.parser import prepare_inventory_report
+from services.sync.src.inventory.models import PreparedInventory
 from services.sync.src.inventory.serialization import inventory_payload
 from services.sync.src.inventory.workflow import preprocess_inventory_acquisition
 from services.sync.tests.support.archives import MemoryArchiveStorage
 
-from .fixtures import MARKETPLACE, report_bytes, saved_acquisition
+from .fixtures import report_bytes, saved_acquisition
 
 MODULE = "services.sync.src.inventory.workflow"
 
 
 class InventoryWorkflowTests(unittest.TestCase):
+    def test_prepared_capture_is_detached_from_mutable_input_rows(self) -> None:
+        item: dict[str, object] = {"sku": "SKU", "available_quantity": 1}
+        diagnostic: dict[str, object] = {"field": "available", "values": ["original"]}
+        prepared = PreparedInventory((item,), (diagnostic,))
+        item["available_quantity"] = 99
+        diagnostic["field"] = "changed"
+        self.assertEqual(prepared.items[0]["available_quantity"], 1)
+        self.assertEqual(prepared.diagnostics[0]["field"], "available")
+        self.assertEqual(prepared.diagnostics[0]["values"], ("original",))
+
     def test_offline_replay_uses_saved_scope_date_bytes_and_expected_capture(self) -> None:
         storage = MemoryArchiveStorage()
         acquisition = saved_acquisition(report_bytes({"sku": "sku", "available": "0"}), storage)
@@ -80,26 +85,6 @@ class InventoryWorkflowTests(unittest.TestCase):
             ):
                 preprocess_inventory_acquisition(Mock(), storage, str(acquisition.id))
             publish.assert_not_called()
-
-    def test_repository_payload_keeps_decimal_exact_and_matches_saved_capture_scope(self) -> None:
-        storage = MemoryArchiveStorage()
-        content = report_bytes(
-            {"sku": "sku", "currency": "USD", "sales-shipped-last-90-days": "1.20"}
-        )
-        acquisition = saved_acquisition(content, storage)
-        prepared = prepare_inventory_report(content, marketplace_id=MARKETPLACE)
-        with patch(
-            "services.sync.src.database.inventory.publish_json", return_value="saved"
-        ) as publish:
-            self.assertEqual(
-                publish_inventory_capture(Mock(), acquisition, prepared, None), "saved"
-            )
-        payload = cast(Mapping[str, object], publish.call_args.args[2])
-        self.assertEqual(payload["capture_date"], "2026-09-28")
-        self.assertEqual(payload["row_count"], 1)
-        self.assertIsNone(payload["expected_current_capture_id"])
-        items = cast(list[dict[str, object]], payload["items"])
-        self.assertEqual(items[0]["sales_amount_90d"], "1.20")
 
     def test_repository_load_checks_saved_manifest_and_uuid_before_database(self) -> None:
         storage = MemoryArchiveStorage()

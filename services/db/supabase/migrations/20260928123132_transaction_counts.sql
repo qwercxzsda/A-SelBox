@@ -1,8 +1,7 @@
--- Count the same eligible source facts as transaction_page, without joining
--- source metadata, projecting ownership, or resolving fees. Company selection
+-- Count the same eligible source facts as transaction_page, without projecting
+-- ownership or resolving fees. Company selection
 -- still resolves current ownership before counting. Existing fact RLS remains.
--- Applicability uses source-specific Type codes, exposing existing Type/date
--- indexes. Actual fee bases and rates are resolved separately by the page.
+-- Applicability reads the normalized fee base; it does not classify source types.
 -- Only authenticated non-administrators with active fact RLS omit the duplicate
 -- current-pointer EXISTS: their unchanged fact policies already require it.
 -- Revalidate this optimization whenever the authenticated fact policies change.
@@ -90,7 +89,7 @@ begin
                 and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
                 and (
                     p_fee_applicable is null
-                    or (t.category = 'FINANCES' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = p_fee_applicable
+                    or (t.fee_base is not null) = p_fee_applicable
                 )
                 and (
                     (p_search_skus is null and p_search_types is null
@@ -130,7 +129,7 @@ begin
                     or 'DATA_KIOSK'::text = any(p_sources)
                 )
                 and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
-                and (p_fee_applicable is null or (t.component_type = 'NET_PRODUCT_SALES') = p_fee_applicable)
+                and (p_fee_applicable is null or (t.fee_base is not null) = p_fee_applicable)
                 and (
                     (p_search_skus is null and p_search_types is null
                         and p_search_marketplaces is null and p_search_sources is null)

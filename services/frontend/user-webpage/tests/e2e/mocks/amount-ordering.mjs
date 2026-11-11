@@ -1,7 +1,4 @@
-import {
-  AMOUNT_ORDER_LIMIT_MESSAGE,
-  MAX_AMOUNT_ORDER_ROWS,
-} from "../../../src/api/amount-ordering.ts";
+import { MAX_AMOUNT_ORDER_ROWS } from "../../../src/api/amount-ordering.ts";
 
 export function amountOrderLimitExceeded(fixture, entry, actualCount) {
   return (
@@ -10,4 +7,8 @@ export function amountOrderLimitExceeded(fixture, entry, actualCount) {
   );
 }
 
-export const AMOUNT_ORDER_LIMIT_RESPONSE = { code: "22023", message: AMOUNT_ORDER_LIMIT_MESSAGE };
+export const AMOUNT_ORDER_LIMIT_RESPONSE = {
+  code: "22023",
+  message: "Private amount limit diagnostic",
+  details: JSON.stringify({ code: "AMOUNT_ORDER_LIMIT", limit: MAX_AMOUNT_ORDER_ROWS }),
+};

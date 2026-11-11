@@ -6,9 +6,6 @@ from datetime import UTC, date, datetime
 from typing import cast
 from uuid import uuid7
 
-import psycopg
-from psycopg.types.json import Jsonb
-
 from services.db.supabase.tests.finances_fixtures import finances_capture, native_transaction
 from services.db.supabase.tests.integration_support import (
     DatabaseTestCase,
@@ -24,7 +21,11 @@ from services.sync.src.archives.models import (
     ArchivedDataKioskPage,
     DataKioskAcquisition,
 )
-from services.sync.src.archives.serialization import data_kiosk_from_payload, data_kiosk_payload
+from services.sync.src.archives.serialization import (
+    data_kiosk_from_payload,
+    data_kiosk_payload,
+    document_from_payload,
+)
 from services.sync.src.archives.storage import archive_document, load_document_archive
 from services.sync.src.database.acquisitions import (
     load_data_kiosk_acquisition,
@@ -157,22 +158,15 @@ class TestAcquisitionManifests(DatabaseTestCase):
             invalid = {**document, key: None}
             with (
                 self.subTest(key=key),
-                self.assertRaises(psycopg.errors.CheckViolation),
-                self.connection.transaction(),
+                self.assertRaises((TypeError, ValueError)),
             ):
-                self.connection.execute(
-                    "select private.assert_archive_document(%s)", (Jsonb(invalid),)
-                )
+                document_from_payload(invalid)
         for value in ("7", 1.5, -1, True):
             with (
                 self.subTest(length=value),
-                self.assertRaises(psycopg.errors.CheckViolation),
-                self.connection.transaction(),
+                self.assertRaises((TypeError, ValueError)),
             ):
-                self.connection.execute(
-                    "select private.assert_archive_document(%s)",
-                    (Jsonb({**document, "document_byte_length": value}),),
-                )
+                document_from_payload({**document, "document_byte_length": value})
 
     def test_inconsistent_page_provenance_cannot_publish_a_success(self) -> None:
         base = data_kiosk_payload(self.acquisition())
@@ -217,7 +211,5 @@ class TestAcquisitionManifests(DatabaseTestCase):
         invalid = data_kiosk_payload(acquisition)
         pages = cast(list[dict[str, object]], invalid["documents"])
         pages[0].pop("document")
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "select private.publish_data_kiosk_acquisition(%s)", (Jsonb(invalid),)
-            )
+        with self.assertRaises(KeyError):
+            data_kiosk_from_payload(invalid)

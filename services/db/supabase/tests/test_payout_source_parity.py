@@ -14,7 +14,7 @@ from services.db.supabase.tests.payout_fixtures import (
     report_source_rows,
 )
 from services.db.supabase.tests.rpc_support import assert_rpc_security
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp
 from services.db.supabase.tests.verification.payout_source_parity import source_period_totals
 
 
@@ -129,17 +129,16 @@ class PayoutSourceParityTests(SourceModelFixture):
             amazon_scope="JAPAN" if marketplace == "Amazon.co.jp" else "NA",
         )
         self.finances([], acquisition_id=capture, version=version)
-        acquisition = self.kiosk_acquisition(1, start="2026-06-01", end="2026-06-30")
-        self.call(
-            "publish_data_kiosk_preprocess",
+        acquisition = self.kiosk_acquisition(
+            1, start="2026-06-01", end="2026-06-30", marketplace=marketplace
+        )
+        self.publish_kiosk_days(
             {
-                "id": new_id(),
                 "acquisition_id": acquisition,
                 "preprocess_version": version,
                 "dataset_key": "economics",
                 "days": [
                     {
-                        "id": new_id(),
                         "marketplace_name": marketplace,
                         "activity_date": (date(2026, 6, 1) + timedelta(days=day)).isoformat(),
                         "activity_at": kiosk_timestamp(

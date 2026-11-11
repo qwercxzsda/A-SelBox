@@ -64,16 +64,13 @@ class SchemaContractTests(SourceModelFixture):
 
     def test_data_kiosk_publication_rejects_account_category_with_sku(self) -> None:
         with (
-            self.assertRaises(psycopg.errors.CheckViolation) as raised,
+            self.assertRaisesRegex(ValueError, "MSKU"),
             self.connection.transaction(),
         ):
             self.kiosk(
                 1,
                 [self.component(category="SELBOX") | {"component_type": "SubscriptionFee"}],
             )
-        self.assertEqual(
-            raised.exception.diag.constraint_name, "data_kiosk_account_requires_blank_sku"
-        )
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from private.data_kiosk_day_components"

@@ -94,7 +94,7 @@ preprocessing instead of silently creating a new category.
    values, and diagnose missing/invalid optional metrics. Collapse identical duplicates; omit blank SKUs and
    ambiguous conflicting duplicates. A nonempty document with no usable SKU rows fails instead of
    publishing false empty stock. Unreadable bytes, wrong marketplace, and malformed rows also fail.
-5. Publish the complete capture under a lock on the natural day key. Check the expected existing
+5. The Python repository publishes the complete capture under a database lock on the natural day key. Check the expected existing
    capture ID and observation order, then replace the header/items atomically. A genuinely empty
    valid report publishes a zero-row header. Stale workers or older observations cannot overwrite a
    newer successful capture.

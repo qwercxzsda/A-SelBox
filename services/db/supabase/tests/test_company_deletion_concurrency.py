@@ -53,7 +53,14 @@ class CompanyDeletionConcurrencyTests(SourceModelFixture):
             finally:
                 self.connection.commit()
             self.assertEqual(
-                future.result(timeout=12), ("PT409", [{"code": "payout_refreshes", "count": 1}])
+                future.result(timeout=12),
+                (
+                    "PT409",
+                    {
+                        "code": "COMPANY_DELETION_BLOCKED",
+                        "reasons": [{"code": "payout_refreshes", "count": 1}],
+                    },
+                ),
             )
             self.assertEqual(
                 observer.execute(

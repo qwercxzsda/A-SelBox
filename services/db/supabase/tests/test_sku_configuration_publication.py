@@ -1,5 +1,6 @@
 """Changed SKUs must be complete while global gaps stay visible and batches stay atomic."""
 
+import json
 from decimal import Decimal
 from uuid import UUID
 
@@ -226,6 +227,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
             self.save(administrator, [stale])
         self.assertEqual(error.exception.sqlstate, "PT409")
         self.assertEqual(
-            error.exception.diag.message_primary, "SKU configuration changed while editing"
+            json.loads(error.exception.diag.message_detail or "{}"),
+            {"code": "SKU_CONFIGURATION_STALE"},
         )
         self.assertEqual(self.configuration_state(), before)

@@ -109,21 +109,8 @@ create function private.assert_company_source_scope(
 ) returns void
 language plpgsql stable set search_path = '' as $$
 begin
-    if nullif(btrim(p_seller_namespace),'') is null or nullif(btrim(p_preprocess_version),'') is null
-        or p_start is null or p_end is null or p_end < p_start
-        or p_finances_batch_ids is null or p_marketplaces is null
-        or p_dataset_key is distinct from 'economics'
-        or array_position(p_finances_batch_ids,null) is not null or array_position(p_marketplaces,null) is not null
-        or not (p_marketplaces <@ array[
-            'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-            'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-            'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-            'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-            'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
-            'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
-        ]::text[]) then
-        raise exception 'Explicit valid financial input scope required' using errcode = '23514';
-    end if;
+    -- Trusted Python readers validate scalar inputs and source vocabulary once.
+    -- The database checks only relationships against the current stored evidence.
     if exists (
         select 1 from unnest(p_finances_batch_ids) requested(id)
         left join private.finances_preprocess_batches r on r.id=requested.id

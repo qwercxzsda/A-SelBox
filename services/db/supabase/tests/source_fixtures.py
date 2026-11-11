@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from typing import Literal, LiteralString
 from uuid import uuid7
 
 from psycopg.types.json import Jsonb
 
-from services.db.supabase.tests.integration_support import DatabaseTestCase
+from services.db.supabase.tests.integration_support import DatabaseTestCase, TransactionDatabase
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_finances import acquisition, finances
+from services.db.supabase.tests.source_kiosk import publish_kiosk_fixture
+from services.sync.src.amazon.data_kiosk.models import DataKioskDocumentKind
+from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAME_BY_ID
+from services.sync.src.amazon.marketplaces import CREDENTIAL_SCOPES
+from services.sync.src.archives.models import ArchivedDataKioskPage, DataKioskAcquisition
+from services.sync.src.archives.serialization import document_from_payload
 from services.sync.src.data_kiosk_economics.timestamps import reporting_activity_at
+from services.sync.src.database.acquisitions import persist_data_kiosk_acquisition
 from services.sync.src.finances.acquisition_models import FinancesAcquisition
 from services.sync.src.source_serialization import content_sha256
 
@@ -51,6 +58,9 @@ def archive_document(digest: str = "a") -> dict[str, object]:
 class SourceModelFixture(DatabaseTestCase):
     acquisition = acquisition
     finances = finances
+
+    def publish_kiosk_days(self, payload: dict[str, object]) -> str:
+        return publish_kiosk_fixture(TransactionDatabase(self.connection), payload)
 
     def setUp(self) -> None:
         super().setUp()
@@ -225,7 +235,19 @@ class SourceModelFixture(DatabaseTestCase):
         end: str | None = None,
         marketplace_id: str = "ATVPDKIKX0DER",
         amazon_scope: str = "NA",
+        marketplace: str | None = None,
     ) -> str:
+        if marketplace is not None:
+            marketplace_id = next(
+                identifier
+                for identifier, name in MARKETPLACE_NAME_BY_ID.items()
+                if name == marketplace
+            )
+            amazon_scope = next(
+                name
+                for name, scope in CREDENTIAL_SCOPES.items()
+                if marketplace_id in scope.marketplace_ids
+            )
         query_id, document_id = new_id(), new_id()
         created = f"2026-09-{observation:02d}T00:00:00Z"
         metadata = {
@@ -235,35 +257,33 @@ class SourceModelFixture(DatabaseTestCase):
             "dataDocumentId": document_id,
             "query": "economics complete DAY",
         }
-        return self.call(
-            "publish_data_kiosk_acquisition",
-            {
-                "id": new_id(),
-                "seller_namespace": self.seller,
-                "amazon_scope": amazon_scope,
-                "root_query_id": query_id,
-                "root_query_created_at": created,
-                "schema_version": "analytics_economics_2024_03_15",
-                "query_definition": "economics complete DAY",
-                "marketplace_ids": [marketplace_id],
-                "query_start_date": start,
-                "query_end_date": end or start,
-                "api_metadata": metadata,
-                "downloaded_at": created,
-                "documents": [
-                    {
-                        "page_number": 1,
-                        "query_id": query_id,
-                        "query_created_at": created,
-                        "document_kind": "DATA",
-                        "is_terminal": True,
-                        "document_id": document_id,
-                        "document": archive_document(),
-                        "api_metadata": metadata,
-                    }
-                ],
-            },
+        timestamp = datetime.fromisoformat(created)
+        page = ArchivedDataKioskPage(
+            page_number=1,
+            query_id=query_id,
+            query_created_at=timestamp,
+            document_kind=DataKioskDocumentKind.DATA,
+            is_terminal=True,
+            document_id=document_id,
+            document=document_from_payload(archive_document()),
+            api_metadata=metadata,
         )
+        acquisition = DataKioskAcquisition(
+            id=uuid7(),
+            seller_namespace=self.seller,
+            amazon_scope=amazon_scope,
+            root_query_id=query_id,
+            root_query_created_at=timestamp,
+            schema_version="analytics_economics_2024_03_15",
+            query_definition="economics complete DAY",
+            marketplace_id=marketplace_id,
+            query_start_date=date.fromisoformat(start),
+            query_end_date=date.fromisoformat(end or start),
+            api_metadata=metadata,
+            downloaded_at=timestamp,
+            pages=(page,),
+        )
+        return persist_data_kiosk_acquisition(TransactionDatabase(self.connection), acquisition)
 
     def kiosk(
         self,
@@ -282,17 +302,14 @@ class SourceModelFixture(DatabaseTestCase):
             (self.seller, activity_date),
         ).fetchone()
         timestamp = activity_at if activity_at is not None else kiosk_timestamp(activity_date)
-        batch_id = self.call(
-            "publish_data_kiosk_preprocess",
+        batch_id = self.publish_kiosk_days(
             {
-                "id": new_id(),
                 "acquisition_id": acquisition_id
                 or self.kiosk_acquisition(observation, start=activity_date),
                 "preprocess_version": version,
                 "dataset_key": "economics",
                 "days": [
                     {
-                        "id": new_id(),
                         "marketplace_name": "Amazon.com",
                         "activity_date": activity_date,
                         "activity_at": timestamp,

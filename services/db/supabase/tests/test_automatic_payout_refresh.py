@@ -19,7 +19,8 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
     def state(self, company: str) -> tuple[object, ...]:
         return require_row(
             self.connection.execute(
-                "select last_attempt_at,last_success_at,last_error_sqlstate,last_error_message "
+                "select last_attempt_at,last_success_at,last_error_sqlstate,last_error_message,"
+                "last_failure_reason "
                 "from private.payout_report_refresh_state "
                 "where company_id=%s and month='2026-06-01'",
                 (company,),
@@ -143,6 +144,7 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         self.assertIsNone(failed[1])
         self.assertEqual(failed[2], "23514")
         self.assertIn("source coverage", str(failed[3]))
+        self.assertEqual(failed[4], "SOURCE_REQUIRED")
         self.assertIsNotNone(self.state(other)[1])
         self.assertEqual(
             self.connection.execute(
@@ -155,7 +157,7 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         self.assertEqual(refresh_payout_reports(self), (2, 1, 1, 0))
         recovered = self.state(company)
         self.assertIsNotNone(recovered[1])
-        self.assertEqual(recovered[2:], (None, None))
+        self.assertEqual(recovered[2:], (None, None, None))
         self.connection.commit()
 
     def test_failed_revision_retains_last_success_and_recovers_after_fee_repair(self) -> None:
@@ -169,10 +171,11 @@ class AutomaticPayoutRefreshTests(SourceModelFixture):
         failed = self.state(inputs.company)
         self.assertEqual(failed[1], before[1])
         self.assertEqual(failed[2], "23514")
+        self.assertEqual(failed[4], "SETUP_REQUIRED")
         self.assertEqual(payout_snapshot(self, report), snapshot)
         self.fee(inputs.sku_identity, [("2026-01-01", None, "8")])
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
-        self.assertEqual(self.state(inputs.company)[2:], (None, None))
+        self.assertEqual(self.state(inputs.company)[2:], (None, None, None))
 
     def test_transfer_of_last_sku_stops_old_company_work_and_preserves_its_history(self) -> None:
         inputs = prepare_payout(self)

@@ -323,6 +323,7 @@ separate from immutable saved reports:
 | `failure_count`                             | Consecutive failures since the last success or changed inputs.                  |
 | `last_attempt_at`, `last_success_at`        | Latest attempt and latest successful generation or reuse.                       |
 | `last_error_sqlstate`, `last_error_message` | Latest failure, cleared after successful generation or reuse.                   |
+| `last_failure_reason`                     | Constrained public failure code, recorded once from structured worker error detail. |
 
 The table and worker are DB-administrator capabilities, unavailable to application
 roles. These read-only queries inspect progress and the schedule:
@@ -376,9 +377,12 @@ Not scheduled (no current SKU assignment and no report), and Not mature. A zero-
 counts as activity; No activity means the saved header's `component_count` is zero.
 
 `public.payout_readiness(p_month, p_company_ids, p_limit, p_offset)` reads only bounded company,
-refresh-state and report-header metadata. It does not scan financial history. Members can read only
-their own company's status and receive generic setup/source/processing reasons without raw worker
-errors or SKU identities. Administrators may expand a setup block using
+refresh-state and report-header metadata. It returns `eligible`, `mature`, `refresh_pending`,
+`failure_count`, `failure_reason`, `has_report`, `has_activity`, `last_success_at`, and `next_attempt_at`.
+The frontend derives the statuses above from these facts. The worker stores only the public
+failure codes `SETUP_REQUIRED`, `SOURCE_REQUIRED`, or `PROCESSING_FAILED`; reads do not parse error
+messages. Members receive only their own company's facts, without raw worker errors or SKU identities.
+Administrators may expand a setup block using
 `public.payout_setup_blockers(p_company_id, p_month, p_limit, p_offset)`. This on-demand query reuses
 the generator's authoritative month/source/ownership/fee rules and preserves zero-value components.
 It lists missing owner mappings or fee periods with affected dates and marketplaces. Configuration

@@ -8,6 +8,10 @@ Finance downloads write a local manifest. Successful preprocessing atomically ac
 metadata, batch membership and immutable transaction versions through `src/database/finances.py`.
 Data Kiosk and Inventory persist/load acquisitions through `src/database/acquisitions.py`. Each
 source owns its parser and `workflow.py`; company fees and saved payouts are separate calculations.
+Their typed repositories also own publication orchestration: `source_versions.py` saves complete
+Data Kiosk days and `inventory.py` replaces daily inventory captures. These repositories use direct
+SQL transactions, identity locks, and batch inserts. Archive/page validation remains in source
+models; database constraints and deferred triggers protect stored relationships and completeness.
 
 ## Configuration
 

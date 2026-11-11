@@ -87,11 +87,11 @@ test("historical fee versions and every linked-record reason block deletion even
 }, testInfo) => {
   const fixture = await start(page, (fixture) => {
     fixture.companyDeletionBlockers[UNUSED] = [
-      { code: "members", count: 2 },
-      { code: "assigned_skus", count: 3 },
-      { code: "terms_versions", count: 7 },
       { code: "payout_reports", count: 5 },
       { code: "payout_refreshes", count: 1 },
+      { code: "terms_versions", count: 7 },
+      { code: "assigned_skus", count: 3 },
+      { code: "members", count: 2 },
     ];
   });
   await askToDelete(page);
@@ -108,6 +108,13 @@ test("historical fee versions and every linked-record reason block deletion even
   ])
     await expect(error).toContainText(label);
   await expect(error).toContainText("7");
+  await expect(error.locator("li")).toHaveText([
+    "Members: 2",
+    "Assigned SKUs: 3",
+    "Fee versions (including history): 7",
+    "Payout reports: 5",
+    "Payout refreshes: 1",
+  ]);
   await expect(toggle(page)).toBeVisible();
   expect(fixture.companyNames[UNUSED]).toBe("Unused Company");
   expect(fixture.membershipRequests).toHaveLength(0);

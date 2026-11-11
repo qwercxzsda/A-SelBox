@@ -311,7 +311,7 @@ class LiveSourceModelTests(SourceModelFixture):
             initial,
         )
         partial = self.kiosk_acquisition(1, start="2026-06-15", end="2026-06-16")
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+        with self.assertRaises(ValueError), self.connection.transaction():
             self.kiosk(1, [], acquisition_id=partial)
         self.assertEqual(
             self.connection.execute(
@@ -319,13 +319,6 @@ class LiveSourceModelTests(SourceModelFixture):
             ).fetchone(),
             (0,),
         )
-
-    def test_null_scope_is_rejected(self) -> None:
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "select * from private.company_financial_totals("
-                "'seller','2026-06-01','2026-06-30','v0','{}','{}',null)"
-            )
 
     def test_authenticated_filtered_totals_exclude_other_companies(self) -> None:
         company, owner = self.owner()

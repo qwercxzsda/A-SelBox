@@ -16,17 +16,7 @@ begin
     ] loop
         execute format('create trigger immutable before update or delete on %s
 for each row execute function private.reject_mutation()', table_name);
-    end loop;
-end;
-$$;
-
-do $$
-declare table_name text;
-begin
-    foreach table_name in array array[
-        'public.skus', 'public.sku_terms_versions', 'public.sku_fee_periods'
-    ] loop
-        execute format('create trigger no_truncate before truncate on %s
+        execute format('create trigger immutable_truncate before truncate on %s
 for each statement execute function private.reject_mutation()', table_name);
     end loop;
 end;
@@ -176,9 +166,6 @@ begin
     if not found or chosen.sku_id <> new.id then
         raise exception 'Selected terms must belong to this SKU' using errcode = '23503';
     end if;
-    if chosen.fee_period_count <> (
-        select count(*) from public.sku_fee_periods where terms_version_id = chosen.id
-    ) then raise exception 'Selected terms have an incomplete fee inventory' using errcode = '23514'; end if;
     select version_number into previous_number from public.sku_terms_versions where id = old.current_terms_version_id;
     if previous_number is not null and chosen.version_number <= previous_number then
         raise exception 'Terms selection must advance through publication' using errcode = '23514';
@@ -218,19 +205,9 @@ do $$
 declare relation text;
 begin
     foreach relation in array array[
-        'private.finances_acquisitions', 'private.finances_preprocess_batches',
-        'private.finances_transactions', 'private.finances_transaction_versions',
-        'private.finances_transaction_components', 'private.finances_preprocess_batch_transactions',
-        'private.data_kiosk_acquisitions', 'private.data_kiosk_days',
-        'private.data_kiosk_preprocess_batches', 'private.data_kiosk_day_versions',
-        'private.data_kiosk_day_components', 'private.data_kiosk_preprocess_batch_days',
-        'private.inventory_acquisitions',
-        'public.company_payout_reports',
-        'private.payout_report_finances_versions', 'private.payout_report_data_kiosk_versions',
-        'private.payout_report_terms_versions'
+        'public.skus', 'private.finances_transactions', 'private.data_kiosk_days'
     ] loop
-        execute format('create trigger immutable_truncate
-before truncate on %s
+        execute format('create trigger immutable_truncate before truncate on %s
 for each statement execute function private.reject_mutation()', relation);
     end loop;
 end;

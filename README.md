@@ -85,10 +85,17 @@ not depend on database repositories or browser presentation rules. Workflow orch
 repositories only after source validation.
 
 PostgreSQL stores normalized facts, provenance, and immutable versions. Constraints provide a
-second integrity check. Atomic publication, concurrency checks, authorization, current-version
-selection, and financial aggregation belong here. Database objects do not define UI priorities,
-colors, display names, or catalogs of fixed source categories. Operational payout status and
-saved input manifests remain database facts; their wording and visual treatment belong to the UI.
+second integrity check. Python repositories drive source publication transactions using database
+locks, unique keys, foreign keys, and deferred integrity guards. Authorization, current-version
+selection, financial aggregation, and atomic payout generation remain database responsibilities.
+Database objects do not repeat source-model validation or define UI priorities, colors, display
+names, or catalogs of fixed source categories. Operational payout facts and sanitized failure codes
+remain database values; the frontend derives readiness statuses and their visual treatment.
+
+Python repository inputs are trusted after source-model validation. Frontend REST/RPC requests
+are untrusted: public endpoints enforce authorization, payload shape, bounds, references, and
+stale-write checks on the server. Frontend validation provides feedback and cannot grant access
+or establish write integrity. Internal source writers are unavailable through REST.
 
 The frontend owns constant option lists, labels, colors, urgency ordering, search, and display
 pagination. Its inventory constants match the preprocessing vocabulary through contract tests;

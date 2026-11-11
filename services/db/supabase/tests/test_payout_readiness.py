@@ -10,10 +10,11 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 class PayoutReadinessTests(SourceModelFixture):
-    def statuses(self, user: str, company: str | None = None) -> list[tuple[object, ...]]:
+    def facts(self, user: str, company: str | None = None) -> list[tuple[object, ...]]:
         return self.as_user(
             user,
-            "select company_id::text,status,reason,has_report from public.payout_readiness("
+            "select company_id::text,eligible,mature,refresh_pending,failure_count,failure_reason,"
+            "has_report,has_activity from public.payout_readiness("
             "'2026-06-01',%s::uuid[],100,0) order by company_id",
             (None if company is None else [company],),
         )
@@ -29,15 +30,18 @@ class PayoutReadinessTests(SourceModelFixture):
         )
         self.connection.execute(
             "insert into private.payout_report_refresh_state(company_id,month,failure_count,"
-            "last_error_sqlstate,last_error_message) values(%s,'2026-06-01',1,'23514',%s)",
+            "last_error_sqlstate,last_error_message,last_failure_reason) "
+            "values(%s,'2026-06-01',1,'23514',%s,'SETUP_REQUIRED')",
             (company, "Unresolved ownership SECRET-OTHER-SKU"),
         )
-        self.assertEqual(self.statuses(member), [(company, "BLOCKED", "SETUP_REQUIRED", False)])
-        self.assertEqual(len(self.statuses(administrator)), 2)
+        self.assertEqual(
+            self.facts(member), [(company, True, True, True, 1, "SETUP_REQUIRED", False, False)]
+        )
+        self.assertEqual(len(self.facts(administrator)), 2)
         with self.assertRaises(InsufficientPrivilege):
-            self.statuses(member, other)
+            self.facts(member, other)
         with self.assertRaises(InsufficientPrivilege):
-            self.statuses(unassigned)
+            self.facts(unassigned)
         with self.assertRaises(InsufficientPrivilege):
             self.as_user(member, "select * from private.payout_report_refresh_state")
         with self.assertRaises(InsufficientPrivilege):
@@ -54,20 +58,22 @@ class PayoutReadinessTests(SourceModelFixture):
             (False, False),
         )
 
-    def test_pending_complete_empty_and_update_states_follow_existing_worker(self) -> None:
+    def test_readiness_returns_worker_facts_without_classifying_display_status(self) -> None:
         inputs = prepare_payout(self)
         empty_company, _ = self.owner("NO-SALES")
         administrator = self.administrator()
         self.assertEqual(
-            self.statuses(administrator, inputs.company), [(inputs.company, "PENDING", None, False)]
+            self.facts(administrator, inputs.company),
+            [(inputs.company, True, True, True, 0, None, False, False)],
         )
         refresh_payout_reports(self)
         self.assertEqual(
-            self.statuses(administrator, inputs.company), [(inputs.company, "COMPLETE", None, True)]
+            self.facts(administrator, inputs.company),
+            [(inputs.company, True, True, False, 0, None, True, True)],
         )
         self.assertEqual(
-            self.statuses(administrator, empty_company),
-            [(empty_company, "NO_ACTIVITY", None, True)],
+            self.facts(administrator, empty_company),
+            [(empty_company, True, True, False, 0, None, True, False)],
         )
         before = self.connection.execute(
             "select count(*),sum(company_amount) from public.company_payout_reports"
@@ -79,7 +85,8 @@ class PayoutReadinessTests(SourceModelFixture):
             (inputs.company,),
         )
         self.assertEqual(
-            self.statuses(administrator, inputs.company), [(inputs.company, "UPDATING", None, True)]
+            self.facts(administrator, inputs.company),
+            [(inputs.company, True, True, True, 0, None, True, True)],
         )
         self.assertEqual(
             self.connection.execute(
@@ -90,10 +97,10 @@ class PayoutReadinessTests(SourceModelFixture):
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select status from public.payout_readiness('2026-07-01',array[%s::uuid])",
+                "select mature from public.payout_readiness('2026-07-01',array[%s::uuid])",
                 (inputs.company,),
             ),
-            [("IMMATURE",)],
+            [(False,)],
         )
 
     def test_stale_failure_does_not_keep_setup_blocked_after_a_new_request(self) -> None:
@@ -102,19 +109,19 @@ class PayoutReadinessTests(SourceModelFixture):
         administrator = self.administrator()
         self.connection.execute(
             "insert into private.payout_report_refresh_state(company_id,month,failure_count,"
-            "last_error_sqlstate,last_error_message) values(%s,'2026-06-01',2,'23514',"
-            "'Unresolved ownership or fee coverage prevents a complete payout report')",
+            "last_error_sqlstate,last_error_message,last_failure_reason) "
+            "values(%s,'2026-06-01',2,'23514',"
+            "'Unresolved ownership or fee coverage prevents a complete payout report',"
+            "'SETUP_REQUIRED')",
             (company,),
         )
-        self.assertEqual(
-            self.statuses(administrator, company)[0][1:3], ("BLOCKED", "SETUP_REQUIRED")
-        )
+        self.assertEqual(self.facts(administrator, company)[0][3:6], (True, 2, "SETUP_REQUIRED"))
         self.connection.execute(
             "select private.request_payout_report_refresh("
             "array[date '2026-06-01'],array[%s::uuid])",
             (company,),
         )
-        self.assertEqual(self.statuses(administrator, company)[0][1:3], ("PENDING", None))
+        self.assertEqual(self.facts(administrator, company)[0][3:6], (True, 0, "SETUP_REQUIRED"))
 
     def test_blockers_are_scoped_to_month_and_company_authority_including_zero(self) -> None:
         self.set_mature_cutoff_date(date(2026, 8, 1))
@@ -225,7 +232,8 @@ class PayoutReadinessTests(SourceModelFixture):
         self.assertEqual(revision(other_member), other_before)
         self.connection.execute(
             "update private.payout_report_refresh_state set failure_count=1,"
-            "last_error_sqlstate='23514',last_error_message='Unresolved ownership' "
+            "last_error_sqlstate='23514',last_error_message='Unresolved ownership',"
+            "last_failure_reason='SETUP_REQUIRED' "
             "where company_id=%s",
             (company,),
         )

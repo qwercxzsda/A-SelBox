@@ -1,5 +1,6 @@
 """Raw-amount ordering is bounded after visibility, filters, and literal search."""
 
+import json
 from itertools import product
 from typing import cast
 
@@ -10,10 +11,7 @@ from services.db.supabase.tests import test_transaction_count as count_fixture
 from services.db.supabase.tests import test_transaction_page as page_fixture
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
-_AMOUNT_SCOPE_MESSAGE = (
-    "Amount ordering is limited to 10,000 matching transactions. "
-    "Narrow your filters or order by date."
-)
+_AMOUNT_SCOPE_DETAILS = {"code": "AMOUNT_ORDER_LIMIT", "limit": 10000}
 
 
 class AmountOrderingScopeTests(SourceModelFixture):
@@ -56,7 +54,10 @@ class AmountOrderingScopeTests(SourceModelFixture):
                             self.live_page(administrator, p_sources=[dataset.upper()], **options)
                         else:
                             self.source_page(administrator, dataset, **options)
-                    self.assertEqual(raised.exception.diag.message_primary, _AMOUNT_SCOPE_MESSAGE)
+                    self.assertEqual(
+                        json.loads(raised.exception.diag.message_detail or "{}"),
+                        _AMOUNT_SCOPE_DETAILS,
+                    )
                 # Exact 10,000-row membership is accepted; another company's
                 # visible row cannot consume this member's sort budget.
                 with self.assertRaises(psycopg.errors.InsufficientPrivilege):
@@ -153,4 +154,6 @@ class AmountOrderingScopeTests(SourceModelFixture):
         )
         with self.assertRaises(psycopg.errors.InvalidParameterValue) as raised:
             self.live_page(administrator, p_order_by="amount")
-        self.assertEqual(raised.exception.diag.message_primary, _AMOUNT_SCOPE_MESSAGE)
+        self.assertEqual(
+            json.loads(raised.exception.diag.message_detail or "{}"), _AMOUNT_SCOPE_DETAILS
+        )

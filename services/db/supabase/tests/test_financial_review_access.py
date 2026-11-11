@@ -7,7 +7,7 @@ from typing import LiteralString, cast
 import psycopg
 from psycopg.errors import InvalidParameterValue
 
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture, kiosk_timestamp
 
 
 class FinancialReviewAccessTests(SourceModelFixture):
@@ -395,10 +395,8 @@ class FinancialReviewAccessTests(SourceModelFixture):
             ("Amazon.de", "A1PA6795UKMFR9", "90.123456780"),
             ("Amazon.fr", "A13V1IB3VIYZZH", "18.123456780"),
         ):
-            self.call(
-                "publish_data_kiosk_preprocess",
+            self.publish_kiosk_days(
                 {
-                    "id": new_id(),
                     "acquisition_id": self.kiosk_acquisition(
                         1, marketplace_id=identifier, amazon_scope="EU"
                     ),
@@ -406,7 +404,6 @@ class FinancialReviewAccessTests(SourceModelFixture):
                     "dataset_key": "economics",
                     "days": [
                         {
-                            "id": new_id(),
                             "marketplace_name": market,
                             "activity_date": "2026-06-15",
                             "activity_at": kiosk_timestamp("2026-06-15", market),
@@ -470,15 +467,23 @@ class FinancialReviewAccessTests(SourceModelFixture):
                 )
 
     def test_marketplace_cannot_be_inferred_or_widened(self) -> None:
+        self.finances([self.transaction("4")])
         administrator = self.administrator()
-        for market in (None, "", "Germany", "Amazon.de,Amazon.fr", "Amazon.de' or true--"):
-            for query in (
-                "select public.current_source_totals('2026-06-01','2026-06-30',%s)",
-                "select * from public.financial_review_type_totals("
-                "'2026-06-01','2026-07-01','FINANCES','EUR',%s)",
-            ):
-                with self.subTest(market=market), self.assertRaises(InvalidParameterValue):
-                    self.as_user(administrator, query, (market,))
+        totals_query = "select public.current_source_totals('2026-06-01','2026-06-30',%s)"
+        types_query = (
+            "select * from public.financial_review_type_totals("
+            "'2026-06-01','2026-07-01','FINANCES','USD',%s)"
+        )
+        for query in (totals_query, types_query):
+            with self.assertRaises(InvalidParameterValue):
+                self.as_user(administrator, query, (None,))
+        for market in ("", "Germany", "Amazon.de,Amazon.fr", "Amazon.de' or true--"):
+            with self.subTest(market=market):
+                result = cast(
+                    dict[str, object], self.as_user(administrator, totals_query, (market,))[0][0]
+                )
+                self.assertEqual(result["rows"], [])
+                self.assertEqual(self.as_user(administrator, types_query, (market,)), [])
 
     def test_zero_source_rows_are_retained_without_inventing_empty_categories(self) -> None:
         self.finances(

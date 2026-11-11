@@ -353,5 +353,7 @@ class SourceTransactionPageTests(SourceModelFixture):
                 self.assertRaises(psycopg.errors.InvalidParameterValue),
             ):
                 self.page(administrator, "finances", **options)
-        with self.assertRaises(psycopg.errors.InvalidParameterValue):
-            self.page(administrator, "data_kiosk", p_marketplaces=["Unknown marketplace"])
+        self.assertEqual(
+            self.page(administrator, "data_kiosk", p_marketplaces=["Unknown marketplace"]),
+            {"rows": [], "total_count": "0"},
+        )

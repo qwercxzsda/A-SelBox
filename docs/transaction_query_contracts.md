@@ -32,9 +32,10 @@ Date bounds are inclusive, finite calendar dates in the RPC's declared date basi
 end. Selection arrays are one-dimensional and cannot contain null members. Omitted, null, or empty
 arrays mean no ordinary selection restriction. Search arrays have separate NULL/empty semantics
 described below. Marketplace arguments use `text[]`; clients send JSON string
-arrays. The shared validator rejects unsupported names, including mixed valid/invalid selections,
-with SQLSTATE `22023`. Stored marketplace names have `CHECK` constraints preserving the same
-marketplace vocabulary validated by Python. Optional scalar nulls retain their existing meaning.
+arrays. The database validates array structure; unrecognized names simply match no stored rows.
+The frontend owns the supported filter catalog, while stored marketplace names have `CHECK`
+constraints preserving the vocabulary validated by preprocessing. Optional scalar nulls retain
+their existing meaning.
 
 Row amounts, quantities, rates, aggregate sums, and counts are exact decimal strings in RPC JSON.
 Unknown financial amounts remain null. Explicit zero amounts and rates remain zero. Currency groups
@@ -115,23 +116,18 @@ complete matching set, selects the page, and resolves its fees. Pagination offse
 limit. When requested, the amount page's exact count reuses the bounded candidate count. Date
 ordering and the separate count RPC remain uncapped. No amount-ordering indexes are needed.
 
-Overflow raises SQLSTATE `22023` (HTTP 400), with the fixed message:
-`Amount ordering is limited to 10,000 matching transactions. Narrow your filters or order by date.`
-The frontend recognizes only that allowlisted error, explains how to narrow the result, and offers
+Overflow raises SQLSTATE `22023` (HTTP 400), with JSON `DETAIL`
+`{"code":"AMOUNT_ORDER_LIMIT","limit":10000}`. The frontend recognizes that structured code,
+owns the user-facing explanation, and offers
 Date ordering. A known exact count above the limit disables amount choices; the server remains
 responsible for enforcing the cap when the count is unknown or stale.
 
-The fee-applicability filter uses source Type codes before paging/counting: Finances activity components
-in the Finances category with type
-`PRODUCT_SALES` and `PRODUCT_REFUNDS`, and Data Kiosk `NET_PRODUCT_SALES`. The negative filter
-also includes retained account rows. Explicit Type selections intersect this filter; they
-do not replace it. These direct comparisons expose the existing `(component_type, date)` indexes.
-
-Applicability is independent of configuration: a zero base, zero rate, missing ownership, or missing
-configured rate does not change a transaction's Type. Current preprocessing maps these Types to the
-existing fee-base rules. Calculations use each source's explicit signed `fee_base`; Finances normalizes
-reviewed native product principal paths before publication. The filter treats Type as authoritative if trusted direct SQL supplies
-inconsistent fields; it does not rewrite a base or fabricate a configured rate.
+Preprocessing determines fee applicability and stores its exact signed `fee_base`. Transaction
+pages, counts, and totals use `fee_base IS NOT NULL`; they do not reclassify source Type names.
+The negative filter includes non-applicable account rows. Explicit Type selections intersect
+this filter. A zero base is applicable, while a null base is not. Missing ownership or a missing
+configured rate affects resolution, not applicability. Finances preprocessing derives the base
+from reviewed native product principal paths before publication.
 
 ## Raw source pages
 
@@ -226,7 +222,7 @@ All search arrays null or omitted means no search. Supplying any search array ac
 empty arrays contribute no matches. Thus an active search with all empty arrays returns zero rows
 and count zero, not an unrestricted read. Page and count requests use identical resolved arrays.
 The API client rejects unresolved active searches and malformed arrays before sending a request.
-The database validates array shape and members, then performs exact comparisons before paging or
+The database validates array shape and nonnull members, then performs exact comparisons before paging or
 the amount-sort cap.
 
 Company SKUs come from loaded current assignments. Administrators preload the complete

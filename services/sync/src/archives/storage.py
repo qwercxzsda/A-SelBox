@@ -9,12 +9,10 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 
-from .models import ArchivedDocument, archive_path
+from .models import SOURCE_ARCHIVE_BUCKET, ArchivedDocument, archive_path
 
 if TYPE_CHECKING:
     from .acquisition_logging import AcquisitionLog
-
-SOURCE_ARCHIVE_BUCKET = "source-archives"
 
 
 class ArchiveIntegrityError(ValueError):

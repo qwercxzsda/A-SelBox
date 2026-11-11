@@ -133,7 +133,7 @@ class PublicationInventoryTests(SourceModelFixture):
             (0,),
         )
         invalid_component = self.component() | {"amount": "NaN"}
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
+        with self.assertRaises(ValueError), self.connection.transaction():
             self.kiosk(1, [self.component(), invalid_component])
         self.assertEqual(
             self.connection.execute(

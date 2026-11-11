@@ -67,16 +67,8 @@ begin
         or array_position(p_types, null) is not null then
         raise exception 'Selection filters must not contain null values' using errcode = '22023';
     end if;
-    if p_marketplaces is not null and not (p_marketplaces <@ array[
-        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
-        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
-    ]::text[]) then
-        raise exception 'Unsupported marketplace selection' using errcode = '22023';
-    end if;
+    -- Filters compare stored facts. Source vocabularies belong to preprocessing
+    -- and table constraints; an unmatched filter value simply selects no rows.
 end;
 $$;
 

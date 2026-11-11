@@ -70,8 +70,8 @@ class FinancialSourceLookupTests(SourceModelFixture):
         self.assertEqual(len(rows), 2)
         self.assertTrue(all(row["activity_at"] == "2026-06-15T12:00:00.000000Z" for row in rows))
         self.assertEqual(
-            {(row["version_id"], row["capture_status"], row["amount"]) for row in rows},
-            {(old, "Retained", "4.100000001"), (current, "Current", "4.100000002")},
+            {(row["version_id"], row["is_current"], row["amount"]) for row in rows},
+            {(old, "false", "4.100000001"), (current, "true", "4.100000002")},
         )
         for offset in range(2):
             page = self.as_user(

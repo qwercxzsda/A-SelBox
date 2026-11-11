@@ -19,7 +19,7 @@ function sourceRow(index = 0, nativeId = transaction) {
     version_id: versionId,
     sku: `RETAINED-${String(index).padStart(2, "0")}`,
     native_transaction_id: nativeId,
-    capture_status: index ? "Retained" : "Current",
+    is_current: index ? "false" : "true",
     activity_eligible: "true",
     amount: "4.10",
     quantity: "1",

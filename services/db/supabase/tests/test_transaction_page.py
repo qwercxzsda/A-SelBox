@@ -310,7 +310,7 @@ class TransactionPageTests(TransactionPageFixture):
             self.assertEqual(Decimal(cast(str, row["fee_rate_percent"])), 0)
             self.assertEqual(Decimal(cast(str, row["fee_amount"])), 0)
 
-    def test_fee_type_filter_is_source_specific_without_changing_financial_values(self) -> None:
+    def test_fee_filter_uses_normalized_bases_without_reclassifying_source_types(self) -> None:
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         finances_rows = [
@@ -326,9 +326,11 @@ class TransactionPageTests(TransactionPageFixture):
         ]
         self.finances(finances_rows)
         self.kiosk(1, kiosk_rows, activity_date=self.current_activity_date())
-        # Finance inputs satisfy preprocessing rules. Similarly named types from
-        # the other source still use that source's fee-applicability definition.
-        applicable_ids = {row["id"] for row in [*finances_rows[1:], kiosk_rows[1]]}
+        # Type names do not assign fee applicability during reads. The source
+        # interpretation is already represented by each normalized fee base.
+        applicable_ids = {
+            row["id"] for row in [*finances_rows, *kiosk_rows] if row["fee_base"] is not None
+        }
         all_ids = {row["id"] for row in [*finances_rows, *kiosk_rows]}
         for user in (self.administrator(), self.member(company), self.auth_user()):
             for direction in ("asc", "desc"):
@@ -362,9 +364,9 @@ class TransactionPageTests(TransactionPageFixture):
         member = self.member(company)
         for applicable, source, type_name in (
             (True, "FINANCES", "NET_PRODUCT_SALES"),
-            (True, "DATA_KIOSK", "PRODUCT_SALES"),
+            (False, "DATA_KIOSK", "PRODUCT_SALES"),
             (False, "FINANCES", "PRODUCT_SALES"),
-            (False, "DATA_KIOSK", "NET_PRODUCT_SALES"),
+            (True, "DATA_KIOSK", "NET_PRODUCT_SALES"),
         ):
             page = self.page(
                 member, p_fee_applicable=applicable, p_sources=[source], p_types=[type_name]

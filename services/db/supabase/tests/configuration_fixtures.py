@@ -75,24 +75,24 @@ class ConfigurationFixture(FinancialFixture):
     def assert_invalid(
         self, user: str, changes: object, reason: str = "Invalid configuration regression"
     ) -> None:
-        self._assert_rejected(user, changes, "Invalid SKU configuration", reason)
+        self._assert_rejected(user, changes, "SKU_CONFIGURATION_INVALID", reason)
 
     def assert_incomplete(self, user: str, changes: object) -> list[ConfigurationIssue]:
         error = self._assert_rejected(
-            user, changes, "SKU configuration is incomplete", "Changed SKU completeness regression"
+            user, changes, "SKU_CONFIGURATION_INCOMPLETE", "Changed SKU completeness regression"
         )
         detail = json.loads(error.diag.message_detail or "{}")
-        self.assertEqual(set(detail), {"issues"})
+        self.assertEqual(set(detail), {"code", "issues"})
         self.assertTrue(detail["issues"])
         return cast(list[ConfigurationIssue], detail["issues"])
 
     def _assert_rejected(
-        self, user: str, changes: object, message: str, reason: str
+        self, user: str, changes: object, code: str, reason: str
     ) -> psycopg.errors.CheckViolation:
         before = self.configuration_state()
         with self.assertRaises(psycopg.errors.CheckViolation) as error:
             self.save(user, changes, reason)
-        self.assertEqual(error.exception.diag.message_primary, message)
+        self.assertEqual(json.loads(error.exception.diag.message_detail or "{}")["code"], code)
         self.assertEqual(self.configuration_state(), before)
         return error.exception
 

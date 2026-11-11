@@ -11,8 +11,8 @@
 -- Revalidate this optimization whenever the authenticated fact policies change.
 -- The count helper remains a full matching-row count; it is intentionally not
 -- replaced with the number of limited candidates. Both execute in one snapshot.
--- Applicability filters use source-specific Type codes and existing Type/date
--- indexes; the page's fee bases and rate calculations retain their source rules.
+-- Applicability filters read normalized fee bases; source type classification
+-- is completed before publication.
 create function public.transaction_page(
     p_limit integer default 25,
     p_offset bigint default 0,
@@ -165,7 +165,7 @@ begin
                         or t.component_type = any($7))
                     and (
                         $12::boolean is null
-                        or (t.category = 'FINANCES' and t.component_type in ('PRODUCT_SALES', 'PRODUCT_REFUNDS')) = $12
+                        or (t.fee_base is not null) = $12
                     )
                     and (
                         ($13::text[] is null and $14::text[] is null
@@ -223,7 +223,7 @@ begin
                         or 'DATA_KIOSK'::text = any($6))
                     and (coalesce(cardinality($7::text[]), 0) = 0
                         or t.component_type = any($7))
-                    and ($12::boolean is null or (t.component_type = 'NET_PRODUCT_SALES') = $12)
+                    and ($12::boolean is null or (t.fee_base is not null) = $12)
                     and (
                         ($13::text[] is null and $14::text[] is null
                             and $15::text[] is null and $16::text[] is null)
@@ -345,8 +345,9 @@ begin
         p_fee_applicable, p_search_skus, p_search_types, p_search_marketplaces, p_search_sources,
         p_order_by = 'amount', p_currency, p_include_selbox;
     if result is null then
-        raise exception 'Amount ordering is limited to 10,000 matching transactions. Narrow your filters or order by date.'
-            using errcode = '22023';
+        raise exception 'Amount ordering exceeds the row limit'
+            using errcode = '22023',
+                detail = '{"code":"AMOUNT_ORDER_LIMIT","limit":10000}';
     end if;
     return result;
 end;

@@ -14,6 +14,7 @@ const REASON_LABELS: Record<CompanyDeletionReason["code"], string> = {
   payout_refreshes: "Payout refreshes",
   other_records: "Other linked records",
 };
+const REASON_ORDER = Object.keys(REASON_LABELS);
 
 function deletionError(error: unknown): string {
   if (error instanceof ApiError && error.status === 403)
@@ -87,12 +88,17 @@ export function DeleteCompanyControl({
           >
             <Text size="sm">The company still has these linked records:</Text>
             <ul className="company-deletion-reasons">
-              {problem.reasons.map(({ code, count }) => (
-                <li key={code}>
-                  {REASON_LABELS[code]}: {code === "other_records" ? "at least " : ""}
-                  {count.toLocaleString("en-US")}
-                </li>
-              ))}
+              {problem.reasons
+                .toSorted(
+                  (left, right) =>
+                    REASON_ORDER.indexOf(left.code) - REASON_ORDER.indexOf(right.code),
+                )
+                .map(({ code, count }) => (
+                  <li key={code}>
+                    {REASON_LABELS[code]}: {code === "other_records" ? "at least " : ""}
+                    {count.toLocaleString("en-US")}
+                  </li>
+                ))}
             </ul>
             <Text size="sm">No records were deleted or unassigned.</Text>
           </Alert>

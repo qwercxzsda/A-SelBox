@@ -4,9 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 import psycopg
 from psycopg.conninfo import make_conninfo
-from psycopg.types.json import Jsonb
 
 from services.db.supabase.tests.concurrency_support import wait_for_block
+from services.db.supabase.tests.integration_support import TransactionDatabase
 from services.db.supabase.tests.local_database import DEFAULT_DATABASE_URL, require_row
 from services.db.supabase.tests.source_fixtures import (
     SourceModelFixture,
@@ -14,6 +14,7 @@ from services.db.supabase.tests.source_fixtures import (
     kiosk_timestamp,
     new_id,
 )
+from services.db.supabase.tests.source_kiosk import publish_kiosk_fixture
 
 
 class DataKioskVersionTests(SourceModelFixture):
@@ -25,13 +26,11 @@ class DataKioskVersionTests(SourceModelFixture):
 
         def payload(acquisition: str, days: tuple[str, ...]) -> dict[str, object]:
             return {
-                "id": new_id(),
                 "acquisition_id": acquisition,
                 "preprocess_version": "v0",
                 "dataset_key": "economics",
                 "days": [
                     {
-                        "id": new_id(),
                         "marketplace_name": "Amazon.com",
                         "activity_date": day,
                         "activity_at": kiosk_timestamp(day),
@@ -53,18 +52,15 @@ class DataKioskVersionTests(SourceModelFixture):
             ThreadPoolExecutor(max_workers=1) as executor,
         ):
             winner.execute("set statement_timeout='10s'")
-            winner.execute(
-                "select private.publish_data_kiosk_preprocess(%s::jsonb)",
-                (Jsonb(payload(first_acquisition, dates)),),
-            )
+            publish_kiosk_fixture(TransactionDatabase(winner), payload(first_acquisition, dates))
 
             def stale_worker() -> str:
                 with psycopg.connect(database_url, application_name="stale-kiosk-worker") as worker:
                     worker.execute("set statement_timeout='10s'")
                     try:
-                        worker.execute(
-                            "select private.publish_data_kiosk_preprocess(%s::jsonb)",
-                            (Jsonb(payload(second_acquisition, tuple(reversed(dates)))),),
+                        publish_kiosk_fixture(
+                            TransactionDatabase(worker),
+                            payload(second_acquisition, tuple(reversed(dates))),
                         )
                     except psycopg.errors.SerializationFailure:
                         return "stale observation rejected"
@@ -142,16 +138,13 @@ class DataKioskVersionTests(SourceModelFixture):
                 self.assertRaises(psycopg.errors.SerializationFailure),
                 self.connection.transaction(),
             ):
-                self.call(
-                    "publish_data_kiosk_preprocess",
+                self.publish_kiosk_days(
                     {
-                        "id": new_id(),
                         "acquisition_id": acquisition,
                         "preprocess_version": "v0",
                         "dataset_key": "economics",
                         "days": [
                             {
-                                "id": new_id(),
                                 "marketplace_name": "Amazon.com",
                                 "activity_date": "2026-06-15",
                                 "activity_at": kiosk_timestamp("2026-06-15"),

@@ -38,7 +38,7 @@ create function private.publish_company_payout_report(p_payload jsonb) returns u
 language plpgsql set search_path = '' as $$
 declare report_input public.company_payout_reports;
     finances_versions uuid[]; kiosk_versions uuid[]; terms_versions uuid[]; used_terms uuid[];
-    existing_report_id uuid; seller_namespaces text[]; has_amounts boolean; unresolved boolean;
+    existing_report_id uuid; seller_namespaces text[]; aggregate record;
 begin
     perform private.require_read_committed();
     if jsonb_typeof(p_payload) is distinct from 'object' then
@@ -99,43 +99,25 @@ begin
         );
     -- Resolve once, then retain only aggregate amounts, input IDs and validation
     -- results. Detail rows remain in their immutable source versions.
-    with resolved as materialized (
-        select c.* from private.resolve_company_components(finances_versions,kiosk_versions,terms_versions) c
-        where c.seller_namespace = any(seller_namespaces)
-          and c.category <> 'SELBOX'
-          and (c.authoritative or (c.source = 'DATA_KIOSK' and c.company_id is not null))
-          and c.activity_date between report_input.start_date and report_input.end_date
-    ), scoped as (
-        select c.* from resolved c
-        where c.company_id = report_input.company_id and c.currency = report_input.currency
-            and c.marketplace_name is not distinct from report_input.marketplace_name
-    ) select
-        exists(select 1 from resolved where authoritative and company_id = report_input.company_id
-            and marketplace_name is not distinct from report_input.marketplace_name
-            and (report_input.currency is null or currency = report_input.currency)),
-        exists(select 1 from resolved where authoritative and (company_id is null
-            or (company_id = report_input.company_id and currency = report_input.currency
-                and marketplace_name is not distinct from report_input.marketplace_name
-                and resolution_status not in ('APPLIED','NOT_APPLICABLE')))),
-        (select coalesce(array_agg(distinct terms_version_id),'{}'::uuid[]) from resolved),
-        count(*)::integer,
-        coalesce(sum(source_amount) filter (where authoritative),0),
-        coalesce(sum(fee_amount) filter (where authoritative),0),
-        coalesce(sum(company_amount) filter (where authoritative),0)
-    into has_amounts,unresolved,used_terms,report_input.component_count,
-        report_input.source_amount,report_input.fee_amount,report_input.company_amount
-    from scoped;
-    if unresolved then
-        raise exception 'Unresolved ownership or fee coverage prevents a complete payout report' using errcode = '23514';
+    select * into aggregate from private.payout_report_aggregate(
+        report_input,finances_versions,kiosk_versions,terms_versions);
+    used_terms := aggregate.terms_version_ids;
+    report_input.component_count := aggregate.component_count;
+    report_input.source_amount := aggregate.source_amount;
+    report_input.fee_amount := aggregate.fee_amount;
+    report_input.company_amount := aggregate.company_amount;
+    if aggregate.unresolved then
+        raise exception 'Unresolved ownership or fee coverage prevents a complete payout report'
+            using errcode = '23514', detail = 'SETUP_REQUIRED';
     end if;
-    if report_input.currency is null and has_amounts then
+    if report_input.currency is null and aggregate.has_amounts then
         raise exception 'Company amounts require a currency scope' using errcode = '23514';
     end if;
     report_input.source_coverage:=private.payout_source_coverage(
         seller_namespaces,report_input.start_date,report_input.end_date,
-        report_input.marketplace_name,finances_versions,has_amounts);
-    perform private.assert_payout_sources(report_input,finances_versions,kiosk_versions,has_amounts);
-    if not has_amounts then used_terms:=terms_versions; end if;
+        report_input.marketplace_name,finances_versions,aggregate.has_amounts);
+    perform private.assert_payout_sources(report_input,finances_versions,kiosk_versions,aggregate.has_amounts);
+    if not aggregate.has_amounts then used_terms:=terms_versions; end if;
     existing_report_id := private.matching_latest_payout_report(
         report_input,finances_versions,kiosk_versions,used_terms);
     if existing_report_id is not null then

@@ -2,6 +2,7 @@
 
 import json
 from typing import cast
+from uuid import uuid7
 
 import httpx
 
@@ -139,7 +140,7 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         stale = self.publish(administrator, changes)
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(stale.json()["code"], "PT409")
-        self.assertEqual(stale.json()["message"], "SKU configuration changed while editing")
+        self.assertEqual(json.loads(stale.json()["details"]), {"code": "SKU_CONFIGURATION_STALE"})
         self.import_source(self.seller + "-future", future)
         self.assertTrue(
             next(item for item in self.configuration(administrator) if item["sku"] == future)[
@@ -160,3 +161,56 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         self.assertEqual(repaired.status_code, 200)
         self.assertTrue(all(not item["issues"] for item in self.configuration(administrator)))
         self.assertEqual({item["sku"] for item in self.configuration(member)}, {shared, future})
+
+    def test_untrusted_rest_shapes_casts_and_constraints_cannot_partially_publish(self) -> None:
+        company = create_company(self.database, "Untrusted configuration input")
+        _, administrator = self.create_administrator()
+        first = self.change(fixture_sku(self.seller) + "-A", company)
+        last = self.change(fixture_sku(self.seller) + "-Z", company)
+        period = cast(list[dict[str, object]], last["periods"])[0]
+        invalid: list[object] = [None, [], {}, [None], [first, first]]
+        invalid.extend(
+            [first, {key: value for key, value in last.items() if key != missing}]
+            for missing in ("company_id", "expected_current_version_id", "periods")
+        )
+        invalid.extend(
+            [first, last | fields]
+            for fields in (
+                {"sku_id": str(uuid7())},
+                {"company_id": str(uuid7())},
+                {"expected_current_version_id": "invalid-uuid"},
+                {"sku": " "},
+            )
+        )
+        invalid.extend(
+            [first, last | {"periods": [period | fields]}]
+            for fields in (
+                {"fee_rate_percent": "NaN"},
+                {"fee_rate_percent": "Infinity"},
+                {"fee_rate_percent": "not-numeric"},
+                {"fee_rate_percent": "-1"},
+                {"fee_rate_percent": "100.000001"},
+                {"fee_rate_percent": "5.0000000"},
+                {"fee_rate_percent": 5},
+                {"fee_rate_percent": True},
+                {"valid_from": "2026-02-30"},
+                {"valid_from": "infinity"},
+                {"valid_to": "2026-01-01"},
+                {"marketplace_name": "unknown"},
+            )
+        )
+        before = self.configuration(administrator)
+        for payload in invalid:
+            with self.subTest(payload=payload):
+                response = self.stack.request(
+                    "POST",
+                    "/rest/v1/rpc/publish_sku_configuration",
+                    token=administrator,
+                    json={"p_changes": payload, "p_change_reason": "Untrusted REST input"},
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["code"], "23514")
+                self.assertEqual(
+                    json.loads(response.json()["details"]), {"code": "SKU_CONFIGURATION_INVALID"}
+                )
+                self.assertEqual(self.configuration(administrator), before)

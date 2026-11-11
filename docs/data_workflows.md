@@ -99,9 +99,10 @@ without a second timezone catalog or source-normalization function.
 
 Python validates Amazon acquisition metadata, successful processing status, document identity,
 and complete pagination before publication and again when constructing archived acquisition
-models for replay. SQL stores that raw metadata as evidence without interpreting Amazon API
-fields. Its publisher enforces normalized manifest structure, unique identities, and atomic
-idempotent writes. Seller-namespace validation lives in the source domain rather than a database
+models for replay. PostgreSQL stores that metadata as evidence without walking its archive/page
+JSON. Python repositories perform idempotent acquisition writes and complete-day publication in
+one transaction, with database identity locks, constraints, and immutable-child guards.
+Seller-namespace validation lives in the source domain rather than a database
 repository, so acquisition and preprocessing models do not import persistence helpers.
 
 Validate `netProductSales = orderedProductSales - refundedProductSales` and

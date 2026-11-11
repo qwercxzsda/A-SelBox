@@ -46,7 +46,7 @@ class PayoutRevisionSelectionTests(SourceModelFixture):
         days = [
             row[0]
             for row in self.connection.execute(
-                "select jsonb_build_object('id',private.uuid7(),"
+                "select jsonb_build_object("
                 "'activity_date',d.activity_date,'marketplace_name',d.marketplace_name,"
                 "'activity_at',v.activity_at,"
                 "'expected_current_version_id',d.current_version_id,"
@@ -58,10 +58,8 @@ class PayoutRevisionSelectionTests(SourceModelFixture):
                 "on v.id=d.current_version_id order by d.activity_date"
             ).fetchall()
         ]
-        self.call(
-            "publish_data_kiosk_preprocess",
+        self.publish_kiosk_days(
             {
-                "id": new_id(),
                 "acquisition_id": acquisition,
                 "preprocess_version": "v1",
                 "dataset_key": "economics",

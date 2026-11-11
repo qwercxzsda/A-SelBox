@@ -150,15 +150,17 @@ class MarketplaceContractTests(SourceModelFixture):
                 validate_marketplace_name(name)
             with (
                 self.subTest(financial_marketplace=name),
-                self.assertRaises(psycopg.errors.CheckViolation),
+                self.assertRaisesRegex(
+                    psycopg.errors.CheckViolation, "required Data Kiosk day coverage"
+                ),
                 self.connection.transaction(),
             ):
                 self.totals([], marketplaces=[name])
+            self.assertEqual(self.as_user(administrator, query, ([name],)), [("0",)])
         for names in (
             [None],
             ["Amazon.com", None],
             [["Amazon.com"]],
-            *([name] for name in _INVALID_LABELS),
         ):
             with self.subTest(names=names), self.assertRaises(psycopg.errors.InvalidParameterValue):
                 self.as_user(administrator, query, (names,))
@@ -222,19 +224,16 @@ class MarketplaceContractTests(SourceModelFixture):
         for name in invalid_values:
             with (
                 self.subTest(name=name),
-                self.assertRaises(psycopg.errors.CheckViolation),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
-                self.call(
-                    "publish_data_kiosk_preprocess",
+                self.publish_kiosk_days(
                     {
-                        "id": new_id(),
                         "acquisition_id": acquisition,
                         "preprocess_version": "v0",
                         "dataset_key": "economics",
                         "days": [
                             {
-                                "id": new_id(),
                                 "marketplace_name": name,
                                 "activity_date": "2026-06-15",
                                 "activity_at": kiosk_timestamp("2026-06-15"),

@@ -14,16 +14,16 @@ class TestPublication(unittest.TestCase):
             with self.subTest(row=row), self.assertRaises((TypeError, ValueError, RuntimeError)):
                 publish_json(
                     FakeDatabaseConnection([row]),
-                    "SELECT private.publish_data_kiosk_preprocess(%(payload)s)",
+                    "SELECT private.publish_sku_terms(%(payload)s)",
                     {"id": expected_id},
                     expected_id=expected_id,
                 )
 
-    def test_acquisition_deduplication_can_return_its_existing_identity(self) -> None:
+    def test_payout_deduplication_can_return_its_existing_identity(self) -> None:
         existing_id = uuid7()
         result = publish_json(
             FakeDatabaseConnection([(existing_id,)]),
-            "SELECT private.publish_data_kiosk_acquisition(%(payload)s)",
+            "SELECT private.publish_company_payout_report(%(payload)s)",
             {"id": str(uuid7())},
         )
         self.assertEqual(result, str(existing_id))

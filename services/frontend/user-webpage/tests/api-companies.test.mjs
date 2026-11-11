@@ -132,15 +132,18 @@ test("company deletion rejects invalid IDs before requesting and invalid acknowl
 
 const BLOCKED_BODY = {
   code: "PT409",
-  message: "Company cannot be deleted while it has linked records",
-  details: JSON.stringify([
-    { code: "members", count: 2 },
-    { code: "assigned_skus", count: 10 },
-    { code: "terms_versions", count: 99 },
-    { code: "payout_reports", count: 4 },
-    { code: "payout_refreshes", count: 3 },
-    { code: "other_records", count: 1 },
-  ]),
+  message: "Private database diagnostic",
+  details: JSON.stringify({
+    code: "COMPANY_DELETION_BLOCKED",
+    reasons: [
+      { code: "members", count: 2 },
+      { code: "assigned_skus", count: 10 },
+      { code: "terms_versions", count: 99 },
+      { code: "payout_reports", count: 4 },
+      { code: "payout_refreshes", count: 3 },
+      { code: "other_records", count: 1 },
+    ],
+  }),
 };
 
 test("company deletion exposes only validated linked-record reasons and never retries", async () => {
@@ -151,7 +154,7 @@ test("company deletion exposes only validated linked-record reasons and never re
   });
   await assert.rejects(client.deleteCompany("user-access", COMPANY.id), (error) => {
     assert.ok(error instanceof CompanyDeletionBlockedError);
-    assert.deepEqual(error.reasons, JSON.parse(BLOCKED_BODY.details));
+    assert.deepEqual(error.reasons, JSON.parse(BLOCKED_BODY.details).reasons);
     return true;
   });
   assert.equal(requests, 1);
@@ -174,11 +177,17 @@ test("malformed deletion reasons and unexpected server messages remain private",
     ],
   ];
   const responses = [
-    ...malformedReasons.map((details) => ({ ...BLOCKED_BODY, details: JSON.stringify(details) })),
+    ...malformedReasons.map((details) => ({
+      ...BLOCKED_BODY,
+      details: JSON.stringify({ code: "COMPANY_DELETION_BLOCKED", reasons: details }),
+    })),
     { ...BLOCKED_BODY, details: "private malformed JSON" },
     { ...BLOCKED_BODY, details: JSON.parse(BLOCKED_BODY.details) },
     { ...BLOCKED_BODY, code: "23503" },
-    { ...BLOCKED_BODY, message: "private database failure" },
+    {
+      ...BLOCKED_BODY,
+      details: JSON.stringify({ code: "PRIVATE", reasons: [{ code: "members", count: 1 }] }),
+    },
   ];
   for (const body of responses) {
     const client = createApiClient(SETTINGS, async () => responseJson(body, 409));

@@ -23,35 +23,36 @@ begin
         return;
     end if;
     select jsonb_agg(jsonb_build_object('code', dependencies.code, 'count', dependencies.count)
-        order by dependencies.ordinal)
+        order by dependencies.code collate "C")
     into blockers
     from (
-        select 1 as ordinal, 'members' as code, count(*) as count
+        select 'members' as code, count(*) as count
         from public.app_accounts as a where a.company_id = target_company_id
         union all
-        select 2, 'assigned_skus', count(*)
+        select 'assigned_skus', count(*)
         from private.current_sku_terms as t where t.company_id = target_company_id
         union all
-        select 3, 'terms_versions', count(*)
+        select 'terms_versions', count(*)
         from public.sku_terms_versions as v where v.company_id = target_company_id
         union all
-        select 4, 'payout_reports', count(*)
+        select 'payout_reports', count(*)
         from public.company_payout_reports as r where r.company_id = target_company_id
         union all
-        select 5, 'payout_refreshes', count(*)
+        select 'payout_refreshes', count(*)
         from private.payout_report_refresh_state as s where s.company_id = target_company_id
     ) as dependencies
     where dependencies.count > 0;
     if blockers is not null then
         raise exception 'Company cannot be deleted while it has linked records'
-        using errcode = 'PT409', detail = blockers::text;
+        using errcode = 'PT409', detail = jsonb_build_object(
+            'code', 'COMPANY_DELETION_BLOCKED', 'reasons', blockers)::text;
     end if;
     begin
         delete from public.companies as c where c.id = target_company_id;
     exception when foreign_key_violation then
         -- Fail closed if a future restrictive FK has not yet gained a named reason.
         raise exception 'Company cannot be deleted while it has linked records'
-        using errcode = 'PT409', detail = '[{"code":"other_records","count":1}]';
+        using errcode = 'PT409', detail = '{"code":"COMPANY_DELETION_BLOCKED","reasons":[{"code":"other_records","count":1}]}';
     end;
     return query select target_company_id, true;
 end;

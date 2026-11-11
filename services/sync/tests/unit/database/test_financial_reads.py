@@ -3,6 +3,7 @@
 import unittest
 from datetime import date
 from decimal import Decimal
+from typing import cast
 from uuid import uuid7
 
 from ....src.database.financial_reads import (
@@ -14,6 +15,36 @@ from ...support.fakes import FakeDatabaseConnection
 
 
 class TestFinancialReads(unittest.TestCase):
+    def test_invalid_scope_fails_before_either_database_read(self) -> None:
+        day = date(2026, 1, 1)
+        cases: tuple[tuple[str, date, date, str, list[str], list[str], str], ...] = (
+            (" ", day, day, "v0", [], ["Amazon.com"], "economics"),
+            ("seller", date(2026, 1, 2), day, "v0", [], ["Amazon.com"], "economics"),
+            ("seller", day, day, " ", [], ["Amazon.com"], "economics"),
+            ("seller", day, day, "v0", ["invalid-id"], ["Amazon.com"], "economics"),
+            ("seller", day, day, "v0", [], ["Unknown marketplace"], "economics"),
+            ("seller", day, day, "v0", [], ["Amazon.com"], "inventory"),
+            ("seller", day, day, "v0", [], [], cast(str, None)),
+        )
+        for read in (load_company_financial_totals, load_company_financial_progress):
+            for seller, start, end, version, batches, markets, dataset in cases:
+                database = FakeDatabaseConnection()
+                with (
+                    self.subTest(reader=read.__name__, scope=(seller, start, end, version)),
+                    self.assertRaises(ValueError),
+                ):
+                    read(
+                        database,
+                        seller_namespace=seller,
+                        start_date=start,
+                        end_date=end,
+                        preprocess_version=version,
+                        finances_batch_ids=batches,
+                        marketplace_names=markets,
+                        dataset_key=dataset,
+                    )
+                self.assertFalse(database.execute_calls)
+
     def test_retains_exact_values_and_separate_currencies(self) -> None:
         company_id, finances_id = str(uuid7()), str(uuid7())
         database = FakeDatabaseConnection(

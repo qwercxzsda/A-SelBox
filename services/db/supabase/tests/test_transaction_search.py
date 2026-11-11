@@ -38,6 +38,9 @@ def selections(*, live: bool) -> tuple[dict[str, object], ...]:
         {"p_search_types": ["PRODUCT_SALES", "FbaStorageFee"]},
         {"p_search_marketplaces": ["Amazon.com"]},
         {"p_search_marketplaces": ["Amazon.co.uk"]},
+        {"p_search_marketplaces": ["Unknown"]},
+        {"p_search_marketplaces": ["Amazon.com') OR true --"]},
+        {"p_search_marketplaces": ["Unknown", "Amazon.com"]},
         {"p_search_skus": ["OTHER"], "p_search_types": ["PRODUCT_SALES"]},
         {"p_search_skus": [], "p_search_types": ["FbaStorageFee"], "p_search_marketplaces": []},
     )
@@ -167,9 +170,6 @@ class TransactionSearchTests(SourceModelFixture):
                         self.assertRaises(psycopg.errors.InvalidParameterValue),
                     ):
                         call(user, **{field: selection})
-        for call in (self.page, self.count):
-            with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                call(user, p_search_marketplaces=["Unknown"])
 
 
 class SourceTransactionSearchTests(SourceModelFixture):
@@ -281,6 +281,3 @@ class SourceTransactionSearchTests(SourceModelFixture):
                 for call in (self.page, self.count):
                     with self.assertRaises(psycopg.errors.InvalidParameterValue):
                         call(administrator, "finances", **{field: selection})
-        for call in (self.page, self.count):
-            with self.assertRaises(psycopg.errors.InvalidParameterValue):
-                call(administrator, "data_kiosk", p_search_marketplaces=["Unknown"])

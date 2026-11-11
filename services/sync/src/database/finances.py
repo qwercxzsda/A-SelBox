@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
-from typing import Any, LiteralString
+from typing import Any
 from uuid import uuid7
 
 from psycopg import Cursor
@@ -18,6 +18,7 @@ from ..finances.models import FinancesComponent, FinancesTransaction, PreparedFi
 from ..finances.validation import revision_digest, validate_finances_candidate
 from ..preprocess_version import PREPROCESS_VERSION
 from .connection import DatabaseConnection
+from .source_writes import copy_rows, require_read_committed
 from .values import required_text
 
 
@@ -41,6 +42,7 @@ def publish_finances(
         connection.transaction(),
         connection.cursor(row_factory=dict_row) as cursor,
     ):
+        require_read_committed(cursor)
         cursor.execute(
             "SELECT pg_advisory_xact_lock_shared(hashtextextended('company_payout_inputs',0))"
         )
@@ -206,7 +208,7 @@ def _persist_transactions(
         memberships.append(
             (batch_id, identity, revision, row.source_page_number, row.source_record_number)
         )
-    _copy_rows(
+    copy_rows(
         cursor,
         "COPY private.finances_transaction_versions "
         "(id,transaction_id,content_sha256,posted_date,posted_at,marketplace_id,marketplace_name,"
@@ -214,14 +216,14 @@ def _persist_transactions(
         "activity_eligible,total_amount,currency,component_count) FROM STDIN",
         new_revisions,
     )
-    _copy_rows(
+    copy_rows(
         cursor,
         "COPY private.finances_transaction_components "
         "(id,version_id,component_number,category,component_type,accounting_subtype,sku,amount,"
         "quantity,fee_base,breakdown_path,item_index,breakdown_indexes) FROM STDIN",
         new_components,
     )
-    _copy_rows(
+    copy_rows(
         cursor,
         "COPY private.finances_preprocess_batch_transactions "
         "(batch_id,transaction_id,version_id,source_page_number,source_record_number) FROM STDIN",
@@ -256,7 +258,7 @@ def _ensure_transaction_identities(
                     row.native_transaction_id,
                 )
             )
-    _copy_rows(
+    copy_rows(
         cursor,
         "COPY private.finances_transactions "
         "(id,seller_namespace,amazon_scope,native_transaction_id) FROM STDIN",
@@ -304,16 +306,6 @@ def _component_row(component: FinancesComponent, revision: str) -> tuple[object,
         component.item_index,
         list(component.breakdown_indexes),
     )
-
-
-def _copy_rows(
-    cursor: Cursor[dict[str, Any]], statement: LiteralString, rows: Sequence[Sequence[object]]
-) -> None:
-    """One client-side COPY statement makes complete-inventory triggers linear."""
-    if rows:
-        with cursor.copy(statement) as copy:
-            for row in rows:
-                copy.write_row(row)
 
 
 def _scope_expanded(

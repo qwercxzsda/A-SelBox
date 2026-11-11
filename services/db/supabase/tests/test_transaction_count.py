@@ -178,7 +178,7 @@ class TransactionCountTests(SourceModelFixture):
                     self.assertEqual(count, page["total_count"])
                     self.assertEqual(int(count), len(cast(list[object], page["rows"])))
 
-    def test_unknown_marketplaces_are_rejected_instead_of_ignored(self) -> None:
+    def test_marketplace_filters_match_exact_stored_values_without_aliases(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user in (
             self.administrator(),
@@ -188,6 +188,7 @@ class TransactionCountTests(SourceModelFixture):
         ):
             for selection in (
                 ["Unknown marketplace"],
+                ["Amazon.com') OR true --"],
                 ["Amazon.com", "Unknown marketplace"],
                 ["amazon.com"],
                 ["Amazon.com", "AMAZON.COM"],
@@ -195,11 +196,18 @@ class TransactionCountTests(SourceModelFixture):
                 ["Amazon.com "],
                 [""],
             ):
-                with (
-                    self.subTest(selection=selection),
-                    self.assertRaises(psycopg.errors.InvalidParameterValue),
-                ):
-                    self.count(user, p_marketplaces=selection)
+                with self.subTest(selection=selection):
+                    expected = (
+                        self.count(user, p_marketplaces=["Amazon.com"])
+                        if "Amazon.com" in selection
+                        else "0"
+                    )
+                    self.assertEqual(
+                        self.assert_matches_view(user, p_marketplaces=selection), expected
+                    )
+                    self.assertEqual(
+                        self.page(user, p_marketplaces=selection)["total_count"], expected
+                    )
 
     def test_invalid_date_bounds_are_rejected(self) -> None:
         administrator = self.administrator()

@@ -40,7 +40,7 @@ class PreprocessValidationTests(SourceModelFixture):
                 row["sku"] = None
             with (
                 self.subTest(category=treatment),
-                self.assertRaises(psycopg.errors.NotNullViolation),
+                self.assertRaises(ValueError),
                 self.connection.transaction(),
             ):
                 self.kiosk(2, [row], expected=current)

@@ -89,11 +89,14 @@ class InventoryAccessTests(InventoryFixture):
     def test_api_roles_cannot_publish_or_mutate_inventory(self) -> None:
         company, _ = self.owner()
         acquisition = self.acquire()
-        payload = self.capture_payload(acquisition, [self.item()])
+        payload = {"id": new_id(), "acquisition_id": acquisition}
         for user in (self.member(company), self.administrator(), self.auth_user()):
             with self.subTest(user=user), self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 self.as_user(
-                    user, "select private.publish_inventory_capture(%s)", (Jsonb(payload),)
+                    user,
+                    "insert into private.inventory_daily_captures "
+                    "select (jsonb_populate_record(null::private.inventory_daily_captures,%s)).*",
+                    (Jsonb(payload),),
                 )
             with self.subTest(user=user), self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 self.as_user(user, "delete from private.inventory_daily_captures returning id")
