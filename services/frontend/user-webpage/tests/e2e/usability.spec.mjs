@@ -27,7 +27,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByLabel("Search SKUs", { exact: true }).fill("GROUP-001");
   const group = page.getByRole("button", {
-    name: "Show marketplace fees for GROUP-001: ",
+    name: "marketplace fees for GROUP-001: ",
   });
   await group.click();
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
@@ -212,7 +212,7 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   const group = page.getByRole("button", {
-    name: "Show marketplace fees for GROUP-001: ",
+    name: "marketplace fees for GROUP-001: ",
   });
   await group.click();
   const rate = page.getByRole("cell", { name: "5.123456%", exact: true });
@@ -227,7 +227,7 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   await page.getByRole("button", { name: "Collapse all", exact: true }).click();
   await expect(group).toHaveAttribute("aria-expanded", "false");
   await page.getByLabel("Search SKUs", { exact: true }).fill("NO-SUCH-SKU");
-  await expect(page.getByText("No SKUs match your search.", { exact: true })).toBeVisible();
+  await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
   await expect(group).toBeVisible();
 });
@@ -333,9 +333,10 @@ for (const role of ["member", "administrator"]) {
     }
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    const group = page.locator(".fee-sku-header").filter({
+    const group = page.locator(".expandable-summary-row").filter({
       has: page.getByRole("button", { name: "Show transactions for GROUP-001", exact: true }),
     });
-    await expect(group).toContainText(companyName);
+    if (role === "administrator") await expect(group).toContainText(companyName);
+    else await expect(group).not.toContainText(companyName);
   });
 }

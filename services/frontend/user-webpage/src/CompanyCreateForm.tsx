@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Alert, Button, Group, Paper, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Button, Group, Stack, Text, TextInput } from "@mantine/core";
 import { ApiError, type Company } from "./api";
 import { useCompanyDirectory } from "./company-directory-context";
 import { useWorkspacePreference } from "./use-workspace-preference";
@@ -61,11 +61,8 @@ export function CompanyCreateForm({
   }
 
   return (
-    <Paper ref={sectionRef} withBorder p="md" component="section" aria-label="Add company">
+    <section ref={sectionRef} aria-label="Add company">
       <Stack gap="sm">
-        <Title order={3} size="h5">
-          Add company
-        </Title>
         <form
           aria-label="Create company"
           onSubmit={(event) => {
@@ -76,6 +73,7 @@ export function CompanyCreateForm({
           <Group gap="sm" align="flex-end" className="company-create-fields">
             <TextInput
               label="Company name"
+              data-autofocus
               autoComplete="off"
               className="company-create-name"
               value={name}
@@ -116,6 +114,6 @@ export function CompanyCreateForm({
           </Alert>
         ) : null}
       </Stack>
-    </Paper>
+    </section>
   );
 }

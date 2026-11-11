@@ -1,0 +1,90 @@
+.expandable-table {
+  table-layout: fixed;
+}
+
+.expandable-table .expandable-toggle-cell {
+  width: 40px;
+  padding-inline: 6px;
+}
+
+.expandable-summary-row {
+  cursor: pointer;
+}
+
+.expandable-row-toggle svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 120ms ease;
+}
+
+.expandable-row-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+@media (pointer: coarse) {
+  .expandable-table .expandable-toggle-cell {
+    width: 56px;
+  }
+  .expandable-row-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expandable-row-toggle svg {
+    transition: none;
+  }
+}
+
+.expandable-table > tbody > .expandable-summary-row > td {
+  padding: 12px;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.expandable-table > tbody > .expandable-summary-row > .expandable-toggle-cell {
+  padding-inline: 6px;
+}
+
+.expandable-summary-row:hover > td,
+.expandable-summary-row[data-expanded] > td {
+  background: var(--ui-hover-surface);
+}
+
+.expandable-row-actions {
+  white-space: nowrap;
+}
+
+.expandable-table > tbody > .expandable-detail-row > td {
+  padding: 0;
+}
+
+.expandable-detail-panel {
+  contain: inline-size;
+  position: sticky;
+  inset-inline-start: 0;
+  max-width: calc(100vw - 64px);
+  padding: 16px;
+  background: var(--ui-surface-subtle);
+  border-block: 1px solid var(--ui-border);
+}
+
+.expandable-table .expandable-detail-panel th,
+.expandable-table .expandable-detail-panel td {
+  white-space: normal;
+}
+
+.expandable-table-empty {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 28px;
+  text-align: center;
+}

@@ -48,7 +48,7 @@ test("the complete configuration supplies every marketplace fee period without p
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   const group = page.getByRole("button", {
-    name: "Show marketplace fees for GROUP-001: ",
+    name: "marketplace fees for GROUP-001: ",
   });
   await expect(group).toHaveAttribute("aria-expanded", "false");
   expect(fixture.configurationRequests.filter(({ completed }) => completed)).toHaveLength(1);
@@ -62,11 +62,11 @@ test("the complete configuration supplies every marketplace fee period without p
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Show marketplace fees for GROUP-026: " }),
+    page.getByRole("button", { name: "marketplace fees for GROUP-026: " }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Show marketplace fees for GROUP-001: " }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "marketplace fees for GROUP-001: " })).toHaveCount(
+    0,
+  );
 });
 
 test("visible periodic updates wait for the revision check before reloading changed data", async ({

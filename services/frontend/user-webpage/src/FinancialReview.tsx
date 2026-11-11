@@ -5,14 +5,25 @@ import { useWorkspacePreference } from "./use-workspace-preference";
 import { REVIEW_CATEGORIES, reviewCategory } from "./financial-review-categories";
 import { createReviewScope, decodeReviewScope } from "./financial-review-view";
 import { WorkspaceHeader } from "./WorkspaceHeader";
+import { useFinancialReviewPeriod } from "./use-financial-review-period";
 
-export function FinancialReview({
-  identity,
-  onRetry,
-}: {
+interface FinancialReviewProps {
   identity: Identity;
   onRetry: () => Promise<void>;
-}) {
+  updating?: boolean;
+}
+
+export function FinancialReview(props: FinancialReviewProps) {
+  return props.identity.account.access_role === "administrator" ? (
+    <AdministratorFinancialReview {...props} />
+  ) : null;
+}
+
+function AdministratorFinancialReview({
+  identity,
+  onRetry,
+  updating = false,
+}: FinancialReviewProps) {
   const [category, setCategory] = useWorkspacePreference(
     "financial-review:category",
     () => reviewCategory(null),
@@ -23,11 +34,24 @@ export function FinancialReview({
     createReviewScope,
     decodeReviewScope,
   );
-  if (identity.account.access_role !== "administrator") return null;
+  const period = useFinancialReviewPeriod(identity, category, scope);
+  const queries = [
+    period.bounds,
+    ...(period.year ? [period.totalsQuery] : []),
+    ...(period.year && period.currency ? [period.familyQuery] : []),
+  ];
+  const status = queries.some((query) => query.isPending)
+    ? "loading"
+    : updating ||
+        queries.some((query) => query.isFetching) ||
+        (period.loading && !queries.some((query) => query.isError))
+      ? "updating"
+      : null;
   return (
     <>
       <WorkspaceHeader
         title="Financial review"
+        status={status}
         help={
           <>
             <p>
@@ -62,6 +86,7 @@ export function FinancialReview({
             scope={scope}
             onScopeChange={setScope}
             identity={identity}
+            period={period}
             onRetry={onRetry}
           />
         </Tabs.Panel>

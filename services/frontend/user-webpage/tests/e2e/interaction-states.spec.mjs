@@ -39,7 +39,7 @@ async function waitForAnimations(locator) {
 }
 
 async function prepareHover(page, locator) {
-  // Let opened accordions finish and Playwright bring the control into view first.
+  // Let opened panels finish and Playwright bring the control into view first.
   await locator.hover();
   await page.mouse.move(0, 0);
   await expect.poll(() => locator.evaluate((element) => element.matches(":hover"))).toBe(false);
@@ -232,7 +232,14 @@ test("workspace controls share hover feedback across every administrator tab", a
   const details = page.getByRole("button", { name: "Show details for Review Company: " });
   await hoverChangesShade(page, details);
   await details.click();
-  await hoverChangesShade(page, button(page, "View members"));
+  await hoverChangesShade(
+    page,
+    button(
+      page.getByRole("row").filter({ has: page.getByText("Review Company", { exact: true }) }),
+      "View members",
+    ),
+  );
+  await button(page, "Add company").click();
   const create = button(page, "Create company");
   await expect(create).toBeDisabled();
   const disabled = await appearance(create);
@@ -260,7 +267,7 @@ test("SKU text actions share accent styling in fees, inventory and companies", a
     if (name === "Current fees")
       await hoverChangesShade(
         page,
-        page.getByRole("button", { name: "Show marketplace fees for S1: " }),
+        page.getByRole("button", { name: "marketplace fees for S1: " }),
       );
     if (name === "Inventory")
       await hoverChangesShade(page, page.locator(".inventory-table tbody tr").first());
@@ -346,6 +353,7 @@ test.describe("mouse input on a touch-configured browser", () => {
       page,
       page.getByRole("button", { name: "Show details for Review Company: " }),
     );
+    await button(page, "Add company").click();
     const create = button(page, "Create company");
     await expect(create).toBeDisabled();
     const disabled = await appearance(create);

@@ -198,6 +198,19 @@ body {
   margin-inline-start: auto;
 }
 
+.heading-status {
+  flex-shrink: 0;
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.workspace-header-title .heading-status {
+  min-width: 5.5em;
+}
+
 /* Safari enlarges focused small-text controls. Size controls before focus,
    including phone landscape, instead of restricting the user's pinch zoom. */
 @media (max-width: 720px), (pointer: coarse) {

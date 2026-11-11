@@ -171,8 +171,13 @@ test("accessibility: companies and member assignment", async ({ page, expectAcce
   fixture.roles["member-a"] = "administrator";
   await signIn(page);
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Company name", exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Companies", exact: true })).toBeVisible();
   await expectAccessible("companies");
+  await page.getByRole("button", { name: "Add company", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Company name", exact: true })).toBeVisible();
+  await expectAccessible("company-creation");
+  await page.getByRole("button", { name: "Close company creation", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Add company", exact: true })).toBeHidden();
   await page.getByRole("tab", { name: "User access", exact: true }).click();
   const member = page.getByRole("row").filter({
     has: page.getByText("member-b@example.test", { exact: true }),

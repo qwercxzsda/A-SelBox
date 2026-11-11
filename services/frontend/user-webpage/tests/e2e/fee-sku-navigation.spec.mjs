@@ -20,11 +20,20 @@ for (const role of ["administrator", "member"]) {
       }));
     });
     const feesToggle = page.getByRole("button", {
-      name: `Show marketplace fees for ${SKU}: `,
+      name: `marketplace fees for ${SKU}: `,
     });
     const sku = page.getByRole("button", { name: `Show transactions for ${SKU}`, exact: true });
     await expect(feesToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(feesToggle).toContainText("Fee periods (1)");
+    await expect(feesToggle).toHaveAccessibleName(
+      `Show marketplace fees for ${SKU}: Fee periods (1)`,
+    );
+    await expect(
+      page
+        .getByRole("table", { name: "Current fee configurations", exact: true })
+        .locator(".expandable-summary-row")
+        .filter({ has: sku })
+        .locator("td.numeric"),
+    ).toHaveText("1");
     if (role === "administrator") {
       // The primary edit action is available before expanding the fee periods.
       await expect(page.getByRole("button", { name: `Edit ${SKU}`, exact: true })).toBeVisible();

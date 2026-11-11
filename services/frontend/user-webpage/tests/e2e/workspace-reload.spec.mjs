@@ -51,9 +51,10 @@ test("F5 restores the fee tab, expanded SKU, unfinished editor and review reason
   await editor(page).getByRole("button", { name: "Remove period 2", exact: true }).click();
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("S1");
-  await expect(
-    page.getByRole("button", { name: "Show marketplace fees for S1: " }),
-  ).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("button", { name: "marketplace fees for S1: " })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
   await openReview(page);
   await review(page).getByLabel("Reason for changes (optional)").fill("Preserve my explanation");
   await page.reload();
@@ -114,7 +115,7 @@ test("sign out removes saved tab and fee editing state for the next session", as
     "true",
   );
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(page.getByText("No unsaved changes.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Fee changes", exact: true })).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(fixture.configurationSaves).toHaveLength(0);
 });

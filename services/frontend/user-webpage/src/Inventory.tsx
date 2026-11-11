@@ -22,9 +22,11 @@ export function Inventory({
   viewState,
   onViewStateChange,
   onShowTransactions,
+  updating = false,
 }: ViewStateProps<InventoryViewState> & {
   identity: Identity;
   onShowTransactions: (sku: string) => void;
+  updating?: boolean;
 }) {
   const searchInput = useRef<HTMLInputElement>(null);
   const pageStart = useRef<HTMLDivElement>(null);
@@ -110,6 +112,13 @@ export function Inventory({
     <div className="inventory-panel">
       <WorkspaceHeader
         title="Inventory"
+        status={
+          query.isPending || (rows.length === 0 && captures.isPending)
+            ? "loading"
+            : query.isFetching || captures.isFetching || updating
+              ? "updating"
+              : null
+        }
         help={
           <>
             <p>Latest imported stock and replenishment recommendations for each marketplace.</p>
@@ -151,9 +160,7 @@ export function Inventory({
         rowCount={rows.length}
         totalCount={totalCount}
         items="inventory items"
-        message={
-          isUnavailable ? "Inventory unavailable" : isLoading ? "Loading inventory…" : undefined
-        }
+        message={isUnavailable ? "Inventory unavailable" : isLoading ? "" : undefined}
         extraControls={
           filtered ? (
             <Button
@@ -194,11 +201,6 @@ export function Inventory({
           {" Updates retry automatically."}
         </Alert>
       ) : null}
-      {isLoading || query.isFetching ? (
-        <Text role="status" mb="sm">
-          {query.isPending ? "Loading inventory…" : "Updating inventory…"}
-        </Text>
-      ) : null}
       <InventoryTable
         onShowTransactions={showTransactions}
         rows={rows}
@@ -221,10 +223,10 @@ export function Inventory({
         onSelect={selectRow}
         now={now}
       />
-      {!query.isPending && !query.isError && !captures.isError && rows.length === 0 ? (
+      {!query.isPending && !query.isError && captures.isSuccess && rows.length === 0 ? (
         <Text role="status" mb="sm">
           {inventoryEmptyMessage({
-            captures: captures.isSuccess ? captures.data : undefined,
+            captures: captures.data,
             marketplaces: viewState.marketplaces,
             hasItems,
             member: identity.account.access_role === "member",

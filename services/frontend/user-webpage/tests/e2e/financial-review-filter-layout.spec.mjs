@@ -55,8 +55,12 @@ for (const width of [1440, 390]) {
     const trigger = familyTrigger(page);
     const year = page.getByRole("combobox", { name: "Year", exact: true });
     const retry = page.getByRole("button", { name: "Retry fee families", exact: true });
+    const header = page.locator(".workspace-header");
+    const loading = header.getByText("Loading…", { exact: true });
     await expect(year).toHaveValue("2026");
     await expect.poll(() => typeof releaseTotals).toBe("function");
+    await expect(loading).toBeVisible();
+    await expect(page.getByText("Loading monthly summaries…", { exact: true })).toHaveCount(0);
     const before = await paintedBounds(trigger);
     async function expectStable() {
       const current = await paintedBounds(trigger);
@@ -67,10 +71,13 @@ for (const width of [1440, 390]) {
 
     releaseTotals();
     await expect.poll(() => typeof releaseFamilies).toBe("function");
+    await expect(loading).toBeVisible();
+    await expect(page.getByText("Loading fee families…", { exact: true })).toHaveCount(0);
     await expectStable();
     await expect(page.getByLabel("Amount currency: USD", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveCount(0);
     releaseFamilies();
+    await expect(loading).toBeHidden();
     await expect(trigger).toBeEnabled();
     await trigger.click();
     await expect(
@@ -92,6 +99,8 @@ for (const width of [1440, 390]) {
     await expectStable();
     releaseFamilies();
     await expect(retry).toBeVisible();
+    await expect(loading).toBeHidden();
+    await expect(header.getByText("Updating…", { exact: true })).toBeHidden();
     await expectStable();
 
     holdFamilies = true;

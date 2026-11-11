@@ -141,6 +141,25 @@ search/count semantics, ordering, fee applicability, source authority, and amoun
 
 ### Fee editing and company access
 
+Current fees and Companies use [ExpandableTable](src/ExpandableTable.tsx): compact summary rows, the
+same headers and borders as the financial tables, and left-hand chevrons that reveal inline details
+without moving the viewport or changing column widths. Clicking the rest of a summary row toggles
+that row, except for its links and action buttons; selecting text does not toggle it. Several rows
+can stay open independently, with a contextual Collapse all control. Expansion state survives tab
+changes and reloads. Fee rows show marketplace coverage and period counts; administrators also see
+the company and Edit action. Company rows show assigned-SKU counts and a direct View members action.
+Detailed fee periods, setup issues, SKU links, and deletion controls stay inside the expanded rows.
+Company, marketplace, and status filters live in the Current fees column menus. Marketplace matches
+include both configured periods and required coverage; expanded rows retain the full configuration.
+Companies supports company selection and ordering by name or assigned-SKU count. These selections
+combine with search before pagination and persist through tab changes and reloads.
+
+Add company opens a compact dialog from the page header or an existing setup shortcut. Entered names
+remain available across navigation, creation feedback stays in the dialog, and returning to the
+originating editor remains explicit. The dialog cannot be dismissed while creation is pending. The
+sticky fee-change summary appears only when drafts or unfinished edits exist; setup counts remain
+visible in a compact notice with further explanation in header help.
+
 Administrators stage multiple SKU changes, inspect Review changes, and publish one atomic batch.
 Each changed SKU needs a company and all required fee coverage. Unrelated setup gaps remain visible
 without blocking a valid batch. Payout generation retains completeness checks for its full scope.
@@ -270,6 +289,12 @@ Use the shared [Mantine theme](src/design-system.ts), [design tokens](src/design
 [WorkspaceHeader](src/WorkspaceHeader.tsx). Every workspace tab starts with one clear page title
 matching its tab label, with related actions aligned in the same header. Semantic heading levels and
 accessible names follow the content structure.
+
+Page reads use the shared [LoadingStatus](src/LoadingStatus.tsx) beside their titles: Loading for
+initial reads and Updating for background refreshes, including independent row counts. The inline
+space stays stable during updates; there is no separate progress row above the tabs or toolbar.
+Current totals uses the same subdued status text. Errors, offline explanations, save feedback, and
+local detail requests keep their relevant context.
 
 Put optional explanations in [HelpPopover](src/HelpPopover.tsx), reached through a small, muted
 question-circle control beside the relevant title or heading. Popovers show the explanation without

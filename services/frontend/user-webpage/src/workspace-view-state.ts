@@ -6,6 +6,7 @@ import { PAGE_SIZES } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import type { SkuConfigurationChange } from "./api/sku-configuration-types.ts";
 import type { InventoryPageOptions } from "./inventory-view.ts";
+import type { FeeStatus } from "./fee-status.ts";
 import type { FeeRateChangeDraft } from "./sku-rate-change.ts";
 
 export type InventoryViewState = InventoryPageOptions & { selectedRowId: string | null };
@@ -33,7 +34,9 @@ export interface FeeViewState {
   expanded: string[];
   drafts: SkuConfigurationChange[];
   changeReason: string;
-  onlyIncomplete: boolean;
+  companyIds: (string | null)[];
+  marketplaces: string[];
+  statuses: FeeStatus[];
   saveProblem: string | null;
   requiresReload: boolean;
   savedNotice: string | null;
@@ -84,7 +87,9 @@ export function createFeeViewState(): FeeViewState {
     expanded: [],
     drafts: [],
     changeReason: "",
-    onlyIncomplete: false,
+    companyIds: [],
+    marketplaces: [],
+    statuses: [],
     saveProblem: null,
     requiresReload: false,
     savedNotice: null,

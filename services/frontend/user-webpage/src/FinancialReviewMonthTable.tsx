@@ -5,7 +5,6 @@ import { inspectableRowProps } from "./inspectable-row";
 import { TableScrollControls } from "./TableScrollControls";
 import { formatRecordMonth } from "./date-display";
 import { formatAmount } from "./decimal";
-import { UpdateStatus } from "./UpdateStatus";
 import type { ReviewCategory } from "./financial-review-categories";
 
 export function FinancialReviewMonthTable({
@@ -23,7 +22,7 @@ export function FinancialReviewMonthTable({
   selectedMonth: string | null;
   onSelect: (month: string) => void;
   isBusy: boolean;
-  emptyMessage: string;
+  emptyMessage: string | undefined;
   category: ReviewCategory;
   onClearFamilies?: () => void;
 }) {
@@ -36,10 +35,7 @@ export function FinancialReviewMonthTable({
         <Text size="sm" fw={600}>
           Monthly amounts{currency ? ` · ${currency}` : ""}
         </Text>
-        <Group gap="xs">
-          <UpdateStatus active={isBusy}>Updating monthly summaries…</UpdateStatus>
-          <TableScrollControls target={scrollTarget} targetId={scrollId} />
-        </Group>
+        <TableScrollControls target={scrollTarget} targetId={scrollId} />
       </Group>
       <Paper withBorder className="table-card financial-review-months-card" aria-busy={isBusy}>
         <div
@@ -116,7 +112,7 @@ export function FinancialReviewMonthTable({
                 </Table.Tbody>
               );
             })}
-            {!rows.length ? (
+            {!rows.length && emptyMessage ? (
               <Table.Tbody>
                 <Table.Tr>
                   <Table.Td colSpan={5}>

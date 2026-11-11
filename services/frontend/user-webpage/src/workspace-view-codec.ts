@@ -9,6 +9,7 @@ import { INVENTORY_SORT_COLUMNS } from "./inventory-view.ts";
 import { isJsonObject, isUuid } from "./api/validation.ts";
 import { PAGE_SIZES, visibleDatasets } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
+import { FEE_STATUSES } from "./fee-status.ts";
 import {
   createDatasetViewState,
   createFeeViewState,
@@ -187,7 +188,9 @@ export function decodeFeeView(value: unknown): FeeViewState {
           .filter((draft) => draft !== null)
       : [],
     changeReason: text(value.changeReason),
-    onlyIncomplete: value.onlyIncomplete === true,
+    companyIds: optionalStrings(value.companyIds).filter((id) => id === null || isUuid(id)),
+    marketplaces: strings(value.marketplaces),
+    statuses: FEE_STATUSES.filter((status) => strings(value.statuses).includes(status)),
     saveProblem: interrupted
       ? "The page reloaded before the save was confirmed. Refresh saved settings and review your drafts before saving again."
       : nullableText(value.saveProblem),

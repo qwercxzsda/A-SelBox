@@ -1,9 +1,11 @@
 import { useRef } from "react";
-import { Accordion, Badge, Button, Checkbox, Group, Paper, Stack, Text } from "@mantine/core";
+import { Button, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
-import { SkuFeePeriods } from "./SkuFeePeriods";
-import { SkuTransactionLink } from "./SkuTransactionLink";
+import { SkuConfigurationRow } from "./SkuConfigurationRow";
 import { ListToolbar } from "./ListToolbar";
+import { AppliedFeeFilters, FeeFilterHeader } from "./FeeListFilters";
+import { FEE_STATUSES, type FeeStatus } from "./fee-status";
+import { ExpandableTable, type ExpandableColumn } from "./ExpandableTable";
 import { filterFeeSkus, paginateFeeSkus } from "./fee-skus";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import { companyLabel } from "./view-model";
@@ -11,6 +13,17 @@ import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import "./SkuConfigurationList.css";
+
+function marketplacesFor(item: SkuConfigurationItem) {
+  return [
+    ...new Set(
+      [
+        ...item.periods.map((period) => period.marketplace_name),
+        ...item.requirements.map((requirement) => requirement.marketplace_name),
+      ].filter(Boolean),
+    ),
+  ].sort();
+}
 
 export function SkuConfigurationList({
   items,
@@ -38,17 +51,81 @@ export function SkuConfigurationList({
   const unfinishedSkus = new Set(
     viewState.editorDrafts.filter((editor) => !editor.isNew).map((editor) => editor.sku),
   );
+  const companyIds = administrator ? viewState.companyIds : [];
+  const statusOptions: readonly FeeStatus[] = administrator
+    ? FEE_STATUSES
+    : ["needs-setup", "saved"];
+  const selectedStatuses = viewState.statuses.filter((status) => statusOptions.includes(status));
+  const statusesFor = (sku: string): FeeStatus[] => {
+    const statuses: FeeStatus[] = [];
+    if (issuesBySku.has(sku)) statuses.push("needs-setup");
+    if (administrator && draftSkus.has(sku)) statuses.push("draft");
+    if (administrator && unfinishedSkus.has(sku)) statuses.push("unfinished");
+    return statuses.length ? statuses : ["saved"];
+  };
   const filtered = filterFeeSkus(items, search, administrator ? companies : undefined).filter(
-    (item) => !viewState.onlyIncomplete || issuesBySku.has(item.sku),
+    (item) =>
+      (!companyIds.length || companyIds.includes(item.company_id)) &&
+      (!viewState.marketplaces.length ||
+        marketplacesFor(item).some((market) => viewState.marketplaces.includes(market))) &&
+      (!selectedStatuses.length ||
+        statusesFor(item.sku).some((status) => selectedStatuses.includes(status))),
   );
   const pagination = paginateFeeSkus(filtered, viewState.pageIndex, pageSize);
   const canPrevious = pagination.pageIndex > 0;
   const canNext = pagination.pageIndex < pagination.pageCount - 1;
+  const filters = {
+    companyIds,
+    marketplaces: viewState.marketplaces,
+    statuses: selectedStatuses,
+  };
+  const marketplaceOptions = [...new Set(items.flatMap(marketplacesFor))].sort();
+  const header = (field: "companyIds" | "marketplaces" | "statuses") => (
+    <FeeFilterHeader
+      field={field}
+      filters={filters}
+      companies={companies}
+      marketplaces={marketplaceOptions}
+      statusOptions={statusOptions}
+      onChange={changeFilters}
+    />
+  );
+  const columns: ExpandableColumn[] = [
+    { key: "sku", label: "SKU" },
+    ...(administrator
+      ? [{ key: "company", label: "Company", width: "21%", header: header("companyIds") }]
+      : []),
+    {
+      key: "marketplaces",
+      label: "Marketplaces",
+      width: administrator ? "19%" : "25%",
+      header: header("marketplaces"),
+    },
+    { key: "periods", label: "Fee periods", align: "right", width: 90 },
+    { key: "status", label: "Status", width: 145, header: header("statuses") },
+  ];
+  const hasFilters = Boolean(
+    search || companyIds.length || viewState.marketplaces.length || selectedStatuses.length,
+  );
   function change(patch: Partial<FeeViewState>) {
     onViewStateChange((current) => ({ ...current, ...patch }));
   }
+  function changeFilters(patch: Partial<FeeViewState>) {
+    change({ ...patch, pageIndex: 0 });
+  }
+  function clearFilters() {
+    changeFilters({ search: "", companyIds: [], marketplaces: [], statuses: [] });
+  }
   function showControls() {
     revealSection(controlsRef.current);
+  }
+  function toggleSku(sku: string) {
+    onViewStateChange((current) => ({
+      ...current,
+      expanded: current.expanded.includes(sku)
+        ? current.expanded.filter((value) => value !== sku)
+        : [...current.expanded, sku],
+    }));
   }
   return (
     <>
@@ -86,133 +163,74 @@ export function SkuConfigurationList({
         rowCount={pagination.visibleSkus.length}
         totalCount={pagination.totalCount}
         items="SKUs"
-        extraControls={
-          <>
-            <Checkbox
-              className="fee-list-incomplete"
-              label="Needs setup only"
-              checked={viewState.onlyIncomplete}
-              onChange={(event) => {
-                change({ onlyIncomplete: event.currentTarget.checked, pageIndex: 0 });
-              }}
-            />
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              disabled={expanded.length === 0}
-              onClick={() => {
-                change({ expanded: [] });
-              }}
-            >
-              Collapse all
-            </Button>
-          </>
-        }
       />
-      {pagination.visibleSkus.length === 0 ? (
-        <Paper withBorder p="xl">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed">
-              {search || viewState.onlyIncomplete
-                ? "No SKUs match your search."
-                : administrator
-                  ? "No SKUs are available yet."
-                  : "No SKUs are assigned to your company."}
-            </Text>
-            {search || viewState.onlyIncomplete ? (
-              <Button
-                variant="subtle"
-                onClick={(event) => {
-                  if (event.detail === 0) searchInput.current?.focus();
-                  change({ search: "", onlyIncomplete: false, pageIndex: 0 });
-                }}
-              >
-                Clear search
-              </Button>
-            ) : null}
-          </Stack>
-        </Paper>
-      ) : (
-        <Accordion
-          className="fee-sku-list"
-          multiple
-          variant="separated"
-          value={expanded.map(encodeURIComponent)}
-          onChange={(next) => {
-            change({ expanded: next.map(decodeURIComponent) });
-          }}
-        >
-          {pagination.visibleSkus.map((item) => (
-            <Accordion.Item key={item.sku} value={encodeURIComponent(item.sku)}>
-              <div className="fee-sku-header">
-                <Stack gap={2} className="fee-sku-identity">
-                  <Group gap="xs">
-                    <SkuTransactionLink sku={item.sku} onShowTransactions={onShowTransactions} />
-                    {issuesBySku.has(item.sku) ? <Badge color="orange">Needs setup</Badge> : null}
-                    {draftSkus.has(item.sku) ? <Badge variant="light">Draft</Badge> : null}
-                    {unfinishedSkus.has(item.sku) ? (
-                      <Badge variant="light" color="orange">
-                        Unfinished edit
-                      </Badge>
-                    ) : null}
-                  </Group>
-                  <Text size="sm" c="dimmed">
-                    {companyLabel(item.company_id, companies)}
-                  </Text>
-                </Stack>
-                <Group gap="xs" className="fee-sku-actions">
-                  {administrator ? (
-                    <Button
-                      variant="light"
-                      aria-label={`Edit ${item.sku}`}
-                      disabled={isSaving}
-                      onClick={(event) => {
-                        event.currentTarget.focus({ preventScroll: true });
-                        onEdit(item.sku);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  ) : null}
-                  <Accordion.Control
-                    aria-label={`Show marketplace fees for ${item.sku}: Fee periods (${String(item.periods.length)})`}
-                    className="fee-sku-toggle"
-                  >
-                    Fee periods ({item.periods.length})
-                  </Accordion.Control>
-                </Group>
-              </div>
-              <Accordion.Panel>
-                {expanded.includes(item.sku) ? (
-                  <Stack gap="sm">
-                    {administrator && draftSkus.has(item.sku) ? (
-                      <Group justify="flex-end">
-                        <Button
-                          variant="subtle"
-                          color="#9e1834"
-                          aria-label={`Discard draft for ${item.sku}`}
-                          disabled={isSaving}
-                          onClick={() => {
-                            change({ drafts: drafts.filter((draft) => draft.sku !== item.sku) });
-                          }}
-                        >
-                          Discard draft
-                        </Button>
-                      </Group>
-                    ) : null}
-                    {(issuesBySku.get(item.sku) ?? []).map((issue, index) => (
-                      <Text key={index} size="sm" c="orange.8">
-                        {issue.message}
-                      </Text>
-                    ))}
-                    <SkuFeePeriods item={item} />
-                  </Stack>
-                ) : null}
-              </Accordion.Panel>
-            </Accordion.Item>
-          ))}
-        </Accordion>
-      )}
+      <AppliedFeeFilters
+        filters={filters}
+        companies={companies}
+        onChange={changeFilters}
+        focusTarget={searchInput}
+      />
+      <ExpandableTable
+        label="Current fee configurations"
+        columns={columns}
+        minWidth={administrator ? 900 : 700}
+        actionsWidth={administrator ? 96 : undefined}
+        onCollapseAll={
+          expanded.length
+            ? () => {
+                change({ expanded: [] });
+              }
+            : undefined
+        }
+        emptyState={
+          pagination.visibleSkus.length === 0 ? (
+            <Stack align="center" gap="sm">
+              <Text c="dimmed">
+                {hasFilters
+                  ? "No SKUs match these filters."
+                  : administrator
+                    ? "No SKUs are available yet."
+                    : "No SKUs are assigned to your company."}
+              </Text>
+              {hasFilters ? (
+                <Button
+                  variant="subtle"
+                  onClick={(event) => {
+                    if (event.detail === 0) searchInput.current?.focus();
+                    clearFilters();
+                  }}
+                >
+                  Clear search and filters
+                </Button>
+              ) : null}
+            </Stack>
+          ) : undefined
+        }
+      >
+        {pagination.visibleSkus.map((item) => (
+          <SkuConfigurationRow
+            key={item.sku}
+            item={item}
+            companyName={companyLabel(item.company_id, companies)}
+            marketplaces={marketplacesFor(item)}
+            statuses={statusesFor(item.sku)}
+            issues={issuesBySku.get(item.sku) ?? []}
+            administrator={administrator}
+            isSaving={isSaving}
+            expanded={expanded.includes(item.sku)}
+            columnCount={columns.length + 1 + Number(administrator)}
+            onToggle={toggleSku}
+            onEdit={onEdit}
+            onShowTransactions={onShowTransactions}
+            onDiscardDraft={(sku) => {
+              onViewStateChange((current) => ({
+                ...current,
+                drafts: current.drafts.filter((draft) => draft.sku !== sku),
+              }));
+            }}
+          />
+        ))}
+      </ExpandableTable>
       {pagination.visibleSkus.length > 10 || pagination.pageIndex > 0 ? (
         <ListPageNavigation
           labels={{

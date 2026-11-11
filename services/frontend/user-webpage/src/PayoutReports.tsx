@@ -28,6 +28,7 @@ export function PayoutReports({
   viewState,
   onViewStateChange,
   reviewMode = false,
+  updating = false,
   fixedMonth = false,
   currency,
   marketplace,
@@ -35,6 +36,7 @@ export function PayoutReports({
   identity: Identity;
   onRetry: () => Promise<void>;
   reviewMode?: boolean;
+  updating?: boolean;
   fixedMonth?: boolean;
   currency?: string;
   marketplace?: string;
@@ -106,7 +108,20 @@ export function PayoutReports({
   return (
     <>
       {!reviewMode ? (
-        <WorkspaceHeader title="Payout reports" help={<DatasetHelp dataset="payouts" />} />
+        <WorkspaceHeader
+          title="Payout reports"
+          help={<DatasetHelp dataset="payouts" />}
+          status={
+            query.isPending
+              ? "loading"
+              : query.isFetching ||
+                  query.countQuery.isFetching ||
+                  (selectedScope !== null && versionQuery.isFetching) ||
+                  updating
+                ? "updating"
+                : null
+          }
+        />
       ) : null}
       {query.error ? (
         <Alert color="red" role="alert" mb="md">
@@ -174,9 +189,9 @@ export function PayoutReports({
         rowCount={rows.length}
         totalCount={totalCount}
         items="latest reports"
-        message={query.isPending ? "Loading reports…" : undefined}
+        message={query.isPending ? (reviewMode ? "Loading reports…" : "") : undefined}
       />
-      {selectedScope !== null && versionQuery.isPending ? (
+      {reviewMode && selectedScope !== null && versionQuery.isPending ? (
         <Text role="status" size="xs" c="dimmed" mb="sm">
           Loading selected report version…
         </Text>
@@ -222,7 +237,7 @@ export function PayoutReports({
         status={
           <DatasetCountStatus
             isError={query.countQuery.isError}
-            isFetching={query.countQuery.isFetching}
+            isFetching={reviewMode && query.countQuery.isFetching}
             items="reports"
             onRetry={() => {
               showControls();
@@ -231,7 +246,7 @@ export function PayoutReports({
           />
         }
       >
-        {query.isPending ? (
+        {reviewMode && query.isPending ? (
           <div className="loading-state" role="status">
             Loading reports…
           </div>

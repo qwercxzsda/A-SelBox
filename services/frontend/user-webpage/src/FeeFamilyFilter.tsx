@@ -47,15 +47,7 @@ export function FeeFamilyFilter({
   );
 }
 
-export function FeeFamilyStatus({
-  loading,
-  error,
-  onRetry,
-}: {
-  loading: boolean;
-  error: boolean;
-  onRetry: () => void;
-}) {
+export function FeeFamilyError({ error, onRetry }: { error: boolean; onRetry: () => void }) {
   return error ? (
     <Group gap="xs">
       <Text size="xs" c="red" role="alert">
@@ -65,9 +57,5 @@ export function FeeFamilyStatus({
         Retry fee families
       </Button>
     </Group>
-  ) : loading ? (
-    <Text size="xs" c="dimmed" role="status">
-      Loading fee families…
-    </Text>
   ) : null;
 }

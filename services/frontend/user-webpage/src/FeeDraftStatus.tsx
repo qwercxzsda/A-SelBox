@@ -14,22 +14,21 @@ export function FeeDraftStatus({
   onReview: () => void;
 }) {
   const hasChanges = draftCount > 0 || unfinishedCount > 0;
-  const summary = hasChanges
-    ? [
-        draftCount ? `${String(draftCount)} SKU ${draftCount === 1 ? "draft" : "drafts"}` : "",
-        unfinishedCount
-          ? `${String(unfinishedCount)} unfinished ${unfinishedCount === 1 ? "edit" : "edits"}`
-          : "",
-        "not saved yet",
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : "No unsaved changes.";
+  if (!hasChanges) return null;
+  const summary = [
+    draftCount ? `${String(draftCount)} SKU ${draftCount === 1 ? "draft" : "drafts"}` : "",
+    unfinishedCount
+      ? `${String(unfinishedCount)} unfinished ${unfinishedCount === 1 ? "edit" : "edits"}`
+      : "",
+    "not saved yet",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <Group
       justify="space-between"
       className="fee-draft-status"
-      data-dirty={hasChanges}
+      mb="md"
       role="region"
       aria-label="Fee changes"
     >

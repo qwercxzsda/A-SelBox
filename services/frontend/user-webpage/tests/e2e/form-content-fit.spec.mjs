@@ -207,11 +207,13 @@ test("fee list and review wrap company names without hiding actions on a phone",
     state.companyNames[COMPANY] = previous;
     state.companyNames[OTHER_COMPANY] = next;
   });
-  const identity = page.locator(".fee-sku-identity");
-  await identity.evaluate((element) => element.scrollIntoView({ block: "center" }));
-  await expect(identity).toBeInViewport({ ratio: 1 });
-  await expectContained(page, identity);
-  await expect(identity).toContainText(previous);
+  const company = page
+    .getByRole("table", { name: "Current fee configurations", exact: true })
+    .getByRole("cell", { name: previous, exact: true });
+  await company.scrollIntoViewIfNeeded();
+  await expectFullyInViewport(company);
+  await expectContained(page, company);
+  await expectActionFits(page.getByRole("button", { name: "Edit S1", exact: true }));
   await page.screenshot({
     path: testInfo.outputPath("fee-list-company-name.png"),
     fullPage: true,

@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { assignmentId, feeRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
+import { openColumn } from "./table-actions.mjs";
 
 const SKU = "GROUP 001 / SAMPLE";
-const skuButton = (page) =>
-  page.getByRole("button", { name: `Show marketplace fees for ${SKU}: ` });
+const skuButton = (page) => page.getByRole("button", { name: `marketplace fees for ${SKU}: ` });
 const feeTable = (page) =>
   page.getByRole("table", { name: `Marketplace fees for ${SKU}`, exact: true });
 async function feeFixture(page, role = "member") {
@@ -33,20 +33,54 @@ for (const role of ["member", "administrator"]) {
     fixture.beforeConfiguration = () => pending.promise;
     await signIn(page);
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    await expect(page.getByText("Loading assignments and fees…", { exact: true })).toBeVisible();
+    const header = page.locator(".workspace-header");
+    await expect(header.getByRole("status")).toHaveText("Loading…");
+    await expect(page.getByText("Loading assignments and fees…", { exact: true })).toHaveCount(0);
+    const headerBounds = await header.boundingBox();
     await expect(skuButton(page)).toHaveCount(0);
     pending.resolve();
     await expect(skuButton(page)).toBeVisible();
+    await expect(header.getByRole("status").filter({ hasText: "Loading…" })).toHaveCount(0);
+    expect(await header.boundingBox()).toEqual(headerBounds);
     await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
       /1[-–]25 of 26 SKUs/,
     );
-    await expect(
-      page.locator(".mantine-Accordion-item").filter({ has: skuButton(page) }),
-    ).toContainText("Company A");
+    const summary = page.getByRole("table", { name: "Current fee configurations", exact: true });
+    if (role === "administrator")
+      await expect(
+        summary.locator(".expandable-summary-row").filter({ has: skuButton(page) }),
+      ).toContainText("Company A");
+    else {
+      await expect(summary.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(
+        0,
+      );
+      const status = await openColumn(page, "Status");
+      await expect(
+        status.getByRole("checkbox", { name: "Needs setup", exact: true }),
+      ).toBeVisible();
+      await expect(status.getByRole("checkbox", { name: "Saved", exact: true })).toBeVisible();
+      await expect(status.getByRole("checkbox", { name: "Draft", exact: true })).toHaveCount(0);
+      await expect(
+        status.getByRole("checkbox", { name: "Unfinished edit", exact: true }),
+      ).toHaveCount(0);
+      await status.getByRole("button", { name: "Close options", exact: true }).click();
+    }
     await page
       .getByLabel("Search SKUs", { exact: true })
       .fill(role === "administrator" ? "Company A" : SKU);
+    await skuButton(page).scrollIntoViewIfNeeded();
+    const before = await summary
+      .locator(":scope > thead th")
+      .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().width));
+    const pageTop = await page.evaluate(() => globalThis.scrollY);
     await skuButton(page).click();
+    await expect(skuButton(page)).toBeFocused();
+    expect(await page.evaluate(() => globalThis.scrollY)).toBe(pageTop);
+    expect(
+      await summary
+        .locator(":scope > thead th")
+        .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().width)),
+    ).toEqual(before);
     const table = feeTable(page);
     await expect(table.getByRole("row")).toHaveCount(6);
     await expect(table.getByRole("cell", { name: "5.123456%", exact: true })).toBeVisible();
@@ -71,7 +105,7 @@ for (const role of ["member", "administrator"]) {
     expect(fixture.configurationRequests.filter(({ completed }) => completed)).toHaveLength(1);
     await page.getByRole("button", { name: "Collapse all", exact: true }).click();
     await page.getByLabel("Search SKUs", { exact: true }).fill("absent");
-    await expect(page.getByText("No SKUs match your search.", { exact: true })).toBeVisible();
+    await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
     await expect(skuButton(page)).toHaveAttribute("aria-expanded", "false");
   });

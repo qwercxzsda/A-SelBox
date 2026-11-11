@@ -11,10 +11,10 @@ import {
   type ReviewScope,
 } from "./financial-review-view";
 import { useWorkspacePreference } from "./use-workspace-preference";
-import { useFinancialReviewPeriod } from "./use-financial-review-period";
+import type { useFinancialReviewPeriod } from "./use-financial-review-period";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { revealSection } from "./reveal-section";
-import { FeeFamilyFilter, FeeFamilyScope, FeeFamilyStatus } from "./FeeFamilyFilter";
+import { FeeFamilyFilter, FeeFamilyScope, FeeFamilyError } from "./FeeFamilyFilter";
 import { FinancialReviewFamilyBreakdown } from "./FinancialReviewFamilies";
 import { normalizeFeeFamilyIds } from "./fee-family-catalog";
 import type { ReviewCategory } from "./financial-review-categories";
@@ -28,12 +28,14 @@ export function FinancialReviewMonths({
   scope,
   onScopeChange,
   onRetry,
+  period,
 }: {
   identity: Identity;
   category: ReviewCategory;
   scope: ReviewScope;
   onScopeChange: (scope: ReviewScope) => void;
   onRetry: () => Promise<void>;
+  period: ReturnType<typeof useFinancialReviewPeriod>;
 }) {
   const {
     bounds,
@@ -50,7 +52,7 @@ export function FinancialReviewMonths({
     rows,
     months,
     loading,
-  } = useFinancialReviewPeriod(identity, category, scope);
+  } = period;
   const [view, setView] = useWorkspacePreference(
     `financial-review:monthly-summaries:${category}`,
     createMonthlyReviewView,
@@ -85,7 +87,7 @@ export function FinancialReviewMonths({
     comparisonQuery.isError || bounds.isError || (!currency && totalsQuery.isError);
   const canClearFamilies = hasSelectedFamilies && !loading && !comparisonUnavailable;
   const emptyMessage = loading
-    ? "Loading monthly summaries…"
+    ? undefined
     : comparisonUnavailable
       ? "Monthly summaries are unavailable."
       : hasSelectedFamilies
@@ -134,8 +136,7 @@ export function FinancialReviewMonths({
       </div>
       <Group className="financial-review-family-context" justify="space-between" gap="xs">
         <FeeFamilyScope families={scope.families} />
-        <FeeFamilyStatus
-          loading={year !== "" && currency !== "" && familyQuery.isPending}
+        <FeeFamilyError
           error={familyQuery.isError}
           onRetry={() => {
             familyTrigger.current?.focus();

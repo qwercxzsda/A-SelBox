@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import {
+  closeCompanyCreation,
+  companyCreation,
+  companyRow,
+  companyToggle,
+} from "./company-actions.mjs";
+import {
   COMPANY,
   OTHER_COMPANY,
   editor,
@@ -15,8 +21,7 @@ const createButton = (page) => page.getByRole("button", { name: "Create company"
 const membership = (page) => page.getByRole("dialog", { name: "Company membership", exact: true });
 const accountRow = (page, email) =>
   page.getByRole("row").filter({ has: page.getByText(email, { exact: true }) });
-const companyDetails = (page, name) =>
-  page.getByRole("button", { name: `Show details for ${name}: ` });
+const companyDetails = companyToggle;
 
 function addCompanies(fixture, count) {
   for (let index = 1; index <= count; index += 1) {
@@ -40,7 +45,7 @@ async function expectCompanies(page) {
     "true",
   );
   await expect(nameInput(page)).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(companyCreation(page)).toBeVisible();
 }
 
 async function openCompany(page, parent = page) {
@@ -60,7 +65,9 @@ async function createCompany(page, name) {
 }
 
 async function returnTo(page, tab) {
-  await page.getByRole("button", { name: `Return to ${tab}`, exact: true }).click();
+  await companyCreation(page)
+    .getByRole("button", { name: `Return to ${tab}`, exact: true })
+    .click();
   await expect(page.getByRole("tab", { name: tab, exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -240,7 +247,8 @@ test("Companies lists saved company details and opens exact SKU transactions or 
   await page.setViewportSize({ width: 1440, height: 1000 });
   const fixture = await start(page);
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  await expectCompanies(page);
+  await expect(companyCreation(page)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add company", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Return to / })).toHaveCount(0);
   await companyDetails(page, "Alpha Company").click();
   await expect(page.getByText(COMPANY, { exact: true })).toBeVisible();
@@ -262,9 +270,7 @@ test("Companies lists saved company details and opens exact SKU transactions or 
   await expect(
     page.getByText("No SKUs are assigned to this company.", { exact: true }),
   ).toBeVisible();
-  await page
-    .locator(".mantine-Accordion-item")
-    .filter({ has: companyDetails(page, "Beta Company") })
+  await companyRow(page, "Beta Company")
     .getByRole("button", { name: "View members", exact: true })
     .click();
   await expect(page.getByRole("tab", { name: "User access", exact: true })).toHaveAttribute(
@@ -286,11 +292,14 @@ test("Companies lists saved company details and opens exact SKU transactions or 
   await expect(accountRow(page, "pending@example.test")).toHaveCount(0);
 });
 
-test("creation reveals the result using the current page size and keeps details expanded while the request was pending", async ({
+test("creation reveals the result using the existing page size and preserves expanded details", async ({
   page,
 }) => {
   const fixture = await start(page, (fixture) => addCompanies(fixture, 80));
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
+  await page.getByLabel("Rows", { exact: true }).selectOption("50");
+  await companyDetails(page, "Company 02").click();
+  await openCompany(page);
   const started = deferred();
   const release = deferred();
   fixture.beforeCompanyCreation = async () => {
@@ -301,12 +310,14 @@ test("creation reveals the result using the current page size and keeps details 
   try {
     await createButton(page).click();
     await started.promise;
-    await page.getByLabel("Rows", { exact: true }).selectOption("50");
-    await companyDetails(page, "Company 02").click();
+    await expect(
+      companyCreation(page).getByRole("button", { name: "Done", exact: true }),
+    ).toBeDisabled();
     release.resolve();
     await expect(
       page.getByRole("status").filter({ hasText: "Company added: Company 40a" }),
     ).toBeVisible();
+    await closeCompanyCreation(page);
     await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
     await expect(companyDetails(page, "Company 40a")).toHaveAttribute("aria-expanded", "true");
     await expect(companyDetails(page, "Company 02")).toHaveAttribute("aria-expanded", "true");
@@ -344,7 +355,7 @@ test.describe("phone company creation", () => {
     ["portrait", { width: 390, height: 844 }],
     ["landscape", { width: 844, height: 390 }],
   ]) {
-    test(`${orientation} uses a readable inline form and restores the fee editor after its creation detour`, async ({
+    test(`${orientation} uses a readable modal form and restores the fee editor after its creation detour`, async ({
       page,
     }, testInfo) => {
       await page.setViewportSize(viewport);

@@ -55,7 +55,7 @@ test("primary sign-in text remains readable before and during hover", async ({ p
   expect(await contrast(signInButton)).toBeGreaterThanOrEqual(4.5);
 });
 
-test("fee setup warning titles remain readable on their tinted background", async ({ page }) => {
+test("fee setup warning counts remain readable on their tinted background", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = COMPANY;
@@ -65,7 +65,7 @@ test("fee setup warning titles remain readable on their tinted background", asyn
   const title = page
     .getByRole("alert")
     .filter({ hasText: "1 SKU needs setup" })
-    .locator(".mantine-Alert-label");
+    .getByText("1 SKU needs setup", { exact: true });
   await expect(title).toBeVisible();
   expect(await contrast(title)).toBeGreaterThanOrEqual(4.5);
 });

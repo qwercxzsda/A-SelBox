@@ -15,6 +15,7 @@ import { PayoutReports } from "./PayoutReports";
 import { AppliedTableFilters } from "./AppliedTableFilters";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
+import { TransactionSummaries } from "./TransactionSummaries";
 import { filterOptions, transactionTypeValues } from "./filter-options";
 import { transactionTypeSelectionLabels } from "./transaction-type-groups";
 import { CompanyMembership } from "./CompanyMembership";
@@ -30,6 +31,7 @@ interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
   dataset: TableDatasetKey;
   onRetry: () => Promise<void>;
   onAddCompany?: () => void;
+  updating?: boolean;
 }
 
 export function FinanceDataset(props: FinanceDatasetProps) {
@@ -47,6 +49,7 @@ function StandardFinanceDataset({
   viewState,
   onViewStateChange,
   onAddCompany,
+  updating = false,
 }: FinanceDatasetProps) {
   const online = useBrowserOnline();
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -70,17 +73,35 @@ function StandardFinanceDataset({
   }
   return (
     <>
-      {dataset !== "live" ? (
-        <WorkspaceHeader
-          title={presentation.label}
-          help={<DatasetHelp dataset={dataset} />}
-          actions={
-            dataset === "accounts" && onAddCompany ? (
-              <Button variant="light" onClick={onAddCompany}>
-                Add company
-              </Button>
-            ) : undefined
-          }
+      <WorkspaceHeader
+        title={presentation.label}
+        status={
+          query.isPending
+            ? "loading"
+            : query.isFetching || query.countQuery.isFetching || updating
+              ? "updating"
+              : null
+        }
+        help={<DatasetHelp dataset={dataset} />}
+        actions={
+          dataset === "accounts" && onAddCompany ? (
+            <Button variant="light" onClick={onAddCompany}>
+              Add company
+            </Button>
+          ) : undefined
+        }
+      />
+      {dataset === "live" ? (
+        <TransactionSummaries
+          identity={identity}
+          onRetry={onRetry}
+          companyIds={filters.companyIds}
+          skus={filters.skus}
+          marketplaces={filters.marketplaces}
+          dateRange={{ from: filters.dateFrom, to: filters.dateTo }}
+          onPeriodSelect={({ from, to }) => {
+            changeFilters({ dateFrom: from, dateTo: to });
+          }}
         />
       ) : null}
       {query.error ? (
@@ -142,7 +163,7 @@ function StandardFinanceDataset({
           amountLimitExceeded
             ? "Narrow your filters or order by date to load rows."
             : query.isPending
-              ? `Loading page ${String(pageIndex + 1)}…`
+              ? ""
               : undefined
         }
       />
@@ -168,7 +189,7 @@ function StandardFinanceDataset({
         status={
           <DatasetCountStatus
             isError={query.countQuery.isError}
-            isFetching={query.countQuery.isFetching}
+            isFetching={false}
             items="rows"
             onRetry={() => {
               showControls();
@@ -194,9 +215,9 @@ function StandardFinanceDataset({
           ) : null;
         }}
       >
-        {query.isPending ? (
+        {query.isPending && !online ? (
           <div className="loading-state" role="status">
-            {online ? "Loading rows…" : "Waiting for a connection to load rows…"}
+            Waiting for a connection to load rows…
           </div>
         ) : null}
         {!query.isPending && !query.isError && rows.length === 0 ? (

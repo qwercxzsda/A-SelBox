@@ -75,7 +75,7 @@ test("administrators stage multiple SKUs and validate each changed SKU before sa
   });
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "2 SKU changes saved." })).toBeVisible();
-  await expect(page.getByText("No unsaved changes.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Fee changes", exact: true })).toHaveCount(0);
   expect(fixture.configurationSaves).toHaveLength(1);
   expect(fixture.configurationSaves[0].p_changes.map((change) => change.sku)).toEqual(["S1", "S2"]);
   expect(
@@ -91,8 +91,8 @@ test("members see only their assigned settings and have no edit or save controls
     item("S1"),
     item("S2", { company_id: OTHER_COMPANY }),
   ]);
-  await expect(page.getByRole("button", { name: "Show marketplace fees for S2: " })).toHaveCount(0);
-  await page.getByRole("button", { name: "Show marketplace fees for S1: " }).click();
+  await expect(page.getByRole("button", { name: "marketplace fees for S2: " })).toHaveCount(0);
+  await page.getByRole("button", { name: "marketplace fees for S1: " }).click();
   await expect(page.getByRole("cell", { name: "5%", exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Add SKU|Edit S1|Review changes|Save all changes/ }),
@@ -225,7 +225,7 @@ test("newly imported fee requirements for a changed SKU preserve its draft and b
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "No changes were saved." })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Show marketplace fees for S1: " })).toBeVisible();
+  await expect(page.getByRole("button", { name: "marketplace fees for S1: " })).toBeVisible();
   await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
   await openReview(page);
   await expect(
@@ -294,7 +294,7 @@ test("a pending save remains exclusive after the fee screen unmounts and remount
   expect(fixture.configurationSaves).toHaveLength(1);
   pending.resolve();
   await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
-  await expect(page.getByText("No unsaved changes.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Fee changes", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Edit S1", exact: true })).toBeEnabled();
   expect(fixture.configurationSaves).toHaveLength(1);
 });
@@ -315,9 +315,9 @@ test("discarding an accidental new SKU in review preserves other drafts without 
   await expect(review(page).getByText("TYPO-SKU", { exact: true })).toHaveCount(0);
   await expect(review(page).getByRole("cell", { name: "6.123456%", exact: true })).toBeVisible();
   await review(page).getByRole("button", { name: "Back to editing", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Show marketplace fees for TYPO-SKU: " }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "marketplace fees for TYPO-SKU: " })).toHaveCount(
+    0,
+  );
   await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(0);
 });

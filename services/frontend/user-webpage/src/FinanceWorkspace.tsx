@@ -1,6 +1,5 @@
 import { Alert, Button, Group, Tabs } from "@mantine/core";
 import { useEffect, type SetStateAction } from "react";
-import { UpdateStatus } from "./UpdateStatus";
 import type { TableDatasetKey } from "./api";
 import { FinanceDataset } from "./FinanceDataset";
 import { DATASET_PRESENTATION, companyLabel } from "./view-model";
@@ -9,8 +8,6 @@ import { CurrentFees } from "./CurrentFees";
 import { Inventory } from "./Inventory";
 import { FinancialReview } from "./FinancialReview";
 import { useSkuConfiguration } from "./use-sku-configuration";
-import { TransactionSummaries } from "./TransactionSummaries";
-import type { DateRange } from "./summary-periods";
 import {
   createDatasetViewState,
   createFeeViewState,
@@ -27,8 +24,6 @@ import {
 import { normalizeDatasetFilters } from "./dataset-filters";
 import { Companies } from "./Companies";
 import { useWorkspaceNavigationFocus } from "./use-workspace-navigation-focus";
-import { WorkspaceHeader } from "./WorkspaceHeader";
-import { DatasetHelp } from "./DatasetHelp";
 
 const TAB_GROUPS = [
   ["live", "inventory", "payouts", "fees"],
@@ -85,7 +80,6 @@ export function FinanceWorkspace(props: WorkspaceProps) {
   );
   const tabGroups =
     props.identity.account.access_role === "administrator" ? TAB_GROUPS : TAB_GROUPS.slice(0, 1);
-  const transactions = datasetViews.live ?? createDatasetViewState("live");
   const workspaceTitle = tabLabel(dataset);
   const accountTitle =
     props.identity.account.access_role === "administrator"
@@ -125,16 +119,6 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     setDataset("accounts");
   }
 
-  function selectPeriod(range: DateRange) {
-    updateDatasetView("live", (previous) => ({
-      ...previous,
-      filters: { ...previous.filters, dateFrom: range.from, dateTo: range.to },
-      pagination: { ...previous.pagination, pageIndex: 0 },
-      selectedRowId: null,
-    }));
-    setDataset("live");
-  }
-
   function showSkuTransactions(sku: string) {
     updateDatasetView("live", (previous) => ({
       ...previous,
@@ -161,9 +145,6 @@ export function FinanceWorkspace(props: WorkspaceProps) {
           </Group>
         </Alert>
       ) : null}
-      <UpdateStatus active={props.isUpdating} mb="xs">
-        Updating…
-      </UpdateStatus>
       <Tabs
         value={dataset}
         onChange={(value) => {
@@ -189,22 +170,9 @@ export function FinanceWorkspace(props: WorkspaceProps) {
           )}
         </Tabs.List>
         <Tabs.Panel value={dataset} pt="md">
-          {dataset === "live" ? (
-            <>
-              <WorkspaceHeader title="Transactions" help={<DatasetHelp dataset="live" />} />
-              <TransactionSummaries
-                identity={props.identity}
-                onRetry={props.onRetry}
-                companyIds={transactions.filters.companyIds}
-                skus={transactions.filters.skus}
-                marketplaces={transactions.filters.marketplaces}
-                dateRange={{ from: transactions.filters.dateFrom, to: transactions.filters.dateTo }}
-                onPeriodSelect={selectPeriod}
-              />
-            </>
-          ) : null}
           {dataset === "companies" ? (
             <Companies
+              updating={props.isUpdating}
               identity={props.identity}
               returnTo={companyReturnTo}
               onReturn={() => {
@@ -216,15 +184,21 @@ export function FinanceWorkspace(props: WorkspaceProps) {
             />
           ) : dataset === "inventory" ? (
             <Inventory
+              updating={props.isUpdating}
               identity={props.identity}
               viewState={inventoryViewState}
               onViewStateChange={setInventoryViewState}
               onShowTransactions={showSkuTransactions}
             />
           ) : dataset === "financial-review" ? (
-            <FinancialReview identity={props.identity} onRetry={props.onRetry} />
+            <FinancialReview
+              identity={props.identity}
+              onRetry={props.onRetry}
+              updating={props.isUpdating}
+            />
           ) : dataset === "fees" ? (
             <CurrentFees
+              updating={props.isUpdating}
               identity={props.identity}
               controller={feeConfiguration}
               viewState={feeViewState}
@@ -236,6 +210,7 @@ export function FinanceWorkspace(props: WorkspaceProps) {
             />
           ) : (
             <FinanceDataset
+              updating={props.isUpdating}
               key={dataset}
               dataset={dataset}
               onAddCompany={() => {

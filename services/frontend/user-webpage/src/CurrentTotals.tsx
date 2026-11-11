@@ -6,6 +6,7 @@ import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import { MarketplaceTotalsTable } from "./MarketplaceTotalsTable";
 import { TotalsDateControl } from "./TotalsDateControl";
 import { HelpPopover } from "./HelpPopover";
+import { LoadingStatus } from "./LoadingStatus";
 import {
   TOTALS_PERIODS,
   TOTALS_PERIOD_LABELS,
@@ -66,9 +67,7 @@ export function CurrentTotals({
           <span className="totals-market-count">
             {groups.length} {groups.length === 1 ? "marketplace" : "marketplaces"}
           </span>
-          <span className="totals-update" role="status">
-            {loading ? "Updating…" : ""}
-          </span>
+          <LoadingStatus state={loading ? "updating" : null} />
         </div>
       </div>
       {appliedFilters.length > 0 ? (

@@ -1,39 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Accordion, Alert, Button, Group, Paper, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Modal, Text } from "@mantine/core";
 import type { Company } from "./api";
 import type { Identity } from "./auth-session";
 import { CompanyCreateForm } from "./CompanyCreateForm";
 import { useCompanyDirectory } from "./company-directory-context";
 import { ListToolbar } from "./ListToolbar";
 import { lastPageIndex } from "./pagination";
-import { CompanyDetails } from "./CompanyDetails";
+import { CompanyTable } from "./CompanyTable";
 import { useWorkspacePreference } from "./use-workspace-preference";
-import { PAGE_SIZES } from "./view-model";
 import { WorkspaceHeader } from "./WorkspaceHeader";
+import { decodeCompanyList, orderCompanies, type CompanyListState } from "./companies-view";
 import "./Companies.css";
-
-interface CompanyListState {
-  search: string;
-  pageSize: number;
-  pageIndex: number;
-  expanded: string[];
-}
-
-function decodeList(value: unknown): CompanyListState {
-  const saved =
-    typeof value === "object" && value !== null ? (value as Partial<CompanyListState>) : {};
-  return {
-    search: typeof saved.search === "string" ? saved.search : "",
-    pageSize: PAGE_SIZES.find((size) => size === saved.pageSize) ?? PAGE_SIZES[0],
-    pageIndex:
-      typeof saved.pageIndex === "number" && Number.isSafeInteger(saved.pageIndex)
-        ? Math.max(0, saved.pageIndex)
-        : 0,
-    expanded: Array.isArray(saved.expanded)
-      ? saved.expanded.filter((id): id is string => typeof id === "string")
-      : [],
-  };
-}
 
 export function Companies({
   identity,
@@ -41,14 +18,16 @@ export function Companies({
   onReturn,
   onShowMembers,
   onShowTransactions,
+  updating = false,
 }: {
   identity: Identity;
   returnTo: "fees" | "accounts" | null;
   onReturn: () => void;
   onShowMembers: (companyId: string) => void;
   onShowTransactions: (sku: string) => void;
+  updating?: boolean;
 }) {
-  const { companies } = useCompanyDirectory();
+  const { companies, isCreating } = useCompanyDirectory();
   const [notice, setNotice] = useState<string | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -57,9 +36,17 @@ export function Companies({
   }, [notice]);
   const [state, setState] = useWorkspacePreference(
     "companies:list",
-    () => decodeList(null),
-    decodeList,
+    () => decodeCompanyList(null),
+    decodeCompanyList,
   );
+  const [creating, setCreating] = useWorkspacePreference(
+    "company-create:opened",
+    () => returnTo !== null,
+    (value) => value === true,
+  );
+  useEffect(() => {
+    if (returnTo !== null) setCreating(true);
+  }, [returnTo, setCreating]);
   const returnLabel =
     returnTo === "fees" ? "Current fees" : returnTo === "accounts" ? "User access" : null;
   const assignments = useMemo(() => {
@@ -72,8 +59,14 @@ export function Companies({
     return new Map([...grouped].map(([companyId, skus]) => [companyId, [...skus].sort()]));
   }, [identity.assignments]);
   const query = state.search.trim().toLocaleLowerCase();
-  const filtered = companies.filter((company) =>
-    [company.name, company.id].some((value) => value.toLocaleLowerCase().includes(query)),
+  const filtered = orderCompanies(
+    companies.filter(
+      (company) =>
+        (!state.companyIds.length || state.companyIds.includes(company.id)) &&
+        [company.name, company.id].some((value) => value.toLocaleLowerCase().includes(query)),
+    ),
+    assignments,
+    state,
   );
   const pageCount = lastPageIndex(filtered.length, state.pageSize) + 1;
   const pageIndex = Math.min(state.pageIndex, pageCount - 1);
@@ -82,49 +75,70 @@ export function Companies({
   function change(patch: Partial<CompanyListState>) {
     setState((current) => ({ ...current, ...patch }));
   }
+  function closeCreation() {
+    if (!isCreating) setCreating(false);
+  }
+  function returnToOrigin() {
+    if (isCreating) return;
+    setCreating(false);
+    onReturn();
+  }
   function revealCompany(company: Company) {
     setNotice(null);
-    const updated = [...companies.filter(({ id }) => id !== company.id), company].sort(
-      (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
-    );
+    const updated = [...companies.filter(({ id }) => id !== company.id), company];
     setState((current) => ({
       ...current,
       search: "",
-      pageIndex: Math.floor(updated.findIndex(({ id }) => id === company.id) / current.pageSize),
+      companyIds: [],
+      pageIndex: Math.floor(
+        orderCompanies(updated, assignments, current).findIndex(({ id }) => id === company.id) /
+          current.pageSize,
+      ),
       expanded: [...new Set([...current.expanded, company.id])],
     }));
   }
 
   return (
-    <Stack gap="md" className="companies-panel">
+    <div className="companies-panel">
       <WorkspaceHeader
         title="Companies"
+        status={updating ? "updating" : null}
+        actions={
+          <Button
+            variant="light"
+            onClick={() => {
+              setCreating(true);
+            }}
+          >
+            Add company
+          </Button>
+        }
         help={
           <>
             <p>
-              Create companies and expand a company to review its saved SKU assignments and members.
+              Expand a company to review its saved SKU assignments. View members opens its User
+              access list.
             </p>
             <p>
-              Assign SKUs in Current fees and manage company membership in User access. Selecting a
-              SKU opens its transactions.
+              Add company creates a company; assign SKUs in Current fees. Selecting a SKU opens its
+              transactions.
             </p>
           </>
         }
       />
       {returnLabel ? (
-        <Alert color="cyan">
+        <Alert color="cyan" mb="md">
           <Group justify="space-between" gap="sm" align="center">
             <Text size="sm" className="company-return-guide">
-              Add a company below, then return to {returnLabel} to select it. Your draft is kept
-              while you switch tabs.
+              Add a company, then return to {returnLabel} to select it. Your draft is kept while you
+              switch tabs.
             </Text>
-            <Button variant="light" onClick={onReturn}>
+            <Button variant="light" onClick={returnToOrigin}>
               Return to {returnLabel}
             </Button>
           </Group>
         </Alert>
       ) : null}
-      <CompanyCreateForm returnLabel={returnLabel} onCreated={revealCompany} />
       {notice ? (
         <Alert
           ref={noticeRef}
@@ -132,6 +146,7 @@ export function Companies({
           role="status"
           color="green"
           className="company-create-notice"
+          mb="md"
         >
           {notice}
         </Alert>
@@ -170,91 +185,48 @@ export function Companies({
         rowCount={visible.length}
         totalCount={filtered.length}
         items="companies"
-        extraControls={
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            disabled={state.expanded.length === 0}
-            onClick={() => {
-              change({ expanded: [] });
-            }}
-          >
-            Collapse all
-          </Button>
-        }
       />
-      {visible.length ? (
-        <Accordion
-          multiple
-          variant="separated"
-          className="company-list"
-          value={state.expanded}
-          onChange={(expanded) => {
-            change({ expanded });
-          }}
-        >
-          {visible.map((company) => {
-            const skus = assignments.get(company.id) ?? [];
-            const assignmentSummary = `${skus.length.toLocaleString("en-US")} assigned ${skus.length === 1 ? "SKU" : "SKUs"}`;
-            return (
-              <Accordion.Item key={company.id} value={company.id}>
-                <Accordion.Control
-                  aria-label={`Show details for ${company.name}: ${assignmentSummary}`}
-                >
-                  <Group justify="space-between" gap="xs" className="company-list-summary">
-                    <Text fw={600} size="sm" className="company-list-name">
-                      {company.name}
-                    </Text>{" "}
-                    <Text size="sm" c="dimmed">
-                      {assignmentSummary}
-                    </Text>
-                  </Group>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  {state.expanded.includes(company.id) ? (
-                    <CompanyDetails
-                      company={company}
-                      skus={skus}
-                      onShowMembers={onShowMembers}
-                      onShowTransactions={onShowTransactions}
-                      onDeleted={(company, deleted) => {
-                        setNotice(
-                          `${deleted ? "Company deleted" : "Company already deleted"}: ${company.name}`,
-                        );
-                        setState((current) => ({
-                          ...current,
-                          expanded: current.expanded.filter((id) => id !== company.id),
-                        }));
-                      }}
-                    />
-                  ) : null}
-                </Accordion.Panel>
-              </Accordion.Item>
-            );
-          })}
-        </Accordion>
-      ) : (
-        <Paper withBorder p="xl">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed">
-              {query
-                ? "No companies match your search."
-                : "No companies yet. Add your first company above."}
-            </Text>
-            {query ? (
-              <Button
-                variant="subtle"
-                onClick={(event) => {
-                  if (event.detail === 0) searchInput.current?.focus();
-                  change({ search: "", pageIndex: 0 });
-                }}
-              >
-                Clear search
-              </Button>
-            ) : null}
-          </Stack>
-        </Paper>
-      )}
-    </Stack>
+      <CompanyTable
+        companies={companies}
+        visible={visible}
+        assignments={assignments}
+        state={state}
+        onChange={change}
+        searchInput={searchInput}
+        onShowMembers={onShowMembers}
+        onShowTransactions={onShowTransactions}
+        onDeleted={(company, deleted) => {
+          setNotice(`${deleted ? "Company deleted" : "Company already deleted"}: ${company.name}`);
+          setState((current) => ({
+            ...current,
+            companyIds: current.companyIds.filter((id) => id !== company.id),
+            expanded: current.expanded.filter((id) => id !== company.id),
+          }));
+        }}
+      />
+      <Modal
+        opened={creating}
+        onClose={closeCreation}
+        centered
+        size="min(560px, calc(100vw - 32px))"
+        padding="lg"
+        title="Add company"
+        closeButtonProps={{ "aria-label": "Close company creation", disabled: isCreating }}
+        closeOnEscape={!isCreating}
+        closeOnClickOutside={!isCreating}
+      >
+        <CompanyCreateForm returnLabel={returnLabel} onCreated={revealCompany} />
+        <Group justify="flex-end" mt="lg">
+          <Button variant="default" disabled={isCreating} onClick={closeCreation}>
+            Done
+          </Button>
+          {returnLabel ? (
+            <Button disabled={isCreating} onClick={returnToOrigin}>
+              Return to {returnLabel}
+            </Button>
+          ) : null}
+        </Group>
+      </Modal>
+    </div>
   );
 }

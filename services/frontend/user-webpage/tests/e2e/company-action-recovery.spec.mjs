@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { deferred } from "./fixtures.mjs";
 import { item, setup } from "./sku-configuration-fixtures.mjs";
+import { companyCreation, companyPanel, companyToggle } from "./company-actions.mjs";
 
 const unusedCompany = "0198b50b-701a-7000-8000-000000000800";
 const creation = (page) => page.getByRole("region", { name: "Add company", exact: true });
@@ -17,6 +18,7 @@ test("company creation returns keyboard focus to failure and success feedback", 
   page,
 }) => {
   const fixture = await openCompanies(page);
+  await page.getByRole("button", { name: "Add company", exact: true }).click();
   const form = creation(page);
   fixture.companyCreationStatus = 503;
   await form.getByLabel("Company name", { exact: true }).fill("Recovery Company");
@@ -30,20 +32,40 @@ test("company creation returns keyboard focus to failure and success feedback", 
   expect(fixture.companyCreationRequests).toHaveLength(2);
 });
 
-test("company creation feedback does not interrupt work in the company search", async ({
+test("pending company creation cannot dismiss its modal or lose its result feedback", async ({
   page,
 }) => {
   const fixture = await openCompanies(page);
+  await page.getByRole("button", { name: "Add company", exact: true }).click();
   const response = deferred();
-  fixture.beforeCompanyCreation = () => response.promise;
-  await creation(page).getByLabel("Company name", { exact: true }).fill("Background Company");
-  await creation(page).getByRole("button", { name: "Create company", exact: true }).click();
-  const search = page.getByLabel("Search companies", { exact: true });
-  await search.fill("Alpha");
-  response.resolve();
-  await expect(creation(page).getByRole("status")).toBeVisible();
-  await expect(search).toBeFocused();
-  expect(fixture.companyCreationRequests).toHaveLength(1);
+  const started = deferred();
+  fixture.beforeCompanyCreation = async () => {
+    started.resolve();
+    await response.promise;
+  };
+  const dialog = companyCreation(page);
+  const close = dialog.getByRole("button", { name: "Close company creation", exact: true });
+  try {
+    await creation(page).getByLabel("Company name", { exact: true }).fill("Background Company");
+    await creation(page).getByRole("button", { name: "Create company", exact: true }).click();
+    await started.promise;
+    await expect(close).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "Done", exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    response.resolve();
+    await expect(creation(page).getByRole("status")).toContainText(
+      "Company added: Background Company",
+    );
+    await expect(creation(page).getByRole("status")).toBeFocused();
+    await expect(close).toBeEnabled();
+    await close.click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("button", { name: "Add company", exact: true })).toBeFocused();
+    expect(fixture.companyCreationRequests).toHaveLength(1);
+  } finally {
+    response.resolve();
+  }
 });
 
 test("a blocked company deletion focuses its explanation and can be cancelled by keyboard", async ({
@@ -51,11 +73,9 @@ test("a blocked company deletion focuses its explanation and can be cancelled by
 }) => {
   const fixture = await openCompanies(page);
   fixture.companyDeletionBlockers[unusedCompany] = [{ code: "members", count: 2 }];
-  await page.getByRole("button", { name: "Show details for Unused Company: " }).click();
-  const details = page.getByRole("region", {
-    name: "Show details for Unused Company: ",
-  });
-  await expect(details).toHaveCSS("overflow", "visible");
+  await companyToggle(page, "Unused Company").click();
+  const details = companyPanel(page, "Unused Company");
+  await expect(details).toBeVisible();
   await details.getByRole("button", { name: "Delete company", exact: true }).click();
   const confirmation = page.getByRole("region", { name: "Delete Unused Company", exact: true });
   await confirmation.getByRole("button", { name: "Delete permanently", exact: true }).click();

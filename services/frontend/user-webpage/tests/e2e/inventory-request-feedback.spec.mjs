@@ -20,11 +20,20 @@ test("inventory waits for the complete dataset before displaying filtered result
     await page.getByRole("tab", { name: "Inventory", exact: true }).click();
     await page.getByLabel("Search", { exact: true }).fill("NEEDLE");
     await expect(page.locator(".inventory-sku")).toHaveCount(0);
-    await expect(topPager(page)).toContainText("Loading inventory…");
+    const header = page.locator(".workspace-header");
+    await expect(header.getByRole("status")).toHaveText("Loading…");
+    await expect(page.getByText("Loading inventory…", { exact: true })).toHaveCount(0);
+    const controls = await page
+      .getByRole("group", { name: "Inventory controls", exact: true })
+      .boundingBox();
     await expect(topPager(page)).not.toContainText("0–0 of 0 inventory items");
     release.resolve();
     await expect(page.locator(".inventory-sku")).toHaveText(["NEEDLE"]);
     await expect(topPager(page)).toContainText("1–1 of 1 inventory items");
+    await expect(header.getByRole("status").filter({ hasText: "Loading…" })).toHaveCount(0);
+    expect(
+      (await page.getByRole("group", { name: "Inventory controls", exact: true }).boundingBox()).y,
+    ).toBeCloseTo(controls.y, 0);
   } finally {
     release.resolve();
   }

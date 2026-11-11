@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Alert, Button, Group, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { SkuConfigurationEditor } from "./SkuConfigurationEditor";
 import { SkuConfigurationReview } from "./SkuConfigurationReview";
@@ -22,11 +22,13 @@ export function CurrentFees({
   onViewStateChange,
   onShowTransactions,
   onAddCompany,
+  updating = false,
 }: {
   identity: Identity;
   controller: ReturnType<typeof useSkuConfiguration>;
   onShowTransactions: (sku: string) => void;
   onAddCompany: () => void;
+  updating?: boolean;
 } & ViewStateProps<FeeViewState>) {
   const administrator = identity.account.access_role === "administrator";
   const { drafts, editing, reviewing } = viewState;
@@ -59,9 +61,16 @@ export function CurrentFees({
     ? (savedItems.find((item) => item.sku === editing.sku) ?? newSkuItem(editing.sku))
     : null;
   return (
-    <Stack ref={panelRef} tabIndex={-1} gap="md" className="fee-panel">
+    <div ref={panelRef} tabIndex={-1} className="fee-panel">
       <WorkspaceHeader
         title="Current fees"
+        status={
+          configuration.isPending
+            ? "loading"
+            : configuration.isFetching || updating
+              ? "updating"
+              : null
+        }
         help={
           <>
             <p>
@@ -72,6 +81,12 @@ export function CurrentFees({
               {administrator
                 ? "Edits are saved as drafts. Review changes lets you check the full batch before publishing; closing an editor keeps unfinished work."
                 : "Your company's assignments and fee periods are read-only. Contact an administrator to change them."}
+            </p>
+            <p>
+              Needs setup indicates a missing company assignment or applicable fee periods.{" "}
+              {administrator
+                ? "Complete changes to other SKUs can still be saved."
+                : "Contact an administrator to complete missing settings."}
             </p>
           </>
         }
@@ -95,14 +110,13 @@ export function CurrentFees({
           ) : null
         }
       />
-      {configuration.isPending ? <Text role="status">Loading assignments and fees…</Text> : null}
       {isSaving ? (
-        <Text role="status">
+        <Text role="status" mb="sm">
           {savedNotice ? "Refreshing saved settings…" : "Saving configuration changes…"}
         </Text>
       ) : null}
       {configuration.isError ? (
-        <Alert role="alert" color="red">
+        <Alert role="alert" color="red" mb="md">
           Could not load assignments and fees. {getErrorMessage(configuration.error)}
           <Button variant="subtle" onClick={() => void reloadSaved()}>
             Retry configuration
@@ -110,12 +124,12 @@ export function CurrentFees({
         </Alert>
       ) : null}
       {savedNotice ? (
-        <Alert role="status" color="green">
+        <Alert role="status" color="green" mb="md">
           {savedNotice}
         </Alert>
       ) : null}
       {refreshFailed ? (
-        <Alert role="alert" color="orange">
+        <Alert role="alert" color="orange" mb="md">
           Your changes were saved, but the displayed settings could not be refreshed.
           <Button variant="subtle" onClick={() => void reloadSaved()}>
             Refresh saved settings
@@ -123,7 +137,7 @@ export function CurrentFees({
         </Alert>
       ) : null}
       {viewState.saveProblem && !reviewing ? (
-        <Alert role="alert" color="red">
+        <Alert role="alert" color="red" mb="md">
           <Text size="sm">{viewState.saveProblem}</Text>
           <Text size="sm">Your drafts are still available.</Text>
           <Button
@@ -138,28 +152,26 @@ export function CurrentFees({
       {configuration.data ? (
         <>
           {incompleteSkus.size > 0 ? (
-            <Alert
-              color="orange"
-              title={`${String(incompleteSkus.size)} ${incompleteSkus.size === 1 ? "SKU needs" : "SKUs need"} setup`}
-            >
-              <Text size="sm">
-                {administrator
-                  ? "These SKUs need a company or required fee periods. Complete changes to other SKUs can still be saved."
-                  : "Some applicable transactions are missing fee settings. Contact your administrator."}
-              </Text>
-              {administrator ? (
-                <Button
-                  mt="sm"
-                  variant="light"
-                  disabled={isSaving}
-                  onClick={(event) => {
-                    event.currentTarget.focus({ preventScroll: true });
-                    editSku([...incompleteSkus][0]);
-                  }}
-                >
-                  Complete next SKU
-                </Button>
-              ) : null}
+            <Alert color="orange" mb="md">
+              <Group justify="space-between" gap="xs">
+                <Text size="sm" fw={500} c="var(--ui-text)">
+                  {incompleteSkus.size} {incompleteSkus.size === 1 ? "SKU needs" : "SKUs need"}{" "}
+                  setup
+                </Text>
+                {administrator ? (
+                  <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    disabled={isSaving}
+                    onClick={(event) => {
+                      event.currentTarget.focus({ preventScroll: true });
+                      editSku([...incompleteSkus][0]);
+                    }}
+                  >
+                    Complete next SKU
+                  </Button>
+                ) : null}
+              </Group>
             </Alert>
           ) : null}
           {administrator ? (
@@ -240,7 +252,9 @@ export function CurrentFees({
             setReviewing(false);
             onViewStateChange((current) => ({
               ...current,
-              onlyIncomplete: true,
+              statuses: ["needs-setup"],
+              companyIds: [],
+              marketplaces: [],
               search: "",
               pageIndex: 0,
             }));
@@ -250,6 +264,6 @@ export function CurrentFees({
           }}
         />
       ) : null}
-    </Stack>
+    </div>
   );
 }

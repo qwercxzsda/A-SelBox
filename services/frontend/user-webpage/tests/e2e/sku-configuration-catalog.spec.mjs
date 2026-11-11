@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { selectColumnOptions } from "./table-actions.mjs";
 import {
   COMPANY,
   setup,
@@ -32,13 +33,15 @@ test("large catalogs preserve global setup diagnostics without blocking unrelate
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
   ).toBeEnabled();
   await page.keyboard.press("Escape");
-  await page.getByRole("checkbox", { name: "Needs setup only", exact: true }).check();
-  await expect(page.getByRole("checkbox", { name: "Needs setup only", exact: true })).toBeChecked();
+  await selectColumnOptions(page, "Status", ["Needs setup"]);
+  await expect(
+    page.getByRole("button", { name: "Remove Status: Needs setup", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
     "of 1,205 SKUs",
   );
   await page.getByLabel("Search SKUs", { exact: true }).fill("UNASSIGNED-1204");
-  await page.getByRole("button", { name: "Show marketplace fees for UNASSIGNED-1204: " }).click();
+  await page.getByRole("button", { name: "marketplace fees for UNASSIGNED-1204: " }).click();
   await page.getByRole("button", { name: "Edit UNASSIGNED-1204", exact: true }).click();
   await editor(page).getByLabel("Company", { exact: true }).selectOption(COMPANY);
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();

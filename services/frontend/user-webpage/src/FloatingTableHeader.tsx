@@ -29,7 +29,9 @@ export function FloatingTableHeader({ target }: { target: RefObject<HTMLDivEleme
               cells: [...head.querySelectorAll("th")].map((cell) => {
                 const rect = cell.getBoundingClientRect();
                 return {
-                  label: cell.textContent.replace(/\s+/g, " ").trim(),
+                  label: (cell.getAttribute("data-floating-header-label") ?? cell.textContent)
+                    .replace(/\s+/g, " ")
+                    .trim(),
                   left: rect.left - bounds.left,
                   width: rect.width,
                   align: getComputedStyle(cell).textAlign,

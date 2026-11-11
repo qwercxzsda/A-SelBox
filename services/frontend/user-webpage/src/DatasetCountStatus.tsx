@@ -1,5 +1,5 @@
 import { Button, Text } from "@mantine/core";
-import { UpdateStatus } from "./UpdateStatus";
+import { LoadingStatus } from "./LoadingStatus";
 
 /** Page rows stay usable while their independent count loads or recovers. */
 export function DatasetCountStatus({
@@ -23,6 +23,6 @@ export function DatasetCountStatus({
       </Button>
     </>
   ) : (
-    <UpdateStatus active={isFetching}>{`Counting ${items}…`}</UpdateStatus>
+    <LoadingStatus state={isFetching ? "updating" : null} />
   );
 }

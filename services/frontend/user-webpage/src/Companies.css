@@ -1,9 +1,16 @@
-.companies-panel > .workspace-header {
-  margin-bottom: 0;
-}
-
 .company-return-guide {
   flex: 1 1 320px;
+}
+
+.company-filter-chip {
+  max-width: 100%;
+  height: auto;
+  padding-block: 0.25rem;
+}
+
+.company-filter-chip .mantine-Button-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .company-create-fields {
@@ -20,15 +27,6 @@
 .company-details-id {
   overflow-wrap: anywhere;
   min-width: 0;
-}
-
-.company-list-summary {
-  padding-right: 12px;
-}
-
-.company-details {
-  border-top: 1px solid var(--ui-border);
-  padding-top: 16px;
 }
 
 .company-assigned-skus {
