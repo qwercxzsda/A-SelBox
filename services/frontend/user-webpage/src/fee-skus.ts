@@ -32,7 +32,5 @@ export function paginateFeeSkus<Item>(items: Item[], pageIndex: number, pageSize
     pageIndex: currentPage,
     pageCount: finalPage + 1,
     totalCount: items.length,
-    firstVisible: items.length === 0 ? 0 : start + 1,
-    lastVisible: start + visibleSkus.length,
   };
 }

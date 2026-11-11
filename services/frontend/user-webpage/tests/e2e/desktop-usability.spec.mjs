@@ -28,6 +28,8 @@ for (const width of [1440, 1920, 834, 390]) {
     await mockInventory(page, [inventoryRow("DESKTOP-0", { available: "0" })]);
     await signIn(page);
     const tabs = page.getByRole("tablist", { name: "Workspace data" });
+    // Initial dev-server compilation can outlast the authentication request.
+    await expect(tabs).toBeVisible({ timeout: 30_000 });
     const summaries = page.getByRole("region", { name: "Current totals", exact: true });
     await expect(summaries.getByRole("combobox")).toHaveCount(0);
     await expect(summaries.getByRole("radiogroup")).toHaveCount(0);
@@ -177,7 +179,7 @@ for (const width of [1440, 1920, 834, 390]) {
     ).toContainText("100.00");
     await page.getByRole("tab", { name: "Transactions", exact: true }).focus();
     await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tabpanel", { name: "Finances", exact: true })).toBeVisible();
+    await expect(page.getByRole("tabpanel", { name: "Inventory", exact: true })).toBeVisible();
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByRole("tabpanel", { name: "Transactions", exact: true })).toBeVisible();
     await expect(

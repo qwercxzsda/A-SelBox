@@ -17,18 +17,23 @@ export function InventorySourceDate({
   const snapshot = inventorySourceDay(snapshotDate, marketplace);
   const day = snapshot ?? inventorySourceDay(reportCreatedAt, marketplace);
   const age = inventoryAge(day, now, marketplace);
+  const sourceLabel = snapshot ? "Stock as of " : "Stock date unavailable · Report ";
+  const warning = age.overdue ? " · Out of date" : "";
+  const description = `${sourceLabel}${day ?? "date unavailable"}${day ? ` · ${age.label}` : ""}${warning}`;
+  const ageLabel = compact ? age.compactLabel : age.label;
   return (
     <Text
       mt={4}
       size={compact ? "xs" : "sm"}
       c={age.overdue ? "#8a5000" : "dimmed"}
       className="inventory-source-date"
-      title={`Dates more than ${String(INVENTORY_OVERDUE_DAYS)} calendar days old in this marketplace are out of date.`}
+      data-compact={compact || undefined}
+      title={`${description}. Dates more than ${String(INVENTORY_OVERDUE_DAYS)} calendar days old in this marketplace are out of date.`}
     >
-      {snapshot ? "Stock as of " : "Stock date unavailable · Report "}
-      {day ? <time dateTime={day}>{day}</time> : "date unavailable"}
-      {day ? ` · ${age.label}` : ""}
-      {age.overdue ? " · Out of date" : ""}
+      {compact ? (day && !snapshot ? "Report " : "") : sourceLabel}
+      {day ? <time dateTime={day}>{day}</time> : compact ? "Date unavailable" : "date unavailable"}
+      {day ? ` · ${ageLabel}` : ""}
+      {warning}
     </Text>
   );
 }

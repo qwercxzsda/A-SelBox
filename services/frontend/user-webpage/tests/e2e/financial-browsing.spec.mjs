@@ -65,6 +65,8 @@ test("wide financial columns remain reachable at the top without reloading rows"
   await expect(region.locator("tbody tr")).toHaveCount(100);
   const right = page.getByRole("button", { name: "Scroll table right", exact: true });
   const left = page.getByRole("button", { name: "Scroll table left", exact: true });
+  await expect(right).toHaveCount(0);
+  await page.setViewportSize({ width: 1180, height: 1000 });
   await expect(left).toBeDisabled();
   await page.getByRole("group", { name: "Record controls", exact: true }).evaluate((element) => {
     element.scrollIntoView({ block: "start" });
@@ -79,7 +81,7 @@ test("wide financial columns remain reachable at the top without reloading rows"
     region.getByRole("columnheader", { name: "Company amount", exact: true }),
   ).toBeInViewport();
   await page.screenshot({
-    path: testInfo.outputPath("financial-columns-right-1440.png"),
+    path: testInfo.outputPath("financial-columns-right-1180.png"),
     animations: "disabled",
   });
   await left.click();

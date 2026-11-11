@@ -49,35 +49,44 @@ export function inventorySourceDay(value: string | null, marketplace: string): s
 export function inventoryAge(day: string | null, now: number, marketplace: string) {
   const validDay = inventorySourceDay(day, marketplace);
   const today = marketplaceDay(now, marketplace);
-  if (validDay === null || today === null) return { label: "Date unavailable", overdue: false };
+  if (validDay === null || today === null)
+    return { label: "Date unavailable", compactLabel: "Date unavailable", overdue: false };
   const days =
     (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${validDay}T00:00:00Z`)) / 86_400_000;
-  if (days < 0) return { label: "Future source date — check source", overdue: false };
+  if (days < 0)
+    return {
+      label: "Future source date — check source",
+      compactLabel: "Future date",
+      overdue: false,
+    };
   return {
     label: days === 0 ? "Today" : `${String(days)} ${days === 1 ? "day" : "days"} old`,
+    compactLabel: days === 0 ? "Today" : `${String(days)}d ago`,
     overdue: days > INVENTORY_OVERDUE_DAYS,
   };
 }
 
 export function inventoryEmptyMessage({
   captures,
-  marketplace,
+  marketplaces,
   hasItems,
   member,
 }: {
   captures: InventoryCapture[] | undefined;
-  marketplace: string;
+  marketplaces: string[];
   hasItems: boolean | undefined;
   member: boolean;
 }): string {
   if (captures === undefined) return "Checking inventory availability…";
   const covered = captures.some(
-    (capture) => !marketplace || capture.marketplace_name === marketplace,
+    (capture) => !marketplaces.length || marketplaces.includes(capture.marketplace_name),
   );
   if (!covered)
-    return marketplace
-      ? `No inventory snapshot has been imported for ${marketplace}.`
-      : "No inventory snapshots have been imported yet.";
+    return marketplaces.length === 1
+      ? `No inventory snapshot has been imported for ${marketplaces[0]}.`
+      : marketplaces.length
+        ? "No inventory snapshots have been imported for the selected marketplaces."
+        : "No inventory snapshots have been imported yet.";
   if (hasItems === undefined) return "Checking inventory availability before these filters…";
   if (hasItems) return "No inventory matches these filters.";
   return member

@@ -301,10 +301,14 @@ test("view decoders whitelist table controls and preserve exact SKU text", () =>
   assert.equal(decodeInventoryView({ sortColumn: "unsafe" }).sortColumn, "sku");
   const inventory = decodeInventoryView({
     selectedRowId: '["capture","SKU"]',
+    marketplaces: ["Amazon.com", "Amazon.ca", null, 1],
+    companyIds: ["10000000-0000-0000-0000-000000000001", null, "invalid", 1],
     expanded: ["old"],
     available_quantity: "42",
   });
   assert.equal(inventory.selectedRowId, '["capture","SKU"]');
+  assert.deepEqual(inventory.marketplaces, ["Amazon.com", "Amazon.ca"]);
+  assert.deepEqual(inventory.companyIds, ["10000000-0000-0000-0000-000000000001", null]);
   assert.equal("expanded" in inventory, false);
   assert.equal("available_quantity" in inventory, false);
 });

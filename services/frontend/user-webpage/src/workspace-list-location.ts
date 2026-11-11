@@ -87,7 +87,8 @@ function nullableValues(params: URLSearchParams, key: string): (string | null)[]
 export function readInventoryLocation(params: URLSearchParams) {
   return decodeInventoryView({
     search: params.get("search"),
-    marketplace: params.get("marketplace"),
+    marketplaces: params.getAll("marketplace"),
+    companyIds: nullableValues(params, "company"),
     skus: nullableValues(params, "sku"),
     healthStatuses: nullableValues(params, "health"),
     recommendations: nullableValues(params, "recommendation"),
@@ -101,11 +102,12 @@ export function readInventoryLocation(params: URLSearchParams) {
 
 export function writeInventoryLocation(params: URLSearchParams, view: InventoryViewState) {
   writeListPosition(params, view);
-  if (view.marketplace) params.set("marketplace", view.marketplace);
+  for (const marketplace of view.marketplaces) params.append("marketplace", marketplace);
   params.set("sort", view.sortColumn);
   params.set("order", view.sortDirection);
   for (const [key, values] of [
     ["sku", view.skus],
+    ["company", view.companyIds],
     ["health", view.healthStatuses],
     ["recommendation", view.recommendations],
   ] as const)

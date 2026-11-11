@@ -5,7 +5,7 @@ import { expectFullyInViewport } from "./viewport-assertions.mjs";
 const COMPANY = "0198b50b-701a-7000-8000-000000000081";
 const scope = "History Company · June 2026 · Amazon.com · USD";
 
-async function openHistory(page) {
+async function setupHistory(page) {
   const fixture = await mockSupabase(page);
   fixture.companyIds["member-a"] = COMPANY;
   fixture.companyNames[COMPANY] = "History Company";
@@ -24,25 +24,57 @@ async function openHistory(page) {
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   const opener = page.getByRole("button", { name: `Show versions for ${scope}`, exact: true });
   await opener.scrollIntoViewIfNeeded();
-  const initialScroll = await page
-    .getByRole("region", { name: "Financial table", exact: true })
-    .evaluate((element) => element.scrollLeft);
-  await opener.click();
+  const table = page.getByRole("region", { name: "Financial table", exact: true });
   const history = page.getByRole("region", { name: `Report versions for ${scope}`, exact: true });
-  await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
-  return { fixture, history, initialScroll };
+  return { fixture, opener, table, history };
 }
 
-for (const width of [320, 390]) {
-  test(`opening versions from the far side of the report table reveals its content at ${width}px`, async ({
+async function openHistory(page) {
+  const { fixture, opener, history } = await setupHistory(page);
+  await opener.click();
+  await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
+  return { fixture, history };
+}
+
+for (const width of [320, 390, 1440]) {
+  test(`opening versions keeps the page and report columns stable at ${width}px`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
-    const { history, initialScroll } = await openHistory(page);
-    expect(initialScroll).toBeGreaterThan(0);
-    await page.screenshot({ path: testInfo.outputPath(`history-open-${width}.png`) });
-    await expectFullyInViewport(history.getByText("Report versions", { exact: true }));
-    await expect(history).toBeFocused();
+    const { opener, table, history } = await setupHistory(page);
+    const response = deferred();
+    await page.route("**/rest/v1/company_payout_reports?**", async (route) => {
+      await response.promise;
+      await route.fallback();
+    });
+    const position = () =>
+      table.evaluate((element) => ({
+        pageTop: globalThis.scrollY,
+        tableLeft: element.scrollLeft,
+        columns: [...element.querySelectorAll(".payout-reports-table > thead > tr > th")].map(
+          (heading) => {
+            const { x, width } = heading.getBoundingClientRect();
+            return { x, width };
+          },
+        ),
+      }));
+    const before = await position();
+    if (width < 1020) expect(before.tableLeft).toBeGreaterThan(0);
+    try {
+      await opener.click();
+      await expect(history.getByText("Loading report versions…", { exact: true })).toBeVisible();
+      expect(await position()).toEqual(before);
+      response.resolve();
+      await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
+      expect(await position()).toEqual(before);
+      await expect(history.getByText("Report versions", { exact: true })).toBeInViewport();
+      await expect(
+        page.getByRole("button", { name: `Hide versions for ${scope}`, exact: true }),
+      ).toBeFocused();
+      await page.screenshot({ path: testInfo.outputPath(`history-open-${width}.png`) });
+    } finally {
+      response.resolve();
+    }
     await page.reload();
     await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
     await expect(history).not.toBeFocused();

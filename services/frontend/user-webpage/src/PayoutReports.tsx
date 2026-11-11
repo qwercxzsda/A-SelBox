@@ -6,22 +6,18 @@ import { Alert, Badge, Button, Group, Text } from "@mantine/core";
 import type { Identity } from "./auth-session";
 import { AppliedTableFilters } from "./AppliedTableFilters";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
-import { PaginationBar } from "./PaginationBar";
 import { PayoutReportsTable } from "./PayoutReportsTable";
 import { RowDetail } from "./RowDetail";
-import { UpdateStatus } from "./UpdateStatus";
 import { useFinanceTable } from "./use-finance-table";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { createPayoutHistoryState, decodePayoutHistoryState } from "./payout-report-view";
 import { DATASET_PRESENTATION, getErrorMessage } from "./view-model";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { usePayoutReportSelection } from "./use-payout-report-selection";
-import { RowsSelect } from "./RowsSelect";
-import { SearchInput } from "./SearchInput";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
 import { DatasetCountStatus } from "./DatasetCountStatus";
-import { pageRangeSummary } from "./pagination";
+import { ListToolbar } from "./ListToolbar";
 import { reviewPeriodKey } from "./financial-review-scope-key";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
@@ -138,61 +134,53 @@ export function PayoutReports({
           </Button>
         </Alert>
       ) : null}
-      <UpdateStatus active={selectedScope !== null && versionQuery.isPending}>
-        Loading selected report version…
-      </UpdateStatus>
-      <Group
-        ref={controlsRef}
-        tabIndex={-1}
-        role="group"
-        aria-label="Payout report controls"
-        className="table-toolbar"
-        justify="space-between"
-        align="end"
-        style={{
-          scrollMarginTop: fixedMonth
-            ? "calc(var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px)"
-            : 16,
+      <ListToolbar
+        controlsRef={controlsRef}
+        label="Payout report controls"
+        style={
+          fixedMonth
+            ? {
+                scrollMarginTop:
+                  "calc(var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px)",
+              }
+            : undefined
+        }
+        search={{
+          inputRef: searchInput,
+          value: search,
+          placeholder: DATASET_PRESENTATION.payouts.searchPlaceholder,
+          onChange: changeSearch,
         }}
-      >
-        <Group align="end" className="table-toolbar-fields">
-          <SearchInput
-            inputRef={searchInput}
-            className="search-field"
-            type="search"
-            value={search}
-            placeholder={DATASET_PRESENTATION.payouts.searchPlaceholder}
-            onChange={changeSearch}
-          />
-          <RowsSelect
-            value={pageSize}
-            onChange={(pageSize) => {
-              table.setPagination({ pageIndex: 0, pageSize });
-            }}
-          />
-        </Group>
-        <PaginationBar
-          pageIndex={pageIndex}
-          pageCount={pageCount}
-          canPrevious={canPrevious}
-          canNext={canNext}
-          isBusy={query.isFetching}
-          onPrevious={() => {
+        pageSize={pageSize}
+        onPageSizeChange={(pageSize) => {
+          table.setPagination({ pageIndex: 0, pageSize });
+        }}
+        pagination={{
+          pageIndex,
+          pageCount,
+          canPrevious,
+          canNext,
+          isBusy: query.isFetching,
+          onPrevious: () => {
             table.previousPage();
-          }}
-          onNext={() => {
+          },
+          onNext: () => {
             table.nextPage();
-          }}
-          onPageChange={(index) => {
-            table.setPageIndex(index);
-          }}
-          summary={
-            query.isPending
-              ? "Loading reports…"
-              : pageRangeSummary(pageIndex, pageSize, rows.length, totalCount, "latest reports")
-          }
-        />
-      </Group>
+          },
+          onPageChange: (pageIndex) => {
+            table.setPageIndex(pageIndex);
+          },
+        }}
+        rowCount={rows.length}
+        totalCount={totalCount}
+        items="latest reports"
+        message={query.isPending ? "Loading reports…" : undefined}
+      />
+      {selectedScope !== null && versionQuery.isPending ? (
+        <Text role="status" size="xs" c="dimmed" mb="sm">
+          Loading selected report version…
+        </Text>
+      ) : null}
       <AppliedTableFilters
         focusTarget={searchInput}
         dataset="payouts"

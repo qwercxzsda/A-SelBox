@@ -26,8 +26,6 @@ export function PayoutReportHistory({
   pageIndex,
   onPageChange,
   onSelect,
-  revealOnOpen,
-  onRevealed,
 }: {
   identity: Identity;
   latest: CanonicalRow;
@@ -35,8 +33,6 @@ export function PayoutReportHistory({
   pageIndex: number;
   onPageChange: (pageIndex: number) => void;
   onSelect: (row: CanonicalRow) => void;
-  revealOnOpen: boolean;
-  onRevealed: () => void;
 }) {
   const sectionRef = useRef<HTMLElement>(null);
   const currency = latest.currency;
@@ -49,12 +45,6 @@ export function PayoutReportHistory({
   useEffect(() => {
     if (pageCount !== null && pageIndex >= pageCount) onPageChange(pageCount - 1);
   }, [pageCount, pageIndex, onPageChange]);
-  useEffect(() => {
-    if (revealOnOpen) {
-      revealHistory(sectionRef.current);
-      onRevealed();
-    }
-  }, [revealOnOpen, onRevealed]);
   function showHistory() {
     revealHistory(sectionRef.current);
   }

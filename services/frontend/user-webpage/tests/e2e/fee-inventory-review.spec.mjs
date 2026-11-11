@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { setup, item, openReview, editor, review } from "./sku-configuration-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
+import { selectColumnOptions } from "./table-actions.mjs";
 
 test("fee review remains usable with long SKU identifiers", async ({ page }, testInfo) => {
   const sku = "REPLACEMENT_PART_EXTRA_LARGE_BLACK_WITH_ACCESSORIES_AND_INSTRUCTIONS_2026";
@@ -77,24 +78,27 @@ for (const role of ["administrator", "member"]) {
       name: "Inventory navigation at bottom",
       exact: true,
     });
-    await expect(top.getByText("27 inventory items", { exact: true })).toBeVisible();
+    await expect(top.getByText("1–25 of 27 inventory items", { exact: true })).toBeVisible();
     await expect(top.getByRole("button", { name: "Next", exact: true })).toBeInViewport();
     await top.getByRole("button", { name: "Next", exact: true }).click();
     await expect(top.getByLabel("Page number")).toHaveValue("2");
+    await expect(top.getByText("26–27 of 27 inventory items", { exact: true })).toBeVisible();
     await expect(bottom.getByText("Page 2 of 2", { exact: true })).toBeVisible();
     await expect(page.locator(".inventory-sku")).toHaveText(["SKU-24", "SKU-25"]);
     await bottom.getByRole("button", { name: "Previous inventory items", exact: true }).click();
     await expect(top.getByLabel("Page number")).toHaveValue("1");
-    await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.com");
+    await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
     await page.getByLabel("Search", { exact: true }).fill("SKU-25");
     await expect(page.locator(".inventory-sku")).toHaveText(["SKU-25"]);
     await page.getByRole("button", { name: "Clear search", exact: true }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
-    await expect(page.getByLabel("Marketplace", { exact: true })).toHaveValue("Amazon.com");
-    await expect(top.getByText("26 inventory items", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Remove Marketplace: Amazon.com", exact: true }),
+    ).toBeVisible();
+    await expect(top.getByText("1–25 of 26 inventory items", { exact: true })).toBeVisible();
     await page.reload();
-    await expect(top.getByText("26 inventory items", { exact: true })).toBeVisible();
+    await expect(top.getByText("1–25 of 26 inventory items", { exact: true })).toBeVisible();
     for (const width of [1920, 1440, 834, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       await expect(top.getByRole("button", { name: "Next", exact: true })).toBeInViewport();

@@ -47,18 +47,14 @@ test("SKU pagination counts assignments and clamps after search shrinks the resu
   const last = paginateFeeSkus(rows, 99, 25);
   assert.equal(first.totalCount, 26);
   assert.equal(first.pageCount, 2);
-  assert.equal(first.visibleSkus.length, 25);
-  assert.deepEqual([first.firstVisible, first.lastVisible], [1, 25]);
+  assert.deepEqual(first.visibleSkus, rows.slice(0, 25));
   assert.equal(last.pageIndex, 1);
   assert.equal(last.visibleSkus[0].sku, "SKU-26");
-  assert.deepEqual([last.firstVisible, last.lastVisible], [26, 26]);
+  assert.equal(last.visibleSkus.length, 1);
   const filtered = paginateFeeSkus(filterFeeSkus(rows, "SKU-26"), 1, 25);
   assert.equal(filtered.pageIndex, 0);
   assert.equal(filtered.totalCount, 1);
   const empty = paginateFeeSkus(filterFeeSkus(rows, "absent"), 1, 25);
-  assert.deepEqual(
-    [empty.pageIndex, empty.pageCount, empty.firstVisible, empty.lastVisible],
-    [0, 1, 0, 0],
-  );
+  assert.deepEqual([empty.pageIndex, empty.pageCount, empty.totalCount], [0, 1, 0]);
   assert.deepEqual(empty.visibleSkus, []);
 });

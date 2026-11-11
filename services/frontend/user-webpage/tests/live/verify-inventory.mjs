@@ -179,10 +179,13 @@ try {
     );
     await page.keyboard.press("Escape");
     stage = role + ":marketplace-filter";
-    await page
-      .getByLabel("Marketplace", { exact: true })
-      .selectOption(account.sample.marketplace_name);
-    await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Marketplace", exact: true }).click();
+    const marketplaceMenu = page.getByRole("dialog", { name: "Marketplace options", exact: true });
+    await marketplaceMenu
+      .getByRole("checkbox", { name: account.sample.marketplace_name, exact: true })
+      .check();
+    await marketplaceMenu.getByRole("button", { name: "Close options", exact: true }).click();
+    await expect(page.getByText("1–1 of 1 inventory items", { exact: true }).first()).toBeVisible();
     stage = role + ":metrics";
     await verifyMetrics(page, account.sample);
     stage = role + ":lightweight-refresh";

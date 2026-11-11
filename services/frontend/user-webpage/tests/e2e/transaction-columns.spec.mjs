@@ -51,9 +51,9 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
 
   const optionsBefore = fixture.optionRequests.length;
-  let menu = await openColumn(page, "Fee rate");
+  let menu = await openColumn(page, "Service fee");
   await expect(menu.getByRole("checkbox")).toHaveCount(2);
-  await expect(menu.getByLabel("Search fee rate", { exact: true })).toHaveCount(0);
+  await expect(menu.getByLabel("Search service fee", { exact: true })).toHaveCount(0);
   await expect(menu.getByRole("button", { name: /first/ })).toHaveCount(0);
   await menu.getByRole("checkbox", { name: "Applicable", exact: true }).check();
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
@@ -62,8 +62,16 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   await expect(rowWithSku(page, "ZERO-FEE-001")).toBeVisible();
   await expect(rowWithSku(page, "MISSING-FEE-001")).toBeVisible();
   await expect(
-    rowWithSku(page, "ZERO-FEE-001").locator('[data-column="fee_rate_percent"]'),
-  ).toHaveText("0%");
+    rowWithSku(page, "ZERO-FEE-001").locator('[data-column="fee_amount"] .stacked-cell-secondary'),
+  ).toHaveText("Fee rate: 0%");
+  await expect(
+    rowWithSku(page, "MISSING-FEE-001").locator('[data-column="fee_amount"] .stacked-cell-primary'),
+  ).toHaveText("—");
+  await expect(
+    rowWithSku(page, "MISSING-FEE-001").locator(
+      '[data-column="fee_amount"] .stacked-cell-secondary',
+    ),
+  ).toHaveText("Fee rate: —");
   expect(fixture.optionRequests.length).toBe(optionsBefore);
   await menu.getByRole("checkbox", { name: "Not applicable", exact: true }).check();
   await menu.getByRole("checkbox", { name: "Applicable", exact: true }).uncheck();
@@ -72,10 +80,14 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   expect(fixture.requests.at(-1).args.p_fee_applicable).toBe(false);
   expect(fixture.countRequests.at(-1).args.p_fee_applicable).toBe(false);
   await expect(
-    rowWithSku(page, "NON-APPLICABLE-001").locator('[data-column="fee_rate_percent"]'),
-  ).toHaveText("-");
+    rowWithSku(page, "NON-APPLICABLE-001").locator(
+      '[data-column="fee_amount"] .stacked-cell-secondary',
+    ),
+  ).toHaveText("Fee rate: -");
   await expect(
-    rowWithSku(page, "NON-APPLICABLE-001").locator('[data-column="fee_amount"]'),
+    rowWithSku(page, "NON-APPLICABLE-001").locator(
+      '[data-column="fee_amount"] .stacked-cell-primary',
+    ),
   ).toHaveText("0.00 USD");
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
 
@@ -95,9 +107,9 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
 
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-  menu = await openColumn(page, "Fee rate");
+  menu = await openColumn(page, "Service fee");
   await expect(menu.getByRole("checkbox", { name: "Not applicable", exact: true })).toBeChecked();
-  await menu.getByRole("button", { name: "Clear fee rate", exact: true }).click();
+  await menu.getByRole("button", { name: "Clear service fee", exact: true }).click();
   await expect.poll(() => fixture.requests.at(-1).args.p_fee_applicable).toBeNull();
 });
 
@@ -115,19 +127,20 @@ for (const width of [1280, 390]) {
     ];
     await signIn(page);
     const table = tableFor(page);
-    await expect(table.getByRole("columnheader", { name: "Quantity", exact: true })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Quantity", exact: true })).toHaveCount(0);
+    await expect(table.getByRole("columnheader", { name: "Fee rate", exact: true })).toHaveCount(0);
     for (const [sku, value] of [
       ["QUANTITY-001", "1,234.5"],
       ["QUANTITY-002", "0"],
       ["QUANTITY-003", "—"],
     ]) {
-      await expect(rowWithSku(page, sku).locator('[data-column="quantity"]')).toHaveText(value);
+      await expect(
+        rowWithSku(page, sku).locator('[data-column="source_amount"] .stacked-cell-secondary'),
+      ).toHaveText(`Quantity: ${value}`);
     }
-    for (const name of ["Quantity", "Company amount", "Service fee"]) {
-      const header = table.getByRole("columnheader", { name, exact: true });
-      await expect(header.getByRole("button")).toHaveCount(0);
-      await expect(header).not.toHaveAttribute("aria-sort");
-    }
+    const companyAmount = table.getByRole("columnheader", { name: "Company amount", exact: true });
+    await expect(companyAmount.getByRole("button")).toHaveCount(0);
+    await expect(companyAmount).not.toHaveAttribute("aria-sort");
     const type = rowWithSku(page, "QUANTITY-001").locator('[data-column="component_type"] > span');
     expect(await type.getAttribute("title")).toContain(longType);
     const primary = type.locator(".transaction-type-label");
@@ -152,7 +165,7 @@ for (const width of [1280, 390]) {
       fullPage: true,
       animations: "disabled",
     });
-    const menu = await openColumn(page, "Fee rate");
+    const menu = await openColumn(page, "Service fee");
     await expect(menu.getByRole("checkbox", { name: "Applicable", exact: true })).toBeVisible();
     const bounds = await menu.boundingBox();
     expect(bounds.x).toBeGreaterThanOrEqual(0);

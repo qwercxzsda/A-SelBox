@@ -44,7 +44,10 @@ export function useInventoryData(
     captures,
     hasItems:
       query.data && !denied
-        ? query.data.some((row) => !state.marketplace || row.marketplace_name === state.marketplace)
+        ? query.data.some(
+            (row) =>
+              !state.marketplaces.length || state.marketplaces.includes(row.marketplace_name),
+          )
         : undefined,
   };
 }

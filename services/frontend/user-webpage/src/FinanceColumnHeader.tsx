@@ -60,7 +60,7 @@ function SelectionColumnHeader({
 export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
   const { column, dataset, identity, filters, onFiltersChange, sort, onSortChange, totalCount } =
     props;
-  if (dataset === "live" && column.key === "fee_rate_percent") {
+  if (dataset === "live" && column.key === "fee_amount") {
     return (
       <ColumnMenu
         label={column.label}

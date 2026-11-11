@@ -23,10 +23,12 @@ test("inventory freshness uses the marketplace calendar across UTC boundaries", 
   for (const marketplace of ["Amazon.co.jp", "Amazon.com.au", "Amazon.sg"]) {
     assert.deepEqual(inventoryAge("2026-11-06", refreshed, marketplace), {
       label: "Today",
+      compactLabel: "Today",
       overdue: false,
     });
     assert.deepEqual(inventoryAge("2026-11-03", refreshed, marketplace), {
       label: "3 days old",
+      compactLabel: "3d ago",
       overdue: true,
     });
     assert.equal(
@@ -40,6 +42,7 @@ test("inventory freshness uses the marketplace calendar across UTC boundaries", 
   );
   assert.deepEqual(inventoryAge("2026-11-05", Date.parse("2026-11-06T02:00:00Z"), "Amazon.com"), {
     label: "Today",
+    compactLabel: "Today",
     overdue: false,
   });
 });
@@ -61,18 +64,22 @@ test("report timestamps use marketplace dates and calendar-day age survives dayl
 test("inventory age uses source days, normalizes timestamp zones and flags overdue daily sources", () => {
   assert.deepEqual(inventoryAge("2026-10-18", now, "Amazon.com"), {
     label: "Today",
+    compactLabel: "Today",
     overdue: false,
   });
   assert.deepEqual(inventoryAge("2026-10-16", now, "Amazon.com"), {
     label: "2 days old",
+    compactLabel: "2d ago",
     overdue: false,
   });
   assert.deepEqual(inventoryAge("2026-10-15", now, "Amazon.com"), {
     label: "3 days old",
+    compactLabel: "3d ago",
     overdue: true,
   });
   assert.deepEqual(inventoryAge("2026-10-03", now, "Amazon.com"), {
     label: "15 days old",
+    compactLabel: "15d ago",
     overdue: true,
   });
   assert.equal(inventorySourceDay("2026-10-18T00:30:00+02:00", "Amazon.de"), "2026-10-18");
@@ -81,6 +88,7 @@ test("inventory age uses source days, normalizes timestamp zones and flags overd
   assert.equal(inventoryAge(null, now, "Amazon.com").label, "Date unavailable");
   assert.deepEqual(inventoryAge("2026-10-19", now, "Amazon.com"), {
     label: "Future source date — check source",
+    compactLabel: "Future date",
     overdue: false,
   });
 });
@@ -91,13 +99,14 @@ test("unknown marketplaces and invalid clock values remain unavailable without a
   for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, 1e100, -1e100]) {
     assert.deepEqual(inventoryAge("2026-11-06", invalid, "Amazon.co.jp"), {
       label: "Date unavailable",
+      compactLabel: "Date unavailable",
       overdue: false,
     });
   }
 });
 
 test("inventory empty states distinguish missing coverage, empty captures, company assignment and filtered matches", () => {
-  const scope = { captures, marketplace: "Amazon.com", hasItems: false, member: false };
+  const scope = { captures, marketplaces: ["Amazon.com"], hasItems: false, member: false };
   assert.equal(
     inventoryEmptyMessage({ ...scope, captures: undefined }),
     "Checking inventory availability…",
@@ -107,11 +116,11 @@ test("inventory empty states distinguish missing coverage, empty captures, compa
     "No inventory snapshot has been imported for Amazon.com.",
   );
   assert.equal(
-    inventoryEmptyMessage({ ...scope, captures: [], marketplace: "" }),
+    inventoryEmptyMessage({ ...scope, captures: [], marketplaces: [] }),
     "No inventory snapshots have been imported yet.",
   );
   assert.equal(
-    inventoryEmptyMessage({ ...scope, marketplace: "Amazon.de" }),
+    inventoryEmptyMessage({ ...scope, marketplaces: ["Amazon.de"] }),
     "No inventory snapshot has been imported for Amazon.de.",
   );
   assert.equal(

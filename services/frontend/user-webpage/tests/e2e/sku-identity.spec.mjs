@@ -62,7 +62,11 @@ for (const [role, dataset, tab] of SCOPES) {
       ["10.00 USD", "N1"],
       ["20.00 USD", "N2"],
     ]) {
-      await table.getByRole("cell", { name: amount, exact: true }).click();
+      const displayedAmount =
+        dataset === "live"
+          ? table.locator('[data-column="source_amount"]').getByText(amount, { exact: true })
+          : table.getByRole("cell", { name: amount, exact: true });
+      await displayedAmount.click();
       const drawer = page.getByRole("dialog", { name: "Selected row details" });
       await expect(drawer.getByRole("heading", { name: "S1", exact: true })).toBeVisible();
       if (role === "administrator") {

@@ -50,9 +50,16 @@ codes; Select matches and Deselect matches affect only the visible matches. Sele
 immediately. Applied chips expose the active values and support individual removal. Clearing an
 empty filtered result preserves ordering and page size.
 
+List-based tabs share [ListToolbar](src/ListToolbar.tsx) for Search, Rows, pagination, spacing, and
+visible-range summaries such as `1–25 of 159 inventory items`. Contextual actions use its
+extra-controls area. Inactive status messages do not reserve a blank line above the toolbar.
+
 Type cells use a compact column, with the readable type first and the group used by the Type filter
 beneath in smaller, muted text. The original type code remains available on hover. SKU values use
-the same medium weight as date and type labels; Company amount values use bold text.
+the same medium weight as date and type labels; Company amount values use bold text. Transactions
+combines Reported amount with a smaller, labeled Quantity below it, and Service fee with Fee rate
+below it. The Service fee heading retains applicability filtering; Reported amount retains amount
+ordering. Raw-source tables and record details keep their separate fields.
 
 Financial paging and factual sorting run on the server. Inventory filters, sorts, and pages its
 complete loaded snapshot in the browser; Current fees pages its loaded configuration. Previous/Next
@@ -172,6 +179,10 @@ Inventory is read-only. It displays the latest successful daily capture per sell
 historical sales, available/inbound stock, health, days of supply, and recommendations. Details show
 secondary metrics and source dates. Missing metrics remain distinct from zero. Sales ordering
 compares original currencies without conversion; selecting one marketplace avoids that ambiguity.
+Marketplace has its own column and selection filter. Administrators also see a Company column and
+filter, including Unassigned. Each filter supports multiple selections; company and marketplace
+selections intersect with the other filters before counts and pagination. Members never receive a
+Company column or an active company filter. The SKU cell contains only its link and source date.
 Health and recommendation options come from fixed constants checked against the source vocabulary.
 Preprocessing rejects unsupported values, and database constraints guard the same contract. The
 frontend owns explicit display labels, colors, and priorities, with the source code on hover.
@@ -208,9 +219,11 @@ Payout reports group the latest saved company/month/marketplace snapshots, keepi
 separate as amount units. Month, Marketplace, and Company filters, visible month/year search, and
 on-demand Versions history support browsing. Source or fee changes may leave the preceding snapshot
 visible until the automatic worker publishes its replacement. The browser never generates reports.
-Each report row shows its saved timestamp and a green Latest label identifying the newest saved
-version. The report list has no separate maturity or readiness panel. Administrators can inspect
-processing and setup diagnostics in Financial review's Saved report snapshots section.
+Opening Versions expands history in place while preserving the viewport, horizontal scroll, and
+report column widths. Focus stays on the disclosure control. Each report row shows its saved
+timestamp and a green Latest label identifying the newest saved version. The report list has no
+separate maturity or readiness panel. Administrators can inspect processing and setup diagnostics in
+Financial review's Saved report snapshots section.
 
 Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
 company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.

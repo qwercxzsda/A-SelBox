@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn, captureResponsiveReview } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { columnTrigger } from "./table-actions.mjs";
+import { columnTrigger, selectColumnOptions } from "./table-actions.mjs";
 
 for (const user of ["member", "administrator"]) {
   test(`${user} sees reported inventory groups, exact values and source dates without shipment controls`, async ({
@@ -29,6 +29,8 @@ for (const user of ["member", "administrator"]) {
     await expect(region.getByText("ELG_Black", { exact: true })).toBeVisible();
     await expect(region.getByRole("columnheader")).toContainText([
       "SKU ↑",
+      ...(user === "administrator" ? ["Company"] : []),
+      "Marketplace",
       "Sales · last 90 days ↕",
       "Inventory overview",
       "Inventory health status ↕",
@@ -77,17 +79,18 @@ test("inventory browser paging, exact punctuation filters and tab state stay ind
   ]);
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
-  await expect(page.getByText("27 inventory items", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1–25 of 27 inventory items", { exact: true }).first()).toBeVisible();
   await page
     .getByRole("navigation", { name: "Inventory pagination, top", exact: true })
     .getByRole("button", { name: "Next", exact: true })
     .click();
   await expect(page.getByText("SKU-024", { exact: true })).toBeVisible();
+  await expect(page.getByText("26–27 of 27 inventory items", { exact: true })).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill(special);
-  await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1–1 of 1 inventory items", { exact: true }).first()).toBeVisible();
   expect(fixture.requests).toHaveLength(2);
   expect(fixture.requests.every((request) => !request.has("and"))).toBe(true);
-  await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.com");
+  await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
   await expect(
     page.getByText("No inventory matches these filters.", { exact: true }),
   ).toBeVisible();
@@ -95,9 +98,11 @@ test("inventory browser paging, exact punctuation filters and tab state stay ind
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue(special);
-  await expect(page.getByLabel("Marketplace", { exact: true })).toHaveValue("Amazon.com");
+  await expect(
+    page.getByRole("button", { name: "Remove Marketplace: Amazon.com", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
-  await expect(page.getByText("27 inventory items", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1–25 of 27 inventory items", { exact: true }).first()).toBeVisible();
 });
 
 test("inventory recovers automatically from an initial failure with unchanged revisions and no reload buttons", async ({
@@ -153,7 +158,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   ]);
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
-  await expect(page.getByText("30 inventory items", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1–25 of 30 inventory items", { exact: true }).first()).toBeVisible();
   const region = page.getByRole("region", { name: "Inventory items" });
   const skus = region.locator(".inventory-sku");
   const sales = columnTrigger(region, "Sales · last 90 days");

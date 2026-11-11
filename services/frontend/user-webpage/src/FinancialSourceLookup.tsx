@@ -73,7 +73,6 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     <>
       <Button
         ref={triggerRef}
-        className="transaction-lookup-action"
         variant="subtle"
         aria-haspopup="dialog"
         onClick={(event) => {

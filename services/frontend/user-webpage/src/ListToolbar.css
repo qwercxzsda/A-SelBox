@@ -1,0 +1,40 @@
+.table-toolbar {
+  margin-bottom: 8px;
+  scroll-margin-top: 16px;
+}
+
+.table-toolbar:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.table-toolbar .pagination-bar {
+  margin: 0;
+}
+
+.search-field {
+  width: min(430px, 55vw);
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 720px) {
+  .table-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .table-toolbar-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+  .search-field {
+    width: 100%;
+  }
+  .list-toolbar-extra {
+    grid-column: 1 / -1;
+  }
+  .table-toolbar .pagination-bar {
+    width: 100%;
+  }
+}

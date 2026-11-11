@@ -85,27 +85,15 @@ export function MarketplaceTotalsTable({
     <table className="marketplace-totals-table" aria-label={`${title} marketplace totals`}>
       <thead>
         <tr>
-          <th scope="col">Currency</th>
+          <th scope="col">Marketplace</th>
           <th scope="col" className="totals-number">
-            <span>
-              Reported
-              <br />
-              amount
-            </span>
+            Reported amount
           </th>
           <th scope="col" className="totals-number">
-            <span>
-              Service
-              <br />
-              fee
-            </span>
+            Service fee
           </th>
           <th scope="col" className="totals-number">
-            <span>
-              Company
-              <br />
-              amount
-            </span>
+            Company amount
           </th>
         </tr>
       </thead>

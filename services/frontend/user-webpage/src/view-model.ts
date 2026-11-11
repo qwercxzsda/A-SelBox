@@ -9,6 +9,7 @@ export interface ColumnDefinition {
   kind: CellKind;
   label: string;
   sortable?: string;
+  secondary?: Pick<ColumnDefinition, "key" | "kind" | "label">;
 }
 
 interface WorkspacePresentation {
@@ -97,10 +98,14 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("source", "Source", "code"),
     column("category", "Category", "code"),
     column("component_type", "Type", "code"),
-    column("quantity", "Quantity", "number"),
-    column("source_amount", "Reported amount", "money"),
-    column("fee_rate_percent", "Fee rate", "percent"),
-    column("fee_amount", "Service fee", "money"),
+    {
+      ...column("source_amount", "Reported amount", "money"),
+      secondary: column("quantity", "Quantity", "number"),
+    },
+    {
+      ...column("fee_amount", "Service fee", "money"),
+      secondary: column("fee_rate_percent", "Fee rate", "percent"),
+    },
     column("company_amount", "Company amount", "money"),
   ],
   finances: [

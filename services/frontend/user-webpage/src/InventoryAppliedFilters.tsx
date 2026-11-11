@@ -2,13 +2,16 @@ import { Button, Group, Text } from "@mantine/core";
 import type { RefObject } from "react";
 import type { InventoryViewState } from "./workspace-view-state";
 import { recommendationLabel } from "./inventory-options";
+import { companyLabel } from "./view-model";
 
 export function InventoryAppliedFilters({
   state,
+  companyNames,
   onChange,
   focusTarget,
 }: {
   state: InventoryViewState;
+  companyNames: Map<string, string>;
   onChange: (patch: Partial<InventoryViewState>) => void;
   focusTarget?: RefObject<HTMLElement | null>;
 }) {
@@ -16,15 +19,16 @@ export function InventoryAppliedFilters({
     ...(state.search
       ? [{ key: "search", label: `Search: ${state.search}`, clear: { search: "" } }]
       : []),
-    ...(state.marketplace
-      ? [
-          {
-            key: "marketplace",
-            label: `Marketplace: ${state.marketplace}`,
-            clear: { marketplace: "" },
-          },
-        ]
-      : []),
+    ...state.marketplaces.map((marketplace) => ({
+      key: `marketplace:${marketplace}`,
+      label: `Marketplace: ${marketplace}`,
+      clear: { marketplaces: state.marketplaces.filter((value) => value !== marketplace) },
+    })),
+    ...state.companyIds.map((id) => ({
+      key: `company:${JSON.stringify(id)}`,
+      label: `Company: ${companyLabel(id, companyNames)}`,
+      clear: { companyIds: state.companyIds.filter((value) => value !== id) },
+    })),
     ...state.skus.map((sku) => ({
       key: `sku:${sku}`,
       label: `SKU: ${sku}`,
@@ -43,7 +47,7 @@ export function InventoryAppliedFilters({
   ];
   if (filters.length === 0) return null;
   return (
-    <Group gap="xs" role="group" aria-label="Applied inventory filters">
+    <Group gap="xs" mb="sm" role="group" aria-label="Applied inventory filters">
       <Text size="xs" c="dimmed">
         Applied filters
       </Text>

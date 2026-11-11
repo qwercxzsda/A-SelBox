@@ -104,7 +104,11 @@ export function locationPreference(
     if (tab === "payouts") view.selectedRowId = selected?.reportId ?? null;
     return { ...views, [tab]: view };
   }
-  if (name === "inventory" && tab === "inventory") return readInventoryLocation(p);
+  if (name === "inventory" && tab === "inventory") {
+    const view = readInventoryLocation(p);
+    if (account.access_role !== "administrator") view.companyIds = [];
+    return view;
+  }
   if (name === "payout-report-history" && tab === "payouts") {
     return { ...decodePayoutHistoryState(saved), selected };
   }
@@ -150,7 +154,9 @@ export function workspaceLocation(url: URL, account: AppAccount, preferences: Pr
       }
     }
   } else if (tab === "inventory") {
-    writeInventoryLocation(p, decodeInventoryView(preferences.get("inventory")));
+    const view = decodeInventoryView(preferences.get("inventory"));
+    if (account.access_role !== "administrator") view.companyIds = [];
+    writeInventoryLocation(p, view);
   } else if (tab === "financial-review") {
     const category = reviewCategory(preferences.get("financial-review:category"));
     const scope = decodeReviewScope(preferences.get("financial-review:scope"));

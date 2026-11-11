@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Group, NumberInput, Text } from "@mantine/core";
 import { NavigationStepButton } from "./NavigationStepButton";
 
-interface PaginationBarProps {
+export interface PaginationBarProps {
   pageIndex: number;
   pageCount: number | null;
   canPrevious: boolean;

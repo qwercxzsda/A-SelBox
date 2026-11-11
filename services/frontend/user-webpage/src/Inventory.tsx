@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Group, NativeSelect, Stack, Text } from "@mantine/core";
+import { Alert, Button, Text } from "@mantine/core";
 import type { InventoryViewState, ViewStateProps } from "./workspace-view-state";
 import type { Identity } from "./auth-session";
 import marketplaces from "./generated/marketplaces.json";
-import { getErrorMessage } from "./view-model";
+import { companyLabel, getErrorMessage } from "./view-model";
 import { InventoryTable } from "./InventoryTable";
 import { InventoryDetail } from "./InventoryDetail";
 import { inventoryRowId } from "./inventory-row";
-import { PaginationBar } from "./PaginationBar";
 import { lastPageIndex } from "./pagination";
 import { WorkspaceHeader } from "./WorkspaceHeader";
-import { RowsSelect } from "./RowsSelect";
 import { useInventoryData } from "./use-inventory-data";
 import { InventoryAppliedFilters } from "./InventoryAppliedFilters";
 import { inventoryEmptyMessage } from "./inventory-coverage";
-import { SearchInput } from "./SearchInput";
+import { ListToolbar } from "./ListToolbar";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
 import "./Inventory.css";
@@ -30,6 +28,9 @@ export function Inventory({
 }) {
   const searchInput = useRef<HTMLInputElement>(null);
   const pageStart = useRef<HTMLDivElement>(null);
+  const administrator = identity.account.access_role === "administrator";
+  const companyNames = new Map(identity.companies.map(({ id, name }) => [id, name]));
+  const companyIds = administrator ? viewState.companyIds : [];
   const { selectedRowId, ...pageState } = viewState;
   const {
     query,
@@ -39,7 +40,7 @@ export function Inventory({
     skus,
     captures,
     hasItems,
-  } = useInventoryData(identity, pageState);
+  } = useInventoryData(identity, { ...pageState, companyIds });
   const isLoading = query.isPending;
   const isUnavailable = denied || (!query.data && query.isError);
   const [now, setNow] = useState(Date.now);
@@ -66,7 +67,8 @@ export function Inventory({
   }, [selectedRowId, query.isFetching, query.isSuccess, denied, selectedRow, onViewStateChange]);
   const filtered = Boolean(
     viewState.search ||
-    viewState.marketplace ||
+    viewState.marketplaces.length ||
+    companyIds.length ||
     viewState.skus.length ||
     viewState.healthStatuses.length ||
     viewState.recommendations.length,
@@ -103,16 +105,9 @@ export function Inventory({
       changePage(viewState.pageIndex + 1);
     },
     onPageChange: changePage,
-    summary: isUnavailable
-      ? "Inventory unavailable"
-      : isLoading
-        ? "Loading inventory…"
-        : totalCount === null
-          ? `${String(rows.length)} inventory items`
-          : `${String(totalCount)} inventory ${totalCount === 1 ? "item" : "items"}`,
   };
   return (
-    <Stack gap="md" className="inventory-panel">
+    <div className="inventory-panel">
       <WorkspaceHeader
         title="Inventory"
         help={
@@ -136,97 +131,101 @@ export function Inventory({
           </>
         }
       />
-      <Group align="end" className="inventory-filters">
-        <SearchInput
-          inputRef={searchInput}
-          placeholder="SKU, marketplace, health, or recommendation"
-          value={viewState.search}
-          type="search"
-          onChange={(search) => {
+      <ListToolbar
+        controlsRef={pageStart}
+        label="Inventory controls"
+        className="inventory-page-start"
+        search={{
+          inputRef: searchInput,
+          value: viewState.search,
+          placeholder: "SKU, marketplace, health, or recommendation",
+          onChange: (search) => {
             changeFilters({ search });
-          }}
-        />
-        <NativeSelect
-          label="Marketplace"
-          value={viewState.marketplace}
-          data={[
-            { value: "", label: "All marketplaces" },
-            ...marketplaces.map((value) => ({
-              value,
-              label:
-                captures.isSuccess &&
-                !captures.data.some((capture) => capture.marketplace_name === value)
-                  ? `${value} — no snapshot`
-                  : value,
-            })),
-          ]}
-          onChange={(event) => {
-            changeFilters({ marketplace: event.currentTarget.value });
-          }}
-        />
-        <RowsSelect
-          value={viewState.pageSize}
-          onChange={(pageSize) => {
-            changeFilters({ pageSize });
-          }}
-        />
-        {filtered ? (
-          <Button
-            className="inventory-clear-filters"
-            variant="subtle"
-            onClick={(event) => {
-              if (event.detail === 0) searchInput.current?.focus();
-              changeFilters({
-                search: "",
-                skus: [],
-                healthStatuses: [],
-                recommendations: [],
-                marketplace: "",
-              });
-            }}
-          >
-            Clear inventory filters
-          </Button>
-        ) : null}
-      </Group>
+          },
+        }}
+        pageSize={viewState.pageSize}
+        onPageSizeChange={(pageSize) => {
+          changeFilters({ pageSize });
+        }}
+        pagination={{ ...pagination, ariaLabel: "Inventory pagination, top" }}
+        rowCount={rows.length}
+        totalCount={totalCount}
+        items="inventory items"
+        message={
+          isUnavailable ? "Inventory unavailable" : isLoading ? "Loading inventory…" : undefined
+        }
+        extraControls={
+          filtered ? (
+            <Button
+              variant="subtle"
+              onClick={(event) => {
+                if (event.detail === 0) searchInput.current?.focus();
+                changeFilters({
+                  search: "",
+                  skus: [],
+                  healthStatuses: [],
+                  recommendations: [],
+                  marketplaces: [],
+                  companyIds: [],
+                });
+              }}
+            >
+              Clear inventory filters
+            </Button>
+          ) : undefined
+        }
+      />
       <InventoryAppliedFilters
-        state={viewState}
+        state={{ ...viewState, companyIds }}
+        companyNames={companyNames}
         onChange={changeFilters}
         focusTarget={searchInput}
       />
       {captures.isError && rows.length === 0 ? (
-        <Alert role="alert" color="red">
+        <Alert role="alert" color="red" mb="md">
           Could not check inventory availability. {getErrorMessage(captures.error)} Updates retry
           automatically.
         </Alert>
       ) : null}
       {query.isError ? (
-        <Alert role="alert" color="red">
+        <Alert role="alert" color="red" mb="md">
           Could not load inventory. {getErrorMessage(query.error)}
           {query.data && !denied ? " Previously loaded values are shown." : ""}
           {" Updates retry automatically."}
         </Alert>
       ) : null}
       {isLoading || query.isFetching ? (
-        <Text role="status">{query.isPending ? "Loading inventory…" : "Updating inventory…"}</Text>
+        <Text role="status" mb="sm">
+          {query.isPending ? "Loading inventory…" : "Updating inventory…"}
+        </Text>
       ) : null}
-      <div ref={pageStart} tabIndex={-1} className="inventory-page-start">
-        <PaginationBar {...pagination} ariaLabel="Inventory pagination, top" />
-      </div>
       <InventoryTable
         onShowTransactions={showTransactions}
         rows={rows}
         viewState={viewState}
         onChange={changeFilters}
         skus={skus}
+        administrator={administrator}
+        companyNames={companyNames}
+        companyOptions={[...new Set([...companyNames.keys(), ...companyIds, null])]
+          .map((id) => ({ value: JSON.stringify(id), label: companyLabel(id, companyNames) }))
+          .sort((left, right) => left.label.localeCompare(right.label))}
+        marketplaceOptions={marketplaces.map((value) => ({
+          value,
+          label:
+            captures.isSuccess &&
+            !captures.data.some((capture) => capture.marketplace_name === value)
+              ? `${value} — no snapshot`
+              : value,
+        }))}
         onSelect={selectRow}
         now={now}
       />
       {!query.isPending && !query.isError && !captures.isError && rows.length === 0 ? (
-        <Text role="status">
+        <Text role="status" mb="sm">
           {inventoryEmptyMessage({
             captures: captures.isSuccess ? captures.data : undefined,
-            marketplace: viewState.marketplace,
+            marketplaces: viewState.marketplaces,
             hasItems,
             member: identity.account.access_role === "member",
           })}
@@ -258,6 +257,6 @@ export function Inventory({
         onShowTransactions={showTransactions}
         now={now}
       />
-    </Stack>
+    </div>
   );
 }

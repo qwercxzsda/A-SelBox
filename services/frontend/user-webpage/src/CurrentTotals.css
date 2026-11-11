@@ -117,6 +117,7 @@
   color: var(--ui-text-muted);
 }
 .marketplace-totals-table {
+  --totals-cell-padding: 8px;
   display: grid;
   grid-row: span var(--totals-table-rows);
   grid-template-rows: subgrid;
@@ -139,7 +140,7 @@
 }
 .marketplace-totals-table tr {
   display: grid;
-  grid-template-columns: 18% 26% 26% 30%;
+  grid-template-columns: 22% 28% 20% 30%;
   align-items: center;
 }
 .marketplace-totals-table .totals-market-heading {
@@ -150,7 +151,7 @@
   display: block;
   min-width: 0;
   position: relative;
-  padding: 8px 10px;
+  padding: 8px var(--totals-cell-padding);
   vertical-align: middle;
 }
 .marketplace-totals-table thead th {
@@ -163,6 +164,7 @@
   font-weight: 500;
   line-height: 1.5;
   text-align: left;
+  white-space: nowrap;
 }
 .marketplace-totals-table thead tr {
   align-items: stretch;
@@ -175,7 +177,7 @@
   overflow-wrap: anywhere;
 }
 .marketplace-totals-table .totals-market-heading th {
-  padding: 9px 10px 3px;
+  padding: 9px var(--totals-cell-padding) 3px;
   text-align: left;
   border-top: 1px solid var(--ui-border);
 }
@@ -272,17 +274,22 @@
   .totals-card-heading {
     padding-inline: 10px;
   }
-  .marketplace-totals-table th,
-  .marketplace-totals-table td {
-    padding-inline: 7px;
-  }
-  .marketplace-totals-table .totals-market-heading th {
-    padding-inline: 7px;
-  }
   .marketplace-totals-table {
+    --totals-cell-padding: 7px;
     font-size: 12px;
+  }
+  .marketplace-totals-table thead th {
+    font-size: 10px;
   }
   .totals-company-action {
     font-size: 12px;
+  }
+}
+@media (max-width: 360px) {
+  .marketplace-totals-table {
+    --totals-cell-padding: 4px;
+  }
+  .marketplace-totals-table thead th {
+    font-size: 9px;
   }
 }

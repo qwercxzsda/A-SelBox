@@ -1,5 +1,5 @@
 import { useId, useRef } from "react";
-import { Group, Table, Text } from "@mantine/core";
+import { Group, Table } from "@mantine/core";
 import type { InventoryRow } from "./api/inventory";
 import type { InventorySortColumn } from "./inventory-view";
 import { ColumnMenu } from "./ColumnMenu";
@@ -22,6 +22,8 @@ import { inspectableRowProps } from "./inspectable-row";
 import { InventorySourceDate } from "./InventorySourceDate";
 import { TableScrollControls } from "./TableScrollControls";
 import { HelpPopover } from "./HelpPopover";
+import type { FilterOption } from "./filter-options";
+import { companyLabel } from "./view-model";
 
 const OVERVIEW = INVENTORY_METRICS.overview.filter(
   ([key]) => key === "available_quantity" || key === "inbound_quantity",
@@ -36,6 +38,10 @@ export function InventoryTable({
   viewState,
   onChange,
   skus,
+  administrator,
+  companyNames,
+  companyOptions,
+  marketplaceOptions,
   onSelect,
   onShowTransactions,
   now,
@@ -44,6 +50,10 @@ export function InventoryTable({
   viewState: InventoryViewState;
   onChange: (patch: Partial<InventoryViewState>) => void;
   skus: string[];
+  administrator: boolean;
+  companyNames: Map<string, string>;
+  companyOptions: FilterOption[];
+  marketplaceOptions: FilterOption[];
   onSelect: (id: string) => void;
   onShowTransactions: (sku: string) => void;
   now: number;
@@ -95,7 +105,7 @@ export function InventoryTable({
       : undefined;
   return (
     <>
-      <Group gap="xs" justify="flex-end">
+      <Group gap="xs" justify="flex-end" mb="xs" mih={22}>
         <TableScrollControls target={scrollTarget} targetId={scrollId} />
       </Group>
       <div
@@ -107,11 +117,46 @@ export function InventoryTable({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll wide tables horizontally.
         tabIndex={0}
       >
-        <Table className="inventory-table" aria-label="Inventory records" highlightOnHover>
+        <Table
+          className="inventory-table"
+          data-company-column={administrator || undefined}
+          aria-label="Inventory records"
+          highlightOnHover
+        >
           <Table.Thead>
             <Table.Tr>
-              <Table.Th scope="col" aria-sort={ariaSort("sku")}>
+              <Table.Th scope="col" data-column="sku" aria-sort={ariaSort("sku")}>
                 <ColumnMenu label="SKU" sort={sort("sku")} filter={selection("skus", skus)} />
+              </Table.Th>
+              {administrator ? (
+                <Table.Th scope="col" data-column="company">
+                  <ColumnMenu
+                    label="Company"
+                    filter={{
+                      kind: "selection",
+                      value: viewState.companyIds.map((id) => JSON.stringify(id)),
+                      options: companyOptions,
+                      onChange: (values) => {
+                        onChange({
+                          companyIds: values.map((value) => JSON.parse(value) as string | null),
+                        });
+                      },
+                    }}
+                  />
+                </Table.Th>
+              ) : null}
+              <Table.Th scope="col" data-column="marketplace">
+                <ColumnMenu
+                  label="Marketplace"
+                  filter={{
+                    kind: "selection",
+                    value: viewState.marketplaces,
+                    options: marketplaceOptions,
+                    onChange: (marketplaces) => {
+                      onChange({ marketplaces });
+                    },
+                  }}
+                />
               </Table.Th>
               <Table.Th scope="col" aria-sort={ariaSort("sales_amount_90d")}>
                 <Group gap={4} wrap="nowrap">
@@ -149,13 +194,12 @@ export function InventoryTable({
                   onSelect(inventoryRowId(row));
                 })}
               >
-                <Table.Td>
+                <Table.Td data-column="sku">
                   <SkuTransactionLink
                     className="inventory-sku"
                     sku={row.sku}
                     onShowTransactions={onShowTransactions}
                   />
-                  <Text inherit>{row.marketplace_name}</Text>
                   <InventorySourceDate
                     snapshotDate={row.snapshot_date}
                     reportCreatedAt={row.report_created_at}
@@ -164,6 +208,12 @@ export function InventoryTable({
                     compact
                   />
                 </Table.Td>
+                {administrator ? (
+                  <Table.Td data-column="company">
+                    {companyLabel(row.company_id, companyNames)}
+                  </Table.Td>
+                ) : null}
+                <Table.Td data-column="marketplace">{row.marketplace_name}</Table.Td>
                 <Table.Td>
                   <InventoryMetrics row={row} fields={INVENTORY_METRICS.sales} />
                 </Table.Td>

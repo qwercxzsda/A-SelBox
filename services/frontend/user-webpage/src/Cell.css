@@ -6,3 +6,16 @@
   color: #9b4c0b;
   font-weight: 600;
 }
+
+.stacked-cell-value {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stacked-cell-secondary {
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 400;
+}

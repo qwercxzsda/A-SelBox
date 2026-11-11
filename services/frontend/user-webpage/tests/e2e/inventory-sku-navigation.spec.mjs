@@ -2,7 +2,13 @@ import { expect, test } from "@playwright/test";
 import { liveRow } from "./api-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { COMPANY, item, setup } from "./sku-configuration-fixtures.mjs";
-import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
+import {
+  applyDates,
+  columnTrigger,
+  openColumn,
+  selectColumnOptions,
+  sortBy,
+} from "./table-actions.mjs";
 
 const SKU = 'SKU (A), "blue" / 50%';
 
@@ -36,7 +42,7 @@ for (const role of ["administrator", "member"]) {
 
     await page.getByRole("tab", { name: "Inventory", exact: true }).click();
     await page.getByLabel("Rows", { exact: true }).selectOption("50");
-    await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.ca");
+    await selectColumnOptions(page, "Marketplace", ["Amazon.ca"]);
     await page.getByLabel("Search", { exact: true }).fill("blue");
     await sortBy(page, "Sales · last 90 days", "Highest first");
     const region = page.getByRole("region", { name: "Inventory items" });
@@ -95,12 +101,13 @@ for (const role of ["administrator", "member"]) {
     await page.getByRole("tab", { name: "Inventory", exact: true }).click();
     await expect(sku).toBeVisible();
     await expect(page.getByLabel("Search", { exact: true })).toHaveValue("blue");
-    await expect(page.getByLabel("Marketplace", { exact: true })).toHaveValue("Amazon.ca");
+    await expect(
+      page.getByRole("button", { name: "Remove Marketplace: Amazon.ca", exact: true }),
+    ).toBeVisible();
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-    await expect(region.getByRole("columnheader").nth(1)).toHaveAttribute(
-      "aria-sort",
-      "descending",
-    );
+    await expect(
+      region.getByRole("columnheader").filter({ has: columnTrigger(page, "Sales · last 90 days") }),
+    ).toHaveAttribute("aria-sort", "descending");
     await expect(details).toHaveCount(0);
     await expect(region.getByText("Inbound received", { exact: true })).toHaveCount(0);
     expect(

@@ -6,7 +6,7 @@ import type {
   SkuConfigurationPeriod,
 } from "./api/sku-configuration-types.ts";
 import { INVENTORY_SORT_COLUMNS } from "./inventory-view.ts";
-import { isJsonObject } from "./api/validation.ts";
+import { isJsonObject, isUuid } from "./api/validation.ts";
 import { PAGE_SIZES, visibleDatasets } from "./view-model.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import {
@@ -100,7 +100,8 @@ export function decodeInventoryView(value: unknown): InventoryViewState {
     recommendations: optionalStrings(value.recommendations).filter((entry) =>
       INVENTORY_RECOMMENDATION_VALUES.includes(entry),
     ),
-    marketplace: text(value.marketplace),
+    marketplaces: strings(value.marketplaces),
+    companyIds: optionalStrings(value.companyIds).filter((id) => id === null || isUuid(id)),
     sortColumn: INVENTORY_SORT_COLUMNS.find((column) => column === value.sortColumn) ?? "sku",
     sortDirection: value.sortDirection === "desc" ? "desc" : "asc",
     pageIndex: pageIndex(value.pageIndex),

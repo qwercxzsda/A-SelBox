@@ -195,10 +195,11 @@ test("member links cannot select administrator tabs or promote account permissio
   assert.equal(member.access_role, "member");
 });
 
-test("inventory navigation preserves unknown filter choices and exact SKU identities", () => {
+test("inventory navigation preserves marketplace and company selections and exact SKU identities", () => {
   const view = {
     ...createInventoryViewState(),
-    marketplace: "Amazon.com",
+    marketplaces: ["Amazon.com", "Amazon.ca"],
+    companyIds: [companyId, null],
     skus: ["null"],
     healthStatuses: [null, "Out of stock"],
     recommendations: ["Edit listing"],
@@ -212,7 +213,32 @@ test("inventory navigation preserves unknown filter choices and exact SKU identi
       ["inventory", view],
     ]),
   );
+  assert.deepEqual(url.searchParams.getAll("marketplace"), view.marketplaces);
+  assert.deepEqual(url.searchParams.getAll("company"), [JSON.stringify(companyId), "null"]);
   assert.deepEqual(locationPreference(url, admin, "inventory", null), view);
+});
+
+test("inventory company links reject malformed identifiers and never apply to member navigation", () => {
+  const url = new URL("https://example.test/?tab=inventory&marketplace=Amazon.com");
+  for (const value of [JSON.stringify(companyId), "null", '"invalid"', "42", "{", "{}"])
+    url.searchParams.append("company", value);
+  const view = locationPreference(url, admin, "inventory", null);
+  assert.deepEqual(view.companyIds, [companyId, null]);
+  const member = { ...admin, access_role: "member", company_id: companyId };
+  assert.deepEqual(locationPreference(url, member, "inventory", null), {
+    ...view,
+    companyIds: [],
+  });
+  const memberUrl = workspaceLocation(
+    url,
+    member,
+    new Map([
+      ["tab", "inventory"],
+      ["inventory", view],
+    ]),
+  );
+  assert.equal(memberUrl.searchParams.has("company"), false);
+  assert.deepEqual(memberUrl.searchParams.getAll("marketplace"), ["Amazon.com"]);
 });
 
 test("bare URLs keep local state, and malformed report/month identifiers are ignored", () => {

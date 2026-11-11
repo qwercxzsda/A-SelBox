@@ -1,5 +1,5 @@
 import "./FinanceDataset.css";
-import { Alert, Button, Group, Text } from "@mantine/core";
+import { Alert, Button, Text } from "@mantine/core";
 import { type TableDatasetKey, DATASET_CONFIG } from "./api";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
@@ -7,7 +7,6 @@ import { DATASET_PRESENTATION, displayColumns, getErrorMessage } from "./view-mo
 import type { Identity } from "./auth-session";
 import { FinancialTable } from "./FinancialTable";
 import { DatasetCountStatus } from "./DatasetCountStatus";
-import { PaginationBar } from "./PaginationBar";
 import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
 import { FinanceColumnHeader } from "./FinanceColumnHeader";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
@@ -18,14 +17,12 @@ import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
 import { filterOptions, transactionTypeValues } from "./filter-options";
 import { transactionTypeSelectionLabels } from "./transaction-type-groups";
-import { RowsSelect } from "./RowsSelect";
 import { CompanyMembership } from "./CompanyMembership";
 import { useBrowserOnline } from "./use-browser-online";
 import { useRef } from "react";
 import { FinancialSourceLookup } from "./FinancialSourceLookup";
-import { SearchInput } from "./SearchInput";
 import { ListPageNavigation } from "./ListPageNavigation";
-import { pageRangeSummary } from "./pagination";
+import { ListToolbar } from "./ListToolbar";
 import { revealSection } from "./reveal-section";
 
 interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
@@ -106,58 +103,49 @@ function StandardFinanceDataset({
           )}
         </Alert>
       ) : null}
-      <Group
-        ref={toolbarRef}
-        tabIndex={-1}
-        role="group"
-        aria-label={dataset === "accounts" ? "Account controls" : "Record controls"}
-        className="table-toolbar"
-        justify="space-between"
-        align="end"
-      >
-        <Group align="end" className="table-toolbar-fields">
-          {DATASET_CONFIG[dataset].searchColumns.length > 0 ? (
-            <SearchInput
-              inputRef={searchInput}
-              className="search-field"
-              type="search"
-              value={search}
-              placeholder={presentation.searchPlaceholder}
-              onChange={changeSearch}
-            />
-          ) : null}
-          <RowsSelect
-            value={pageSize}
-            onChange={(pageSize) => {
-              table.setPagination({ pageIndex: 0, pageSize });
-            }}
-          />
-          {dataset === "finances" ? <FinancialSourceLookup identity={identity} /> : null}
-        </Group>
-        <PaginationBar
-          pageIndex={pageIndex}
-          pageCount={pageCount}
-          canPrevious={canPrevious}
-          canNext={canNext}
-          isBusy={isBusy}
-          onPrevious={() => {
+      <ListToolbar
+        controlsRef={toolbarRef}
+        label={dataset === "accounts" ? "Account controls" : "Record controls"}
+        search={{
+          inputRef: searchInput,
+          value: search,
+          placeholder: presentation.searchPlaceholder,
+          onChange: changeSearch,
+        }}
+        pageSize={pageSize}
+        onPageSizeChange={(pageSize) => {
+          table.setPagination({ pageIndex: 0, pageSize });
+        }}
+        extraControls={
+          dataset === "finances" ? <FinancialSourceLookup identity={identity} /> : undefined
+        }
+        pagination={{
+          pageIndex,
+          pageCount,
+          canPrevious,
+          canNext,
+          isBusy,
+          onPrevious: () => {
             table.previousPage();
-          }}
-          onNext={() => {
+          },
+          onNext: () => {
             table.nextPage();
-          }}
-          onPageChange={(index) => {
-            table.setPageIndex(index);
-          }}
-          summary={
-            amountLimitExceeded
-              ? "Narrow your filters or order by date to load rows."
-              : query.isPending
-                ? `Loading page ${String(pageIndex + 1)}…`
-                : pageRangeSummary(pageIndex, pageSize, rows.length, totalCount, "rows")
-          }
-        />
-      </Group>
+          },
+          onPageChange: (pageIndex) => {
+            table.setPageIndex(pageIndex);
+          },
+        }}
+        rowCount={rows.length}
+        totalCount={totalCount}
+        items="rows"
+        message={
+          amountLimitExceeded
+            ? "Narrow your filters or order by date to load rows."
+            : query.isPending
+              ? `Loading page ${String(pageIndex + 1)}…`
+              : undefined
+        }
+      />
       <AppliedTableFilters
         focusTarget={searchInput}
         dataset={dataset}

@@ -12,15 +12,28 @@ function codeLabel(key: string, value: string): string {
   return humanizeCode(value);
 }
 
-export function TableCellValue({
-  column,
-  companies,
-  row,
-}: {
+interface TableCellValueProps {
   column: ColumnDefinition;
   companies: Map<string, string>;
   row: CanonicalRow;
-}) {
+}
+
+export function TableCellValue(props: TableCellValueProps) {
+  const secondary = props.column.secondary;
+  if (!secondary) return <SingleCellValue {...props} />;
+  return (
+    <div className="stacked-cell-value">
+      <span className="stacked-cell-primary">
+        <SingleCellValue {...props} />
+      </span>
+      <span className="stacked-cell-secondary">
+        {secondary.label}: <SingleCellValue {...props} column={secondary} />
+      </span>
+    </div>
+  );
+}
+
+function SingleCellValue({ column, companies, row }: TableCellValueProps) {
   if (column.key === "activity_at") return <TransactionTime row={row} />;
   if (row.resolution_status === "NOT_APPLICABLE" && column.key === "fee_rate_percent") {
     return (

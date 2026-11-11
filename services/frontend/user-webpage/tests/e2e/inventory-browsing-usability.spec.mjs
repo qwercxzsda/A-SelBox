@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { columnTrigger } from "./table-actions.mjs";
+import { columnTrigger, selectColumnOptions } from "./table-actions.mjs";
 
 async function openInventory(page) {
   await mockSupabase(page);
@@ -76,20 +76,21 @@ test("mobile inventory keeps marketplace readable and preserves independent filt
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openInventory(page);
-  const marketplace = page.getByLabel("Marketplace", { exact: true });
-  await marketplace.selectOption("Amazon.com");
+  await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
   await columnTrigger(page, "Inventory health status").click();
   const menu = page.getByRole("dialog", { name: "Inventory health status options", exact: true });
   await menu.getByRole("checkbox", { name: "Low stock", exact: true }).check();
   await menu.getByRole("button", { name: "Done", exact: true }).click();
   const filters = page.getByRole("group", { name: "Applied inventory filters", exact: true });
-  expect((await marketplace.boundingBox()).width).toBeGreaterThan(200);
+  await expect(page.getByRole("combobox", { name: "Marketplace", exact: true })).toHaveCount(0);
   await filters
     .getByRole("button", { name: "Remove Health: Low stock", exact: true })
     .press("Enter");
   await expect(page.getByLabel("Search", { exact: true })).toBeFocused();
   await expect(filters.getByRole("button", { name: "Remove Health: Low stock" })).toHaveCount(0);
-  await expect(marketplace).toHaveValue("Amazon.com");
+  await expect(
+    filters.getByRole("button", { name: "Remove Marketplace: Amazon.com", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Show transactions for QA-002" })).toBeVisible();
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("25");
   await page.screenshot({ path: testInfo.outputPath("phone-inventory-filters.png") });

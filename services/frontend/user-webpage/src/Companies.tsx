@@ -4,14 +4,12 @@ import type { Company } from "./api";
 import type { Identity } from "./auth-session";
 import { CompanyCreateForm } from "./CompanyCreateForm";
 import { useCompanyDirectory } from "./company-directory-context";
-import { PaginationBar } from "./PaginationBar";
+import { ListToolbar } from "./ListToolbar";
 import { lastPageIndex } from "./pagination";
-import { RowsSelect } from "./RowsSelect";
 import { CompanyDetails } from "./CompanyDetails";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { PAGE_SIZES } from "./view-model";
 import { WorkspaceHeader } from "./WorkspaceHeader";
-import { SearchInput } from "./SearchInput";
 import "./Companies.css";
 
 interface CompanyListState {
@@ -138,51 +136,52 @@ export function Companies({
           {notice}
         </Alert>
       ) : null}
-      <Group align="flex-end" gap="md" className="company-list-toolbar">
-        <SearchInput
-          inputRef={searchInput}
-          aria-label="Search companies"
-          placeholder="Company name or ID"
-          className="company-list-search"
-          value={state.search}
-          onChange={(search) => {
+      <ListToolbar
+        label="Company list controls"
+        search={{
+          inputRef: searchInput,
+          ariaLabel: "Search companies",
+          placeholder: "Company name or ID",
+          value: state.search,
+          onChange: (search) => {
             change({ search, pageIndex: 0 });
-          }}
-        />
-        <RowsSelect
-          value={state.pageSize}
-          onChange={(pageSize) => {
-            change({ pageSize, pageIndex: 0 });
-          }}
-        />
-        <Button
-          variant="subtle"
-          size="compact-sm"
-          className="company-list-collapse"
-          disabled={state.expanded.length === 0}
-          onClick={() => {
-            change({ expanded: [] });
-          }}
-        >
-          Collapse all
-        </Button>
-      </Group>
-      <PaginationBar
-        pageIndex={pageIndex}
-        pageCount={pageCount}
-        canPrevious={pageIndex > 0}
-        canNext={pageIndex < pageCount - 1}
-        summary={`${filtered.length ? String(start + 1) : "0"}-${String(start + visible.length)} of ${filtered.length.toLocaleString("en-US")} companies`}
-        ariaLabel="Companies pagination"
-        onPrevious={() => {
-          change({ pageIndex: pageIndex - 1 });
+          },
         }}
-        onNext={() => {
-          change({ pageIndex: pageIndex + 1 });
+        pageSize={state.pageSize}
+        onPageSizeChange={(pageSize) => {
+          change({ pageSize, pageIndex: 0 });
         }}
-        onPageChange={(pageIndex) => {
-          change({ pageIndex });
+        pagination={{
+          pageIndex,
+          pageCount,
+          canPrevious: pageIndex > 0,
+          canNext: pageIndex < pageCount - 1,
+          ariaLabel: "Companies pagination",
+          onPrevious: () => {
+            change({ pageIndex: pageIndex - 1 });
+          },
+          onNext: () => {
+            change({ pageIndex: pageIndex + 1 });
+          },
+          onPageChange: (pageIndex) => {
+            change({ pageIndex });
+          },
         }}
+        rowCount={visible.length}
+        totalCount={filtered.length}
+        items="companies"
+        extraControls={
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            disabled={state.expanded.length === 0}
+            onClick={() => {
+              change({ expanded: [] });
+            }}
+          >
+            Collapse all
+          </Button>
+        }
       />
       {visible.length ? (
         <Accordion

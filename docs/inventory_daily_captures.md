@@ -138,6 +138,9 @@ to the marketplace's date. On-screen age updates do not request new data. Exact 
 timestamps remain in UTC; reprocessing does not reset source age.
 Visible filter chips name and individually clear persisted criteria. Sales ordering remains in the
 original currencies; the Sales amount help control beside the column heading explains that scope.
+Marketplace selections live in their own column menu. Administrators also filter the Company column
+by company or Unassigned; member views omit that column and ignore company filters. Multiple
+selections are alternatives within a column and intersect across columns, before counts and paging.
 
 The browser loads every authorized row from `public.latest_inventory_items` using stable identity
 pages, then caches the complete snapshot. SKU options come from that snapshot. Health and

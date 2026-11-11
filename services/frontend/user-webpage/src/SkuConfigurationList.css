@@ -16,26 +16,8 @@
   box-shadow: 0 3px 12px #24334214;
 }
 
-.fee-list-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
-}
-
-.fee-list-search {
-  flex: 1 1 280px;
-  min-width: 0;
-  max-width: 430px;
-}
-
 .fee-list-incomplete {
   padding-bottom: 8px;
-}
-
-.fee-list-collapse {
-  margin-bottom: 2px;
-  margin-left: auto;
 }
 
 .fee-sku-list .mantine-Accordion-item {
@@ -103,14 +85,6 @@
 @media (max-width: 600px) {
   .fee-period-table {
     table-layout: auto;
-  }
-
-  .fee-list-search {
-    max-width: none;
-  }
-
-  .fee-list-collapse {
-    margin-left: 0;
   }
 
   .fee-sku-header {

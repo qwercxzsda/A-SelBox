@@ -39,9 +39,9 @@ export function RowDetailContent({
   headingRef: Ref<HTMLHeadingElement>;
 }) {
   const columns: ColumnDefinition[] = [
-    ...displayColumns(dataset, isAdministrator).filter(
-      (column) => !(column.key === "sku" && row.sku),
-    ),
+    ...displayColumns(dataset, isAdministrator)
+      .flatMap(({ secondary, ...column }) => (secondary ? [column, secondary] : [column]))
+      .filter((column) => !(column.key === "sku" && row.sku)),
     ...(isAdministrator && row.seller_namespace
       ? [{ key: "seller_namespace", kind: "text" as const, label: "Source namespace" }]
       : []),

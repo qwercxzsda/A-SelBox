@@ -36,7 +36,8 @@ const options = {
   recommendations: [],
   sortColumn: "sku",
   sortDirection: "asc",
-  marketplace: "",
+  marketplaces: [],
+  companyIds: [],
   pageIndex: 0,
   pageSize: 25,
 };
@@ -158,11 +159,38 @@ test("browser searches literal source values and display labels and combines fil
   assert.deepEqual(skus({ search: ".*_%()" }), [rows[2].sku]);
   assert.deepEqual(skus({ search: "unavailable" }), [rows[2].sku]);
   assert.deepEqual(skus({ healthStatuses: ["Low stock"], recommendations: ["SendToFBA"] }), ["A"]);
-  assert.deepEqual(skus({ skus: [rows[2].sku], marketplace: "Amazon.ca" }), []);
+  assert.deepEqual(skus({ skus: [rows[2].sku], marketplaces: ["Amazon.ca"] }), []);
   assert.deepEqual(
     inventoryPage(rows, { ...options, healthStatuses: ["Low stock"], pageSize: 1, pageIndex: 1 }),
     { rows: [rows[1]], totalCount: 2 },
   );
+});
+
+test("marketplace and company selections intersect before counts and pagination, including unassigned inventory", () => {
+  const rows = [
+    record({ sku: "A", marketplace_name: "Amazon.com", company_id: "first" }),
+    record({ sku: "B", marketplace_name: "Amazon.ca", company_id: "first" }),
+    record({ sku: "C", marketplace_name: "Amazon.com", company_id: "second" }),
+    record({ sku: "D", marketplace_name: "Amazon.ca", company_id: null }),
+    record({ sku: "E", marketplace_name: "Amazon.co.jp", company_id: "first" }),
+  ];
+  const scope = {
+    ...options,
+    marketplaces: ["Amazon.com", "Amazon.ca"],
+    companyIds: ["first", null],
+  };
+  assert.deepEqual(inventoryPage(rows, { ...scope, pageSize: 1, pageIndex: 1 }), {
+    rows: [rows[1]],
+    totalCount: 3,
+  });
+  assert.deepEqual(inventoryPage(rows, { ...scope, companyIds: [null] }).rows, [rows[3]]);
+  assert.deepEqual(inventoryPage(rows, { ...scope, companyIds: ["second"] }).rows, [rows[2]]);
+  assert.deepEqual(inventoryPage(rows, { ...scope, companyIds: ["missing"] }).rows, []);
+  assert.deepEqual(
+    inventoryPage(rows, { ...scope, marketplaces: [], companyIds: ["first"] }).rows,
+    [rows[0], rows[1], rows[4]],
+  );
+  assert.deepEqual(inventoryPage(rows, options).rows, rows);
 });
 
 test("complete-set sorting preserves exact signed amounts, urgency ties, and nulls last in either direction", () => {

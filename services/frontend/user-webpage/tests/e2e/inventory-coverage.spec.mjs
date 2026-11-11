@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { columnTrigger } from "./table-actions.mjs";
+import { columnTrigger, openColumn, selectColumnOptions } from "./table-actions.mjs";
 
 const capture = (overrides = {}) => ({
   capture_id: "capture-us",
@@ -46,7 +46,7 @@ test("old inventory exposes source age before opening metadata and separates pro
   await expect(coverage(page)).toHaveCount(0);
   await expect(page.getByText("Latest imported reports", { exact: true })).toHaveCount(0);
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "Stock as of 2026-10-03 · 15 days old · Out of date",
+    "2026-10-03 · 15d ago · Out of date",
   );
   await expect(items(page).locator(".inventory-source-date .mantine-Badge-root")).toHaveCount(0);
   await expect(items(page).getByText("Available", { exact: true }).locator("..")).toHaveText(
@@ -87,14 +87,17 @@ test("empty imported reports and unavailable marketplace coverage have different
       { exact: true },
     ),
   ).toBeVisible();
-  await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.de");
+  await selectColumnOptions(page, "Marketplace", ["Amazon.de — no snapshot"]);
   await expect(
     page.getByText("No inventory snapshot has been imported for Amazon.de.", { exact: true }),
   ).toBeVisible();
+  const marketplaceMenu = await openColumn(page, "Marketplace");
   await expect(
-    page.getByLabel("Marketplace", { exact: true }).locator('option[value="Amazon.de"]'),
-  ).toHaveText("Amazon.de — no snapshot");
-  await page.getByLabel("Marketplace", { exact: true }).selectOption("Amazon.com");
+    marketplaceMenu.getByRole("checkbox", { name: "Amazon.de — no snapshot", exact: true }),
+  ).toBeChecked();
+  await marketplaceMenu.getByRole("button", { name: "Clear marketplace", exact: true }).click();
+  await marketplaceMenu.getByRole("button", { name: "Close options", exact: true }).click();
+  await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
   await expect(
     page.getByText(
       "The latest imported snapshots contain no inventory items in this marketplace scope.",
@@ -208,7 +211,7 @@ test("visible inventory keeps its own date warning when the capture lookup fails
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "Stock as of 2026-10-03 · 15 days old · Out of date",
+    "2026-10-03 · 15d ago · Out of date",
   );
   await page.clock.fastForward(2_000);
   await expect.poll(() => inventory.captureRequests.length).toBeGreaterThanOrEqual(2);
@@ -226,14 +229,14 @@ test("age updates at marketplace midnight without reloading successful inventory
   ]);
   await expect(coverage(page)).toHaveCount(0);
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "Stock date unavailable · Report 2026-10-03 · 2 days old",
+    "Report 2026-10-03 · 2d ago",
   );
   await expect(items(page)).not.toContainText("Out of date");
   const reads = inventory.requests.length;
   const captureReads = inventory.captureRequests.length;
   await page.clock.fastForward(61_000);
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "Stock date unavailable · Report 2026-10-03 · 3 days old · Out of date",
+    "Report 2026-10-03 · 3d ago · Out of date",
   );
   expect(inventory.requests).toHaveLength(reads);
   expect(inventory.captureRequests).toHaveLength(captureReads);
@@ -264,13 +267,13 @@ test("phone inventory keeps next-local-day stock fresh while warning about genui
     const row = items(page)
       .locator("tbody tr")
       .filter({ hasText: `LOCAL-${code}` });
-    await expect(row).toContainText("Stock as of 2026-11-06 · Today");
-    await expect(row).not.toContainText("Future source date");
+    await expect(row).toContainText("2026-11-06 · Today");
+    await expect(row).not.toContainText("Future date");
     await expect(row).not.toContainText("Out of date");
   }
   await expect(coverage(page)).toHaveCount(0);
   const future = items(page).locator("tbody tr").filter({ hasText: "LOCAL-US" });
-  await expect(future).toContainText("Future source date — check source");
+  await expect(future).toContainText("Future date");
   await page.screenshot({
     path: testInfo.outputPath("inventory-local-day-phone.png"),
     fullPage: true,

@@ -21,10 +21,10 @@ test("inventory waits for the complete dataset before displaying filtered result
     await page.getByLabel("Search", { exact: true }).fill("NEEDLE");
     await expect(page.locator(".inventory-sku")).toHaveCount(0);
     await expect(topPager(page)).toContainText("Loading inventory…");
-    await expect(topPager(page)).not.toContainText("0 inventory items");
+    await expect(topPager(page)).not.toContainText("0–0 of 0 inventory items");
     release.resolve();
     await expect(page.locator(".inventory-sku")).toHaveText(["NEEDLE"]);
-    await expect(topPager(page)).toContainText("1 inventory item");
+    await expect(topPager(page)).toContainText("1–1 of 1 inventory items");
   } finally {
     release.resolve();
   }
@@ -38,7 +38,7 @@ test("a failed complete inventory read does not claim inventory is empty", async
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Could not load inventory.");
   await expect(topPager(page)).toContainText("Inventory unavailable");
-  await expect(topPager(page)).not.toContainText("0 inventory items");
+  await expect(topPager(page)).not.toContainText("0–0 of 0 inventory items");
 });
 
 test("loaded inventory paging and search do not need another database read", async ({ page }) => {
@@ -52,12 +52,15 @@ test("loaded inventory paging and search do not need another database read", asy
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(page.locator(".inventory-sku")).toHaveCount(25);
+  await expect(topPager(page)).toContainText("1–25 of 30 inventory items");
   const reads = inventory.requests.length;
   inventory.failed = true;
   await topPager(page).getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.locator(".inventory-sku")).toHaveCount(5);
+  await expect(topPager(page)).toContainText("26–30 of 30 inventory items");
   await page.getByLabel("Search", { exact: true }).fill("ITEM-01");
   await expect(page.locator(".inventory-sku")).toHaveText(["ITEM-01"]);
+  await expect(topPager(page)).toContainText("1–1 of 1 inventory items");
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(inventory.requests).toHaveLength(reads);
 });

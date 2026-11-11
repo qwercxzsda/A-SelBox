@@ -14,7 +14,8 @@ export interface InventoryPageOptions {
   skus: string[];
   healthStatuses: (string | null)[];
   recommendations: (string | null)[];
-  marketplace: string;
+  marketplaces: string[];
+  companyIds: (string | null)[];
   sortColumn: InventorySortColumn;
   sortDirection: "asc" | "desc";
   pageIndex: number;
@@ -28,7 +29,8 @@ export function inventoryPage(allRows: readonly InventoryRow[], options: Invento
   const { sortColumn, sortDirection } = options;
   const rows = allRows.filter(
     (row) =>
-      (!options.marketplace || row.marketplace_name === options.marketplace) &&
+      (!options.marketplaces.length || options.marketplaces.includes(row.marketplace_name)) &&
+      (!options.companyIds.length || options.companyIds.includes(row.company_id)) &&
       (!options.skus.length || options.skus.includes(row.sku)) &&
       (!options.healthStatuses.length || options.healthStatuses.includes(row.health_status)) &&
       (!options.recommendations.length ||
