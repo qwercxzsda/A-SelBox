@@ -170,6 +170,36 @@ test("inventory details distinguish missing metrics from zero and SKU navigation
   await expect(details(page)).toHaveCount(0);
 });
 
+for (const origin of ["table", "details"]) {
+  test(`inventory SKU navigation from ${origin} leaves Transactions scrollable`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openInventory(page, "administrator", [inventoryRow("SCROLL-SKU")]);
+    if (origin === "details") {
+      await row(page, "SCROLL-SKU").getByText("Amazon.com", { exact: true }).click();
+      await expect(details(page)).toBeVisible();
+      await expect(page.locator("html")).toHaveCSS("overflow-y", "hidden");
+    }
+    await (origin === "details" ? details(page) : row(page, "SCROLL-SKU"))
+      .getByRole("button", { name: "Show transactions for SCROLL-SKU", exact: true })
+      .click();
+    await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(page.locator(".ui-drawer-content")).toHaveCount(0);
+    await expect(page.locator("html")).not.toHaveCSS("overflow-y", "hidden");
+    const before = await page.evaluate(() => globalThis.scrollY);
+    await expect
+      .poll(async () => {
+        await page.mouse.wheel(0, 500);
+        return page.evaluate(() => globalThis.scrollY);
+      })
+      .toBeGreaterThan(before);
+  });
+}
+
 test("inventory F5 restores the selected capture using fresh data and revisions never keep stale details", async ({
   page,
 }) => {

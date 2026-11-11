@@ -24,9 +24,9 @@ html {
   scrollbar-gutter: stable;
 }
 
-/* Mounted drawer content includes its exit transition and any nested panels.
+/* Explicit content lifecycle tracking avoids a stale :has() scroll lock in Safari.
    Keep the document still without intercepting touch/wheel browser gestures. */
-html:has(.ui-drawer-content) {
+html[data-drawer-scroll-lock] {
   overflow: hidden;
 }
 

@@ -16,6 +16,7 @@ import {
   createTheme,
   DEFAULT_THEME,
 } from "@mantine/core";
+import { drawerScrollLockRef } from "./drawer-scroll-lock";
 
 const cyan = DEFAULT_THEME.colors.cyan;
 
@@ -73,6 +74,7 @@ export const appTheme = createTheme({
         body: "ui-drawer-body",
       },
     }),
+    DrawerContent: Drawer.Content.extend({ defaultProps: { ref: drawerScrollLockRef } }),
     Tabs: Tabs.extend({
       classNames: { list: "ui-tabs-list", tab: "ui-tabs-tab", panel: "ui-tabs-panel" },
     }),
