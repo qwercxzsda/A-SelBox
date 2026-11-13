@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Badge, Group, Table, Text, Title } from "@mantine/core";
+import { Badge, Group, Table, Title } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { inspectableRowProps } from "./inspectable-row";
 import { FEE_STATUS_LABELS, type FeeStatus } from "./fee-status";
@@ -7,25 +7,21 @@ import { formatExactDecimal } from "./decimal";
 import { TableDisclosure } from "./TableDisclosure";
 import "./MonthGroupedTable.css";
 
+const STATUS_COLORS: Record<FeeStatus, { color: string; c?: string }> = {
+  saved: { color: "teal", c: "#065f46" },
+  draft: { color: "blue" },
+  unfinished: { color: "violet" },
+  "needs-setup": { color: "orange", c: "#9a3412" },
+};
+
 function FeeStatusLabels({ statuses }: { statuses: readonly FeeStatus[] }) {
   return (
     <Group gap={6}>
-      {statuses.map((status) =>
-        status === "saved" ? (
-          <Text key={status} size="var(--ui-font-data)" c="dimmed">
-            {FEE_STATUS_LABELS[status]}
-          </Text>
-        ) : (
-          <Badge
-            key={status}
-            size="xs"
-            variant="light"
-            color={status === "draft" ? "cyan" : "orange"}
-          >
-            {FEE_STATUS_LABELS[status]}
-          </Badge>
-        ),
-      )}
+      {statuses.map((status) => (
+        <Badge key={status} size="xs" variant="light" {...STATUS_COLORS[status]}>
+          {FEE_STATUS_LABELS[status]}
+        </Badge>
+      ))}
     </Group>
   );
 }

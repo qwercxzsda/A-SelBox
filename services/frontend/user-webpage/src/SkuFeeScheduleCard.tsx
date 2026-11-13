@@ -1,4 +1,4 @@
-import { Badge, Group, Paper, Text, Title } from "@mantine/core";
+import { Badge, Group, Paper, Skeleton, Text, Title } from "@mantine/core";
 import type { SkuConfigurationPeriod } from "./api";
 import { SkuFeePeriods } from "./SkuFeePeriods";
 import { formatRecordDate } from "./date-display";
@@ -19,24 +19,23 @@ export function SkuFeeScheduleCard({
   schedule,
   companies,
   primary,
+  loadingVersion = false,
 }: {
   sku: string;
   schedule: FeeSchedule;
   companies: Map<string, string>;
   primary: boolean;
+  loadingVersion?: boolean;
 }) {
-  const title =
-    schedule.versionNumber !== undefined
-      ? `Version ${String(schedule.versionNumber)}`
-      : schedule.status === "draft"
-        ? "Draft"
-        : "Current configuration";
-  const label =
-    schedule.versionNumber !== undefined
-      ? `Saved fee version ${String(schedule.versionNumber)}`
-      : schedule.status === "draft"
-        ? "Draft fee schedule"
-        : "Current fee schedule";
+  const current = schedule.status === "current";
+  const version =
+    schedule.versionNumber === undefined ? null : `Version ${String(schedule.versionNumber)}`;
+  const title = version ?? (schedule.status === "draft" ? "Draft" : "Fee schedule");
+  const label = current
+    ? "Current fee schedule"
+    : schedule.status === "draft"
+      ? "Draft fee schedule"
+      : `Saved fee version ${String(schedule.versionNumber)}`;
   const tableLabel = primary
     ? `Marketplace fees for ${sku}`
     : `Marketplace fees for ${sku} · ${schedule.versionNumber !== undefined ? `version ${String(schedule.versionNumber)}` : "current saved"}`;
@@ -44,10 +43,14 @@ export function SkuFeeScheduleCard({
     <Paper component="article" withBorder p="md" aria-label={label}>
       <Group justify="space-between" gap="xs" mb="xs">
         <Group gap="xs">
-          <Title order={4} size="var(--ui-font-section)">
-            {title}
-          </Title>
-          {schedule.status === "current" && schedule.versionNumber !== undefined ? (
+          {loadingVersion ? (
+            <Skeleton width={92} height={24} aria-hidden="true" />
+          ) : (
+            <Title order={4} size="var(--ui-font-section)">
+              {title}
+            </Title>
+          )}
+          {current ? (
             <Badge variant="light" color="teal" c="#065f46">
               Current
             </Badge>

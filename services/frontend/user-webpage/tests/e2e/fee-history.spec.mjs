@@ -113,8 +113,9 @@ for (const width of [1440, 390]) {
       feeDetails(page).getByRole("heading", { name: "Marketplace fee periods", exact: true }),
     ).toHaveCount(1);
     await expect(saved.getByRole("article")).toHaveCount(10);
-    const current = saved.getByRole("article", { name: "Saved fee version 12", exact: true });
-    await expect(current).toContainText("Current");
+    const current = saved.getByRole("article", { name: "Current fee schedule", exact: true });
+    await expect(current.getByRole("heading", { name: "Version 12", exact: true })).toBeVisible();
+    await expect(current.getByText("Current", { exact: true })).toBeVisible();
     await expect(
       current.getByRole("table", { name: "Marketplace fees for S1", exact: true }),
     ).toContainText("5%");
@@ -231,7 +232,7 @@ test("staged changes remain distinct from every published fee version", async ({
     "Additional details",
   );
   const published = feeDetails(page).getByRole("article", {
-    name: "Saved fee version 12",
+    name: "Current fee schedule",
     exact: true,
   });
   await expect(published).toContainText("Alpha Company");

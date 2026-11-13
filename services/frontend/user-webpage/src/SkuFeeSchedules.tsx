@@ -130,6 +130,7 @@ function SavedFeeSchedules({
             schedule={schedule}
             companies={companies}
             primary={schedule.status === "draft" || (!hasDraft && schedule.status === "current")}
+            loadingVersion={query.isPending && schedule.status === "current"}
           />
         ))}
       </Stack>
