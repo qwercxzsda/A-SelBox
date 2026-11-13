@@ -5,7 +5,16 @@ import { summaryBucket } from "./summary-fixtures.mjs";
 import marketplaces from "../../src/generated/marketplaces.json" with { type: "json" };
 import { openSourceLookup, sourceDetail } from "./financial-source-fixtures.mjs";
 import { openFinancialReview } from "./financial-review-actions.mjs";
-import { editor, openEditor, openReview, review, setup } from "./sku-configuration-fixtures.mjs";
+import {
+  editor,
+  openEditor,
+  openReview,
+  review,
+  setup,
+  feeRow,
+  feeDetails,
+} from "./sku-configuration-fixtures.mjs";
+import { companyRow, companyDrawer, closeCompanyDetails } from "./company-actions.mjs";
 import { liveRow } from "./api-fixtures.mjs";
 
 for (const mode of ["sign-in", "sign-up", "recover"]) {
@@ -142,6 +151,11 @@ test("accessibility: fee editor and change review on a phone", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await setup(page);
+  await page.getByRole("button", { name: "Show fee periods for S1", exact: true }).click();
+  await expectAccessible("fee-period-groups-phone");
+  await feeRow(page, "S1").press("Enter");
+  await expect(feeDetails(page)).toBeVisible();
+  await expectAccessible("fee-details-phone");
   await openEditor(page);
   const rate = editor(page).getByLabel("Fee rate 1 (%)", { exact: true });
   await expect(rate).toHaveValue("5");
@@ -173,6 +187,10 @@ test("accessibility: companies and member assignment", async ({ page, expectAcce
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
   await expect(page.getByRole("table", { name: "Companies", exact: true })).toBeVisible();
   await expectAccessible("companies");
+  await companyRow(page, "Company A").press("Enter");
+  await expect(companyDrawer(page)).toBeVisible();
+  await expectAccessible("company-details");
+  await closeCompanyDetails(page);
   await page.getByRole("button", { name: "Add company", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Company name", exact: true })).toBeVisible();
   await expectAccessible("company-creation");

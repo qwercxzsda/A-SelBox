@@ -1,8 +1,7 @@
-import { useId, useRef } from "react";
-import { Button, Group, Paper, Table, Text } from "@mantine/core";
+import { Button, Table, Text, Title } from "@mantine/core";
 import type { CanonicalRow } from "./api";
 import { inspectableRowProps } from "./inspectable-row";
-import { TableScrollControls } from "./TableScrollControls";
+import { TableFrame } from "./TableFrame";
 import { formatRecordMonth } from "./date-display";
 import { formatAmount } from "./decimal";
 import type { ReviewCategory } from "./financial-review-categories";
@@ -26,116 +25,106 @@ export function FinancialReviewMonthTable({
   category: ReviewCategory;
   onClearFamilies?: () => void;
 }) {
-  const scrollTarget = useRef<HTMLDivElement>(null);
-  const scrollId = useId();
   const amount = category === "DATA_KIOSK" ? "costs" : "amount";
   return (
-    <>
-      <Group justify="space-between" gap="xs" mb="xs">
-        <Text size="sm" fw={600}>
-          Monthly amounts{currency ? ` · ${currency}` : ""}
-        </Text>
-        <TableScrollControls target={scrollTarget} targetId={scrollId} />
-      </Group>
-      <Paper withBorder className="table-card financial-review-months-card" aria-busy={isBusy}>
-        <div
-          id={scrollId}
-          ref={scrollTarget}
-          className="table-horizontal-scroll"
-          role="region"
-          aria-label="Monthly financial review table"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll wide tables horizontally.
-          tabIndex={0}
+    <section className="financial-review-month-list" aria-label="Monthly amounts">
+      <TableFrame
+        label="Monthly financial review table"
+        isBusy={isBusy}
+        heading={
+          <Title order={3} size="h4" className="detail-section-title">
+            Monthly amounts{currency ? ` · ${currency}` : ""}
+          </Title>
+        }
+      >
+        <Table
+          className="financial-review-months-table"
+          aria-label="Monthly financial review"
+          highlightOnHover
         >
-          <Table
-            className="financial-review-months-table"
-            aria-label="Monthly financial review"
-            highlightOnHover
-          >
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th scope="col">Month</Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Finances {amount}
-                </Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Data Kiosk {amount}
-                </Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Monthly difference
-                </Table.Th>
-                <Table.Th scope="col" className="numeric">
-                  Running difference
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            {rows.map((row) => {
-              const month = row.month?.slice(0, 7) ?? "";
-              const label = formatRecordMonth(month);
-              return (
-                <Table.Tbody key={month} aria-label={label}>
-                  <Table.Tr
-                    {...inspectableRowProps(selectedMonth === month, () => {
-                      onSelect(month);
-                    })}
-                  >
-                    <Table.Th scope="row" className="financial-review-month-cell">
-                      <Button
-                        className="financial-review-months-open ui-text-action"
-                        size="compact-sm"
-                        variant="subtle"
-                        aria-label={`Open review for ${label}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          event.currentTarget.focus({ preventScroll: true });
-                          onSelect(month);
-                        }}
-                      >
-                        {label}
-                      </Button>
-                    </Table.Th>
-                    {["finances_amount", "data_kiosk_amount"].map((key) => (
-                      <Table.Td key={key} className="numeric">
-                        {formatAmount(row[key])}
-                        {row[key.replace("_amount", "_row_count")] === "0" ? (
-                          <Text size="xs" c="dimmed">
-                            No source records
-                          </Text>
-                        ) : null}
-                      </Table.Td>
-                    ))}
-                    <Table.Td className="numeric">{formatAmount(row.difference)}</Table.Td>
-                    <Table.Td className="numeric financial-review-running">
-                      {formatAmount(row.running_difference)}
-                    </Table.Td>
-                  </Table.Tr>
-                </Table.Tbody>
-              );
-            })}
-            {!rows.length && emptyMessage ? (
-              <Table.Tbody>
-                <Table.Tr>
-                  <Table.Td colSpan={5}>
-                    <Text
-                      className="financial-review-months-empty"
-                      size="sm"
-                      c="dimmed"
-                      role="status"
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th scope="col">Month</Table.Th>
+              <Table.Th scope="col" className="numeric">
+                Finances {amount}
+              </Table.Th>
+              <Table.Th scope="col" className="numeric">
+                Data Kiosk {amount}
+              </Table.Th>
+              <Table.Th scope="col" className="numeric">
+                Monthly difference
+              </Table.Th>
+              <Table.Th scope="col" className="numeric">
+                Running difference
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          {rows.map((row) => {
+            const month = row.month?.slice(0, 7) ?? "";
+            const label = formatRecordMonth(month);
+            return (
+              <Table.Tbody key={month} aria-label={label}>
+                <Table.Tr
+                  {...inspectableRowProps(selectedMonth === month, () => {
+                    onSelect(month);
+                  })}
+                >
+                  <Table.Th scope="row" className="financial-review-month-cell">
+                    <Button
+                      className="financial-review-months-open ui-text-action"
+                      size="compact-sm"
+                      variant="subtle"
+                      aria-label={`Open review for ${label}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        event.currentTarget.focus({ preventScroll: true });
+                        onSelect(month);
+                      }}
                     >
-                      {emptyMessage}
-                    </Text>
-                    {onClearFamilies ? (
-                      <Button variant="light" onClick={onClearFamilies} mb="md">
-                        Show all families
-                      </Button>
-                    ) : null}
+                      {label}
+                    </Button>
+                  </Table.Th>
+                  {["finances_amount", "data_kiosk_amount"].map((key) => (
+                    <Table.Td key={key} className="numeric">
+                      {formatAmount(row[key])}
+                      {row[key.replace("_amount", "_row_count")] === "0" ? (
+                        <Text size="xs" c="dimmed">
+                          No source records
+                        </Text>
+                      ) : null}
+                    </Table.Td>
+                  ))}
+                  <Table.Td className="numeric">{formatAmount(row.difference)}</Table.Td>
+                  <Table.Td className="numeric financial-review-running">
+                    {formatAmount(row.running_difference)}
                   </Table.Td>
                 </Table.Tr>
               </Table.Tbody>
-            ) : null}
-          </Table>
-        </div>
-      </Paper>
-    </>
+            );
+          })}
+          {!rows.length && emptyMessage ? (
+            <Table.Tbody>
+              <Table.Tr>
+                <Table.Td colSpan={5}>
+                  <Text
+                    className="financial-review-months-empty"
+                    size="sm"
+                    c="dimmed"
+                    role="status"
+                  >
+                    {emptyMessage}
+                  </Text>
+                  {onClearFamilies ? (
+                    <Button variant="light" onClick={onClearFamilies} mb="md">
+                      Show all families
+                    </Button>
+                  ) : null}
+                </Table.Td>
+              </Table.Tr>
+            </Table.Tbody>
+          ) : null}
+        </Table>
+      </TableFrame>
+    </section>
   );
 }

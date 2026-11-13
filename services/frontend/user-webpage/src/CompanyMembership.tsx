@@ -6,6 +6,8 @@ import { humanizeCode } from "./categories";
 import { companyLabel } from "./view-model";
 import { useCompanyMembership } from "./use-company-membership";
 import type { MembershipFeedback } from "./use-membership-save-feedback";
+import { AdditionalDetails } from "./AdditionalDetails";
+import { formatRecordDate } from "./date-display";
 import "./CompanyMembership.css";
 
 interface MembershipProps {
@@ -93,142 +95,155 @@ function MembershipEditor({
     account.company_id,
     new Map(companies.map(({ id, name }) => [id, name])),
   );
+  const emailConfirmed =
+    row.email_confirmed === "true" || row.email_confirmed === "t"
+      ? "Yes"
+      : row.email_confirmed === "false" || row.email_confirmed === "f"
+        ? "No"
+        : null;
 
   return (
-    <Stack gap="lg" className="company-membership-content">
-      <div>
-        <Title order={3} style={{ overflowWrap: "anywhere" }}>
-          {row.email ?? "Email unavailable"}
-        </Title>
-        <Group mt="sm">
-          <Badge
-            color={administrator ? "blue" : account.access_role === "member" ? "teal" : "gray"}
-            c={account.access_role === "member" ? "#065f46" : undefined}
-            variant="light"
-          >
-            {humanizeCode(account.access_role)}
-          </Badge>
-          {account.access_role !== "unassigned" ? (
-            <Text size="sm" c="dimmed">
-              {administrator ? "All companies" : `Current company: ${label}`}
-            </Text>
-          ) : null}
-        </Group>
-      </div>
-      {administrator ? (
-        <Alert>Administrator access can only be changed by the database manager.</Alert>
-      ) : (
-        <>
-          {row.email_confirmed === "false" || row.email_confirmed === "f" ? (
-            <Alert color="orange">
-              This user has not confirmed their email yet. They must confirm it before signing in.
-            </Alert>
-          ) : null}
-          <Stack gap={4}>
-            <Group justify="space-between" align="flex-start" gap="xs">
-              <Text className="ui-input-label">Company</Text>
-              {onAddCompany ? (
-                <Button
-                  type="button"
-                  variant="subtle"
-                  size="compact-sm"
-                  disabled={isSaving || confirmRevocation}
-                  onClick={onAddCompany}
-                >
-                  Add company
-                </Button>
-              ) : null}
-            </Group>
-            <Select
-              aria-label="Company"
-              description="A member can access only their company's workspace."
-              placeholder="Select a company"
-              searchable
-              data={companies.map(({ id, name }) => ({ value: id, label: name }))}
-              value={unavailableCompany ? null : companyId}
-              onChange={setCompanyId}
-              disabled={isSaving || confirmRevocation}
-              nothingFoundMessage="No matching companies"
-              error={
-                unavailableCompany
-                  ? "This company is no longer available. Choose another company."
-                  : undefined
-              }
-            />
-            {companyId !== account.company_id ? (
-              <Text size="sm" c="orange.9" role="status">
-                Unsaved change. Current access stays the same until you save membership.
+    <>
+      <Stack gap="lg" className="company-membership-content">
+        <div>
+          <Title order={3} style={{ overflowWrap: "anywhere" }}>
+            {row.email ?? "Email unavailable"}
+          </Title>
+          <Group mt="sm">
+            <Badge
+              color={administrator ? "blue" : account.access_role === "member" ? "teal" : "gray"}
+              c={account.access_role === "member" ? "#065f46" : undefined}
+              variant="light"
+            >
+              {humanizeCode(account.access_role)}
+            </Badge>
+            {account.access_role !== "unassigned" ? (
+              <Text size="sm" c="dimmed">
+                {administrator ? "All companies" : `Current company: ${label}`}
               </Text>
             ) : null}
-          </Stack>
-          {companies.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No companies are available. Add a company to assign membership.
-            </Text>
-          ) : null}
-          {confirmRevocation ? (
-            <Alert
-              ref={confirmationRef}
-              tabIndex={-1}
-              color="orange"
-              title="Revoke company membership?"
-            >
-              <Text size="sm">
-                This user will lose access to {label} and become Unassigned. Their sign-in account
-                will remain available.
-              </Text>
-              <Group mt="md">
-                <Button
-                  color="red"
-                  loading={isSaving}
-                  onClick={() => {
-                    save(null);
-                  }}
-                >
-                  Confirm revocation
-                </Button>
-                <Button
-                  variant="default"
-                  disabled={isSaving}
-                  onClick={() => {
-                    setConfirmRevocation(false);
-                  }}
-                >
-                  Keep membership
-                </Button>
-              </Group>
-            </Alert>
-          ) : (
-            <Group justify="space-between">
-              <Button
-                loading={isSaving}
-                disabled={!companyId || unavailableCompany || companyId === account.company_id}
-                onClick={() => {
-                  save(companyId);
-                }}
-              >
-                Save membership
-              </Button>
-              {account.access_role === "member" ? (
-                <Button
-                  ref={revokeButtonRef}
-                  color="red"
-                  variant="light"
-                  disabled={isSaving}
-                  onClick={() => {
-                    setConfirmRevocation(true);
-                  }}
-                >
-                  Revoke membership
-                </Button>
+          </Group>
+        </div>
+        {administrator ? (
+          <Alert>Administrator access can only be changed by the database manager.</Alert>
+        ) : (
+          <>
+            {emailConfirmed === "No" ? (
+              <Alert color="orange">
+                This user has not confirmed their email yet. They must confirm it before signing in.
+              </Alert>
+            ) : null}
+            <Stack gap={4}>
+              {onAddCompany ? (
+                <Group justify="flex-end">
+                  <Button
+                    type="button"
+                    variant="subtle"
+                    size="compact-sm"
+                    disabled={isSaving || confirmRevocation}
+                    onClick={onAddCompany}
+                  >
+                    Add company
+                  </Button>
+                </Group>
               ) : null}
-            </Group>
-          )}
-        </>
-      )}
-      <Text size="xs" c="dimmed" style={{ overflowWrap: "anywhere" }}>
-        User ID: {account.user_id}
-      </Text>
-    </Stack>
+              <Select
+                aria-label="Company"
+                description="A member can access only their company's workspace."
+                placeholder="Select a company"
+                searchable
+                data={companies.map(({ id, name }) => ({ value: id, label: name }))}
+                value={unavailableCompany ? null : companyId}
+                onChange={setCompanyId}
+                disabled={isSaving || confirmRevocation}
+                nothingFoundMessage="No matching companies"
+                error={
+                  unavailableCompany
+                    ? "This company is no longer available. Choose another company."
+                    : undefined
+                }
+              />
+              {companyId !== account.company_id ? (
+                <Text size="sm" c="orange.9" role="status">
+                  Unsaved change. Current access stays the same until you save membership.
+                </Text>
+              ) : null}
+            </Stack>
+            {companies.length === 0 ? (
+              <Text size="sm" c="dimmed">
+                No companies are available. Add a company to assign membership.
+              </Text>
+            ) : null}
+            {confirmRevocation ? (
+              <Alert
+                ref={confirmationRef}
+                tabIndex={-1}
+                color="orange"
+                title="Revoke company membership?"
+              >
+                <Text size="sm">
+                  This user will lose access to {label} and become Unassigned. Their sign-in account
+                  will remain available.
+                </Text>
+                <Group mt="md">
+                  <Button
+                    color="red"
+                    loading={isSaving}
+                    onClick={() => {
+                      save(null);
+                    }}
+                  >
+                    Confirm revocation
+                  </Button>
+                  <Button
+                    variant="default"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setConfirmRevocation(false);
+                    }}
+                  >
+                    Keep membership
+                  </Button>
+                </Group>
+              </Alert>
+            ) : (
+              <Group justify="space-between">
+                <Button
+                  loading={isSaving}
+                  disabled={!companyId || unavailableCompany || companyId === account.company_id}
+                  onClick={() => {
+                    save(companyId);
+                  }}
+                >
+                  Save membership
+                </Button>
+                {account.access_role === "member" ? (
+                  <Button
+                    ref={revokeButtonRef}
+                    color="red"
+                    variant="light"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setConfirmRevocation(true);
+                    }}
+                  >
+                    Revoke membership
+                  </Button>
+                ) : null}
+              </Group>
+            )}
+          </>
+        )}
+      </Stack>
+      <AdditionalDetails
+        stateKey={`row:accounts:${account.user_id}:metadata`}
+        rows={[
+          { field: "User ID", value: account.user_id },
+          { field: "Company ID", value: account.company_id },
+          { field: "Joined", value: row.created_at ? formatRecordDate(row.created_at) : null },
+          { field: "Email confirmed", value: emailConfirmed },
+        ]}
+      />
+    </>
   );
 }

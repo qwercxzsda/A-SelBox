@@ -18,6 +18,7 @@
   --ui-font-caption: 12px;
   --ui-font-section: 16px;
   --ui-drawer-header-height: 64px;
+  --ui-drawer-padding: 20px;
 }
 
 html {
@@ -69,6 +70,11 @@ body {
   border-color: var(--ui-border);
 }
 
+/* Keep the same color while a last row's separator changes from hidden to visible. */
+.ui-table .inspectable-row {
+  border-bottom-color: var(--ui-border);
+}
+
 .ui-button {
   font-weight: 500;
 }
@@ -116,7 +122,7 @@ body {
 
 .ui-drawer-header {
   min-height: var(--ui-drawer-header-height);
-  padding: 16px 20px;
+  padding: 16px var(--ui-drawer-padding);
   border-bottom: 1px solid var(--ui-border);
   background: var(--ui-surface);
 }
@@ -129,7 +135,7 @@ body {
 }
 
 .ui-drawer-body {
-  padding: 20px;
+  padding: var(--ui-drawer-padding);
 }
 
 .ui-tabs-list {
@@ -220,15 +226,10 @@ body {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --ui-drawer-padding: 16px;
+  }
   .workspace-header-title h2 {
     font-size: 22px;
-  }
-
-  .ui-drawer-header {
-    padding-inline: 16px;
-  }
-
-  .ui-drawer-body {
-    padding: 16px;
   }
 }

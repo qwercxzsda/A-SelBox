@@ -24,14 +24,8 @@
   overflow-wrap: anywhere;
 }
 
-.financial-review-family-definition details {
-  margin-top: 6px;
-  font-size: var(--ui-font-caption);
-}
-
-.financial-review-family-definition summary {
-  color: var(--ui-accent);
-  cursor: pointer;
+.financial-review-family-definition > p {
+  padding-top: 4px;
 }
 
 .financial-review-summary {
@@ -326,12 +320,16 @@
   min-width: 740px;
   font-variant-numeric: tabular-nums;
 }
+.financial-review-month-list {
+  margin-top: 24px;
+}
 .financial-review-months-table .financial-review-month-cell {
   width: 190px;
   font-weight: 500;
 }
 .financial-review-months-open {
   margin-left: -8px;
+  font-size: var(--ui-font-data);
 }
 .financial-review-running {
   font-weight: 600;

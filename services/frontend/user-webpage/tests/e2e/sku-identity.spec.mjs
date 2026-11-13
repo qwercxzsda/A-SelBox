@@ -1,3 +1,4 @@
+import { feeRow as configurationRow } from "./sku-configuration-fixtures.mjs";
 import { expect, test } from "@playwright/test";
 import {
   assignmentId,
@@ -70,6 +71,8 @@ for (const [role, dataset, tab] of SCOPES) {
       const drawer = page.getByRole("dialog", { name: "Selected row details" });
       await expect(drawer.getByRole("heading", { name: "S1", exact: true })).toBeVisible();
       if (role === "administrator") {
+        await expect(drawer.getByText("Source namespace", { exact: true })).toHaveCount(0);
+        await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
         await expect(drawer.getByText("Source namespace", { exact: true })).toBeVisible();
         await expect(drawer.getByText(namespace, { exact: true })).toBeVisible();
       } else {
@@ -85,9 +88,9 @@ for (const [role, dataset, tab] of SCOPES) {
 
     if (dataset === "live") {
       await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-      const sku = page.getByRole("button", { name: "marketplace fees for S1: " });
+      const sku = configurationRow(page, "S1");
       await expect(sku).toHaveCount(1);
-      await sku.click();
+      await sku.press("Enter");
       const fees = page.getByRole("table", { name: "Marketplace fees for S1", exact: true });
       await expect(fees.getByRole("row")).toHaveCount(3);
       await expect

@@ -52,7 +52,7 @@ export function DeleteCompanyControl({
     setProblem(null);
     try {
       const result = await remove(company.id);
-      // The row may already be collapsed or removed; announce from the surviving list.
+      // The details may already be closed; announce from the surviving list.
       onDeleted(company, result.deleted);
     } catch (error) {
       if (mounted.current)

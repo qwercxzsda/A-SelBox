@@ -1,6 +1,7 @@
 import { Drawer, Text, Title } from "@mantine/core";
 import type { InventoryRow } from "./api/inventory";
 import { DetailSection } from "./DetailSection";
+import { AdditionalDetails } from "./AdditionalDetails";
 import {
   InventoryHealthLabel,
   InventoryMetrics,
@@ -10,6 +11,7 @@ import { INVENTORY_METRICS } from "./inventory-metrics";
 import { SkuTransactionLink } from "./SkuTransactionLink";
 import { InventorySourceDate } from "./InventorySourceDate";
 import { formatRecordDate } from "./date-display";
+import { inventoryRowId } from "./inventory-row";
 import "./InventoryDetail.css";
 
 export function InventoryDetail({
@@ -17,11 +19,13 @@ export function InventoryDetail({
   onClose,
   onShowTransactions,
   now,
+  administrator,
 }: {
   row: InventoryRow | null;
   onClose: () => void;
   onShowTransactions: (sku: string) => void;
   now: number;
+  administrator: boolean;
 }) {
   return (
     <Drawer
@@ -48,10 +52,6 @@ export function InventoryDetail({
             marketplace={row.marketplace_name}
             now={now}
           />
-          <Text size="xs" c="dimmed" mt={4}>
-            Amazon report created {formatRecordDate(row.report_created_at)}. Processed{" "}
-            {formatRecordDate(row.preprocessed_at)}; processing does not refresh the source stock.
-          </Text>
           <Text size="sm" c="dimmed" mt="xs" mb="lg">
             Latest imported snapshot. Quantities are reported estimates; unavailable values appear
             as —.
@@ -79,13 +79,21 @@ export function InventoryDetail({
               className="inventory-detail-breakdown"
             />
           </DetailSection>
-          <DetailSection title="Source capture" stateKey="inventory:source-capture" collapsible>
-            <InventoryMetrics
-              row={row}
-              fields={INVENTORY_METRICS.source}
-              className="inventory-detail-source"
-            />
-          </DetailSection>
+          <AdditionalDetails
+            stateKey={`inventory:${inventoryRowId(row)}:metadata`}
+            rows={[
+              ...(administrator
+                ? [
+                    { field: "Capture ID", value: row.capture_id },
+                    { field: "Company ID", value: row.company_id },
+                  ]
+                : []),
+              { field: "Capture date", value: row.capture_date },
+              { field: "Snapshot date", value: row.snapshot_date },
+              { field: "Report created", value: formatRecordDate(row.report_created_at) },
+              { field: "Processed", value: formatRecordDate(row.preprocessed_at) },
+            ]}
+          />
         </div>
       ) : null}
     </Drawer>

@@ -14,6 +14,8 @@ export function DetailSection({
   ref,
   stateKey,
   headingOrder = 4,
+  opened: controlledOpened,
+  onOpenedChange,
 }: {
   title: string;
   label?: string;
@@ -24,13 +26,15 @@ export function DetailSection({
   ref?: Ref<HTMLElement>;
   stateKey?: string;
   headingOrder?: 2 | 3 | 4;
+  opened?: boolean;
+  onOpenedChange?: (opened: boolean) => void;
 }) {
   const [savedOpen, setOpened] = useWorkspacePreference(
     `${stateKey ?? label}:expanded`,
     () => false,
     decodeDetailOpen,
   );
-  const opened = !collapsible || savedOpen;
+  const opened = !collapsible || (controlledOpened ?? savedOpen);
   const contentId = useId();
   return (
     <section ref={ref} tabIndex={-1} className="detail-section" aria-label={label}>
@@ -42,7 +46,8 @@ export function DetailSection({
               aria-expanded={opened}
               aria-controls={contentId}
               onClick={() => {
-                setOpened(!opened);
+                if (onOpenedChange) onOpenedChange(!opened);
+                else setOpened(!opened);
               }}
             >
               <span>{title}</span>

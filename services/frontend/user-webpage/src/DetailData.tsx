@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Alert, Button, Group, Text } from "@mantine/core";
 import { DETAIL_PAGE_SIZE } from "./api/pagination";
-import { UpdateStatus } from "./UpdateStatus";
+import { LoadingStatus } from "./LoadingStatus";
 import { lastPageIndex } from "./pagination";
 import { DetailPagination, type DetailPaginationState } from "./DetailPagination";
 import { revealSection } from "./reveal-section";
@@ -79,9 +79,9 @@ export function DetailData({
           Loading {label}…
         </Text>
       ) : null}
-      <UpdateStatus
-        active={query.isFetching && !query.isPending}
-      >{`Updating ${label}…`}</UpdateStatus>
+      {!visiblePagination && query.isFetching && !query.isPending ? (
+        <LoadingStatus state="updating" />
+      ) : null}
       {query.isError ? (
         <Alert role="alert" color="red" mb="sm">
           <Group justify="space-between" gap="sm">

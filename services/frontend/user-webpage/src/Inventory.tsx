@@ -253,6 +253,7 @@ export function Inventory({
       ) : null}
       <InventoryDetail
         row={selectedRow}
+        administrator={administrator}
         onClose={() => {
           selectRow(null);
         }}

@@ -64,9 +64,12 @@ export async function mockSupabase(page) {
     if (url.pathname === "/rest/v1/rpc/report_source_totals")
       return respondWithReconciliation(fixture, context);
     if (
-      ["/rest/v1/rpc/sku_configuration", "/rest/v1/rpc/publish_sku_configuration"].includes(
-        url.pathname,
-      )
+      [
+        "/rest/v1/rpc/sku_configuration",
+        "/rest/v1/rpc/publish_sku_configuration",
+        "/rest/v1/sku_terms_versions",
+        "/rest/v1/sku_fee_periods",
+      ].includes(url.pathname)
     )
       return respondWithSkuConfiguration(fixture, context);
     if (

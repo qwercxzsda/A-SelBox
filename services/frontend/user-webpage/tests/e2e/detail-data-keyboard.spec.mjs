@@ -111,9 +111,7 @@ for (const focused of ["removed record", "retained filter"]) {
     await expect(table.locator("tbody tr")).toHaveCount(1);
     const source = drawer.getByLabel("Record source", { exact: true });
     const target =
-      focused === "removed record"
-        ? table.getByRole("button", { name: "View source record", exact: true })
-        : source;
+      focused === "removed record" ? table.locator("tbody tr.inspectable-row") : source;
     await target.focus();
     fixture.financialReviewRecords = fixture.financialReviewRecords.slice(0, 5);
     fixture.revisions.finances = "1";

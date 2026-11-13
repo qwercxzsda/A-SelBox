@@ -151,8 +151,9 @@ the page. A drawer restored by a page reload returns focus to the monthly list i
 keeps X-button closing usable without clicking the underlying page again.
 
 Source records expose the original amount, activity date, SKU, marketplace, exact type and source
-namespace. **View source record** opens the exact row/version in a nested drawer, including native
-Amazon transaction IDs and linked release/deferred IDs when available. Displayed batch metadata
+namespace. Selecting a row with a click or Enter/Space opens the exact row/version in a nested drawer.
+Its shared **Additional details** section includes native Amazon transaction IDs, linked release/deferred
+IDs, and saved source metadata when available. Displayed batch metadata
 follows the [source inspector's observation selection](transaction_query_contracts.md#raw-source-pages);
 the payout manifest separately preserves the normalized versions used by a saved report.
 The selection survives reload; a missing version shows an explicit unavailable message
@@ -222,7 +223,7 @@ Unrecognized types retain a separate named family for their exact source and raw
 **Future fee · Finances**. Identical unfamiliar codes from different sources are not implicitly paired.
 Selecting a family includes all its members; **Amounts by type** and source records retain each
 exact type. The yearly breakdown and monthly comparison use the same definitions. Each row's
-**Family definition** disclosure lists the complete membership from each source,
+**Family definition** help popover lists the complete membership from each source,
 including **No counterpart defined** where applicable, separately from the types observed in the
 selected scope. **None in this scope** means no member type was observed; it does not erase the
 family's defined counterpart.
@@ -267,6 +268,8 @@ earlier versions. This section stays scoped to its month, marketplace, and selec
 preserving its company filter independently of the current category comparison. The current fee-family
 selection does not alter a saved snapshot's amounts or supporting records; the section identifies
 that historical scope explicitly. This list remains limited to the selected marketplace.
+**Show versions** reveals previous snapshots as rows in this same table, without another table or
+repeated column headings. Each row still opens its exact saved version independently.
 
 Selecting a snapshot opens **Saved source details**, including **Supporting records** calculated from its saved inputs,
 **Account reconciliation** calculated from the report's saved source inputs, and input metadata.

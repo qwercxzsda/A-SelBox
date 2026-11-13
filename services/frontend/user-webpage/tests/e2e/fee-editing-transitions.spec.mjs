@@ -7,10 +7,46 @@ import {
   review,
   openEditor,
   openReview,
+  feeDetails,
+  COMPANY,
+  OTHER_COMPANY,
 } from "./sku-configuration-fixtures.mjs";
 
 const rateChange = (page) =>
   editor(page).getByRole("region", { name: "Change rate from date", exact: true });
+
+test("returning to details keeps unfinished edits and metadata in the same drawer", async ({
+  page,
+}) => {
+  const fixture = await setup(page);
+  await openEditor(page);
+  const drawer = await editor(page).elementHandle();
+  await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6.123456");
+  await editor(page)
+    .getByRole("combobox", { name: "Company", exact: true })
+    .selectOption(OTHER_COMPANY);
+  await editor(page).getByRole("button", { name: "Additional details", exact: true }).click();
+  const metadata = editor(page).getByRole("table", { name: "Additional fee details", exact: true });
+  await expect(metadata.getByRole("row").filter({ hasText: "Company ID" })).toContainText(COMPANY);
+  await editor(page).getByRole("button", { name: "Back to details", exact: true }).click();
+  await expect(feeDetails(page)).toBeVisible();
+  expect(await feeDetails(page).evaluate((element, previous) => element === previous, drawer)).toBe(
+    true,
+  );
+  await expect(
+    feeDetails(page).getByRole("button", { name: "Additional details", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    feeDetails(page).getByRole("table", { name: "Marketplace fees for S1", exact: true }),
+  ).toContainText("5%");
+  await expect(feeDetails(page).getByText("Unfinished edit saved", { exact: true })).toBeVisible();
+  await feeDetails(page).getByRole("button", { name: "Edit S1", exact: true }).click();
+  await expect(editor(page).getByLabel("Fee rate 1 (%)", { exact: true })).toHaveValue("6.123456");
+  await expect(editor(page).getByRole("combobox", { name: "Company", exact: true })).toHaveValue(
+    OTHER_COMPANY,
+  );
+  expect(fixture.configurationSaves).toHaveLength(0);
+});
 
 test("starting a guided rate change again cannot replace unfinished input", async ({ page }) => {
   await setup(page, "administrator", [

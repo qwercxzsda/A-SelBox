@@ -2,14 +2,19 @@ import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { skuAssignment } from "./api-fixtures.mjs";
 import { columnHeader, openColumn, selectColumnOptions, sortBy } from "./table-actions.mjs";
-import { companyPanel, companyRow, companyToggle } from "./company-actions.mjs";
+import {
+  closeCompanyDetails,
+  companyDrawer,
+  companyPanel,
+  companyRow,
+} from "./company-actions.mjs";
 
 const ALPHA = "00000000-0000-4000-8000-000000000101";
 const BETA = "00000000-0000-4000-8000-000000000102";
 const GAMMA = "00000000-0000-4000-8000-000000000103";
 const ZERO = "00000000-0000-4000-8000-000000000104";
 const companies = (page) => page.getByRole("table", { name: "Companies", exact: true });
-const names = (page) => companies(page).locator(".expandable-summary-row .company-list-name");
+const names = (page) => companies(page).locator(".inspectable-row .company-list-name");
 const summary = (page) =>
   page
     .getByRole("navigation", { name: "Companies pagination", exact: true })
@@ -113,40 +118,57 @@ test("company filters and deduplicated SKU ordering apply before paging and surv
   expect(fixture.companyDeletionRequests).toHaveLength(0);
 });
 
-test("company rows expand independently by row or keyboard and collapse without losing focus", async ({
+test("company rows open a detail drawer by pointer or keyboard and restore focus on close", async ({
   page,
 }) => {
   await setup(page);
-  await expect(page.getByRole("button", { name: "Collapse all", exact: true })).toHaveCount(0);
+  await expect(companies(page).getByRole("columnheader")).toHaveText([
+    /^Company/,
+    /^Assigned SKUs/,
+  ]);
   await companyRow(page, "Alpha Company").getByText("Alpha Company", { exact: true }).click();
   await expect(companyPanel(page, "Alpha Company")).toBeVisible();
-  await expect(companyToggle(page, "Alpha Company")).toBeFocused();
-  await companyToggle(page, "Beta Company").focus();
+  await expect(companyDrawer(page)).toBeVisible();
+  await closeCompanyDetails(page);
+  await expect(companyRow(page, "Alpha Company")).toBeFocused();
+  await companyRow(page, "Beta Company").focus();
   await page.keyboard.press("Space");
-  await expect(companyPanel(page, "Alpha Company")).toBeVisible();
+  await expect(companyPanel(page, "Alpha Company")).toHaveCount(0);
   await expect(companyPanel(page, "Beta Company")).toBeVisible();
-  await expect(companyToggle(page, "Beta Company")).toBeFocused();
   await page.reload();
+  await expect(companyPanel(page, "Beta Company")).toBeVisible();
+  await closeCompanyDetails(page);
+  await companyRow(page, "Alpha Company").press("Enter");
   await expect(companyPanel(page, "Alpha Company")).toBeVisible();
-  await expect(companyPanel(page, "Beta Company")).toBeVisible();
-
-  await companyToggle(page, "Alpha Company").press("Enter");
-  await expect(companyPanel(page, "Alpha Company")).toHaveCount(0);
-  await expect(companyPanel(page, "Beta Company")).toBeVisible();
-  await expect(companyToggle(page, "Alpha Company")).toBeFocused();
-  await companyToggle(page, "Alpha Company").click();
-  await page.getByRole("button", { name: "Collapse all", exact: true }).click();
-  await expect(companyPanel(page, "Alpha Company")).toHaveCount(0);
-  await expect(companyPanel(page, "Beta Company")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Companies table", exact: true })).toBeFocused();
-  await expect(companyToggle(page, "Alpha Company")).toHaveAttribute("aria-expanded", "false");
-  await expect(companyToggle(page, "Beta Company")).toHaveAttribute("aria-expanded", "false");
+  await page.keyboard.press("Escape");
+  await expect(companyDrawer(page)).toBeHidden();
+  await expect(companyRow(page, "Alpha Company")).toBeFocused();
 });
 
-test("View members navigation leaves company expansion unchanged", async ({ page }) => {
+test("long company lists offer bottom paging and a focused return to filters", async ({ page }) => {
+  await setup(page, true);
+  const controls = page.getByRole("group", { name: "Company list controls", exact: true });
+  const bottom = page.getByRole("navigation", {
+    name: "Company list navigation at bottom",
+    exact: true,
+  });
+  await bottom.getByRole("button", { name: "Next companies", exact: true }).click();
+  await expect(summary(page)).toHaveText("26–30 of 30 companies");
+  await expect(controls).toBeFocused();
+  await expect(controls).toBeInViewport();
+  await bottom.getByRole("button", { name: "Previous companies", exact: true }).click();
+  await expect(summary(page)).toHaveText("1–25 of 30 companies");
+  await bottom.getByRole("button", { name: "Back to company filters", exact: true }).click();
+  await expect(controls).toBeFocused();
+  await expect(controls).toBeInViewport();
+});
+
+test("View members opens company-filtered access and returns to the company list", async ({
+  page,
+}) => {
   const fixture = await setup(page);
-  await companyToggle(page, "Alpha Company").click();
-  await companyRow(page, "Beta Company")
+  await companyRow(page, "Beta Company").click();
+  await companyPanel(page, "Beta Company")
     .getByRole("button", { name: "View members", exact: true })
     .click();
   await expect(page.getByRole("tab", { name: "User access", exact: true })).toHaveAttribute(
@@ -162,7 +184,6 @@ test("View members navigation leaves company expansion unchanged", async ({ page
     )
     .toBe(`in.(${BETA})`);
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  await expect(companyPanel(page, "Alpha Company")).toBeVisible();
-  await expect(companyPanel(page, "Beta Company")).toHaveCount(0);
-  await expect(companyToggle(page, "Beta Company")).toHaveAttribute("aria-expanded", "false");
+  await expect(companyDrawer(page)).toBeHidden();
+  await expect(companyRow(page, "Beta Company")).toBeVisible();
 });

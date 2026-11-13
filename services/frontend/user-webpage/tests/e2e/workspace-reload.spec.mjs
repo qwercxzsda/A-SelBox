@@ -10,6 +10,8 @@ import {
   item,
   period,
   version,
+  feeRow,
+  feeDetails,
 } from "./sku-configuration-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
 
@@ -33,11 +35,12 @@ test("F5 retains transaction ordering, pagination and the selected row using fre
   expect(fixture.requests.at(-1).params.get("order")).toContain("activity_at.asc");
 });
 
-test("F5 restores the fee tab, expanded SKU, unfinished editor and review reason", async ({
-  page,
-}) => {
+test("F5 restores fee details, unfinished editor and review reason", async ({ page }) => {
   const fixture = await setup(page);
   await page.getByLabel("Search SKUs", { exact: true }).fill("S1");
+  await feeRow(page, "S1").click();
+  await page.reload();
+  await expect(feeDetails(page)).toBeVisible();
   await openEditor(page);
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6.123456");
   await editor(page).getByRole("button", { name: "Add fee period", exact: true }).click();
@@ -51,10 +54,8 @@ test("F5 restores the fee tab, expanded SKU, unfinished editor and review reason
   await editor(page).getByRole("button", { name: "Remove period 2", exact: true }).click();
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("S1");
-  await expect(page.getByRole("button", { name: "marketplace fees for S1: " })).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
+  await expect(feeRow(page, "S1")).toContainText("Draft");
+  await expect(feeDetails(page)).toHaveCount(0);
   await openReview(page);
   await review(page).getByLabel("Reason for changes (optional)").fill("Preserve my explanation");
   await page.reload();

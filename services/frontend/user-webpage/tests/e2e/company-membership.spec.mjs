@@ -105,6 +105,18 @@ test("administrator transfers a member then explicitly confirms membership revoc
   await chooseCompany(page, "South Company");
   await expect(membershipDrawer(page)).toContainText("Current company: North Company");
   await expect(membershipDrawer(page).getByRole("status")).toContainText("Unsaved change");
+  const metadataToggle = membershipDrawer(page).getByRole("button", {
+    name: "Additional details",
+    exact: true,
+  });
+  await metadataToggle.click();
+  await expect(
+    membershipDrawer(page)
+      .getByRole("table", { name: "Additional record details", exact: true })
+      .getByRole("row")
+      .filter({ hasText: "Company ID" }),
+  ).toContainText(companyA);
+  await metadataToggle.click();
   await page.reload();
   await expect(membershipDrawer(page)).toContainText("Current company: North Company");
   await expect(membershipDrawer(page).getByRole("status")).toContainText("Unsaved change");
@@ -239,6 +251,31 @@ for (const width of [1440, 390]) {
     await accountRow(page, targetEmail).click();
     const drawer = membershipDrawer(page);
     await expect(drawer).toContainText("This user has not confirmed their email yet");
+    const additionalDetails = drawer.getByRole("button", {
+      name: "Additional details",
+      exact: true,
+    });
+    await expect(additionalDetails).toHaveAttribute("aria-expanded", "false");
+    await expect(drawer.getByText(targetUser, { exact: true })).toHaveCount(0);
+    await additionalDetails.click();
+    const identifiers = drawer.getByRole("table", {
+      name: "Additional record details",
+      exact: true,
+    });
+    await expect(identifiers.getByRole("row").filter({ hasText: "User ID" })).toContainText(
+      targetUser,
+    );
+    await expect(identifiers.getByRole("row").filter({ hasText: "Company ID" })).toContainText(
+      companyA,
+    );
+    await expect(identifiers.getByRole("row").filter({ hasText: "Joined" })).toContainText(
+      "2026-09-01 00:00:00 UTC",
+    );
+    await expect(identifiers.getByRole("row").filter({ hasText: "Email confirmed" })).toContainText(
+      "No",
+    );
+    await additionalDetails.click();
+    await expect(identifiers).toHaveCount(0);
     await drawer.getByRole("button", { name: "Revoke membership", exact: true }).click();
     const confirm = drawer.getByRole("button", { name: "Confirm revocation", exact: true });
     await expect(confirm).toBeInViewport();

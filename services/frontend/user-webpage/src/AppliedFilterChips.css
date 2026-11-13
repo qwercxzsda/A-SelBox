@@ -1,0 +1,30 @@
+.applied-filter-chip {
+  height: auto;
+  max-width: 100%;
+  padding-block: 4px;
+}
+
+.applied-filter-chip .mantine-Button-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.applied-table-filters {
+  min-width: 0;
+}
+
+.applied-table-filter {
+  max-width: min(24rem, 100%);
+}
+
+.applied-table-filter .mantine-Button-label {
+  min-width: 0;
+}
+
+.applied-table-filter-text {
+  min-width: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

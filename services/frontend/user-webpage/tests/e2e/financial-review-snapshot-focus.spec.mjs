@@ -27,7 +27,7 @@ for (const width of [390, 1440]) {
     await monthly.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
     const snapshots = monthly.getByRole("region", { name: "Saved report snapshots", exact: true });
     await snapshots.getByRole("button", { name: /^Show versions for/ }).click();
-    const opener = snapshots.getByRole("button", { name: /^Open previous version created/ });
+    const opener = snapshots.locator(".payout-version-row[data-version='previous']");
     await opener.focus();
     const originalScroll = await monthly.evaluate((element) => element.scrollTop);
     await opener.press("Enter");

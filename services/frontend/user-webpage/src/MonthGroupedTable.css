@@ -2,21 +2,18 @@
   border-top: 2px solid var(--ui-border);
 }
 
-.month-grouped-table > tbody > tr > td {
-  padding-block: 12px;
-}
-
 .month-grouped-table .month-group-cell {
   min-width: 156px;
   vertical-align: top;
-  padding: 16px;
+  padding: 8px 12px;
   background: var(--ui-surface-subtle);
   text-transform: none;
   letter-spacing: normal;
 }
 
 .month-group-cell h3 {
-  font-size: 14px;
+  font-size: var(--ui-font-data);
+  font-weight: 500;
   line-height: 1.4;
   color: var(--ui-text);
 }

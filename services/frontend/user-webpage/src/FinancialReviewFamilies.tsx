@@ -19,12 +19,11 @@ import type { SourceTypeTotals } from "./api/financial-review-type-reader";
 
 function FamilyDefinition({ row }: { row: CanonicalRow }) {
   return (
-    <div className="financial-review-family-definition">
-      <Text size="sm" fw={600}>
+    <Group gap={4} wrap="nowrap" align="flex-start" className="financial-review-family-definition">
+      <Text size="var(--ui-font-data)" fw={500}>
         {row.family}
       </Text>
-      <details>
-        <summary>Family definition</summary>
+      <HelpPopover label={`Family definition for ${row.family ?? "this family"}`}>
         <Text size="sm">{row.description}</Text>
         <Text size="xs">Defined Finances types: {row.finances_definition ?? "Unavailable"}</Text>
         <Text size="xs">
@@ -38,8 +37,8 @@ function FamilyDefinition({ row }: { row: CanonicalRow }) {
           Observed Data Kiosk types:{" "}
           {row.data_kiosk_types === "—" ? "None in this scope" : row.data_kiosk_types}
         </Text>
-      </details>
-    </div>
+      </HelpPopover>
+    </Group>
   );
 }
 

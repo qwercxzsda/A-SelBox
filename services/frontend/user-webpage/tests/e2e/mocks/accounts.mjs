@@ -139,6 +139,7 @@ export function createAccountHandlers(fixture) {
           `0198b50b-701a-7000-8000-${String(900 + fixture.companyCreationRequests.length).padStart(12, "0")}`;
         const result = { id, name: existing?.[1] ?? name, created: !existing };
         fixture.companyNames[id] = result.name;
+        if (!existing) fixture.companyCreatedAt[id] = "2026-09-02T03:04:05Z";
         entry.result = result;
         // Simulate a committed insert whose response was lost; a retry must reuse that company.
         if (fixture.companyCreationNetworkFailure) return route.abort("internetdisconnected");
@@ -186,13 +187,19 @@ export function createAccountHandlers(fixture) {
         const companies =
           fixture.companyCatalogRows ??
           (fixture.roles[user] === "administrator"
-            ? Object.entries(fixture.companyNames).map(([id, name]) => ({ id, name }))
+            ? Object.entries(fixture.companyNames).map(([id, name]) => ({
+                id,
+                name,
+                created_at: fixture.companyCreatedAt[id] ?? "2026-08-01T12:34:56Z",
+              }))
             : fixture.roles[user] === "unassigned"
               ? []
               : [
                   {
                     id: fixture.companyIds[user],
                     name: fixture.companyNames[fixture.companyIds[user]],
+                    created_at:
+                      fixture.companyCreatedAt[fixture.companyIds[user]] ?? "2026-08-01T12:34:56Z",
                   },
                 ]);
         return reply(companies, 200, {

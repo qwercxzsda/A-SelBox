@@ -46,6 +46,7 @@
   overflow-x: auto;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface);
 }
 /* Let a fitting table's header follow the drawer scroll, without a second
    vertical scroller. Wide tables retain their keyboard-accessible x-scroll. */
@@ -59,6 +60,14 @@
 .detail-table {
   width: 100%;
 }
+
+.record-metadata-table {
+  table-layout: fixed;
+}
+
+.record-metadata-table th:first-child {
+  width: 34%;
+}
 .detail-table th,
 .detail-table td {
   vertical-align: top;
@@ -70,6 +79,13 @@
 .detail-table td {
   max-width: 240px;
   overflow-wrap: anywhere;
+}
+.detail-table td[data-column="sku"],
+.detail-table td[data-kind="date"] {
+  font-weight: 500;
+}
+.detail-table td[data-column="company_amount"] {
+  font-weight: 700;
 }
 .detail-table [data-kind="number"],
 .detail-table [data-kind="amount"] {

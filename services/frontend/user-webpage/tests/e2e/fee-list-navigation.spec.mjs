@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { item, setup, version } from "./sku-configuration-fixtures.mjs";
+import { item, setup, version, feeRow, feeDetails } from "./sku-configuration-fixtures.mjs";
 
 for (const [role, width] of [
   ["member", 1280],
   ["administrator", 390],
 ]) {
-  test(`${role} can page a long fee list from its end at ${width}px without losing expansions`, async ({
+  test(`${role} can page a long fee list from its end at ${width}px without shifting the list when opening details`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 800 });
@@ -19,11 +19,10 @@ for (const [role, width] of [
         }),
       ),
     );
-    const first = page.getByRole("button", { name: "marketplace fees for S1: " });
-    await first.click();
-    await page
-      .getByRole("button", { name: "marketplace fees for Z-SKU-025: " })
-      .scrollIntoViewIfNeeded();
+    const first = feeRow(page, "S1");
+    await first.press("Enter");
+    await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
+    await feeRow(page, "Z-SKU-025").scrollIntoViewIfNeeded();
     const bottom = page.getByRole("navigation", {
       name: "SKU list navigation at bottom",
       exact: true,
@@ -35,16 +34,12 @@ for (const [role, width] of [
       animations: "disabled",
     });
     await bottom.getByRole("button", { name: "Next SKUs", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "marketplace fees for Z-SKU-026: " }),
-    ).toBeInViewport();
+    await expect(feeRow(page, "Z-SKU-026")).toBeInViewport();
     await expect(page.getByRole("group", { name: "Fee list controls", exact: true })).toBeFocused();
     await bottom.getByRole("button", { name: "Previous SKUs", exact: true }).click();
     await expect(first).toBeInViewport();
-    await expect(first).toHaveAttribute("aria-expanded", "true");
-    await expect(
-      page.getByRole("table", { name: "Marketplace fees for S1", exact: true }),
-    ).toBeVisible();
+    await expect(first).toHaveAttribute("aria-selected", "false");
+    await expect(feeDetails(page)).toBeHidden();
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("25");
     expect(fixture.configurationSaves).toHaveLength(0);
   });

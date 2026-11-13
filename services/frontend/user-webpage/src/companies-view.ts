@@ -7,7 +7,7 @@ export interface CompanyListState {
   search: string;
   pageSize: number;
   pageIndex: number;
-  expanded: string[];
+  selected: string | null;
   companyIds: string[];
   sortColumn: CompanySortColumn;
   sortDirection: "asc" | "desc";
@@ -23,9 +23,7 @@ export function decodeCompanyList(value: unknown): CompanyListState {
       typeof saved.pageIndex === "number" && Number.isSafeInteger(saved.pageIndex)
         ? Math.max(0, saved.pageIndex)
         : 0,
-    expanded: Array.isArray(saved.expanded)
-      ? saved.expanded.filter((id): id is string => typeof id === "string")
-      : [],
+    selected: typeof saved.selected === "string" && saved.selected.length ? saved.selected : null,
     companyIds: Array.isArray(saved.companyIds)
       ? [
           ...new Set(

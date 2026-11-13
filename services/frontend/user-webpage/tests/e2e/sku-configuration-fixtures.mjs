@@ -22,6 +22,18 @@ export const item = (sku, overrides = {}) => ({
   issues: [],
   ...overrides,
 });
+export const feeGroup = (page, sku) =>
+  page
+    .getByRole("table", { name: "Current fee configurations", exact: true })
+    .getByRole("rowgroup", { name: `Fee configuration for ${sku}`, exact: true });
+export const feeRow = (page, sku) => feeGroup(page, sku).locator(".fee-sku-summary");
+export const feePeriods = (page, sku) => feeGroup(page, sku).locator(".fee-period-row");
+export async function toggleFeePeriods(page, sku) {
+  await feeGroup(page, sku)
+    .getByRole("button", { name: /^(Show|Hide) fee periods for / })
+    .click();
+}
+export const feeDetails = (page) => page.getByRole("dialog", { name: "Fee details", exact: true });
 export const editor = (page) => page.getByRole("dialog", { name: /^Edit |^Add SKU$/ });
 export const review = (page) =>
   page.getByRole("dialog", { name: "Review configuration changes", exact: true });
@@ -49,15 +61,16 @@ export async function setup(
   configure(fixture);
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(page.getByRole("button", { name: "marketplace fees for S1: " })).toBeVisible();
+  await expect(feeRow(page, "S1")).toBeVisible();
   return fixture;
 }
 export async function openEditor(page, sku = "S1") {
-  const toggle = page.getByRole("button", {
-    name: `marketplace fees for ${sku}: `,
-  });
-  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
-  await page.getByRole("button", { name: `Edit ${sku}`, exact: true }).click();
+  if (await feeDetails(page).isVisible())
+    await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
+  await feeRow(page, sku).press("Enter");
+  await feeDetails(page)
+    .getByRole("button", { name: `Edit ${sku}`, exact: true })
+    .click();
   await expect(editor(page)).toBeVisible();
 }
 export async function stageRate(page, rate = "6") {
@@ -66,6 +79,8 @@ export async function stageRate(page, rate = "6") {
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
 }
 export async function openReview(page) {
+  if (await feeDetails(page).isVisible())
+    await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
   await page.getByRole("button", { name: /^Review changes/ }).click();
   await expect(review(page)).toBeVisible();
 }

@@ -38,6 +38,36 @@ function storage() {
 const text = (value) => (typeof value === "string" ? value : "default");
 const prefix = workspaceStoragePrefix("https://project.example/");
 
+test("fee group selection and folding preserve exact SKU text across session reloads", () => {
+  const saved = storage();
+  assert.deepEqual(createFeeViewState().expandedSkus, []);
+  assert.deepEqual(createFeeViewState().skus, []);
+  const view = {
+    ...createFeeViewState(),
+    selectedSku: " Padded SKU / sample ",
+    expandedSkus: [" Padded SKU / sample ", "SKU-2"],
+    skus: [" Padded SKU / sample ", "SKU-2"],
+  };
+  createWorkspaceStore(saved, prefix, account).write("fees", view);
+  const restored = createWorkspaceStore(saved, prefix, account).read(
+    "fees",
+    createFeeViewState,
+    decodeFeeView,
+  );
+  assert.equal(restored.selectedSku, view.selectedSku);
+  assert.deepEqual(restored.expandedSkus, view.expandedSkus);
+  assert.deepEqual(restored.skus, view.skus);
+  assert.deepEqual(
+    decodeFeeView({ skus: [" SKU ", "SKU", " SKU ", null, 42, "invalid\0SKU"] }).skus,
+    [" SKU ", "SKU"],
+  );
+  assert.equal(restored.editing, null);
+  assert.deepEqual(restored.drafts, []);
+  assert.equal(decodeFeeView({ selectedSku: null }).selectedSku, null);
+  for (const selectedSku of [42, [], {}, "invalid\0SKU", "x".repeat(10001)])
+    assert.equal(decodeFeeView({ selectedSku }).selectedSku, null);
+});
+
 test("closed unfinished fee editors retain incomplete inputs and a pending rate preview separately from staged changes", () => {
   const unfinished = {
     sku: "",

@@ -42,7 +42,7 @@ export function CompanyDirectoryProvider({
   const canManage = identity.account.access_role === "administrator";
   const companies = useMemo(() => {
     const merged = new Map(catalog.added.map((company) => [company.id, company]));
-    // Fresh server names take precedence over the in-memory creation result.
+    // Fresh server metadata takes precedence over the in-memory creation result.
     for (const company of identity.companies) merged.set(company.id, company);
     for (const id of catalog.removed) merged.delete(id);
     return [...merged.values()].sort(
@@ -81,9 +81,7 @@ export function CompanyDirectoryProvider({
         removed: current.removed.filter((id) => id !== result.id),
         added: [
           ...current.added.filter(({ id }) => id !== result.id),
-          ...(current.server.some(({ id }) => id === result.id)
-            ? []
-            : [{ id: result.id, name: result.name }]),
+          ...(current.server.some(({ id }) => id === result.id) ? [] : [result]),
         ],
       }),
     );

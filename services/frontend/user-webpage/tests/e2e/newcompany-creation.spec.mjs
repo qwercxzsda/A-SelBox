@@ -2,9 +2,10 @@ import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import {
   closeCompanyCreation,
+  closeCompanyDetails,
   companyCreation,
+  companyPanel,
   companyRow,
-  companyToggle,
 } from "./company-actions.mjs";
 import {
   COMPANY,
@@ -21,7 +22,6 @@ const createButton = (page) => page.getByRole("button", { name: "Create company"
 const membership = (page) => page.getByRole("dialog", { name: "Company membership", exact: true });
 const accountRow = (page, email) =>
   page.getByRole("row").filter({ has: page.getByText(email, { exact: true }) });
-const companyDetails = companyToggle;
 
 function addCompanies(fixture, count) {
   for (let index = 1; index <= count; index += 1) {
@@ -250,8 +250,18 @@ test("Companies lists saved company details and opens exact SKU transactions or 
   await expect(companyCreation(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Add company", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Return to / })).toHaveCount(0);
-  await companyDetails(page, "Alpha Company").click();
+  await companyRow(page, "Alpha Company").click();
+  await expect(page.getByText(COMPANY, { exact: true })).toHaveCount(0);
+  await companyPanel(page, "Alpha Company")
+    .getByRole("button", { name: "Additional details", exact: true })
+    .click();
   await expect(page.getByText(COMPANY, { exact: true })).toBeVisible();
+  await expect(
+    companyPanel(page, "Alpha Company").getByRole("row", {
+      name: "Created 2026-08-01 12:34:56 UTC",
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("companies-desktop.png"),
     fullPage: true,
@@ -266,11 +276,11 @@ test("Companies lists saved company details and opens exact SKU transactions or 
     .poll(() => fixture.requests.filter((entry) => entry.args?.p_skus).at(-1)?.args.p_skus)
     .toEqual(["S1"]);
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  await companyDetails(page, "Beta Company").click();
+  await companyRow(page, "Beta Company").click();
   await expect(
     page.getByText("No SKUs are assigned to this company.", { exact: true }),
   ).toBeVisible();
-  await companyRow(page, "Beta Company")
+  await companyPanel(page, "Beta Company")
     .getByRole("button", { name: "View members", exact: true })
     .click();
   await expect(page.getByRole("tab", { name: "User access", exact: true })).toHaveAttribute(
@@ -292,13 +302,12 @@ test("Companies lists saved company details and opens exact SKU transactions or 
   await expect(accountRow(page, "pending@example.test")).toHaveCount(0);
 });
 
-test("creation reveals the result using the existing page size and preserves expanded details", async ({
-  page,
-}) => {
+test("creation opens the result details using the existing page size", async ({ page }) => {
   const fixture = await start(page, (fixture) => addCompanies(fixture, 80));
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
   await page.getByLabel("Rows", { exact: true }).selectOption("50");
-  await companyDetails(page, "Company 02").click();
+  await companyRow(page, "Company 02").click();
+  await closeCompanyDetails(page);
   await openCompany(page);
   const started = deferred();
   const release = deferred();
@@ -318,16 +327,30 @@ test("creation reveals the result using the existing page size and preserves exp
       page.getByRole("status").filter({ hasText: "Company added: Company 40a" }),
     ).toBeVisible();
     await closeCompanyCreation(page);
+    await expect(companyPanel(page, "Company 40a")).toBeVisible();
+    await companyPanel(page, "Company 40a")
+      .getByRole("button", { name: "Additional details", exact: true })
+      .click();
+    await expect(
+      companyPanel(page, "Company 40a").getByRole("row", { name: "Created —", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      companyPanel(page, "Company 40a").getByRole("row", {
+        name: "Created 2026-09-02 03:04:05 UTC",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await closeCompanyDetails(page);
     await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
-    await expect(companyDetails(page, "Company 40a")).toHaveAttribute("aria-expanded", "true");
-    await expect(companyDetails(page, "Company 02")).toHaveAttribute("aria-expanded", "true");
+    await expect(companyRow(page, "Company 40a")).toBeVisible();
   } finally {
     release.resolve();
   }
   expect(fixture.companyCreationRequests).toHaveLength(1);
 });
 
-test("company search, rows, pagination and expanded details persist across reload", async ({
+test("company search, rows, pagination and selected details persist across reload", async ({
   page,
 }) => {
   await start(page, (fixture) => addCompanies(fixture, 30));
@@ -335,18 +358,19 @@ test("company search, rows, pagination and expanded details persist across reloa
   const search = page.getByLabel("Search companies", { exact: true });
   await page.getByLabel("Rows", { exact: true }).selectOption("25");
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await companyDetails(page, "Company 30").click();
+  await companyRow(page, "Company 30").click();
   await page.reload();
+  await expect(companyPanel(page, "Company 30")).toBeVisible();
+  await closeCompanyDetails(page);
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
-  await expect(companyDetails(page, "Company 30")).toHaveAttribute("aria-expanded", "true");
   await search.fill("alpha");
-  await expect(companyDetails(page, "Alpha Company")).toBeVisible();
-  await expect(companyDetails(page, "Company 30")).toHaveCount(0);
+  await expect(companyRow(page, "Alpha Company")).toBeVisible();
+  await expect(companyRow(page, "Company 30")).toHaveCount(0);
   await page.getByLabel("Rows", { exact: true }).selectOption("50");
   await page.reload();
   await expect(search).toHaveValue("alpha");
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
-  await expect(companyDetails(page, "Alpha Company")).toBeVisible();
+  await expect(companyRow(page, "Alpha Company")).toBeVisible();
 });
 
 test.describe("phone company creation", () => {

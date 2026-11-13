@@ -29,9 +29,11 @@ export interface FeeEditorState {
 
 export interface FeeViewState {
   search: string;
+  skus: string[];
   pageIndex: number;
   pageSize: number;
-  expanded: string[];
+  selectedSku: string | null;
+  expandedSkus: string[];
   drafts: SkuConfigurationChange[];
   changeReason: string;
   companyIds: (string | null)[];
@@ -82,9 +84,11 @@ export function createDatasetViewState(dataset: TableDatasetKey): DatasetViewSta
 export function createFeeViewState(): FeeViewState {
   return {
     search: "",
+    skus: [],
     pageIndex: 0,
     pageSize: PAGE_SIZES[0],
-    expanded: [],
+    selectedSku: null,
+    expandedSkus: [],
     drafts: [],
     changeReason: "",
     companyIds: [],

@@ -103,9 +103,9 @@ test("period editing keeps desktop actions visible, focuses added periods, and s
   await expect(keep).toBeInViewport();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(keep).toBeInViewport();
-  expect(await editor(page).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
-    true,
-  );
+  await expect
+    .poll(() => editor(page).evaluate((element) => element.scrollWidth <= element.clientWidth))
+    .toBe(true);
   await editor(page).getByLabel("Fee rate 10 (%)", { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({
     path: testInfo.outputPath("mobile-period-editor.png"),

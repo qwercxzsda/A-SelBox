@@ -41,7 +41,8 @@ export function createCompanyApi({ postRpc }: ApiTransport) {
       requireUuid(id, "company");
       if (!companyName.trim() || companyName.includes("\0") || typeof row.created !== "boolean")
         throw new Error("Company creation returned an invalid company");
-      return { id, name: companyName, created: row.created };
+      // The write acknowledgment excludes metadata; the catalog supplies the saved timestamp.
+      return { id, name: companyName, created_at: null, created: row.created };
     },
   };
 }

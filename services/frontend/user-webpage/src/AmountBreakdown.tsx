@@ -5,7 +5,7 @@ import { groupTransactionTypes, totalTransactionTypes } from "./type-breakdown-g
 import { TypeBreakdownRows } from "./TypeBreakdownRows";
 import { TypeBreakdownAmounts } from "./TypeBreakdownAmounts";
 import { FinancialAmounts } from "./FinancialAmounts";
-import { UpdateStatus } from "./UpdateStatus";
+import { LoadingStatus } from "./LoadingStatus";
 import { DetailSection } from "./DetailSection";
 import { AmountPrecisionNote } from "./AmountPrecisionNote";
 import { useWorkspacePreference } from "./use-workspace-preference";
@@ -70,7 +70,6 @@ export function AmountBreakdown({
           aria-label="Breakdown total"
           withBorder
           p="md"
-          mb="lg"
         >
           <Group justify="space-between" gap="xs">
             <Text component="h3" m={0} fw={600} size="lg">
@@ -99,6 +98,7 @@ export function AmountBreakdown({
         ref={amountsRef}
         title="Amounts by type"
         description="Breakdown of the total above by type. Expand a category to view its types and records."
+        actions={<LoadingStatus state={loading && totals !== undefined ? "updating" : null} />}
       >
         {error ? (
           <Alert color="red" role="alert" mb="md">
@@ -118,9 +118,6 @@ export function AmountBreakdown({
           </Stack>
         ) : groups.length > 0 ? (
           <>
-            <UpdateStatus active={loading} mb="sm">
-              Updating amounts…
-            </UpdateStatus>
             <TypeBreakdownRows
               stateKey={stateKey}
               groups={groups}

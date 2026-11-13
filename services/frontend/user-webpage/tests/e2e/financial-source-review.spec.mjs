@@ -63,7 +63,7 @@ test("financial review opens the exact source version and restores nested detail
   const monthly = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
   await monthly.getByRole("button", { name: "Source records", exact: true }).click();
   const source = monthly.getByRole("table", { name: "Source records", exact: true });
-  await source.getByRole("button", { name: "View source record", exact: true }).first().click();
+  await source.locator("tbody tr.inspectable-row").first().click();
   const detail = page.getByRole("dialog", { name: "Selected row details", exact: true });
   await expect(
     detail.getByRole("heading", { name: "EXACT-SOURCE-SKU", exact: true }),
@@ -185,7 +185,7 @@ test("Finances provides an independent exact Amazon ID lookup with current and r
   expect(requests[0].args).toEqual({ p_native_transaction_id: native, p_limit: 26, p_offset: 0 });
   expect(mainRequest().args).toEqual(mainScope);
   await captureResponsiveReview(page, testInfo, "transaction-id-drawer");
-  await table.getByRole("button", { name: "View source record", exact: true }).last().click();
+  await table.locator("tbody tr.inspectable-row").last().click();
   const detail = page.getByRole("dialog", { name: "Selected row details", exact: true });
   await expect(detail).toBeVisible();
   expect(requests.at(-1).args.p_row_id).toBe("0198b50b-701a-7000-8000-000000000043");

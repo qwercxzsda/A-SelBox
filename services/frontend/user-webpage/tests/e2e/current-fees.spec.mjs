@@ -1,10 +1,17 @@
+import {
+  feeRow as configurationRow,
+  feeDetails,
+  feeGroup,
+  feePeriods,
+  toggleFeePeriods,
+} from "./sku-configuration-fixtures.mjs";
 import { expect, test } from "@playwright/test";
 import { assignmentId, feeRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 
 const SKU = "GROUP 001 / SAMPLE";
-const skuButton = (page) => page.getByRole("button", { name: `marketplace fees for ${SKU}: ` });
+const skuRecord = (page) => configurationRow(page, SKU);
 const feeTable = (page) =>
   page.getByRole("table", { name: `Marketplace fees for ${SKU}`, exact: true });
 async function feeFixture(page, role = "member") {
@@ -23,7 +30,7 @@ async function feeFixture(page, role = "member") {
   return fixture;
 }
 for (const role of ["member", "administrator"]) {
-  test(`${role} views one complete SKU configuration with persistent search and expanded fees`, async ({
+  test(`${role} expands marketplace periods as rows and preserves whole-SKU details and search`, async ({
     page,
   }, testInfo) => {
     const mobile = role === "member";
@@ -37,19 +44,17 @@ for (const role of ["member", "administrator"]) {
     await expect(header.getByRole("status")).toHaveText("Loading…");
     await expect(page.getByText("Loading assignments and fees…", { exact: true })).toHaveCount(0);
     const headerBounds = await header.boundingBox();
-    await expect(skuButton(page)).toHaveCount(0);
+    await expect(skuRecord(page)).toHaveCount(0);
     pending.resolve();
-    await expect(skuButton(page)).toBeVisible();
+    await expect(skuRecord(page)).toBeVisible();
     await expect(header.getByRole("status").filter({ hasText: "Loading…" })).toHaveCount(0);
     expect(await header.boundingBox()).toEqual(headerBounds);
     await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
       /1[-–]25 of 26 SKUs/,
     );
     const summary = page.getByRole("table", { name: "Current fee configurations", exact: true });
-    if (role === "administrator")
-      await expect(
-        summary.locator(".expandable-summary-row").filter({ has: skuButton(page) }),
-      ).toContainText("Company A");
+    await expect(feePeriods(page, SKU)).toHaveCount(0);
+    if (role === "administrator") await expect(skuRecord(page)).toContainText("Company A");
     else {
       await expect(summary.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(
         0,
@@ -68,13 +73,19 @@ for (const role of ["member", "administrator"]) {
     await page
       .getByLabel("Search SKUs", { exact: true })
       .fill(role === "administrator" ? "Company A" : SKU);
-    await skuButton(page).scrollIntoViewIfNeeded();
+    await skuRecord(page).scrollIntoViewIfNeeded();
+    await toggleFeePeriods(page, SKU);
+    await expect(feePeriods(page, SKU)).toHaveCount(5);
+    await expect(
+      feeGroup(page, SKU).getByRole("cell", { name: "5.123456%", exact: true }),
+    ).toBeVisible();
+    await expect(feeGroup(page, SKU).getByRole("cell", { name: "0%", exact: true })).toBeVisible();
     const before = await summary
       .locator(":scope > thead th")
       .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().width));
     const pageTop = await page.evaluate(() => globalThis.scrollY);
-    await skuButton(page).click();
-    await expect(skuButton(page)).toBeFocused();
+    await skuRecord(page).press("Enter");
+    await expect(feeDetails(page)).toBeVisible();
     expect(await page.evaluate(() => globalThis.scrollY)).toBe(pageTop);
     expect(
       await summary
@@ -89,8 +100,12 @@ for (const role of ["member", "administrator"]) {
     await expect(table.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(0);
     await expect(table.getByRole("row").last()).toBeVisible();
     if (mobile) {
-      const bounds = await table.boundingBox();
-      expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+      await expect
+        .poll(async () => {
+          const bounds = await table.locator("..").boundingBox();
+          return bounds.x + bounds.width;
+        })
+        .toBeLessThanOrEqual(390);
     }
     await page.screenshot({
       path: testInfo.outputPath(`sku-fees-${mobile ? "mobile" : "desktop"}.png`),
@@ -98,16 +113,19 @@ for (const role of ["member", "administrator"]) {
       animations: "disabled",
     });
     expect(fixture.configurationRequests.filter(({ completed }) => completed)).toHaveLength(1);
+    await page.reload();
+    await expect(table.getByRole("row")).toHaveCount(6);
+    await expect(feePeriods(page, SKU)).toHaveCount(5);
+    await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    await expect(skuButton(page)).toHaveAttribute("aria-expanded", "true");
-    await expect(table.getByRole("row")).toHaveCount(6);
-    expect(fixture.configurationRequests.filter(({ completed }) => completed)).toHaveLength(1);
-    await page.getByRole("button", { name: "Collapse all", exact: true }).click();
+    await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue(
+      role === "administrator" ? "Company A" : SKU,
+    );
     await page.getByLabel("Search SKUs", { exact: true }).fill("absent");
     await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
-    await expect(skuButton(page)).toHaveAttribute("aria-expanded", "false");
+    await expect(skuRecord(page)).toHaveAttribute("aria-selected", "false");
   });
 }
 test("a failed configuration load does not invent empty settings and can be retried", async ({
@@ -118,9 +136,9 @@ test("a failed configuration load does not invent empty settings and can be retr
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("HTTP 403");
-  await expect(skuButton(page)).toHaveCount(0);
+  await expect(skuRecord(page)).toHaveCount(0);
   fixture.configurationStatus = 200;
   await page.getByRole("button", { name: "Retry configuration" }).click();
-  await skuButton(page).click();
+  await skuRecord(page).press("Enter");
   await expect(feeTable(page).getByRole("row")).toHaveCount(6);
 });

@@ -51,8 +51,18 @@ for (const user of ["member", "administrator"]) {
     await expect(details.getByText("Reserved", { exact: true }).locator("..")).toHaveText(
       "Reserved—",
     );
-    await details.getByText("Source capture", { exact: true }).click();
-    const source = details.getByRole("region", { name: "Source capture", exact: true });
+    const metadata = details.getByRole("button", { name: "Additional details", exact: true });
+    await expect(metadata).toHaveAttribute("aria-expanded", "false");
+    await metadata.click();
+    const source = details.getByRole("table", { name: "Additional record details", exact: true });
+    await expect(source.getByRole("columnheader")).toHaveText(["Field", "Value"]);
+    await expect(source.getByRole("row")).toHaveCount(user === "administrator" ? 7 : 5);
+    await expect(source.getByText("inventory-capture-one", { exact: true })).toHaveCount(
+      user === "administrator" ? 1 : 0,
+    );
+    await expect(source.getByText("company-a", { exact: true })).toHaveCount(
+      user === "administrator" ? 1 : 0,
+    );
     await expect(source.getByText("2026-09-27", { exact: true })).toBeVisible();
     await expect(source.getByText("2026-09-28", { exact: true })).toBeVisible();
     await expect(source.getByText("2026-09-28 03:00:00 UTC", { exact: true })).toBeVisible();

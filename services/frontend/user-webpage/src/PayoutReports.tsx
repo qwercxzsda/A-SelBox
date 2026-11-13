@@ -1,5 +1,4 @@
 import "./FinanceDataset.css";
-import "./FinancialTable.css";
 import "./PayoutReports.css";
 import { useRef } from "react";
 import { Alert, Badge, Button, Group, Text } from "@mantine/core";

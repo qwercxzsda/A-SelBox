@@ -143,6 +143,17 @@ export const fetchPayoutSetupBlockers = (
 ) => getDefaultClient().fetchPayoutSetupBlockers(accessToken, companyId, month, pageIndex, signal);
 export const fetchSkuConfiguration = (accessToken: string, signal?: AbortSignal) =>
   getDefaultClient().fetchSkuConfiguration(accessToken, signal);
+export const fetchSkuConfigurationHistory = (
+  accessToken: string,
+  skuId: string,
+  pageIndex = 0,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchSkuConfigurationHistory(accessToken, skuId, pageIndex, signal);
+export { SKU_CONFIGURATION_HISTORY_PAGE_SIZE } from "./api/sku-configuration-history.ts";
+export type {
+  SkuConfigurationHistory,
+  SkuConfigurationVersion,
+} from "./api/sku-configuration-history.ts";
 export const publishSkuConfiguration = (options: PublishSkuConfigurationOptions) =>
   getDefaultClient().publishSkuConfiguration(options);
 

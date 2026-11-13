@@ -1,10 +1,11 @@
 import type { RefObject } from "react";
-import { Button, Group, Table, Text } from "@mantine/core";
+import { Button, Table, Text } from "@mantine/core";
 import type { Company } from "./api";
 import { ColumnMenu, type ColumnMenuSort } from "./ColumnMenu";
-import { CompanyDetails } from "./CompanyDetails";
-import { ExpandableTable, ExpandableTableRow, type ExpandableColumn } from "./ExpandableTable";
+import { RecordTable, type RecordColumn } from "./RecordTable";
+import { inspectableRowProps } from "./inspectable-row";
 import type { CompanyListState, CompanySortColumn } from "./companies-view";
+import { AppliedFilterChips } from "./AppliedFilterChips";
 
 export function CompanyTable({
   companies,
@@ -13,9 +14,6 @@ export function CompanyTable({
   state,
   onChange,
   searchInput,
-  onShowMembers,
-  onShowTransactions,
-  onDeleted,
 }: {
   companies: readonly Company[];
   visible: readonly Company[];
@@ -23,9 +21,6 @@ export function CompanyTable({
   state: CompanyListState;
   onChange: (patch: Partial<CompanyListState>) => void;
   searchInput: RefObject<HTMLInputElement | null>;
-  onShowMembers: (companyId: string) => void;
-  onShowTransactions: (sku: string) => void;
-  onDeleted: (company: Company, deleted: boolean) => void;
 }) {
   const query = state.search.trim();
   function ordering(column: CompanySortColumn): ColumnMenuSort {
@@ -39,7 +34,7 @@ export function CompanyTable({
     };
   }
   const companyNames = new Map(companies.map(({ id, name }) => [id, name]));
-  const columns: ExpandableColumn[] = [
+  const columns: RecordColumn[] = [
     {
       key: "name",
       label: "Company",
@@ -82,47 +77,20 @@ export function CompanyTable({
   ];
   return (
     <>
-      {state.companyIds.length ? (
-        <Group gap="xs" mb="sm" role="group" aria-label="Applied company filters">
-          <Text size="xs" c="dimmed">
-            Applied filters
-          </Text>
-          {state.companyIds.map((id) => {
-            const label = `Company: ${companyNames.get(id) ?? id}`;
-            return (
-              <Button
-                key={id}
-                className="company-filter-chip"
-                variant="light"
-                size="compact-xs"
-                aria-label={`Remove ${label}`}
-                rightSection={<span aria-hidden="true">×</span>}
-                onClick={(event) => {
-                  if (event.detail === 0) searchInput.current?.focus();
-                  onChange({
-                    companyIds: state.companyIds.filter((value) => value !== id),
-                    pageIndex: 0,
-                  });
-                }}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </Group>
-      ) : null}
-      <ExpandableTable
+      <AppliedFilterChips
+        label="Applied company filters"
+        chips={state.companyIds.map((id) => ({
+          key: id,
+          label: `Company: ${companyNames.get(id) ?? id}`,
+          clear: { companyIds: state.companyIds.filter((value) => value !== id), pageIndex: 0 },
+        }))}
+        onChange={onChange}
+        focusTarget={searchInput}
+      />
+      <RecordTable
         label="Companies"
         columns={columns}
-        minWidth={640}
-        actionsWidth={140}
-        onCollapseAll={
-          state.expanded.length
-            ? () => {
-                onChange({ expanded: [] });
-              }
-            : undefined
-        }
+        minWidth={320}
         emptyState={
           visible.length === 0 ? (
             <>
@@ -148,54 +116,26 @@ export function CompanyTable({
       >
         {visible.map((company) => {
           const skus = assignments.get(company.id) ?? [];
-          const expanded = state.expanded.includes(company.id);
           const assignmentSummary = `${skus.length.toLocaleString("en-US")} assigned ${skus.length === 1 ? "SKU" : "SKUs"}`;
           return (
-            <ExpandableTableRow
+            <Table.Tr
               key={company.id}
-              expanded={expanded}
-              onToggle={() => {
-                onChange({
-                  expanded: expanded
-                    ? state.expanded.filter((id) => id !== company.id)
-                    : [...state.expanded, company.id],
-                });
-              }}
-              toggleLabel={`details for ${company.name}: ${assignmentSummary}`}
-              detailsLabel={`Company details for ${company.name}`}
-              columnCount={columns.length + 2}
-              actions={
-                <Button
-                  variant="subtle"
-                  size="compact-xs"
-                  onClick={() => {
-                    onShowMembers(company.id);
-                  }}
-                >
-                  View members
-                </Button>
-              }
-              details={
-                <CompanyDetails
-                  company={company}
-                  skus={skus}
-                  onShowTransactions={onShowTransactions}
-                  onDeleted={onDeleted}
-                />
-              }
+              {...inspectableRowProps(state.selected === company.id, () => {
+                onChange({ selected: company.id });
+              })}
             >
               <Table.Td>
-                <Text size="sm" fw={500} className="company-list-name">
+                <Text size="var(--ui-font-data)" fw={500} className="company-list-name">
                   {company.name}
                 </Text>
               </Table.Td>
               <Table.Td className="numeric">
                 <span aria-label={assignmentSummary}>{skus.length.toLocaleString("en-US")}</span>
               </Table.Td>
-            </ExpandableTableRow>
+            </Table.Tr>
           );
         })}
-      </ExpandableTable>
+      </RecordTable>
     </>
   );
 }

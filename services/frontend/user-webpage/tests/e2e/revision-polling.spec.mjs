@@ -3,6 +3,7 @@ import { feeRow, kioskRow, financesRow, skuAssignment } from "./api-fixtures.mjs
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { summaryAmount, summaryBucket, summaryPeriods, typeBucket } from "./summary-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
+import { feeRow as feeRecord, feeDetails } from "./sku-configuration-fixtures.mjs";
 
 const completedPolls = (fixture) => fixture.revisionRequests.filter(({ completed }) => completed);
 const financialRequests = (fixture) => ({
@@ -222,7 +223,7 @@ test("source and fee revisions refresh current configuration and its coverage re
 }) => {
   const fixture = await setup(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await page.getByRole("button", { name: "marketplace fees for GROUP-001: " }).click();
+  await feeRecord(page, "GROUP-001").click();
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
   const fees = fixture.configurationRequests.length;
   const identity = fixture.identityRequests.length;
@@ -240,9 +241,8 @@ test("source and fee revisions refresh current configuration and its coverage re
   await page.clock.fastForward(60_000);
   await finishPoll(page, fixture, initial);
   await expect(page.getByRole("cell", { name: "7.5%", exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "marketplace fees for GROUP-002: " }),
-  ).toBeVisible();
+  await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
+  await expect(feeRecord(page, "GROUP-002")).toBeVisible();
   expect(fixture.configurationRequests.length).toBeGreaterThan(fees);
   expect(fixture.identityRequests.length).toBeGreaterThan(identity);
 });

@@ -26,10 +26,17 @@ export function useFeeEditor(
 ) {
   const panelRef = useRef<HTMLDivElement>(null);
   const { rememberOpener } = useDrawerFocusReturn({
-    opened: view.editing !== null || view.reviewing,
+    opened: view.selectedSku !== null || view.editing !== null || view.reviewing,
     fallbackRef: panelRef,
     restoreOnClose: true,
   });
+  function selectSku(selectedSku: string) {
+    rememberOpener();
+    change((current) => ({ ...current, selectedSku, reviewing: false }));
+  }
+  function closeDetails() {
+    change((current) => ({ ...current, selectedSku: null }));
+  }
   function openEditor(sku: string, isNew: boolean) {
     rememberOpener();
     change((current) => {
@@ -37,6 +44,7 @@ export function useFeeEditor(
       const paused = current.editorDrafts.find((editor) => editorKey(editor) === key);
       return {
         ...current,
+        selectedSku: isNew ? null : sku,
         reviewing: false,
         editing: paused ?? {
           sku,
@@ -63,7 +71,7 @@ export function useFeeEditor(
     const editor = view.editorDrafts.at(0);
     if (editor) openEditor(editor.sku, editor.isNew);
   }
-  function closeEditor(discard = false) {
+  function finishEditing({ discard = false, returnToDetails = false } = {}) {
     change((current) => {
       const editor = current.editing;
       if (!editor) return current;
@@ -73,7 +81,12 @@ export function useFeeEditor(
       );
       if (!discard && (editor.rateChange !== null || !sameSkuDraft(editor.form, baseline)))
         editorDrafts.push(structuredClone(editor));
-      return { ...current, editing: null, editorDrafts };
+      return {
+        ...current,
+        selectedSku: returnToDetails && !editor.isNew ? editor.sku : null,
+        editing: null,
+        editorDrafts,
+      };
     });
   }
   function stage(draft: SkuConfigurationChange) {
@@ -83,17 +96,48 @@ export function useFeeEditor(
       editorDrafts: current.editorDrafts.filter(
         (entry) => !current.editing || editorKey(entry) !== editorKey(current.editing),
       ),
-      expanded: [...new Set([...current.expanded, draft.sku])],
+      selectedSku: null,
       editing: null,
       savedNotice: null,
     }));
   }
+  function discardDraft(sku: string) {
+    change((current) => ({
+      ...current,
+      drafts: current.drafts.filter((draft) => draft.sku !== sku),
+      selectedSku:
+        current.selectedSku === sku && !savedItems.some((item) => item.sku === sku)
+          ? null
+          : current.selectedSku,
+    }));
+  }
+  function showSetupIssues() {
+    change((current) => ({
+      ...current,
+      reviewing: false,
+      statuses: ["needs-setup"],
+      skus: [],
+      companyIds: [],
+      marketplaces: [],
+      search: "",
+      pageIndex: 0,
+    }));
+  }
   function setReviewing(reviewing: boolean) {
     if (reviewing) rememberOpener();
-    change((current) => ({ ...current, reviewing }));
+    change((current) => ({
+      ...current,
+      selectedSku: reviewing ? null : current.selectedSku,
+      reviewing,
+    }));
   }
   return {
     panelRef,
+    selectSku,
+    closeDetails,
+    backToDetails: () => {
+      finishEditing({ returnToDetails: true });
+    },
     editSku: (sku: string) => {
       openEditor(sku, false);
     },
@@ -102,7 +146,14 @@ export function useFeeEditor(
     },
     updateEditor,
     resumeEditor,
-    closeEditor,
+    closeEditor: () => {
+      finishEditing();
+    },
+    discardEdits: () => {
+      finishEditing({ discard: true });
+    },
+    discardDraft,
+    showSetupIssues,
     stage,
     setReviewing,
   };

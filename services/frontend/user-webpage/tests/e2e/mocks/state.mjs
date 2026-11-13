@@ -61,6 +61,7 @@ export function createFixtureState() {
       "company-member-b": "Company B",
       "company-reassigned": "Company Reassigned",
     },
+    companyCreatedAt: {},
     accountEmails: {},
     accountConfirmed: {},
     membershipRequests: [],

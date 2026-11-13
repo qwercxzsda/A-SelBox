@@ -93,6 +93,6 @@ export async function openSourceLookup(page, options = {}) {
     lookup,
     trigger,
     table,
-    opener: table.getByRole("button", { name: "View source record" }).first(),
+    opener: table.locator("tbody tr.inspectable-row").first(),
   };
 }

@@ -37,26 +37,12 @@
   font-weight: 500;
 }
 
-.inventory-detail-breakdown,
-.inventory-detail-source {
+.inventory-detail-breakdown {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 32px;
-}
-
-.inventory-detail-breakdown {
   grid-auto-flow: column;
   grid-template-rows: repeat(3, auto);
-}
-
-.inventory-detail-source .inventory-metric {
-  display: block;
-}
-
-.inventory-detail-source dd {
-  margin-top: 4px;
-  text-align: left;
-  white-space: normal;
 }
 
 @media (max-width: 720px) {
@@ -73,8 +59,7 @@
   }
 
   .inventory-detail-grid,
-  .inventory-detail-breakdown,
-  .inventory-detail-source {
+  .inventory-detail-breakdown {
     grid-template-columns: 1fr;
   }
 

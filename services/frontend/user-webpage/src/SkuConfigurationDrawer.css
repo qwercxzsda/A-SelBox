@@ -12,6 +12,39 @@
   padding: 0;
 }
 
+.fee-details {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--ui-drawer-padding);
+}
+
+.fee-details-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  flex: 1;
+}
+
+.fee-panel-enter {
+  animation: fee-panel-enter 160ms ease-out;
+}
+
+@keyframes fee-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fee-panel-enter {
+    animation: none;
+  }
+}
+
 .sku-configuration-drawer-title {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -44,8 +77,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--mantine-spacing-md);
-  scroll-padding-block: var(--mantine-spacing-md);
+  padding: var(--ui-drawer-padding);
+  scroll-padding-block: var(--ui-drawer-padding);
   background: var(--ui-surface-subtle);
 }
 
@@ -80,7 +113,7 @@
 
 .sku-configuration-drawer-actions {
   flex-shrink: 0;
-  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  padding: var(--mantine-spacing-sm) var(--ui-drawer-padding);
   border-top: 1px solid var(--ui-border);
   background: var(--ui-surface);
 }

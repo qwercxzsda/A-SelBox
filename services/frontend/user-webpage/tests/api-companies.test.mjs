@@ -14,6 +14,7 @@ test("company creation trims the name and sends only an authenticated creation r
   });
   assert.deepEqual(await client.createCompany("user-access", "  New Company  "), {
     ...COMPANY,
+    created_at: null,
     created: true,
   });
   assert.equal(requested.url.pathname, "/rest/v1/rpc/create_company");
@@ -28,12 +29,33 @@ test("an existing company is returned with its server name and ID rather than du
   );
   assert.deepEqual(await client.createCompany("user-access", "new company"), {
     ...COMPANY,
+    created_at: null,
     created: false,
   });
   // Existing database names may retain padding beyond the new-name input limit.
   const canonical = { ...COMPANY, name: `  ${COMPANY.name}${" ".repeat(200)}`, created: false };
   const existing = createApiClient(SETTINGS, async () => responseJson([canonical]));
-  assert.deepEqual(await existing.createCompany("user-access", "new company"), canonical);
+  assert.deepEqual(await existing.createCompany("user-access", "new company"), {
+    ...canonical,
+    created_at: null,
+  });
+});
+
+test("company catalog reads the saved creation timestamp and requires metadata on every row", async () => {
+  const company = { ...COMPANY, created_at: "2026-08-01T12:34:56+00:00" };
+  let requested;
+  const client = createApiClient(SETTINGS, async (url) => {
+    requested = new URL(url);
+    return Response.json([company], { headers: { "Content-Range": "0-0/1" } });
+  });
+  assert.deepEqual(await client.fetchCompanies("user-access"), [company]);
+  assert.equal(requested.searchParams.get("select"), "id,name,created_at");
+  for (const malformed of [COMPANY, { ...COMPANY, created_at: null }]) {
+    const invalid = createApiClient(SETTINGS, async () =>
+      Response.json([malformed], { headers: { "Content-Range": "0-0/1" } }),
+    );
+    await assert.rejects(invalid.fetchCompanies("user-access"), /invalid created_at/);
+  }
 });
 
 test("invalid names fail before HTTP while the 200-character limit matches PostgreSQL Unicode characters", async () => {

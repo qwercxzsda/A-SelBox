@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { deferred } from "./fixtures.mjs";
 import { item, setup } from "./sku-configuration-fixtures.mjs";
-import { companyCreation, companyPanel, companyToggle } from "./company-actions.mjs";
+import { companyCreation, companyPanel, companyRow } from "./company-actions.mjs";
 
 const unusedCompany = "0198b50b-701a-7000-8000-000000000800";
 const creation = (page) => page.getByRole("region", { name: "Add company", exact: true });
@@ -61,7 +61,10 @@ test("pending company creation cannot dismiss its modal or lose its result feedb
     await expect(close).toBeEnabled();
     await close.click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole("button", { name: "Add company", exact: true })).toBeFocused();
+    await expect(companyPanel(page, "Background Company")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Close company details", exact: true }),
+    ).toBeFocused();
     expect(fixture.companyCreationRequests).toHaveLength(1);
   } finally {
     response.resolve();
@@ -73,7 +76,7 @@ test("a blocked company deletion focuses its explanation and can be cancelled by
 }) => {
   const fixture = await openCompanies(page);
   fixture.companyDeletionBlockers[unusedCompany] = [{ code: "members", count: 2 }];
-  await companyToggle(page, "Unused Company").click();
+  await companyRow(page, "Unused Company").click();
   const details = companyPanel(page, "Unused Company");
   await expect(details).toBeVisible();
   await details.getByRole("button", { name: "Delete company", exact: true }).click();

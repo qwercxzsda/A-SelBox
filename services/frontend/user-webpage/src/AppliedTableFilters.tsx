@@ -1,9 +1,9 @@
 import type { RefObject } from "react";
-import { Button, Group, Text, Tooltip } from "@mantine/core";
 import type { DatasetFilters, TableDatasetKey } from "./api";
 import { humanizeCode, sourceCodeLabel } from "./categories";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { companyLabel } from "./view-model";
+import { AppliedFilterChips } from "./AppliedFilterChips";
 
 interface AppliedFilter {
   label: string;
@@ -69,57 +69,29 @@ export function AppliedTableFilters({
     },
   ];
 
+  const chips = applied
+    .filter(({ values }) => values.length > 0)
+    .map(({ label, values, summary, clear }) => {
+      const visibleLabel = `${label}: ${summary ?? (values.length === 1 ? values[0] : `${String(values.length)} selected`)}`;
+      return {
+        key: label,
+        label: visibleLabel,
+        ariaLabel: `${visibleLabel}. Clear filter.`,
+        description: `${label}: ${values.join(", ")}`,
+        clear,
+      };
+    });
   return (
-    <Group
-      className="applied-table-filters"
-      gap="xs"
-      mb="xs"
-      role="group"
-      aria-label="Applied table filters"
-    >
-      <Text size="xs" c="dimmed">
-        {count} {count === 1 ? "filter" : "filters"} applied
-      </Text>
-      {applied
-        .filter(({ values }) => values.length > 0)
-        .map(({ label, values, summary, clear }) => {
-          const description = `${label}: ${values.join(", ")}`;
-          const visibleLabel = `${label}: ${summary ?? (values.length === 1 ? values[0] : `${String(values.length)} selected`)}`;
-          return (
-            <Tooltip
-              key={label}
-              label={description}
-              multiline
-              maw="min(420px, calc(100vw - 24px))"
-              withArrow
-              events={{ hover: true, focus: true, touch: false }}
-            >
-              <Button
-                className="applied-table-filter"
-                size="compact-xs"
-                variant="light"
-                aria-label={`${visibleLabel}. Clear filter.`}
-                onClick={(event) => {
-                  if (event.detail === 0) focusTarget?.current?.focus();
-                  onChange(clear);
-                }}
-                rightSection={<span aria-hidden="true">×</span>}
-              >
-                <span className="applied-table-filter-text">{visibleLabel}</span>
-              </Button>
-            </Tooltip>
-          );
-        })}
-      <Button
-        size="compact-xs"
-        variant="subtle"
-        onClick={(event) => {
-          if (event.detail === 0) focusTarget?.current?.focus();
-          onChange(normalizeDatasetFilters());
-        }}
-      >
-        Clear filters
-      </Button>
-    </Group>
+    <AppliedFilterChips
+      label="Applied table filters"
+      chips={chips}
+      summarized
+      summary={`${String(count)} ${count === 1 ? "filter" : "filters"} applied`}
+      onChange={onChange}
+      focusTarget={focusTarget}
+      onClearAll={() => {
+        onChange(normalizeDatasetFilters());
+      }}
+    />
   );
 }

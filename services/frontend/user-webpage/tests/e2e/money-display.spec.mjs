@@ -62,14 +62,14 @@ for (const [dataset, tab] of [
     await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
     const metadata = drawer.getByRole("table", { name: "Additional record details", exact: true });
     if (dataset === "live") {
-      await expect(metadata.getByRole("cell", { name: "quantity", exact: true })).toHaveCount(0);
+      await expect(metadata.getByRole("cell", { name: "Quantity", exact: true })).toHaveCount(0);
       await expect(
-        metadata.getByRole("cell", { name: "fee rate percent", exact: true }),
+        metadata.getByRole("cell", { name: "Fee rate percent", exact: true }),
       ).toHaveCount(0);
     }
     const feeBase = metadata
       .getByRole("row")
-      .filter({ has: page.getByRole("cell", { name: "fee base", exact: true }) });
+      .filter({ has: page.getByRole("cell", { name: "Fee base", exact: true }) });
     await expect(feeBase.getByRole("cell").last()).toHaveText("123.46");
     expect(rows.map((row) => row[dataset === "live" ? "source_amount" : "amount"])).toEqual(
       examples.map(([amount]) => amount),

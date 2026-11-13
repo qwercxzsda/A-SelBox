@@ -16,5 +16,5 @@ export async function checkFinancialReviewUpdates(page, fixture) {
   const before = completed();
   await page.clock.fastForward(60_000);
   await expect.poll(completed).toBeGreaterThan(before);
-  await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+  await expect(page.getByText("Updating…", { exact: true })).toHaveCount(0);
 }

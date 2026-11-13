@@ -1,8 +1,8 @@
-import { Button, Group, Text } from "@mantine/core";
 import type { RefObject } from "react";
 import type { InventoryViewState } from "./workspace-view-state";
 import { recommendationLabel } from "./inventory-options";
 import { companyLabel } from "./view-model";
+import { AppliedFilterChips } from "./AppliedFilterChips";
 
 export function InventoryAppliedFilters({
   state,
@@ -45,28 +45,12 @@ export function InventoryAppliedFilters({
       clear: { recommendations: state.recommendations.filter((value) => value !== action) },
     })),
   ];
-  if (filters.length === 0) return null;
   return (
-    <Group gap="xs" mb="sm" role="group" aria-label="Applied inventory filters">
-      <Text size="xs" c="dimmed">
-        Applied filters
-      </Text>
-      {filters.map(({ key, label, clear }) => (
-        <Button
-          key={key}
-          className="inventory-filter-chip"
-          size="compact-xs"
-          variant="light"
-          aria-label={`Remove ${label}`}
-          rightSection={<span aria-hidden="true">×</span>}
-          onClick={(event) => {
-            if (event.detail === 0) focusTarget?.current?.focus();
-            onChange(clear);
-          }}
-        >
-          {label}
-        </Button>
-      ))}
-    </Group>
+    <AppliedFilterChips
+      label="Applied inventory filters"
+      chips={filters}
+      onChange={onChange}
+      focusTarget={focusTarget}
+    />
   );
 }

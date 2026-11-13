@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  feeRow,
   COMPANY,
   setup,
   item,
@@ -16,9 +17,8 @@ for (const close of ["button", "Escape", "backdrop"]) {
     page,
   }) => {
     const fixture = await setup(page);
-    const opener = page.getByRole("button", { name: "Edit S1", exact: true });
-    await opener.focus();
-    await page.keyboard.press("Enter");
+    const opener = feeRow(page, "S1");
+    await openEditor(page);
     await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("1.234567");
     if (close === "button")
       await editor(page).getByRole("button", { name: "Close SKU editor" }).click();
@@ -105,7 +105,9 @@ for (const width of [1440, 390]) {
     await expect(
       helper.getByRole("button", { name: "Use rate change in draft", exact: true }),
     ).toBeVisible();
-    expect(await editor(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await expect
+      .poll(() => editor(page).evaluate((el) => el.scrollWidth <= el.clientWidth))
+      .toBe(true);
     await page.screenshot({
       path: testInfo.outputPath(`rate-preview-${width}.png`),
       animations: "disabled",
@@ -144,5 +146,5 @@ test("Review changes remains reachable after editing a SKU lower in a long page"
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6");
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await expect(page.getByRole("button", { name: /^Review changes/ })).toBeInViewport();
-  await expect(page.getByRole("button", { name: "Edit Z-19", exact: true })).toBeFocused();
+  await expect(feeRow(page, "Z-19")).toBeFocused();
 });

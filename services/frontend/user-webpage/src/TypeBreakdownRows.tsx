@@ -38,8 +38,8 @@ function AmountRow({
         </Text>
         <UncalculatedNote total={total} />
       </Table.Th>
-      {FINANCIAL_AMOUNTS.map(([field]) => (
-        <Table.Td key={field} ta="right">
+      {FINANCIAL_AMOUNTS.map(([field, , recordField]) => (
+        <Table.Td key={field} data-column={recordField} ta="right">
           {formatMoney(total[field], total.currency)}
         </Table.Td>
       ))}
@@ -101,31 +101,33 @@ function OriginalTypes({
 }) {
   return (
     <>
-      <Table className="detail-table type-breakdown-table" aria-label="Transaction type amounts">
-        <colgroup>
-          <col style={{ width: "24%" }} />
-          <col style={{ width: "22%" }} />
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "22%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Type</Table.Th>
-            {FINANCIAL_AMOUNTS.map(([field, label]) => (
-              <Table.Th key={field} ta="right">
-                {label}
-              </Table.Th>
+      <div className="detail-table-scroll type-breakdown-desktop">
+        <Table className="detail-table type-breakdown-table" aria-label="Transaction type amounts">
+          <colgroup>
+            <col style={{ width: "24%" }} />
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "20%" }} />
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "12%" }} />
+          </colgroup>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Type</Table.Th>
+              {FINANCIAL_AMOUNTS.map(([field, label]) => (
+                <Table.Th key={field} ta="right">
+                  {label}
+                </Table.Th>
+              ))}
+              <Table.Th ta="right">Records</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {types.map((total) => (
+              <AmountRow key={total.type} total={total} onSelectRecords={onSelectRecords} />
             ))}
-            <Table.Th ta="right">Records</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {types.map((total) => (
-            <AmountRow key={total.type} total={total} onSelectRecords={onSelectRecords} />
-          ))}
-        </Table.Tbody>
-      </Table>
+          </Table.Tbody>
+        </Table>
+      </div>
       <div className="type-breakdown-mobile">
         {types.map((total) => (
           <MobileType key={total.type} total={total} onSelectRecords={onSelectRecords} />

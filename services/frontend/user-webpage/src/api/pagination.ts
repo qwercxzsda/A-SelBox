@@ -30,9 +30,11 @@ export async function readAllCsvRows<T>(
     decode: (row: CanonicalRow) => T;
     identity: (row: T) => string;
     signal?: AbortSignal;
+    filters?: Readonly<Record<string, string>>;
   },
 ): Promise<T[]> {
-  const { accessToken, endpoint, columns, order, operation, decode, identity, signal } = options;
+  const { accessToken, endpoint, columns, order, operation, decode, identity, signal, filters } =
+    options;
   const rows: T[] = [];
   const seen = new Set<string>();
   for (;;) {
@@ -41,6 +43,7 @@ export async function readAllCsvRows<T>(
       accessToken,
       endpoint,
       new URLSearchParams({
+        ...filters,
         select: columns.join(","),
         order,
         limit: String(LOOKUP_PAGE_SIZE),

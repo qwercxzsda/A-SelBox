@@ -59,6 +59,22 @@ for (const role of ["administrator", "member"]) {
       ).toBeVisible();
       const records = drawer.getByRole("table", { name: "Amount records", exact: true });
       await expect(records.locator("tbody tr")).toHaveCount(50);
+      await expect(records.locator('tbody [data-column="sku"]').first()).toHaveCSS(
+        "font-weight",
+        "500",
+      );
+      await expect(records.locator('tbody [data-kind="date"]').first()).toHaveCSS(
+        "font-weight",
+        "500",
+      );
+      await expect(records.locator('tbody [data-column="company_amount"]').first()).toHaveCSS(
+        "font-weight",
+        "700",
+      );
+      await expect(records.locator('thead [data-column="company_amount"]')).toHaveCSS(
+        "font-weight",
+        "600",
+      );
       const top = drawer.getByRole("navigation", { name: "Pagination for records", exact: true });
       const bottom = drawer.getByRole("navigation", {
         name: "Pagination for records at bottom",

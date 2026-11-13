@@ -19,7 +19,7 @@
   padding: 3px 9px;
   background: var(--ui-surface-header);
   color: var(--ui-text-muted);
-  font-size: 12px;
+  font-size: var(--ui-font-caption);
 }
 .totals-section-title {
   margin: 0;
@@ -63,7 +63,7 @@
 }
 .totals-card-label {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--ui-font-section);
   line-height: 1.4;
   font-weight: 600;
 }
@@ -82,7 +82,7 @@
   background: var(--ui-surface-subtle);
   color: var(--ui-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ui-font-data);
   line-height: 1.5;
   text-align: left;
   cursor: pointer;
@@ -156,11 +156,12 @@
   border-block: 1px solid var(--ui-border);
   background: var(--ui-surface-header);
   color: var(--ui-text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.5;
+  padding-block: 10px;
+  font-size: var(--ui-font-caption);
+  font-weight: 600;
+  line-height: 1.4;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
 }
 .marketplace-totals-table thead tr {
   align-items: stretch;
@@ -188,7 +189,7 @@
   min-width: 0;
 }
 .totals-marketplace-name {
-  font-size: 12px;
+  font-size: var(--ui-font-data);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -201,14 +202,14 @@
 }
 .totals-currency {
   color: var(--ui-text-muted);
-  font-size: 11px;
+  font-size: var(--ui-font-data);
   font-weight: 500;
   text-align: left;
 }
 .totals-records {
   display: block;
   margin-top: 3px;
-  font-size: 10px;
+  font-size: var(--ui-font-caption);
   line-height: 1.4;
   font-weight: 400;
   overflow-wrap: anywhere;
@@ -222,13 +223,13 @@
   text-align: right;
   overflow-wrap: anywhere;
   font-size: var(--ui-font-data);
-  font-weight: 600;
+  font-weight: 700;
 }
 .totals-known-amount {
   display: block;
   margin-top: 2px;
   color: #9b4c0b;
-  font-size: 10px;
+  font-size: var(--ui-font-caption);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -240,7 +241,7 @@
 }
 .totals-empty-value {
   color: var(--ui-text-muted);
-  font-size: 11px;
+  font-size: var(--ui-font-caption);
   font-weight: 400;
 }
 .marketplace-totals-table tr[data-currency]:hover {
@@ -272,20 +273,10 @@
   }
   .marketplace-totals-table {
     --totals-cell-padding: 7px;
-    font-size: 12px;
-  }
-  .marketplace-totals-table thead th {
-    font-size: 10px;
-  }
-  .totals-company-action {
-    font-size: 12px;
   }
 }
 @media (max-width: 360px) {
   .marketplace-totals-table {
     --totals-cell-padding: 4px;
-  }
-  .marketplace-totals-table thead th {
-    font-size: 9px;
   }
 }

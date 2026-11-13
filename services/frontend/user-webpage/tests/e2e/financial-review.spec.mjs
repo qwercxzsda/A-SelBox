@@ -351,7 +351,7 @@ test("a changed source revision during aggregate loading refreshes the compariso
   });
   await expect(monthRow(page, "July 2026")).toContainText("2.25");
   await expect.poll(() => currentReads(fixture, "current_source_totals").length).toBeGreaterThan(1);
-  await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+  await expect(page.getByText("Updating…", { exact: true })).toHaveCount(0);
 });
 
 test("retrieved empty monthly data stays distinct from an unavailable counterpart", async ({

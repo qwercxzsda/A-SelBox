@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { item, COMPANY } from "./sku-configuration-fixtures.mjs";
+import { item, COMPANY, feeRow, feeDetails } from "./sku-configuration-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { summaryBucket } from "./summary-fixtures.mjs";
 
@@ -108,11 +108,21 @@ for (const width of [1440, 390]) {
       const tab = page.getByRole("tab", { name, exact: true });
       await tab.click();
       expect(await contrast(tab)).toBeGreaterThanOrEqual(4.5);
+      if (name === "Current fees") {
+        await feeRow(page, "S1").press("Enter");
+        await expect(feeDetails(page)).toBeVisible();
+      }
       const sku = page.getByRole("button", { name: "Show transactions for S1", exact: true });
       await expect(sku).toBeVisible();
       expect(await contrast(sku)).toBeGreaterThanOrEqual(4.5);
       await sku.hover();
       expect(await contrast(sku)).toBeGreaterThanOrEqual(4.5);
+      if (name === "Current fees") {
+        await feeDetails(page)
+          .getByRole("button", { name: "Close fee details", exact: true })
+          .click();
+        await expect(feeDetails(page)).toBeHidden();
+      }
     }
   });
 }

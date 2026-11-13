@@ -146,9 +146,18 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                 {rows.length ? (
                   <DetailTable
                     label="Amazon transaction matches"
-                    minWidth={850}
+                    minWidth={720}
                     rows={rows}
                     rowKey={(row) => row.id ?? ""}
+                    selectedRowKey={selection?.rowId ?? null}
+                    onSelectRow={(row) => {
+                      recordFocus.rememberOpener();
+                      setSelection({
+                        source: "FINANCES",
+                        rowId: row.id ?? "",
+                        versionId: row.version_id ?? "",
+                      });
+                    }}
                     columns={[
                       { key: "posted_date", label: "Date", kind: "date" },
                       { key: "is_current", label: "Capture" },
@@ -156,29 +165,11 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                       { key: "component_type", label: "Type", kind: "type" },
                       { key: "amount", label: "Amount", kind: "amount" },
                       { key: "currency", label: "Currency" },
-                      { key: "details", label: "Details" },
                     ]}
                     renderCell={(row, column) => {
                       if (column.key === "is_current")
                         return row.is_current === "true" ? "Current" : "Retained";
-                      if (column.key !== "details") return undefined;
-                      return (
-                        <Button
-                          variant="subtle"
-                          size="compact-xs"
-                          onClick={(event) => {
-                            event.currentTarget.focus();
-                            recordFocus.rememberOpener();
-                            setSelection({
-                              source: "FINANCES",
-                              rowId: row.id ?? "",
-                              versionId: row.version_id ?? "",
-                            });
-                          }}
-                        >
-                          View source record
-                        </Button>
-                      );
+                      return undefined;
                     }}
                   />
                 ) : null}

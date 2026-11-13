@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import { feeRow, skuAssignment, liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { columnTrigger, columnHeader } from "./table-actions.mjs";
+import { feeRow as feeRecord, feeDetails } from "./sku-configuration-fixtures.mjs";
 
-test("tab roundtrips retain working filters, sorting, pages, and fee expansions until sign-out", async ({
+test("tab roundtrips retain working filters, sorting, pages, and fee search until sign-out", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -26,11 +27,10 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByLabel("Search SKUs", { exact: true }).fill("GROUP-001");
-  const group = page.getByRole("button", {
-    name: "marketplace fees for GROUP-001: ",
-  });
-  await group.click();
+  const group = feeRecord(page, "GROUP-001");
+  await group.press("Enter");
   await expect(page.getByRole("cell", { name: "4.8%", exact: true })).toBeVisible();
+  await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
 
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("Amazon");
@@ -40,7 +40,8 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(rowWithSku(page, "ALPHA-051")).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("GROUP-001");
-  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expect(group).toBeVisible();
+  await expect(feeDetails(page)).toHaveCount(0);
 
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await signIn(page);
@@ -49,7 +50,7 @@ test("tab roundtrips retain working filters, sorting, pages, and fee expansions 
   await expect(page.getByRole("form", { name: "Page 1 of 5", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await expect(page.getByLabel("Search SKUs", { exact: true })).toHaveValue("");
-  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await expect(group).toHaveAttribute("aria-selected", "false");
 });
 
 test("typing or leaving a page number does not navigate until Enter, and invalid ranges clamp", async ({
@@ -200,9 +201,7 @@ test("a hundred-row table expands fully and its last row is reached by document 
   expect(await region.evaluate((element) => element.scrollTop)).toBe(0);
 });
 
-test("phone fee details keep rates within the screen and offer collapse and search recovery", async ({
-  page,
-}) => {
+test("phone fee details keep rates within the screen and return to search", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const fixture = await mockSupabase(page);
   fixture.assignments = [skuAssignment(1)];
@@ -211,10 +210,8 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   ];
   await signIn(page);
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  const group = page.getByRole("button", {
-    name: "marketplace fees for GROUP-001: ",
-  });
-  await group.click();
+  const group = feeRecord(page, "GROUP-001");
+  await group.press("Enter");
   const rate = page.getByRole("cell", { name: "5.123456%", exact: true });
   await rate.scrollIntoViewIfNeeded();
   await expect(rate).toBeInViewport();
@@ -224,8 +221,8 @@ test("phone fee details keep rates within the screen and offer collapse and sear
   const table = page.getByRole("table", { name: "Marketplace fees for GROUP-001", exact: true });
   const tableBounds = await table.boundingBox();
   expect(tableBounds.x + tableBounds.width).toBeLessThanOrEqual(390);
-  await page.getByRole("button", { name: "Collapse all", exact: true }).click();
-  await expect(group).toHaveAttribute("aria-expanded", "false");
+  await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
+  await expect(group).toHaveAttribute("aria-selected", "false");
   await page.getByLabel("Search SKUs", { exact: true }).fill("NO-SUCH-SKU");
   await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
@@ -333,9 +330,7 @@ for (const role of ["member", "administrator"]) {
     }
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    const group = page.locator(".expandable-summary-row").filter({
-      has: page.getByRole("button", { name: "Show transactions for GROUP-001", exact: true }),
-    });
+    const group = feeRecord(page, "GROUP-001");
     if (role === "administrator") await expect(group).toContainText(companyName);
     else await expect(group).not.toContainText(companyName);
   });

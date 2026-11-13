@@ -1,5 +1,6 @@
 import { reviewPeriodKey } from "./financial-review-scope-key";
 import { useRef } from "react";
+import "./AppliedFilterChips.css";
 import { Button, Group, NativeSelect } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialReviewRecords } from "./api";
@@ -121,7 +122,16 @@ export function FinancialReviewRecords({
             label="Source records"
             rows={rows}
             rowKey={(row) => `${row.source ?? ""}:${row.source_row_id ?? ""}`}
-            minWidth={960}
+            selectedRowKey={selection ? `${selection.source}:${selection.rowId}` : null}
+            onSelectRow={(row) => {
+              focus.rememberOpener();
+              setSelection({
+                source: row.source === "FINANCES" ? "FINANCES" : "DATA_KIOSK",
+                rowId: row.source_row_id ?? "",
+                versionId: row.source_version_id ?? "",
+              });
+            }}
+            minWidth={820}
             columns={[
               { key: "activity_date", label: "Date", kind: "date" },
               { key: "source", label: "Source", kind: "source", nowrap: true },
@@ -130,27 +140,7 @@ export function FinancialReviewRecords({
               { key: "component_type", label: "Type", kind: "type" },
               { key: "amount", label: `Amount (${currency})`, kind: "amount" },
               { key: "seller_namespace", label: "Source namespace" },
-              { key: "details", label: "Details" },
             ]}
-            renderCell={(row, column) =>
-              column.key === "details" ? (
-                <Button
-                  variant="subtle"
-                  size="compact-xs"
-                  onClick={(event) => {
-                    event.currentTarget.focus();
-                    focus.rememberOpener();
-                    setSelection({
-                      source: row.source === "FINANCES" ? "FINANCES" : "DATA_KIOSK",
-                      rowId: row.source_row_id ?? "",
-                      versionId: row.source_version_id ?? "",
-                    });
-                  }}
-                >
-                  View source record
-                </Button>
-              ) : undefined
-            }
           />
         ) : null}
       </DetailData>

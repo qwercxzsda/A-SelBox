@@ -19,7 +19,6 @@ import { FinancialReviewFamilyBreakdown } from "./FinancialReviewFamilies";
 import { normalizeFeeFamilyIds } from "./fee-family-catalog";
 import type { ReviewCategory } from "./financial-review-categories";
 import marketplaces from "./generated/marketplaces.json";
-import "./FinancialTable.css";
 import "./FinancialReview.css";
 
 export function FinancialReviewMonths({

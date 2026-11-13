@@ -1,58 +1,97 @@
 .payout-reports-table {
   min-width: 1020px;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.payout-reports-table[data-company-column] {
+  min-width: 1200px;
+}
+
+.payout-reports-table th[data-column="start_date"] {
+  width: 156px;
+}
+
+.payout-reports-table th[data-column="company_id"] {
+  width: 180px;
+}
+
+.payout-reports-table th[data-column="marketplace_name"] {
+  width: 160px;
+}
+
+.payout-reports-table th[data-column="created_at"] {
+  width: 240px;
+}
+
+.payout-reports-table th.numeric {
+  width: 150px;
+}
+
+.payout-reports-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .payout-report-updated {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--ui-font-data);
+}
+
+.payout-report-scope {
   display: grid;
   justify-items: start;
   gap: 5px;
-  font-size: var(--ui-font-caption);
+  font-size: var(--ui-font-data);
 }
 
-.payout-report-updated button {
-  margin-left: -6px;
+.payout-reports-table .payout-scope-cell {
+  vertical-align: top;
 }
 
-.payout-reports-table .payout-history-row > td {
-  padding: 0;
+/* Shared context belongs to the report group, not to an individual selected version. */
+.payout-reports-table .payout-scope-cell[rowspan]:not([rowspan="1"]) {
+  background: var(--ui-surface);
 }
 
-.payout-report-history {
-  /* Keep the report columns fixed while history stays reachable in a scrolled table. */
+.payout-report-updated time {
+  min-width: 0;
+  white-space: normal;
+}
+
+.payout-report-updated .mantine-Badge-root {
+  flex-shrink: 0;
+}
+
+.payout-history-controls-content {
   contain: inline-size;
   position: sticky;
   inset-inline-start: 0;
   max-width: calc(100vw - 64px);
-  padding: 16px;
-  background: var(--ui-surface-subtle);
-  border-block: 1px solid var(--ui-border);
   scroll-margin-top: 16px;
   outline: none;
+  white-space: normal;
 }
 
-.ui-drawer-content .payout-report-history {
+.ui-drawer-content .payout-history-controls-content {
   scroll-margin-top: calc(
     var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px
   );
 }
 
-.payout-report-history p {
-  white-space: normal;
+.payout-history-controls-content .pagination-bar {
+  margin: 0;
 }
 
-.payout-history-table-scroll {
-  max-width: 100%;
-  overflow-x: auto;
+.payout-history-controls-content .pagination-summary {
+  font-size: var(--ui-font-caption);
 }
 
-.payout-history-table-scroll:focus-visible {
+.payout-history-controls-content:focus-visible {
   outline: 2px solid var(--ui-accent);
   outline-offset: 2px;
-}
-
-.payout-version-table {
-  background: var(--ui-surface);
-  border: 1px solid var(--ui-border);
 }
 
 .payout-version-navigation {

@@ -9,16 +9,72 @@
   box-shadow: 0 3px 12px #24334214;
 }
 
-.fee-sku-identity {
-  min-width: 0;
+.fee-configurations-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.fee-configurations-table th,
+.fee-configurations-table td {
+  white-space: normal;
   overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.fee-sku-label {
+  white-space: pre-wrap;
+}
+
+.fee-period-count {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  font-size: var(--ui-font-data);
+}
+
+.fee-configurations-table .numeric,
+.fee-configurations-table [data-column="valid-from"],
+.fee-configurations-table [data-column="valid-to"] {
+  white-space: nowrap;
+}
+
+.fee-period-folded {
+  color: var(--ui-text-muted);
+}
+
+.fee-configurations-table .inspectable-row[aria-selected="true"] {
+  box-shadow: none;
+}
+
+.fee-sku-group:hover > tr > :is(th, td) {
+  background: var(--ui-hover-surface);
+}
+
+.fee-configurations-table > .fee-sku-group[data-selected] > tr > :is(th, td) {
+  background: var(--ui-accent-soft);
+}
+
+.fee-configurations-table > .fee-sku-group[data-selected]:hover > tr > :is(th, td) {
+  background: var(--ui-hover-selected);
+}
+
+.fee-sku-group[data-selected] .fee-sku-group-cell {
+  box-shadow: inset 3px 0 0 var(--ui-accent);
+}
+
+.fee-sku-group:has(> .inspectable-row:focus-visible) {
+  outline: 3px solid var(--ui-accent);
+  outline-offset: -3px;
+}
+
+.fee-sku-group > .inspectable-row:focus-visible {
+  outline: none;
 }
 
 .fee-period-table {
   table-layout: fixed;
   width: 100%;
   background: var(--ui-surface);
-  border: 1px solid var(--ui-border);
 }
 
 .fee-period-table th,
@@ -27,6 +83,7 @@
   vertical-align: top;
 }
 
+.fee-period-marketplace,
 .fee-period-date,
 .fee-period-rate {
   white-space: nowrap;
@@ -36,22 +93,4 @@
   .fee-period-table {
     table-layout: auto;
   }
-}
-
-@media (max-width: 480px) {
-  .fee-period-table th,
-  .fee-period-table td {
-    padding-inline: 4px;
-  }
-}
-
-.fee-filter-chip {
-  height: auto;
-  max-width: 100%;
-  padding-block: 4px;
-}
-
-.fee-filter-chip .mantine-Button-label {
-  white-space: normal;
-  overflow-wrap: anywhere;
 }

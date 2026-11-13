@@ -3,7 +3,8 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 import { kioskRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
-import { item } from "./sku-configuration-fixtures.mjs";
+import { item, feeRow, feeDetails } from "./sku-configuration-fixtures.mjs";
+import { companyRow, companyPanel, closeCompanyDetails } from "./company-actions.mjs";
 import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
@@ -214,6 +215,14 @@ test("workspace controls share hover feedback across every administrator tab", a
     await tab.click();
     const row = firstRecord(page, name === "User access" ? "User accounts" : "Financial records");
     await hoverChangesShade(page, row);
+    if (name === "Transactions")
+      await expect
+        .poll(
+          async () =>
+            (await appearance(row.locator('[data-column="company_amount"]'))).background ===
+            (await appearance(row)).background,
+        )
+        .toBe(true);
     await expectKeyboardFocus(page, row);
     await row.press("Enter");
     const details = panel(
@@ -222,6 +231,14 @@ test("workspace controls share hover feedback across every administrator tab", a
     );
     await expect(details).toBeVisible();
     await expect(row).toHaveAttribute("aria-selected", "true");
+    if (name === "Transactions")
+      await expect
+        .poll(
+          async () =>
+            (await appearance(row.locator('[data-column="company_amount"]'))).background ===
+            (await appearance(row)).background,
+        )
+        .toBe(true);
     await page.keyboard.press("Escape");
     await expect(details).toBeHidden();
   }
@@ -229,16 +246,11 @@ test("workspace controls share hover feedback across every administrator tab", a
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
   await hoverEmphasizesText(page, button(page, "Open review for June 2026"));
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  const details = page.getByRole("button", { name: "Show details for Review Company: " });
+  const details = companyRow(page, "Review Company");
   await hoverChangesShade(page, details);
   await details.click();
-  await hoverChangesShade(
-    page,
-    button(
-      page.getByRole("row").filter({ has: page.getByText("Review Company", { exact: true }) }),
-      "View members",
-    ),
-  );
+  await hoverChangesShade(page, button(companyPanel(page, "Review Company"), "View members"));
+  await closeCompanyDetails(page);
   await button(page, "Add company").click();
   const create = button(page, "Create company");
   await expect(create).toBeDisabled();
@@ -258,19 +270,21 @@ test("SKU text actions share accent styling in fees, inventory and companies", a
   const accentColor = (await appearance(amountAction)).color;
   for (const name of ["Current fees", "Inventory", "Companies"]) {
     await page.getByRole("tab", { name, exact: true }).click();
-    if (name === "Companies")
-      await page.getByRole("button", { name: "Show details for Review Company: " }).click();
+    if (name === "Companies") await companyRow(page, "Review Company").press("Enter");
+    if (name === "Current fees") await feeRow(page, "S1").press("Enter");
     const sku = button(page, "Show transactions for S1");
     await expect(sku).toHaveCSS("color", accentColor);
     await hoverEmphasizesText(page, sku);
     await expectKeyboardFocus(page, sku);
-    if (name === "Current fees")
-      await hoverChangesShade(
-        page,
-        page.getByRole("button", { name: "marketplace fees for S1: " }),
-      );
+    if (name === "Current fees") {
+      await feeDetails(page)
+        .getByRole("button", { name: "Close fee details", exact: true })
+        .click();
+      await hoverChangesShade(page, feeRow(page, "S1"));
+    }
     if (name === "Inventory")
       await hoverChangesShade(page, page.locator(".inventory-table tbody tr").first());
+    if (name === "Companies") await closeCompanyDetails(page);
   }
 });
 
@@ -349,10 +363,7 @@ test.describe("mouse input on a touch-configured browser", () => {
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     await hoverChangesShade(page, button(page, "Add company"));
     await page.getByRole("tab", { name: "Companies", exact: true }).click();
-    await hoverChangesShade(
-      page,
-      page.getByRole("button", { name: "Show details for Review Company: " }),
-    );
+    await hoverChangesShade(page, companyRow(page, "Review Company"));
     await button(page, "Add company").click();
     const create = button(page, "Create company");
     await expect(create).toBeDisabled();

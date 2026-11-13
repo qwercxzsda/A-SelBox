@@ -55,12 +55,16 @@ test("old inventory exposes source age before opening metadata and separates pro
   await items(page).locator("tbody tr").first().click();
   const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
   await expect(detail).toContainText("Stock as of 2026-10-03 · 15 days old · Out of date");
-  await expect(detail).toContainText("Amazon report created 2026-10-03 14:00:00 UTC");
-  await expect(detail).toContainText("Processed 2026-10-17 04:00:00 UTC");
-  await expect(detail).toContainText("processing does not refresh the source stock");
-  await expect(detail.getByRole("button", { name: "Source capture", exact: true })).toHaveAttribute(
-    "aria-expanded",
-    "false",
+  const additional = detail.getByRole("button", { name: "Additional details", exact: true });
+  await expect(additional).toHaveAttribute("aria-expanded", "false");
+  await expect(detail.getByText("Processed", { exact: true })).toHaveCount(0);
+  await additional.click();
+  const metadata = detail.getByRole("table", { name: "Additional record details", exact: true });
+  await expect(metadata.getByRole("row").filter({ hasText: "Report created" })).toContainText(
+    "2026-10-03 14:00:00 UTC",
+  );
+  await expect(metadata.getByRole("row").filter({ hasText: "Processed" })).toContainText(
+    "2026-10-17 04:00:00 UTC",
   );
   await page.screenshot({
     path: testInfo.outputPath("inventory-age-desktop.png"),
@@ -282,7 +286,13 @@ test("phone inventory keeps next-local-day stock fresh while warning about genui
   await items(page).locator("tbody tr").filter({ hasText: "LOCAL-JP" }).click();
   const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
   await expect(detail).toContainText("Stock as of 2026-11-06 · Today");
-  await expect(detail).toContainText("Amazon report created 2026-11-05 17:15:00 UTC");
+  await detail.getByRole("button", { name: "Additional details", exact: true }).click();
+  await expect(
+    detail
+      .getByRole("table", { name: "Additional record details", exact: true })
+      .getByRole("row")
+      .filter({ hasText: "Report created" }),
+  ).toContainText("2026-11-05 17:15:00 UTC");
   await page.screenshot({
     path: testInfo.outputPath("inventory-local-day-details-phone.png"),
     animations: "disabled",

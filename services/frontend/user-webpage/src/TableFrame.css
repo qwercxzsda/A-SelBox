@@ -1,3 +1,4 @@
+/* Main table surfaces, scrolling headers, and pinned columns share one frame. */
 .table-card {
   --date-column-width: 7.5rem;
   --type-column-width: 14rem;
@@ -89,7 +90,16 @@
   .table-card[data-dataset="live"] thead [data-column="company_amount"] {
     background: var(--ui-surface-header);
   }
-  .table-card[data-dataset="live"] tr:hover [data-column="company_amount"] {
-    background: var(--ui-surface-subtle);
+  .table-card[data-dataset="live"] tbody tr:hover [data-column="company_amount"] {
+    background: var(--ui-hover-surface);
+  }
+  .table-card[data-dataset="live"] tbody tr[aria-selected="true"] [data-column="company_amount"] {
+    background: var(--ui-accent-soft);
+  }
+  .table-card[data-dataset="live"]
+    tbody
+    tr[aria-selected="true"]:hover
+    [data-column="company_amount"] {
+    background: var(--ui-hover-selected);
   }
 }

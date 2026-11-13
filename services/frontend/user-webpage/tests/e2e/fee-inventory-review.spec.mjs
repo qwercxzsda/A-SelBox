@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { setup, item, openReview, editor, review } from "./sku-configuration-fixtures.mjs";
+import {
+  setup,
+  item,
+  openReview,
+  openEditor,
+  editor,
+  review,
+} from "./sku-configuration-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { selectColumnOptions } from "./table-actions.mjs";
@@ -12,12 +19,12 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
     item(sku),
     item(incompleteSku, { company_id: null }),
   ]);
-  await page.getByRole("button", { name: `Edit ${sku}`, exact: true }).click();
+  await openEditor(page, sku);
   await page.setViewportSize({ width: 390, height: 1000 });
   await expect(editor(page).getByRole("button", { name: "Close SKU editor" })).toBeInViewport();
-  expect(await editor(page).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
-    true,
-  );
+  await expect
+    .poll(() => editor(page).evaluate((element) => element.scrollWidth <= element.clientWidth))
+    .toBe(true);
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6");
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
@@ -43,7 +50,7 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
   ).toBeEnabled();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: `Edit ${incompleteSku}`, exact: true }).click();
+  await openEditor(page, incompleteSku);
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
   await review(page).getByRole("button", { name: "Show setup issues (1)", exact: true }).click();

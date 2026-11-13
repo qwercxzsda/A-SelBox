@@ -158,6 +158,7 @@ test("company and SKU lookups advance by actual returned rows under a smaller se
   const rows = [0, 1, 2].map((index) => ({
     id: `identity-${index}`,
     name: `Company ${index}`,
+    created_at: "2026-08-01T12:34:56Z",
     sku: `SKU_${index}`,
     company_id: "company-a",
     terms_version_id: `version-${index}`,

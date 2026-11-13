@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { applyReportMonth } from "./table-actions.mjs";
+import { payoutHistoryRows, payoutLatestRow } from "./payout-history-actions.mjs";
 
 const company = "0198b50b-701a-7000-8000-000000000001";
 const report = "0198b50b-701a-7000-8000-000000000002";
@@ -89,10 +90,15 @@ for (const role of ["administrator", "member"]) {
     });
     fixture.revisions.payouts = "next-snapshot";
     await checkForUpdates(page, fixture);
-    const history = page.getByRole("region", { name: /^Report versions for/ });
-    await expect(history).toBeVisible();
-    await expect(history.getByRole("cell", { name: "91.00 USD", exact: true })).toBeVisible();
+    const scope = "Monthly Company · June 2026 · Amazon.com · USD";
+    const history = payoutHistoryRows(page, scope);
+    await expect(history).toHaveCount(2);
     await expect(history.getByRole("cell", { name: "93.00 USD", exact: true })).toBeVisible();
-    await expect(history.locator('tr[data-version="latest"]')).toContainText("91.00 USD");
+    await expect(payoutLatestRow(page, scope)).toContainText("91.00 USD");
+    await expect(
+      page
+        .getByRole("table", { name: "Financial records", exact: true })
+        .getByRole("cell", { name: "91.00 USD", exact: true }),
+    ).toHaveCount(1);
   });
 }

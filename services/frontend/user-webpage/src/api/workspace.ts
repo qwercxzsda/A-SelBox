@@ -100,13 +100,14 @@ export function createWorkspaceApi(transport: ApiTransport) {
         transport,
         accessToken,
         "companies",
-        "id,name",
+        "id,name,created_at",
         "name.asc,id.asc",
         "Company details",
       );
       return rows.map((row) => ({
         id: requiredJsonString(row, "id"),
         name: requiredJsonString(row, "name"),
+        created_at: requiredJsonString(row, "created_at"),
       }));
     },
 

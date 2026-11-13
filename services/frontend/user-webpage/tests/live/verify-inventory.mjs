@@ -92,9 +92,16 @@ async function verifyMetrics(page, sample) {
   await expect(detail.locator(".inventory-action-label")).toHaveText(
     field("recommended_action") === null ? "—" : recommendationLabel(field("recommended_action")),
   );
-  const source = detail.getByRole("button", { name: "Source capture", exact: true });
+  const source = detail.getByRole("button", { name: "Additional details", exact: true });
   if ((await source.getAttribute("aria-expanded")) !== "true") await source.click();
-  await expect(metric(detail, "Snapshot date")).toHaveText(field("snapshot_date") ?? "—");
+  await expect(
+    detail
+      .getByRole("table", { name: "Additional record details", exact: true })
+      .getByRole("row")
+      .filter({ hasText: "Snapshot date" })
+      .getByRole("cell")
+      .last(),
+  ).toHaveText(field("snapshot_date") ?? "—");
   await detail.getByRole("button", { name: "Close inventory details", exact: true }).click();
 }
 

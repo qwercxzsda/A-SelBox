@@ -5,9 +5,15 @@ import type { Identity } from "./auth-session";
 import { CompanyCreateForm } from "./CompanyCreateForm";
 import { useCompanyDirectory } from "./company-directory-context";
 import { ListToolbar } from "./ListToolbar";
+import { ListPageNavigation } from "./ListPageNavigation";
+import { revealSection } from "./reveal-section";
 import { lastPageIndex } from "./pagination";
 import { CompanyTable } from "./CompanyTable";
+import { CompanyDetails } from "./CompanyDetails";
+import { DetailDrawer } from "./DetailDrawer";
+import { DrawerHeading } from "./DrawerHeading";
 import { useWorkspacePreference } from "./use-workspace-preference";
+import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { decodeCompanyList, orderCompanies, type CompanyListState } from "./companies-view";
 import "./Companies.css";
@@ -31,6 +37,7 @@ export function Companies({
   const [notice, setNotice] = useState<string | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (notice) noticeRef.current?.focus();
   }, [notice]);
@@ -72,8 +79,17 @@ export function Companies({
   const pageIndex = Math.min(state.pageIndex, pageCount - 1);
   const start = pageIndex * state.pageSize;
   const visible = filtered.slice(start, start + state.pageSize);
+  const selected = companies.find(({ id }) => id === state.selected) ?? null;
+  const detailsFocus = useDrawerFocusReturn({
+    opened: selected !== null && !creating,
+    fallbackRef: controlsRef,
+  });
   function change(patch: Partial<CompanyListState>) {
+    if (patch.selected) detailsFocus.rememberOpener();
     setState((current) => ({ ...current, ...patch }));
+  }
+  function showControls() {
+    revealSection(controlsRef.current);
   }
   function closeCreation() {
     if (!isCreating) setCreating(false);
@@ -94,7 +110,7 @@ export function Companies({
         orderCompanies(updated, assignments, current).findIndex(({ id }) => id === company.id) /
           current.pageSize,
       ),
-      expanded: [...new Set([...current.expanded, company.id])],
+      selected: company.id,
     }));
   }
 
@@ -116,8 +132,8 @@ export function Companies({
         help={
           <>
             <p>
-              Expand a company to review its saved SKU assignments. View members opens its User
-              access list.
+              Open a company to review its saved SKU assignments. View members opens its User access
+              list.
             </p>
             <p>
               Add company creates a company; assign SKUs in Current fees. Selecting a SKU opens its
@@ -153,6 +169,7 @@ export function Companies({
       ) : null}
       <ListToolbar
         label="Company list controls"
+        controlsRef={controlsRef}
         search={{
           inputRef: searchInput,
           ariaLabel: "Search companies",
@@ -193,17 +210,62 @@ export function Companies({
         state={state}
         onChange={change}
         searchInput={searchInput}
-        onShowMembers={onShowMembers}
-        onShowTransactions={onShowTransactions}
-        onDeleted={(company, deleted) => {
-          setNotice(`${deleted ? "Company deleted" : "Company already deleted"}: ${company.name}`);
-          setState((current) => ({
-            ...current,
-            companyIds: current.companyIds.filter((id) => id !== company.id),
-            expanded: current.expanded.filter((id) => id !== company.id),
-          }));
-        }}
       />
+      {visible.length > 10 || pageIndex > 0 ? (
+        <ListPageNavigation
+          labels={{
+            navigation: "Company list navigation at bottom",
+            items: "companies",
+            back: "Back to company filters",
+          }}
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          canPrevious={pageIndex > 0}
+          canNext={pageIndex < pageCount - 1}
+          onBackToFilters={showControls}
+          onPageChange={(pageIndex) => {
+            change({ pageIndex });
+            showControls();
+          }}
+        />
+      ) : null}
+      <DetailDrawer
+        opened={selected !== null && !creating}
+        title={<DrawerHeading title="Company details" context={selected?.name ?? ""} />}
+        closeLabel="Close company details"
+        size="min(720px, 100vw)"
+        returnFocus={false}
+        onClose={() => {
+          change({ selected: null });
+        }}
+        onExitTransitionEnd={detailsFocus.restoreFocus}
+      >
+        {selected ? (
+          <CompanyDetails
+            key={selected.id}
+            company={selected}
+            skus={assignments.get(selected.id) ?? []}
+            onShowMembers={(id) => {
+              change({ selected: null });
+              onShowMembers(id);
+            }}
+            onShowTransactions={(sku) => {
+              change({ selected: null });
+              onShowTransactions(sku);
+            }}
+            onDeleted={(company, deleted) => {
+              setNotice(
+                `${deleted ? "Company deleted" : "Company already deleted"}: ${company.name}`,
+              );
+              setState((current) => ({
+                ...current,
+                companyIds: current.companyIds.filter((id) => id !== company.id),
+                selected: null,
+              }));
+            }}
+          />
+        ) : null}
+      </DetailDrawer>
       <Modal
         opened={creating}
         onClose={closeCreation}
@@ -211,6 +273,7 @@ export function Companies({
         size="min(560px, calc(100vw - 32px))"
         padding="lg"
         title="Add company"
+        returnFocus={selected === null}
         closeButtonProps={{ "aria-label": "Close company creation", disabled: isCreating }}
         closeOnEscape={!isCreating}
         closeOnClickOutside={!isCreating}

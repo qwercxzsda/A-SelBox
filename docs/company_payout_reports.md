@@ -24,6 +24,12 @@ The frontend derives month labels from `start_date` and searches those labels, I
 marketplaces, and currencies. The database retains dates and scope rather than generated display
 names; company access is enforced by invoker security and underlying RLS. The complete
 `public.company_payout_reports` table retains earlier versions for history.
+**Show versions** reveals those earlier versions as rows in the same report table, beneath their
+latest report and under the original column headings. The latest version is not duplicated.
+The disclosure sits beneath the marketplace, and company/marketplace cells span that report's
+versions and controls. They are not repeated for each version or merged across distinct scopes.
+Selection opens one report version at a time, and month grouping includes every visible version.
+History pagination and retry controls remain in inline table rows, preserving the exact scope.
 
 ## Automatic generation
 

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { selectColumnOptions } from "./table-actions.mjs";
 import {
+  feeRow,
   COMPANY,
   setup,
   item,
@@ -41,7 +42,7 @@ test("large catalogs preserve global setup diagnostics without blocking unrelate
     "of 1,205 SKUs",
   );
   await page.getByLabel("Search SKUs", { exact: true }).fill("UNASSIGNED-1204");
-  await page.getByRole("button", { name: "marketplace fees for UNASSIGNED-1204: " }).click();
+  await feeRow(page, "UNASSIGNED-1204").press("Enter");
   await page.getByRole("button", { name: "Edit UNASSIGNED-1204", exact: true }).click();
   await editor(page).getByLabel("Company", { exact: true }).selectOption(COMPANY);
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();

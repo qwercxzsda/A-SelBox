@@ -11,7 +11,6 @@ import {
   Autocomplete,
   Button,
   Divider,
-  Drawer,
   Group,
   NativeSelect,
   Stack,
@@ -25,6 +24,7 @@ import type { FeeEditorState } from "./workspace-view-state";
 import "./SkuConfigurationDrawer.css";
 import { SkuRateChange } from "./SkuRateChange";
 import { useSkuEditorForm } from "./use-sku-editor-form";
+import { SkuConfigurationMetadata } from "./SkuConfigurationMetadata";
 
 export function SkuConfigurationEditor({
   item,
@@ -32,22 +32,24 @@ export function SkuConfigurationEditor({
   onEditingChange,
   companies,
   knownSkus,
-  onClose,
   onDiscard,
   onStage,
   onEditExisting,
   onAddCompany,
+  onShowTransactions,
+  onBackToDetails,
 }: {
   item: SkuConfigurationItem;
   editing: FeeEditorState;
   onEditingChange: Dispatch<SetStateAction<FeeEditorState>>;
   companies: Company[];
   knownSkus: string[];
-  onClose: () => void;
   onDiscard: () => void;
   onStage: (change: SkuConfigurationChange) => void;
   onEditExisting: (sku: string) => void;
   onAddCompany: () => void;
+  onShowTransactions: () => void;
+  onBackToDetails: () => void;
 }) {
   const { form, replaceDraft, startRateChange, setRateChange, removePeriod } = useSkuEditorForm(
     editing,
@@ -56,6 +58,13 @@ export function SkuConfigurationEditor({
   const values = form.values;
   const { isNew, submitError } = editing;
   const skuInput = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const target =
+      formRef.current?.querySelector<HTMLElement>("[data-autofocus]") ??
+      formRef.current?.querySelector<HTMLElement>("select");
+    target?.focus();
+  }, []);
   const marketplaceInputs = useRef(new Map<number, HTMLSelectElement>());
   const addPeriodButton = useRef<HTMLButtonElement>(null);
   const pendingPeriodFocus = useRef<number | "add" | null>(null);
@@ -114,34 +123,35 @@ export function SkuConfigurationEditor({
     removePeriod(index);
   }
   return (
-    <Drawer
-      opened
-      onClose={onClose}
-      title={isNew ? "Add SKU" : `Edit ${item.sku}`}
-      position="right"
-      size={960}
-      classNames={{
-        content: "sku-configuration-drawer-content",
-        body: "sku-configuration-drawer-body",
-        title: "sku-configuration-drawer-title",
+    <form
+      ref={formRef}
+      className="sku-configuration-drawer-layout fee-panel-enter"
+      onSubmit={stageDraft}
+      onFocusCapture={(event) => {
+        const target = event.target;
+        if (target.hasAttribute("data-autofocus") && target.getAttribute("aria-invalid") === "true")
+          requestAnimationFrame(() => {
+            if (document.activeElement === target) target.scrollIntoView({ block: "center" });
+          });
       }}
-      closeButtonProps={{ "aria-label": "Close SKU editor" }}
     >
-      <form
-        className="sku-configuration-drawer-layout"
-        onSubmit={stageDraft}
-        onFocusCapture={(event) => {
-          const target = event.target;
-          if (
-            target.hasAttribute("data-autofocus") &&
-            target.getAttribute("aria-invalid") === "true"
-          )
-            requestAnimationFrame(() => {
-              if (document.activeElement === target) target.scrollIntoView({ block: "center" });
-            });
-        }}
-      >
-        <Stack gap="md" className="sku-configuration-drawer-scroll">
+      <div className="sku-configuration-drawer-scroll">
+        <Stack gap="md">
+          {!isNew ? (
+            <Group justify="space-between">
+              <Button variant="subtle" size="compact-sm" onClick={onBackToDetails}>
+                Back to details
+              </Button>
+              <Button
+                variant="subtle"
+                size="compact-sm"
+                aria-label={`View transactions for ${item.sku}`}
+                onClick={onShowTransactions}
+              >
+                View transactions
+              </Button>
+            </Group>
+          ) : null}
           <Text size="sm" c="dimmed">
             Closing keeps unfinished edits here. Choose Keep draft when ready to review, then save
             all changes.
@@ -281,30 +291,26 @@ export function SkuConfigurationEditor({
             </Alert>
           ) : null}
         </Stack>
-        <Stack gap="xs" className="sku-configuration-drawer-actions">
-          <Text size="xs" c="dimmed">
-            You can keep an unfinished draft and complete it before saving.
-          </Text>
-          <Group justify="space-between">
-            <Button
-              ref={addPeriodButton}
-              variant="light"
-              onClick={addPeriod}
-              disabled={existingSku}
-            >
-              Add fee period
+        {!isNew ? <SkuConfigurationMetadata item={item} /> : null}
+      </div>
+      <Stack gap="xs" className="sku-configuration-drawer-actions">
+        <Text size="xs" c="dimmed">
+          You can keep an unfinished draft and complete it before saving.
+        </Text>
+        <Group justify="space-between">
+          <Button ref={addPeriodButton} variant="light" onClick={addPeriod} disabled={existingSku}>
+            Add fee period
+          </Button>
+          <Group gap="xs">
+            <Button variant="default" onClick={onDiscard}>
+              Discard edits
             </Button>
-            <Group gap="xs">
-              <Button variant="default" onClick={onDiscard}>
-                Discard edits
-              </Button>
-              <Button type="submit" disabled={existingSku || editing.rateChange !== null}>
-                Keep draft
-              </Button>
-            </Group>
+            <Button type="submit" disabled={existingSku || editing.rateChange !== null}>
+              Keep draft
+            </Button>
           </Group>
-        </Stack>
-      </form>
-    </Drawer>
+        </Group>
+      </Stack>
+    </form>
   );
 }

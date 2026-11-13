@@ -31,10 +31,4 @@ export const INVENTORY_METRICS = {
     ["recommended_ship_in_units", "Recommended ship-in units"],
     ["recommended_ship_in_date", "Recommended ship-in date"],
   ],
-  source: [
-    ["capture_date", "Capture date"],
-    ["snapshot_date", "Snapshot date"],
-    ["report_created_at", "Report created"],
-    ["preprocessed_at", "Preprocessed"],
-  ],
 } as const satisfies Record<string, readonly InventoryMetricDefinition[]>;

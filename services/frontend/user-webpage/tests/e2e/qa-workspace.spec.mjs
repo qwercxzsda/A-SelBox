@@ -130,7 +130,7 @@ test("workspace URLs restore filters and support Back and Forward without storin
 
 test("Financial review retains marketplace, category, year and amount unit after reloading another tab", async ({
   page,
-}) => {
+}, testInfo) => {
   const fixture = await mockSupabase(page);
   setupFinancialReview(fixture);
   setupManyFinancialReviewRows(fixture);
@@ -138,6 +138,18 @@ test("Financial review retains marketplace, category, year and amount unit after
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
   await page.getByLabel("Currency", { exact: true }).selectOption("JPY");
   await page.getByLabel("Year", { exact: true }).selectOption("2025");
+  await page.setViewportSize({ width: 1440, height: 320 });
+  const months = page.getByRole("table", { name: "Monthly financial review", exact: true });
+  await expect(months.locator("tbody tr")).toHaveCount(12);
+  await months.locator("tbody tr").last().scrollIntoViewIfNeeded();
+  const floatingHeader = page.locator(".floating-table-header");
+  await expect(floatingHeader).toBeVisible();
+  await expect(floatingHeader).toContainText("Month");
+  await expect(floatingHeader).toContainText("Running difference");
+  await page.screenshot({
+    path: testInfo.outputPath("monthly-table-column-context.png"),
+    animations: "disabled",
+  });
   const categories = page.getByRole("tablist", { name: "Financial review", exact: true });
   await categories.getByRole("tab", { name: "Finances", exact: true }).click();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();

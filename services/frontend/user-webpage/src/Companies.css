@@ -2,17 +2,6 @@
   flex: 1 1 320px;
 }
 
-.company-filter-chip {
-  max-width: 100%;
-  height: auto;
-  padding-block: 0.25rem;
-}
-
-.company-filter-chip .mantine-Button-label {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
 .company-create-fields {
   max-width: 720px;
 }
@@ -24,15 +13,15 @@
 
 .company-create-notice,
 .company-list-name,
-.company-details-id {
+.company-details-identity {
   overflow-wrap: anywhere;
   min-width: 0;
 }
 
 .company-assigned-skus {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0 24px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -40,7 +29,8 @@
 
 .company-assigned-skus li {
   min-width: 0;
-  max-width: 100%;
+  padding-block: 8px;
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .company-deletion-reasons {

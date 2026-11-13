@@ -7,13 +7,21 @@ import { TransactionTypeValue } from "./TransactionTypeValue";
 import { formatAmount, formatExactDecimal } from "./decimal";
 import type { DetailColumn } from "./detail-columns";
 import { TableColumnLabel } from "./TableColumnLabel";
+import { formatRecordDate } from "./date-display";
+import { inspectableRowProps } from "./inspectable-row";
 import "./DetailTable.css";
 
 function cellContent(row: CanonicalRow, column: DetailColumn) {
-  const value = row[column.key];
+  const value = row[column.key] ?? null;
   if (column.kind === "amount") return formatAmount(value);
   if (column.kind === "number") return formatExactDecimal(value);
   if (value === null) return column.empty ?? "—";
+  if (column.kind === "date")
+    return (
+      <time dateTime={value} title={value}>
+        {formatRecordDate(value)}
+      </time>
+    );
   if (column.kind === "source") return humanizeCode(value);
   if (column.kind === "type") return <TransactionTypeValue value={value} />;
   return value;
@@ -29,6 +37,7 @@ export function DetailTable({
   className,
   selectedRowKey,
   renderCell,
+  onSelectRow,
 }: {
   label: string;
   columns: DetailColumn[];
@@ -38,6 +47,7 @@ export function DetailTable({
   className?: string;
   selectedRowKey?: string | null;
   renderCell?: (row: CanonicalRow, column: DetailColumn) => ReactNode;
+  onSelectRow?: (row: CanonicalRow) => void;
 }) {
   const [containerRef, container] = useResizeObserver<HTMLDivElement>();
   const [tableRef, table] = useResizeObserver<HTMLTableElement>();
@@ -59,35 +69,52 @@ export function DetailTable({
         style={{ minWidth }}
         stickyHeader={fits}
         stickyHeaderOffset="var(--ui-drawer-content-header-height, var(--ui-drawer-header-height))"
-        highlightOnHover={selectedRowKey !== undefined}
+        highlightOnHover={selectedRowKey !== undefined || onSelectRow !== undefined}
       >
         <Table.Thead>
           <Table.Tr>
             {columns.map((column) => (
-              <Table.Th key={column.key} data-kind={column.kind}>
+              <Table.Th
+                key={column.key}
+                scope="col"
+                data-column={column.key}
+                data-kind={column.kind}
+              >
                 <TableColumnLabel label={column.label} />
               </Table.Th>
             ))}
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr
-              key={rowKey(row)}
-              aria-selected={
-                selectedRowKey === undefined ? undefined : selectedRowKey === rowKey(row)
-              }
-            >
-              {columns.map((column) => {
-                const content = renderCell?.(row, column);
-                return (
-                  <Table.Td key={column.key} data-kind={column.kind} data-nowrap={column.nowrap}>
-                    {content === undefined ? cellContent(row, column) : content}
-                  </Table.Td>
-                );
-              })}
-            </Table.Tr>
-          ))}
+          {rows.map((row) => {
+            const key = rowKey(row);
+            const selected = selectedRowKey === key;
+            return (
+              <Table.Tr
+                key={key}
+                {...(onSelectRow
+                  ? inspectableRowProps(selected, () => {
+                      onSelectRow(row);
+                    })
+                  : {})}
+                aria-selected={selectedRowKey === undefined ? undefined : selected}
+              >
+                {columns.map((column) => {
+                  const content = renderCell?.(row, column);
+                  return (
+                    <Table.Td
+                      key={column.key}
+                      data-column={column.key}
+                      data-kind={column.kind}
+                      data-nowrap={column.nowrap}
+                    >
+                      {content === undefined ? cellContent(row, column) : content}
+                    </Table.Td>
+                  );
+                })}
+              </Table.Tr>
+            );
+          })}
         </Table.Tbody>
       </Table>
     </div>

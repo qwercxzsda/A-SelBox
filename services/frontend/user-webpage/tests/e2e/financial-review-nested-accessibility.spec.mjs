@@ -24,7 +24,10 @@ for (const kind of ["source", "snapshot"]) {
       await parent
         .getByRole("combobox", { name: "Record source", exact: true })
         .selectOption("FINANCES");
-      opener = parent.getByRole("button", { name: "View source record", exact: true }).first();
+      opener = parent
+        .getByRole("table", { name: "Source records", exact: true })
+        .locator("tbody tr.inspectable-row")
+        .first();
     } else {
       await parent.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
       opener = parent

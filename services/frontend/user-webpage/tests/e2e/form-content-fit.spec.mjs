@@ -9,6 +9,8 @@ import {
   openReview,
   review,
   setup,
+  feeRow,
+  feeDetails,
 } from "./sku-configuration-fixtures.mjs";
 import { expectFullyInViewport } from "./viewport-assertions.mjs";
 
@@ -197,7 +199,7 @@ for (const [width, textSize] of [
   });
 }
 
-test("fee list and review wrap company names without hiding actions on a phone", async ({
+test("fee details and review wrap company names without hiding actions on a phone", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
@@ -207,15 +209,16 @@ test("fee list and review wrap company names without hiding actions on a phone",
     state.companyNames[COMPANY] = previous;
     state.companyNames[OTHER_COMPANY] = next;
   });
-  const company = page
-    .getByRole("table", { name: "Current fee configurations", exact: true })
-    .getByRole("cell", { name: previous, exact: true });
+  await feeRow(page, "S1").press("Enter");
+  const company = feeDetails(page)
+    .locator(".fee-details-identity")
+    .getByText(previous, { exact: true });
   await company.scrollIntoViewIfNeeded();
   await expectFullyInViewport(company);
   await expectContained(page, company);
   await expectActionFits(page.getByRole("button", { name: "Edit S1", exact: true }));
   await page.screenshot({
-    path: testInfo.outputPath("fee-list-company-name.png"),
+    path: testInfo.outputPath("fee-details-company-name.png"),
     fullPage: true,
     animations: "disabled",
   });

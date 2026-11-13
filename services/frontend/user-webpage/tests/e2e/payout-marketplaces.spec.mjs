@@ -1,3 +1,4 @@
+import { payoutHistoryRows } from "./payout-history-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { selectColumnOptions } from "./table-actions.mjs";
@@ -64,10 +65,9 @@ for (const [role, width] of [
     ).toHaveCount(0);
     const scope = "Market Company · June 2026 · Amazon.de · EUR";
     await page.getByRole("button", { name: `Show versions for ${scope}`, exact: true }).click();
-    const history = page.getByRole("region", { name: `Report versions for ${scope}`, exact: true });
-    await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(2);
-    await expect(history).not.toContainText("190.00 EUR");
-    await history.getByRole("button", { name: /^Open previous version created/ }).click();
+    await expect(payoutHistoryRows(page, scope)).toHaveCount(1);
+    await expect(payoutHistoryRows(page, scope)).not.toContainText("190.00 EUR");
+    await payoutHistoryRows(page, scope).click();
     const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
     await expect(drawer.locator(".detail-drawer-context")).toContainText("Amazon.de · EUR");
     await expect(drawer).toContainText("90.00");

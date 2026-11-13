@@ -178,9 +178,11 @@ export function decodeFeeView(value: unknown): FeeViewState {
   const interrupted = value.savePending === true;
   return {
     search: text(value.search),
+    skus: [...new Set(strings(value.skus))],
     pageIndex: pageIndex(value.pageIndex),
     pageSize: pageSize(value.pageSize),
-    expanded: strings(value.expanded),
+    selectedSku: nullableText(value.selectedSku),
+    expandedSkus: strings(value.expandedSkus),
     drafts: Array.isArray(value.drafts)
       ? value.drafts
           .slice(0, 10000)

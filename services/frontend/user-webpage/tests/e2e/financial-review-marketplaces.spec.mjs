@@ -182,13 +182,13 @@ test("monthly types, exact source records, and saved snapshots retain marketplac
     .poll(() => recordRequest()?.params.get("or"))
     .toContain('component_type.in.("STORAGE_FEES")');
   expect(recordRequest().params.get("or")).toContain('"FBA_STORAGE_FEE"');
-  await records.getByRole("button", { name: "View source record", exact: true }).first().click();
+  await records.locator("tbody tr.inspectable-row").first().click();
   const detail = page.getByRole("dialog", { name: "Selected row details", exact: true });
   await expect(detail.getByRole("heading", { name: /^Amazon.de-EUR-/ })).toBeVisible();
   expect(sourceRequests[0].p_version_id).toBe(MARKETPLACE_SOURCE_VERSION);
   const exactSource = sourceRequests[0];
   await page.keyboard.press("Escape");
-  const opener = records.getByRole("button", { name: "View source record", exact: true }).first();
+  const opener = records.locator("tbody tr.inspectable-row").first();
   await expect(opener).toBeFocused();
   await opener.click();
   await expect(detail.getByRole("heading", { name: /^Amazon.de-EUR-/ })).toBeVisible();

@@ -84,11 +84,32 @@ Source imports never invent an owner or rate. Saved payout snapshots remain unch
 
 ### Editing and review
 
+Current fees groups marketplace periods beneath each SKU and folds them by default. Expanding a
+group reveals one row per period. Selecting its summary or any period selects the entire SKU group
+and opens its assignment, full period list, and setup issues in a detail drawer. The disclosure only
+changes folding; it does not open the drawer. Pagination counts SKUs rather than period rows.
+The period count and disclosure share the Fee periods column, and marketplace summaries remain in
+the Marketplace column. SKU headings, row spacing, and table typography follow Payout reports.
+
+Administrators choose **Edit** in those details to edit the SKU in the same drawer. The shared
+**Additional details** section remains available below the editable periods and contains saved
+identifiers. The SKU link in details and **View transactions** in the editor open Transactions for
+that exact SKU.
+
+One **Marketplace fee periods** section combines the current schedule and saved versions. For
+administrators, history loads when the panel opens and presents published revisions newest first,
+ten per page. Every revision includes its saved company assignment, save time, change reason, and
+complete period table. A staged draft has its own labelled schedule; it never replaces published
+values. **Additional details** appears at the bottom, after the version list and pagination. Older
+revisions are read-only; editing changes the current configuration or resumes an existing draft.
+**Back to details** keeps unfinished form input while returning to the same panel's read view.
+
 Closing the fee editor with X, Escape, or its backdrop keeps unfinished inputs separately from
 staged changes. **Resume unfinished edit** returns to them; **Discard edits** removes that
 unfinished edit while preserving any previously staged version. Both open and closed unfinished
 edits survive reload in the same browser session and permission scope. **Keep draft** explicitly
-stages the SKU for **Review changes**; only staged changes are submitted by **Save all changes**.
+stages the SKU and returns to the list for **Review changes**; only staged changes are submitted
+by **Save all changes**.
 Review warns when unfinished edits are outside the batch. The pending-changes bar stays reachable
 while scrolling Current fees, and closing a drawer returns focus to its opener where available.
 

@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { liveRow } from "./api-fixtures.mjs";
-import { COMPANY, item, setup, stageRate } from "./sku-configuration-fixtures.mjs";
+import {
+  COMPANY,
+  item,
+  setup,
+  stageRate,
+  feeRow,
+  feeDetails,
+  editor,
+  openEditor,
+} from "./sku-configuration-fixtures.mjs";
 import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
 
 const SKU = 'SKU (A), "blue" / 50%';
@@ -19,32 +28,25 @@ for (const role of ["administrator", "member"]) {
         activity_date: "2026-09-02",
       }));
     });
-    const feesToggle = page.getByRole("button", {
-      name: `marketplace fees for ${SKU}: `,
-    });
-    const sku = page.getByRole("button", { name: `Show transactions for ${SKU}`, exact: true });
-    await expect(feesToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(feesToggle).toHaveAccessibleName(
-      `Show marketplace fees for ${SKU}: Fee periods (1)`,
-    );
+    const record = feeRow(page, SKU);
+    await expect(record).toHaveAttribute("aria-selected", "false");
+    await expect(record).toHaveAttribute("aria-haspopup", "dialog");
+    await expect(record).toContainText("1 fee period");
     await expect(
-      page
-        .getByRole("table", { name: "Current fee configurations", exact: true })
-        .locator(".expandable-summary-row")
-        .filter({ has: sku })
-        .locator("td.numeric"),
-    ).toHaveText("1");
+      record.getByRole("button", { name: `Show transactions for ${SKU}`, exact: true }),
+    ).toHaveCount(0);
+    await expect(record.getByRole("button", { name: `Edit ${SKU}`, exact: true })).toHaveCount(0);
     if (role === "administrator") {
-      // The primary edit action is available before expanding the fee periods.
-      await expect(page.getByRole("button", { name: `Edit ${SKU}`, exact: true })).toBeVisible();
       await stageRate(page, "6.123456");
+      await feeRow(page, "S1").press("Enter");
       await expect(
-        page
+        feeDetails(page)
           .getByRole("table", { name: "Marketplace fees for S1", exact: true })
           .getByRole("cell", { name: "6.123456%", exact: true }),
       ).toBeInViewport();
-    } else {
-      await expect(page.getByRole("button", { name: `Edit ${SKU}`, exact: true })).toHaveCount(0);
+      await feeDetails(page)
+        .getByRole("button", { name: "Close fee details", exact: true })
+        .click();
     }
     await page.screenshot({
       path: testInfo.outputPath(`fee-list-${role}.png`),
@@ -64,8 +66,10 @@ for (const role of ["administrator", "member"]) {
     await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    await sku.focus();
-    await page.keyboard.press("Enter");
+    await record.press("Enter");
+    await feeDetails(page)
+      .getByRole("button", { name: `Show transactions for ${SKU}`, exact: true })
+      .press("Enter");
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -109,11 +113,12 @@ for (const role of ["administrator", "member"]) {
     await selectedSkuMenu.getByRole("button", { name: "Close options", exact: true }).click();
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-    await expect(feesToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(record).toHaveAttribute("aria-selected", "false");
     if (role === "administrator") {
       await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
+      await feeRow(page, "S1").press("Enter");
       await expect(
-        page.getByRole("table", { name: "Marketplace fees for S1", exact: true }),
+        feeDetails(page).getByRole("table", { name: "Marketplace fees for S1", exact: true }),
       ).toContainText("6.123456%");
     }
     expect(fixture.configurationSaves).toHaveLength(0);
@@ -122,3 +127,26 @@ for (const role of ["administrator", "member"]) {
     ).toBeLessThanOrEqual(page.viewportSize().width);
   });
 }
+
+test("opening transactions from the editor preserves unfinished SKU changes", async ({ page }) => {
+  const fixture = await setup(page, "administrator", [item("S1")], (fixture) => {
+    fixture.liveRows = [{ ...liveRow("NAVIGATION", 1, COMPANY), sku: "S1" }];
+  });
+  await openEditor(page);
+  await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6.123456");
+  await editor(page).getByRole("button", { name: "View transactions for S1", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(transactionTable(page).getByRole("cell", { name: "S1", exact: true })).toHaveCount(
+    1,
+  );
+  await page.getByRole("tab", { name: "Current fees", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Fee changes" })).toContainText(
+    "1 unfinished edit",
+  );
+  await openEditor(page);
+  await expect(editor(page).getByLabel("Fee rate 1 (%)", { exact: true })).toHaveValue("6.123456");
+  expect(fixture.configurationSaves).toHaveLength(0);
+});

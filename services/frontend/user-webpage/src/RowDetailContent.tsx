@@ -2,13 +2,11 @@ import type { ReactNode, Ref } from "react";
 import { Text, Title } from "@mantine/core";
 import type { CanonicalRow, TableDatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
-import { humanizeCode } from "./categories";
 import { PayoutReviewDetails } from "./PayoutReviewDetails";
 import { PayoutAmounts } from "./PayoutAmounts";
-import { DetailSection } from "./DetailSection";
-import { DetailTable } from "./DetailTable";
+import { AdditionalDetails } from "./AdditionalDetails";
 import { formatRecordDate } from "./date-display";
-import { formatAmount } from "./decimal";
+import { recordMetadata } from "./record-metadata";
 import { payoutMarketplaceLabel } from "./payout-report-scope";
 import {
   DATASET_PRESENTATION,
@@ -38,16 +36,11 @@ export function RowDetailContent({
   reportNavigation?: ReactNode;
   headingRef: Ref<HTMLHeadingElement>;
 }) {
-  const columns: ColumnDefinition[] = [
-    ...displayColumns(dataset, isAdministrator)
-      .flatMap(({ secondary, ...column }) => (secondary ? [column, secondary] : [column]))
-      .filter((column) => !(column.key === "sku" && row.sku)),
-    ...(isAdministrator && row.seller_namespace
-      ? [{ key: "seller_namespace", kind: "text" as const, label: "Source namespace" }]
-      : []),
-  ];
+  const columns: ColumnDefinition[] = displayColumns(dataset, isAdministrator)
+    .flatMap(({ secondary, ...column }) => (secondary ? [column, secondary] : [column]))
+    .filter((column) => !(column.key === "sku" && row.sku));
   const shown = new Set([...TABLE_COLUMNS[dataset], ...columns].map((column) => column.key));
-  const remaining = Object.keys(row).filter((key) => !shown.has(key));
+  const remaining = Object.keys(row).filter((key) => key === "company_id" || !shown.has(key));
   return (
     <>
       <Title ref={headingRef} tabIndex={-1} order={3} mb={4} className="row-detail-title">
@@ -89,28 +82,12 @@ export function RowDetailContent({
       ) : dataset === "payouts" && row.id ? (
         <PayoutAmounts key={`payout-${row.id}`} row={row} accessToken={accessToken} />
       ) : null}
-      {isAdministrator && remaining.length > 0 && (dataset !== "payouts" || isReview) ? (
-        <DetailSection
+      {isAdministrator && remaining.length > 0 ? (
+        <AdditionalDetails
           stateKey={`row:${dataset}:${rowId(row)}:metadata`}
-          title="Additional details"
-          collapsible
           key={`audit-${rowId(row)}`}
-          description="Saved identifiers and processing metadata for this record."
-        >
-          <DetailTable
-            label="Additional record details"
-            columns={[
-              { key: "field", label: "Field" },
-              { key: "value", label: "Value" },
-            ]}
-            rows={remaining.map((key) => ({
-              field: humanizeCode(key),
-              value: key === "fee_base" ? formatAmount(row[key]) : row[key],
-            }))}
-            rowKey={(record) => record.field ?? ""}
-            minWidth={0}
-          />
-        </DetailSection>
+          rows={recordMetadata(row, remaining)}
+        />
       ) : null}
     </>
   );

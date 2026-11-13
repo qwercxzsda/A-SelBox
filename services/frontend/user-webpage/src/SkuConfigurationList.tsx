@@ -1,16 +1,17 @@
 import { useRef } from "react";
 import { Button, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
-import { SkuConfigurationRow } from "./SkuConfigurationRow";
+import { SkuConfigurationGroup } from "./SkuConfigurationGroup";
 import { ListToolbar } from "./ListToolbar";
 import { AppliedFeeFilters, FeeFilterHeader } from "./FeeListFilters";
 import { FEE_STATUSES, type FeeStatus } from "./fee-status";
-import { ExpandableTable, type ExpandableColumn } from "./ExpandableTable";
+import { RecordTable, type RecordColumn } from "./RecordTable";
 import { filterFeeSkus, paginateFeeSkus } from "./fee-skus";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import { companyLabel } from "./view-model";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
+import { TableColumnLabel } from "./TableColumnLabel";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import "./SkuConfigurationList.css";
 
@@ -30,9 +31,7 @@ export function SkuConfigurationList({
   companies,
   issuesBySku,
   administrator,
-  isSaving,
-  onEdit,
-  onShowTransactions,
+  onSelect,
   viewState,
   onViewStateChange,
 }: {
@@ -40,13 +39,11 @@ export function SkuConfigurationList({
   companies: Map<string, string>;
   issuesBySku: Map<string, SkuFormIssue[]>;
   administrator: boolean;
-  isSaving: boolean;
-  onEdit: (sku: string) => void;
-  onShowTransactions: (sku: string) => void;
+  onSelect: (sku: string) => void;
 } & ViewStateProps<FeeViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
-  const { search, pageSize, expanded, drafts } = viewState;
+  const { search, pageSize, selectedSku, expandedSkus, drafts } = viewState;
   const draftSkus = new Set(drafts.map((draft) => draft.sku));
   const unfinishedSkus = new Set(
     viewState.editorDrafts.filter((editor) => !editor.isNew).map((editor) => editor.sku),
@@ -56,6 +53,7 @@ export function SkuConfigurationList({
     ? FEE_STATUSES
     : ["needs-setup", "saved"];
   const selectedStatuses = viewState.statuses.filter((status) => statusOptions.includes(status));
+  const selectedSkus = new Set(viewState.skus);
   const statusesFor = (sku: string): FeeStatus[] => {
     const statuses: FeeStatus[] = [];
     if (issuesBySku.has(sku)) statuses.push("needs-setup");
@@ -65,6 +63,7 @@ export function SkuConfigurationList({
   };
   const filtered = filterFeeSkus(items, search, administrator ? companies : undefined).filter(
     (item) =>
+      (!selectedSkus.size || selectedSkus.has(item.sku)) &&
       (!companyIds.length || companyIds.includes(item.company_id)) &&
       (!viewState.marketplaces.length ||
         marketplacesFor(item).some((market) => viewState.marketplaces.includes(market))) &&
@@ -75,37 +74,52 @@ export function SkuConfigurationList({
   const canPrevious = pagination.pageIndex > 0;
   const canNext = pagination.pageIndex < pagination.pageCount - 1;
   const filters = {
+    skus: viewState.skus,
     companyIds,
     marketplaces: viewState.marketplaces,
     statuses: selectedStatuses,
   };
   const marketplaceOptions = [...new Set(items.flatMap(marketplacesFor))].sort();
-  const header = (field: "companyIds" | "marketplaces" | "statuses") => (
+  const skuOptions = items.map((item) => item.sku);
+  const header = (field: "skus" | "companyIds" | "marketplaces" | "statuses") => (
     <FeeFilterHeader
       field={field}
       filters={filters}
       companies={companies}
+      skus={skuOptions}
       marketplaces={marketplaceOptions}
       statusOptions={statusOptions}
       onChange={changeFilters}
     />
   );
-  const columns: ExpandableColumn[] = [
-    { key: "sku", label: "SKU" },
+  const columns: RecordColumn[] = [
+    { key: "sku", label: "SKU", width: 220, header: header("skus") },
     ...(administrator
-      ? [{ key: "company", label: "Company", width: "21%", header: header("companyIds") }]
+      ? [{ key: "company", label: "Company", width: 180, header: header("companyIds") }]
       : []),
+    { key: "periods", label: "Fee periods", width: 150 },
     {
       key: "marketplaces",
-      label: "Marketplaces",
-      width: administrator ? "19%" : "25%",
+      label: "Marketplace",
+      width: 165,
       header: header("marketplaces"),
     },
-    { key: "periods", label: "Fee periods", align: "right", width: 90 },
+    { key: "rate", label: "Fee rate", align: "right", width: 100 },
+    { key: "from", label: "Effective from", width: 135 },
+    {
+      key: "until",
+      label: "Effective until",
+      width: 135,
+      header: <TableColumnLabel label="Effective until (exclusive)" />,
+    },
     { key: "status", label: "Status", width: 145, header: header("statuses") },
   ];
   const hasFilters = Boolean(
-    search || companyIds.length || viewState.marketplaces.length || selectedStatuses.length,
+    search ||
+    viewState.skus.length ||
+    companyIds.length ||
+    viewState.marketplaces.length ||
+    selectedStatuses.length,
   );
   function change(patch: Partial<FeeViewState>) {
     onViewStateChange((current) => ({ ...current, ...patch }));
@@ -114,18 +128,10 @@ export function SkuConfigurationList({
     change({ ...patch, pageIndex: 0 });
   }
   function clearFilters() {
-    changeFilters({ search: "", companyIds: [], marketplaces: [], statuses: [] });
+    changeFilters({ search: "", skus: [], companyIds: [], marketplaces: [], statuses: [] });
   }
   function showControls() {
     revealSection(controlsRef.current);
-  }
-  function toggleSku(sku: string) {
-    onViewStateChange((current) => ({
-      ...current,
-      expanded: current.expanded.includes(sku)
-        ? current.expanded.filter((value) => value !== sku)
-        : [...current.expanded, sku],
-    }));
   }
   return (
     <>
@@ -170,18 +176,12 @@ export function SkuConfigurationList({
         onChange={changeFilters}
         focusTarget={searchInput}
       />
-      <ExpandableTable
+      <RecordTable
         label="Current fee configurations"
+        grouped
+        className="fee-configurations-table month-grouped-table"
         columns={columns}
-        minWidth={administrator ? 900 : 700}
-        actionsWidth={administrator ? 96 : undefined}
-        onCollapseAll={
-          expanded.length
-            ? () => {
-                change({ expanded: [] });
-              }
-            : undefined
-        }
+        minWidth={administrator ? 1230 : 1050}
         emptyState={
           pagination.visibleSkus.length === 0 ? (
             <Stack align="center" gap="sm">
@@ -208,29 +208,27 @@ export function SkuConfigurationList({
         }
       >
         {pagination.visibleSkus.map((item) => (
-          <SkuConfigurationRow
+          <SkuConfigurationGroup
             key={item.sku}
             item={item}
             companyName={companyLabel(item.company_id, companies)}
             marketplaces={marketplacesFor(item)}
             statuses={statusesFor(item.sku)}
-            issues={issuesBySku.get(item.sku) ?? []}
             administrator={administrator}
-            isSaving={isSaving}
-            expanded={expanded.includes(item.sku)}
-            columnCount={columns.length + 1 + Number(administrator)}
-            onToggle={toggleSku}
-            onEdit={onEdit}
-            onShowTransactions={onShowTransactions}
-            onDiscardDraft={(sku) => {
+            selected={selectedSku === item.sku}
+            expanded={expandedSkus.includes(item.sku)}
+            onToggle={(sku) => {
               onViewStateChange((current) => ({
                 ...current,
-                drafts: current.drafts.filter((draft) => draft.sku !== sku),
+                expandedSkus: current.expandedSkus.includes(sku)
+                  ? current.expandedSkus.filter((value) => value !== sku)
+                  : [...current.expandedSkus, sku],
               }));
             }}
+            onSelect={onSelect}
           />
         ))}
-      </ExpandableTable>
+      </RecordTable>
       {pagination.visibleSkus.length > 10 || pagination.pageIndex > 0 ? (
         <ListPageNavigation
           labels={{

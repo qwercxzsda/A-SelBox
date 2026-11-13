@@ -141,18 +141,51 @@ search/count semantics, ordering, fee applicability, source authority, and amoun
 
 ### Fee editing and company access
 
-Current fees and Companies use [ExpandableTable](src/ExpandableTable.tsx): compact summary rows, the
-same headers and borders as the financial tables, and left-hand chevrons that reveal inline details
-without moving the viewport or changing column widths. Clicking the rest of a summary row toggles
-that row, except for its links and action buttons; selecting text does not toggle it. Several rows
-can stay open independently, with a contextual Collapse all control. Expansion state survives tab
-changes and reloads. Fee rows show marketplace coverage and period counts; administrators also see
-the company and Edit action. Company rows show assigned-SKU counts and a direct View members action.
-Detailed fee periods, setup issues, SKU links, and deletion controls stay inside the expanded rows.
-Company, marketplace, and status filters live in the Current fees column menus. Marketplace matches
-include both configured periods and required coverage; expanded rows retain the full configuration.
-Companies supports company selection and ordering by name or assigned-SKU count. These selections
-combine with search before pagination and persist through tab changes and reloads.
+Current fees and Companies use [RecordTable](src/RecordTable.tsx), with the shared table headings,
+cell spacing, borders, and horizontal-scroll controls. Clicking a row or pressing Enter/Space opens
+its details in a right-hand drawer. Selecting text does not open details. The selected record
+survives tab changes and reloads, and closing the drawer returns to the list without changing its
+position. Both lists reserve their columns for record information.
+
+Current fees groups rows by SKU, like the month groups in Payout reports. Marketplace fee periods
+are folded by default; the disclosure shows or hides each period as a separate row with its
+marketplace, rate, and effective dates. The SKU, company, and status belong to the whole group. The
+Fee periods column contains the period count with its Show/Hide control beneath; the Marketplace
+column contains the marketplace summary while folded and each period's marketplace while expanded.
+SKU headings reuse the Payout reports group typography and spacing. Selecting its summary or any
+period opens the same SKU details and highlights every row in that group. Folding is independent of
+selection, and counts and pagination remain based on SKUs. Folding choices survive navigation and
+reloads. Current fees and Payout reports use the shared [TableDisclosure](src/TableDisclosure.tsx)
+for their Show/Hide controls, including the same chevron, spacing, hover/focus feedback, and
+reduced-motion behavior.
+
+Fee details use one Marketplace fee periods section for the current schedule and saved history. Each
+published version includes its assignment, save time, reason, and complete period table, newest
+first, with ten saved versions per page. History loads only after opening details for an
+administrator. A staged draft appears as a separately labelled schedule, keeping proposed values
+distinct from published versions. Historical versions remain read-only, and Edit always starts from
+the current configuration or the existing draft. Additional details follows the complete section and
+its pagination at the bottom of the panel.
+
+Fee details contain the full period table and setup issues. Administrators select Edit to switch the
+same drawer into the editor, or discard a staged draft from its details. Additional details is
+integrated below the editable periods and shows saved identifiers; draft actions remain reachable at
+the bottom of the drawer. Back to details returns within the same drawer and keeps unfinished input;
+Edit resumes it. Keep draft stages the change and returns to the list; dismissing the editor keeps
+unfinished inputs. Company rows show assigned-SKU counts. Company details contain the assignment
+list, View members, and Delete company. Assigned SKUs use aligned columns that stack on narrow
+screens. Company and user identifiers appear in collapsed Additional details sections, using the
+same field/value table as other record drawers. Company metadata includes its creation time. User
+metadata includes the saved company ID, joined time, and email-confirmation status. Timestamps use
+UTC, and unavailable values display a dash. SKU, company, marketplace, and status filters live in
+the Current fees column menus. The SKU filter supports exact-value multi-selection and literal
+option search, includes available staged SKUs, and preserves the spelling and whitespace of each
+SKU. SKU selections intersect with text search and the other filters before pagination. Changes
+return to page one while retaining drafts and folding choices; applied chips remove selections
+individually. Marketplace matches include both configured periods and required coverage; details
+retain the full configuration. Companies supports company selection and ordering by name or
+assigned-SKU count. These selections combine with search before pagination and persist through tab
+changes and reloads.
 
 Add company opens a compact dialog from the page header or an existing setup shortcut. Entered names
 remain available across navigation, creation feedback stays in the dialog, and returning to the
@@ -176,15 +209,15 @@ save, and publication is not automatically retried. Confirmed saves refresh affe
 refresh is distinguished from a failed save. Source revisions can make earlier configuration
 incomplete, so coverage is rechecked without hiding the saved settings.
 
-SKU links in Current fees, Inventory, and Companies open Transactions with that exact SKU, clear
-other filters/search, and preserve ordering, page size, and drafts. Exact SKU text is shared across
-source namespaces. Add SKU suggests existing authorized values by literal prefix and preserves the
-spelling and whitespace of new values.
+SKU links in fee details, Inventory, and Companies, and View transactions in the fee editor, open
+Transactions with that exact SKU, clear other filters/search, and preserve ordering, page size, and
+drafts. Exact SKU text is shared across source namespaces. Add SKU suggests existing authorized
+values by literal prefix and preserves the spelling and whitespace of new values.
 
-Companies lists assignments and offers View members. Add company shortcuts return to the originating
-editor with its draft intact; a new company must still be explicitly selected and saved there.
-Delete company requires confirmation and reports linked-record blockers. It never removes linked
-records. A confirmed deletion marks affected unsaved selections unavailable until corrected.
+After creating a company from an editor shortcut, return with the draft intact and explicitly select
+and save the new company there. Delete company requires confirmation and reports linked-record
+blockers. It never removes linked records. A confirmed deletion marks affected unsaved selections
+unavailable until corrected.
 
 Membership editing distinguishes saved access from an unsaved selection. Saving checks the expected
 role/company atomically; revocation needs explicit confirmation. A pending operation remains tracked
@@ -224,8 +257,10 @@ row combines its stock date and age in one line; dates older than two marketplac
 days add an inline **Out of date** warning. There is no separate freshness panel or warning badge.
 Missing stock dates are explicitly labelled with the report date as a fallback, and future dates
 remain marked for checking. A recent processing timestamp does not make an old source fresh. Stock
-dates and fallback report dates use the marketplace's time zone from generated source metadata.
-Exact report and processing timestamps remain available in UTC in item details.
+dates and fallback report dates use the marketplace's time zone from generated source metadata. The
+shared Additional details section contains capture and snapshot dates plus exact report and
+processing timestamps in UTC; administrators also see capture and company IDs. Its disclosure state
+belongs to the selected item.
 
 Only capture/SKU identity is persisted for an open item. Its values follow the freshly loaded page;
 a changed or removed capture closes the drawer. Paging, filtering, and sorting clear selection.
@@ -238,11 +273,17 @@ Payout reports group the latest saved company/month/marketplace snapshots, keepi
 separate as amount units. Month, Marketplace, and Company filters, visible month/year search, and
 on-demand Versions history support browsing. Source or fee changes may leave the preceding snapshot
 visible until the automatic worker publishes its replacement. The browser never generates reports.
-Opening Versions expands history in place while preserving the viewport, horizontal scroll, and
-report column widths. Focus stays on the disclosure control. Each report row shows its saved
-timestamp and a green Latest label identifying the newest saved version. The report list has no
-separate maturity or readiness panel. Administrators can inspect processing and setup diagnostics in
-Financial review's Saved report snapshots section.
+Show versions reveals earlier reports as rows directly beneath the latest report in the existing
+table, using its headings and column widths. The latest report appears once. Folding preserves the
+viewport and horizontal scroll, with focus on the disclosure control beneath the marketplace.
+Company and marketplace cells span all versions and controls within that report scope, so they
+appear once; separate currencies and report scopes keep their own context. Earlier rows show their
+saved timestamp and amounts, and each version is selected independently. The month heading spans all
+visible report, loading, and paging rows. Each latest report shows its saved timestamp and a green
+Latest label. The report list has no separate maturity or readiness panel. Administrators can
+inspect processing and setup diagnostics in Financial review's Saved report snapshots section.
+Version rows use click/Enter/Space detail navigation, with the inspected version highlighted.
+Loading, retry, empty-history, and pagination controls occupy inline rows only when needed.
 
 Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
 company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.
@@ -290,11 +331,33 @@ Use the shared [Mantine theme](src/design-system.ts), [design tokens](src/design
 matching its tab label, with related actions aligned in the same header. Semantic heading levels and
 accessible names follow the content structure.
 
+List views share [TableFrame](src/TableFrame.tsx) for borders, horizontal scrolling, floating
+headings, and column controls; their row renderers own grouping and selection.
+[AppliedFilterChips](src/AppliedFilterChips.tsx) handles removable filter chips, tooltips, and
+keyboard focus while each view supplies its filter values. Fee and company panels use
+[DetailDrawer](src/DetailDrawer.tsx) to retain content and labels through closing transitions. Fee
+editor actions, including draft removal and setup navigation, live in
+[useFeeEditor](src/use-fee-editor.ts).
+
+Record tables share 13px data text, 12px semibold headings, 8px vertical/12px horizontal cell
+spacing, and the same borders and surface colors. Detail tables use the same baseline with wrapping
+for long values. Compact marketplace total cards retain their responsive column padding while using
+the same text sizes. Metric cards and charts retain layouts suited to their summaries.
+
+Saved metadata uses [AdditionalDetails](src/AdditionalDetails.tsx): a collapsed disclosure with the
+same section spacing, explanation, and fixed Field/Value columns. Fields reflect the record's
+available metadata and current permissions. Exact identifiers and source codes are preserved;
+timestamp metadata uses UTC and boolean flags use Yes/No. Saved fee IDs describe published settings
+even when a draft is being shown. Administrators can also inspect metadata from normal saved-report
+details.
+
 Page reads use the shared [LoadingStatus](src/LoadingStatus.tsx) beside their titles: Loading for
 initial reads and Updating for background refreshes, including independent row counts. The inline
 space stays stable during updates; there is no separate progress row above the tabs or toolbar.
 Current totals uses the same subdued status text. Errors, offline explanations, save feedback, and
-local detail requests keep their relevant context.
+local detail requests keep their relevant context. Detail refresh status sits beside section
+headings or pagination, without an empty status row above the table. Source record and
+transaction-lookup rows open their exact retained version by click or Enter/Space.
 
 Put optional explanations in [HelpPopover](src/HelpPopover.tsx), reached through a small, muted
 question-circle control beside the relevant title or heading. Popovers show the explanation without

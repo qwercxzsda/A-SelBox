@@ -1,6 +1,6 @@
 import { reviewPeriodKey } from "./financial-review-scope-key";
-import { useId, useRef } from "react";
-import { Button, Group, Text, Title, UnstyledButton } from "@mantine/core";
+import { useRef } from "react";
+import { Button, Text } from "@mantine/core";
 import type { CanonicalRow } from "./api";
 import { FinancialReviewRecords } from "./FinancialReviewRecords";
 import { FinancialReviewTypes } from "./FinancialReviewTypes";
@@ -29,7 +29,6 @@ export function FinancialReviewSourceDetails({
   );
   const amountsRef = useRef<HTMLElement>(null);
   const recordsRef = useRef<HTMLElement>(null);
-  const recordsId = useId();
   function change(patch: Partial<ReviewSourceState>) {
     setSaved((current) => ({ ...current, ...patch }));
   }
@@ -67,41 +66,28 @@ export function FinancialReviewSourceDetails({
           }}
         />
       </DetailSection>
-      <section
-        className="detail-section"
+      <DetailSection
         ref={recordsRef}
-        tabIndex={-1}
-        aria-label="Source records"
+        title="Source records"
+        collapsible
+        opened={state.recordsOpen}
+        onOpenedChange={(recordsOpen) => {
+          change({ recordsOpen });
+        }}
+        actions={
+          <Button
+            variant="subtle"
+            size="xs"
+            onClick={() => {
+              revealSection(amountsRef.current);
+            }}
+          >
+            Back to amounts
+          </Button>
+        }
       >
-        <Group className="detail-section-header" justify="space-between" gap="sm">
-          <Title order={4} className="detail-section-title">
-            <UnstyledButton
-              className="detail-section-toggle ui-text-action"
-              aria-expanded={state.recordsOpen}
-              aria-controls={recordsId}
-              onClick={() => {
-                change({ recordsOpen: !state.recordsOpen });
-              }}
-            >
-              Source records <span aria-hidden="true">{state.recordsOpen ? "⌃" : "⌄"}</span>
-            </UnstyledButton>
-          </Title>
-          {state.recordsOpen ? (
-            <Button
-              variant="subtle"
-              size="xs"
-              onClick={() => {
-                revealSection(amountsRef.current);
-              }}
-            >
-              Back to amounts
-            </Button>
-          ) : null}
-        </Group>
-        <div className="detail-section-body" id={recordsId} hidden={!state.recordsOpen}>
-          {state.recordsOpen ? <FinancialReviewRecords {...sourceProps} /> : null}
-        </div>
-      </section>
+        <FinancialReviewRecords {...sourceProps} />
+      </DetailSection>
     </>
   );
 }

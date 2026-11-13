@@ -2,12 +2,15 @@ import { useMemo } from "react";
 import { Alert, Button, Group, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { SkuConfigurationEditor } from "./SkuConfigurationEditor";
+import { DetailDrawer } from "./DetailDrawer";
+import { SkuConfigurationDetails } from "./SkuConfigurationDetails";
+import { SkuFeeSchedules } from "./SkuFeeSchedules";
 import { SkuConfigurationReview } from "./SkuConfigurationReview";
 import { SkuConfigurationList } from "./SkuConfigurationList";
 import type { useSkuConfiguration } from "./use-sku-configuration";
 import { newSkuItem, resolveSkuConfiguration } from "./sku-configuration-form";
 import type { Identity } from "./auth-session";
-import { getErrorMessage } from "./view-model";
+import { companyLabel, getErrorMessage } from "./view-model";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { useFeeEditor } from "./use-fee-editor";
@@ -46,20 +49,30 @@ export function CurrentFees({
     () => resolveSkuConfiguration(savedItems, drafts, new Set(companies.keys())),
     [savedItems, drafts, companies],
   );
-  const incompleteSkus = new Set(issuesBySku.keys());
+  const nextIncompleteSku = issuesBySku.keys().next().value;
   const {
     panelRef,
+    selectSku,
+    closeDetails,
+    backToDetails,
     editSku,
     addSku,
     updateEditor,
     resumeEditor,
     closeEditor,
+    discardEdits,
+    discardDraft,
+    showSetupIssues,
     stage,
     setReviewing,
   } = useFeeEditor(savedItems, viewState, onViewStateChange);
   const editorItem = editing
     ? (savedItems.find((item) => item.sku === editing.sku) ?? newSkuItem(editing.sku))
     : null;
+  const selectedItem = effectiveItems.find((item) => item.sku === viewState.selectedSku) ?? null;
+  const selectedSavedItem = savedItems.find((item) => item.sku === viewState.selectedSku) ?? null;
+  const selectedHasDraft =
+    administrator && drafts.some((draft) => draft.sku === viewState.selectedSku);
   return (
     <div ref={panelRef} tabIndex={-1} className="fee-panel">
       <WorkspaceHeader
@@ -151,12 +164,11 @@ export function CurrentFees({
       ) : null}
       {configuration.data ? (
         <>
-          {incompleteSkus.size > 0 ? (
+          {nextIncompleteSku !== undefined ? (
             <Alert color="orange" mb="md">
               <Group justify="space-between" gap="xs">
                 <Text size="sm" fw={500} c="var(--ui-text)">
-                  {incompleteSkus.size} {incompleteSkus.size === 1 ? "SKU needs" : "SKUs need"}{" "}
-                  setup
+                  {issuesBySku.size} {issuesBySku.size === 1 ? "SKU needs" : "SKUs need"} setup
                 </Text>
                 {administrator ? (
                   <Button
@@ -165,7 +177,7 @@ export function CurrentFees({
                     disabled={isSaving}
                     onClick={(event) => {
                       event.currentTarget.focus({ preventScroll: true });
-                      editSku([...incompleteSkus][0]);
+                      editSku(nextIncompleteSku);
                     }}
                   >
                     Complete next SKU
@@ -190,31 +202,76 @@ export function CurrentFees({
             companies={companies}
             issuesBySku={issuesBySku}
             administrator={administrator}
-            isSaving={isSaving}
-            onEdit={editSku}
-            onShowTransactions={onShowTransactions}
+            onSelect={selectSku}
             viewState={viewState}
             onViewStateChange={onViewStateChange}
           />
         </>
       ) : null}
-      {administrator && configuration.data && editorItem && editing ? (
-        <SkuConfigurationEditor
-          key={editing.sku}
-          item={editorItem}
-          editing={editing}
-          onEditingChange={updateEditor}
-          companies={identity.companies}
-          knownSkus={effectiveItems.map((item) => item.sku)}
-          onEditExisting={editSku}
-          onClose={closeEditor}
-          onDiscard={() => {
-            closeEditor(true);
-          }}
-          onStage={stage}
-          onAddCompany={onAddCompany}
-        />
-      ) : null}
+      <DetailDrawer
+        opened={Boolean(configuration.data && (selectedItem ?? (administrator && editing)))}
+        title={editing ? (editing.isNew ? "Add SKU" : `Edit ${editing.sku}`) : "Fee details"}
+        closeLabel={editing ? "Close SKU editor" : "Close fee details"}
+        size="min(960px, 100vw)"
+        classNames={{
+          content: "sku-configuration-drawer-content",
+          body: "sku-configuration-drawer-body",
+          title: "sku-configuration-drawer-title",
+        }}
+        onClose={editing ? closeEditor : closeDetails}
+      >
+        {administrator && configuration.data && editorItem && editing ? (
+          <SkuConfigurationEditor
+            key={editing.sku}
+            item={editorItem}
+            editing={editing}
+            onEditingChange={updateEditor}
+            companies={identity.companies}
+            knownSkus={effectiveItems.map((item) => item.sku)}
+            onEditExisting={editSku}
+            onDiscard={discardEdits}
+            onStage={stage}
+            onAddCompany={onAddCompany}
+            onBackToDetails={backToDetails}
+            onShowTransactions={() => {
+              closeEditor();
+              onShowTransactions(editing.sku);
+            }}
+          />
+        ) : selectedItem ? (
+          <SkuConfigurationDetails
+            item={selectedItem}
+            savedItem={selectedSavedItem}
+            companyName={companyLabel(selectedItem.company_id, companies)}
+            issues={issuesBySku.get(selectedItem.sku) ?? []}
+            administrator={administrator}
+            isSaving={isSaving}
+            hasDraft={selectedHasDraft}
+            schedules={
+              <SkuFeeSchedules
+                identity={identity}
+                item={selectedItem}
+                savedItem={selectedSavedItem}
+                companies={companies}
+                hasDraft={selectedHasDraft}
+              />
+            }
+            hasUnfinishedEdit={viewState.editorDrafts.some(
+              (draft) => draft.sku === selectedItem.sku,
+            )}
+            onEdit={() => {
+              editSku(selectedItem.sku);
+            }}
+            onDiscardDraft={() => {
+              discardDraft(selectedItem.sku);
+            }}
+            onShowTransactions={(sku) => {
+              closeDetails();
+              onShowTransactions(sku);
+            }}
+          />
+        ) : null}
+      </DetailDrawer>
       {administrator && configuration.data && reviewing ? (
         <SkuConfigurationReview
           drafts={drafts}
@@ -242,23 +299,8 @@ export function CurrentFees({
             );
           }}
           onEdit={editSku}
-          onDiscard={(sku) => {
-            onViewStateChange((current) => ({
-              ...current,
-              drafts: current.drafts.filter((draft) => draft.sku !== sku),
-            }));
-          }}
-          onShowIncomplete={() => {
-            setReviewing(false);
-            onViewStateChange((current) => ({
-              ...current,
-              statuses: ["needs-setup"],
-              companyIds: [],
-              marketplaces: [],
-              search: "",
-              pageIndex: 0,
-            }));
-          }}
+          onDiscard={discardDraft}
+          onShowIncomplete={showSetupIssues}
           onClose={() => {
             setReviewing(false);
           }}

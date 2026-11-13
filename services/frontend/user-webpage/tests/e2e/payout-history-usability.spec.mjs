@@ -1,3 +1,9 @@
+import {
+  payoutHistoryControls,
+  payoutHistoryRows,
+  payoutLatestRow,
+  payoutScopeRows,
+} from "./payout-history-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { expectFullyInViewport } from "./viewport-assertions.mjs";
@@ -25,14 +31,14 @@ async function setupHistory(page) {
   const opener = page.getByRole("button", { name: `Show versions for ${scope}`, exact: true });
   await opener.scrollIntoViewIfNeeded();
   const table = page.getByRole("region", { name: "Financial table", exact: true });
-  const history = page.getByRole("region", { name: `Report versions for ${scope}`, exact: true });
+  const history = payoutHistoryControls(page, scope);
   return { fixture, opener, table, history };
 }
 
 async function openHistory(page) {
   const { fixture, opener, history } = await setupHistory(page);
   await opener.click();
-  await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
+  await expect(payoutHistoryRows(page, scope)).toHaveCount(49);
   return { fixture, history };
 }
 
@@ -59,24 +65,35 @@ for (const width of [320, 390, 1440]) {
         ),
       }));
     const before = await position();
-    if (width < 1020) expect(before.tableLeft).toBeGreaterThan(0);
     try {
       await opener.click();
       await expect(history.getByText("Loading report versions…", { exact: true })).toBeVisible();
+      await expect(
+        payoutLatestRow(page, scope).locator('[data-column="marketplace_name"]'),
+      ).toHaveAttribute("rowspan", "2");
       expect(await position()).toEqual(before);
       response.resolve();
-      await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
+      await expect(payoutHistoryRows(page, scope)).toHaveCount(49);
+      await expect(
+        payoutLatestRow(page, scope).locator('[data-column="marketplace_name"]'),
+      ).toHaveAttribute("rowspan", "51");
+      await expect(
+        payoutScopeRows(page, scope).locator('[data-column="marketplace_name"]'),
+      ).toHaveCount(1);
       expect(await position()).toEqual(before);
-      await expect(history.getByText("Report versions", { exact: true })).toBeInViewport();
+      await expect(table.locator("table")).toHaveCount(1);
       await expect(
         page.getByRole("button", { name: `Hide versions for ${scope}`, exact: true }),
       ).toBeFocused();
+      await expect(
+        page.getByRole("button", { name: `Hide versions for ${scope}`, exact: true }),
+      ).toBeInViewport();
       await page.screenshot({ path: testInfo.outputPath(`history-open-${width}.png`) });
     } finally {
       response.resolve();
     }
     await page.reload();
-    await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
+    await expect(payoutHistoryRows(page, scope)).toHaveCount(49);
     await expect(history).not.toBeFocused();
   });
 }
@@ -97,6 +114,10 @@ for (const width of [320, 390, 1440]) {
     await next.scrollIntoViewIfNeeded();
     await next.press("Enter");
     await expect(history.getByRole("alert")).toBeVisible();
+    await expect(
+      payoutLatestRow(page, scope).locator('[data-column="marketplace_name"]'),
+    ).toHaveAttribute("rowspan", "2");
+    await expect(history.locator("xpath=ancestor::td")).toHaveAttribute("colspan", "4");
     await expectFullyInViewport(
       history.getByRole("button", { name: "Retry versions", exact: true }),
     );
@@ -104,9 +125,12 @@ for (const width of [320, 390, 1440]) {
     await expect(previous).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath(`history-error-${width}.png`) });
     await previous.press("Enter");
-    await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(50);
+    await expect(payoutHistoryRows(page, scope)).toHaveCount(49);
+    await expect(
+      payoutLatestRow(page, scope).locator('[data-column="marketplace_name"]'),
+    ).toHaveAttribute("rowspan", "51");
     await expect(history).toBeFocused();
-    await expect(history.getByText("Report versions", { exact: true })).toBeInViewport();
+    await expect(history).toBeInViewport();
     await page.screenshot({ path: testInfo.outputPath(`history-recovered-${width}.png`) });
     expect(
       fixture.requests
@@ -127,10 +151,12 @@ test("loading a later report-version page keeps focus on a stable history region
   });
   try {
     await history.getByRole("button", { name: "Next", exact: true }).press("Enter");
-    await expect(history.getByRole("status")).toHaveText("Loading report versions…");
+    await expect(
+      history.getByRole("status").filter({ hasText: "Loading report versions…" }),
+    ).toHaveText("Loading report versions…");
     await expect(history).toBeFocused();
     response.resolve();
-    await expect(history.getByRole("table").locator("tbody tr")).toHaveCount(1);
+    await expect(payoutHistoryRows(page, scope)).toHaveCount(1);
     await expect(history).toBeFocused();
   } finally {
     response.resolve();

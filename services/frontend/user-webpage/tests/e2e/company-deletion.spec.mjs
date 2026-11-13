@@ -6,7 +6,6 @@ import {
   companyCreation,
   companyPanel,
   companyRow,
-  companyToggle,
 } from "./company-actions.mjs";
 import {
   COMPANY,
@@ -21,7 +20,7 @@ const UNUSED = "0198b50b-701a-7000-8000-000000000800";
 const EXTRA = "0198b50b-701a-7000-8000-000000000801";
 const button = (parent, name) => parent.getByRole("button", { name, exact: true });
 const tab = (page, name) => page.getByRole("tab", { name, exact: true });
-const toggle = (page, name = "Unused Company") => companyToggle(page, name);
+const row = (page, name = "Unused Company") => companyRow(page, name);
 const company = (page, name = "Unused Company") => companyPanel(page, name);
 const confirmation = (page, name = "Unused Company") =>
   page.getByRole("region", { name: `Delete ${name}`, exact: true });
@@ -36,8 +35,7 @@ async function start(page, configure = () => {}) {
 }
 
 async function askToDelete(page, name = "Unused Company") {
-  if ((await toggle(page, name).getAttribute("aria-expanded")) !== "true")
-    await toggle(page, name).click();
+  if (!(await company(page, name).isVisible())) await row(page, name).click();
   await expect(company(page, name)).toBeVisible();
   await button(company(page, name), "Delete company").click();
   await expect(confirmation(page, name)).toBeVisible();
@@ -46,7 +44,7 @@ async function askToDelete(page, name = "Unused Company") {
 async function deleteConfirmed(page, name = "Unused Company") {
   await askToDelete(page, name);
   await button(confirmation(page, name), "Delete permanently").click();
-  await expect(toggle(page, name)).toHaveCount(0);
+  await expect(row(page, name)).toHaveCount(0);
 }
 
 test("administrator explicitly deletes an unused company and all company pickers update", async ({
@@ -65,7 +63,7 @@ test("administrator explicitly deletes an unused company and all company pickers
   await expect(
     page.getByRole("button", { name: "Remove Company: Unused Company", exact: true }),
   ).toHaveCount(0);
-  await expect(toggle(page, "Alpha Company")).toBeVisible();
+  await expect(row(page, "Alpha Company")).toBeVisible();
   await expect(
     page.getByRole("status").filter({ hasText: "Company deleted: Unused Company" }),
   ).toBeVisible();
@@ -123,7 +121,7 @@ test("historical fee versions and every linked-record reason block deletion even
     "Payout reports: 5",
     "Payout refreshes: 1",
   ]);
-  await expect(toggle(page)).toBeVisible();
+  await expect(row(page)).toBeVisible();
   expect(fixture.companyNames[UNUSED]).toBe("Unused Company");
   expect(fixture.membershipRequests).toHaveLength(0);
   expect(fixture.configurationSaves).toHaveLength(0);
@@ -145,13 +143,13 @@ test("a just-created company can be deleted without waiting for a catalog refres
     "Company added: Temporary Company",
   );
   await closeCompanyCreation(page);
-  await expect(toggle(page, "Temporary Company")).toBeVisible();
+  await expect(row(page, "Temporary Company")).toBeVisible();
   const id = fixture.companyCreationRequests[0].result.id;
   await deleteConfirmed(page, "Temporary Company");
   expect(fixture.companyNames[id]).toBeUndefined();
   await tab(page, "Current fees").click();
   await tab(page, "Companies").click();
-  await expect(toggle(page, "Temporary Company")).toHaveCount(0);
+  await expect(row(page, "Temporary Company")).toHaveCount(0);
 });
 
 test("confirmation is not submitted on reload and a pending deletion cannot be repeated", async ({
@@ -160,7 +158,7 @@ test("confirmation is not submitted on reload and a pending deletion cannot be r
   const fixture = await start(page);
   await askToDelete(page);
   await page.reload();
-  await expect(toggle(page)).toBeVisible();
+  await expect(row(page)).toBeVisible();
   await expect(confirmation(page)).toHaveCount(0);
   expect(fixture.companyDeletionRequests).toHaveLength(0);
   const started = deferred(),
@@ -177,7 +175,7 @@ test("confirmation is not submitted on reload and a pending deletion cannot be r
     await page.keyboard.press("Enter");
     expect(fixture.companyDeletionRequests).toHaveLength(1);
     release.resolve();
-    await expect(toggle(page)).toHaveCount(0);
+    await expect(row(page)).toHaveCount(0);
   } finally {
     release.resolve();
   }
@@ -191,12 +189,12 @@ test("an uncertain deletion keeps the row until an explicit safe retry confirms 
   await askToDelete(page);
   await button(confirmation(page), "Delete permanently").click();
   await expect(confirmation(page).getByRole("alert")).toBeVisible();
-  await expect(toggle(page)).toBeVisible();
+  await expect(row(page)).toBeVisible();
   expect(fixture.companyDeletionRequests).toHaveLength(1);
   expect(fixture.companyNames[UNUSED]).toBeUndefined();
   fixture.companyDeletionNetworkFailure = false;
   await button(confirmation(page), "Delete permanently").click();
-  await expect(toggle(page)).toHaveCount(0);
+  await expect(row(page)).toHaveCount(0);
   await expect(
     page.getByRole("status").filter({ hasText: "Company already deleted: Unused Company" }),
   ).toBeVisible();
@@ -205,19 +203,26 @@ test("an uncertain deletion keeps the row until an explicit safe retry confirms 
 
 test("stale identity refreshes cannot resurrect a confirmed deletion", async ({ page }) => {
   const fixture = await start(page);
-  const stale = Object.entries(fixture.companyNames).map(([id, name]) => ({ id, name }));
+  const stale = Object.entries(fixture.companyNames).map(([id, name]) => ({
+    id,
+    name,
+    created_at: "2026-08-01T12:34:56Z",
+  }));
   await deleteConfirmed(page);
-  fixture.companyCatalogRows = [...stale, { id: EXTRA, name: "Extra Company" }];
+  fixture.companyCatalogRows = [
+    ...stale,
+    { id: EXTRA, name: "Extra Company", created_at: "2026-08-01T12:34:56Z" },
+  ];
   fixture.revisions.fees = "1";
   await page.evaluate(() => globalThis.dispatchEvent(new Event("online")));
-  await expect(toggle(page, "Extra Company")).toBeVisible();
-  await expect(toggle(page)).toHaveCount(0);
+  await expect(row(page, "Extra Company")).toBeVisible();
+  await expect(row(page)).toHaveCount(0);
   await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
   fixture.companyCatalogRows = null;
   fixture.revisions.fees = "2";
   await page.evaluate(() => globalThis.dispatchEvent(new Event("online")));
-  await expect(toggle(page, "Extra Company")).toHaveCount(0);
-  await expect(toggle(page)).toHaveCount(0);
+  await expect(row(page, "Extra Company")).toHaveCount(0);
+  await expect(row(page)).toHaveCount(0);
   expect(fixture.companyDeletionRequests).toHaveLength(1);
 });
 
@@ -263,10 +268,10 @@ test("deleting the last row on the last page returns the directory to a populate
         `Company ${i}`;
   });
   await button(page, "Next").click();
-  await expect(toggle(page)).toBeVisible();
+  await expect(row(page)).toBeVisible();
   await deleteConfirmed(page);
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
-  await expect(toggle(page, "Alpha Company")).toBeVisible();
+  await expect(row(page, "Alpha Company")).toBeVisible();
   expect(Object.keys(fixture.companyNames)).toHaveLength(25);
 });
 

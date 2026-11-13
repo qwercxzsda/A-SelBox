@@ -21,7 +21,7 @@ const periodAmounts = (page) =>
 test("unequal source memberships show net sales and fulfillment differences rather than separate gross offsets", async ({
   page,
   expectAccessible,
-}) => {
+}, testInfo) => {
   const fixture = await openFinancialReview(page, setupEconomicFamilies);
   await categoryTab(page, "Finances").click();
   await expect(periodAmounts(page)).toHaveText(["76.00 USD", "76.00 USD", "0.00 USD"]);
@@ -36,11 +36,24 @@ test("unequal source memberships show net sales and fulfillment differences rath
     await expect(row).toContainText("Both sources");
   }
   const sales = familyRow(page, "Net product sales");
-  await sales.locator("summary").click();
-  await expect(sales).toContainText(
+  const tableHeight = (await breakdown(page).boundingBox()).height;
+  await sales
+    .getByRole("button", { name: "Family definition for Net product sales", exact: true })
+    .click();
+  const salesDefinition = page.locator(".help-popover");
+  await expect(salesDefinition).toContainText(
     "Defined Finances types: PRODUCT_SALES, PRODUCT_REFUNDS, ZERO_ACTIVITY",
   );
-  await expect(sales).toContainText("Defined Data Kiosk types: NET_PRODUCT_SALES");
+  await expect(salesDefinition).toContainText("Defined Data Kiosk types: NET_PRODUCT_SALES");
+  expect((await breakdown(page).boundingBox()).height).toBe(tableHeight);
+  await page.screenshot({
+    path: testInfo.outputPath("family-definition-desktop.png"),
+    animations: "disabled",
+  });
+  await salesDefinition
+    .getByRole("button", { name: "Close Family definition for Net product sales", exact: true })
+    .click();
+  await expect(salesDefinition).toBeHidden();
   await sales.getByRole("button", { name: "Show only Net product sales", exact: true }).click();
   await expect(periodAmounts(page)).toHaveText(["80.00 USD", "80.00 USD", "0.00 USD"]);
   const legend = page.getByRole("list", { name: "Fee family legend", exact: true });
@@ -71,13 +84,14 @@ test("unequal source memberships show net sales and fulfillment differences rath
   expect(monthlyTypeFilter()).toContain(
     'source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES")',
   );
+  await expect(page.getByRole("dialog")).toHaveCount(1);
   await expectAccessible("net-economic-family-month");
 });
 
 test("SelBox groups account purposes and retains a zero balance without inventing a Kiosk counterpart", async ({
   page,
   expectAccessible,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openFinancialReview(page, setupEconomicFamilies);
   await categoryTab(page, "SelBox").click();
@@ -92,11 +106,22 @@ test("SelBox groups account purposes and retains a zero balance without inventin
     "0.00",
     "Finances-only family",
   ]);
-  await balance.locator("summary").click();
-  await expect(balance).toContainText("Defined Data Kiosk types: No counterpart defined");
-  await expect(balance).toContainText(
+  await balance
+    .getByRole("button", { name: "Family definition for Balance movements", exact: true })
+    .click();
+  const balanceDefinition = page.locator(".help-popover");
+  await expect(balanceDefinition).toContainText("Defined Data Kiosk types: No counterpart defined");
+  await expect(balanceDefinition).toContainText(
     "Observed Finances types: CROSS_ACCOUNT_ADJUSTMENTS, DEBT_RECOVERY, RESERVE_MOVEMENTS",
   );
+  await page.screenshot({
+    path: testInfo.outputPath("family-definition-phone.png"),
+    animations: "disabled",
+  });
+  await balanceDefinition
+    .getByRole("button", { name: "Close Family definition for Balance movements", exact: true })
+    .click();
+  await expect(balanceDefinition).toBeHidden();
   await expect(familyRow(page, "Subscription")).toContainText("Both sources");
   await chooseFamilies(page, ["Balance movements", "Subscription"]);
   await expect(familyMenu(page)).toBeHidden();
