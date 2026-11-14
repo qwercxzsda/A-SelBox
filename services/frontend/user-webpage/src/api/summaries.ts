@@ -1,5 +1,5 @@
 import { decodeMarketplaceCurrencyTotals, decodeTypeTotals } from "./aggregates.ts";
-import { companySelectionValues, requireDateRange, textSelectionValues } from "./filters.ts";
+import { transactionFilterArguments } from "./transaction-page.ts";
 import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import { readOffsetRpcRows } from "./rpc-pagination.ts";
 import { requireAccessToken, type ApiTransport } from "./transport.ts";
@@ -18,14 +18,13 @@ import type {
 function buildPeriodArguments(options: FetchTransactionPeriodTotalsOptions) {
   const { dateFrom, dateTo } = options;
   if (!dateFrom && !dateTo) throw new Error("At least one date bound is required");
-  requireDateRange(dateFrom, dateTo);
-  return {
-    p_date_from: dateFrom || null,
-    p_date_to: dateTo || null,
-    p_company_ids: companySelectionValues(options.companyIds),
-    p_skus: textSelectionValues("sku", options.skus).sort(),
-    p_marketplaces: textSelectionValues("marketplace_name", options.marketplaces).sort(),
-  };
+  return transactionFilterArguments({
+    accessToken: options.accessToken,
+    dataset: "live",
+    search: options.search,
+    searchValues: options.searchValues,
+    filters: options,
+  });
 }
 
 export function createSummaryApi(
@@ -77,16 +76,6 @@ export function createSummaryApi(
         search: "",
         sort: { column: "activity_at", direction: "desc" },
         includeCount: false,
-        filters: {
-          companyIds: [],
-          skus: [],
-          marketplaces: [],
-          dateFrom: "",
-          dateTo: "",
-          sources: [],
-          types: [],
-          feeApplicability: [],
-        },
       });
       if (rows.length === 0) return null;
       if (rows.length !== 1) throw new Error("Latest transaction date returned multiple rows");

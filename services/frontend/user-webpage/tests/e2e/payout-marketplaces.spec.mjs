@@ -68,7 +68,7 @@ for (const [role, width] of [
     await expect(payoutHistoryRows(page, scope)).toHaveCount(1);
     await expect(payoutHistoryRows(page, scope)).not.toContainText("190.00 EUR");
     await payoutHistoryRows(page, scope).click();
-    const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+    const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
     await expect(drawer.locator(".detail-drawer-context")).toContainText("Amazon.de · EUR");
     await expect(drawer).toContainText("90.00");
     await expect(page).toHaveURL(/reportMarketplace=Amazon.de/);

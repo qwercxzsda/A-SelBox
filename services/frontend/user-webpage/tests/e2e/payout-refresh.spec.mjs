@@ -16,7 +16,7 @@ async function checkForUpdates(page, fixture) {
   const before = completedPolls(fixture);
   await page.clock.fastForward(60_000);
   await expect.poll(() => completedPolls(fixture)).toBeGreaterThan(before);
-  await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
+  await expect(page.getByText("Updating…", { exact: true })).toHaveCount(0);
 }
 
 for (const role of ["administrator", "member"]) {

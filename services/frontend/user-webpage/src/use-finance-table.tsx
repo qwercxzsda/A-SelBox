@@ -135,6 +135,7 @@ export function useFinanceTable(
     query,
     totalCount,
     search,
+    debouncedSearch,
     changeSearch,
     filters,
     changeFilters,

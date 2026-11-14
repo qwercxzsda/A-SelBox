@@ -9,7 +9,7 @@ import {
   summaryAmount as amount,
 } from "./summary-fixtures.mjs";
 
-test("daily and previous-month totals include both sources, stay exact, and ignore search and pagination", async ({
+test("daily and previous-month totals stay exact, ignore pagination, and apply search", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
@@ -26,6 +26,7 @@ test("daily and previous-month totals include both sources, stay exact, and igno
       ...liveRow("KIOSK", 1),
       activity_date: "2026-03-15",
       source: "DATA_KIOSK",
+      activity_at: "2026-03-15T23:59:59.999999Z",
       source_amount: "50.123456789012345678",
       fee_amount: "-2.5",
       company_amount: "47.623456789012345678",
@@ -70,19 +71,14 @@ test("daily and previous-month totals include both sources, stay exact, and igno
     },
   ];
   fixture.aggregateRows = [
-    summaryBucket("2026-02-03", "0.123456789012345678"),
-    summaryBucket("2026-02-20", "10", { currency: "EUR" }),
-    summaryBucket("2026-02-20", "0.000000000000000002", {
-      serviceFee: "-0.000000000000000001",
-      companyAmount: "0.000000000000000001",
-    }),
-    summaryBucket("2026-03-10", "30", { rowCount: 30 }),
-    summaryBucket("2026-03-15", "20", { currency: "EUR", serviceFee: "-1", companyAmount: "19" }),
-    summaryBucket("2026-03-15", "150.123456789012345678", {
-      serviceFee: "-7.5",
-      companyAmount: "142.623456789012345678",
-      rowCount: 2,
-    }),
+    ...fixture.liveRows.map((row) => ({
+      ...row,
+      ...summaryBucket(row.activity_date, row.source_amount, {
+        currency: row.currency,
+        serviceFee: row.fee_amount,
+        companyAmount: row.company_amount,
+      }),
+    })),
     summaryBucket("2026-03-16", "0"),
   ];
   fixture.assignments = skuAssignments(fixture.liveRows.map(({ sku }) => sku));
@@ -134,23 +130,17 @@ test("daily and previous-month totals include both sources, stay exact, and igno
   const summaryRequestCount = fixture.aggregateRequests.length;
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
+  expect(fixture.aggregateRequests).toHaveLength(summaryRequestCount);
   await page.getByLabel("Search", { exact: true }).fill("SALE");
   await expect(
     page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
   ).toHaveCount(2);
 
-  await expect(amount(day, "Reported amount")).toHaveText("150.12 USD");
-
-  await expect(amount(month, "Reported amount")).toHaveText("0.12 USD");
-  expect(fixture.aggregateRequests).toHaveLength(summaryRequestCount);
-
-  await expect(amount(day, "Reported amount", "EUR")).toHaveText("20.00 EUR");
-
-  await expect(amount(month, "Reported amount", "EUR")).toHaveText("10.00 EUR");
-
-  await expect(day).toContainText("150.12 USD");
-
-  await expect(month).toContainText("0.12 USD");
+  await expect(amount(day, "Reported amount")).toHaveText("100.00 USD");
+  await expect(month).toContainText("No transactions");
+  expect(fixture.aggregateRequests.length).toBeGreaterThan(summaryRequestCount);
+  await expect(amount(day, "Reported amount", "EUR")).toHaveCount(0);
+  await expect(amount(month, "Reported amount", "EUR")).toHaveCount(0);
 });
 
 for (const [latest, currentStart, previousStart, previousEnd, previousLabel, dayLabel] of [

@@ -53,7 +53,10 @@ for (const [dataset, tab] of [
       } else await expect(row.locator('[data-column="quantity"]')).toHaveText("1.23456789");
     }
     await rowWithSku(page, "MONEY-2").click();
-    const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+    const drawer = page.getByRole("dialog", {
+      name: dataset === "live" ? "Transaction details" : `${tab} record details`,
+      exact: true,
+    });
     await expect(drawer.getByText("1.01 JPY", { exact: true })).toBeVisible();
     if (dataset === "live") {
       await expect(drawer.locator(".field-label").filter({ hasText: /^Quantity$/ })).toHaveCount(1);

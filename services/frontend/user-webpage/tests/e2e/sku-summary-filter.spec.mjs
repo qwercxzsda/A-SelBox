@@ -108,11 +108,11 @@ async function openSelectedBreakdown(page, expected, marketplace = "Amazon.com")
       exact: false,
     })
     .click();
-  const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Transaction totals", exact: true });
   await expect(
     amount(dialog.getByRole("region", { name: "Breakdown total", exact: true }), "Reported amount"),
   ).toHaveText(expected);
-  await dialog.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
+  await dialog.getByRole("button", { name: "Sales & refunds details", exact: true }).click();
   await expect(
     dialog.getByRole(page.viewportSize().width < 720 ? "article" : "row", {
       name: "Product sales amounts",
@@ -160,54 +160,104 @@ function expectUnfilteredDiscovery(fixture, count = 1) {
   }
 }
 
-test("member SKU filters change amounts without moving shared periods, while record-only filters stay independent", async ({
+test("member totals, type breakdowns and records intersect every selected filter while dates only change the selected period", async ({
   page,
 }) => {
   const fixture = await skuFixture(page);
+  const refund = {
+    ...fixture.aggregateRows[1],
+    activity_date: "2026-02-18",
+    component_type: "PRODUCT_REFUNDS",
+    source_amount: "-2",
+    reported_amount: "-2",
+    company_amount: "-2",
+  };
+  fixture.aggregateRows.push(refund);
+  fixture.aggregateRowsByUser["member-a"].push(refund);
+  fixture.liveRows.push({ ...liveRow("SKU", 100, COMPANY_A), ...refund });
   await signIn(page);
+  await totals(page).summaries.waitFor();
   await expectAnchors(page, "May 10, 2026", "April 2026");
   await expectTotal(page, "Last day", "Amazon.com", "Reported amount", "700.00 USD");
   await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "300.00 USD");
-  await selectValues(page, "SKU", ["ALPHA"]);
+  await applyDates(page, "2026-01-01", "2026-02-28");
+  await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "13.00 USD");
+  await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "127.12 USD");
+  await applyDates(page, "2026-02-01", "2026-02-28");
+  await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "8.00 USD");
+  await expectTotal(page, "Last day", "Amazon.com", "Reported amount", "700.00 USD");
+  await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "300.00 USD");
+
+  await selectValues(page, "SKU", ["ALPHA", "BETA"]);
   await expectEmpty(page, "Last day");
+  await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "300.00 USD");
+  await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "120.12 USD");
+  await selectValues(page, "Source", ["Finances"], ["Finances", "Data Kiosk"]);
+  await expectEmpty(page, "Selected dates", "Amazon.co.jp");
+  await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "8.00 USD");
+  await selectValues(page, "Type", ["Product sales"], ["Product sales"]);
+  await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "10.00 USD");
+  await page.getByLabel("Search", { exact: true }).fill("ALPHA");
   await expectEmpty(page, "Last month");
-  await expectEmpty(page, "Last day", "Amazon.co.jp");
-  await expectAnchors(page, "May 10, 2026", "April 2026");
-  expectUnfilteredDiscovery(fixture);
+  await selectValues(page, "Service fee", ["Not applicable"], ["Applicable", "Not applicable"]);
+  await expectEmpty(page, "Selected dates");
+  await selectValues(page, "Service fee", ["Applicable"], ["Applicable", "Not applicable"]);
+  await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "10.00 USD");
+
+  const scope = {
+    p_company_ids: [],
+    p_skus: ["ALPHA", "BETA"],
+    p_sources: ["FINANCES"],
+    p_types: ["PRODUCT_SALES"],
+    p_fee_applicable: true,
+    p_search_skus: ["ALPHA"],
+    p_search_types: [],
+    p_search_marketplaces: [],
+    p_search_sources: [],
+  };
   const periods = fixture.aggregateRequests.filter(
-    ({ params }) => params.get("sku") === skuScope("ALPHA"),
+    ({ args }) => args.p_fee_applicable === true && args.p_search_skus?.includes("ALPHA"),
   );
   expect(periods.map(({ args }) => [args.p_date_from, args.p_date_to])).toEqual(
     expect.arrayContaining([
       ["2026-05-10", "2026-05-10"],
       ["2026-04-01", "2026-04-30"],
+      ["2026-02-01", "2026-02-28"],
     ]),
   );
-  await applyDates(page, "2026-01-01", "2026-02-28");
-  await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "15.00 USD");
-  await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "100.12 USD");
-  const requestCount = fixture.aggregateRequests.length;
-  await selectValues(page, "Source", ["Finances"], ["Finances", "Data Kiosk"]);
-  await selectValues(page, "Type", ["Product sales"], ["Product sales"]);
+  for (const { args } of periods) expect(args).toMatchObject(scope);
+
+  const dialog = await openSelectedBreakdown(page, "10.00 USD");
+  const detailScope = {
+    ...scope,
+    p_marketplaces: ["Amazon.com"],
+    p_date_from: "2026-02-01",
+    p_date_to: "2026-02-28",
+    p_currency: "USD",
+  };
+  expect(fixture.breakdownRequests.at(-1).args).toMatchObject(detailScope);
+  const drawerFilters = dialog.getByRole("region", { name: "Applied filters", exact: true });
+  for (const value of ["ALPHA", "BETA", "Amazon.com", "Finances", "Product sales", "Applicable"])
+    await expect(drawerFilters).toContainText(value);
+  const records = dialog.getByRole("table", { name: "Amount records", exact: true });
+  await expect(records.locator("tbody tr")).toHaveCount(1);
+  await expect(records).toContainText("ALPHA");
+  const recordRequest = () => fixture.summaryRecordRequests.at(-1);
+  expect(recordRequest().args).toMatchObject(detailScope);
+  await dialog.getByRole("button", { name: "View Product sales records", exact: true }).click();
+  await expect(records.locator("tbody tr")).toHaveCount(1);
+  expect(recordRequest().args).toMatchObject(detailScope);
+  await dialog.getByRole("button", { name: "Show all records", exact: true }).click();
+  await expect(records.locator("tbody tr")).toHaveCount(1);
+  expect(recordRequest().args).toMatchObject(detailScope);
+  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+
   await page.getByLabel("Search", { exact: true }).fill("NO MATCH");
   await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
-  await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "100.12 USD");
-  expect(fixture.aggregateRequests).toHaveLength(requestCount);
-  const dialog = await openSelectedBreakdown(page, "100.12 USD", "Amazon.co.jp");
-  const args = fixture.breakdownRequests.at(-1).args;
-  expect(args).toMatchObject({
-    p_skus: ["ALPHA"],
-    p_marketplaces: ["Amazon.co.jp"],
-    p_company_ids: [],
-  });
-  expect("p_sources" in args).toBe(false);
-  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
-  await selectValues(page, "SKU", ["ALPHA", "BETA"]);
+  await expectEmpty(page, "Selected dates");
   await expectEmpty(page, "Last day");
-  await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "300.00 USD");
-  await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "120.12 USD");
-  await openSelectedBreakdown(page, "120.12 USD", "Amazon.co.jp");
-  expect(fixture.breakdownRequests.at(-1).args.p_skus).toEqual(["ALPHA", "BETA"]);
+  await expectEmpty(page, "Last month");
+  await expectAnchors(page, "May 10, 2026", "April 2026");
   expectUnfilteredDiscovery(fixture);
 });
 

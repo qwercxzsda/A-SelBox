@@ -15,7 +15,15 @@ test("restored summary scope excludes cached amounts and validates query bounds"
       range: { from: "2026-06-01", to: "2026-06-30" },
       totals: [{ companyAmount: "999" }],
     },
-    scope: { companyIds: [], skus: ['A,(quoted)"'], marketplaces: ["Amazon.com"] },
+    scope: {
+      companyIds: [],
+      skus: ['A,(quoted)"'],
+      marketplaces: ["Amazon.com"],
+      sources: ["FINANCES"],
+      types: ["PRODUCT_SALES"],
+      feeApplicability: ["applicable"],
+      search: "quoted",
+    },
   };
   const restored = decodeSummaryBreakdown(input);
   assert.deepEqual(restored.period, { label: "June 2026", range: input.period.range });

@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import "./SummaryFilters.css";
 
 export interface SummaryFilter {
-  label: "Company" | "SKU" | "Marketplace";
+  label: "Company" | "SKU" | "Marketplace" | "Source" | "Type" | "Fee rate" | "Search";
   values: string[];
 }
 

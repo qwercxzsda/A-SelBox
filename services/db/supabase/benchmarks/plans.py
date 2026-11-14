@@ -162,7 +162,6 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
             ("text[]", args.get("p_search_sources")),
             ("boolean", amount),
             ("text", args.get("p_currency")),
-            ("boolean", args.get("p_include_selbox", True)),
         ]
     else:
         dataset = args.get("p_dataset")
@@ -220,7 +219,6 @@ def _read_query(
         "p_types": ("text[]", args.get("p_types")),
         "p_fee_applicable": ("boolean", args.get("p_fee_applicable")),
         "p_currency": ("text", args.get("p_currency")),
-        "p_include_selbox": ("boolean", args.get("p_include_selbox", True)),
         "p_group_by_type": ("boolean", args.get("p_group_by_type", False)),
         "p_limit": ("integer", args.get("p_limit", 1000)),
         "p_offset": ("bigint", args.get("p_offset", 0)),

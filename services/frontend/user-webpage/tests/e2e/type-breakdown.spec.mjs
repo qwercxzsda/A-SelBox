@@ -10,7 +10,7 @@ import {
   typeBucket,
 } from "./summary-fixtures.mjs";
 
-const drawer = (page) => page.getByRole("dialog", { name: "Amounts by type", exact: true });
+const drawer = (page) => page.getByRole("dialog", { name: "Transaction totals", exact: true });
 const view = (page, title, currency = "USD") =>
   page.getByRole("button", {
     name: `View ${title} for Amazon.com in ${currency} by type`,
@@ -30,11 +30,15 @@ async function expandGroups(page) {
   }
 }
 
-test("breakdowns load lazily for the chosen period and all types, independently of source and search filters", async ({
+test("breakdowns load lazily for the chosen period and matching types with source and search filters", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
   fixture.breakdownPageCap = 1;
+  const excluded = [
+    { ...typeBucket("SOURCE_EXCLUDED", "999"), source: "DATA_KIOSK", sku: "TARGET-001" },
+    { ...typeBucket("SEARCH_EXCLUDED", "888"), source: "FINANCES", sku: "OTHER-002" },
+  ];
   fixture.aggregateRows = [
     summaryBucket("2026-02-28", "97.123456789012345678", {
       serviceFee: "-5.123456789012345678",
@@ -44,7 +48,13 @@ test("breakdowns load lazily for the chosen period and all types, independently 
     }),
     summaryBucket("2026-03-15", "50"),
     summaryBucket("2026-03-16", "0"),
-  ];
+  ].map((row) => ({ ...row, source: "FINANCES", sku: "TARGET-001" }));
+  fixture.aggregateRows.push(
+    ...excluded.map((row) => ({
+      ...row,
+      activity_date: row.source === "DATA_KIOSK" ? "2026-02-27" : "2026-02-28",
+    })),
+  );
   fixture.breakdownRows = [
     typeBucket("PRINCIPAL", "100.123456789012345678", {
       serviceFee: "-5.123456789012345678",
@@ -58,7 +68,8 @@ test("breakdowns load lazily for the chosen period and all types, independently 
       rowCount: 2,
       knownCompanyCount: 0,
     }),
-  ];
+  ].map((row) => ({ ...row, source: "FINANCES", sku: "TARGET-001" }));
+  fixture.breakdownRows.push(...excluded);
   fixture.liveRows = [
     { ...liveRow("TARGET", 1), activity_date: "2026-03-15" },
     {
@@ -69,6 +80,7 @@ test("breakdowns load lazily for the chosen period and all types, independently 
   ];
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
+  await summaryPeriods(page).summaries.waitFor();
 
   await expect(view(page, "Last day")).toBeVisible();
 
@@ -89,6 +101,10 @@ test("breakdowns load lazily for the chosen period and all types, independently 
   await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
   await expect.poll(() => fixture.requests.at(-1).params.get("source")).toBe('in.("FINANCES")');
+  await expect(summaryAmount(summaryPeriods(page).month, "Reported amount")).toHaveText(
+    "97.12 USD",
+  );
+  await expect(summaryAmount(summaryPeriods(page).day, "Reported amount")).toHaveText("50.00 USD");
   const tableRequestCount = fixture.requests.length;
   const summaryRequestCount = fixture.aggregateRequests.length;
 
@@ -97,6 +113,12 @@ test("breakdowns load lazily for the chosen period and all types, independently 
   const dialog = drawer(page);
   const table = dialog.getByRole("table", { name: "Transaction type amounts", exact: true });
   await expect(table.getByRole("row", { name: / amounts$/ })).toHaveCount(3);
+  await expect(
+    table.getByRole("row", { name: "Source excluded amounts", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    table.getByRole("row", { name: "Search excluded amounts", exact: true }),
+  ).toHaveCount(0);
   const principal = table.getByRole("row", { name: "Principal amounts", exact: true });
   await expect(principal.getByRole("cell").nth(0)).toHaveText("100.12 USD");
   await expect(principal.getByRole("cell").nth(1)).toHaveText("-5.12 USD");
@@ -129,9 +151,11 @@ test("breakdowns load lazily for the chosen period and all types, independently 
     expect(args.p_group_by_type).toBe(true);
     expect(params.get("and")).toBeNull();
     expect(args.p_marketplaces).toEqual(["Amazon.com"]);
-    for (const excluded of ["or", "source", "sku", "component_type"]) {
-      expect(params.get(excluded)).toBeNull();
-    }
+    expect(params.get("source")).toBe('in.("FINANCES")');
+    expect(params.get("or")).toContain("TARGET");
+    expect(args.p_search_skus).toEqual(["TARGET-001"]);
+    expect(params.get("sku")).toBeNull();
+    expect(params.get("component_type")).toBeNull();
   }
   expect(fixture.requests).toHaveLength(tableRequestCount);
   expect(fixture.aggregateRequests).toHaveLength(summaryRequestCount);

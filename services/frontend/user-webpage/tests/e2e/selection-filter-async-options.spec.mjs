@@ -31,7 +31,7 @@ for (const interaction of ["none", "next control", "return to Close"]) {
         }
       }
       options.resolve();
-      const search = menu.getByRole("textbox", { name: "Search fee families", exact: true });
+      const search = menu.getByRole("textbox", { name: "Search type families", exact: true });
       await expect(search).toBeVisible();
       await expect(menu.getByRole("checkbox")).toHaveCount(10);
       await expect(

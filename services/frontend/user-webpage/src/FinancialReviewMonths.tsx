@@ -14,9 +14,9 @@ import { useWorkspacePreference } from "./use-workspace-preference";
 import type { useFinancialReviewPeriod } from "./use-financial-review-period";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { revealSection } from "./reveal-section";
-import { FeeFamilyFilter, FeeFamilyScope, FeeFamilyError } from "./FeeFamilyFilter";
+import { TypeFamilyFilter, TypeFamilyScope, TypeFamilyError } from "./TypeFamilyFilter";
 import { FinancialReviewFamilyBreakdown } from "./FinancialReviewFamilies";
-import { normalizeFeeFamilyIds } from "./fee-family-catalog";
+import { normalizeTypeFamilyIds } from "./transaction-type-family-catalog";
 import type { ReviewCategory } from "./financial-review-categories";
 import marketplaces from "./generated/marketplaces.json";
 import "./FinancialReview.css";
@@ -90,7 +90,7 @@ export function FinancialReviewMonths({
     : comparisonUnavailable
       ? "Monthly summaries are unavailable."
       : hasSelectedFamilies
-        ? `No source records match the selected fee families for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` for ${year}` : ""}.`
+        ? `No source records match the selected type families for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` for ${year}` : ""}.`
         : `No source records for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` in ${year}` : ""}.`;
 
   return (
@@ -113,12 +113,12 @@ export function FinancialReviewMonths({
             changeScope({ ...scope, year: event.currentTarget.value });
           }}
         />
-        <FeeFamilyFilter
+        <TypeFamilyFilter
           triggerRef={familyTrigger}
           families={scope.families}
           options={familyOptions}
           onChange={(families) => {
-            changeScope({ ...scope, currency, families: normalizeFeeFamilyIds(families) });
+            changeScope({ ...scope, currency, families: normalizeTypeFamilyIds(families) });
           }}
         />
         {currencies.length > 1 ? (
@@ -134,8 +134,8 @@ export function FinancialReviewMonths({
         ) : null}
       </div>
       <Group className="financial-review-family-context" justify="space-between" gap="xs">
-        <FeeFamilyScope families={scope.families} />
-        <FeeFamilyError
+        <TypeFamilyScope families={scope.families} />
+        <TypeFamilyError
           error={familyQuery.isError}
           onRetry={() => {
             familyTrigger.current?.focus();

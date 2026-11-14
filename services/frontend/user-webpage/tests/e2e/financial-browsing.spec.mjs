@@ -123,7 +123,7 @@ for (const width of [1440, 834, 390]) {
       });
       await table.locator("tbody tr").first().focus();
       await page.keyboard.press("Enter");
-      const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+      const drawer = page.getByRole("dialog", { name: `${tab} record details`, exact: true });
       await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
       const metadata = drawer.getByRole("table", {
         name: "Additional record details",

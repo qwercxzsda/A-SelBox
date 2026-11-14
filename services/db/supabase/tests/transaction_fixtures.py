@@ -60,7 +60,6 @@ TRANSACTION_PARAMETER_TYPES = {
     "p_order_by": "text",
     **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
     "p_currency": "text",
-    "p_include_selbox": "boolean",
 }
 
 
@@ -102,8 +101,6 @@ class TransactionPageFixture(FinancialFixture):
                     )
                 )
                 parameters.append(options[name])
-        if options.get("p_include_selbox") is False:
-            predicates.append(sql.SQL("category <> 'SELBOX'"))
         if options.get("p_skus"):
             predicates.append(sql.SQL("category <> 'SELBOX'"))
         if options.get("p_fee_applicable") is not None:

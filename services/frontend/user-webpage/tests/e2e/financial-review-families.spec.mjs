@@ -45,7 +45,7 @@ async function expectPeriod(page, values, selectedYear = "2026") {
   await expect(summary.locator(".financial-review-summary-value")).toHaveText(values);
 }
 
-test("Lightning Deal fees participate in the Deals family without changing their native type", async ({
+test("Lightning Deal fees participate in the Deal fees family without changing their native type", async ({
   page,
 }) => {
   await openFinancialReview(page, (fixture) => {
@@ -79,7 +79,7 @@ test("Lightning Deal fees participate in the Deals family without changing their
       source_version_id: "0198b50b-701a-7000-8000-000000000020",
     }));
   });
-  await chooseFamilies(page, ["Deals"]);
+  await chooseFamilies(page, ["Deal fees"]);
   await expectPeriod(page, ["-12.00 USD", "-12.00 USD", "0.00 USD"]);
   await openMonth(page, "July 2026");
   const types = drawer(page).getByRole("table", { name: "Amounts by type", exact: true });
@@ -95,14 +95,14 @@ test("fee comparisons distinguish storage and advertising pairs and retain indiv
 }) => {
   await openFinancialReview(page, setupFamilies);
   await openMonth(page);
-  await drawer(page).getByRole("button", { name: "Fee family comparison", exact: true }).click();
+  await drawer(page).getByRole("button", { name: "Type family comparison", exact: true }).click();
   const comparison = drawer(page).getByRole("table", {
-    name: "Fee family comparison",
+    name: "Type family comparison",
     exact: true,
   });
   for (const [name, values] of [
-    ["Monthly storage", ["-10.00", "-8.00", "-2.00", "Both sources"]],
-    ["Aged storage", ["-20.00", "-18.00", "-2.00", "Both sources"]],
+    ["Monthly storage fees", ["-10.00", "-8.00", "-2.00", "Both sources"]],
+    ["Aged inventory surcharges", ["-20.00", "-18.00", "-2.00", "Both sources"]],
     ["Sponsored products", ["-30.00", "-25.00", "-5.00", "Both sources"]],
     ["Future fee · Finances", ["-11.00", "0.00", "-11.00", "Finances-only family"]],
     ["Future fee · Data Kiosk", ["0.00", "-9.00", "9.00", "Data Kiosk-only family"]],
@@ -119,11 +119,11 @@ test("fee comparisons distinguish storage and advertising pairs and retain indiv
   await expect(
     drawer(page).getByRole("heading", { name: "February 2026", exact: true }),
   ).toBeVisible();
-  await drawer(page).getByRole("button", { name: "Fee family comparison", exact: true }).click();
+  await drawer(page).getByRole("button", { name: "Type family comparison", exact: true }).click();
   await expect(comparison.locator("tbody tr")).toHaveCount(3);
   for (const [name, values] of [
-    ["Monthly storage", ["-4.00", "-1.00", "-3.00", "Both sources"]],
-    ["Aged storage", ["-10.00", "-12.00", "2.00", "Both sources"]],
+    ["Monthly storage fees", ["-4.00", "-1.00", "-3.00", "Both sources"]],
+    ["Aged inventory surcharges", ["-10.00", "-12.00", "2.00", "Both sources"]],
     ["Sponsored products", ["-5.00", "-10.00", "5.00", "Both sources"]],
   ]) {
     await expect(familyAmounts(page, comparison, name)).toHaveText(values);
@@ -134,16 +134,16 @@ test("a union of families drives exact signed monthly, running, period and chart
   page,
 }, testInfo) => {
   await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   await expect(overview(page).locator("tbody tr")).toHaveCount(3);
   await expectMonth(page, "January 2026", ["-40.01", "-33.00", "-7.01", "-7.01"]);
   await expectMonth(page, "February 2026", ["-9.01", "-11.00", "1.99", "-5.01"]);
   await expectMonth(page, "March 2026", ["0.00", "0.00", "0.00", "-5.01"]);
   await expectPeriod(page, ["-49.02 USD", "-44.00 USD", "-5.01 USD"]);
-  await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
-  const breakdown = page.getByRole("table", { name: "Yearly fee family breakdown", exact: true });
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
+  const breakdown = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
   await expect(breakdown.locator("tbody tr")).toHaveCount(2);
-  await expect(familyAmounts(page, breakdown, "Monthly storage")).toHaveText([
+  await expect(familyAmounts(page, breakdown, "Monthly storage fees")).toHaveText([
     "-14.01",
     "-9.00",
     "-5.01",
@@ -169,7 +169,7 @@ test("a union of families drives exact signed monthly, running, period and chart
     /^March 2026: Monthly difference 0\.00 USD; Running difference -5\.01 USD(?:\n|$)/,
   );
   await page.screenshot({
-    path: testInfo.outputPath("fee-family-overview-desktop.png"),
+    path: testInfo.outputPath("type-family-overview-desktop.png"),
     fullPage: true,
     animations: "disabled",
   });
@@ -207,7 +207,7 @@ test("family scope survives year, currency, category, history and reload without
   page,
 }) => {
   await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   await expect
     .poll(() => new URL(page.url()).searchParams.getAll("family"))
     .toEqual(["monthly-storage", "sponsored-products"]);
@@ -226,14 +226,14 @@ test("family scope survives year, currency, category, history and reload without
     0,
   );
   await expect(page.getByRole("region", { name: "2026 review totals" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
   await expect(
-    page.getByRole("region", { name: "Fee family breakdown", exact: true }),
+    page.getByRole("region", { name: "Type family breakdown", exact: true }),
   ).toContainText(
-    "No source types match these fee families for Amazon.com in this year and currency.",
+    "No source types match these type families for Amazon.com in this year and currency.",
   );
   await expect(
-    page.getByRole("table", { name: "Yearly fee family breakdown", exact: true }),
+    page.getByRole("table", { name: "Yearly type family breakdown", exact: true }),
   ).toHaveCount(0);
   await page.goBack();
   await expect(category(page, "Data Kiosk")).toHaveAttribute("aria-selected", "true");
@@ -249,11 +249,13 @@ test("monthly totals, alias types and source records keep the selected family un
   page,
 }) => {
   await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   await openMonth(page, "February 2026");
-  await expect(drawer(page)).toContainText("Fee families: Monthly storage, Sponsored products");
+  await expect(drawer(page)).toContainText(
+    "Type families: Monthly storage fees, Sponsored products",
+  );
   await expect(
-    drawer(page).getByRole("heading", { name: "Selected fee family totals", exact: true }),
+    drawer(page).getByRole("heading", { name: "Selected type family totals", exact: true }),
   ).toBeVisible();
   await expect(drawer(page)).toContainText(
     "This comparison is diagnostic and never changes transaction amounts or saved payouts.",
@@ -308,7 +310,7 @@ test("a failed family catalog keeps filtered totals unavailable while retry and 
   page,
 }) => {
   const fixture = await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   await expectPeriod(page, ["-49.02 USD", "-44.00 USD", "-5.01 USD"]);
   const isYearCatalog = ({ endpoint, params }) =>
     endpoint === "financial_review_type_totals" &&
@@ -317,7 +319,7 @@ test("a failed family catalog keeps filtered totals unavailable while retry and 
   const failCatalog = (request) => (isYearCatalog(request) ? 503 : 200);
   fixture.financialReviewStatusForRequest = failCatalog;
   await page.reload();
-  const retry = page.getByRole("button", { name: "Retry fee families", exact: true });
+  const retry = page.getByRole("button", { name: "Retry type families", exact: true });
   await expect(retry).toBeVisible();
   await expect(page.getByRole("region", { name: "2026 review totals", exact: true })).toHaveCount(
     0,
@@ -361,7 +363,7 @@ test("a failed family catalog keeps filtered totals unavailable while retry and 
   await familyTrigger(page).press("Enter");
   const failedMenu = familyMenu(page);
   await expect(failedMenu.getByRole("checkbox", { checked: true })).toHaveCount(2);
-  await failedMenu.getByRole("button", { name: "Clear fee families", exact: true }).press("Enter");
+  await failedMenu.getByRole("button", { name: "Clear type families", exact: true }).press("Enter");
   await expect(failedMenu.getByRole("checkbox")).toHaveCount(0);
   const close = failedMenu.getByRole("button", { name: "Close options", exact: true });
   await expect(close).toBeFocused();
@@ -391,14 +393,14 @@ test("an empty review without a resolved year settles without requesting or load
   await familyTrigger(page).click();
   await expect(familyMenu(page)).toContainText("No options available.");
   await expect(
-    familyMenu(page).getByRole("button", { name: "Clear fee families", exact: true }),
+    familyMenu(page).getByRole("button", { name: "Clear type families", exact: true }),
   ).toBeDisabled();
   await familyMenu(page).getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Fee family breakdown", exact: true })).toHaveCount(
-    0,
-  );
-  await expect(page.getByText("Loading fee family breakdown…", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Retry fee families", exact: true })).toHaveCount(
+  await expect(
+    page.getByRole("button", { name: "Type family breakdown", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Loading type family breakdown…", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Retry type families", exact: true })).toHaveCount(
     0,
   );
   expect(
@@ -412,7 +414,7 @@ test("source coverage failures keep selected family comparisons unavailable unti
   page,
 }) => {
   const fixture = await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   fixture.financialReviewStatusForRequest = ({ endpoint }) =>
     endpoint === "current_source_totals" ? 503 : 200;
   await page.reload();
@@ -442,7 +444,7 @@ test("monthly family comparison reports a failed coverage read and retries both 
   page,
 }) => {
   const fixture = await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   fixture.financialReviewStatusForRequest = ({ endpoint, params }) =>
     endpoint === "current_source_totals" && params.get("p_start") === "2026-02-01" ? 503 : 200;
   await openMonth(page, "February 2026");
@@ -459,7 +461,7 @@ test("monthly family comparison reports a failed coverage read and retries both 
   ).toContainText("1.99");
 });
 
-test("phone keyboard selection keeps fee-family controls reachable and accessible", async ({
+test("phone keyboard selection keeps type-family controls reachable and accessible", async ({
   page,
   expectAccessible,
 }, testInfo) => {
@@ -470,12 +472,12 @@ test("phone keyboard selection keeps fee-family controls reachable and accessibl
   await trigger.press("Enter");
   const options = familyMenu(page);
   await expect(options).toBeVisible();
-  for (const name of ["Monthly storage", "Sponsored products"]) {
+  for (const name of ["Monthly storage fees", "Sponsored products"]) {
     const checkbox = options.getByRole("checkbox", { name, exact: true });
     await checkbox.press("Space");
     await expect(checkbox).toBeChecked();
   }
-  await expectAccessible("fee-family-options-phone");
+  await expectAccessible("type-family-options-phone");
   await page.keyboard.press("Escape");
   await expect(options).toBeHidden();
   await expect(trigger).toBeFocused();
@@ -489,13 +491,13 @@ test("phone keyboard selection keeps fee-family controls reachable and accessibl
     )
     .toBe(true);
   await page.screenshot({
-    path: testInfo.outputPath("fee-family-overview-phone.png"),
+    path: testInfo.outputPath("type-family-overview-phone.png"),
     fullPage: true,
     animations: "disabled",
   });
-  await expectAccessible("fee-family-overview-phone");
+  await expectAccessible("type-family-overview-phone");
   await trigger.press("Enter");
-  const clear = options.getByRole("button", { name: "Clear fee families", exact: true });
+  const clear = options.getByRole("button", { name: "Clear type families", exact: true });
   await expectFullyInViewport(clear);
   await clear.press("Enter");
   await expect(options.getByRole("checkbox").first()).toBeFocused();

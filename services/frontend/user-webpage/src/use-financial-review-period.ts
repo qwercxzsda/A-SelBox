@@ -13,7 +13,7 @@ import {
   type ReviewScope,
 } from "./financial-review-view";
 import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
-import { buildFeeFamilyOptions } from "./fee-family-catalog";
+import { buildTypeFamilyOptions } from "./transaction-type-family-catalog";
 import {
   applyComparisonCoverage,
   buildSourceComparisons,
@@ -98,7 +98,7 @@ export function useFinancialReviewPeriod(
       ? (familyQuery.data?.rows ?? [])
       : null;
   const familyTypes = compatibleFamilyTypes ?? [];
-  const familyOptions = buildFeeFamilyOptions(familyTypes, scope.families);
+  const familyOptions = buildTypeFamilyOptions(familyTypes, scope.families);
   const rows = currency
     ? buildFinancialReviewTimeline(
         scope.families.length

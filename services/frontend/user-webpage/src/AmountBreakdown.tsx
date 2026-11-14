@@ -97,7 +97,7 @@ export function AmountBreakdown({
       <DetailSection
         ref={amountsRef}
         title="Amounts by type"
-        description="Breakdown of the total above by type. Expand a category to view its types and records."
+        description="Breakdown of the total above by type. Expand a type group to view its types and records."
         actions={<LoadingStatus state={loading && totals !== undefined ? "updating" : null} />}
       >
         {error ? (

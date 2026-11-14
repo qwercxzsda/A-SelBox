@@ -258,7 +258,7 @@ than silently treated as rounding or eventual corrections.
 Several independent cost controls agree: Japan's **¥42,900 labeling** and **¥5,249 aged storage**
 match exactly across January–September, as does Canada's **CAD 495.18 aged storage**. US inbound
 transport differs by only **$0.0001**, aged storage by **−$0.0001**, and coupon totals match.
-The observed discrepancies are specific fee families and operations, not a uniform failure of
+The observed discrepancies are specific type families and operations, not a uniform failure of
 all Data Kiosk cost amounts.
 
 Advertising differences are quantified separately; their underlying cause remains deferred

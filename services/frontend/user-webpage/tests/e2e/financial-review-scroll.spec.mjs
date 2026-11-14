@@ -9,7 +9,8 @@ test.use({ viewport: { width: 1440, height: 600 } });
 
 const monthly = (page) =>
   page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-const saved = (page) => page.getByRole("dialog", { name: "Saved source details", exact: true });
+const saved = (page) =>
+  page.getByRole("dialog", { name: "Saved report source details", exact: true });
 
 function documentState(page) {
   return page.evaluate(() => {

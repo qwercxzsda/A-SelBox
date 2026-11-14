@@ -176,7 +176,7 @@ export function buildSourceComparisons(
   });
 }
 
-/** Apply the same missing-data rules to a fee-family projection of the native type totals. */
+/** Apply the same missing-data rules to a type-family projection of the native type totals. */
 export function applyComparisonCoverage(
   rows: readonly CanonicalRow[],
   result: SourceTotals,

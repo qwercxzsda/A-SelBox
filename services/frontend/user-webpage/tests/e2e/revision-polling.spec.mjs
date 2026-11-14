@@ -109,7 +109,7 @@ test("unchanged periodic revisions perform one small request and retain every fi
   expect(financialRequests(fixture)).toEqual(financial);
   expect(fixture.identityRequests).toHaveLength(identity);
   expect(fixture.authRequests).toBe(1);
-  await expect(page.getByRole("dialog", { name: "Amounts by type", exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Transaction totals", exact: true })).toBeVisible();
 });
 
 for (const source of ["finances", "data_kiosk"]) {

@@ -8,7 +8,7 @@ const categoryTab = (page, name) =>
     .getByRole("tablist", { name: "Financial review", exact: true })
     .getByRole("tab", { name, exact: true });
 const breakdown = (page) =>
-  page.getByRole("table", { name: "Yearly fee family breakdown", exact: true });
+  page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
 const familyRow = (page, label) =>
   breakdown(page)
     .getByRole("row")
@@ -25,16 +25,19 @@ test("unequal source memberships show net sales and fulfillment differences rath
   const fixture = await openFinancialReview(page, setupEconomicFamilies);
   await categoryTab(page, "Finances").click();
   await expect(periodAmounts(page)).toHaveText(["76.00 USD", "76.00 USD", "0.00 USD"]);
-  await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
-  await expect(breakdown(page).locator("tbody tr")).toHaveCount(2);
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
+  await expect(breakdown(page).locator("tbody tr")).toHaveCount(3);
   for (const [label, amounts] of [
     ["Net product sales", ["80.00", "80.00", "0.00"]],
-    ["FBA fulfillment", ["-4.00", "-4.00", "0.00"]],
+    ["FBA fulfillment fees", ["-4.00", "-4.00", "0.00"]],
   ]) {
     const row = familyRow(page, label);
     await expect(row.locator("td:nth-child(n + 2):nth-child(-n + 4)")).toHaveText(amounts);
     await expect(row).toContainText("Both sources");
   }
+  const zero = familyRow(page, "Zero-value activity");
+  await expect(zero.locator("td").nth(1)).toHaveText("0.00");
+  await expect(zero).toContainText("Finances-only family");
   const sales = familyRow(page, "Net product sales");
   const tableHeight = (await breakdown(page).boundingBox()).height;
   await sales
@@ -42,7 +45,7 @@ test("unequal source memberships show net sales and fulfillment differences rath
     .click();
   const salesDefinition = page.locator(".help-popover");
   await expect(salesDefinition).toContainText(
-    "Defined Finances types: PRODUCT_SALES, PRODUCT_REFUNDS, ZERO_ACTIVITY",
+    "Defined Finances types: PRODUCT_SALES, PRODUCT_REFUNDS",
   );
   await expect(salesDefinition).toContainText("Defined Data Kiosk types: NET_PRODUCT_SALES");
   expect((await breakdown(page).boundingBox()).height).toBe(tableHeight);
@@ -56,14 +59,14 @@ test("unequal source memberships show net sales and fulfillment differences rath
   await expect(salesDefinition).toBeHidden();
   await sales.getByRole("button", { name: "Show only Net product sales", exact: true }).click();
   await expect(periodAmounts(page)).toHaveText(["80.00 USD", "80.00 USD", "0.00 USD"]);
-  const legend = page.getByRole("list", { name: "Fee family legend", exact: true });
+  const legend = page.getByRole("list", { name: "Type family legend", exact: true });
   await expect(legend.locator("li")).toHaveCount(1);
   await expect(legend.locator(".financial-review-chart-source-only")).toHaveCount(0);
   await page.getByRole("button", { name: "Open review for January 2026", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
   await expect(
     drawer.getByRole("table", { name: "Amounts by type", exact: true }).locator("tbody tr"),
-  ).toHaveCount(4);
+  ).toHaveCount(3);
   const monthlyTypeFilter = () =>
     fixture.financialReviewRequests
       .find(
@@ -78,9 +81,7 @@ test("unequal source memberships show net sales and fulfillment differences rath
           params.get("offset") === "0",
       )
       ?.params.get("or");
-  await expect
-    .poll(monthlyTypeFilter)
-    .toContain('"PRODUCT_SALES","PRODUCT_REFUNDS","ZERO_ACTIVITY"');
+  await expect.poll(monthlyTypeFilter).toContain('"PRODUCT_SALES","PRODUCT_REFUNDS"');
   expect(monthlyTypeFilter()).toContain(
     'source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES")',
   );
@@ -96,9 +97,16 @@ test("SelBox groups account purposes and retains a zero balance without inventin
   await openFinancialReview(page, setupEconomicFamilies);
   await categoryTab(page, "SelBox").click();
   await expect(periodAmounts(page)).toHaveText(["-12.00 USD", "-5.00 USD", "-7.00 USD"]);
-  await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
-  await expect(breakdown(page).locator("tbody tr")).toHaveCount(5);
-  await expect(familyRow(page, "Seller service fees").locator("td").nth(3)).toHaveText("-9.00");
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
+  await expect(breakdown(page).locator("tbody tr")).toHaveCount(8);
+  for (const [family, difference] of [
+    ["EPR compliance fees", "-2.00"],
+    ["Vine enrollment fees", "-3.00"],
+    ["Inbound defect fees", "-4.00"],
+    ["Supply-chain credits", "2.00"],
+    ["Other account adjustments", "-1.00"],
+  ])
+    await expect(familyRow(page, family).locator("td").nth(3)).toHaveText(difference);
   const balance = familyRow(page, "Balance movements");
   await expect(balance.locator("td:nth-child(n + 2):nth-child(-n + 5)")).toHaveText([
     "0.00",
@@ -122,8 +130,8 @@ test("SelBox groups account purposes and retains a zero balance without inventin
     .getByRole("button", { name: "Close Family definition for Balance movements", exact: true })
     .click();
   await expect(balanceDefinition).toBeHidden();
-  await expect(familyRow(page, "Subscription")).toContainText("Both sources");
-  await chooseFamilies(page, ["Balance movements", "Subscription"]);
+  await expect(familyRow(page, "Seller subscription fees")).toContainText("Both sources");
+  await chooseFamilies(page, ["Balance movements", "Seller subscription fees"]);
   await expect(familyMenu(page)).toBeHidden();
   await expect(periodAmounts(page)).toHaveText(["-5.00 USD", "-5.00 USD", "0.00 USD"]);
   await expect(breakdown(page).locator("tbody tr")).toHaveCount(2);
@@ -148,7 +156,7 @@ test("current family links deduplicate and retain selection across reload and br
   await expect(periodAmounts(page)).toHaveText(["80.00 USD", "80.00 USD", "0.00 USD"]);
   await page.reload();
   await expect(periodAmounts(page)).toHaveText(["80.00 USD", "80.00 USD", "0.00 USD"]);
-  await chooseFamilies(page, ["FBA fulfillment"]);
+  await chooseFamilies(page, ["FBA fulfillment fees"]);
   await expect(periodAmounts(page)).toHaveText(["76.00 USD", "76.00 USD", "0.00 USD"]);
   await page.goBack();
   await expect

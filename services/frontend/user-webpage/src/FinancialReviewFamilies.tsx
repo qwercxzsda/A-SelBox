@@ -42,10 +42,10 @@ function FamilyDefinition({ row }: { row: CanonicalRow }) {
   );
 }
 
-function FeeFamilyTable({
+function TypeFamilyTable({
   rows,
   currency,
-  label = "Fee family comparison",
+  label = "Type family comparison",
   onSelectFamily,
 }: {
   rows: CanonicalRow[];
@@ -70,7 +70,7 @@ function FeeFamilyTable({
         <Text size="sm" fw={500}>
           Finances − Data Kiosk
         </Text>
-        <HelpPopover label="Fee family comparison help">
+        <HelpPopover label="Type family comparison help">
           <p>
             Each source type belongs to one economic family. Related charges, refunds, and
             corrections retain their original signs. Families are ordered by the largest absolute
@@ -94,7 +94,7 @@ function FeeFamilyTable({
           rows={rankedRows}
           rowKey={(row) => row.family_id ?? ""}
           columns={[
-            { key: "family", label: "Fee family" },
+            { key: "family", label: "Type family" },
             { key: "finances_amount", label: `Finances (${currency})`, kind: "amount" },
             { key: "data_kiosk_amount", label: `Data Kiosk (${currency})`, kind: "amount" },
             { key: "difference", label: `Difference (${currency})`, kind: "amount" },
@@ -152,7 +152,7 @@ export function FinancialReviewFamilyBreakdown({
       : [];
   return (
     <DetailSection
-      title="Fee family breakdown"
+      title="Type family breakdown"
       headingOrder={3}
       stateKey={`financial-review:family-breakdown:${category}`}
       collapsible
@@ -162,14 +162,14 @@ export function FinancialReviewFamilyBreakdown({
           [query, sourceQuery],
           consistent && sourceTotals !== undefined && sameSourceRevision(sourceTotals, query.data),
         )}
-        label="fee family breakdown"
+        label="type family breakdown"
         rowCount={rows.length}
-        emptyMessage={`No source types match these fee families for ${marketplace} in this year and currency.`}
+        emptyMessage={`No source types match these type families for ${marketplace} in this year and currency.`}
       >
-        <FeeFamilyTable
+        <TypeFamilyTable
           rows={rows}
           currency={currency}
-          label="Yearly fee family breakdown"
+          label="Yearly type family breakdown"
           onSelectFamily={onSelectFamily}
         />
       </DetailData>
@@ -199,11 +199,11 @@ export function FinancialReviewFamilies(scope: FinancialReviewMonthScope) {
         [query, sourceQuery],
         consistent && sourceConsistent && sameSourceRevision(sourceQuery.data, query.data),
       )}
-      label="fee family comparison"
+      label="type family comparison"
       rowCount={rows.length}
-      emptyMessage="No source types match these fee families."
+      emptyMessage="No source types match these type families."
     >
-      <FeeFamilyTable rows={rows} currency={currency} />
+      <TypeFamilyTable rows={rows} currency={currency} />
     </DetailData>
   );
 }

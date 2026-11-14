@@ -139,7 +139,10 @@ for (const dataset of DATASETS) {
         animations: "disabled",
       });
       await first.click();
-      const details = page.getByRole("dialog", { name: "Selected row details", exact: true });
+      const details = page.getByRole("dialog", {
+        name: dataset.key === "live" ? "Transaction details" : `${dataset.label} record details`,
+        exact: true,
+      });
       const fullType = details
         .locator(".detail-field")
         .filter({ has: page.getByText("Type", { exact: true }) })

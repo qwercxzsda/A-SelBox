@@ -66,7 +66,7 @@ function breakdown(row) {
 }
 
 for (const width of [1440, 390]) {
-  test(`company totals exclude signed SelBox activity while the transaction list retains it at ${width}px`, async ({
+  test(`totals and breakdowns sum the same eligible rows as the transaction list at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -99,6 +99,7 @@ for (const width of [1440, 390]) {
     fixture.aggregatePageCap = 1;
     fixture.breakdownPageCap = 1;
     await signIn(page);
+    await page.getByRole("region", { name: "Current totals", exact: true }).waitFor();
 
     // The latest transaction still determines the global UTC anchor, even if it belongs to SelBox.
     await expect(
@@ -110,30 +111,26 @@ for (const width of [1440, 390]) {
     const totals = summaryPeriods(page);
     await expect(totals.day).toContainText("No transactions");
     for (const [label, expected] of [
-      ["Reported amount", "80.00 USD"],
+      ["Reported amount", "120.00 USD"],
       ["Service fee", "-5.00 USD"],
       ["Company amount", "75.00 USD"],
     ])
       await expect(summaryAmount(totals.month, label)).toHaveText(expected);
     await expect(totals.month.locator("[data-record-count]")).toHaveAttribute(
       "data-record-count",
-      "2",
+      "4",
     );
-    await expect(summaryPeriods(page, "Amazon.ca").month).toContainText("No transactions");
     await expect(
-      summaryPeriods(page, "Amazon.ca").month.locator("[data-amount-field]"),
-    ).toHaveCount(0);
+      summaryAmount(summaryPeriods(page, "Amazon.ca").month, "Reported amount", "CAD"),
+    ).toHaveText("60.00 CAD");
 
     const main = page.getByRole("table", { name: "Financial records", exact: true });
     await expect(main.locator("tbody tr")).toHaveCount(6);
     await expect(main).toContainText("ACCOUNT-DEBT-003");
     await expect(main).toContainText("ACCOUNT-SUBSCRIPTION-004");
-    expect(fixture.latestRequests[0].args.p_include_selbox).not.toBe(false);
-    expect(fixture.requests.at(-1).args.p_include_selbox).not.toBe(false);
-    expect(fixture.countRequests.at(-1).args.p_include_selbox).not.toBe(false);
 
     await applyDates(page, "2026-10-01", "2026-10-31");
-    await expect(summaryAmount(totals.selected, "Reported amount")).toHaveText("80.00 USD");
+    await expect(summaryAmount(totals.selected, "Reported amount")).toHaveText("120.00 USD");
     await expect(main.locator("tbody tr")).toHaveCount(5);
     await page
       .getByRole("button", {
@@ -141,39 +138,31 @@ for (const width of [1440, 390]) {
         exact: false,
       })
       .click();
-    const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+    const dialog = page.getByRole("dialog", { name: "Transaction totals", exact: true });
     await expect(
       dialog.getByRole("region", { name: "Breakdown total", exact: true }).locator("dd"),
-    ).toHaveText(["80.00 USD", "-5.00 USD", "75.00 USD"]);
+    ).toHaveText(["120.00 USD", "-5.00 USD", "75.00 USD"]);
     await expect(
       dialog.getByRole("region", { name: "Breakdown total", exact: true }),
-    ).toContainText("2 records across 2 types");
-    await expect(dialog).not.toContainText("Debt recovery");
-    await expect(dialog).not.toContainText("Subscription fees");
+    ).toContainText("4 records across 4 types");
+    await expect(dialog).toContainText("Debt recovery");
+    await expect(dialog).toContainText("Subscription fees");
     const records = dialog.getByRole("table", { name: "Amount records", exact: true });
-    await expect(records.locator("tbody tr")).toHaveCount(2);
+    await expect(records.locator("tbody tr")).toHaveCount(4);
     await expect(records).toContainText("PRODUCT-SALE-001");
     await expect(records).toContainText("STORAGE-COST-002");
-    await expect(records).not.toContainText("ACCOUNT-");
-    expect(fixture.summaryRecordRequests.at(-1).args.p_include_selbox).toBe(false);
+    await expect(records).toContainText("ACCOUNT-DEBT");
     expect(fixture.summaryRecordRequests.at(-1).args.p_types).toEqual([]);
 
-    await dialog.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
-    await dialog
-      .getByRole("button", { name: "View Sales and refunds records", exact: true })
-      .click();
+    await dialog.getByRole("button", { name: "Sales & refunds details", exact: true }).click();
+    await dialog.getByRole("button", { name: "View Sales & refunds records", exact: true }).click();
     await expect(records.locator("tbody tr")).toHaveCount(1);
     await dialog.getByRole("button", { name: "Show all records", exact: true }).click();
-    await expect(records.locator("tbody tr")).toHaveCount(2);
-    expect(
-      fixture.summaryRecordRequests.filter(({ args }) => args.p_include_selbox !== false),
-    ).toEqual([]);
+    await expect(records.locator("tbody tr")).toHaveCount(4);
   });
 }
 
-test("excluding SelBox preserves partial company amounts and counts only uncalculated company records", async ({
-  page,
-}) => {
+test("partial company amounts count only matching uncalculated records", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = COMPANY;

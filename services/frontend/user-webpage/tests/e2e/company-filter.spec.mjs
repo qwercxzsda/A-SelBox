@@ -23,6 +23,7 @@ async function companyFixture(page) {
   const bucket = (company, date, value, options) => ({
     ...summaryBucket(date, value, options),
     company_id: company,
+    source: "FINANCES",
   });
   fixture.aggregateRows = [
     bucket(COMPANY_A, "2026-01-10", "5"),
@@ -142,7 +143,7 @@ test("administrator company selections change amounts while shared UTC periods s
       exact: false,
     })
     .click();
-  const drawer = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Transaction totals", exact: true });
   const total = drawer.getByRole("region", { name: "Breakdown total", exact: true });
   await expect(amount(total, "Reported amount")).toHaveText("115.12 USD");
   await expect(amount(total, "Company amount")).toHaveText("110.00 USD");
@@ -257,8 +258,8 @@ test("company selection resets only the page and clearing it preserves other ref
   for (const { params } of fixture.aggregateRequests.filter(
     ({ params }) => params.get("company_id") === companyScope(COMPANY_A),
   )) {
-    expect(params.get("or")).toBeNull();
-    expect(params.get("source")).toBeNull();
+    expect(params.get("or")).toContain("Amazon");
+    expect(params.get("source")).toBe('in.("FINANCES")');
   }
   const table = page.getByRole("table", { name: "Financial records", exact: true });
   await expect(table.getByRole("cell", { name: "Company A", exact: true })).toHaveCount(25);
@@ -268,6 +269,12 @@ test("company selection resets only the page and clearing it preserves other ref
   await expect(table.getByRole("cell", { name: "Company A", exact: true })).toHaveCount(25);
   await chooseCompanies(page, []);
   await expect(page.getByRole("form", { name: "Page 1 of 3", exact: true })).toBeVisible();
+  await expect(amount(periods(page).selected, "Reported amount")).toHaveText("1,522.12 USD");
+  const clearedCompanyTotal = fixture.aggregateRequests.findLast(
+    ({ args }) => args.p_date_from === "2026-01-01" && args.p_company_ids.length === 0,
+  );
+  expect(clearedCompanyTotal.params.get("source")).toBe('in.("FINANCES")');
+  expect(clearedCompanyTotal.params.get("or")).toContain("Amazon");
   expect(fixture.requests.at(-1).params.get("source")).toBe('in.("FINANCES")');
   expect(fixture.requests.at(-1).params.getAll("activity_at")).toEqual([
     "gte.2026-01-01T00:00:00.000000Z",
@@ -374,7 +381,7 @@ test("signing in as a member removes the administrator company override and cont
     .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
     .click();
   const total = page
-    .getByRole("dialog", { name: "Amounts by type", exact: true })
+    .getByRole("dialog", { name: "Transaction totals", exact: true })
     .getByRole("region", { name: "Breakdown total", exact: true });
   await expect(amount(total, "Reported amount")).toHaveText("300.00 USD");
   for (const request of [

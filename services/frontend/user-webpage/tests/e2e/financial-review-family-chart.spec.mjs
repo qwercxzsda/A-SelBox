@@ -11,7 +11,7 @@ import { expectFullyInViewport } from "./viewport-assertions.mjs";
 
 const chart = (page) =>
   page.getByRole("figure", { name: "Monthly and running differences", exact: true });
-const legend = (page) => chart(page).getByRole("list", { name: "Fee family legend", exact: true });
+const legend = (page) => chart(page).getByRole("list", { name: "Type family legend", exact: true });
 const month = (page, abbreviation, name) =>
   chart(page).getByRole("button", {
     name: `${abbreviation}: View chart details for ${name}`,
@@ -30,14 +30,14 @@ test("family bars stack positive and negative differences separately and describ
 }, testInfo) => {
   await openFinancialReview(page, (fixture) => setupFamilies(fixture, { offsettingMarch: true }));
   const february = month(page, "Feb", "February 2026");
-  await expect(legend(page).getByText("Monthly storage", { exact: true })).toBeVisible();
+  await expect(legend(page).getByText("Monthly storage fees", { exact: true })).toBeVisible();
   await expect(february).toHaveAttribute(
     "title",
     /^February 2026: Monthly difference 3\.99 USD; Running difference -7\.01 USD(?:\n|$)/,
   );
   for (const description of [
-    "Monthly storage: Monthly difference -3.00 USD; Running difference -5.01 USD",
-    "Aged storage: Monthly difference 2.00 USD; Running difference 0.00 USD",
+    "Monthly storage fees: Monthly difference -3.00 USD; Running difference -5.01 USD",
+    "Aged inventory surcharges: Monthly difference 2.00 USD; Running difference 0.00 USD",
     "Sponsored products: Monthly difference 5.00 USD; Running difference -0.01 USD",
     "Future fee · Finances (Finances only): Monthly difference 0.00 USD; Running difference -11.00 USD",
     "Future fee · Data Kiosk (Data Kiosk only): Monthly difference 0.00 USD; Running difference 9.00 USD",
@@ -121,7 +121,7 @@ test("family colors and legend identities remain stable when selecting and clear
     );
   }
   expect(new Set(colors.values()).size).toBe(3);
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   await expect
     .poll(() => seriesIds(legend(page).locator("[data-family-id]")))
     .toEqual(["monthly-storage", "sponsored-products"]);
@@ -135,11 +135,13 @@ test("family colors and legend identities remain stable when selecting and clear
     "title",
     /^February 2026: Monthly difference 1\.99 USD; Running difference -5\.01 USD(?:\n|$)/,
   );
-  await expect.poll(() => february.getAttribute("title")).not.toContain("Aged storage:");
+  await expect
+    .poll(() => february.getAttribute("title"))
+    .not.toContain("Aged inventory surcharges:");
   await clearFamilies(page);
   for (const id of ids)
     await expect(segment(february, id)).toHaveCSS("background-color", colors.get(id));
-  await expect(legend(page).getByText("Aged storage", { exact: true })).toBeVisible();
+  await expect(legend(page).getByText("Aged inventory surcharges", { exact: true })).toBeVisible();
 });
 
 test("phone family checkboxes search and clear with the standard keyboard flow", async ({
@@ -151,18 +153,20 @@ test("phone family checkboxes search and clear with the standard keyboard flow",
   const trigger = familyTrigger(page);
   await trigger.press("Enter");
   const menu = familyMenu(page);
-  const search = menu.getByRole("textbox", { name: "Search fee families", exact: true });
+  const search = menu.getByRole("textbox", { name: "Search type families", exact: true });
   await expect(search).toBeFocused();
   await search.fill("storage");
-  await expect(menu.getByRole("checkbox")).toHaveCount(2);
-  await menu.getByRole("checkbox", { name: "Monthly storage", exact: true }).press("Space");
+  await expect(menu.getByRole("checkbox")).toHaveCount(1);
+  await menu.getByRole("checkbox", { name: "Monthly storage fees", exact: true }).press("Space");
   await search.fill("products");
   await expect(menu.getByRole("checkbox")).toHaveCount(1);
   await menu.getByRole("checkbox", { name: "Sponsored products", exact: true }).press("Space");
   await menu.getByRole("button", { name: "Clear option search", exact: true }).press("Enter");
   await expect(search).toBeFocused();
   await expect(menu.getByRole("checkbox")).toHaveCount(10);
-  await expect(menu.getByRole("checkbox", { name: "Monthly storage", exact: true })).toBeChecked();
+  await expect(
+    menu.getByRole("checkbox", { name: "Monthly storage fees", exact: true }),
+  ).toBeChecked();
   await expect(
     menu.getByRole("checkbox", { name: "Sponsored products", exact: true }),
   ).toBeChecked();
@@ -173,7 +177,7 @@ test("phone family checkboxes search and clear with the standard keyboard flow",
     path: testInfo.outputPath("family-checkbox-search-phone.png"),
     animations: "disabled",
   });
-  await menu.getByRole("button", { name: "Clear fee families", exact: true }).press("Enter");
+  await menu.getByRole("button", { name: "Clear type families", exact: true }).press("Enter");
   await expect(search).toBeFocused();
   await expect(menu.getByRole("checkbox", { checked: true })).toHaveCount(0);
   await menu.getByRole("button", { name: "Done", exact: true }).press("Enter");
@@ -220,7 +224,7 @@ test("inconsistent family aggregates keep total values visible until a coordinat
   const before = fixture.financialReviewRequests.length;
   await figure.getByRole("button", { name: "Retry family chart", exact: true }).press("Enter");
   await expect(figure).toBeFocused();
-  await expect(legend(page).getByText("Monthly storage", { exact: true })).toBeVisible();
+  await expect(legend(page).getByText("Monthly storage fees", { exact: true })).toBeVisible();
   await expect(figure.getByRole("button", { name: "Retry family chart", exact: true })).toHaveCount(
     0,
   );

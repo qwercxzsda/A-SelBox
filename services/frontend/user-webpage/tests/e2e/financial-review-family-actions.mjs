@@ -1,8 +1,8 @@
 import { columnTrigger } from "./table-actions.mjs";
 
-export const familyTrigger = (page) => columnTrigger(page, "Fee families");
+export const familyTrigger = (page) => columnTrigger(page, "Type families");
 export const familyMenu = (page) =>
-  page.getByRole("dialog", { name: "Fee families options", exact: true });
+  page.getByRole("dialog", { name: "Type families options", exact: true });
 
 export async function chooseFamilies(page, names) {
   await familyTrigger(page).click();
@@ -14,7 +14,7 @@ export async function chooseFamilies(page, names) {
 export async function clearFamilies(page) {
   await familyTrigger(page).click();
   await familyMenu(page)
-    .getByRole("button", { name: "Clear fee families", exact: true })
+    .getByRole("button", { name: "Clear type families", exact: true })
     .press("Enter");
   await familyMenu(page).getByRole("button", { name: "Done", exact: true }).press("Enter");
 }

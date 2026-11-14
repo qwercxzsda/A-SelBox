@@ -38,7 +38,7 @@ for (const kind of ["source", "snapshot"]) {
     }
     await opener.click();
     const child = page.getByRole("dialog", {
-      name: kind === "source" ? "Selected row details" : "Saved source details",
+      name: kind === "source" ? "Finances record details" : "Saved report source details",
       exact: true,
     });
     await expect(child).toBeVisible();

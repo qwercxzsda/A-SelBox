@@ -48,8 +48,6 @@ async function buildMembershipParams(
   options: FetchDatasetCountOptions,
 ): Promise<URLSearchParams> {
   const { dataset, search, filters } = options;
-  if (options.includeSelbox !== undefined)
-    throw new Error("SelBox selection is only available for Transactions");
   if (!isTableDataset(dataset)) throw new Error("Dataset is invalid");
   const params = new URLSearchParams();
   const values = datasetFilterValues(dataset, filters);

@@ -45,7 +45,6 @@ export function transactionFilterParams(args) {
   const params = new URLSearchParams();
   addSearch(params, args);
   if (args.p_currency) params.set("currency", `eq.${args.p_currency}`);
-  if (args.p_include_selbox === false) params.set("category", 'in.("FINANCES","DATA_KIOSK")');
   if (args.p_fee_applicable !== null) params.set("fee_applicable", String(args.p_fee_applicable));
   addUtcDates(params, args);
   if (args.p_company_ids.length > 0)

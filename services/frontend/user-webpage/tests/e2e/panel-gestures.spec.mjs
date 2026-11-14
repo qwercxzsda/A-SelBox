@@ -51,14 +51,14 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
 }) => {
   await setup(page);
   await financialTable(page).locator("tbody tr").first().click();
-  const details = drawer(page, "Selected row details");
+  const details = drawer(page, "Transaction details");
   await checkPanelGestures(page, details);
   await closePanel(page, details);
 
   await page
     .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
     .click();
-  const breakdown = drawer(page, "Amounts by type");
+  const breakdown = drawer(page, "Transaction totals");
   await checkPanelGestures(page, breakdown);
   await closePanel(page, breakdown);
 
@@ -90,8 +90,9 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
 
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await financialTable(page).locator("tbody tr.inspectable-row").first().click();
-  await checkPanelGestures(page, details);
-  await closePanel(page, details);
+  const payout = drawer(page, "Payout report details");
+  await checkPanelGestures(page, payout);
+  await closePanel(page, payout);
 
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
   await page.getByRole("button", { name: "Open review for June 2026", exact: true }).click();
@@ -103,7 +104,7 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
     .locator("tbody tr.inspectable-row")
     .first()
     .click();
-  const sources = drawer(page, "Saved source details");
+  const sources = drawer(page, "Saved report source details");
   await checkPanelGestures(page, sources);
   await page.keyboard.press("Escape");
   await expect(sources).toBeHidden();
@@ -125,7 +126,7 @@ test("native wheel scrolls a long panel while its background stays fixed and ret
   await page.evaluate(() => globalThis.scrollTo(0, 200));
   const trigger = financialTable(page).locator("tbody tr").first();
   await trigger.click();
-  const panel = drawer(page, "Selected row details");
+  const panel = drawer(page, "Transaction details");
   await checkPanelGestures(page, panel);
   const position = await page.evaluate(() => globalThis.scrollY);
   await page.mouse.move(30, 200);
@@ -144,7 +145,7 @@ test("native wheel scrolls a long panel while its background stays fixed and ret
     .locator("tbody tr.inspectable-row")
     .first()
     .click();
-  const sources = drawer(page, "Saved source details");
+  const sources = drawer(page, "Saved report source details");
   await expect(
     sources.getByRole("table", { name: "Supporting payout records", exact: true }),
   ).toBeVisible();

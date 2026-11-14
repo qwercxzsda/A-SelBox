@@ -134,7 +134,7 @@ test("members see both company amount sources without supporting or account cont
   await expect(page.getByLabel("Report company")).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
   await page.getByRole("cell", { name: "87.00 USD", exact: true }).click();
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer.locator(".detail-drawer-context")).toContainText("Amazon.com · USD");
   await expect(page.getByRole("table", { name: "Amount records", exact: true })).toBeVisible();
   await expect(
@@ -146,7 +146,7 @@ test("members see both company amount sources without supporting or account cont
   await captureResponsiveReview(page, testInfo, "payout-records");
   await expect(page.getByText("Seller reconciliation", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(0);
-  await expect(page.getByText("Saved source details", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Saved report source details", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Reconciliation", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "102.00", exact: true })).toHaveCount(0);
   expect(
@@ -183,9 +183,9 @@ test("administrator payout drawers contain only their payout amounts and records
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/rpc/report_source_totals"),
   ).toBe(false);
-  const drawer = page.getByRole("dialog", { name: "Selected row details" });
+  const drawer = page.getByRole("dialog", { name: "Payout report details" });
   await expect(
-    drawer.getByRole("button", { name: /Saved source details|Account reconciliation/ }),
+    drawer.getByRole("button", { name: /Saved report source details|Account reconciliation/ }),
   ).toHaveCount(0);
   await expect(drawer.getByRole("table", { name: "Account reconciliation" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toBeVisible();

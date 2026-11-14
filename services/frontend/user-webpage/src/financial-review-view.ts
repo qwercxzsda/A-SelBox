@@ -4,7 +4,7 @@ import { isCurrency, isJsonObject, requireCurrency } from "./api/validation.ts";
 import { requireFinancialReviewYear, type FinancialReviewBounds } from "./api/financial-review.ts";
 import { sumCompleteDecimals } from "./source-diagnostics.ts";
 import { isMarketplace, requireMarketplace } from "./api/marketplaces.ts";
-import { normalizeFeeFamilyIds } from "./fee-family-catalog.ts";
+import { normalizeTypeFamilyIds } from "./transaction-type-family-catalog.ts";
 
 export interface ReviewScope {
   year: string;
@@ -37,7 +37,7 @@ export function decodeReviewScope(value: unknown): ReviewScope {
     scope.marketplace = value.marketplace;
     if (isCurrency(value.currency)) scope.currency = value.currency;
   }
-  scope.families = normalizeFeeFamilyIds(value.families);
+  scope.families = normalizeTypeFamilyIds(value.families);
   return scope;
 }
 

@@ -48,22 +48,22 @@ test("F5 restores the selected payout, marketplace, type, and record page", asyn
     .locator("tbody tr[tabindex='0']")
     .first()
     .click();
-  let drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
-  await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
+  let drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
+  await drawer.getByRole("button", { name: "Sales & refunds details", exact: true }).click();
   await drawer.getByRole("button", { name: "View Product sales records", exact: true }).click();
   await drawer.getByRole("button", { name: "Next records", exact: true }).click();
   await expect(drawer.getByRole("region", { name: "Amount records", exact: true })).toContainText(
     "Page 2",
   );
   await page.reload();
-  drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toBeVisible();
   await expect(page.getByRole("tab", { name: "Payout reports", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );
   await expect(
-    drawer.getByRole("button", { name: "Sales and refunds details", exact: true }),
+    drawer.getByRole("button", { name: "Sales & refunds details", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
   await expect(drawer.locator(".detail-drawer-context")).toContainText("Amazon.com · USD");
   await expect(drawer.getByRole("region", { name: "Amount records", exact: true })).toContainText(
@@ -96,8 +96,8 @@ test("F5 restores an summary drilldown and fetches current values for its saved 
       exact: false,
     })
     .click();
-  let drawer = page.getByRole("dialog", { name: "Amounts by type", exact: true });
-  await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
+  let drawer = page.getByRole("dialog", { name: "Transaction totals", exact: true });
+  await drawer.getByRole("button", { name: "Sales & refunds details", exact: true }).click();
   await drawer.getByRole("button", { name: "View Product sales records", exact: true }).click();
   await drawer.getByRole("button", { name: "Next records", exact: true }).click();
   await expect(drawer.getByRole("region", { name: "Amount records", exact: true })).toContainText(
@@ -105,7 +105,7 @@ test("F5 restores an summary drilldown and fetches current values for its saved 
   );
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "77", { rowCount: 55 })];
   await page.reload();
-  drawer = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+  drawer = page.getByRole("dialog", { name: "Transaction totals", exact: true });
   await expect(drawer).toBeVisible();
   await expect(
     drawer.getByRole("region", { name: "Breakdown total", exact: true }).locator("dd"),
@@ -117,7 +117,7 @@ test("F5 restores an summary drilldown and fetches current values for its saved 
     drawer.getByRole("table", { name: "Amount records", exact: true }).locator("tbody tr"),
   ).toHaveCount(5);
   await expect(
-    drawer.getByRole("button", { name: "Sales and refunds details", exact: true }),
+    drawer.getByRole("button", { name: "Sales & refunds details", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
   const snapshots = await page.evaluate(() =>
     Object.entries(sessionStorage)

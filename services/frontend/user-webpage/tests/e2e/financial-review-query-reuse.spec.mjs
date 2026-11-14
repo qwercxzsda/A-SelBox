@@ -9,7 +9,7 @@ test("monthly totals and family comparison reuse complete raw types without mixi
   const fixture = await openFinancialReview(page, setupFamilies);
   const monthly = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
   const totals = monthly.getByRole("table", { name: "Financial review totals", exact: true });
-  const comparison = monthly.getByRole("table", { name: "Fee family comparison", exact: true });
+  const comparison = monthly.getByRole("table", { name: "Type family comparison", exact: true });
   const completeReads = (currency) =>
     fixture.financialReviewRequests.filter(
       ({ endpoint, params, completed }) =>
@@ -31,26 +31,26 @@ test("monthly totals and family comparison reuse complete raw types without mixi
     await expect(monthly).toBeHidden();
   }
 
-  await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+  await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
   await openJanuary();
   await expect(totals.getByRole("cell")).toHaveText(["-40.01", "-33.00", "-7.01"]);
   await expect.poll(() => completeReads("USD").length).toBe(1);
-  await monthly.getByRole("button", { name: "Fee family comparison", exact: true }).click();
+  await monthly.getByRole("button", { name: "Type family comparison", exact: true }).click();
   await expect(comparison.locator("tbody tr")).toHaveCount(2);
   expect(completeReads("USD")).toHaveLength(1);
 
   await closeMonth();
   await clearFamilies(page);
-  await chooseFamilies(page, ["Aged storage"]);
+  await chooseFamilies(page, ["Aged inventory surcharges"]);
   await openJanuary();
   await expect(totals.getByRole("cell")).toHaveText(["-20.00", "-18.00", "-2.00"]);
   await expect(comparison.locator("tbody tr")).toHaveCount(1);
-  await expect(comparison).toContainText("Aged storage");
+  await expect(comparison).toContainText("Aged inventory surcharges");
   expect(completeReads("USD")).toHaveLength(1);
 
   await closeMonth();
   await clearFamilies(page);
-  await chooseFamilies(page, ["Monthly storage"]);
+  await chooseFamilies(page, ["Monthly storage fees"]);
   await page.getByRole("combobox", { name: "Currency", exact: true }).selectOption("EUR");
   await openJanuary();
   await expect(totals.getByRole("cell")).toHaveText(["-30.00", "-25.00", "-5.00"]);

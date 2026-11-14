@@ -26,7 +26,7 @@ for (const activation of ["click", "Enter", "Space"]) {
       await row.press(activation);
     }
 
-    const details = page.getByRole("dialog", { name: "Selected row details" });
+    const details = page.getByRole("dialog", { name: "Transaction details" });
     await expect(details).toBeVisible();
     await expect(details.getByRole("heading", { name: "ALPHA-002", exact: true })).toBeVisible();
     await expect(details.getByText("2.12 USD", { exact: true })).toBeVisible();

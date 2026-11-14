@@ -109,9 +109,10 @@ test("a nested source failure opens above monthly review and returns to its exac
   const table = monthly.getByRole("table", { name: "Source records", exact: true });
   const opener = table.locator("tbody tr.inspectable-row").first();
   await opener.click();
-  await expect(detail(page).getByRole("alert")).toBeInViewport();
+  const source = page.getByRole("dialog", { name: "Data Kiosk record details", exact: true });
+  await expect(source.getByRole("alert")).toBeInViewport();
   await page.keyboard.press("Escape");
-  await expect(detail(page)).toBeHidden();
+  await expect(source).toBeHidden();
   await expect(monthly).toBeVisible();
   await expect(opener).toBeFocused();
 });

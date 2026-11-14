@@ -63,6 +63,8 @@ const SOURCE_WORDS = new Map([
 
 /** Format source codes consistently without changing their stored or filter identity. */
 export function sourceCodeLabel(value: string): string {
+  // This stored Finances type admits native FBAInboundConvenienceFee paths.
+  if (value === "INBOUND_PLACEMENT_FEES") return "Inbound convenience fees";
   return value
     .split("/")
     .map((segment) => {

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Drawer, Text, Title } from "@mantine/core";
 import type { TransactionTypeTotal } from "./api/types";
+import { DrawerHeading } from "./DrawerHeading";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import { AmountBreakdown, type RecordSelection } from "./AmountBreakdown";
 
@@ -35,7 +36,12 @@ export function TypeBreakdown({
     <Drawer
       opened={opened}
       onClose={onClose}
-      title="Amounts by type"
+      title={
+        <DrawerHeading
+          title="Transaction totals"
+          context={`${title} · ${periodLabel} · UTC · ${currency}`}
+        />
+      }
       position="right"
       size="min(1440px, 100vw)"
       padding="lg"

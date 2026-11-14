@@ -91,7 +91,7 @@ private.member_policy_covers_current_version(regclass) to authenticated;
 
 grant execute on function public.transaction_count(
     date, date, uuid[], text[], text[], text[], text[], boolean,
-    text[], text[], text[], text[], text, boolean
+    text[], text[], text[], text[], text
 )
 to authenticated;
 grant execute on function public.source_transaction_count(
@@ -100,7 +100,7 @@ grant execute on function public.source_transaction_count(
 
 grant execute on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text, boolean
+    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text
 ) to authenticated;
 
 grant execute on function public.source_transaction_page(
@@ -113,7 +113,8 @@ public.payout_report_records(uuid, boolean, integer, bigint, text[]),
 public.payout_report_totals(uuid, boolean, integer, bigint) to authenticated;
 
 grant execute on function public.transaction_totals(
-    date, date, uuid[], text[], text[], text, boolean, integer, bigint
+    date, date, uuid[], text[], text[], text, boolean, integer, bigint,
+    text[], text[], boolean, text[], text[], text[], text[]
 ) to authenticated;
 
 grant execute on function public.sku_filter_options() to authenticated;

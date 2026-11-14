@@ -4,7 +4,7 @@ import { projectFinancialReviewChart } from "../src/financial-review-chart.ts";
 import { formatFinancialReviewChartTick } from "../src/financial-review-chart-format.ts";
 import {
   buildFinancialReviewFamilySeries,
-  feeFamilyVisual,
+  typeFamilyVisual,
 } from "../src/financial-review-family-series.ts";
 
 const overview = (month, difference, running_difference, overrides = {}) => ({
@@ -184,9 +184,9 @@ test("selection uses stable family identities and colors independent of order or
     "labeling",
     "inbound-transportation",
   ];
-  assert.equal(new Set(common.map((id) => feeFamilyVisual(id).color)).size, common.length);
-  assert.equal(new Set(common.map((id) => feeFamilyVisual(id).dash)).size, common.length);
-  assert.deepEqual(feeFamilyVisual("monthly-storage"), { color: "#2563eb", dash: "" });
+  assert.equal(new Set(common.map((id) => typeFamilyVisual(id).color)).size, common.length);
+  assert.equal(new Set(common.map((id) => typeFamilyVisual(id).dash)).size, common.length);
+  assert.deepEqual(typeFamilyVisual("monthly-storage"), { color: "#2563eb", dash: "" });
   const selected = buildFinancialReviewFamilySeries(
     [typeRow("2026-01", "STORAGE_FEES", "2"), typeRow("2026-01", "ADVERTISING", "3")],
     [overview("2026-01", "2", "2")],
@@ -206,11 +206,11 @@ test("selection uses stable family identities and colors independent of order or
   assert.equal(selected[1].color, nextYear[0].color);
   assert.equal(selected[1].dash, nextYear[0].dash);
   const futureId = "source:FINANCES:FUTURE_FEE";
-  const before = feeFamilyVisual(futureId);
-  for (const id of common.toReversed()) feeFamilyVisual(id);
-  assert.deepEqual(feeFamilyVisual(futureId), before);
+  const before = typeFamilyVisual(futureId);
+  for (const id of common.toReversed()) typeFamilyVisual(id);
+  assert.deepEqual(typeFamilyVisual(futureId), before);
   before.color = "changed";
-  assert.notEqual(feeFamilyVisual(futureId).color, "changed");
+  assert.notEqual(typeFamilyVisual(futureId).color, "changed");
 });
 
 test("source-only family colors derive from identity and remain stable when selected alone", () => {
@@ -227,7 +227,7 @@ test("source-only family colors derive from identity and remain stable when sele
     assert.equal(selected.length, 1);
     assert.equal(selected[0].color, family.color);
     assert.equal(selected[0].dash, family.dash);
-    assert.deepEqual(feeFamilyVisual(family.id), { color: family.color, dash: family.dash });
+    assert.deepEqual(typeFamilyVisual(family.id), { color: family.color, dash: family.dash });
   }
 });
 
@@ -303,16 +303,25 @@ test("net sales plot one signed economic difference instead of separate opposing
   ];
   for (const ids of [[], ["net-product-sales"], ["net-product-sales", "net-product-sales"]]) {
     const series = buildFinancialReviewFamilySeries(types, rows, ids);
-    assert.equal(series.length, 1);
-    assert.equal(series[0].id, "net-product-sales");
-    assert.equal(series[0].sourceOnlyLabel, undefined);
-    assert.deepEqual(series[0].points, [
+    const familyCount = ids.length ? 1 : 2;
+    assert.equal(series.length, familyCount);
+    const netSales = series.find((family) => family.id === "net-product-sales");
+    assert.equal(netSales.sourceOnlyLabel, undefined);
+    assert.deepEqual(netSales.points, [
       { month: "2026-01-01", difference: "0.000000008", runningDifference: "0.000000008" },
       { month: "2026-02-01", difference: "0", runningDifference: "0.000000008" },
     ]);
+    if (!ids.length) {
+      const zero = series.find((family) => family.id === "zero-value-activity");
+      assert.equal(zero.sourceOnlyLabel, "Finances only");
+      assert.deepEqual(
+        zero.points.map((point) => point.difference),
+        ["0", "0"],
+      );
+    }
     const chart = projectFinancialReviewChart(rows, series);
-    assert.equal(chart.families.length, 1);
-    assert.equal(chart.months[0].segments.length, 1);
+    assert.equal(chart.families.length, familyCount);
+    assert.equal(chart.months[0].segments.length, familyCount);
     assert.equal(chart.months[1].segments[0].difference, "0");
     assert.equal(chart.months[1].row, rows[1]);
   }

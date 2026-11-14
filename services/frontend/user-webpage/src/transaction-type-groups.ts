@@ -1,89 +1,38 @@
-import transactionTypes from "./generated/transaction-types.json" with { type: "json" };
 import type { FilterOption } from "./filter-options.ts";
-import { transactionTypeBreakdownGroupId } from "./type-breakdown-groups.ts";
+import {
+  isRegisteredTransactionType,
+  transactionTypeGroup,
+} from "./transaction-type-family-catalog.ts";
+
+import { TRANSACTION_TYPE_GROUPS, type TypeGroupId } from "./transaction-type-families.ts";
 
 export interface TransactionTypeGroup {
-  id: string;
+  id: TypeGroupId;
   label: string;
   options: FilterOption[];
 }
 
-const GROUPS = {
-  sales: "Sales & refunds",
-  selling: "Selling fees",
-  fulfillment: "Fulfillment & shipping",
-  inventory: "Storage & inventory",
-  advertising: "Advertising & promotions",
-  taxes: "Taxes",
-  other: "Other fees & adjustments",
-  "seller-costs": "Seller-provided costs",
-} as const;
-
-type GroupId = keyof typeof GROUPS;
-type BreakdownGroupId = ReturnType<typeof transactionTypeBreakdownGroupId>;
-
-// Browsing groups reuse the amount breakdown's classification. Selecting a group
-// still sends its individual exact type keys; it changes no accounting rules.
-const FILTER_GROUPS: Record<BreakdownGroupId, GroupId> = {
-  "sales-and-refunds": "sales",
-  "sponsored-products": "advertising",
-  "fba-fulfillment": "fulfillment",
-  referral: "selling",
-  "inbound-placement": "fulfillment",
-  "inbound-transportation": "fulfillment",
-  disposal: "inventory",
-  "refund-administration": "selling",
-  "monthly-storage": "inventory",
-  "sponsored-brands": "advertising",
-  "sponsored-display": "advertising",
-  advertising: "advertising",
-  "digital-services": "selling",
-  removal: "inventory",
-  "long-term-storage": "inventory",
-  labeling: "fulfillment",
-  "shipping-gift-wrap": "fulfillment",
-  promotions: "advertising",
-  taxes: "taxes",
-  reimbursements: "inventory",
-  liquidations: "inventory",
-  "off-amazon-costs": "seller-costs",
-  other: "other",
-};
-
-const KNOWN_TYPES = new Set(transactionTypes.map(({ type }) => type));
-
-function transactionTypeGroupId(value: string): GroupId {
-  return KNOWN_TYPES.has(value) ? FILTER_GROUPS[transactionTypeBreakdownGroupId(value)] : "other";
-}
-
-/** Row sublabels use the same taxonomy as the Type filter. */
+/** Row sublabels use the same broad group as filters and amount breakdowns. */
 export function transactionTypeGroupLabel(value: string): string {
-  return GROUPS[transactionTypeGroupId(value)];
+  return transactionTypeGroup(value).label;
 }
 
 export function transactionTypeGroups(options: readonly FilterOption[]): TransactionTypeGroup[] {
-  const groups = new Map<GroupId, FilterOption[]>();
+  const groups = new Map<TypeGroupId, TransactionTypeGroup>();
   for (const option of options) {
-    const id = transactionTypeGroupId(option.value);
-    const entries = groups.get(id) ?? [];
-    entries.push(option);
-    groups.set(id, entries);
+    const definition = transactionTypeGroup(option.value);
+    const group = groups.get(definition.id) ?? { ...definition, options: [] };
+    group.options.push(option);
+    groups.set(definition.id, group);
   }
-  return Object.entries(GROUPS).flatMap(([id, label]) => {
-    const entries = groups.get(id as GroupId);
-    return entries
-      ? [
-          {
-            id,
-            label,
-            options: entries.sort(
-              (left, right) =>
-                left.label.localeCompare(right.label, "en") ||
-                left.value.localeCompare(right.value, "en"),
-            ),
-          },
-        ]
-      : [];
+  return TRANSACTION_TYPE_GROUPS.flatMap(({ id }) => {
+    const group = groups.get(id);
+    if (!group) return [];
+    group.options.sort(
+      (left, right) =>
+        left.label.localeCompare(right.label, "en") || left.value.localeCompare(right.value, "en"),
+    );
+    return [group];
   });
 }
 
@@ -114,9 +63,8 @@ export function transactionTypeSelectionLabels(
   const remaining = new Set(selected);
   const labels: string[] = [];
   for (const group of transactionTypeGroups(options)) {
-    // An unfamiliar saved selection must remain visible even when every known
-    // entry in Other is selected. It has no established browsing classification.
-    const known = group.options.filter(({ value }) => KNOWN_TYPES.has(value));
+    // Unrecognized keys remain explicit even alongside a completely selected Other group.
+    const known = group.options.filter(({ value }) => isRegisteredTransactionType(value));
     const chosen = known.filter(({ value }) => remaining.has(value));
     if (!chosen.length) continue;
     labels.push(

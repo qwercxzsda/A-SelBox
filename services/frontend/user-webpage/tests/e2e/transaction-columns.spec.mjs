@@ -1,7 +1,7 @@
 import { liveRow, skuAssignments } from "./api-fixtures.mjs";
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { summaryBucket, summaryPeriods } from "./summary-fixtures.mjs";
+import { summaryAmount, summaryBucket, summaryPeriods } from "./summary-fixtures.mjs";
 import { applyDates, openColumn, sortBy } from "./table-actions.mjs";
 
 const tableFor = (page) => page.getByRole("table", { name: "Financial records", exact: true });
@@ -31,19 +31,28 @@ function applicabilityRows() {
   }));
 }
 
-test("fee applicability resets pagination, includes zero and missing rates, and stays out of all summaries", async ({
+test("fee applicability resets pagination, includes zero and missing rates, and filters all summaries", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = applicabilityRows();
-  fixture.aggregateRows = [summaryBucket("2026-09-01", "280"), summaryBucket("2026-08-31", "100")];
+  fixture.aggregateRows = [
+    ...fixture.liveRows.map((row) => ({
+      ...row,
+      ...summaryBucket(row.activity_date, row.source_amount, {
+        serviceFee: row.fee_amount,
+        companyAmount: row.company_amount,
+        knownCompanyCount: row.company_amount === null ? 0 : 1,
+      }),
+    })),
+    summaryBucket("2026-08-31", "100"),
+  ];
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
   await applyDates(page, "2026-09-01", "2026-09-01");
   const summaries = summaryPeriods(page);
 
   await expect(summaries.selected.getByRole("button", { name: /View/ })).toBeVisible();
-  const totalsBefore = await summaries.summaries.innerText();
   const summaryRequestsBefore = fixture.aggregateRequests.length;
   const latestRequestsBefore = fixture.latestRequests.length;
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
@@ -99,11 +108,17 @@ test("fee applicability resets pagination, includes zero and missing rates, and 
   expect(fixture.requests.at(-1).args.p_fee_applicable).toBe(false);
   expect(fixture.countRequests.at(-1).args.p_fee_applicable).toBe(false);
   await expect(tableFor(page).getByRole("row")).toHaveCount(3);
-  expect(await summaries.summaries.innerText()).toBe(totalsBefore);
-  expect(fixture.aggregateRequests.length).toBe(summaryRequestsBefore);
+  await expect(summaryAmount(summaries.selected, "Reported amount")).toHaveText("3.25 USD");
+  await expect(summaries.day).toContainText("No transactions");
+  await expect(summaries.month).toContainText("No transactions");
+  expect(fixture.aggregateRequests.length).toBeGreaterThan(summaryRequestsBefore);
   expect(fixture.latestRequests.length).toBe(latestRequestsBefore);
   expect(fixture.latestRequests.every(({ args }) => args.p_fee_applicable === null)).toBe(true);
-  expect(fixture.aggregateRequests.every(({ params }) => !params.has("fee_applicable"))).toBe(true);
+  expect(fixture.aggregateRequests.at(-1).args.p_fee_applicable).toBe(false);
+  expect(fixture.aggregateRequests.at(-1).args.p_search_skus).toEqual([
+    "NON-APPLICABLE-001",
+    "NON-APPLICABLE-002",
+  ]);
 
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();

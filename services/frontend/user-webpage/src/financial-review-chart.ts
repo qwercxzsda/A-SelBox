@@ -82,7 +82,7 @@ function familyStacks(
   series: readonly FinancialReviewFamilySeries[],
 ): ExactFamilySegment[][] {
   const ids = new Set(series.map((family) => family.id));
-  if (ids.size !== series.length) throw new Error("Chart repeats a fee family");
+  if (ids.size !== series.length) throw new Error("Chart repeats a type family");
   const familyPoints = series.map((family) => {
     const months = new Map(family.points.map((point) => [point.month, point]));
     if (months.size !== points.length || months.size !== family.points.length)

@@ -1,4 +1,4 @@
-import type { FeeFamily, FeeFamilySource } from "./fee-family-definitions.ts";
+import type { TypeFamily, TypeFamilySource } from "./transaction-type-families.ts";
 import type { CanonicalRow } from "./api/types.ts";
 
 interface FinancialReviewCoverage {
@@ -52,9 +52,9 @@ interface FamilyCoverageRow {
 }
 
 /** Definition-only families are distinct from a paired family with an absent source. */
-export function describeFeeFamilyCoverage(
+export function describeTypeFamilyCoverage(
   rows: readonly FamilyCoverageRow[],
-  definition: Pick<FeeFamily, "financesTypes" | "dataKioskTypes">,
+  definition: Pick<TypeFamily, "financesTypes" | "dataKioskTypes">,
 ): string {
   const hasFinances = definition.financesTypes.length > 0;
   const hasDataKiosk = definition.dataKioskTypes.length > 0;
@@ -62,7 +62,7 @@ export function describeFeeFamilyCoverage(
   if (!hasFinances) return "Data Kiosk-only family";
   if (!hasDataKiosk) return "Finances-only family";
 
-  const months = new Map<string, Set<FeeFamilySource>>();
+  const months = new Map<string, Set<TypeFamilySource>>();
   for (const row of rows) {
     if (
       typeof row.month !== "string" ||
@@ -73,7 +73,7 @@ export function describeFeeFamilyCoverage(
     )
       return "Source availability unknown";
     if (row.rowCount === 0n) continue;
-    const sources = months.get(row.month) ?? new Set<FeeFamilySource>();
+    const sources = months.get(row.month) ?? new Set<TypeFamilySource>();
     sources.add(row.source);
     months.set(row.month, sources);
   }

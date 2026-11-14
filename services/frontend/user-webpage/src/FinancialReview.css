@@ -343,7 +343,7 @@
   .financial-review-scope {
     grid-template-columns: minmax(0, 1fr) 110px;
   }
-  .financial-review-scope .fee-family-filter,
+  .financial-review-scope .type-family-filter,
   .financial-review-currency {
     grid-column: 1 / -1;
     justify-self: start;

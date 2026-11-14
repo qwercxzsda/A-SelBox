@@ -23,7 +23,6 @@ interface CurrentTotalsProps {
   onRetry: () => void | Promise<void>;
   onDatesChange: (range: DateRange) => void;
   onOpenBreakdown: OpenSummaryBreakdown;
-  coverageNote: string;
   appliedFilters: SummaryFilter[];
 }
 
@@ -35,7 +34,6 @@ export function CurrentTotals({
   onRetry,
   onDatesChange,
   onOpenBreakdown,
-  coverageNote,
   appliedFilters,
 }: CurrentTotalsProps) {
   const [choosingDates, setChoosingDates] = useState(false);
@@ -54,14 +52,17 @@ export function CurrentTotals({
           </Title>
           <HelpPopover label="Current totals help">
             <p>
-              Totals combine Finances and Data Kiosk company amounts and exclude SelBox. Select a
-              company amount to open its breakdown.
+              Totals sum the matching transactions from Finances and Data Kiosk. Select a company
+              amount to open its breakdown and records.
             </p>
             <p>
               Last day and Last month are the previous UTC calendar periods based on the latest
               accessible transaction, independent of filters.
             </p>
-            <p>{coverageNote}</p>
+            <p>
+              Totals use all selected filters and search. Last day and Last month use their own UTC
+              periods; Selected dates uses the transaction list's date range.
+            </p>
             <p>Records missing ownership or fees are excluded from known company amounts.</p>
           </HelpPopover>
           <span className="totals-market-count">

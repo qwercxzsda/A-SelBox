@@ -68,7 +68,7 @@ export function FinancialReviewMonthContent({
         <Group justify="space-between" gap="xs" mb="sm">
           <Title order={4} className="monthly-review-total-title">
             {families.length
-              ? "Selected fee family totals"
+              ? "Selected type family totals"
               : `${reviewCategoryLabel(category)} category totals`}
           </Title>
           <Text size="xs" c="dimmed">
@@ -101,7 +101,7 @@ export function FinancialReviewMonthContent({
         stateKey={`financial-review:snapshots:${category}:${reviewPeriodKey(month, marketplace, currency)}`}
         title="Saved report snapshots"
         collapsible
-        description={`Saved company reports for ${marketplace} this month in ${currency}. Each retains all categories, all fee families and its original company scope; the fee family filter applies to current source comparisons.`}
+        description={`Saved company reports for ${marketplace} this month in ${currency}. Each retains all categories, all type families and its original company scope; the type family filter applies to current source comparisons.`}
       >
         <FinancialReviewSnapshots
           identity={identity}

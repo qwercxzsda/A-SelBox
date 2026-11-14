@@ -3,19 +3,19 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 import { summaryAmount, summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 
 const GROUPS = [
-  "Sales and refunds",
-  "Sponsored Products charge",
-  "FBA fulfillment fees",
-  "Referral fee",
-  "Other",
+  "Sales & refunds",
+  "Selling fees",
+  "Fulfillment & shipping",
+  "Advertising & promotions",
+  "Other fees & adjustments",
 ];
 const TYPES = [
   "Product sales",
   "Product refunds",
   "Net product sales",
-  "Sponsored products charge",
-  "FBA fulfillment fee",
   "Referral fee",
+  "FBA fulfillment fee",
+  "Sponsored products charge",
   "Unknown test type",
 ];
 
@@ -64,7 +64,7 @@ for (const width of [1280, 320, 390]) {
     await page
       .getByRole("button", { name: "View Last day for Amazon.com in USD by type", exact: false })
       .click();
-    const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+    const dialog = page.getByRole("dialog", { name: "Transaction totals", exact: true });
     const buttons = dialog.getByRole("button", { name: / details$/ });
     await expect(buttons).toHaveCount(GROUPS.length);
     expect(
@@ -88,7 +88,7 @@ for (const width of [1280, 320, 390]) {
     });
 
     const salesButton = dialog.getByRole("button", {
-      name: "Sales and refunds details",
+      name: "Sales & refunds details",
       exact: true,
     });
     await salesButton.focus();
@@ -100,7 +100,10 @@ for (const width of [1280, 320, 390]) {
     for (const group of GROUPS.slice(1, -1)) {
       await dialog.getByRole("button", { name: `${group} details`, exact: true }).click();
     }
-    const otherButton = dialog.getByRole("button", { name: "Other details", exact: true });
+    const otherButton = dialog.getByRole("button", {
+      name: "Other fees & adjustments details",
+      exact: true,
+    });
     await otherButton.focus();
     await otherButton.press("Space");
     await expect(otherButton).toHaveAttribute("aria-expanded", "true");
@@ -116,13 +119,16 @@ for (const width of [1280, 320, 390]) {
       ).toHaveCount(1);
     }
 
-    const sales = dialog.getByRole("region", { name: "Sales and refunds subtotal", exact: true });
+    const sales = dialog.getByRole("region", { name: "Sales & refunds subtotal", exact: true });
     await expect(summaryAmount(sales, "Reported amount")).toHaveText("5.00 USD");
     await expect(summaryAmount(sales, "Known company amount")).toHaveText("0.00 USD");
     await expect(sales).toContainText("2 uncalculated");
-    const referral = dialog.getByRole("region", { name: "Referral fee subtotal", exact: true });
+    const referral = dialog.getByRole("region", { name: "Selling fees subtotal", exact: true });
     await expect(summaryAmount(referral, "Company amount")).toHaveText("100.00 USD");
-    const unknown = dialog.getByRole("region", { name: "Other subtotal", exact: true });
+    const unknown = dialog.getByRole("region", {
+      name: "Other fees & adjustments subtotal",
+      exact: true,
+    });
     await expect(summaryAmount(unknown, "Known company amount")).toHaveText("—");
     await expect(summaryAmount(total, "Reported amount")).toHaveText("109.00 USD");
     await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");

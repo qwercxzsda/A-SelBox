@@ -7,7 +7,7 @@ export const versionId = "0198b50b-701a-7000-8000-000000000042";
 export const recordId = (index) =>
   `0198b50b-701a-7000-8000-${String(index + 100).padStart(12, "0")}`;
 export const sourceDetail = (page) =>
-  page.getByRole("dialog", { name: "Selected row details", exact: true });
+  page.getByRole("dialog", { name: "Finances record details", exact: true });
 export const sourceLookup = (page) =>
   page.getByRole("dialog", { name: "Find Amazon transaction", exact: true });
 export const sourceLookupTrigger = (page) =>

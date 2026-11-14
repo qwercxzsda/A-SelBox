@@ -27,18 +27,23 @@ test("the UTC period shortcut resets list pagination and preserves refinements a
     {
       ...liveRow("OTHER", 1),
       source: "DATA_KIOSK",
-      activity_date: "2026-03-15",
+      // This marketplace day ends on March 15 in UTC.
+      activity_date: "2026-03-14",
       source_amount: "99",
     },
   ];
   fixture.aggregateRows = [
-    summaryBucket("2026-02-01", "1"),
-    summaryBucket("2026-02-28", "31", { rowCount: 31 }),
-    summaryBucket("2026-03-15", "130", { rowCount: 32 }),
+    ...fixture.liveRows.map((row) => ({
+      ...summaryBucket(row.activity_date, row.source_amount),
+      sku: row.sku,
+      source: row.source,
+      component_type: row.component_type,
+    })),
     summaryBucket("2026-03-16", "0"),
   ];
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
   await signIn(page);
+  await periods(page).summaries.waitFor();
   const { day, month, selected } = periods(page);
 
   await expect(amount(day, "Reported amount")).toHaveText("130.00 USD");
@@ -48,7 +53,6 @@ test("the UTC period shortcut resets list pagination and preserves refinements a
   await expect(selected).toContainText("Choose dates");
 
   await expect(selected.locator("[data-amount-field]")).toHaveCount(0);
-  const aggregateRequests = fixture.aggregateRequests.length;
 
   await page.getByLabel("Search", { exact: true }).fill("TARGET");
   await expect.poll(() => fixture.requests.at(-1).params.get("or")).toContain("TARGET");
@@ -56,6 +60,8 @@ test("the UTC period shortcut resets list pagination and preserves refinements a
   const source = page.getByRole("dialog", { name: "Source options", exact: true });
   await source.getByRole("checkbox", { name: "Finances", exact: true }).check();
   await source.getByRole("button", { name: "Close options", exact: true }).click();
+  await expect(amount(day, "Reported amount")).toHaveText("31.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("32.00 USD");
   await page.getByRole("button", { name: "Reported amount", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Reported amount options", exact: true })
@@ -90,9 +96,10 @@ test("the UTC period shortcut resets list pagination and preserves refinements a
   await applyDates(page, "2026-03-15", "2026-03-15");
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
 
-  await expect(amount(selected, "Reported amount")).toHaveText("130.00 USD");
-
-  await expect(selected.getByLabel("32 records", { exact: true })).toBeVisible();
+  await expect(amount(selected, "Reported amount")).toHaveText("31.00 USD");
+  await expect(selected.getByLabel("31 records", { exact: true })).toBeVisible();
+  await expect(amount(day, "Reported amount")).toHaveText("31.00 USD");
+  await expect(amount(month, "Reported amount")).toHaveText("32.00 USD");
   const request = fixture.requests.at(-1).params;
   expect(request.getAll("activity_at")).toEqual([
     "gte.2026-03-15T00:00:00.000000Z",
@@ -103,7 +110,20 @@ test("the UTC period shortcut resets list pagination and preserves refinements a
   expect(request.get("or")).toContain("TARGET");
   expect(request.get("order")).toBe(ordering);
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("TARGET");
-  expect(fixture.aggregateRequests).toHaveLength(aggregateRequests);
+  const filteredTotals = fixture.aggregateRequests.filter(({ args }) =>
+    args.p_sources.includes("FINANCES"),
+  );
+  expect(filteredTotals.map(({ args }) => [args.p_date_from, args.p_date_to])).toEqual(
+    expect.arrayContaining([
+      ["2026-03-15", "2026-03-15"],
+      ["2026-02-01", "2026-02-28"],
+    ]),
+  );
+  for (const { params } of filteredTotals) {
+    expect(params.get("source")).toBe('in.("FINANCES")');
+    expect(params.get("or")).toContain("TARGET");
+  }
+  expect(fixture.latestRequests).toHaveLength(1);
 });
 
 test("manual dates include endpoints, support open ranges, and expose currencies found only in that range", async ({

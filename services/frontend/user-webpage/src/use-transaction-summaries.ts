@@ -11,16 +11,19 @@ import {
   type DateRange,
   type PeriodDefinition,
 } from "./summary-periods";
-import type { MarketplaceSummary, SummaryState, TransactionSummaryScope } from "./summary-types";
+import type { MarketplaceSummary, SummaryState } from "./summary-types";
+import type { DatasetFilters, TransactionSummaryScope, TransactionSearchValues } from "./api/types";
 import type { Identity } from "./auth-session";
 import { getErrorMessage } from "./view-model";
-import { normalizeSelections } from "./dataset-filters";
+import { normalizeDatasetFilters } from "./dataset-filters";
 import { summaryMarketplaces, sortMarketplaceSummaries } from "./summary-marketplaces";
+import { resolveTransactionSearch } from "./transaction-search";
 
 function periodQueryOptions(
   identity: Identity,
   range: DateRange | null,
   scope: TransactionSummaryScope,
+  searchValues: TransactionSearchValues | null,
 ) {
   const { session, account } = identity;
   return {
@@ -30,6 +33,7 @@ function periodQueryOptions(
       account.access_role,
       account.company_id,
       scope,
+      searchValues,
       range?.from,
       range?.to,
     ],
@@ -41,6 +45,7 @@ function periodQueryOptions(
         dateFrom: range.from,
         dateTo: range.to,
         ...scope,
+        searchValues,
         signal,
       });
     },
@@ -61,16 +66,23 @@ function summaryState(
 
 export function useTransactionSummaries(
   identity: Identity,
-  dateRange: DateRange,
-  filters: TransactionSummaryScope,
+  filters: DatasetFilters,
+  search: string,
 ) {
   const { session, account } = identity;
+  const { dateFrom, dateTo, ...selections } = normalizeDatasetFilters(filters);
+  const dateRange = { from: dateFrom, to: dateTo };
   const scope: TransactionSummaryScope = {
-    companyIds:
-      account.access_role === "administrator" ? normalizeSelections(filters.companyIds) : [],
-    skus: normalizeSelections(filters.skus),
-    marketplaces: normalizeSelections(filters.marketplaces),
+    ...selections,
+    companyIds: account.access_role === "administrator" ? selections.companyIds : [],
+    search: search.trim(),
   };
+  const searchValues = resolveTransactionSearch(
+    "live",
+    account.access_role,
+    identity.skuOptions,
+    scope.search,
+  );
   // The common calendar anchor follows account visibility, never UI filters.
   const latest = useQuery({
     queryKey: [
@@ -83,10 +95,14 @@ export function useTransactionSummaries(
       fetchLatestTransactionDate({ accessToken: session.access_token, signal }),
   });
   const periods = { ...summaryPeriods(latest.data ?? null), selected: selectedPeriod(dateRange) };
-  const dayQuery = useQuery(periodQueryOptions(identity, periods.day?.range ?? null, scope));
-  const monthQuery = useQuery(periodQueryOptions(identity, periods.month?.range ?? null, scope));
+  const dayQuery = useQuery(
+    periodQueryOptions(identity, periods.day?.range ?? null, scope, searchValues),
+  );
+  const monthQuery = useQuery(
+    periodQueryOptions(identity, periods.month?.range ?? null, scope, searchValues),
+  );
   const selectedQuery = useQuery(
-    periodQueryOptions(identity, periods.selected?.range ?? null, scope),
+    periodQueryOptions(identity, periods.selected?.range ?? null, scope, searchValues),
   );
   const discoveryError = latest.error
     ? `Latest transaction date: ${getErrorMessage(latest.error)}`
@@ -116,6 +132,7 @@ export function useTransactionSummaries(
   );
   return {
     scope,
+    dateRange,
     groups: sortMarketplaceSummaries(groups),
     states,
     loading: [latest, dayQuery, monthQuery, selectedQuery].some((query) => query.isFetching),

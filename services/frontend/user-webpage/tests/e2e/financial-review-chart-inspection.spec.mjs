@@ -14,7 +14,7 @@ test("visible chart values follow hover, keyboard and the month selector while p
   const totals = inspector(page).locator(".financial-review-chart-value-totals dd");
   await expect(selection).toHaveValue("2026-03");
   await expect(totals).toHaveText(["0.00", "-7.01"]);
-  const legend = chart(page).getByRole("list", { name: "Fee family legend", exact: true });
+  const legend = chart(page).getByRole("list", { name: "Type family legend", exact: true });
   await expect(legend.locator('[data-family-id="source:FINANCES:FUTURE_FEE"]')).toContainText(
     "Finances only",
   );
@@ -63,7 +63,7 @@ test("a long phone legend stays below the plot and expands without removing plot
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await openFinancialReview(page, (fixture) => setupFamilies(fixture, { extraFamilies: 18 }));
-  const legend = chart(page).getByRole("list", { name: "Fee family legend", exact: true });
+  const legend = chart(page).getByRole("list", { name: "Type family legend", exact: true });
   await expect(legend.locator("li")).toHaveCount(6);
   await expect(chart(page)).toContainText(
     "Showing 6 of 23 families by running difference. All 23 are plotted.",

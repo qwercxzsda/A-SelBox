@@ -49,7 +49,7 @@ test("recent partial months enter totals, currencies, families and records indep
   await drawer(page)
     .getByRole("button", { name: "Close monthly financial review", exact: true })
     .click();
-  await chooseFamilies(page, ["Monthly storage"]);
+  await chooseFamilies(page, ["Monthly storage fees"]);
   await expect(table(page).getByRole("button", { name: /^Open review for/ })).toHaveText([
     "June 2026",
     "July 2026",

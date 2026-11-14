@@ -506,7 +506,10 @@ test("saved snapshots are scoped to the open month and preserve historical zeros
   ).toHaveCount(1);
   await expect(drawer(page).getByRole("cell", { name: "999.00 EUR", exact: true })).toHaveCount(0);
   await drawer(page).getByRole("cell", { name: "95.00 USD", exact: true }).click();
-  const savedDrawer = page.getByRole("dialog", { name: "Saved source details", exact: true });
+  const savedDrawer = page.getByRole("dialog", {
+    name: "Saved report source details",
+    exact: true,
+  });
   const support = savedDrawer.getByRole("table", {
     name: "Supporting payout records",
     exact: true,
@@ -525,7 +528,9 @@ test("saved snapshots are scoped to the open month and preserve historical zeros
   await expect(support.getByRole("cell", { name: "SUPPORT-50", exact: true })).toBeVisible();
   await page.reload();
   await expect(support.getByRole("cell", { name: "SUPPORT-50", exact: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Saved source details", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("tab", { name: "Saved report source details", exact: true }),
+  ).toHaveCount(0);
   expect(
     fixture.payoutRecordRequests.every(
       ({ reportId, authoritative }) => reportId === REVIEW_REPORT && authoritative === "false",
@@ -568,7 +573,7 @@ test("Escape closes only the saved snapshot and returns focus to its monthly rev
     .first();
   await report.focus();
   await report.press("Enter");
-  const saved = page.getByRole("dialog", { name: "Saved source details", exact: true });
+  const saved = page.getByRole("dialog", { name: "Saved report source details", exact: true });
   await expect(saved).toBeVisible();
   await expect(
     saved.getByRole("table", { name: "Supporting payout records", exact: true }),

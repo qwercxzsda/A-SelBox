@@ -43,7 +43,7 @@ export function FinancialRecords({
     >
       {transactionTimeline ? (
         <Text size="xs" c="dimmed" mb="sm">
-          Finances and Data Kiosk records for this UTC period. SelBox amounts are excluded.
+          Transactions matching the total's filters and UTC period.
         </Text>
       ) : null}
       {rows.length > 0 ? (

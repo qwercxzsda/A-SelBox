@@ -96,19 +96,11 @@ export interface FetchDatasetPageOptions {
   filters?: DatasetFilters;
   includeCount?: boolean;
   currency?: string;
-  includeSelbox?: boolean;
 }
 
 export type FetchDatasetCountOptions = Pick<
   FetchDatasetPageOptions,
-  | "accessToken"
-  | "signal"
-  | "dataset"
-  | "search"
-  | "searchValues"
-  | "filters"
-  | "currency"
-  | "includeSelbox"
+  "accessToken" | "signal" | "dataset" | "search" | "searchValues" | "filters" | "currency"
 >;
 
 export interface CurrencyTotal {
@@ -124,11 +116,9 @@ export interface MarketplaceCurrencyTotal extends CurrencyTotal {
   marketplace: string;
 }
 
-interface TransactionSummaryFilters {
-  companyIds?: string[];
-  skus?: string[];
-  marketplaces?: string[];
-}
+export type TransactionSummaryScope = Omit<DatasetFilters, "dateFrom" | "dateTo"> & {
+  search: string;
+};
 
 export interface FetchLatestTransactionDateOptions {
   accessToken: string;
@@ -136,9 +126,10 @@ export interface FetchLatestTransactionDateOptions {
 }
 
 export interface FetchTransactionPeriodTotalsOptions
-  extends FetchLatestTransactionDateOptions, TransactionSummaryFilters {
+  extends FetchLatestTransactionDateOptions, TransactionSummaryScope {
   dateFrom: string;
   dateTo: string;
+  searchValues?: TransactionSearchValues | null;
 }
 
 export interface FetchTransactionTypeTotalsOptions extends FetchTransactionPeriodTotalsOptions {

@@ -25,7 +25,7 @@ export function FinancialReviewChartLegend({
   const visible = expanded ? ordered : ordered.slice(0, COMPACT_FAMILIES);
   return (
     <div className="financial-review-chart-legend">
-      <ul id={listId} className="financial-review-family-legend" aria-label="Fee family legend">
+      <ul id={listId} className="financial-review-family-legend" aria-label="Type family legend">
         {visible.map((family) => (
           <li key={family.id} data-family-id={family.id}>
             <span

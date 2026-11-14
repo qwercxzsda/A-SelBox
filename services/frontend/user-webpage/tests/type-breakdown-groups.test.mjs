@@ -16,134 +16,85 @@ function row(type, overrides = {}) {
   };
 }
 
-test("registered component types map to reference groups without changing row identity", () => {
-  const cases = [
-    ["PRODUCT_SALES", "sales-and-refunds"],
-    ["PRODUCT_REFUNDS", "sales-and-refunds"],
-    ["NET_PRODUCT_SALES", "sales-and-refunds"],
-    ["RESTOCKING", "sales-and-refunds"],
-    ["SPONSORED_PRODUCTS_CHARGE", "sponsored-products"],
-    ["SPONSORED_PRODUCTS", "sponsored-products"],
-    ["FBA_FULFILMENT_FEE", "fba-fulfillment"],
-    ["FBA_FULFILLMENT_FEES", "fba-fulfillment"],
-    ["FULFILLMENT_FEE_CORRECTIONS", "fba-fulfillment"],
-    ["REFERRAL_FEES", "referral"],
-    ["REFUNDED_REFERRAL_FEE", "referral"],
-    ["REFUNDED_REFERRAL_FEES", "referral"],
-    ["FBA_INBOUND_PLACEMENT_SERVICE_FEE", "inbound-placement"],
-    ["INBOUND_PLACEMENT_FEES", "inbound-placement"],
-    ["FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE", "inbound-transportation"],
-    ["INBOUND_TRANSPORTATION_FEES", "inbound-transportation"],
-    ["DISPOSAL_FEE", "disposal"],
-    ["DISPOSAL_FEES", "disposal"],
-    ["REFUND_COMMISSION_FEE", "refund-administration"],
-    ["REFUND_COMMISSION", "refund-administration"],
-    ["FBA_STORAGE_FEE", "monthly-storage"],
-    ["STORAGE_FEES", "monthly-storage"],
-    ["SPONSORED_BRANDS_CHARGES", "sponsored-brands"],
-    ["SPONSORED_DISPLAY", "sponsored-display"],
-    ["ADVERTISING", "advertising"],
-    ["RUN_LIGHTNING_DEAL_FEE", "promotions"],
-    ["DIGITAL_SERVICES_FEE_SOA", "digital-services"],
-    ["DIGITAL_SERVICES_FEES", "digital-services"],
-    ["REMOVAL_FEE", "removal"],
-    ["REMOVAL_FEES", "removal"],
-    ["FBA_AGED_INVENTORY_SURCHARGE", "long-term-storage"],
-    ["AGED_STORAGE_FEES", "long-term-storage"],
-    ["LABELING_FEE", "labeling"],
-    ["COUPON_PERFORMANCE_FEE", "promotions"],
-    ["DEAL_FEES", "promotions"],
-    ["PROMOTIONAL_REBATES", "promotions"],
-    ["SHIPPING_TAX", "taxes"],
-    ["PRODUCT_TAX", "taxes"],
-    ["TAX_WITHHELD", "taxes"],
-    ["FBA_INVENTORY_REIMBURSEMENT", "reimbursements"],
-    ["INVENTORY_REIMBURSEMENT_REVERSALS", "reimbursements"],
-    ["LIQUIDATION_PROCESSING_FEE", "liquidations"],
-    ["LIQUIDATION_PROCEEDS", "liquidations"],
-    ...[
-      "COST_OF_GOODS_SOLD",
-      "SHIPPING_TO_AMAZON_COST",
-      "MFN_FULFILLMENT_COST",
-      "MFN_STORAGE_COST",
-      "MISCELLANEOUS_COST",
-    ].map((type) => [type, "off-amazon-costs"]),
-    ...[
-      "PRINCIPAL",
-      "REFUND",
-      "UNKNOWN_STORAGE_TAX_FEE",
-      "UNKNOWN_PRINCIPAL",
-      "UNKNOWN_PRICE",
-      "UNKNOWN_FEE",
-      "OTHER_ADJUSTMENTS",
-    ].map((type) => [type, "other"]),
+test("broad amount groups preserve exact rows and stable child order without an intermediate family layer", () => {
+  const input = [
+    row("INBOUND_PLACEMENT_FEES"),
+    row("FBA_INBOUND_CONVENIENCE_FEE"),
+    row("FBA_INBOUND_PLACEMENT_SERVICE_FEE"),
+    row("ADVERTISING"),
+    row("SPONSORED_PRODUCTS_CHARGE"),
+    row("COUPON_FEES"),
+    row("DEAL_FEES"),
+    row("PRODUCT_REFUNDS"),
+    row("NET_PRODUCT_SALES"),
+    row("PRODUCT_SALES"),
+    row("RESTOCKING"),
+    row("UNKNOWN_A"),
+    row("UNKNOWN_B"),
+    row("STORAGE_FEES"),
+    row("REFERRAL_FEES"),
+    row("PRODUCT_TAX"),
+    row("COST_OF_GOODS_SOLD"),
   ];
-  for (const [type, id] of cases) {
-    const source = Object.freeze(row(type));
-    const [group] = groupTransactionTypes([source], "USD");
-    assert.equal(group.id, id, type);
-    assert.equal(group.types.length, 1, type);
-    assert.equal(group.types[0], source, type);
-  }
+  input.forEach(Object.freeze);
+  Object.freeze(input);
+  const groups = groupTransactionTypes(input, "USD");
+  assert.deepEqual(groups, groupTransactionTypes([...input].reverse(), "USD"));
+  assert.deepEqual(
+    groups.map(({ id, label }) => [id, label]),
+    [
+      ["sales", "Sales & refunds"],
+      ["selling", "Selling fees"],
+      ["fulfillment", "Fulfillment & shipping"],
+      ["inventory", "Storage & inventory"],
+      ["advertising", "Advertising & promotions"],
+      ["taxes", "Taxes"],
+      ["other", "Other fees & adjustments"],
+      ["seller-costs", "Seller-provided costs"],
+    ],
+  );
+  const types = (id) => groups.find((group) => group.id === id).types.map(({ type }) => type);
+  assert.deepEqual(types("fulfillment"), [
+    "FBA_INBOUND_CONVENIENCE_FEE",
+    "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
+    "INBOUND_PLACEMENT_FEES",
+  ]);
+  assert.deepEqual(types("advertising"), [
+    "ADVERTISING",
+    "COUPON_FEES",
+    "DEAL_FEES",
+    "SPONSORED_PRODUCTS_CHARGE",
+  ]);
+  assert.deepEqual(types("sales"), [
+    "PRODUCT_SALES",
+    "PRODUCT_REFUNDS",
+    "NET_PRODUCT_SALES",
+    "RESTOCKING",
+  ]);
+  assert.deepEqual(types("other"), ["UNKNOWN_A", "UNKNOWN_B"]);
+  assert.deepEqual(new Set(groups.flatMap(({ types }) => types)), new Set(input));
+  assert.equal(groups.flatMap(({ types }) => types).length, input.length);
 });
 
-test("shipping revenue and explicit chargebacks share a group while shipping tax stays Taxes", () => {
-  const types = ["SHIPPING_CREDITS", "SHIPPING_REFUNDS", "SHIPPING_CHARGEBACKS"];
+test("shipping and gift wrapping share Fulfillment while taxes stay in Taxes", () => {
   const groups = groupTransactionTypes(
-    [...types.map((type) => row(type)), row("SHIPPING_TAX")],
+    [
+      row("SHIPPING_CREDITS"),
+      row("SHIPPING_REFUNDS"),
+      row("SHIPPING_CHARGEBACKS"),
+      row("GIFT_WRAP_CREDITS"),
+      row("SHIPPING_TAX"),
+      row("TAX_RECLASSIFICATION"),
+    ],
     "USD",
   );
   assert.deepEqual(
-    groups.map((group) => [group.id, group.label]),
+    groups.map(({ id, label }) => [id, label]),
     [
-      ["shipping-gift-wrap", "Shipping and gift wrap"],
+      ["fulfillment", "Fulfillment & shipping"],
       ["taxes", "Taxes"],
     ],
   );
-  assert.deepEqual(
-    groups[0].types.map((entry) => entry.type),
-    [...types].sort(),
-  );
-});
-
-test("reference group order and stable child order do not depend on signed or missing amounts", () => {
-  const expected = [
-    ["PRODUCT_SALES", "sales-and-refunds", "Sales and refunds"],
-    ["SPONSORED_PRODUCTS_CHARGE", "sponsored-products", "Sponsored Products charge"],
-    ["FBA_FULFILLMENT_FEE", "fba-fulfillment", "FBA fulfillment fees"],
-    ["REFERRAL_FEE", "referral", "Referral fee"],
-    ["FBA_INBOUND_PLACEMENT_SERVICE_FEE", "inbound-placement", "FBA inbound placement service fee"],
-    ["FBA_INBOUND_TRANSPORTATION_FEE", "inbound-transportation", "Inbound transportation charge"],
-    ["DISPOSAL_FEE", "disposal", "FBA disposal order fee"],
-    ["REFUND_COMMISSION_FEE", "refund-administration", "Refund administration fee"],
-    ["MONTHLY_INVENTORY_STORAGE_FEE", "monthly-storage", "Monthly inventory storage fee"],
-    ["Z_UNKNOWN", "other", "Other"],
-  ];
-  const input = expected
-    .map(([type], index) => row(type, { companyAmount: index === 2 ? null : String(index - 8) }))
-    .reverse();
-  input.push(row("NET_PRODUCT_SALES", { companyAmount: "999999999999999999999" }));
-  input.push(row("PRODUCT_REFUNDS", { companyAmount: "-1" }));
-  input.push(row("A_UNKNOWN", { companyAmount: "-999999999999999999999" }));
-  input.forEach(Object.freeze);
-  Object.freeze(input);
-  const original = [...input];
-  const groups = groupTransactionTypes(input, "USD");
-  assert.deepEqual(
-    groups.map(({ id, label }) => [id, label]),
-    expected.map(([, id, label]) => [id, label]),
-  );
-  assert.deepEqual(
-    groups[0].types.map(({ type }) => type),
-    ["PRODUCT_SALES", "PRODUCT_REFUNDS", "NET_PRODUCT_SALES"],
-  );
-  assert.deepEqual(
-    groups.at(-1).types.map(({ type }) => type),
-    ["A_UNKNOWN", "Z_UNKNOWN"],
-  );
-  assert.deepEqual(input, original);
-  assert.equal(groups.flatMap((group) => group.types).length, input.length);
-  assert.equal(new Set(groups.flatMap((group) => group.types)).size, input.length);
 });
 
 test("exact subtotals equal the overall total while preserving null and missing-fee evidence", () => {
@@ -185,8 +136,11 @@ test("exact subtotals equal the overall total while preserving null and missing-
     rowCount: 6,
     missingFeeCount: 3,
   });
-  assert.equal(groups[0].totals.companyAmount, "0.000000000000000001");
-  assert.equal(groups[0].totals.missingFeeCount, 2);
+  assert.equal(
+    groups.find(({ id }) => id === "sales").totals.companyAmount,
+    "0.000000000000000001",
+  );
+  assert.equal(groups.find(({ id }) => id === "sales").totals.missingFeeCount, 2);
   assert.equal(groups.at(-1).totals.companyAmount, null);
   for (const field of ["reportedAmount", "serviceFee", "companyAmount"])
     assert.equal(sumExactDecimals(groups.map((group) => group.totals[field])), total[field]);

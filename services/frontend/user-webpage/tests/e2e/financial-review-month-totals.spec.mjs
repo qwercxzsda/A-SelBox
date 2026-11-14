@@ -66,7 +66,7 @@ for (const width of [320, 390]) {
         },
       ];
     });
-    await chooseFamilies(page, ["Monthly storage", "Sponsored products"]);
+    await chooseFamilies(page, ["Monthly storage fees", "Sponsored products"]);
     await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
     await expect(totals(page).locator("dt")).toHaveText([
       "Finances costs",

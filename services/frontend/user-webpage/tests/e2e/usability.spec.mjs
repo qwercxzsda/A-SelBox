@@ -308,7 +308,7 @@ for (const role of ["member", "administrator"]) {
     }
 
     await rowWithSku(page, "ALPHA-001").click();
-    const details = page.getByRole("dialog", { name: "Selected row details" });
+    const details = page.getByRole("dialog", { name: "Transaction details" });
     await expect(details.getByText("ALPHA-001", { exact: true })).toHaveCount(1);
     await expect(details.getByText("Company", { exact: true })).toHaveCount(
       role === "administrator" ? 1 : 0,

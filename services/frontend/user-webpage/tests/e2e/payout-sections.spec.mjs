@@ -42,7 +42,7 @@ for (const width of [1440, 1920]) {
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await page.getByRole("cell", { name: "95.00 USD", exact: true }).click();
-    const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+    const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
     const records = drawer.getByRole("table", { name: "Amount records", exact: true });
     await expect(records).toBeVisible();
     await expect(drawer.getByRole("note")).toContainText("Totals use original precision");
@@ -51,7 +51,7 @@ for (const width of [1440, 1920]) {
     );
     const headings = await drawer.getByRole("heading").allTextContents();
     expect(headings.indexOf("Amounts by type")).toBeLessThan(headings.indexOf("Records"));
-    await drawer.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
+    await drawer.getByRole("button", { name: "Sales & refunds details", exact: true }).click();
     const typeTable = drawer.getByRole("table", { name: "Transaction type amounts", exact: true });
     expect(
       fixture.events.some(({ endpoint }) => endpoint.endsWith("/rpc/report_source_totals")),
@@ -65,7 +65,7 @@ for (const width of [1440, 1920]) {
       typeTable.getByRole("columnheader", { name: "Company amount", exact: true }),
     ).toBeVisible();
     await expect(
-      drawer.getByRole("button", { name: "Saved source details", exact: true }),
+      drawer.getByRole("button", { name: "Saved report source details", exact: true }),
     ).toHaveCount(0);
     await expect(drawer.getByRole("button", { name: "Reconciliation", exact: true })).toHaveCount(
       0,

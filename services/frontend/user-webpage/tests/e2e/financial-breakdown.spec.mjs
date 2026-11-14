@@ -93,7 +93,7 @@ for (const width of [834, 390]) {
     await page
       .getByRole("button", { name: "View Last month for Amazon.com in USD by type", exact: false })
       .click();
-    const summary = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+    const summary = page.getByRole("dialog", { name: "Transaction totals", exact: true });
     const expectedAmounts = ["100.12 USD", "-5.00 USD", "95.12 USD"];
     const total = summary.getByRole("region", { name: "Breakdown total", exact: true });
     await expect(total.locator("dd")).toHaveText(expectedAmounts);
@@ -102,11 +102,9 @@ for (const width of [834, 390]) {
     await expect(summary).not.toContainText("EXCLUDED-EUR");
     await summary.getByRole("button", { name: "Next records", exact: true }).click();
     await expect(records.getByRole("row")).toHaveCount(5);
+    await summary.getByRole("button", { name: "Storage & inventory details", exact: true }).click();
     await summary
-      .getByRole("button", { name: "Monthly inventory storage fee details", exact: true })
-      .click();
-    await summary
-      .getByRole("button", { name: "View Monthly inventory storage fee records", exact: true })
+      .getByRole("button", { name: "View Storage & inventory records", exact: true })
       .click();
     await expect(records.getByRole("row")).toHaveCount(3);
     await expect(records).toContainText("STORAGE-053");
@@ -128,11 +126,11 @@ for (const width of [834, 390]) {
     await summary.getByRole("button", { name: "Close breakdown" }).click();
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await page.getByRole("cell", { name: "95.12 USD", exact: true }).click();
-    const report = page.getByRole("dialog", { name: "Selected row details", exact: true });
+    const report = page.getByRole("dialog", { name: "Payout report details", exact: true });
     const saved = report.getByRole("region", { name: "Breakdown total", exact: true });
     await expect(saved.locator("dd")).toHaveText(expectedAmounts);
     await expect(saved).toContainText("54 records across 2 types");
-    await report.getByRole("button", { name: "Sales and refunds details", exact: true }).click();
+    await report.getByRole("button", { name: "Sales & refunds details", exact: true }).click();
     const sales =
       width > 720
         ? report.getByRole("row", { name: "Product sales amounts", exact: true })

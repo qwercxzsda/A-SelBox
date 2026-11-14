@@ -47,7 +47,7 @@ export function FinancialReviewSourceDetails({
       </Text>
       <DetailSection
         stateKey={`financial-review:families:${category}:${periodKey}`}
-        title="Fee family comparison"
+        title="Type family comparison"
         collapsible
       >
         <FinancialReviewFamilies {...scope} />

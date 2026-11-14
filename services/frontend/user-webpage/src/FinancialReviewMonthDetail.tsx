@@ -7,7 +7,7 @@ import { DrawerHeading } from "./DrawerHeading";
 import { NavigationStepButton } from "./NavigationStepButton";
 import { reviewCategoryLabel, type ReviewCategory } from "./financial-review-categories";
 import "./FinancialReviewMonthDetail.css";
-import { FeeFamilyScope } from "./FeeFamilyFilter";
+import { TypeFamilyScope } from "./TypeFamilyFilter";
 import { reviewFamilyStateKey } from "./financial-review-source-state";
 
 export function FinancialReviewMonthDetail({
@@ -76,7 +76,7 @@ export function FinancialReviewMonthDetail({
                 <Text size="sm" c="dimmed" mt={4}>
                   {marketplace} · All source accounts · All companies · All SKUs
                 </Text>
-                <FeeFamilyScope families={families} />
+                <TypeFamilyScope families={families} />
               </div>
               {months.length > 1 ? (
                 <Group

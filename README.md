@@ -27,9 +27,9 @@ and source coverage.
 One named enum category selects the allocation: `FINANCES`, `SELBOX`,
 `DATA_KIOSK`, or `ANALYSIS_ONLY`. Finances supplies direct company facts and
 account controls; selected Data Kiosk components supply company costs.
-Analysis-only components stay outside strict financial totals. Current totals include only the
-`FINANCES` and `DATA_KIOSK` company categories; the administrator transaction list also retains
-eligible SelBox activity. Lists and current totals use UTC periods. Original marketplace-local
+Analysis-only components stay outside strict financial totals. Current totals sum the same filtered
+rows as Transactions, including eligible SelBox activity for administrators. SelBox amounts retain
+zero company contribution. Lists and current totals use UTC periods. Original marketplace-local
 dates determine fee periods and saved payout months. Finance batches
 record exact observed transaction versions and reuse unchanged contents. Data Kiosk batches likewise
 record reusable complete-day versions, including empty days. Both retain independent Amazon observation ordering.

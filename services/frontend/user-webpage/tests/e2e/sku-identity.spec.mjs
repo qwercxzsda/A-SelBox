@@ -68,7 +68,9 @@ for (const [role, dataset, tab] of SCOPES) {
           ? table.locator('[data-column="source_amount"]').getByText(amount, { exact: true })
           : table.getByRole("cell", { name: amount, exact: true });
       await displayedAmount.click();
-      const drawer = page.getByRole("dialog", { name: "Selected row details" });
+      const drawer = page.getByRole("dialog", {
+        name: dataset === "live" ? "Transaction details" : `${tab} record details`,
+      });
       await expect(drawer.getByRole("heading", { name: "S1", exact: true })).toBeVisible();
       if (role === "administrator") {
         await expect(drawer.getByText("Source namespace", { exact: true })).toHaveCount(0);

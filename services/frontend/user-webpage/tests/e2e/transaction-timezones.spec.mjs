@@ -180,7 +180,7 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
             exact: false,
           })
           .click();
-        const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+        const dialog = page.getByRole("dialog", { name: "Transaction totals", exact: true });
         await expect(
           summaryAmount(
             dialog.getByRole("region", { name: "Breakdown total", exact: true }),
@@ -227,7 +227,7 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
           exact: false,
         })
         .click();
-      const shared = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+      const shared = page.getByRole("dialog", { name: "Transaction totals", exact: true });
       await expect(
         summaryAmount(
           shared.getByRole("region", { name: "Breakdown total", exact: true }),

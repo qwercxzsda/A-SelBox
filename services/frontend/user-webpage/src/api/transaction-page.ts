@@ -22,11 +22,6 @@ export function transactionFilterArguments(
   options: FetchDatasetCountOptions & { dataset: TransactionDataset },
 ) {
   if (
-    options.includeSelbox !== undefined &&
-    (options.dataset !== "live" || typeof options.includeSelbox !== "boolean")
-  )
-    throw new Error("A valid Transactions SelBox selection is required");
-  if (
     options.currency !== undefined &&
     (options.dataset !== "live" || !isCurrency(options.currency))
   )
@@ -51,7 +46,6 @@ export function transactionFilterArguments(
         p_search_sources: search?.sources ?? null,
         p_fee_applicable: filters.feeApplicable,
         ...(options.currency ? { p_currency: options.currency } : {}),
-        ...(options.includeSelbox !== undefined ? { p_include_selbox: options.includeSelbox } : {}),
       }
     : { ...common, p_dataset: options.dataset };
 }

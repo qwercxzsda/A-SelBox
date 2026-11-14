@@ -15,7 +15,7 @@ class SourceCategoryAlignmentTests(unittest.TestCase):
             "AGED_STORAGE_FEES": "FBA_AGED_INVENTORY_SURCHARGE",
             "DISPOSAL_FEES": "DISPOSAL_FEE",
             "REMOVAL_FEES": "REMOVAL_FEE",
-            "INBOUND_PLACEMENT_FEES": "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
+            "INBOUND_PLACEMENT_FEES": "FBA_INBOUND_CONVENIENCE_FEE",
             "INBOUND_TRANSPORTATION_FEES": "FBA_INBOUND_TRANSPORTATION_FEE",
             "INBOUND_TRANSPORTATION_PROGRAM_FEES": "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE",
             "LABELING_FEES": "LABELING_FEE",
@@ -29,6 +29,28 @@ class SourceCategoryAlignmentTests(unittest.TestCase):
         )
         for source, target in pairs.items():
             self.assertIs(finances[source], kiosk[target])
+
+    def test_native_inbound_convenience_paths_keep_the_registered_component_type(self) -> None:
+        for prefix in (
+            ("AmazonFees", "FBAInboundConvenienceFee"),
+            ("FBAFees", "FBAInboundConvenienceFee"),
+            ("FBAFees", "InboundConvenienceCharge", "FBAInboundConvenienceFee"),
+        ):
+            for detail in ("Base", "Tax"):
+                with self.subTest(path=(*prefix, detail)):
+                    result = classify_finances_component("ServiceFee", (*prefix, detail))
+                    self.assertEqual(result.component_type, "INBOUND_PLACEMENT_FEES")
+                    self.assertIs(result.category, AllocationCategory.DATA_KIOSK)
+
+    def test_kiosk_inbound_placement_has_no_finances_native_mapping(self) -> None:
+        kiosk = {
+            row.component_type: row.category for row in DATA_KIOSK_TYPES if row.collection == "fees"
+        }
+        self.assertIs(kiosk["FBA_INBOUND_PLACEMENT_SERVICE_FEE"], AllocationCategory.DATA_KIOSK)
+        with self.assertRaisesRegex(ValueError, "Unsupported Finances"):
+            classify_finances_component(
+                "ServiceFee", ("AmazonFees", "FBAInboundPlacementServiceFee", "Base")
+            )
 
     def test_unknown_paths_cannot_become_generic_account_adjustments(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported Finances"):

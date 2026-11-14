@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildFinancialReviewCoverage,
-  describeFeeFamilyCoverage,
+  describeTypeFamilyCoverage,
 } from "../src/financial-review-coverage.ts";
 
 const row = (finances, dataKiosk) => ({
@@ -85,39 +85,39 @@ test("empty input has no observed months and coverage does not mutate monthly to
 
 test("intentionally source-only family definitions are distinct from missing paired records", () => {
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("2026-07-01", "DATA_KIOSK", 93n)], {
+    describeTypeFamilyCoverage([familyRow("2026-07-01", "DATA_KIOSK", 93n)], {
       financesTypes: [],
       dataKioskTypes: ["NET_PRODUCT_SALES"],
     }),
     "Data Kiosk-only family",
   );
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("2026-07-01", "FINANCES")], {
+    describeTypeFamilyCoverage([familyRow("2026-07-01", "FINANCES")], {
       financesTypes: ["TAX_WITHHELD"],
       dataKioskTypes: [],
     }),
     "Finances-only family",
   );
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("2026-04-01", "DATA_KIOSK")], paired),
+    describeTypeFamilyCoverage([familyRow("2026-04-01", "DATA_KIOSK")], paired),
     "No Finances rows in this scope",
   );
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("2026-05-01", "FINANCES", 3n)], paired),
+    describeTypeFamilyCoverage([familyRow("2026-05-01", "FINANCES", 3n)], paired),
     "No Data Kiosk rows in this scope",
   );
 });
 
 test("yearly paired coverage reports overlapping months rather than mere presence somewhere", () => {
   assert.equal(
-    describeFeeFamilyCoverage(
+    describeTypeFamilyCoverage(
       [familyRow("2026-04-01", "DATA_KIOSK"), familyRow("2026-05-01", "FINANCES", 3n)],
       paired,
     ),
     "Both sources in 0 of 2 months",
   );
   assert.equal(
-    describeFeeFamilyCoverage(
+    describeTypeFamilyCoverage(
       [
         familyRow("2026-01-01", "FINANCES"),
         familyRow("2026-01-01", "FINANCES", 2n),
@@ -131,7 +131,7 @@ test("yearly paired coverage reports overlapping months rather than mere presenc
     "Both sources in 2 of 3 months",
   );
   assert.equal(
-    describeFeeFamilyCoverage(
+    describeTypeFamilyCoverage(
       [familyRow("2026-01-01", "FINANCES"), familyRow("2026-01-01", "DATA_KIOSK")],
       paired,
     ),
@@ -140,29 +140,29 @@ test("yearly paired coverage reports overlapping months rather than mere presenc
 });
 
 test("family coverage excludes zero-count groups and never labels unknown counts as absent", () => {
-  assert.equal(describeFeeFamilyCoverage([], paired), "No source rows in this scope");
+  assert.equal(describeTypeFamilyCoverage([], paired), "No source rows in this scope");
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("2026-01-01", "FINANCES", 0n)], paired),
+    describeTypeFamilyCoverage([familyRow("2026-01-01", "FINANCES", 0n)], paired),
     "No source rows in this scope",
   );
   for (const invalid of [undefined, null, "1", -1n])
     assert.equal(
-      describeFeeFamilyCoverage(
+      describeTypeFamilyCoverage(
         [{ month: "2026-01-01", source: "FINANCES", rowCount: invalid }],
         paired,
       ),
       "Source availability unknown",
     );
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("", "FINANCES")], paired),
+    describeTypeFamilyCoverage([familyRow("", "FINANCES")], paired),
     "Source availability unknown",
   );
   assert.equal(
-    describeFeeFamilyCoverage([familyRow("2026-01-01", "OTHER")], paired),
+    describeTypeFamilyCoverage([familyRow("2026-01-01", "OTHER")], paired),
     "Source availability unknown",
   );
   assert.equal(
-    describeFeeFamilyCoverage([], { financesTypes: [], dataKioskTypes: [] }),
+    describeTypeFamilyCoverage([], { financesTypes: [], dataKioskTypes: [] }),
     "Source availability unknown",
   );
 });

@@ -175,11 +175,11 @@ test("column filters and historical selection survive F5 without returning to th
   await expect(page.getByRole("cell", { name: "999.00 USD", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: `Show versions for ${scope}`, exact: true }).click();
   await payoutHistoryRows(page, scope).press("Enter");
-  let drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  let drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(payoutHistoryRows(page, scope)).toHaveAttribute("aria-selected", "true");
   await expect(drawer).toContainText("Created 2026-09-20 12:30:00 UTC");
   await page.reload();
-  drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toBeVisible();
   await expect(drawer).toContainText("Created 2026-09-20 12:30:00 UTC");
   await drawer.getByRole("button", { name: "Close row details", exact: true }).click();
@@ -357,7 +357,7 @@ test("version pagination reads only the requested scope and restores an older pa
   await expect(history.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
   expect(historyReads(fixture).at(-1).params.get("offset")).toBe("50");
   await payoutHistoryRows(page, scope).click();
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toContainText("Created 2026-09-27 00:00:01 UTC");
   await page.reload();
   await expect(drawer).toContainText("Created 2026-09-27 00:00:01 UTC");
@@ -400,7 +400,7 @@ test("currency-free zero reports load only currency-free history", async ({ page
   await expect(versions).not.toContainText("USD");
   expect(historyReads(fixture).at(-1).params.get("currency")).toBe("is.null");
   await versions.click();
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toContainText("Created 2026-09-20 12:30:00 UTC");
   await page.reload();
   await expect(drawer).toContainText("Created 2026-09-20 12:30:00 UTC");
@@ -427,7 +427,7 @@ test("an inspected version stays open when publication shifts it beyond the hist
   await page.getByRole("button", { name: `Show versions for ${scope}`, exact: true }).click();
   const history = payoutHistoryControls(page, scope);
   await payoutHistoryRows(page, scope).filter({ hasText: "2026-09-27 00:00:01 UTC" }).click();
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toContainText("Created 2026-09-27 00:00:01 UTC");
   const completedPolls = () => fixture.revisionRequests.filter(({ completed }) => completed).length;
   const pollsBefore = completedPolls();

@@ -36,7 +36,7 @@ test("a saved zero report displays without a currency and remains readable durin
   await applyReportMonth(page, "2026-06");
   await expect(page.getByRole("cell", { name: "0.00", exact: true })).toHaveCount(3);
   await page.getByRole("cell", { name: "0.00", exact: true }).first().click();
-  const drawer = page.getByRole("dialog", { name: "Selected row details" });
+  const drawer = page.getByRole("dialog", { name: "Payout report details" });
   await expect(
     drawer.getByRole("region", { name: "Breakdown total" }).getByText("0.00", { exact: true }),
   ).toHaveCount(3);

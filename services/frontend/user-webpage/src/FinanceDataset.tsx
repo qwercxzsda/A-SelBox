@@ -54,8 +54,17 @@ function StandardFinanceDataset({
   const online = useBrowserOnline();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
-  const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
-    useFinanceTable(identity, dataset, viewState, onViewStateChange);
+  const {
+    table,
+    query,
+    totalCount,
+    search,
+    debouncedSearch,
+    changeSearch,
+    filters,
+    changeFilters,
+    companies,
+  } = useFinanceTable(identity, dataset, viewState, onViewStateChange);
   const { pageIndex, pageSize } = table.state.pagination;
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
@@ -95,10 +104,8 @@ function StandardFinanceDataset({
         <TransactionSummaries
           identity={identity}
           onRetry={onRetry}
-          companyIds={filters.companyIds}
-          skus={filters.skus}
-          marketplaces={filters.marketplaces}
-          dateRange={{ from: filters.dateFrom, to: filters.dateTo }}
+          filters={filters}
+          search={debouncedSearch}
           onPeriodSelect={({ from, to }) => {
             changeFilters({ dateFrom: from, dateTo: to });
           }}

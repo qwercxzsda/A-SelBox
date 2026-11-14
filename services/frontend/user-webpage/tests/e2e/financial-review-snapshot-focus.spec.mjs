@@ -31,7 +31,7 @@ for (const width of [390, 1440]) {
     await opener.focus();
     const originalScroll = await monthly.evaluate((element) => element.scrollTop);
     await opener.press("Enter");
-    const saved = page.getByRole("dialog", { name: "Saved source details", exact: true });
+    const saved = page.getByRole("dialog", { name: "Saved report source details", exact: true });
     await expect(
       saved.getByRole("table", { name: "Supporting payout records", exact: true }),
     ).toBeVisible();

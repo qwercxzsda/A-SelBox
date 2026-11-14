@@ -6,10 +6,7 @@ export function periodBucketTotals(rows, params) {
   if (!bounds.some((bound) => /^(gte|lte|lt)\./.test(bound))) {
     throw new Error("Browser summary requests must have a date bound");
   }
-  const matching = filterRecordRows(
-    rows.filter((row) => row.category === "FINANCES" || row.category === "DATA_KIOSK"),
-    params,
-  );
+  const matching = filterRecordRows(rows, params);
   const groups = [
     ...new Set(matching.map((row) => JSON.stringify([row.marketplace_name, row.currency]))),
   ].sort();

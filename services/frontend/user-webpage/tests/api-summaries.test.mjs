@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiClient } from "../src/api/client.ts";
+import { transactionFilterArguments } from "../src/api/transaction-page.ts";
 import {
   SETTINGS,
   aggregateRow,
@@ -137,6 +138,13 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
       p_company_ids: [],
       p_skus: [],
       p_marketplaces: [],
+      p_sources: [],
+      p_types: [],
+      p_fee_applicable: null,
+      p_search_skus: null,
+      p_search_types: null,
+      p_search_marketplaces: null,
+      p_search_sources: null,
       p_currency: null,
       p_group_by_type: false,
       p_limit: 1000,
@@ -152,10 +160,6 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
     await client.fetchTransactionPeriodTotals(
       periodTotalsRequest({
         signal,
-        sources: ["DATA_KIOSK"],
-        types: ["PRODUCT_SALES"],
-        feeApplicability: ["applicable"],
-        search: "ignored",
       }),
     ),
     [
@@ -214,6 +218,57 @@ test("period totals validate date bounds before HTTP and support open-ended rang
   assert.equal(requests[0].p_date_to, null);
   assert.equal(requests[1].p_date_from, null);
   assert.equal(requests[1].p_date_to, "2024-02-29");
+});
+
+test("period and type totals use exactly the record filters, including resolved empty searches", async () => {
+  const requests = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    requests.push(assertRpcRequest(assert, url, init, "transaction_totals"));
+    return responseJson({ rows: [], next_offset: null });
+  });
+  for (const searchValues of [
+    { skus: ['Exact, "SKU"'], types: ["PRODUCT_SALES"], marketplaces: [], sources: [] },
+    { skus: [], types: [], marketplaces: [], sources: [] },
+  ]) {
+    const options = periodTotalsRequest({
+      companyIds: ["11111111-1111-4111-8111-111111111111"],
+      skus: ['Exact, "SKU"'],
+      marketplaces: ["Amazon.com"],
+      sources: ["FINANCES"],
+      types: ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
+      feeApplicability: ["applicable"],
+      search: "Exact",
+      searchValues,
+    });
+    const filters = transactionFilterArguments({ ...options, dataset: "live", filters: options });
+    await client.fetchTransactionPeriodTotals(options);
+    await client.fetchTransactionTypeTotals({ ...options, currency: "USD" });
+    for (const [request, currency] of [
+      [requests.at(-2), null],
+      [requests.at(-1), "USD"],
+    ]) {
+      assert.deepEqual(request, {
+        ...filters,
+        p_currency: currency,
+        p_group_by_type: currency !== null,
+        p_limit: 1000,
+        p_offset: 0,
+      });
+    }
+  }
+  const count = requests.length;
+  for (const overrides of [
+    { search: "unresolved" },
+    { feeApplicability: ["invalid"] },
+    { sources: [""] },
+    { types: ["\0"] },
+  ]) {
+    await assert.rejects(client.fetchTransactionPeriodTotals(periodTotalsRequest(overrides)));
+    await assert.rejects(
+      client.fetchTransactionTypeTotals({ ...periodTotalsRequest(overrides), currency: "USD" }),
+    );
+  }
+  assert.equal(requests.length, count);
 });
 
 test("period totals preserve separate marketplaces sharing a currency across pages", async () => {

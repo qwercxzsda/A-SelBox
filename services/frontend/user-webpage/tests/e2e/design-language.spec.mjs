@@ -145,7 +145,7 @@ for (const [role, width] of [
     );
     await screenshot("transactions");
     await financialTable(page).locator("tbody tr").first().click();
-    const rowDetail = page.getByRole("dialog", { name: "Selected row details", exact: true });
+    const rowDetail = page.getByRole("dialog", { name: "Transaction details", exact: true });
     await checkDrawer(rowDetail);
     await screenshot("transaction-details");
     if (role === "administrator") await checkMetadata(rowDetail);
@@ -168,7 +168,7 @@ for (const [role, width] of [
         const details =
           name === "User access"
             ? page.getByRole("dialog", { name: "Company membership", exact: true })
-            : rowDetail;
+            : page.getByRole("dialog", { name: `${name} record details`, exact: true });
         await checkDrawer(details);
         await checkMetadata(details);
         await screenshot(`${name.toLowerCase().replaceAll(" ", "-")}-details`);
@@ -262,11 +262,12 @@ for (const [role, width] of [
     await checkDisclosure(versionToggle, false);
     await screenshot("payouts");
     await financialTable(page).locator("tbody tr.inspectable-row").first().click();
-    await checkDrawer(rowDetail);
-    await checkTable(rowDetail.getByRole("table", { name: "Amount records", exact: true }));
+    const payoutDetail = page.getByRole("dialog", { name: "Payout report details", exact: true });
+    await checkDrawer(payoutDetail);
+    await checkTable(payoutDetail.getByRole("table", { name: "Amount records", exact: true }));
     await screenshot("payout-details");
-    if (role === "administrator") await checkMetadata(rowDetail);
-    await rowDetail.getByRole("button", { name: "Close row details", exact: true }).click();
+    if (role === "administrator") await checkMetadata(payoutDetail);
+    await payoutDetail.getByRole("button", { name: "Close row details", exact: true }).click();
 
     if (role === "administrator") {
       await openTab("Financial review");
@@ -293,7 +294,10 @@ for (const [role, width] of [
       const snapshots = review.getByRole("table", { name: "Financial records", exact: true });
       await checkTable(snapshots);
       await snapshots.locator("tbody tr.inspectable-row").first().click();
-      const support = page.getByRole("dialog", { name: "Saved source details", exact: true });
+      const support = page.getByRole("dialog", {
+        name: "Saved report source details",
+        exact: true,
+      });
       await checkDrawer(support);
       await checkTable(
         support.getByRole("table", { name: "Supporting payout records", exact: true }),

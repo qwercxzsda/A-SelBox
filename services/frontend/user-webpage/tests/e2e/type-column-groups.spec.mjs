@@ -79,14 +79,14 @@ for (const width of [1440, 390]) {
     fixture.assignments = skuAssignments(fixture.liveRows.map(({ sku }) => sku));
     fixture.aggregateRows = [
       summaryBucket("2026-11-01", "0"),
-      summaryBucket("2026-10-31", "100", { rowCount: 5 }),
+      { ...summaryBucket("2026-10-31", "20"), component_type: "PRODUCT_SALES" },
     ];
     fixture.breakdownRows = TYPES.filter(([, , , category]) => category !== "SELBOX").map(
       ([type]) => typeBucket(type, "20"),
     );
     await signIn(page);
     const table = page.getByRole("table", { name: "Financial records", exact: true });
-    await expect(table.locator("tbody tr")).toHaveCount(TYPES.length);
+    await expect(table.locator("tbody tr")).toHaveCount(TYPES.length, { timeout: 15_000 });
     for (const [index, [type, label, group]] of TYPES.entries()) {
       const value = rowWithSku(page, `GROUP-${String(index + 1).padStart(3, "0")}`).locator(
         '[data-column="component_type"] .transaction-type',
@@ -112,9 +112,13 @@ for (const width of [1440, 390]) {
     });
 
     const menu = await openColumn(page, "Type");
-    for (const group of new Set(TYPES.map((entry) => entry[2])))
-      await expect(menu.getByRole("checkbox", { name: group, exact: true })).toBeVisible();
-    await menu.getByRole("checkbox", { name: "Sales & refunds", exact: true }).check();
+    for (const group of new Set(
+      TYPES.filter(([type]) => type !== "UNRECOGNIZED_ENTRY").map((entry) => entry[2]),
+    ))
+      await expect(
+        menu.getByRole("checkbox", { name: `${group} group`, exact: true }),
+      ).toBeVisible();
+    await menu.getByRole("checkbox", { name: "Sales & refunds group", exact: true }).check();
     await menu.getByRole("button", { name: "Done", exact: true }).click();
     await expect(table.locator("tbody tr")).toHaveCount(1);
     await expect(rowWithSku(page, "GROUP-001")).toBeVisible();
@@ -124,17 +128,11 @@ for (const width of [1440, 390]) {
     await page
       .getByRole("button", { name: /^View Last month for Amazon.com in USD by type:/ })
       .click();
-    const drawer = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+    const drawer = page.getByRole("dialog", { name: "Transaction totals", exact: true });
     const records = drawer.getByRole("table", { name: "Amount records", exact: true });
-    await expect(records.locator("tbody tr")).toHaveCount(5);
-    await expect(records.locator(".transaction-type-group")).toHaveCount(5);
-    await expect(records.locator(".transaction-type-group")).toContainText([
-      "Other fees & adjustments",
-      "Taxes",
-      "Selling fees",
-      "Sales & refunds",
-      "Storage & inventory",
-    ]);
+    await expect(records.locator("tbody tr")).toHaveCount(1);
+    await expect(records.locator(".transaction-type-group")).toHaveCount(1);
+    await expect(records.locator(".transaction-type-group")).toHaveText(["Sales & refunds"]);
     await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
   });
 }

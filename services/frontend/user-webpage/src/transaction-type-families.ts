@@ -1,7 +1,23 @@
-export type FeeFamilySource = "FINANCES" | "DATA_KIOSK";
+/** Ordered browsing groups shared by Type filters, row labels and amount breakdowns. */
+export const TRANSACTION_TYPE_GROUPS = [
+  { id: "sales", label: "Sales & refunds" },
+  { id: "selling", label: "Selling fees" },
+  { id: "fulfillment", label: "Fulfillment & shipping" },
+  { id: "inventory", label: "Storage & inventory" },
+  { id: "advertising", label: "Advertising & promotions" },
+  { id: "taxes", label: "Taxes" },
+  { id: "other", label: "Other fees & adjustments" },
+  { id: "seller-costs", label: "Seller-provided costs" },
+] as const;
 
-export interface FeeFamily {
+export type TypeGroupDefinition = (typeof TRANSACTION_TYPE_GROUPS)[number];
+export type TypeGroupId = TypeGroupDefinition["id"];
+
+export type TypeFamilySource = "FINANCES" | "DATA_KIOSK";
+
+export interface TypeFamily {
   readonly id: string;
+  readonly groupId: TypeGroupId;
   readonly label: string;
   readonly description: string;
   readonly financesTypes: readonly string[];
@@ -10,23 +26,26 @@ export interface FeeFamily {
 
 function family(
   id: string,
+  groupId: TypeGroupId,
   label: string,
   description: string,
   financesTypes: readonly string[],
   dataKioskTypes: readonly string[],
-): FeeFamily {
-  return { id, label, description, financesTypes, dataKioskTypes };
+): TypeFamily {
+  return { id, groupId, label, description, financesTypes, dataKioskTypes };
 }
 
 function sourceFamily(
   id: string,
+  groupId: TypeGroupId,
   label: string,
-  source: FeeFamilySource,
+  source: TypeFamilySource,
   types: readonly string[],
   description: string,
-): FeeFamily {
+): TypeFamily {
   return family(
     id,
+    groupId,
     label,
     description,
     source === "FINANCES" ? types : [],
@@ -34,25 +53,28 @@ function sourceFamily(
   );
 }
 
-// Exact source identities from the transaction taxonomy. These review groupings
-// do not change accounting allocation or imply equal billing dates or coverage.
-export const FEE_FAMILIES: readonly FeeFamily[] = [
+// One hierarchy: exact source types belong to a detailed review family and inherit
+// its broad browsing group. Memberships do not alter allocation, dates or coverage.
+export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   family(
     "monthly-storage",
-    "Monthly storage",
+    "inventory",
+    "Monthly storage fees",
     "Monthly inventory storage fees, separate from aged inventory surcharges.",
     ["STORAGE_FEES"],
     ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
   ),
   family(
     "aged-storage",
-    "Aged storage",
+    "inventory",
+    "Aged inventory surcharges",
     "Long-term storage fees and aged inventory surcharges, separate from monthly storage.",
     ["AGED_STORAGE_FEES"],
     ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE"],
   ),
   family(
     "sponsored-products",
+    "advertising",
     "Sponsored products",
     "Finances ProductAdsPayment charges and Data Kiosk Sponsored Products aliases. Sponsored Brands and Display are separate.",
     ["ADVERTISING"],
@@ -65,6 +87,7 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "sponsored-brands",
+    "advertising",
     "Sponsored brands",
     "Data Kiosk Sponsored Brands advertising aliases. No Finances type is assigned to this family.",
     [],
@@ -72,6 +95,7 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "sponsored-display",
+    "advertising",
     "Sponsored display",
     "Data Kiosk Sponsored Display advertising aliases. No Finances type is assigned to this family.",
     [],
@@ -79,23 +103,47 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "coupons",
-    "Coupons",
+    "advertising",
+    "Coupon fees",
     "Coupon participation and performance fees.",
     ["COUPON_FEES"],
     ["COUPON_PARTICIPATION_FEE", "COUPON_PERFORMANCE_FEE"],
   ),
   family(
     "deals",
-    "Deals",
+    "advertising",
+    "Deal fees",
     "Lightning deal, participation and performance fees.",
     ["DEAL_FEES"],
     ["DEAL_PARTICIPATION_FEE", "DEAL_PERFORMANCE_FEE", "RUN_LIGHTNING_DEAL_FEE"],
   ),
-  family("disposal", "Disposal", "Inventory disposal fees.", ["DISPOSAL_FEES"], ["DISPOSAL_FEE"]),
-  family("removal", "Removal", "Inventory removal fees.", ["REMOVAL_FEES"], ["REMOVAL_FEE"]),
-  family("labeling", "Labeling", "Inventory labeling fees.", ["LABELING_FEES"], ["LABELING_FEE"]),
+  family(
+    "disposal",
+    "inventory",
+    "Disposal",
+    "Inventory disposal fees.",
+    ["DISPOSAL_FEES"],
+    ["DISPOSAL_FEE"],
+  ),
+  family(
+    "removal",
+    "inventory",
+    "Removal",
+    "Inventory removal fees.",
+    ["REMOVAL_FEES"],
+    ["REMOVAL_FEE"],
+  ),
+  family(
+    "labeling",
+    "fulfillment",
+    "Labeling",
+    "Inventory labeling fees.",
+    ["LABELING_FEES"],
+    ["LABELING_FEE"],
+  ),
   family(
     "inbound-transportation",
+    "fulfillment",
     "Inbound transportation",
     "Inbound transportation fees, separate from transportation program fees.",
     ["INBOUND_TRANSPORTATION_FEES"],
@@ -103,6 +151,7 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "inbound-transportation-program",
+    "fulfillment",
     "Inbound transportation program",
     "Inbound transportation program fees, separate from other inbound transportation.",
     ["INBOUND_TRANSPORTATION_PROGRAM_FEES"],
@@ -110,34 +159,39 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "subscription",
-    "Subscription",
+    "other",
+    "Seller subscription fees",
     "Seller subscription fees.",
     ["SUBSCRIPTION_FEES"],
     ["SUBSCRIPTION_FEE"],
   ),
   family(
     "fba-fulfillment",
-    "FBA fulfillment",
+    "fulfillment",
+    "FBA fulfillment fees",
     "Net FBA fulfillment charges, including signed fee corrections and reversals. Data Kiosk fulfillment aliases represent the corresponding fee activity.",
     ["FBA_FULFILLMENT_FEES", "FULFILLMENT_FEE_CORRECTIONS", "FULFILLMENT_FEE_REVERSALS"],
     ["FBA_FULFILLMENT_FEE", "FBA_FULFILLMENT_FEES", "FBA_FULFILMENT_FEE"],
   ),
   family(
     "referral",
+    "selling",
     "Referral fees",
-    "Net referral fees after returned referral fees. Original charges and refunds retain their signs; refund administration commission remains separate.",
+    "Net referral fees after returned referral fees. Original charges and refunds retain their signs; refund administration fees remain separate.",
     ["REFERRAL_FEES", "REFUNDED_REFERRAL_FEES"],
     ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"],
   ),
   family(
     "refund-commission",
-    "Refund commission",
-    "Commission charged on refunds, separate from returned referral fees.",
+    "selling",
+    "Refund administration fees",
+    "Administration fees Amazon retains when issuing refunds, separate from returned referral fees.",
     ["REFUND_COMMISSION"],
     ["REFUND_COMMISSION_FEE"],
   ),
   family(
     "inventory-reimbursements",
+    "inventory",
     "Inventory reimbursements",
     "Net inventory reimbursements after signed reimbursement reversals. Compare this balance with Data Kiosk inventory reimbursements.",
     ["INVENTORY_REIMBURSEMENTS", "INVENTORY_REIMBURSEMENT_REVERSALS"],
@@ -145,6 +199,7 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "digital-services",
+    "selling",
     "Digital services fees",
     "Digital services fees across FBA and selling services.",
     ["DIGITAL_SERVICES_FEES"],
@@ -152,13 +207,23 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "net-product-sales",
+    "sales",
     "Net product sales",
-    "Product sales plus signed product refunds, compared with Data Kiosk net product sales. Zero-value shipment/refund activity is retained. Shipping, promotions and taxes are separate; refund timing can differ between sources.",
-    ["PRODUCT_SALES", "PRODUCT_REFUNDS", "ZERO_ACTIVITY"],
+    "Product principal sales plus signed product refunds, compared with Data Kiosk net product sales. Shipping, promotions, taxes and zero-value records without monetary detail are separate; refund timing can differ between sources.",
+    ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
     ["NET_PRODUCT_SALES"],
   ),
   sourceFamily(
+    "zero-value-activity",
+    "other",
+    "Zero-value activity",
+    "FINANCES",
+    ["ZERO_ACTIVITY"],
+    "Zero-value shipment and refund records without a monetary breakdown. Their purpose cannot be identified as product principal or a fee, so they remain separate from sales and charges. Data Kiosk does not retain zero components.",
+  ),
+  sourceFamily(
     "shipping",
+    "fulfillment",
     "Shipping",
     "FINANCES",
     ["SHIPPING_CREDITS", "SHIPPING_REFUNDS", "SHIPPING_CHARGEBACKS"],
@@ -166,12 +231,14 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   sourceFamily(
     "gift-wrapping",
+    "fulfillment",
     "Gift wrapping",
     "FINANCES",
     ["GIFT_WRAP_CREDITS", "GIFT_WRAP_CHARGEBACKS"],
     "Net gift-wrap credits and chargebacks, excluding gift-wrap tax. No separate Data Kiosk gift-wrap counterpart is defined.",
   ),
   sourceFamily(
+    "taxes",
     "taxes",
     "Taxes collected and withheld",
     "FINANCES",
@@ -180,6 +247,7 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   sourceFamily(
     "promotions",
+    "advertising",
     "Promotions and points",
     "FINANCES",
     ["PROMOTIONAL_REBATES", "PROMOTIONAL_REFUNDS", "POINTS"],
@@ -187,13 +255,15 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   sourceFamily(
     "restocking",
-    "Restocking",
+    "sales",
+    "Restocking fees retained",
     "FINANCES",
     ["RESTOCKING"],
     "Restocking amounts retained from refunds. No separate Data Kiosk restocking counterpart is defined.",
   ),
   sourceFamily(
     "liquidation-proceeds",
+    "inventory",
     "Liquidation proceeds",
     "FINANCES",
     ["LIQUIDATION_PROCEEDS"],
@@ -201,42 +271,71 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   family(
     "liquidation-fees",
+    "inventory",
     "Liquidation fees",
     "Finances liquidation AmazonFees compared with the sum of Data Kiosk liquidation processing and referral fees. Recovery proceeds remain separate.",
     ["LIQUIDATION_FEES"],
     ["LIQUIDATION_PROCESSING_FEE", "LIQUIDATION_REFERRAL_FEE"],
   ),
   sourceFamily(
-    "data-kiosk-inbound-placement",
-    "Inbound placement · Data Kiosk",
+    "inbound-placement",
+    "fulfillment",
+    "Inbound placement service fees",
     "DATA_KIOSK",
     ["FBA_INBOUND_PLACEMENT_SERVICE_FEE"],
-    "Inbound placement service fees. Finances inbound convenience charges belong to a different family; no Finances placement-service counterpart is defined.",
+    "Data Kiosk inbound placement service fees identified by their exact source key. The registry defines no Finances counterpart for this key; similarly named inbound convenience charges remain separate unless source evidence establishes an equivalent scope.",
   ),
-  // Finances maps native FBAInboundConvenienceFee to INBOUND_PLACEMENT_FEES.
   family(
     "inbound-convenience",
-    "Inbound convenience",
-    "Finances INBOUND_PLACEMENT_FEES represents native FBAInboundConvenienceFee, paired with Data Kiosk inbound convenience fees. Placement service fees remain separate.",
+    "fulfillment",
+    "Inbound convenience fees",
+    "Finances native FBAInboundConvenienceFee paired with Data Kiosk FBA_INBOUND_CONVENIENCE_FEE by exact source identity. The separately named inbound placement service fee remains a distinct family; similarity of labels alone does not establish equivalence.",
     ["INBOUND_PLACEMENT_FEES"],
     ["FBA_INBOUND_CONVENIENCE_FEE"],
   ),
   sourceFamily(
-    "seller-service-fees",
-    "Seller service fees",
+    "epr-compliance",
+    "other",
+    "EPR compliance fees",
     "FINANCES",
-    ["EPR_FEES", "VINE_FEES", "INBOUND_DEFECT_FEES"],
-    "Seller account charges for compliance, Vine enrolment and inbound defects. These operating charges have no defined Data Kiosk counterpart. Subscription fees remain separately comparable.",
+    ["EPR_FEES"],
+    "Extended Producer Responsibility eco and service charges from native EPRChargebackEcoFee and EPRChargebackServiceFee. Separate from Vine enrollment and inbound defects; no Data Kiosk counterpart is defined.",
+  ),
+  sourceFamily(
+    "vine-enrollment",
+    "other",
+    "Vine enrollment fees",
+    "FINANCES",
+    ["VINE_FEES"],
+    "Amazon Vine enrollment charges from native VineEnrollmentFee/VineFee. No Data Kiosk counterpart is defined.",
+  ),
+  sourceFamily(
+    "inbound-defects",
+    "other",
+    "Inbound defect fees",
+    "FINANCES",
+    ["INBOUND_DEFECT_FEES"],
+    "FBA inbound defect charges from native FBAInboundDefectFee, including its UnplannedServiceCharge wrapper. Separate from transportation, convenience and placement fees; no Data Kiosk counterpart is defined.",
+  ),
+  sourceFamily(
+    "supply-chain-credits",
+    "other",
+    "Supply-chain credits",
+    "FINANCES",
+    ["MCF_CREDITS"],
+    "Credits from native SupplyChainCreditRollUp/MCCFCredit. Kept separate from failed disbursements and miscellaneous account adjustments; no Data Kiosk counterpart is defined.",
   ),
   sourceFamily(
     "account-adjustments",
-    "Account credits and adjustments",
+    "other",
+    "Other account adjustments",
     "FINANCES",
-    ["MCF_CREDITS", "OTHER_ADJUSTMENTS"],
-    "MCF supply-chain credits and miscellaneous ledger adjustments, including failed-disbursement adjustments. These are mixed account activity, not all fees, and have no defined Data Kiosk counterpart.",
+    ["OTHER_ADJUSTMENTS"],
+    "Reviewed failed-disbursement and miscellaneous ledger adjustments. This mixed native adjustment type is kept separate from identified supply-chain credits and service charges; no Data Kiosk counterpart is defined.",
   ),
   sourceFamily(
     "balance-movements",
+    "other",
     "Balance movements",
     "FINANCES",
     ["DEBT_RECOVERY", "CROSS_ACCOUNT_ADJUSTMENTS", "RESERVE_MOVEMENTS", "BANK_TRANSFERS"],
@@ -244,6 +343,7 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   sourceFamily(
     "tax-reclassification",
+    "taxes",
     "Tax reclassification",
     "FINANCES",
     ["TAX_RECLASSIFICATION"],
@@ -251,37 +351,42 @@ export const FEE_FAMILIES: readonly FeeFamily[] = [
   ),
   sourceFamily(
     "cost-of-goods-sold",
-    "Cost of goods sold",
+    "seller-costs",
+    "Cost of goods sold per unit",
     "DATA_KIOSK",
     ["COST_OF_GOODS_SOLD"],
-    "Seller-provided product costs retained for analysis only; excluded from Financial review and payout amounts.",
+    "Seller-provided product cost per unit. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
   sourceFamily(
     "mfn-fulfillment-cost",
-    "MFN fulfillment cost",
+    "seller-costs",
+    "Merchant fulfillment cost per unit",
     "DATA_KIOSK",
     ["MFN_FULFILLMENT_COST"],
-    "Seller-provided merchant-fulfilled delivery costs retained for analysis only; excluded from Financial review and payout amounts.",
+    "Seller-provided merchant fulfillment cost per unit, including labor, packing, shipping and customer service. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
   sourceFamily(
     "mfn-storage-cost",
-    "MFN storage cost",
+    "seller-costs",
+    "Merchant storage cost per unit/month",
     "DATA_KIOSK",
     ["MFN_STORAGE_COST"],
-    "Seller-provided merchant-fulfilled storage costs retained for analysis only; excluded from Financial review and payout amounts.",
+    "Seller-provided merchant storage cost per unit per month. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
   sourceFamily(
     "miscellaneous-cost",
-    "Miscellaneous cost",
+    "seller-costs",
+    "Other seller costs per unit",
     "DATA_KIOSK",
     ["MISCELLANEOUS_COST"],
-    "Seller-provided miscellaneous costs retained for analysis only; excluded from Financial review and payout amounts.",
+    "Seller-provided other costs per unit. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
   sourceFamily(
     "shipping-to-amazon-cost",
-    "Shipping to Amazon cost",
+    "seller-costs",
+    "Shipping to Amazon cost per unit",
     "DATA_KIOSK",
     ["SHIPPING_TO_AMAZON_COST"],
-    "Seller-provided inbound shipping costs retained for analysis only; excluded from Financial review and payout amounts.",
+    "Seller-provided shipping-to-Amazon cost per unit. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
 ];

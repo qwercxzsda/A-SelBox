@@ -4,7 +4,7 @@ import { requireMarketplace } from "./api/marketplaces.ts";
 import { requireCurrency } from "./api/validation.ts";
 import { sumExactDecimals } from "./decimal.ts";
 import { buildFinancialReviewFamilies } from "./financial-review-families.ts";
-import { buildFeeFamilyOptions, selectFeeFamilies } from "./fee-family-catalog.ts";
+import { buildTypeFamilyOptions, selectTypeFamilies } from "./transaction-type-family-catalog.ts";
 
 interface FinancialReviewFamilyPoint {
   month: string;
@@ -44,7 +44,7 @@ const COMMON_VISUALS: Readonly<Record<string, FamilyVisual>> = {
 };
 const FALLBACK_DASHES = ["", "6 3", "2 3", "8 3 2 3", "10 3", "4 2", "1 3", "6 2 1 2"];
 
-export function feeFamilyVisual(id: string): FamilyVisual {
+export function typeFamilyVisual(id: string): FamilyVisual {
   if (Object.hasOwn(COMMON_VISUALS, id)) return { ...COMMON_VISUALS[id] };
   let hash = 2166136261;
   for (let index = 0; index < id.length; index++)
@@ -89,7 +89,7 @@ export function buildFinancialReviewFamilySeries(
   overviewRows: readonly CanonicalRow[],
   ids: readonly string[] = [],
 ): FinancialReviewFamilySeries[] {
-  const selected = new Set(selectFeeFamilies(ids).map((family) => family.id));
+  const selected = new Set(selectTypeFamilies(ids).map((family) => family.id));
   if (!overviewRows.length) return [];
   const months = anchorMonths(overviewRows);
   const scope = overviewRows[0];
@@ -116,7 +116,7 @@ export function buildFinancialReviewFamilySeries(
       ),
     ]),
   );
-  return buildFeeFamilyOptions(typeRows, ids)
+  return buildTypeFamilyOptions(typeRows, ids)
     .filter((family) => !selected.size || selected.has(family.id))
     .map((family) => {
       // Membership defines source-only families; missing observed rows do not.
@@ -136,7 +136,7 @@ export function buildFinancialReviewFamilySeries(
         id: family.id,
         label: family.label,
         sourceOnlyLabel,
-        ...feeFamilyVisual(family.id),
+        ...typeFamilyVisual(family.id),
         points,
       };
     });

@@ -6,12 +6,12 @@ import {
   buildFinancialReviewFamilyMonths,
 } from "../src/financial-review-families.ts";
 import {
-  buildFeeFamilyOptions,
-  feeFamilyTypeSelections,
-  normalizeFeeFamilyIds,
-  resolveFeeFamily,
-} from "../src/fee-family-catalog.ts";
-import { FEE_FAMILIES } from "../src/fee-family-definitions.ts";
+  buildTypeFamilyOptions,
+  typeFamilyTypeSelections,
+  normalizeTypeFamilyIds,
+  resolveTypeFamily,
+} from "../src/transaction-type-family-catalog.ts";
+import { TRANSACTION_TYPE_FAMILIES } from "../src/transaction-type-families.ts";
 import { sumExactDecimals } from "../src/decimal.ts";
 import { createApiClient } from "../src/api/client.ts";
 import { SETTINGS, csvRecord } from "./api-fixtures.mjs";
@@ -55,13 +55,13 @@ test("monthly storage, aged storage and Sponsored products pair as distinct fami
   for (const [id, label, financesType, kioskTypes] of [
     [
       "monthly-storage",
-      "Monthly storage",
+      "Monthly storage fees",
       "STORAGE_FEES",
       ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
     ],
     [
       "aged-storage",
-      "Aged storage",
+      "Aged inventory surcharges",
       "AGED_STORAGE_FEES",
       ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE"],
     ],
@@ -77,7 +77,7 @@ test("monthly storage, aged storage and Sponsored products pair as distinct fami
       ],
     ],
   ]) {
-    assert.equal(resolveFeeFamily("FINANCES", financesType).id, id);
+    assert.equal(resolveTypeFamily("FINANCES", financesType).id, id);
     const result = buildFinancialReviewFamilies([
       row("FINANCES", financesType, "-10"),
       ...kioskTypes.map((type) => row("DATA_KIOSK", type, "-1.25")),
@@ -87,7 +87,7 @@ test("monthly storage, aged storage and Sponsored products pair as distinct fami
     assert.equal(result[0].family, label);
     assert.equal(result[0].coverage, "Both sources");
     assert.equal(result[0].data_kiosk_amount, sumExactDecimals(kioskTypes.map(() => "-1.25")));
-    for (const type of kioskTypes) assert.equal(resolveFeeFamily("DATA_KIOSK", type).id, id);
+    for (const type of kioskTypes) assert.equal(resolveTypeFamily("DATA_KIOSK", type).id, id);
   }
 });
 
@@ -97,23 +97,26 @@ test("Sponsored Brands and Display aliases stay separate from Products and each 
     ["DISPLAY", "sponsored-display"],
   ]) {
     for (const suffix of ["", "_CHARGE", "_CHARGES"]) {
-      const family = resolveFeeFamily("DATA_KIOSK", `SPONSORED_${type}${suffix}`);
+      const family = resolveTypeFamily("DATA_KIOSK", `SPONSORED_${type}${suffix}`);
       assert.equal(family.id, id);
       assert.deepEqual(family.financesTypes, []);
     }
   }
   assert.notEqual(
-    resolveFeeFamily("FINANCES", "INBOUND_TRANSPORTATION_FEES").id,
-    resolveFeeFamily("FINANCES", "INBOUND_TRANSPORTATION_PROGRAM_FEES").id,
+    resolveTypeFamily("FINANCES", "INBOUND_TRANSPORTATION_FEES").id,
+    resolveTypeFamily("FINANCES", "INBOUND_TRANSPORTATION_PROGRAM_FEES").id,
   );
 });
 
 test("every supported monetary source type belongs to one explicit family", () => {
-  const memberships = FEE_FAMILIES.flatMap((family) => [
+  const memberships = TRANSACTION_TYPE_FAMILIES.flatMap((family) => [
     ...family.financesTypes.map((type) => ["FINANCES", type, family.id]),
     ...family.dataKioskTypes.map((type) => ["DATA_KIOSK", type, family.id]),
   ]);
-  assert.equal(new Set(FEE_FAMILIES.map((family) => family.id)).size, FEE_FAMILIES.length);
+  assert.equal(
+    new Set(TRANSACTION_TYPE_FAMILIES.map((family) => family.id)).size,
+    TRANSACTION_TYPE_FAMILIES.length,
+  );
   assert.equal(
     new Set(memberships.map(([source, type]) => JSON.stringify([source, type]))).size,
     memberships.length,
@@ -124,7 +127,7 @@ test("every supported monetary source type belongs to one explicit family", () =
       ([memberSource, memberType]) => source === memberSource && type === memberType,
     );
     assert.equal(matches.length, 1, `${source}/${type}`);
-    const family = resolveFeeFamily(source, type);
+    const family = resolveTypeFamily(source, type);
     assert.equal(family.id, matches[0][2]);
     assert.ok(family.label);
     assert.ok(family.description);
@@ -156,7 +159,7 @@ test("uncertain identities and unknown types receive separate named families", (
   assert.deepEqual(buildFinancialReviewFamilyMonths([]), []);
 });
 
-test("net product sales include signed refunds and zero-activity counts without absorbing promotions or tax", () => {
+test("net product sales include signed refunds without absorbing unclassified zero activity, promotions or tax", () => {
   const rows = [
     row("FINANCES", "PRODUCT_SALES", "100.123456789", { category: "FINANCES", row_count: "5" }),
     row("FINANCES", "PRODUCT_REFUNDS", "-20.000000001", { category: "FINANCES", row_count: "2" }),
@@ -176,15 +179,20 @@ test("net product sales include signed refunds and zero-activity counts without 
     assert.equal(families[0].finances_amount, "80.123456788");
     assert.equal(families[0].data_kiosk_amount, "80.12345678");
     assert.equal(families[0].difference, "0.000000008");
-    assert.equal(families[0].finances_row_count, "10");
+    assert.equal(families[0].finances_row_count, "7");
     assert.equal(families[0].data_kiosk_row_count, "7");
     assert.equal(families[0].coverage, "Both sources");
-    assert.equal(families[0].finances_types, "PRODUCT_REFUNDS, PRODUCT_SALES, ZERO_ACTIVITY");
+    assert.equal(families[0].finances_types, "PRODUCT_REFUNDS, PRODUCT_SALES");
     const months = buildFinancialReviewFamilyMonths(rows, ids);
     assert.equal(months.length, 1);
     assert.equal(months[0].difference, "0.000000008");
-    assert.equal(months[0].finances_row_count, "10");
+    assert.equal(months[0].finances_row_count, "7");
   }
+  const zero = buildFinancialReviewFamilies(rows, ["zero-value-activity"]);
+  assert.equal(zero.length, 1);
+  assert.equal(zero[0].finances_amount, "0");
+  assert.equal(zero[0].finances_row_count, "3");
+  assert.equal(zero[0].coverage, "Finances-only family");
   assert.deepEqual(rows, original);
 });
 
@@ -254,11 +262,11 @@ test("fee and reimbursement families net their reversals while preserving source
     assert.equal(families[0].data_kiosk_row_count, String(kiosk.length));
     assert.equal(families[0].coverage, "Both sources");
   }
-  assert.equal(resolveFeeFamily("FINANCES", "REFUND_COMMISSION").id, "refund-commission");
-  assert.equal(resolveFeeFamily("DATA_KIOSK", "REFUND_COMMISSION_FEE").id, "refund-commission");
-  assert.equal(resolveFeeFamily("FINANCES", "LIQUIDATION_PROCEEDS").id, "liquidation-proceeds");
+  assert.equal(resolveTypeFamily("FINANCES", "REFUND_COMMISSION").id, "refund-commission");
+  assert.equal(resolveTypeFamily("DATA_KIOSK", "REFUND_COMMISSION_FEE").id, "refund-commission");
+  assert.equal(resolveTypeFamily("FINANCES", "LIQUIDATION_PROCEEDS").id, "liquidation-proceeds");
   for (const alias of ["FBA_FULFILLMENT_FEES", "FBA_FULFILMENT_FEE"])
-    assert.equal(resolveFeeFamily("DATA_KIOSK", alias).id, "fba-fulfillment");
+    assert.equal(resolveTypeFamily("DATA_KIOSK", alias).id, "fba-fulfillment");
 });
 
 test("source-only economic families combine related signed movements without mixing their purposes", () => {
@@ -303,25 +311,11 @@ test("source-only economic families combine related signed movements without mix
       ],
       "-6",
     ],
-    [
-      "seller-service-fees",
-      "SELBOX",
-      [
-        ["EPR_FEES", "-3"],
-        ["VINE_FEES", "-4"],
-        ["INBOUND_DEFECT_FEES", "-5"],
-      ],
-      "-12",
-    ],
-    [
-      "account-adjustments",
-      "SELBOX",
-      [
-        ["MCF_CREDITS", "7"],
-        ["OTHER_ADJUSTMENTS", "-2"],
-      ],
-      "5",
-    ],
+    ["epr-compliance", "SELBOX", [["EPR_FEES", "-3"]], "-3"],
+    ["vine-enrollment", "SELBOX", [["VINE_FEES", "-4"]], "-4"],
+    ["inbound-defects", "SELBOX", [["INBOUND_DEFECT_FEES", "-5"]], "-5"],
+    ["supply-chain-credits", "SELBOX", [["MCF_CREDITS", "7"]], "7"],
+    ["account-adjustments", "SELBOX", [["OTHER_ADJUSTMENTS", "-2"]], "-2"],
     [
       "balance-movements",
       "SELBOX",
@@ -343,50 +337,44 @@ test("source-only economic families combine related signed movements without mix
     assert.equal(families[0].finances_row_count, String(components.length));
     assert.equal(families[0].coverage, "Finances-only family");
   }
-  assert.equal(resolveFeeFamily("FINANCES", "SUBSCRIPTION_FEES").id, "subscription");
-  assert.equal(resolveFeeFamily("DATA_KIOSK", "SUBSCRIPTION_FEE").id, "subscription");
-  assert.equal(resolveFeeFamily("FINANCES", "TAX_RECLASSIFICATION").id, "tax-reclassification");
+  assert.equal(resolveTypeFamily("FINANCES", "SUBSCRIPTION_FEES").id, "subscription");
+  assert.equal(resolveTypeFamily("DATA_KIOSK", "SUBSCRIPTION_FEE").id, "subscription");
+  assert.equal(resolveTypeFamily("FINANCES", "TAX_RECLASSIFICATION").id, "tax-reclassification");
 });
 
 test("current family IDs deduplicate while unsupported request IDs are rejected", () => {
   const ids = ["net-product-sales", "referral", "net-product-sales"];
-  assert.deepEqual(normalizeFeeFamilyIds([...ids, null, "invalid"]), [
+  assert.deepEqual(normalizeTypeFamilyIds([...ids, null, "invalid"]), [
     "net-product-sales",
     "referral",
   ]);
-  const selection = feeFamilyTypeSelections(ids);
+  const selection = typeFamilyTypeSelections(ids);
   assert.deepEqual(
     new Set(selection.financesTypes),
-    new Set([
-      "PRODUCT_SALES",
-      "PRODUCT_REFUNDS",
-      "ZERO_ACTIVITY",
-      "REFERRAL_FEES",
-      "REFUNDED_REFERRAL_FEES",
-    ]),
+    new Set(["PRODUCT_SALES", "PRODUCT_REFUNDS", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEES"]),
   );
   assert.deepEqual(
     new Set(selection.dataKioskTypes),
     new Set(["NET_PRODUCT_SALES", "REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"]),
   );
-  assert.equal(selection.financesTypes.length, 5);
+  assert.equal(selection.financesTypes.length, 4);
   assert.equal(selection.dataKioskTypes.length, 4);
   assert.deepEqual(
-    buildFeeFamilyOptions([], ids)
+    buildTypeFamilyOptions([], ids)
       .map((family) => family.id)
       .sort(),
     ["net-product-sales", "referral"],
   );
-  assert.throws(() => feeFamilyTypeSelections(["unregistered-family"]));
+  assert.throws(() => typeFamilyTypeSelections(["unregistered-family"]));
 });
 
 test("native inbound convenience fees pair without including placement service fees", () => {
-  assert.equal(resolveFeeFamily("FINANCES", "INBOUND_PLACEMENT_FEES").id, "inbound-convenience");
+  assert.equal(resolveTypeFamily("FINANCES", "INBOUND_PLACEMENT_FEES").id, "inbound-convenience");
   assert.equal(
-    resolveFeeFamily("DATA_KIOSK", "FBA_INBOUND_CONVENIENCE_FEE").id,
+    resolveTypeFamily("DATA_KIOSK", "FBA_INBOUND_CONVENIENCE_FEE").id,
     "inbound-convenience",
   );
-  assert.deepEqual(feeFamilyTypeSelections(["inbound-convenience"]), {
+  assert.deepEqual(typeFamilyTypeSelections(["inbound-convenience"]), {
     financesTypes: ["INBOUND_PLACEMENT_FEES"],
     dataKioskTypes: ["FBA_INBOUND_CONVENIENCE_FEE"],
   });
@@ -401,29 +389,29 @@ test("native inbound convenience fees pair without including placement service f
   assert.equal(convenience.difference, "-10.000000001");
   assert.equal(convenience.finances_types, "INBOUND_PLACEMENT_FEES");
   assert.equal(convenience.data_kiosk_types, "FBA_INBOUND_CONVENIENCE_FEE");
-  const placement = result.find((item) => item.family_id === "data-kiosk-inbound-placement");
+  const placement = result.find((item) => item.family_id === "inbound-placement");
   assert.equal(placement.coverage, "Data Kiosk-only family");
   assert.equal(placement.data_kiosk_amount, "-10");
 });
 
 test("family selections preserve exact source-qualified types and reject malformed IDs", () => {
   const rawType = 'Future / "fee",(test): % + 日本語';
-  const unknown = resolveFeeFamily("FINANCES", rawType);
-  const selection = feeFamilyTypeSelections(["monthly-storage", unknown.id, "monthly-storage"]);
+  const unknown = resolveTypeFamily("FINANCES", rawType);
+  const selection = typeFamilyTypeSelections(["monthly-storage", unknown.id, "monthly-storage"]);
   assert.deepEqual(selection, {
     financesTypes: ["STORAGE_FEES", rawType],
     dataKioskTypes: ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
   });
-  assert.deepEqual(feeFamilyTypeSelections(["sponsored-brands"]), {
+  assert.deepEqual(typeFamilyTypeSelections(["sponsored-brands"]), {
     financesTypes: [],
     dataKioskTypes: ["SPONSORED_BRANDS", "SPONSORED_BRANDS_CHARGE", "SPONSORED_BRANDS_CHARGES"],
   });
-  assert.equal(feeFamilyTypeSelections([]), null);
+  assert.equal(typeFamilyTypeSelections([]), null);
   assert.deepEqual(
-    normalizeFeeFamilyIds([unknown.id, null, "missing-id", "monthly-storage", unknown.id]),
+    normalizeTypeFamilyIds([unknown.id, null, "missing-id", "monthly-storage", unknown.id]),
     ["monthly-storage", unknown.id],
   );
-  assert.deepEqual(normalizeFeeFamilyIds("monthly-storage"), []);
+  assert.deepEqual(normalizeTypeFamilyIds("monthly-storage"), []);
   for (const value of [
     null,
     [null],
@@ -433,11 +421,11 @@ test("family selections preserve exact source-qualified types and reject malform
     ["source:FINANCES:STORAGE_FEES"],
     ["source:FINANCES:%00"],
   ]) {
-    assert.throws(() => feeFamilyTypeSelections(value));
+    assert.throws(() => typeFamilyTypeSelections(value));
     assert.throws(() => buildFinancialReviewFamilyMonths([], value));
   }
-  assert.throws(() => resolveFeeFamily("SETTLEMENT", "STORAGE_FEES"));
-  assert.throws(() => resolveFeeFamily("FINANCES", ""));
+  assert.throws(() => resolveTypeFamily("SETTLEMENT", "STORAGE_FEES"));
+  assert.throws(() => resolveTypeFamily("FINANCES", ""));
 });
 
 test("family options include observed identities and retain selected families with no current rows", () => {
@@ -446,14 +434,14 @@ test("family options include observed identities and retain selected families wi
     row("DATA_KIOSK", "SPONSORED_PRODUCTS", "0"),
     row("DATA_KIOSK", "FUTURE_FEE", "0"),
   ];
-  const options = buildFeeFamilyOptions(rows, ["aged-storage"]);
+  const options = buildTypeFamilyOptions(rows, ["aged-storage"]);
   assert.deepEqual(
     new Set(options.map((item) => item.id)),
     new Set(["aged-storage", "sponsored-products", "source:DATA_KIOSK:FUTURE_FEE"]),
   );
   assert.equal(options.length, 3);
-  assert.deepEqual(buildFeeFamilyOptions([]), []);
-  assert.throws(() => buildFeeFamilyOptions([], ["bad"]));
+  assert.deepEqual(buildTypeFamilyOptions([]), []);
+  assert.throws(() => buildTypeFamilyOptions([], ["bad"]));
 });
 
 test("year aggregation sums repeated monthly types exactly and filters family unions without filling gaps", () => {

@@ -55,7 +55,7 @@ function AdministratorFinancialReview({
         help={
           <>
             <p>
-              Compare Finances and Data Kiosk by marketplace, year, currency, and fee family. This
+              Compare Finances and Data Kiosk by marketplace, year, currency, and type family. This
               view includes all source accounts and companies.
             </p>
             <p>{REVIEW_CATEGORIES.find(({ value }) => value === category)?.description}</p>

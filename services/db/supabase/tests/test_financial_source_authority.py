@@ -76,10 +76,12 @@ class FinancialSourceAuthorityTests(TransactionPageFixture):
                 user, "select public.transaction_totals(p_date_from => %s)", (before,)
             )[0][0]
             total = cast(dict[str, list[dict[str, str]]], totals)["rows"][0]
-            self.assertEqual(Decimal(total["reported_amount"]), Decimal(1070))
+            self.assertEqual(
+                Decimal(total["reported_amount"]), Decimal(66 if user == administrator else 1070)
+            )
             self.assertEqual(Decimal(total["service_fee"]), Decimal(-110))
             self.assertEqual(Decimal(total["company_amount"]), Decimal(960))
-            self.assertEqual(total["row_count"], "4")
+            self.assertEqual(total["row_count"], count)
         self.assertEqual(
             self.page(administrator, p_company_ids=[company])["rows"], self.page(member)["rows"]
         )

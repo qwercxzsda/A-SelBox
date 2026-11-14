@@ -29,9 +29,9 @@ for (const role of ["member", "administrator"]) {
     const fixture = await start(page, role);
     const optionRequests = fixture.optionRequests.length;
     const menu = await openColumn(page, "Type");
-    await expect(checkbox(menu, STORAGE)).toBeVisible();
+    await expect(checkbox(menu, `${STORAGE} group`)).toBeVisible();
     await expect(checkbox(menu, "FBA storage fee")).toHaveCount(0);
-    await checkbox(menu, STORAGE).check();
+    await checkbox(menu, `${STORAGE} group`).check();
     await expect.poll(() => typesSent(fixture)).toContain("FBA_STORAGE_FEE");
     expect(typesSent(fixture)).not.toContain("STORAGE_FEES");
     const allowed = new Set(
@@ -58,7 +58,7 @@ for (const role of ["member", "administrator"]) {
       ]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
         const sourceMenu = await openColumn(page, "Type");
-        await checkbox(sourceMenu, STORAGE).check();
+        await checkbox(sourceMenu, `${STORAGE} group`).check();
         const expectedType = source === "FINANCES" ? "STORAGE_FEES" : "FBA_STORAGE_FEE";
         await expect.poll(() => typesSent(fixture)).toContain(expectedType);
         const allowedSource = new Set(
@@ -78,7 +78,7 @@ test("a full group has a readable chip, reloads, and becomes partial after an ex
 }) => {
   const fixture = await start(page);
   let menu = await openColumn(page, "Type");
-  await checkbox(menu, STORAGE).check();
+  await checkbox(menu, `${STORAGE} group`).check();
   await expect.poll(() => typesSent(fixture)).toContain("FBA_STORAGE_FEE");
   const fullGroup = [...typesSent(fixture)];
   await menu.getByRole("button", { name: "Done", exact: true }).click();
@@ -87,15 +87,15 @@ test("a full group has a readable chip, reloads, and becomes partial after an ex
   await expect(typeChip(page)).toContainText(`Type: ${STORAGE}`);
   await expectTypes(fixture, fullGroup);
   menu = await openColumn(page, "Type");
-  await expect(checkbox(menu, STORAGE)).toBeChecked();
+  await expect(checkbox(menu, `${STORAGE} group`)).toBeChecked();
   await expect(checkbox(menu, "FBA storage fee")).toBeChecked();
   await checkbox(menu, "FBA storage fee").uncheck();
-  await expect(checkbox(menu, STORAGE)).toBeChecked({ indeterminate: true });
+  await expect(checkbox(menu, `${STORAGE} group`)).toBeChecked({ indeterminate: true });
   await expectTypes(
     fixture,
     fullGroup.filter((type) => type !== "FBA_STORAGE_FEE"),
   );
-  await checkbox(menu, STORAGE).check();
+  await checkbox(menu, `${STORAGE} group`).check();
   await expect(checkbox(menu, "FBA storage fee")).toBeChecked();
   await menu.getByRole("button", { name: "Done", exact: true }).click();
   // The previous selection is cached; F5 verifies its persisted exact API keys.
@@ -131,9 +131,9 @@ test("search and batch actions select only matching exact types and preserve unr
   await expect(checkbox(menu, "FBA storage fee")).toBeVisible();
   await expect(checkbox(menu, "Disposal fee")).toHaveCount(0);
   await search(menu).fill("FBA_STORAGE_FEE");
-  await checkbox(menu, STORAGE).check();
+  await checkbox(menu, `${STORAGE} group`).check();
   await expectTypes(fixture, ["PRODUCT_SALES", "FBA_STORAGE_FEE"]);
-  await checkbox(menu, STORAGE).uncheck();
+  await checkbox(menu, `${STORAGE} group`).uncheck();
   await expect(checkbox(menu, "FBA storage fee")).not.toBeChecked();
   await expect(menu.getByText("1 type selected", { exact: true })).toBeVisible();
   await search(menu).fill("NO SUCH TYPE");
@@ -154,7 +154,7 @@ test("type groups support keyboard selection, disclosure, and escape focus retur
   await page.keyboard.press("Enter");
   const menu = page.getByRole("dialog", { name: "Type options", exact: true });
   await expect(search(menu)).toBeFocused();
-  const group = checkbox(menu, STORAGE);
+  const group = checkbox(menu, `${STORAGE} group`);
   await group.focus();
   await page.keyboard.press("Space");
   await expect(group).toBeChecked();
@@ -179,7 +179,7 @@ test("an open type filter stays entirely visible while resizing after restored g
   await page.setViewportSize({ width: 1440, height: 1000 });
   await start(page);
   let menu = await openColumn(page, "Type");
-  await checkbox(menu, STORAGE).check();
+  await checkbox(menu, `${STORAGE} group`).check();
   await menu.getByRole("button", { name: "Done", exact: true }).click();
   await page.reload();
   await expect(typeChip(page)).toContainText(`Type: ${STORAGE}`);

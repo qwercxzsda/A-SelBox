@@ -34,7 +34,7 @@ test("rows load before their exact count and remain inspectable and navigable wh
     const pageNumber = page.getByLabel("Page number", { exact: true });
     await expect(pageNumber).toHaveAttribute("readonly", "");
     await rowWithSku(page, "ALPHA-002").click();
-    const details = page.getByRole("dialog", { name: "Selected row details", exact: true });
+    const details = page.getByRole("dialog", { name: "Transaction details", exact: true });
     await expect(details.getByRole("heading", { name: "ALPHA-002", exact: true })).toBeVisible();
     await details.getByRole("button", { name: "Close row details", exact: true }).click();
     await page.getByRole("button", { name: "Next", exact: true }).click();

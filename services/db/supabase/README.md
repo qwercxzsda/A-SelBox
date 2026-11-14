@@ -102,9 +102,9 @@ All browser financial reads use authenticated REST/RPC with invoker security and
 `transaction_page` and `source_transaction_page` select filtered, authorized rows before metadata
 and fee projection. `transaction_count` counts current authoritative source components;
 `source_transaction_count` counts raw facts independently.
-`transaction_totals` includes only Finances-category activity and Data Kiosk costs, combining
-compatible facts before fee lookup. Its record drilldowns set `p_include_selbox=false`; the main
-transaction list keeps SelBox activity. Administrator identity bootstrap
+`transaction_totals` sums the same filtered rows as Transactions, including authorized SelBox
+activity, and combines compatible facts before fee lookup. Totals and record drilldowns retain every
+selected filter; Last day and Last month replace only the selected date range. Administrator identity bootstrap
 preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
 SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
 cursor page. Members reuse their current assignments. Source, Marketplace, and Type menus

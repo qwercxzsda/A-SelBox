@@ -53,7 +53,7 @@ for (const role of ["administrator", "member"]) {
     }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
       const fixture = await openReport(page, role);
-      const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+      const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
       await expect(
         drawer.getByText("Saved report · Created 2026-09-27 13:20:10 UTC", { exact: true }),
       ).toBeVisible();
@@ -127,7 +127,7 @@ test("sticky record columns follow a wrapped report heading when the viewport ch
 }) => {
   await page.setViewportSize({ width: 1920, height: 1000 });
   await openReport(page, "administrator", "W".repeat(110));
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   const records = drawer.getByRole("table", { name: "Amount records", exact: true });
   await expect(records.locator("tbody tr")).toHaveCount(50);
   const heights = [];
@@ -153,7 +153,7 @@ test("narrow report tables retain horizontal keyboard scrolling and one drawer s
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openReport(page, "member");
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   const wrapper = drawer.getByRole("region", { name: "Amount records table", exact: true });
   await expect(wrapper).toHaveAttribute("data-fitting", "false");
   await expect(wrapper).toHaveCSS("overflow-x", "auto");

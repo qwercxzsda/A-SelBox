@@ -89,6 +89,13 @@ export function latestDateRequest(overrides = {}) {
 export function periodTotalsRequest(overrides = {}) {
   return {
     ...latestDateRequest(),
+    companyIds: [],
+    skus: [],
+    marketplaces: [],
+    sources: [],
+    types: [],
+    feeApplicability: [],
+    search: "",
     dateFrom: "2024-02-01",
     dateTo: "2024-02-29",
     ...overrides,

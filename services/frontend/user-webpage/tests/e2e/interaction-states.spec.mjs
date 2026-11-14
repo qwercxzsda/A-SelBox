@@ -128,6 +128,7 @@ async function setup(page, administrator = true) {
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
   await mockInventory(page, [inventoryRow("S1", { company_id: REVIEW_COMPANY })]);
   await signIn(page);
+  await currentTotals(page).waitFor();
   return fixture;
 }
 
@@ -166,7 +167,7 @@ test("summary rows, UTC period shortcuts and the date chooser keep distinct keyb
   await hoverChangesShade(page, date);
   await expectKeyboardFocus(page, date);
   await date.press("Enter");
-  await expect(panel(page, "Amounts by type")).toHaveCount(0);
+  await expect(panel(page, "Transaction totals")).toHaveCount(0);
   const dateDialog = panel(page, "Choose summary dates");
   await expect(dateDialog).toBeVisible();
   await dateDialog.getByRole("button", { name: "Close summary dates", exact: true }).click();
@@ -184,14 +185,14 @@ test("summary rows, UTC period shortcuts and the date chooser keep distinct keyb
   await hoverChangesShade(page, period);
   await expectKeyboardFocus(page, period);
   await period.press("Enter");
-  await expect(panel(page, "Amounts by type")).toHaveCount(0);
+  await expect(panel(page, "Transaction totals")).toHaveCount(0);
   await expect.poll(() => fixture.requests.at(-1)?.args.p_date_from).toBe("2026-09-01");
   expect(fixture.requests.at(-1).args.p_date_to).toBe("2026-09-01");
   await open.focus();
   await open.press("Enter");
-  const breakdown = panel(page, "Amounts by type");
+  const breakdown = panel(page, "Transaction totals");
   await expect(breakdown).toBeVisible();
-  await hoverChangesShade(page, button(breakdown, "Sales and refunds details"));
+  await hoverChangesShade(page, button(breakdown, "Sales & refunds details"));
   await hoverChangesShade(page, button(breakdown, "Close breakdown"));
   await button(breakdown, "Close breakdown").click();
   await expect(open).toBeFocused();
@@ -227,7 +228,13 @@ test("workspace controls share hover feedback across every administrator tab", a
     await row.press("Enter");
     const details = panel(
       page,
-      name === "User access" ? "Company membership" : "Selected row details",
+      {
+        Transactions: "Transaction details",
+        Finances: "Finances record details",
+        "Data Kiosk": "Data Kiosk record details",
+        "Payout reports": "Payout report details",
+        "User access": "Company membership",
+      }[name],
     );
     await expect(details).toBeVisible();
     await expect(row).toHaveAttribute("aria-selected", "true");
@@ -393,8 +400,8 @@ test.describe("touch interaction", () => {
     });
     const idleAction = await appearance(open);
     await open.tap();
-    await expect(panel(page, "Amounts by type")).toBeVisible();
-    await waitForAnimations(panel(page, "Amounts by type"));
+    await expect(panel(page, "Transaction totals")).toBeVisible();
+    await waitForAnimations(panel(page, "Transaction totals"));
     await button(page, "Close breakdown").tap();
     await expect.poll(() => appearance(open)).toEqual(idleAction);
     await page.getByRole("tab", { name: "Inventory", exact: true }).tap();

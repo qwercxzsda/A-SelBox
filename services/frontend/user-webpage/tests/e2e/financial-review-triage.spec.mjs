@@ -10,12 +10,12 @@ test("family investigation ranks absolute differences and isolates a family with
   page,
 }) => {
   await openFinancialReview(page, setupFamilies);
-  await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
-  const table = page.getByRole("table", { name: "Yearly fee family breakdown", exact: true });
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
+  const table = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
   await expect(table.locator("tbody tr").first()).toContainText("Future fee · Finances");
   await expect(table.locator("tbody tr").first()).toContainText("Finances-only family");
   await table
-    .getByRole("button", { name: "Show only Monthly storage", exact: true })
+    .getByRole("button", { name: "Show only Monthly storage fees", exact: true })
     .press("Enter");
   await expect(summary(page).locator(".financial-review-summary-value").last()).toHaveText(
     "-5.01 USD",
@@ -31,7 +31,7 @@ test("a family with no records in another category offers direct recovery to all
   page,
 }) => {
   await openFinancialReview(page, setupFamilies);
-  await chooseFamilies(page, ["Monthly storage"]);
+  await chooseFamilies(page, ["Monthly storage fees"]);
   await categories(page).getByRole("tab", { name: "Finances", exact: true }).click();
   const recover = page.getByRole("button", { name: "Show all families", exact: true });
   await expect(recover).toBeVisible();

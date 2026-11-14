@@ -2,7 +2,7 @@ import type { CurrencyTotal } from "./api/types";
 import { formatMoney } from "./decimal";
 import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
 
-/** Category rows and their total expose the same amounts as the main total. */
+/** Type group rows and their total expose the same amounts as the main total. */
 export function TypeBreakdownAmounts({ total, id }: { total: CurrencyTotal; id?: string }) {
   return (
     <span className="type-breakdown-group-amounts" id={id}>

@@ -1,4 +1,4 @@
-import { feeFamilyTypeSelections } from "../fee-family-catalog.ts";
+import { typeFamilyTypeSelections } from "../transaction-type-family-catalog.ts";
 import { quotePostgrestText, requireCalendarDate, textSelectionValues } from "./filters.ts";
 import {
   readCompleteFinancialReviewTypes,
@@ -108,8 +108,8 @@ function typeTotalParams(scope: FinancialReviewTypeScope): URLSearchParams {
   return params;
 }
 
-function applyFeeFamilies(params: URLSearchParams, familyIds: readonly string[]): void {
-  const selection = feeFamilyTypeSelections(familyIds);
+function applyTypeFamilies(params: URLSearchParams, familyIds: readonly string[]): void {
+  const selection = typeFamilyTypeSelections(familyIds);
   if (selection === null) return;
   const expressions = [
     ["FINANCES", selection.financesTypes],
@@ -121,7 +121,7 @@ function applyFeeFamilies(params: URLSearchParams, familyIds: readonly string[])
       ? [`and(source.eq.${source},component_type.in.(${values.map(quotePostgrestText).join(",")}))`]
       : [];
   });
-  if (!clauses.length) throw new Error("Choose at least one valid fee family");
+  if (!clauses.length) throw new Error("Choose at least one valid type family");
   params.set("or", `(${clauses.join(",")})`);
 }
 
@@ -217,7 +217,7 @@ export function createFinancialReviewApi(transport: ApiTransport) {
         currency,
         marketplace,
       });
-      applyFeeFamilies(params, familyIds);
+      applyTypeFamilies(params, familyIds);
       setDetailPage(params, pageIndex);
       return transport.readCsvPage(
         accessToken,
@@ -255,7 +255,7 @@ export function createFinancialReviewApi(transport: ApiTransport) {
       const params = scopeParams(category, marketplace);
       requireMonth(month);
       requireCurrency(currency);
-      applyFeeFamilies(params, familyIds);
+      applyTypeFamilies(params, familyIds);
       setDetailPage(params, pageIndex);
       params.set("currency", `eq.${currency}`);
       const types = textSelectionValues(

@@ -10,7 +10,14 @@ create function public.transaction_totals(
     p_currency text default null,
     p_group_by_type boolean default false,
     p_limit integer default 1000,
-    p_offset bigint default 0
+    p_offset bigint default 0,
+    p_sources text[] default null,
+    p_types text[] default null,
+    p_fee_applicable boolean default null,
+    p_search_skus text[] default null,
+    p_search_types text[] default null,
+    p_search_marketplaces text[] default null,
+    p_search_sources text[] default null
 ) returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
@@ -21,7 +28,11 @@ declare
 begin
     perform private.validate_transaction_filters(
         p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
-        p_require_date => true
+        p_sources, p_types, p_require_date => true
+    );
+    perform private.validate_transaction_filters(
+        null, null, null, p_search_skus, p_search_marketplaces,
+        p_search_sources, p_search_types
     );
     if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
         raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
@@ -40,28 +51,38 @@ begin
     );
     return (
         with facts as (
-            select t.sku, t.marketplace_name,
+            select t.sku, t.marketplace_name, t.category,
                 t.posted_date as activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end as component_type,
                 t.amount::numeric as reported_amount,
                 t.fee_base::numeric as fee_base
             from private.finances_activity_components as t
-            where t.category = 'FINANCES'
+            where t.category in ('FINANCES', 'SELBOX')
                 and (finances_policy_is_sufficient or t.is_current)
                 and (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
                 and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
                 and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
                     select 1 from public.company_skus as o
-                    where o.sku = t.sku
+                    where t.category <> 'SELBOX' and o.sku = t.sku
                         and o.company_id = any(p_company_ids)
                 ))
                 and (coalesce(cardinality(p_skus), 0) = 0
-                    or t.sku = any(p_skus))
+                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
+                and (coalesce(cardinality(p_sources), 0) = 0
+                    or 'FINANCES'::text = any(p_sources))
+                and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
+                and (p_fee_applicable is null or (t.fee_base is not null) = p_fee_applicable)
+                and (
+                    (p_search_skus is null and p_search_types is null
+                        and p_search_marketplaces is null and p_search_sources is null)
+                    or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
+                    or t.marketplace_name = any(p_search_marketplaces) or 'FINANCES'::text = any(p_search_sources)
+                )
             union all
-            select t.sku, t.marketplace_name, t.activity_date, t.currency,
+            select t.sku, t.marketplace_name, t.category, t.activity_date, t.currency,
                 case when p_group_by_type then t.component_type::text end,
                 t.amount::numeric, t.fee_base::numeric
             from private.data_kiosk_component_details as t
@@ -81,14 +102,24 @@ begin
                 and (coalesce(cardinality(p_marketplaces), 0) = 0
                     or t.marketplace_name = any(p_marketplaces))
                 and (p_currency is null or t.currency = p_currency)
+                and (coalesce(cardinality(p_sources), 0) = 0
+                    or 'DATA_KIOSK'::text = any(p_sources))
+                and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
+                and (p_fee_applicable is null or (t.fee_base is not null) = p_fee_applicable)
+                and (
+                    (p_search_skus is null and p_search_types is null
+                        and p_search_marketplaces is null and p_search_sources is null)
+                    or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
+                    or t.marketplace_name = any(p_search_marketplaces) or 'DATA_KIOSK'::text = any(p_search_sources)
+                )
         ),
         fact_groups as materialized (
-            select f.sku, f.marketplace_name, f.activity_date,
+            select f.sku, f.marketplace_name, f.category, f.activity_date,
                 f.currency, f.component_type, f.fee_base is not null as fee_applicable,
                 sum(f.reported_amount) as reported_amount, sum(f.fee_base) as fee_base,
                 count(*)::numeric as row_count
             from facts as f
-            group by f.sku, f.marketplace_name, f.activity_date,
+            group by f.sku, f.marketplace_name, f.category, f.activity_date,
                 f.currency, f.component_type, f.fee_base is not null
         ),
         selected_terms as materialized (
@@ -96,20 +127,21 @@ begin
             from private.current_sku_terms as terms
             where exists (
                 select 1 from fact_groups as selected
-                where selected.sku = terms.sku
+                where selected.sku = terms.sku and selected.category <> 'SELBOX'
             )
         ),
         calculated as (
             select case when not p_group_by_type then g.marketplace_name end as marketplace_name,
-                g.currency, g.component_type, g.reported_amount, g.row_count,
-                case when o.company_id is null then null
+                g.currency, g.component_type, g.category, g.reported_amount, g.row_count,
+                case when g.category = 'SELBOX' then 0::numeric
+                    when o.company_id is null then null
                     when not g.fee_applicable then 0::numeric
                     when p.id is not null
                         then private.calculate_service_fee(g.fee_base, p.fee_rate_percent)
                 end as service_fee
             from fact_groups as g
             left join selected_terms as o
-                on g.sku = o.sku
+                on g.sku = o.sku and g.category <> 'SELBOX'
             left join public.sku_fee_periods as p
                 on o.terms_version_id = p.terms_version_id
                     and g.marketplace_name = p.marketplace_name
@@ -120,7 +152,8 @@ begin
             select c.marketplace_name, c.currency, c.component_type,
                 sum(c.reported_amount) as reported_amount,
                 sum(c.service_fee) as service_fee,
-                sum(c.reported_amount + c.service_fee) as company_amount,
+                sum(case when c.category = 'SELBOX' then 0::numeric
+                    else c.reported_amount + c.service_fee end) as company_amount,
                 sum(c.row_count) as row_count,
                 sum(case when c.service_fee is not null then c.row_count else 0 end)
                     as known_company_count
@@ -156,7 +189,8 @@ begin
 end;
 $$;
 revoke all on function public.transaction_totals(
-    date, date, uuid[], text[], text[], text, boolean, integer, bigint
+    date, date, uuid[], text[], text[], text, boolean, integer, bigint,
+    text[], text[], boolean, text[], text[], text[], text[]
 ) from public, anon, authenticated, service_role;
 
 -- Derived records use saved inputs and report authorization. Numeric/boolean

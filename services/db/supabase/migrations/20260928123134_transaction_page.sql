@@ -31,8 +31,7 @@ create function public.transaction_page(
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
     p_search_sources text[] default null,
-    p_currency text default null,
-    p_include_selbox boolean default true
+    p_currency text default null
 ) returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
@@ -52,9 +51,6 @@ declare
     candidate_limit bigint;
     result jsonb;
 begin
-    if p_include_selbox is null then
-        raise exception 'SelBox inclusion preference is required' using errcode = '22023';
-    end if;
     if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
         raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
     end if;
@@ -139,7 +135,6 @@ begin
                     t.category
                 from private.finances_activity_components as t
                 where t.category in ('FINANCES', 'SELBOX')
-                    and ($19::boolean or t.category = 'FINANCES')
                     and (
                         (select private.member_policy_covers_current_version(
                             'private.finances_transaction_components'::regclass
@@ -333,7 +328,7 @@ begin
                 else public.transaction_count(
                 $1::date, $2::date, $3::uuid[], $4::text[],
                 $5::text[], $6::text[], $7::text[], $12::boolean,
-                $13::text[], $14::text[], $15::text[], $16::text[], $18::text, $19::boolean
+                $13::text[], $14::text[], $15::text[], $16::text[], $18::text
                 ) end
             end
         ) end
@@ -343,7 +338,7 @@ begin
     using p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
         p_sources, p_types, candidate_limit, p_limit, p_offset, p_include_count,
         p_fee_applicable, p_search_skus, p_search_types, p_search_marketplaces, p_search_sources,
-        p_order_by = 'amount', p_currency, p_include_selbox;
+        p_order_by = 'amount', p_currency;
     if result is null then
         raise exception 'Amount ordering exceeds the row limit'
             using errcode = '22023',
@@ -354,7 +349,7 @@ end;
 $$;
 revoke all on function public.transaction_page(
     integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text, boolean
+    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text
 ) from public,
 anon,
 authenticated,

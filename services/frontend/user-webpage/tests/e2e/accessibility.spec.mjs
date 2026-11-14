@@ -58,6 +58,7 @@ for (const role of ["member", "administrator"]) {
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = role;
     await signIn(page);
+    await page.getByRole("tab", { name: "Transactions", exact: true }).waitFor();
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     await expectAccessible(`${role}-transactions`);
     const filter = await openColumn(page, "Type");

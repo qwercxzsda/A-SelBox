@@ -19,7 +19,6 @@ _PARAMETER_TYPES = {
     "p_fee_applicable": "boolean",
     **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
     "p_currency": "text",
-    "p_include_selbox": "boolean",
 }
 
 

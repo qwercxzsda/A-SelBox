@@ -54,6 +54,15 @@ export function RowDetail({
       (row ? rowHeadingRef.current : closeButtonRef.current)?.focus({ preventScroll: true });
   }, [row, hasFallback]);
   const isReview = dataset === "payouts" && reviewMode && isAdministrator;
+  const title = isReview
+    ? "Saved report source details"
+    : {
+        live: "Transaction details",
+        finances: "Finances record details",
+        data_kiosk: "Data Kiosk record details",
+        payouts: "Payout report details",
+        accounts: "User access details",
+      }[dataset];
   return (
     <Drawer
       stackId={stackId}
@@ -67,11 +76,11 @@ export function RowDetail({
       title={
         dataset === "payouts" && row ? (
           <DrawerHeading
-            title={isReview ? "Saved source details" : "Selected row details"}
+            title={title}
             context={`${companies.get(row.company_id ?? "") ?? "Company"} · ${formatRecordMonth(row.start_date ?? "")} · ${payoutMarketplaceLabel(row)}${row.currency ? ` · ${row.currency}` : ""}`}
           />
         ) : (
-          "Selected row details"
+          title
         )
       }
       closeButtonProps={{ ref: closeButtonRef, "aria-label": "Close row details" }}

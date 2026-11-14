@@ -18,8 +18,7 @@ create function public.transaction_count(
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
     p_search_sources text[] default null,
-    p_currency text default null,
-    p_include_selbox boolean default true
+    p_currency text default null
 ) returns text
 language plpgsql stable security invoker
 set search_path = ''
@@ -28,9 +27,6 @@ declare
     finances_policy_is_sufficient boolean;
     kiosk_policy_is_sufficient boolean;
 begin
-    if p_include_selbox is null then
-        raise exception 'SelBox inclusion preference is required' using errcode = '22023';
-    end if;
     if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
         raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
     end if;
@@ -61,7 +57,6 @@ begin
             select count(*) as row_count
             from private.finances_activity_components as t
             where t.category in ('FINANCES', 'SELBOX')
-                and (p_include_selbox or t.category = 'FINANCES')
                 and (
                     finances_policy_is_sufficient
                     or t.is_current
@@ -142,7 +137,7 @@ end;
 $$;
 revoke all on function public.transaction_count(
     date, date, uuid[], text[], text[], text[], text[], boolean,
-    text[], text[], text[], text[], text, boolean
+    text[], text[], text[], text[], text
 )
 from public, anon, authenticated, service_role;
 

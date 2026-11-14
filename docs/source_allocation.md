@@ -55,10 +55,10 @@ Company calculations require resolved ownership and applicable fee periods.
 Actual SelBox amounts can include balance movements and are not automatically profit.
 A saved payout report records a calculation, not payment approval or execution.
 
-The Transactions totals, type breakdowns, and their contributing-record drawers include only the
-`FINANCES` and `DATA_KIOSK` allocation categories. Reported amounts and service fees therefore
-reconcile to company amounts when all contributing rows are calculated. The main transaction list
-retains `SELBOX` activity for inspection, and the shared latest-date anchor still considers that list.
+Transactions totals, type breakdowns, and their contributing-record drawers sum the same filtered
+rows as the main list. Eligible `SELBOX` activity contributes reported amounts for administrators,
+with zero service fees and company amounts. Company and SKU selections omit SelBox throughout.
+The shared latest-date anchor considers all authorized transaction activity.
 
 Current SKU assignment corrects live ownership retroactively. It is not a dated
 transfer. Saved reports preserve the ownership and fees selected at publication.

@@ -1,4 +1,4 @@
-"""Bounded summaries preserve contributing company-financial sums and authorization."""
+"""Bounded summaries preserve filtered transaction sums and authorization."""
 
 from itertools import combinations, product
 from typing import LiteralString, cast
@@ -8,6 +8,7 @@ from psycopg import sql
 
 from services.db.supabase.tests import test_live_view_equivalence as live_fixture
 from services.db.supabase.tests.rpc_support import assert_rpc_security
+from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS, append_search_selections
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 _PARAMETER_TYPES = {
@@ -20,6 +21,10 @@ _PARAMETER_TYPES = {
     "p_group_by_type": "boolean",
     "p_limit": "integer",
     "p_offset": "bigint",
+    "p_sources": "text[]",
+    "p_types": "text[]",
+    "p_fee_applicable": "boolean",
+    **dict.fromkeys(LIVE_SEARCH_FIELDS, "text[]"),
 }
 _NUMERIC_FIELDS = (
     "reported_amount",
@@ -54,9 +59,7 @@ class TransactionTotalsTests(SourceModelFixture):
 
     def expected(self, user: str | None, **options: object) -> dict[str, object]:
         options = {"p_date_from": "2026-01-01", **options}
-        predicates: list[sql.Composable] = [
-            sql.SQL("authoritative and category in ('FINANCES', 'DATA_KIOSK')")
-        ]
+        predicates: list[sql.Composable] = [sql.SQL("authoritative")]
         parameters: list[object] = []
         for name, column, comparison, type_name in (
             ("p_date_from", "utc_date", ">=", "date"),
@@ -76,6 +79,8 @@ class TransactionTotalsTests(SourceModelFixture):
             ("p_company_ids", "company_id", "uuid[]"),
             ("p_skus", "sku", "text[]"),
             ("p_marketplaces", "marketplace_name", "text[]"),
+            ("p_sources", "source", "text[]"),
+            ("p_types", "component_type", "text[]"),
         ):
             if options.get(name):
                 predicates.append(
@@ -84,6 +89,12 @@ class TransactionTotalsTests(SourceModelFixture):
                     )
                 )
                 parameters.append(options[name])
+        if options.get("p_skus"):
+            predicates.append(sql.SQL("category <> 'SELBOX'"))
+        if options.get("p_fee_applicable") is not None:
+            predicates.append(sql.SQL("(fee_base is not null) = %s::boolean"))
+            parameters.append(options["p_fee_applicable"])
+        append_search_selections(predicates, parameters, LIVE_SEARCH_FIELDS, options)
         query = sql.SQL("""
             with source_rows as (
                 select c.*, (case when c.source='FINANCES' then f.posted_at
@@ -174,6 +185,44 @@ class TransactionTotalsTests(SourceModelFixture):
                 for user in (self.administrator(), self.member(first)):
                     self.assert_matches_view(user, p_group_by_type=True, **options)
         self.assert_matches_view(self.member(first), p_date_from=None, p_date_to="2026-06-16")
+
+    def test_type_source_fee_and_search_filters_apply_before_both_aggregations(self) -> None:
+        first, _ = self.financial_fixture()
+        filters: tuple[dict[str, object], ...] = (
+            {"p_sources": ["FINANCES"]},
+            {"p_sources": ["DATA_KIOSK"]},
+            {"p_types": ["PRODUCT_SALES", "FbaStorageFee"]},
+            {"p_fee_applicable": True},
+            {"p_fee_applicable": False},
+            {"p_search_skus": ["SKU"]},
+            {"p_search_types": ["FbaStorageFee"]},
+            {"p_search_marketplaces": ["Amazon.com"]},
+            {"p_search_sources": ["DATA_KIOSK"]},
+            {name: [] for name in LIVE_SEARCH_FIELDS},
+            {"p_search_skus": ["OTHER"], "p_search_types": ["PRODUCT_SALES"]},
+        )
+        for user, grouped in product((self.administrator(), self.member(first)), (False, True)):
+            for left, right in combinations(({}, *filters), 2):
+                with self.subTest(grouped=grouped, filters=(left, right)):
+                    self.assert_matches_view(user, p_group_by_type=grouped, **(left | right))
+            result = self.assert_matches_view(
+                user,
+                p_group_by_type=grouped,
+                p_date_from="2026-06-15",
+                p_date_to="2026-06-16",
+                p_company_ids=[first],
+                p_skus=["SKU"],
+                p_marketplaces=["Amazon.com"],
+                p_currency="USD",
+                p_sources=["FINANCES"],
+                p_types=["PRODUCT_SALES"],
+                p_fee_applicable=True,
+                p_search_skus=["SKU"],
+                p_search_types=[],
+                p_search_marketplaces=[],
+                p_search_sources=[],
+            )
+            self.assertTrue(result["rows"])
 
     def test_empty_unknown_and_other_company_filters_do_not_expand_scope(self) -> None:
         first, second = self.financial_fixture()
@@ -331,6 +380,9 @@ class TransactionTotalsTests(SourceModelFixture):
             ("p_company_ids", company),
             ("p_skus", "SKU"),
             ("p_marketplaces", "Amazon.com"),
+            ("p_sources", "FINANCES"),
+            ("p_types", "PRODUCT_SALES"),
+            *((name, "value") for name in LIVE_SEARCH_FIELDS),
         ):
             for values in ([None], [value, None], [[value]]):
                 with self.assertRaises(psycopg.errors.InvalidParameterValue):

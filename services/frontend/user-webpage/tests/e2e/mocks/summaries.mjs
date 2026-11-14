@@ -30,17 +30,7 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
     throw new Error("Summary RPC must use POST without an exact-count request");
   const args = request.postDataJSON();
   const breakdown = args.p_group_by_type;
-  const params = transactionFilterParams({
-    ...args,
-    p_include_selbox: false,
-    p_sources: [],
-    p_types: [],
-    p_fee_applicable: null,
-    p_search_skus: null,
-    p_search_types: null,
-    p_search_marketplaces: null,
-    p_search_sources: null,
-  });
+  const params = transactionFilterParams(args);
   params.set("offset", String(args.p_offset));
   params.set("limit", String(args.p_limit));
   if (args.p_currency) params.set("currency", `eq.${args.p_currency}`);

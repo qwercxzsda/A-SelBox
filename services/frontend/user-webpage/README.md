@@ -45,21 +45,24 @@ report link; explicit sign-out clears workspace navigation fields.
 Selections are alternatives within one filter; different filters intersect. Table and option
 searches are literal and case-insensitive. Search fields use one visible Search label and a
 placeholder naming the searchable values, with no explanatory subtitle. Context-specific accessible
-names distinguish fields for assistive technology. Type menus group readable labels and exact source
-codes; Select matches and Deselect matches affect only the visible matches. Selection filters apply
-immediately. Applied chips expose the active values and support individual removal. Clearing an
-empty filtered result preserves ordering and page size.
+names distinguish fields for assistive technology. Type menus and current-total or saved-report
+Amounts by type use the eight broad groups from the
+[shared taxonomy](../../../docs/transaction_type_registry.md#shared-type-hierarchy); Financial
+review uses its detailed families. Type menus show readable exact types; Select matches and Deselect
+matches affect only visible matches. Selection filters apply immediately. Applied chips expose the
+active values and support individual removal. Clearing an empty filtered result preserves ordering
+and page size.
 
 List-based tabs share [ListToolbar](src/ListToolbar.tsx) for Search, Rows, pagination, spacing, and
 visible-range summaries such as `1–25 of 159 inventory items`. Contextual actions use its
 extra-controls area. Inactive status messages do not reserve a blank line above the toolbar.
 
-Type cells use a compact column, with the readable type first and the group used by the Type filter
-beneath in smaller, muted text. The original type code remains available on hover. SKU values use
-the same medium weight as date and type labels; Company amount values use bold text. Transactions
-combines Reported amount with a smaller, labeled Quantity below it, and Service fee with Fee rate
-below it. The Service fee heading retains applicability filtering; Reported amount retains amount
-ordering. Raw-source tables and record details keep their separate fields.
+Type cells use a compact column, with the readable type first and its broad group beneath in
+smaller, muted text. The original type code remains available on hover. SKU values use the same
+medium weight as date and type labels; Company amount values use bold text. Transactions combines
+Reported amount with a smaller, labeled Quantity below it, and Service fee with Fee rate below it.
+The Service fee heading retains applicability filtering; Reported amount retains amount ordering.
+Raw-source tables and record details keep their separate fields.
 
 Financial paging and factual sorting run on the server. Inventory filters, sorts, and pages its
 complete loaded snapshot in the browser; Current fees pages its loaded configuration. Previous/Next
@@ -84,19 +87,17 @@ row. Dates appear on the first line with the time beneath in smaller, muted text
 assumed marketplace day-end explanation is available on the time's tooltip and accessible
 description.
 
-Transactions' current totals follow company, SKU, and marketplace selections. Three cards show Last
+Transactions' current totals follow every selected filter and literal search. Three cards show Last
 day, Last month, and Selected dates together. Each card contains a compact list of the selected
 marketplaces and their currencies, with Reported amount, Service fee, and Company amount. The cards
 grow vertically with the selected marketplaces; they have no fixed-height list or internal vertical
 scrolling. They appear side by side on wide screens, with matching marketplace rows aligned across
 all three cards even when currency counts differ, and stack on narrower screens.
 
-Current totals, type breakdowns, and their record lists include only allocation categories
-`FINANCES` and `DATA_KIOSK`. `SELBOX` entries contribute neither amounts nor record counts to these
-summaries. Category and source are distinct: a SelBox entry supplied by the Finances API is still
-excluded. For fully calculated records, Company amount equals Reported amount plus the signed
-Service fee before display rounding. Missing ownership or fee configuration preserves the existing
-Known amount warnings and partial sums.
+Current totals, type breakdowns, and their record lists sum the same eligible transactions as the
+main list. This includes administrator-visible `SELBOX` entries; their company amounts and service
+fees remain zero under the allocation rules. Company rows retain exact amounts and partial sums when
+ownership or fee configuration is missing.
 
 An empty Marketplace filter means all marketplaces in that filter's catalog. An explicit selection
 lists exactly those marketplaces, including markets with no matching transactions. Empty markets
@@ -110,29 +111,30 @@ bottom.
 
 - Last day uses the UTC calendar day before the latest transaction date accessible to the signed-in
   account, including eligible SelBox activity when finding that anchor. UI filters do not change the
-  anchor; company, SKU, and marketplace selections change only the amounts. Every marketplace uses
-  that same previous day, even when it has no transactions.
+  anchor; all other filters and search change only the amounts. Every marketplace uses that same
+  previous day, even when it has no transactions.
 - Last month always uses the calendar month before the latest transaction's UTC month, including
   when the latest transaction is on the last day of a month. This rule does not certify complete
   source coverage.
 - Selected dates uses the same UTC date range as the transaction list. It requires at least one date
   bound and allows an open start or end.
 
-Record search, Source, Type, Fee rate, ordering, and pagination do not change the totals; record
-dates affect only Selected dates. Amounts are never combined across marketplaces or currencies. Each
-card has one date control at the upper right combining its period and UTC label. Last day and Last
-month use a filter icon to apply that period to the list. Selected dates uses a calendar icon to
-open the picker; ranges omit repeated month/year text, and an empty range shows Choose dates.
-Selecting a company amount opens its breakdown for that marketplace, currency, and UTC period. Every
-summary and record list uses the same timestamp and date boundaries. Selecting a type or category
-narrows its record list; Show all records and Back to amounts preserve a clear return path.
+Search, Company, SKU, Marketplace, Source, Type, and Fee rate apply to all totals and their type
+breakdowns and record lists. The date filter affects only Selected dates; Last day and Last month
+use their own periods. Ordering and pagination do not change totals. Amounts are never combined
+across marketplaces or currencies. Each card has one date control at the upper right combining its
+period and UTC label. Last day and Last month use a filter icon to apply that period to the list.
+Selected dates uses a calendar icon to open the picker; ranges omit repeated month/year text, and an
+empty range shows Choose dates. Selecting a company amount opens its breakdown for that marketplace,
+currency, and UTC period. Every summary and record list uses the same timestamp and date boundaries.
+Selecting a type or broad group narrows its record list; Show all records and Back to amounts
+preserve a clear return path.
 
-The main Transactions list still includes eligible SelBox entries for administrators. Transactions,
-Finances, and Data Kiosk use UTC timestamps for display, date filtering, and ordering. Finances
-retains the actual posting instant. A Data Kiosk daily component is booked at the last microsecond
-before the next midnight in its marketplace's time zone, then displayed in UTC. This is an explicit
-end-of-day convention because Data Kiosk provides daily aggregates rather than activity timestamps.
-Original marketplace dates continue to determine fees and payout periods.
+Transactions, Finances, and Data Kiosk use UTC timestamps for display, date filtering, and ordering.
+Finances retains the actual posting instant. A Data Kiosk daily component is booked at the last
+microsecond before the next midnight in its marketplace's time zone, then displayed in UTC. This is
+an explicit end-of-day convention because Data Kiosk provides daily aggregates rather than activity
+timestamps. Original marketplace dates continue to determine fees and payout periods.
 
 Transactions, Finances, and Data Kiosk support Date or Reported amount ordering. Amount ordering is
 bounded to 10,000 matching rows; larger scopes explain how to narrow the result or use date order.
@@ -297,19 +299,22 @@ covered zero; payout amounts stay frozen. The
 [payout contract](../../../docs/company_payout_reports.md) defines eligibility, maturity,
 completeness, zero reports, and agreement with their source inputs.
 
-Financial review shares Marketplace, Year, and the **Fee families** checkbox menu across Finances,
-Data Kiosk, and SelBox categories. These selections scope the yearly totals, chart, monthly rows,
-running difference, and exact source drilldowns. Currency is resolved from the selected
-marketplace's period rows and shown as the amount unit, with a selector when several units exist.
-Changing marketplace clears the unit and open month. Scope survives navigation and reloads.
+Financial review shares Marketplace, Year, and the **Type families** checkbox menu across Finances,
+Data Kiosk, and SelBox categories. This menu selects detailed families from the shared taxonomy; its
+comparisons and charts keep those economic distinctions even when families share one broad browsing
+group. These selections scope the yearly totals, chart, monthly rows, running difference, and exact
+source drilldowns. Currency is resolved from the selected marketplace's period rows and shown as the
+amount unit, with a selector when several units exist. Changing marketplace clears the unit and open
+month. Scope survives navigation and reloads.
 
 The chart combines signed family bars with running lines, numeric readouts, and keyboard/touch month
 navigation. Saved snapshots retain their complete historical scope when current-source comparisons
 are filtered. The
 [overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details) defines
 filtering, chart, coverage, and drawer behavior; the
-[family contract](../../../docs/financial_review.md#fee-family-comparison-and-source-lookup) defines
-memberships and comparison limits. Source-only coverage does not by itself establish an error.
+[family contract](../../../docs/financial_review.md#type-family-comparison-and-source-lookup)
+defines memberships and comparison limits. Source-only coverage does not by itself establish an
+error.
 
 Review links use `reviewMarketplace`, separately from repeated table `marketplace` filters. Report
 links require their exact ID, company, dates, currency, and `reportMarketplace`; an empty
@@ -371,6 +376,12 @@ Controls expose hover and keyboard-focus feedback without shifting layout. Nativ
 available to mouse/trackpad input on touch-capable devices. Disabled controls keep their disabled
 appearance. Text links use the shared accent underline. Narrow/coarse-pointer form controls use at
 least 16px text to avoid automatic focus zoom; manual zoom remains available.
+
+Drawer titles identify their purpose: Transaction totals, Transaction details, Finances record
+details, Data Kiosk record details, Payout report details, or Saved report source details. Amounts
+by type is a section within a totals or report drawer. Fee details/editing, Inventory details,
+Monthly financial review, Company details, Company membership, and Find Amazon transaction retain
+their task-specific titles. Totals, report, company, and monthly review headers include their scope.
 
 Drawers lock the document with CSS while mounted, including exit transitions. Drawer and popover
 scroll containment is vertical only, preserving horizontal browser gestures and pinch zoom. Escape

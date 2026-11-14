@@ -1,37 +1,37 @@
 import { Button, Group, Text } from "@mantine/core";
 import type { Ref } from "react";
 import { ColumnMenu } from "./ColumnMenu";
-import { buildFeeFamilyOptions } from "./fee-family-catalog";
-import type { FeeFamily } from "./fee-family-definitions";
-import "./FeeFamilyFilter.css";
+import { buildTypeFamilyOptions } from "./transaction-type-family-catalog";
+import type { TypeFamily } from "./transaction-type-families";
+import "./TypeFamilyFilter.css";
 
-export function FeeFamilyScope({ families }: { families: readonly string[] }) {
-  const selected = buildFeeFamilyOptions([], families);
+export function TypeFamilyScope({ families }: { families: readonly string[] }) {
+  const selected = buildTypeFamilyOptions([], families);
   return (
-    <Text size="xs" c="dimmed" className="fee-family-scope">
+    <Text size="xs" c="dimmed" className="type-family-scope">
       {families.length
-        ? `Fee families: ${selected.map((family) => family.label).join(", ")}`
-        : "All fee families"}
+        ? `Type families: ${selected.map((family) => family.label).join(", ")}`
+        : "All type families"}
     </Text>
   );
 }
 
-export function FeeFamilyFilter({
+export function TypeFamilyFilter({
   families,
   options,
   onChange,
   triggerRef,
 }: {
   families: string[];
-  options: FeeFamily[];
+  options: TypeFamily[];
   onChange: (families: string[]) => void;
   triggerRef: Ref<HTMLButtonElement>;
 }) {
   return (
-    <div className="fee-family-filter">
+    <div className="type-family-filter">
       <ColumnMenu
         triggerRef={triggerRef}
-        label="Fee families"
+        label="Type families"
         filter={{
           kind: "selection",
           value: families,
@@ -47,14 +47,14 @@ export function FeeFamilyFilter({
   );
 }
 
-export function FeeFamilyError({ error, onRetry }: { error: boolean; onRetry: () => void }) {
+export function TypeFamilyError({ error, onRetry }: { error: boolean; onRetry: () => void }) {
   return error ? (
     <Group gap="xs">
       <Text size="xs" c="red" role="alert">
-        Could not load fee families.
+        Could not load type families.
       </Text>
       <Button variant="subtle" size="compact-xs" onClick={onRetry}>
-        Retry fee families
+        Retry type families
       </Button>
     </Group>
   ) : null;

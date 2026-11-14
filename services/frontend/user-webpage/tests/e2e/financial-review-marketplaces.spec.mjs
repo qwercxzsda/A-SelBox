@@ -25,7 +25,7 @@ test("Germany and France stay separate in EUR and preserve family scope through 
   await expect(periodAmounts(page)).toHaveText(["-190.00 EUR", "-155.00 EUR", "-35.00 EUR"]);
   await expect(page.getByLabel("Amount currency: EUR", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveCount(0);
-  await chooseFamilies(page, ["Monthly storage"]);
+  await chooseFamilies(page, ["Monthly storage fees"]);
   await expect(periodAmounts(page)).toHaveText(["-150.00 EUR", "-130.00 EUR", "-20.00 EUR"]);
   await expect(currentMonthRows(page).first().locator("td")).toHaveText([
     "-100.00",
@@ -39,8 +39,8 @@ test("Germany and France stay separate in EUR and preserve family scope through 
     "-10.00",
     "-20.00",
   ]);
-  await page.getByRole("button", { name: "Fee family breakdown", exact: true }).click();
-  const families = page.getByRole("table", { name: "Yearly fee family breakdown", exact: true });
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
+  const families = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
   await expect(families.locator("tbody tr")).toHaveCount(1);
   await expect(families.locator("tbody tr td:nth-child(n+2):nth-child(-n+4)")).toHaveText([
     "-150.00",
@@ -102,7 +102,7 @@ test("a marketplace with multiple currencies keeps amount units separate on a ph
   await expect(currency).toHaveValue("EUR");
   await expect(currency).toBeFocused();
   await expect(periodAmounts(page)).toHaveText(["-27.00 EUR", "-25.00 EUR", "-2.00 EUR"]);
-  await chooseFamilies(page, ["Monthly storage"]);
+  await chooseFamilies(page, ["Monthly storage fees"]);
   await expect(periodAmounts(page)).toHaveText(["-21.00 EUR", "-20.00 EUR", "-1.00 EUR"]);
   await page.reload();
   await expect(currency).toHaveValue("EUR");
@@ -150,7 +150,7 @@ test("monthly types, exact source records, and saved snapshots retain marketplac
     });
   });
   await marketplace(page).selectOption("Amazon.de");
-  await chooseFamilies(page, ["Monthly storage"]);
+  await chooseFamilies(page, ["Monthly storage fees"]);
   await page.getByRole("button", { name: "Open review for January 2026", exact: true }).click();
   await expect(monthly(page).locator(".detail-drawer-context")).toContainText("Amazon.de · EUR");
   await expect(
@@ -183,7 +183,7 @@ test("monthly types, exact source records, and saved snapshots retain marketplac
     .toContain('component_type.in.("STORAGE_FEES")');
   expect(recordRequest().params.get("or")).toContain('"FBA_STORAGE_FEE"');
   await records.locator("tbody tr.inspectable-row").first().click();
-  const detail = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const detail = page.getByRole("dialog", { name: "Data Kiosk record details", exact: true });
   await expect(detail.getByRole("heading", { name: /^Amazon.de-EUR-/ })).toBeVisible();
   expect(sourceRequests[0].p_version_id).toBe(MARKETPLACE_SOURCE_VERSION);
   const exactSource = sourceRequests[0];
@@ -235,7 +235,7 @@ test("monthly types, exact source records, and saved snapshots retain marketplac
   await expect(snapshots).toContainText("422.00 EUR");
   await expect(snapshots).not.toContainText("311.00 EUR");
   await snapshots.getByRole("cell", { name: "422.00 EUR", exact: true }).first().click();
-  const saved = page.getByRole("dialog", { name: "Saved source details", exact: true });
+  const saved = page.getByRole("dialog", { name: "Saved report source details", exact: true });
   await expect(saved.locator(".detail-drawer-context")).toContainText("Amazon.fr · EUR");
   await page.reload();
   await expect(saved.locator(".detail-drawer-context")).toContainText("Amazon.fr · EUR");

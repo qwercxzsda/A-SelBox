@@ -64,7 +64,7 @@ test("financial review opens the exact source version and restores nested detail
   await monthly.getByRole("button", { name: "Source records", exact: true }).click();
   const source = monthly.getByRole("table", { name: "Source records", exact: true });
   await source.locator("tbody tr.inspectable-row").first().click();
-  const detail = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const detail = page.getByRole("dialog", { name: "Data Kiosk record details", exact: true });
   await expect(
     detail.getByRole("heading", { name: "EXACT-SOURCE-SKU", exact: true }),
   ).toBeVisible();
@@ -72,7 +72,7 @@ test("financial review opens the exact source version and restores nested detail
   const selected = requests.at(-1).args;
   await page.reload();
   await expect(
-    page.getByRole("dialog", { name: "Selected row details", exact: true }),
+    page.getByRole("dialog", { name: "Data Kiosk record details", exact: true }),
   ).toBeVisible();
   expect(requests.at(-1).args).toEqual(selected);
   await detail.getByRole("button", { name: "Close row details", exact: true }).click();
@@ -80,7 +80,7 @@ test("financial review opens the exact source version and restores nested detail
   await expect(detail).toBeHidden();
 });
 
-test("fee family comparison pairs coupon charges and sponsored products advertising", async ({
+test("type family comparison pairs coupon charges and sponsored products advertising", async ({
   page,
 }) => {
   await openFinancialReview(page, (fixture) => {
@@ -105,12 +105,12 @@ test("fee family comparison pairs coupon charges and sponsored products advertis
     ];
   });
   await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
-  await page.getByRole("button", { name: "Fee family comparison", exact: true }).click();
-  const table = page.getByRole("table", { name: "Fee family comparison", exact: true });
+  await page.getByRole("button", { name: "Type family comparison", exact: true }).click();
+  const table = page.getByRole("table", { name: "Type family comparison", exact: true });
   await expect(table.locator("tbody tr")).toHaveCount(2);
   const coupons = table
     .getByRole("row")
-    .filter({ has: page.getByText("Coupons", { exact: true }) });
+    .filter({ has: page.getByText("Coupon fees", { exact: true }) });
   await expect(coupons.locator("td:not(:first-child)")).toHaveText([
     "-6.53",
     "-6.53",
@@ -186,7 +186,7 @@ test("Finances provides an independent exact Amazon ID lookup with current and r
   expect(mainRequest().args).toEqual(mainScope);
   await captureResponsiveReview(page, testInfo, "transaction-id-drawer");
   await table.locator("tbody tr.inspectable-row").last().click();
-  const detail = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const detail = page.getByRole("dialog", { name: "Finances record details", exact: true });
   await expect(detail).toBeVisible();
   expect(requests.at(-1).args.p_row_id).toBe("0198b50b-701a-7000-8000-000000000043");
   await page.keyboard.press("Escape");

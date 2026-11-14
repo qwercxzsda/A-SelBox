@@ -144,7 +144,8 @@ test("company, SKU, and marketplace selections scope records and totals without 
       sources: ["DATA_KIOSK"],
       types: ["PRODUCT_SALES"],
       feeApplicability: ["applicable"],
-      search: "ignored",
+      search: "SKU",
+      searchValues: searchValues({ skus: ["SKU"] }),
     }),
   );
   await client.fetchTransactionTypeTotals(
@@ -154,7 +155,8 @@ test("company, SKU, and marketplace selections scope records and totals without 
       sources: ["DATA_KIOSK"],
       types: ["PRODUCT_SALES"],
       feeApplicability: ["applicable"],
-      search: "ignored",
+      search: "SKU",
+      searchValues: searchValues({ skus: ["SKU"] }),
     }),
   );
   assert.equal(requests.length, 4);
@@ -202,8 +204,12 @@ test("company, SKU, and marketplace selections scope records and totals without 
     assert.equal(args.p_date_to, dates.dateTo);
     assert.equal(args.p_limit, 1000);
     assert.equal(args.p_offset, 0);
-    for (const excluded of ["p_sources", "p_types", "p_fee_applicable", "search"])
-      assert.equal(Object.hasOwn(args, excluded), false);
+    assert.deepEqual(args.p_sources, ["DATA_KIOSK"]);
+    assert.deepEqual(args.p_types, ["PRODUCT_SALES"]);
+    assert.equal(args.p_fee_applicable, true);
+    assert.deepEqual(args.p_search_skus, ["SKU"]);
+    assert.deepEqual(args.p_search_types, []);
+    assert.equal(Object.hasOwn(args, "search"), false);
   }
   assert.equal(requests[2].args.p_group_by_type, false);
   assert.equal(requests[2].args.p_currency, null);

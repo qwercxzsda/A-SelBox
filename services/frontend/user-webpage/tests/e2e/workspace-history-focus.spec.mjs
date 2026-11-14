@@ -43,7 +43,7 @@ test("a restored row dialog keeps its own autofocus ahead of the workspace tab",
   await mockSupabase(page);
   await signIn(page);
   await rowWithSku(page, "ALPHA-001").click();
-  const drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  const drawer = page.getByRole("dialog", { name: "Transaction details", exact: true });
   await drawer.getByRole("button", { name: "Close row details", exact: true }).click();
   await expect(drawer).toBeHidden();
   await page.goBack();

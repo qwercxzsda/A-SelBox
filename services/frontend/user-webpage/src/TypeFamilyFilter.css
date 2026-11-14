@@ -1,9 +1,9 @@
-.fee-family-filter {
+.type-family-filter {
   min-width: 0;
   max-width: 100%;
 }
 
-.fee-family-filter .column-menu-trigger {
+.type-family-filter .column-menu-trigger {
   min-height: calc(2.25rem * var(--mantine-scale));
   margin-inline: 0;
   padding-inline: 12px;
@@ -14,6 +14,6 @@
   font-weight: 500;
 }
 
-.fee-family-scope {
+.type-family-scope {
   overflow-wrap: anywhere;
 }

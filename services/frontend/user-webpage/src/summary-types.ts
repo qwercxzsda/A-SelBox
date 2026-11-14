@@ -1,7 +1,5 @@
-import type { DatasetFilters, MarketplaceCurrencyTotal } from "./api";
+import type { MarketplaceCurrencyTotal } from "./api/types";
 import type { PeriodDefinition, TotalsPeriod } from "./summary-periods";
-
-export type TransactionSummaryScope = Pick<DatasetFilters, "companyIds" | "skus" | "marketplaces">;
 
 export interface SummaryState {
   definition: PeriodDefinition | null;

@@ -43,6 +43,7 @@ function TypeGroup({
         <Checkbox
           className="type-filter-group-choice"
           label={group.label}
+          aria-label={`${group.label} group`}
           aria-describedby={`${optionsId}-scope`}
           checked={selectedCount === values.length}
           indeterminate={selectedCount > 0 && selectedCount < values.length}

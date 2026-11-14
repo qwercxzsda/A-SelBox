@@ -94,7 +94,7 @@ for (const width of [390, 1440]) {
           exact: false,
         })
         .click();
-      const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+      const dialog = page.getByRole("dialog", { name: "Transaction totals", exact: true });
       const total = dialog.getByRole("region", { name: "Breakdown total", exact: true });
       await expect(summaryAmount(total, "Reported amount", currency)).toHaveText(expected);
       expect(fixture.breakdownRequests.at(-1).args).toMatchObject({
@@ -145,7 +145,7 @@ test("a month-end latest transaction still uses the previous month for every mar
       name: /^View Last month for Amazon.com in USD by type:/,
     })
     .click();
-  const dialog = page.getByRole("dialog", { name: "Amounts by type", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Transaction totals", exact: true });
   await expect(
     summaryAmount(
       dialog.getByRole("region", { name: "Breakdown total", exact: true }),
@@ -162,7 +162,6 @@ test("a month-end latest transaction still uses the previous month for every mar
     .toMatchObject({
       p_date_from: "2026-10-01",
       p_date_to: "2026-10-31",
-      p_include_selbox: false,
     });
   await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
   await summaryCard(page, "Last month")

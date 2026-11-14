@@ -47,7 +47,7 @@ test("Finances distinguishes activity from releases and retains transaction-vers
   await expect(page.getByRole("button", { name: /refresh/i })).toHaveCount(0);
 
   await rowWithSku(page, "FINANCES-RELEASE").click();
-  let drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  let drawer = page.getByRole("dialog", { name: "Finances record details", exact: true });
   await expect(drawer).toContainText("This record is exclusive of activity totals.");
   await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
   const metadata = drawer.getByRole("table", { name: "Additional record details", exact: true });
@@ -67,7 +67,7 @@ test("Finances distinguishes activity from releases and retains transaction-vers
     await expect(row).toContainText(value);
   }
   await page.reload();
-  drawer = page.getByRole("dialog", { name: "Selected row details", exact: true });
+  drawer = page.getByRole("dialog", { name: "Finances record details", exact: true });
   await expect(drawer).toContainText("amazon-original-A");
   await page.screenshot({
     path: testInfo.outputPath("finances-release-details.png"),

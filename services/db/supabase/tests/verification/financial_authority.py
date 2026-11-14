@@ -29,7 +29,7 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
             select t.marketplace_name,t.currency,t.amount
             from private.finances_component_details t
             where t.is_current and t.activity_eligible
-                and t.category = 'FINANCES'
+                and t.category in ('FINANCES', 'SELBOX')
             union all
             select h.marketplace_name,t.currency,t.amount
             from private.data_kiosk_day_components t

@@ -1,6 +1,6 @@
 import type { RecordSelection } from "./AmountBreakdown";
 import type { PeriodDefinition } from "./summary-periods";
-import type { TransactionSummaryScope } from "./summary-types";
+import type { TransactionSummaryScope } from "./api/types";
 import { requireDateRange } from "./api/filters.ts";
 import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
 import marketplaces from "./generated/marketplaces.json" with { type: "json" };
@@ -54,6 +54,9 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     !isJsonObject(value.period) ||
     !isJsonObject(value.period.range) ||
     !isJsonObject(value.scope) ||
+    typeof value.scope.search !== "string" ||
+    value.scope.search.length > 4096 ||
+    value.scope.search.includes("\0") ||
     typeof value.title !== "string" ||
     !Object.values(TOTALS_PERIOD_LABELS).includes(value.title) ||
     !isCurrency(value.currency) ||
@@ -70,8 +73,23 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
   } catch {
     return null;
   }
-  const scope: TransactionSummaryScope = { companyIds: [], skus: [], marketplaces: [] };
-  for (const field of ["companyIds", "skus", "marketplaces"] as const) {
+  const scope: TransactionSummaryScope = {
+    companyIds: [],
+    skus: [],
+    marketplaces: [],
+    sources: [],
+    types: [],
+    feeApplicability: [],
+    search: value.scope.search,
+  };
+  for (const field of [
+    "companyIds",
+    "skus",
+    "marketplaces",
+    "sources",
+    "types",
+    "feeApplicability",
+  ] as const) {
     const raw = value.scope[field];
     const decoded = decodeDetailStrings(raw);
     if (!Array.isArray(raw) || decoded.length !== raw.length) return null;
@@ -80,6 +98,7 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
   if (
     scope.marketplaces.length !== 1 ||
     scope.companyIds.some((id) => !isUuid(id)) ||
+    scope.feeApplicability.some((value) => value !== "applicable" && value !== "not_applicable") ||
     scope.marketplaces.some((name) => !marketplaces.includes(name))
   )
     return null;

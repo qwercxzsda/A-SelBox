@@ -26,7 +26,7 @@ test("F5 retains transaction ordering, pagination and the selected row using fre
   await rowWithSku(page, "ALPHA-026").click();
   const reads = fixture.requests.length;
   await page.reload();
-  await expect(page.getByRole("dialog", { name: "Selected row details" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Transaction details" })).toBeVisible();
   await expect(
     page.getByRole("dialog").getByRole("heading", { name: "ALPHA-026", exact: true }),
   ).toBeVisible();

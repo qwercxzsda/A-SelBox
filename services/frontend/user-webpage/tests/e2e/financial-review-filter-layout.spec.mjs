@@ -18,7 +18,7 @@ async function paintedBounds(locator) {
 }
 
 for (const width of [1440, 390]) {
-  test(`fee-family controls stay fixed while loading and recovering at ${width}px`, async ({
+  test(`type-family controls stay fixed while loading and recovering at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -54,7 +54,7 @@ for (const width of [1440, 390]) {
     });
     const trigger = familyTrigger(page);
     const year = page.getByRole("combobox", { name: "Year", exact: true });
-    const retry = page.getByRole("button", { name: "Retry fee families", exact: true });
+    const retry = page.getByRole("button", { name: "Retry type families", exact: true });
     const header = page.locator(".workspace-header");
     const loading = header.getByText("Loading…", { exact: true });
     await expect(year).toHaveValue("2026");
@@ -72,7 +72,7 @@ for (const width of [1440, 390]) {
     releaseTotals();
     await expect.poll(() => typeof releaseFamilies).toBe("function");
     await expect(loading).toBeVisible();
-    await expect(page.getByText("Loading fee families…", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Loading type families…", { exact: true })).toHaveCount(0);
     await expectStable();
     await expect(page.getByLabel("Amount currency: USD", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Currency", exact: true })).toHaveCount(0);
@@ -81,7 +81,7 @@ for (const width of [1440, 390]) {
     await expect(trigger).toBeEnabled();
     await trigger.click();
     await expect(
-      familyMenu(page).getByRole("checkbox", { name: "Monthly storage", exact: true }),
+      familyMenu(page).getByRole("checkbox", { name: "Monthly storage fees", exact: true }),
     ).toBeVisible();
     await familyMenu(page).getByRole("button", { name: "Done", exact: true }).click();
     await expectStable();
@@ -115,7 +115,7 @@ for (const width of [1440, 390]) {
     await expectStable();
     await trigger.click();
     await expect(
-      familyMenu(page).getByRole("checkbox", { name: "Monthly storage", exact: true }),
+      familyMenu(page).getByRole("checkbox", { name: "Monthly storage fees", exact: true }),
     ).toBeVisible();
     await familyMenu(page).getByRole("button", { name: "Done", exact: true }).click();
     expect(

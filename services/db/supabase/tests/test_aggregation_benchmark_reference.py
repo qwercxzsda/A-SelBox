@@ -38,7 +38,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
         company, _ = self.financial_fixture()
         member, administrator = self.member(company), self.administrator()
         for (role, user, expected_count), grouped in product(
-            (("member", member, 10), ("administrator", administrator, 17)), (False, True)
+            (("member", member, 10), ("administrator", administrator, 18)), (False, True)
         ):
             with self.subTest(role=role, grouped=grouped), self.connection.transaction():
                 self.connection.execute(
