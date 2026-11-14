@@ -40,7 +40,7 @@ test("Germany and France stay separate in EUR and preserve family scope through 
     "-20.00",
   ]);
   await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
-  const families = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
+  const families = page.getByRole("region", { name: "Yearly type family breakdown", exact: true });
   await expect(families.locator("tbody tr")).toHaveCount(1);
   await expect(families.locator("tbody tr td:nth-child(n+2):nth-child(-n+4)")).toHaveText([
     "-150.00",

@@ -3,7 +3,7 @@ import { openFinancialReview } from "./financial-review-actions.mjs";
 import { setupFamilies } from "./financial-review-family-fixtures.mjs";
 
 const chart = (page) =>
-  page.getByRole("figure", { name: "Monthly and running differences", exact: true });
+  page.getByRole("figure", { name: "Monthly and running source gaps", exact: true });
 const inspector = (page) => chart(page).getByRole("region", { name: "Chart values", exact: true });
 
 test("visible chart values follow hover, keyboard and the month selector while preserving drilldown", async ({
@@ -16,14 +16,14 @@ test("visible chart values follow hover, keyboard and the month selector while p
   await expect(totals).toHaveText(["0.00", "-7.01"]);
   const legend = chart(page).getByRole("list", { name: "Type family legend", exact: true });
   await expect(legend.locator('[data-family-id="source:FINANCES:FUTURE_FEE"]')).toContainText(
-    "Finances only",
+    "Unpaired amount (Finances)",
   );
   await expect(
-    legend.locator('[data-family-id="monthly-storage"] .financial-review-chart-source-only'),
+    legend.locator('[data-family-id="monthly-storage"] .financial-review-chart-context'),
   ).toHaveCount(0);
   await expect(
     inspector(page).locator(".financial-review-chart-family-value").first(),
-  ).toContainText("Finances only");
+  ).toHaveAttribute("data-family-id", "monthly-storage");
   await chart(page)
     .getByRole("button", { name: "Feb: View chart details for February 2026", exact: true })
     .hover();
@@ -66,12 +66,9 @@ test("a long phone legend stays below the plot and expands without removing plot
   const legend = chart(page).getByRole("list", { name: "Type family legend", exact: true });
   await expect(legend.locator("li")).toHaveCount(6);
   await expect(chart(page)).toContainText(
-    "Showing 6 of 23 families by running difference. All 23 are plotted.",
+    "Showing 6 of 23 families, comparable scopes first. All 23 are plotted.",
   );
-  await expect(legend.locator("li").first()).toHaveAttribute(
-    "data-family-id",
-    "source:FINANCES:FUTURE_FEE",
-  );
+  await expect(legend.locator("li").first()).toHaveAttribute("data-family-id", "monthly-storage");
   expect((await chart(page).locator(".financial-review-trend-plot").boundingBox()).y).toBeLessThan(
     (await legend.boundingBox()).y,
   );

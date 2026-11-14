@@ -1,7 +1,12 @@
 import type { CanonicalRow } from "./api";
 import { DetailTable } from "./DetailTable";
 import { formatAmount } from "./decimal";
-import { reviewAmountColumns, type ReviewCategory } from "./financial-review-categories";
+import {
+  hasNoSourceRecords,
+  isUnmappedSourceAmount,
+  reviewAmountColumns,
+  type ReviewCategory,
+} from "./financial-review-categories";
 
 export function FinancialReviewMonthTotals({
   rows,
@@ -20,6 +25,9 @@ export function FinancialReviewMonthTotals({
           rows={rows}
           rowKey={(row) => row.currency ?? ""}
           minWidth={520}
+          renderCell={(row, column) =>
+            isUnmappedSourceAmount(row, column.key) ? "No mapped types" : undefined
+          }
         />
       </div>
       <section className="monthly-review-totals-mobile" aria-label="Financial review totals">
@@ -27,14 +35,13 @@ export function FinancialReviewMonthTotals({
           <dl key={row.currency}>
             {columns.map((column) => {
               const difference = column.key === "difference";
-              const noSourceRecords =
-                !difference && row[column.key.replace("_amount", "_row_count")] === "0";
+              const unmapped = isUnmappedSourceAmount(row, column.key);
               return (
                 <div key={column.key} data-difference={difference || undefined}>
-                  <dt>{difference ? "Difference" : column.label}</dt>
+                  <dt>{difference ? "Source gap" : column.label}</dt>
                   <dd>
-                    {formatAmount(row[column.key])}
-                    {noSourceRecords ? <span>No source records</span> : null}
+                    {unmapped ? "No mapped types" : formatAmount(row[column.key])}
+                    {hasNoSourceRecords(row, column.key) ? <span>No source records</span> : null}
                   </dd>
                 </div>
               );

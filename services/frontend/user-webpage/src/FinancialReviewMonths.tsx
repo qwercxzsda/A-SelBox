@@ -44,6 +44,7 @@ export function FinancialReviewMonths({
     familyQuery,
     familyTypes,
     familyOptions,
+    unavailableFamilies,
     year,
     years,
     currencies,
@@ -62,7 +63,9 @@ export function FinancialReviewMonths({
   // Only a successful overview can establish that the open month no longer exists.
   const overviewReady =
     !loading && bounds.isSuccess && totalsQuery.isSuccess && comparisonQuery.isSuccess;
+  const validScope = unavailableFamilies.length === 0;
   const selectedMonth =
+    validScope &&
     view.selectedMonth &&
     ((months.includes(view.selectedMonth) && (!view.currency || view.currency === currency)) ||
       (!overviewReady && view.currency && view.selectedMonth.startsWith(`${year}-`)))
@@ -84,14 +87,16 @@ export function FinancialReviewMonths({
   const hasSelectedFamilies = scope.families.length > 0;
   const comparisonUnavailable =
     comparisonQuery.isError || bounds.isError || (!currency && totalsQuery.isError);
-  const canClearFamilies = hasSelectedFamilies && !loading && !comparisonUnavailable;
-  const emptyMessage = loading
-    ? undefined
-    : comparisonUnavailable
-      ? "Monthly summaries are unavailable."
-      : hasSelectedFamilies
-        ? `No source records match the selected type families for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` for ${year}` : ""}.`
-        : `No source records for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` in ${year}` : ""}.`;
+  const canClearFamilies = validScope && hasSelectedFamilies && !loading && !comparisonUnavailable;
+  const emptyMessage = !validScope
+    ? "Remove unavailable type families to view amounts."
+    : loading
+      ? undefined
+      : comparisonUnavailable
+        ? "Monthly summaries are unavailable."
+        : hasSelectedFamilies
+          ? `No source records match the selected type families for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` for ${year}` : ""}.`
+          : `No source records for ${scope.marketplace}${currency ? ` in ${currency}` : ""}${year ? ` in ${year}` : ""}.`;
 
   return (
     <div ref={listRef} className="financial-review-months" tabIndex={-1}>
@@ -117,6 +122,7 @@ export function FinancialReviewMonths({
           triggerRef={familyTrigger}
           families={scope.families}
           options={familyOptions}
+          unavailableFamilies={unavailableFamilies}
           onChange={(families) => {
             changeScope({ ...scope, currency, families: normalizeTypeFamilyIds(families) });
           }}
@@ -136,13 +142,31 @@ export function FinancialReviewMonths({
       <Group className="financial-review-family-context" justify="space-between" gap="xs">
         <TypeFamilyScope families={scope.families} />
         <TypeFamilyError
-          error={familyQuery.isError}
+          error={validScope && familyQuery.isError}
           onRetry={() => {
             familyTrigger.current?.focus();
             void familyQuery.refetch();
           }}
         />
       </Group>
+      {!validScope ? (
+        <Alert color="orange" role="alert" mb="sm" title="Unavailable type family selections">
+          Selected type families are unavailable: {unavailableFamilies.join(", ")}. Amounts and
+          records are hidden until these selections are removed.
+          <Button
+            variant="subtle"
+            onClick={() => {
+              changeScope({
+                ...scope,
+                families: scope.families.filter((id) => !unavailableFamilies.includes(id)),
+              });
+              familyTrigger.current?.focus();
+            }}
+          >
+            Remove unavailable families
+          </Button>
+        </Alert>
+      ) : null}
       {bounds.isError ? (
         <Alert color="red" role="alert" mb="sm">
           Could not load available review periods.
@@ -157,7 +181,7 @@ export function FinancialReviewMonths({
           </Button>
         </Alert>
       ) : null}
-      {hasSelectedFamilies && totalsQuery.isError ? (
+      {validScope && hasSelectedFamilies && totalsQuery.isError ? (
         <Alert role="alert" color="red" mb="sm">
           Could not load source coverage and available currencies.
           <Button
@@ -171,7 +195,7 @@ export function FinancialReviewMonths({
           </Button>
         </Alert>
       ) : null}
-      {comparisonQuery.isError && !hasSelectedFamilies ? (
+      {validScope && comparisonQuery.isError && !hasSelectedFamilies ? (
         <Alert role="alert" color="red" mb="sm">
           Could not load monthly summaries.
           <Button
@@ -205,7 +229,7 @@ export function FinancialReviewMonths({
           />
         </>
       ) : null}
-      {year && currency ? (
+      {validScope && year && currency ? (
         <FinancialReviewFamilyBreakdown
           query={familyQuery}
           sourceTotals={sourceTotals}
@@ -226,7 +250,7 @@ export function FinancialReviewMonths({
         rows={rows}
         selectedMonth={selectedMonth}
         onSelect={selectMonth}
-        isBusy={loading || comparisonQuery.isFetching}
+        isBusy={loading || (validScope && comparisonQuery.isFetching)}
         onClearFamilies={
           canClearFamilies
             ? () => {

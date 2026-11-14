@@ -110,7 +110,7 @@ test("running differences sum exact monthly values before display rounding and n
       },
     ];
   });
-  await expect(table(page).getByRole("columnheader", { name: /Running difference/ })).toBeVisible();
+  await expect(table(page).getByRole("columnheader", { name: /Running source gap/ })).toBeVisible();
   await expect(row(page, "January 2026").getByRole("cell").last()).toHaveText(
     "9,007,199,254,740,993.00",
   );
@@ -184,14 +184,14 @@ test("chart keyboard selection opens the same currency and restores focus to its
 }) => {
   const fixture = await openFinancialReview(page);
   await currency(page).selectOption("EUR");
-  const chart = page.getByRole("figure", { name: "Monthly and running differences", exact: true });
+  const chart = page.getByRole("figure", { name: "Monthly and running source gaps", exact: true });
   const july = chart.getByRole("button", {
     name: "Jul: View chart details for July 2026",
     exact: true,
   });
   await expect(july).toHaveAttribute(
     "title",
-    /^July 2026: Monthly difference 0\.00 EUR; Running difference 0\.00 EUR(?:\n|$)/,
+    /^July 2026: Monthly source gap 0\.00 EUR; Running source gap 0\.00 EUR(?:\n|$)/,
   );
   await july.focus();
   await july.press("Enter");

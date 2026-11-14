@@ -71,10 +71,11 @@ Source position is not a financial identity.
 
 The [transaction taxonomy](../services/frontend/user-webpage/src/transaction-type-families.ts)
 defines one hierarchy: each registered source/type belongs to one detailed family, and each family
-has one parent `groupId`. Family definitions own the exact source/type memberships; views derive
-broader memberships through the parent group instead of maintaining separate type lists. A type
-appearing in both sources must belong to the same family in both. Catalog tests check complete
-coverage against the generated Python registry and verify each family's parent group.
+has one parent `groupId`. Memberships are global: there are no marketplace-specific family rules.
+Family definitions own the exact source/type memberships; views derive broader memberships through
+the parent group instead of maintaining separate type lists. A type appearing in both sources must
+belong to the same family in both. Catalog tests check complete coverage against the generated
+Python registry and verify each family's parent group.
 
 A detailed family combines related charges, refunds, corrections and reversals using their original
 signs. Its source-qualified memberships define which amounts can be compared; neither matching
@@ -99,26 +100,48 @@ group does not assert that different detailed families are equivalent or can be 
 one another. For example, Sponsored products, Coupon fees and Deal fees can be browsed together
 under Advertising & promotions while remaining distinct families in Financial review.
 
-Product sales and signed refunds belong to **Net product sales**; Finances `ADVERTISING` and Data
-Kiosk Sponsored Products types belong to **Sponsored products**. **Coupon fees**, **Deal fees**, and
-**Promotions and points** retain their own memberships. **Inbound convenience fees** pairs Finances
-`INBOUND_PLACEMENT_FEES` with Data Kiosk `FBA_INBOUND_CONVENIENCE_FEE`; the separately registered
-placement service type keeps its own family without assuming that similarly named fees have
-identical source scope. EPR compliance, Vine enrollment and inbound defects have separate families;
-supply-chain credits stay separate from other account adjustments. Zero-value records without
-monetary detail are **Zero-value activity**, not product principal. Seller-provided Data Kiosk cost
-families state their per-unit basis (per unit/month for merchant storage) and remain analysis only.
+Product sales and signed refunds belong to **Product sales and refunds**; Finances `ADVERTISING` and
+Data Kiosk Sponsored Products types belong to **Sponsored products**. **Coupon fees**, **Deal
+fees**, and **Promotions and points** retain their own memberships. **Inbound convenience fees**
+pairs Finances `INBOUND_PLACEMENT_FEES` with Data Kiosk `FBA_INBOUND_CONVENIENCE_FEE`; the
+separately registered placement service type keeps its own family without assuming that similarly
+named fees have identical source scope. EPR compliance, Vine enrollment and inbound defects have
+separate families; supply-chain credits stay separate from other account adjustments. Zero-value
+records without monetary detail are **Zero-value activity**, not product principal. Seller-provided
+Data Kiosk cost families state their per-unit basis (per unit/month for merchant storage) and remain
+analysis only.
 
 The Finances type `INBOUND_PLACEMENT_FEES` is displayed as **Inbound convenience fees** because its
 native paths are `FBAInboundConvenienceFee`. Display labels describe the native meaning while exact
 stored and filter identifiers stay unchanged, including in saved source versions.
 
+Each detailed family declares its comparison policy: paired counterparts, different reporting bases,
+or unpaired activity. **Product sales and refunds** uses the different-basis policy. Unpaired means
+no verified mapping for the complete family, not that the other source omits every related amount.
+The [Financial review contract](financial_review.md#type-family-comparison-and-source-lookup)
+defines how these states appear in comparisons.
+
+Shipping, **Promotions and points**, and **Taxes collected and withheld** remain unpaired globally.
+Some shipping refunds and product discounts are embedded in Data Kiosk sales, but those observations
+do not establish universal mappings for the complete stored types. Promotional types combine product
+and shipping discounts; points also include refund adjustments. Taxes include liquidation revenue
+tax and signed marketplace withholding, which can offset collected tax. Tax and discounts on Amazon
+fees remain in their corresponding fee families. Matching aggregate amounts alone does not establish
+a counterpart or identify a normalization error.
+
+**Referral and refund fees** combines referral charges, returned referral fees and retained refund
+administration charges on both sources as one signed commission flow. **Inbound transportation**
+combines transportation and transportation-program charges, which occur in the same evidenced
+shipment cost. Both retain all original types for inspection. These consolidations preserve the raw
+amounts and do not resolve genuine source gaps by reclassification. Their parent browsing groups
+remain Selling fees and Fulfillment & shipping.
+
 Selecting a broad group or detailed family sends only its exact type keys available to that role and
 dataset. Groups without types for that role and dataset are omitted. Within a broad group, Type
-menus list readable exact types alphabetically; Financial review can rank detailed families by
-differences. Neither level changes source allocation, inclusion rules, currency, or transaction
-dates. Unrecognized exact types retain readable labels; source comparisons additionally preserve
-their source identity without assuming a counterpart.
+menus list readable exact types alphabetically; Financial review ranks only paired families by
+comparison differences. Neither level changes source allocation, inclusion rules, currency, or
+transaction dates. Unrecognized exact types retain readable labels; source comparisons additionally
+preserve their source identity without assuming a counterpart.
 
 ## Shared menus
 

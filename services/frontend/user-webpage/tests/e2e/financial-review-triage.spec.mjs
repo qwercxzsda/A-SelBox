@@ -6,14 +6,18 @@ import { chooseFamilies } from "./financial-review-family-actions.mjs";
 const categories = (page) => page.getByRole("tablist", { name: "Financial review", exact: true });
 const summary = (page) => page.getByRole("region", { name: "2026 review totals", exact: true });
 
-test("family investigation ranks absolute differences and isolates a family without changing the period", async ({
+test("family investigation ranks paired differences separately from unpaired amounts", async ({
   page,
 }) => {
   await openFinancialReview(page, setupFamilies);
   await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
-  const table = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
-  await expect(table.locator("tbody tr").first()).toContainText("Future fee · Finances");
-  await expect(table.locator("tbody tr").first()).toContainText("Finances-only family");
+  const table = page.getByRole("region", { name: "Yearly type family breakdown", exact: true });
+  const paired = table.getByRole("table", { name: "Yearly paired type families", exact: true });
+  await expect(paired.locator("tbody tr").first()).toContainText("Monthly storage fees");
+  const unmatched = table.getByRole("table", { name: "Yearly unpaired activity", exact: true });
+  await expect(unmatched).toContainText("Future fee · Finances");
+  await expect(unmatched.getByRole("columnheader", { name: /Difference/ })).toHaveCount(0);
+  await expect(unmatched).toContainText("No mapped type");
   await table
     .getByRole("button", { name: "Show only Monthly storage fees", exact: true })
     .press("Enter");

@@ -20,28 +20,38 @@ Data Kiosk is the initial category. Each marketplace/month/currency row compares
 sums:
 
 ```text
-difference = finances_amount - data_kiosk_amount
+source_gap = finances_amount - data_kiosk_amount
 ```
 
 The Data Kiosk source columns are **Finances costs** and **Data Kiosk costs**. The other categories
-use **amount** in place of **costs**. Monthly details label the difference with its formula;
-parenthesized formula text has less visual emphasis, without changing its accessible label. Costs
-retain the source sign; the UI does not convert them to positive magnitudes.
+use **amount** in place of **costs**. Monthly details label the **Source total gap** with its
+formula; parenthesized formula text has less visual emphasis, without changing its accessible label.
+Costs retain the source sign; the UI does not convert them to positive magnitudes.
 
 All monetary displays use two decimal places, including yen and zero. Calculations keep exact
 decimal precision and round only the displayed result, with ties away from zero. Differences use the
 unrounded source sums, so subtracting two displayed rounded amounts can differ by a cent from the
 displayed difference. Values that round to zero display `0.00`, without a negative sign.
 
-A shared frontend module computes category and type-family differences from the exact source sums.
-No difference is a transaction, a payout adjustment or a backend accounting record. A missing source
-contributes zero only when successful retrieval coverage covers the comparison period for every
-relevant seller. An absent side with unknown or partial coverage stays unavailable. Returned source
-amounts remain visible with their coverage status. When both sides have amounts but coverage is
-partial, their difference describes only the observed data; it does not certify complete retrieval.
-Retained zero-amount components remain observable. Data Kiosk omits components only when all
-calculation inputs are zero or absent, while preserving empty-day coverage. `ANALYSIS_ONLY` data is
-excluded from additive monetary comparisons.
+The source gap includes every selected source amount. It is an arithmetic difference between the
+reported totals, not an accounting error score. Family-level **Difference** is reserved for paired
+source definitions with known amounts. Observed amounts can be compared during a partial period; the
+coverage note makes that limit explicit. Families with different reporting bases show their
+diagnostic source gap separately; activity without a verified counterpart mapping remains visible as
+unpaired activity with no comparison difference.
+
+A mapped source with no records contributes zero only when successful retrieval covers the requested
+period. Missing or partial retrieval coverage cannot establish a covered zero. An unmapped side is
+shown as **No mapped type**, not a fabricated zero counterpart. Its amount can still contribute to
+the raw source gap. This does not prove the provider omits the activity: a counterpart may be
+included in a broader reported amount or require a mapping that has not been established. For a
+selected-family monthly gap, retrieval coverage is required only for sources to which those families
+map; an unmapped side does not falsely make the observed contribution unavailable.
+
+No derived gap is a transaction, payout adjustment, or backend accounting record. Retained
+zero-value components remain observable. Data Kiosk filters components only when their calculation
+inputs are zero or absent, retaining empty-day coverage. Seller-provided `ANALYSIS_ONLY` per-unit
+inputs remain excluded from additive monetary comparisons.
 
 The UI defaults to the latest available source year and queries the complete selected calendar year
 for overview and family comparisons. It preserves an explicitly selected year. Recent and partial
@@ -89,50 +99,44 @@ includes both, while Marketplace, Year, amount unit, and category still intersec
 empty selection includes all families; a nonempty selection with no matching source types stays
 empty. Selections remain when changing marketplace, year, currency, or category, including families
 absent from the new scope. Saved preferences and `family=` URL parameters use current family IDs,
-deduplicate them, and retain the filtered scope through reload and Back/Forward navigation. Request
-filtering rejects unknown family IDs. `reviewMarketplace` is a scalar URL field, separate from
-repeated transaction marketplace filters. Saved report links additionally require their exact
-marketplace, company, dates, currency, and ID. Currency never implies a marketplace.
+deduplicate them, and retain the filtered scope through reload and Back/Forward navigation.
+Unavailable saved or URL family IDs remain selected and are identified explicitly. Amounts, charts
+and restored month drilldowns stay blocked until the user removes those IDs; removing unavailable
+IDs preserves any valid selections. Invalid-only selections never silently become All families.
+Strict request filtering continues to reject unknown family IDs. `reviewMarketplace` is a scalar URL
+field, separate from repeated transaction marketplace filters. Saved report links additionally
+require their exact marketplace, company, dates, currency, and ID. Currency never implies a
+marketplace.
 
-The overview shows up to twelve monthly rows, January through December, without row pagination or a
-separate month filter. Each row shows the monthly source sums, monthly difference, and **Running
-difference**: the exact sum of monthly differences from the start of the selected year through that
-row. Missing months have no row. An unavailable monthly comparison makes the running value
-unavailable; it is not silently counted as zero. Period totals, the **Monthly and running
-differences** chart, and the monthly rows use the same year, marketplace, currency, category, and
-family selection. The optional **Type family breakdown** shows each named family's source sums and
-difference across that period. Offsetting differences can reduce a running total, but this does not
-prove that earlier captures converged or that individual source discrepancies were resolved.
+The overview shows up to twelve monthly rows, January through December. Each row shows source sums,
+**Source gap**, and **Running source gap**: the exact accumulated gap from the start of the selected
+year. Missing months have no row. An unavailable gap keeps the running value unavailable instead of
+silently counting it as zero. The cards, monthly rows, chart and family breakdown share the selected
+year, marketplace, currency, category and family scope.
 
-Where a source is absent in all or part of the selected scope, an overview note identifies it or
-counts the months with records from only one source, and shows each source's record count. An absent
-source contributes zero only for a covered empty period. Missing retrieval coverage or malformed
-counts remain unavailable instead of becoming zero. A zero amount can still have source records, and
-a zero difference can result from cancelling amounts; neither establishes complete source coverage.
+The **Monthly and running source gaps** chart decomposes the raw source gap into signed family
+contributions. All observed amounts remain plotted, including unpaired activity and different-basis
+amounts; their sum must equal the overview gap. Opposing contributions stay visible even when their
+net gap is zero. This conservation check does not assert that those contributions are comparable
+errors or that cancelling values resolve a discrepancy.
 
-Each monthly chart bar is divided into type-family segments. Positive family differences stack above
-zero and negative differences below zero, so opposing amounts remain visible even when their net
-monthly difference is zero. The named legend and family colors remain stable when filtering. Subdued
-lines in those colors show each family's running difference; a stronger line retains the total
-running difference. The compact legend shows up to six families, ranked by the absolute running
-difference at the latest observed month. **Show all … families** expands only the legend; every
-selected family remains plotted. The axis identifies the currency and uses compact magnitude labels,
-with unabbreviated amounts in their titles.
+The legend and **Chart values** readout prioritize paired scopes, then different-basis and unpaired
+activity. The compact legend shows six families, with an action to show every family. Paired scopes
+can be ranked by their contribution; non-comparable scopes are explicitly marked **Different
+reporting basis** or **Unpaired amount (Finances/Data Kiosk)**. These descriptions concern the
+current mapping, not merely whether records were observed in this period.
 
-The visible **Chart values** section starts at the latest observed month. Hovering or focusing a
-plotted month updates it, and **Chart month** provides a keyboard and touch control. The readout
-shows total monthly and running differences and initially the largest absolute monthly family
-difference on narrow phones, or the three largest on wider screens. An action exposes every family
-value in a bounded, keyboard-scrollable list. Registry-defined source-only families carry **Finances
-only** or **Data Kiosk only** markers in the legend, readout, and month descriptions. These markers
-describe the family definition rather than absence of observed rows. Clicking or activating a
-plotted month, or choosing **Open month details**, opens that month's drawer.
+Family colors remain stable while filtering. Signed bars show monthly source-gap contributions,
+subdued family lines show their running contributions, and a stronger line shows the total running
+source gap. The axis identifies the currency and uses compact labels, with exact displayed values
+available in tooltips and the readout. Hovering or focusing a month updates the readout; **Chart
+month** provides keyboard/touch selection. **Open month details** opens the selected month's drawer.
 
-A family absent from an otherwise populated month contributes zero and carries its running amount
-forward. A month with no source records remains a gap in every line. All arithmetic uses exact
-decimal values before display rounding; chart coordinates are only a visual approximation. If family
-aggregates cannot be reconciled with the monthly totals, the chart keeps the total series and
-explains that the family series are unavailable, with a retry action.
+A family absent inside an observed month has a zero contribution and carries its running amount
+forward. A month with no source records stays a gap in every line. Arithmetic remains exact before
+display rounding; chart coordinates are approximate. An unpaired-only selection is valid and must
+not produce a retry error just because it lacks a comparison difference. A genuinely inconsistent
+source revision or family sum still produces the existing unavailable/retry state.
 
 Selecting a month opens its totals and **Amounts by type** in a drawer, with the overview's
 marketplace, currency and selected families retained throughout current totals, types, and source
@@ -169,38 +173,48 @@ maturity changes do not invalidate source facts or their revision tokens.
 Financial review uses the detailed families from the
 [shared type hierarchy](transaction_type_registry.md#shared-type-hierarchy). The registry contract
 defines the hierarchy and native-type interpretation; the linked taxonomy owns exact source
-memberships. Broad browsing groups do not combine the review's detailed comparisons or change its
-allocation categories.
+memberships. Each source/type has the same family in every marketplace; marketplace filters select
+records without changing family definitions. Broad browsing groups do not combine the review's
+detailed comparisons or change its allocation categories.
 
-Selecting a family includes its exact source types in the yearly totals, chart, monthly comparison,
-**Amounts by type** and source records. Each row's **Family definition** help popover lists the
-complete membership from each source, including **No counterpart defined** where applicable,
-separately from the types observed in the selected scope. **None in this scope** means no member
-type was observed; it does not erase the family's defined counterpart.
+Selecting a family includes its exact source types throughout the year, month, type and record
+views. Selector descriptions identify paired, different-basis and unpaired mappings. Each **Family
+definition** popover lists the mapped types and observed types separately. **None in this scope**
+means no matching record was observed; **No mapped type** means the taxonomy has no verified
+counterpart. These are different conditions.
 
-Unrecognized types keep a named family for their exact source and raw type, such as **Future fee ·
-Finances**. Identical unfamiliar codes from different sources are not implicitly paired.
+Yearly and monthly details separate:
 
-Both yearly and monthly family tables put the largest absolute difference first, retaining
-zero-value types and groups whose records cancel to zero. The yearly **Show only** action selects
-that family while preserving marketplace, category, year, and currency, and returns focus to the
-overview.
+- **Paired type families**: verified counterpart scopes, ordered by absolute comparison difference.
+  Charges, refunds, corrections and reversals keep their original signs. A defined counterpart with
+  no rows may compare against a covered zero; absent retrieval coverage leaves that missing amount
+  unavailable. Having observed amounts on both sides permits a comparison without claiming the
+  complete year has been retrieved.
+- **Different reporting basis**: both sources report related activity, but their amounts do not have
+  an established common basis. Source amounts and the raw gap stay visible with the reason, without
+  ranking the gap as a like-for-like error.
+- **Unpaired activity**: no verified counterpart mapping. Actual amounts, coverage, and original
+  records remain available, while the undefined side says **No mapped type** and no comparison
+  difference is shown. A mapping review may identify a broader counterpart or establish genuinely
+  source-specific activity; an empty membership list alone proves neither.
 
-**Source coverage** distinguishes a **Finances-only family** or **Data Kiosk-only family**, as
-defined by the catalog, from a paired family with no rows from an expected source in this scope.
-Paired families with records from both sources use **Both sources** for a single observed month, or
-**Both sources in X of Y months** for a multi-month period. X counts months with both sources; Y is
-the number of months with records for that family. Inactive calendar months are excluded. Source
-coverage does not establish agreement in billing dates, tax treatment, allocations, or completeness.
-Source-only amounts represent unmatched coverage; neither their nonzero differences nor a family's
-ranking establish an accounting error or missing import.
+The yearly **Show only** action preserves marketplace, category, year and currency and retains
+unpaired activity as a valid selection. Unrecognized codes keep exact source-qualified identities;
+identical unfamiliar labels are never paired automatically.
 
-Source periods can differ even when family membership matches. Amazon defines `netProductSales` as
-ordered sales less refunded sales, assigning refunds by refund-request time; Finances uses
-posted-activity dates. Related sales and refunds can therefore fall in different months. Data Kiosk
-counts include only retained components after zero filtering, while Finances can retain zero-value
-activity. See the
-[Amazon Data Kiosk economics schema](https://github.com/amzn/selling-partner-api-models/blob/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql).
+Product sales and refunds use the different-basis treatment. Data Kiosk `netProductSales` is ordered
+minus refunded product sales, with refunds assigned by request time; Finances uses posted activity.
+Retained cohorts show some shipping refunds and product discounts embedded in Data Kiosk sales,
+without establishing a universal adjustment for the complete stored types. Shipping, promotions,
+points and net taxes therefore remain separate in every marketplace. Their full memberships and
+limits are defined in the [type registry](transaction_type_registry.md#shared-type-hierarchy).
+See the
+[Economics schema](https://github.com/amzn/selling-partner-api-models/blob/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql)
+and the [source-difference investigation](evidence/finances_data_kiosk_differences_2026-10-14.md).
+
+Paired fee families also retain timing limitations: billing/posting, service periods, and attributed
+advertising days can differ. Grouping does not resolve missing allocations or prove matching source
+coverage. The full source gap remains visible even when only some families permit direct comparison.
 
 Family amounts are calculated from complete type aggregates for the selected marketplace, category,
 currency, and month or year, never from a partial displayed type page or downloaded raw records.

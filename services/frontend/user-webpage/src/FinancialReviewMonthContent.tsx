@@ -85,16 +85,17 @@ export function FinancialReviewMonthContent({
         </DetailData>
         <FinancialReviewCoverageNote rows={rows} />
         <Text className="monthly-review-total-formula" size="sm">
-          Difference = Finances {category === "DATA_KIOSK" ? "costs" : "amount"} − Data Kiosk{" "}
-          {category === "DATA_KIOSK" ? "costs" : "amount"}. An absent amount is zero only when
-          retrieval coverage includes the complete period.
+          Source gap = Finances {category === "DATA_KIOSK" ? "costs" : "amount"} − Data Kiosk{" "}
+          {category === "DATA_KIOSK" ? "costs" : "amount"}. This raw gap includes different
+          reporting bases and unpaired activity. An absent mapped amount is zero only when retrieval
+          coverage includes the complete period.
         </Text>
         <AmountPrecisionNote />
       </Paper>
       <Text className="monthly-review-context" size="sm" c="dimmed">
-        This comparison is diagnostic and never changes transaction amounts or saved payouts.{" "}
-        Differences can reflect missing data, timing or scope. Data Kiosk may not cover every source
-        type.
+        Source totals retain all selected activity. The family comparison below separates paired
+        differences, different reporting bases and activity without a verified counterpart mapping.
+        None of these diagnostics changes transaction amounts or saved payouts.
       </Text>
       <FinancialReviewSourceDetails {...scope} total={rows[0]} />
       <DetailSection

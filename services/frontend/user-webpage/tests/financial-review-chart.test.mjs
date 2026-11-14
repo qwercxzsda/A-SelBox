@@ -3,16 +3,22 @@ import test from "node:test";
 import { projectFinancialReviewChart } from "../src/financial-review-chart.ts";
 import { formatFinancialReviewChartTick } from "../src/financial-review-chart-format.ts";
 import {
+  chartFamilyScopeLabel,
+  chartFamilyScopeOrder,
+} from "../src/financial-review-chart-context.ts";
+import { buildFinancialReviewFamilies } from "../src/financial-review-families.ts";
+import { sumExactDecimals } from "../src/decimal.ts";
+import {
   buildFinancialReviewFamilySeries,
   typeFamilyVisual,
 } from "../src/financial-review-family-series.ts";
 
-const overview = (month, difference, running_difference, overrides = {}) => ({
+const overview = (month, sourceGap, running_difference, overrides = {}) => ({
   month: `${month}-01`,
   category: "DATA_KIOSK",
   marketplace_name: "Amazon.com",
   currency: "USD",
-  difference,
+  difference: sourceGap,
   running_difference,
   ...overrides,
 });
@@ -46,14 +52,14 @@ test("family series anchor to observed months, carry absent families, and retain
     ["monthly-storage", "sponsored-products"],
   );
   assert.deepEqual(series[0].points, [
-    { month: "2026-01-01", difference: "1.000000009", runningDifference: "1.000000009" },
-    { month: "2026-03-01", difference: "3", runningDifference: "4.000000009" },
-    { month: "2026-04-01", difference: "0", runningDifference: "4.000000009" },
+    { month: "2026-01-01", sourceGap: "1.000000009", runningSourceGap: "1.000000009" },
+    { month: "2026-03-01", sourceGap: "3", runningSourceGap: "4.000000009" },
+    { month: "2026-04-01", sourceGap: "0", runningSourceGap: "4.000000009" },
   ]);
   assert.deepEqual(series[1].points, [
-    { month: "2026-01-01", difference: "-2", runningDifference: "-2" },
-    { month: "2026-03-01", difference: "0", runningDifference: "-2" },
-    { month: "2026-04-01", difference: "4", runningDifference: "2" },
+    { month: "2026-01-01", sourceGap: "-2", runningSourceGap: "-2" },
+    { month: "2026-03-01", sourceGap: "0", runningSourceGap: "-2" },
+    { month: "2026-04-01", sourceGap: "4", runningSourceGap: "2" },
   ]);
   const chart = projectFinancialReviewChart(rows, series);
   assert.equal(chart.months.length, 4);
@@ -61,7 +67,7 @@ test("family series anchor to observed months, carry absent families, and retain
   assert.equal(chart.lines.length, 2);
   for (const family of chart.families) assert.equal(family.lines.length, 2);
   assert.equal(chart.months[0].row, rows[1]);
-  assert.equal(chart.months[0].segments[0].difference, "1.000000009");
+  assert.equal(chart.months[0].segments[0].sourceGap, "1.000000009");
   assert.equal(rows[0].month, "2026-04-01");
 });
 
@@ -74,7 +80,7 @@ test("source months outside overview anchors stay gaps and do not create an inve
   const rows = [overview("2026-01", "2", "2"), overview("2026-03", "3", "5")];
   const series = buildFinancialReviewFamilySeries(types, rows);
   assert.deepEqual(
-    series[0].points.map((point) => point.runningDifference),
+    series[0].points.map((point) => point.runningSourceGap),
     ["2", "5"],
   );
   assert.equal(projectFinancialReviewChart(rows, series).months[1], null);
@@ -94,8 +100,8 @@ test("monthly positive and negative families stack separately even when their ne
   const chart = projectFinancialReviewChart(rows, series);
   close(chart.zero, 50);
   const segments = chart.months[0].segments;
-  const positive = segments.filter((segment) => !segment.difference.startsWith("-"));
-  const negative = segments.filter((segment) => segment.difference.startsWith("-"));
+  const positive = segments.filter((segment) => !segment.sourceGap.startsWith("-"));
+  const negative = segments.filter((segment) => segment.sourceGap.startsWith("-"));
   assert.equal(positive.length, 2);
   assert.equal(negative.length, 2);
   for (const segment of positive) {
@@ -162,12 +168,12 @@ test("zero families remain visible in series and large exact amounts are never r
   ];
   const series = buildFinancialReviewFamilySeries(types, rows);
   assert.deepEqual(
-    series[1].points.map((point) => point.difference),
+    series[1].points.map((point) => point.sourceGap),
     ["0", "0"],
   );
-  assert.equal(series[0].points[1].runningDifference, "0.000000001");
+  assert.equal(series[0].points[1].runningSourceGap, "0.000000001");
   const chart = projectFinancialReviewChart(rows, series);
-  assert.equal(chart.months[1].segments[0].runningDifference, "0.000000001");
+  assert.equal(chart.months[1].segments[0].runningSourceGap, "0.000000001");
   assert.equal(chart.months[0].segments[1].height, 0);
   assert.equal(chart.months[0].row.difference, "9007199254740993.123456789");
 });
@@ -197,7 +203,7 @@ test("selection uses stable family identities and colors independent of order or
     ["aged-storage", "monthly-storage"],
   );
   assert.deepEqual(selected[0].points, [
-    { month: "2026-01-01", difference: "0", runningDifference: "0" },
+    { month: "2026-01-01", sourceGap: "0", runningSourceGap: "0" },
   ]);
   const nextYear = buildFinancialReviewFamilySeries(
     [typeRow("2027-05", "STORAGE_FEES", "7")],
@@ -213,7 +219,7 @@ test("selection uses stable family identities and colors independent of order or
   assert.notEqual(typeFamilyVisual(futureId).color, "changed");
 });
 
-test("source-only family colors derive from identity and remain stable when selected alone", () => {
+test("unpaired family colors derive from identity and remain stable when selected alone", () => {
   const types = [
     typeRow("2026-01", "EPR_FEES", "10", "FINANCES", "SELBOX"),
     typeRow("2026-01", "MCF_CREDITS", "2", "FINANCES", "SELBOX"),
@@ -240,14 +246,14 @@ test("family projection rejects inconsistent totals without changing the aggrega
   const correctRows = [overview("2026-01", "2", "2")];
   assert.ok(projectFinancialReviewChart(correctRows, series));
   const wrongRunning = structuredClone(series);
-  wrongRunning[0].points[0].runningDifference = "1";
+  wrongRunning[0].points[0].runningSourceGap = "1";
   assert.equal(projectFinancialReviewChart(correctRows, wrongRunning), null);
   assert.equal(projectFinancialReviewChart(correctRows, [...series, ...series]), null);
   assert.equal(projectFinancialReviewChart(correctRows, [{ ...series[0], points: [] }]), null);
   assert.equal(projectFinancialReviewChart(rows, []), null);
 });
 
-test("source-only chart markers reflect registry definitions rather than missing observed rows", () => {
+test("unpaired chart markers reflect registry definitions rather than missing observed rows", () => {
   const rows = [overview("2026-01", "3", "3", { category: "FINANCES" })];
   const series = buildFinancialReviewFamilySeries(
     [
@@ -259,12 +265,9 @@ test("source-only chart markers reflect registry definitions rather than missing
   );
   const chart = projectFinancialReviewChart(rows, series);
   for (const families of [series, chart.families]) {
+    assert.equal(families.find((family) => family.id === "shipping").unpairedSource, "Finances");
     assert.equal(
-      families.find((family) => family.id === "shipping").sourceOnlyLabel,
-      "Finances only",
-    );
-    assert.equal(
-      families.find((family) => family.id === "net-product-sales").sourceOnlyLabel,
+      families.find((family) => family.id === "net-product-sales").unpairedSource,
       undefined,
     );
   }
@@ -277,16 +280,16 @@ test("source-only chart markers reflect registry definitions rather than missing
     [overview("2026-01", "-7", "-7")],
   );
   assert.equal(
-    kioskOnly.find((family) => family.id === "sponsored-brands").sourceOnlyLabel,
-    "Data Kiosk only",
+    kioskOnly.find((family) => family.id === "sponsored-brands").unpairedSource,
+    "Data Kiosk",
   );
   assert.equal(
-    kioskOnly.find((family) => family.id === "monthly-storage").sourceOnlyLabel,
+    kioskOnly.find((family) => family.id === "monthly-storage").unpairedSource,
     undefined,
   );
 });
 
-test("net sales plot one signed economic difference instead of separate opposing gross source lines", () => {
+test("sales with different reporting bases retain their source gap without becoming a paired discrepancy", () => {
   const rows = [
     overview("2026-01", "0.000000008", "0.000000008", { category: "FINANCES" }),
     overview("2026-02", "0", "0.000000008", { category: "FINANCES" }),
@@ -306,25 +309,79 @@ test("net sales plot one signed economic difference instead of separate opposing
     const familyCount = ids.length ? 1 : 2;
     assert.equal(series.length, familyCount);
     const netSales = series.find((family) => family.id === "net-product-sales");
-    assert.equal(netSales.sourceOnlyLabel, undefined);
+    assert.equal(netSales.comparisonKind, "different-basis");
+    assert.equal(chartFamilyScopeLabel(netSales), "Different reporting basis");
+    assert.equal(netSales.unpairedSource, undefined);
     assert.deepEqual(netSales.points, [
-      { month: "2026-01-01", difference: "0.000000008", runningDifference: "0.000000008" },
-      { month: "2026-02-01", difference: "0", runningDifference: "0.000000008" },
+      { month: "2026-01-01", sourceGap: "0.000000008", runningSourceGap: "0.000000008" },
+      { month: "2026-02-01", sourceGap: "0", runningSourceGap: "0.000000008" },
     ]);
     if (!ids.length) {
       const zero = series.find((family) => family.id === "zero-value-activity");
-      assert.equal(zero.sourceOnlyLabel, "Finances only");
+      assert.equal(zero.unpairedSource, "Finances");
       assert.deepEqual(
-        zero.points.map((point) => point.difference),
+        zero.points.map((point) => point.sourceGap),
         ["0", "0"],
       );
     }
     const chart = projectFinancialReviewChart(rows, series);
     assert.equal(chart.families.length, familyCount);
     assert.equal(chart.months[0].segments.length, familyCount);
-    assert.equal(chart.months[1].segments[0].difference, "0");
+    assert.equal(chart.months[1].segments[0].sourceGap, "0");
     assert.equal(chart.months[1].row, rows[1]);
   }
+});
+
+test("an unpaired-only period plots every amount even though comparable differences are null", () => {
+  const types = [
+    typeRow("2026-01", "EPR_FEES", "-100.000000001", "FINANCES", "SELBOX"),
+    typeRow("2026-01", "MCF_CREDITS", "40", "FINANCES", "SELBOX"),
+  ];
+  const rows = [overview("2026-01", "-60.000000001", "-60.000000001", { category: "SELBOX" })];
+  const exact = buildFinancialReviewFamilies(types);
+  assert.ok(exact.every((family) => family.difference === null));
+  assert.ok(exact.every((family) => family.data_kiosk_amount === null));
+  const series = buildFinancialReviewFamilySeries(types, rows);
+  assert.ok(series.every((family) => family.comparisonKind === "unpaired"));
+  assert.ok(
+    series.every((family) => chartFamilyScopeLabel(family) === "Unpaired amount (Finances)"),
+  );
+  const chart = projectFinancialReviewChart(rows, series);
+  assert.ok(chart);
+  assert.equal(chart.families.length, 2);
+  assert.equal(
+    sumExactDecimals(chart.months[0].segments.map((segment) => segment.sourceGap)),
+    "-60.000000001",
+  );
+});
+
+test("paired, differing-basis and unpaired contributions conserve the overview while sorting by scope", () => {
+  const types = [
+    typeRow("2026-01", "REFERRAL_FEES", "-15", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "REFERRAL_FEE", "-13", "DATA_KIOSK", "FINANCES"),
+    typeRow("2026-01", "PRODUCT_SALES", "10", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "NET_PRODUCT_SALES", "8", "DATA_KIOSK", "FINANCES"),
+    typeRow("2026-01", "SHIPPING_CREDITS", "1000", "FINANCES", "FINANCES"),
+  ];
+  const rows = [overview("2026-01", "1000", "1000", { category: "FINANCES" })];
+  const chart = projectFinancialReviewChart(rows, buildFinancialReviewFamilySeries(types, rows));
+  assert.ok(chart);
+  assert.equal(
+    sumExactDecimals(chart.months[0].segments.map((segment) => segment.sourceGap)),
+    "1000",
+  );
+  assert.deepEqual(
+    chart.families
+      .toSorted((left, right) => chartFamilyScopeOrder(left) - chartFamilyScopeOrder(right))
+      .map((family) => family.id),
+    ["referral", "net-product-sales", "shipping"],
+  );
+  const amounts = new Map(
+    chart.months[0].segments.map((segment) => [segment.familyId, segment.sourceGap]),
+  );
+  assert.equal(amounts.get("referral"), "-2");
+  assert.equal(amounts.get("net-product-sales"), "2");
+  assert.equal(amounts.get("shipping"), "1000");
 });
 
 test("unprojectable amounts and invalid months return null while exact family values remain available", () => {
@@ -333,7 +390,7 @@ test("unprojectable amounts and invalid months return null while exact family va
     [typeRow("2026-01", "STORAGE_FEES", "1e400"), typeRow("2026-01", "ADVERTISING", "-1e400")],
     rows,
   );
-  assert.equal(series[0].points[0].difference, "1" + "0".repeat(400));
+  assert.equal(series[0].points[0].sourceGap, "1" + "0".repeat(400));
   assert.equal(projectFinancialReviewChart(rows, series), null);
   assert.ok(projectFinancialReviewChart(rows));
   for (const badRows of [
@@ -389,7 +446,7 @@ test("Germany and France using EUR cannot share family series or accumulated val
   const frenchRow = { ...germanRow, month: "2026-02-01", marketplace_name: "Amazon.fr" };
   assert.throws(() => buildFinancialReviewFamilySeries([germanType], [germanRow, frenchRow]));
   assert.equal(
-    buildFinancialReviewFamilySeries([germanType], [germanRow])[0].points[0].difference,
+    buildFinancialReviewFamilySeries([germanType], [germanRow])[0].points[0].sourceGap,
     "2",
   );
 });

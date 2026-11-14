@@ -3,6 +3,7 @@ import { useId, type CSSProperties } from "react";
 import { formatRecordMonth } from "./date-display";
 import { formatMoney } from "./decimal";
 import { chartPercentage } from "./financial-review-chart-format";
+import { chartFamilyScopeLabel } from "./financial-review-chart-context";
 import type {
   ReviewChartPoint,
   ReviewChartFamily,
@@ -15,8 +16,9 @@ function familyDescription(
   currency: string,
 ): string {
   const label = family?.label ?? point.familyId;
-  const source = family?.sourceOnlyLabel ? ` (${family.sourceOnlyLabel})` : "";
-  return `${label}${source}: Monthly difference ${formatMoney(point.difference, currency)}; Running difference ${formatMoney(point.runningDifference, currency)}`;
+  const context = chartFamilyScopeLabel(family);
+  const scope = context ? ` · ${context}` : "";
+  return `${label}${scope}: Monthly gap contribution ${formatMoney(point.sourceGap, currency)}; Running gap contribution ${formatMoney(point.runningSourceGap, currency)}`;
 }
 
 export function FinancialReviewChartMonth({
@@ -45,7 +47,7 @@ export function FinancialReviewChartMonth({
   const month = point.month;
   const label = formatRecordMonth(month);
   const description = [
-    `${label}: Monthly difference ${formatMoney(point.row.difference, currency)}; Running difference ${formatMoney(point.row.running_difference, currency)}`,
+    `${label}: Monthly source gap ${formatMoney(point.row.difference, currency)}; Running source gap ${formatMoney(point.row.running_difference, currency)}`,
     ...point.segments.map((segment) =>
       familyDescription(familyById.get(segment.familyId), segment, currency),
     ),

@@ -4,7 +4,11 @@ import { inspectableRowProps } from "./inspectable-row";
 import { TableFrame } from "./TableFrame";
 import { formatRecordMonth } from "./date-display";
 import { formatAmount } from "./decimal";
-import type { ReviewCategory } from "./financial-review-categories";
+import {
+  hasNoSourceRecords,
+  isUnmappedSourceAmount,
+  type ReviewCategory,
+} from "./financial-review-categories";
 
 export function FinancialReviewMonthTable({
   rows,
@@ -52,10 +56,10 @@ export function FinancialReviewMonthTable({
                 Data Kiosk {amount}
               </Table.Th>
               <Table.Th scope="col" className="numeric">
-                Monthly difference
+                Monthly source gap
               </Table.Th>
               <Table.Th scope="col" className="numeric">
-                Running difference
+                Running source gap
               </Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -86,8 +90,10 @@ export function FinancialReviewMonthTable({
                   </Table.Th>
                   {["finances_amount", "data_kiosk_amount"].map((key) => (
                     <Table.Td key={key} className="numeric">
-                      {formatAmount(row[key])}
-                      {row[key.replace("_amount", "_row_count")] === "0" ? (
+                      {isUnmappedSourceAmount(row, key)
+                        ? "No mapped types"
+                        : formatAmount(row[key])}
+                      {hasNoSourceRecords(row, key) ? (
                         <Text size="xs" c="dimmed">
                           No source records
                         </Text>

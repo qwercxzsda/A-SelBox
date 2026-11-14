@@ -9,6 +9,7 @@ export interface FilterOption {
   value: string;
   label: string;
   title?: string;
+  description?: string;
 }
 
 /** Source names identify the imported dataset, independently of allocation category. */

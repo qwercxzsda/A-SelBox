@@ -59,8 +59,8 @@ export function describeTypeFamilyCoverage(
   const hasFinances = definition.financesTypes.length > 0;
   const hasDataKiosk = definition.dataKioskTypes.length > 0;
   if (!hasFinances && !hasDataKiosk) return "Source availability unknown";
-  if (!hasFinances) return "Data Kiosk-only family";
-  if (!hasDataKiosk) return "Finances-only family";
+  if (!hasFinances) return "Data Kiosk mapping only";
+  if (!hasDataKiosk) return "Finances mapping only";
 
   const months = new Map<string, Set<TypeFamilySource>>();
   for (const row of rows) {

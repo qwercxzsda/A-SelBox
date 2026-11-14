@@ -13,7 +13,10 @@ import {
   type ReviewScope,
 } from "./financial-review-view";
 import { buildFinancialReviewFamilyMonths } from "./financial-review-families";
-import { buildTypeFamilyOptions } from "./transaction-type-family-catalog";
+import {
+  buildTypeFamilyOptions,
+  unavailableTypeFamilyIds,
+} from "./transaction-type-family-catalog";
 import {
   applyComparisonCoverage,
   buildSourceComparisons,
@@ -27,6 +30,10 @@ export function useFinancialReviewPeriod(
   category: ReviewCategory,
   scope: ReviewScope,
 ) {
+  const unavailableFamilies = unavailableTypeFamilyIds(scope.families);
+  const validScope = unavailableFamilies.length === 0;
+  const hasSelectedFamilies = scope.families.length > 0;
+  const availableFamilies = scope.families.filter((id) => !unavailableFamilies.includes(id));
   const bounds = useQuery({
     queryKey: ["financial-review", "bounds", identity.session.user.id, category, scope.marketplace],
     queryFn: ({ signal }) =>
@@ -62,11 +69,11 @@ export function useFinancialReviewPeriod(
         },
         signal,
       ),
-    enabled: periodAvailable,
+    enabled: validScope && periodAvailable,
     staleTime: Infinity,
   });
   const consistent = useSourceRevisionGuard(totalsQuery.data);
-  const sourceTotals = consistent ? totalsQuery.data : undefined;
+  const sourceTotals = validScope && consistent ? totalsQuery.data : undefined;
   const periodRows = sourceTotals ? buildSourceComparisons(sourceTotals, category) : [];
   const { currency, currencies } = resolveReviewCurrency(scope.currency, periodRows);
   const familyQuery = useQuery({
@@ -88,37 +95,36 @@ export function useFinancialReviewPeriod(
         scope.marketplace,
         signal,
       ),
-    enabled: periodAvailable && currency !== "",
+    enabled: validScope && periodAvailable && currency !== "",
     staleTime: Infinity,
   });
-  const comparisonQuery = scope.families.length ? familyQuery : totalsQuery;
+  const comparisonQuery = hasSelectedFamilies ? familyQuery : totalsQuery;
   const familyConsistent = useSourceRevisionGuard(familyQuery.data);
   const compatibleFamilyTypes =
-    familyConsistent && sameSourceRevision(sourceTotals, familyQuery.data)
+    validScope && familyConsistent && sameSourceRevision(sourceTotals, familyQuery.data)
       ? (familyQuery.data?.rows ?? [])
       : null;
   const familyTypes = compatibleFamilyTypes ?? [];
-  const familyOptions = buildTypeFamilyOptions(familyTypes, scope.families);
-  const rows = currency
-    ? buildFinancialReviewTimeline(
-        scope.families.length
-          ? sourceTotals
-            ? applyComparisonCoverage(
-                buildFinancialReviewFamilyMonths(familyTypes, scope.families),
-                sourceTotals,
-              )
-            : []
-          : periodRows,
-        currency,
-      )
-    : [];
+  const familyOptions = buildTypeFamilyOptions(familyTypes, availableFamilies);
+  let comparisonRows = periodRows;
+  if (hasSelectedFamilies) {
+    comparisonRows = sourceTotals
+      ? applyComparisonCoverage(
+          buildFinancialReviewFamilyMonths(familyTypes, scope.families),
+          sourceTotals,
+        )
+      : [];
+  }
+  const rows = validScope && currency ? buildFinancialReviewTimeline(comparisonRows, currency) : [];
   const months = rows.map((row) => row.month?.slice(0, 7) ?? "");
   const loading =
-    bounds.isPending ||
-    (periodAvailable && (totalsQuery.isPending || !consistent)) ||
-    (currency !== "" && scope.families.length > 0 && (familyQuery.isPending || !familyConsistent));
+    validScope &&
+    (bounds.isPending ||
+      (periodAvailable && (totalsQuery.isPending || !consistent)) ||
+      (currency !== "" && hasSelectedFamilies && (familyQuery.isPending || !familyConsistent)));
 
   return {
+    unavailableFamilies,
     bounds,
     comparisonQuery,
     totalsQuery,

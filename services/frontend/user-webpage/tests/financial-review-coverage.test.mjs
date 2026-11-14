@@ -83,20 +83,20 @@ test("empty input has no observed months and coverage does not mutate monthly to
   assert.deepEqual(rows, [row("2", "3")]);
 });
 
-test("intentionally source-only family definitions are distinct from missing paired records", () => {
+test("intentionally unpaired family definitions are distinct from missing paired records", () => {
   assert.equal(
     describeTypeFamilyCoverage([familyRow("2026-07-01", "DATA_KIOSK", 93n)], {
       financesTypes: [],
       dataKioskTypes: ["NET_PRODUCT_SALES"],
     }),
-    "Data Kiosk-only family",
+    "Data Kiosk mapping only",
   );
   assert.equal(
     describeTypeFamilyCoverage([familyRow("2026-07-01", "FINANCES")], {
       financesTypes: ["TAX_WITHHELD"],
       dataKioskTypes: [],
     }),
-    "Finances-only family",
+    "Finances mapping only",
   );
   assert.equal(
     describeTypeFamilyCoverage([familyRow("2026-04-01", "DATA_KIOSK")], paired),

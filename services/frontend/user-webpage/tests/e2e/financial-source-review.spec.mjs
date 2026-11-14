@@ -106,7 +106,7 @@ test("type family comparison pairs coupon charges and sponsored products adverti
   });
   await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
   await page.getByRole("button", { name: "Type family comparison", exact: true }).click();
-  const table = page.getByRole("table", { name: "Type family comparison", exact: true });
+  const table = page.getByRole("region", { name: "Monthly type family breakdown", exact: true });
   await expect(table.locator("tbody tr")).toHaveCount(2);
   const coupons = table
     .getByRole("row")

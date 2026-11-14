@@ -139,6 +139,7 @@ export function SelectionFilter({
             ref={index === 0 ? firstOption : undefined}
             className="column-menu-option"
             label={<span title={option.title}>{option.label}</span>}
+            description={option.description}
             checked={filter.value.includes(option.value)}
             onChange={(event) => {
               filter.onChange(

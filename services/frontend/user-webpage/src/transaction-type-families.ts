@@ -14,12 +14,15 @@ export type TypeGroupDefinition = (typeof TRANSACTION_TYPE_GROUPS)[number];
 export type TypeGroupId = TypeGroupDefinition["id"];
 
 export type TypeFamilySource = "FINANCES" | "DATA_KIOSK";
+export type TypeFamilyComparisonKind = "paired" | "different-basis" | "unpaired";
 
 export interface TypeFamily {
   readonly id: string;
   readonly groupId: TypeGroupId;
   readonly label: string;
   readonly description: string;
+  readonly comparisonKind: TypeFamilyComparisonKind;
+  readonly comparisonNote: string;
   readonly financesTypes: readonly string[];
   readonly dataKioskTypes: readonly string[];
 }
@@ -31,11 +34,22 @@ function family(
   description: string,
   financesTypes: readonly string[],
   dataKioskTypes: readonly string[],
+  comparison?: { kind: "different-basis"; note: string },
 ): TypeFamily {
-  return { id, groupId, label, description, financesTypes, dataKioskTypes };
+  return {
+    id,
+    groupId,
+    label,
+    description,
+    financesTypes,
+    dataKioskTypes,
+    comparisonKind:
+      comparison?.kind ?? (financesTypes.length && dataKioskTypes.length ? "paired" : "unpaired"),
+    comparisonNote: comparison?.note ?? description,
+  };
 }
 
-function sourceFamily(
+function unpairedFamily(
   id: string,
   groupId: TypeGroupId,
   label: string,
@@ -53,14 +67,15 @@ function sourceFamily(
   );
 }
 
-// One hierarchy: exact source types belong to a detailed review family and inherit
-// its broad browsing group. Memberships do not alter allocation, dates or coverage.
+// One global hierarchy: exact source types belong to a detailed review family and
+// inherit its broad browsing group. Marketplace, currency and dates never change membership.
+// Memberships do not alter allocation, dates or coverage.
 export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   family(
     "monthly-storage",
     "inventory",
     "Monthly storage fees",
-    "Monthly inventory storage fees, separate from aged inventory surcharges.",
+    "Monthly inventory storage fees, separate from aged inventory surcharges. Finances billing can follow the service month allocated by Data Kiosk, so a same-month gap can reflect timing.",
     ["STORAGE_FEES"],
     ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
   ),
@@ -76,7 +91,7 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     "sponsored-products",
     "advertising",
     "Sponsored products",
-    "Finances ProductAdsPayment charges and Data Kiosk Sponsored Products aliases. Sponsored Brands and Display are separate.",
+    "Finances ProductAdsPayment charges and Data Kiosk Sponsored Products allocations. Posting and product/day allocation dates may differ; this mapping does not match individual invoices or campaigns. Sponsored Brands and Display are separate.",
     ["ADVERTISING"],
     [
       "SPONSORED_PRODUCT_FEE",
@@ -89,7 +104,7 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     "sponsored-brands",
     "advertising",
     "Sponsored brands",
-    "Data Kiosk Sponsored Brands advertising aliases. No Finances type is assigned to this family.",
+    "Data Kiosk Sponsored Brands advertising aliases. No verified Finances counterpart is currently mapped to this family.",
     [],
     ["SPONSORED_BRANDS", "SPONSORED_BRANDS_CHARGE", "SPONSORED_BRANDS_CHARGES"],
   ),
@@ -97,7 +112,7 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     "sponsored-display",
     "advertising",
     "Sponsored display",
-    "Data Kiosk Sponsored Display advertising aliases. No Finances type is assigned to this family.",
+    "Data Kiosk Sponsored Display advertising aliases. No verified Finances counterpart is currently mapped to this family.",
     [],
     ["SPONSORED_DISPLAY", "SPONSORED_DISPLAY_CHARGE", "SPONSORED_DISPLAY_CHARGES"],
   ),
@@ -145,17 +160,9 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     "inbound-transportation",
     "fulfillment",
     "Inbound transportation",
-    "Inbound transportation fees, separate from transportation program fees.",
-    ["INBOUND_TRANSPORTATION_FEES"],
-    ["FBA_INBOUND_TRANSPORTATION_FEE"],
-  ),
-  family(
-    "inbound-transportation-program",
-    "fulfillment",
-    "Inbound transportation program",
-    "Inbound transportation program fees, separate from other inbound transportation.",
-    ["INBOUND_TRANSPORTATION_PROGRAM_FEES"],
-    ["FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"],
+    "Inbound transportation and transportation-program charges together represent the shipment's transport cost. Both exact fee types remain available in records; billing dates and missing SKU allocations can still differ between sources.",
+    ["INBOUND_TRANSPORTATION_FEES", "INBOUND_TRANSPORTATION_PROGRAM_FEES"],
+    ["FBA_INBOUND_TRANSPORTATION_FEE", "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"],
   ),
   family(
     "subscription",
@@ -176,18 +183,10 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   family(
     "referral",
     "selling",
-    "Referral fees",
-    "Net referral fees after returned referral fees. Original charges and refunds retain their signs; refund administration fees remain separate.",
-    ["REFERRAL_FEES", "REFUNDED_REFERRAL_FEES"],
-    ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"],
-  ),
-  family(
-    "refund-commission",
-    "selling",
-    "Refund administration fees",
-    "Administration fees Amazon retains when issuing refunds, separate from returned referral fees.",
-    ["REFUND_COMMISSION"],
-    ["REFUND_COMMISSION_FEE"],
+    "Referral and refund fees",
+    "Net selling commission: original referral charges plus signed referral refunds and the administration fees Amazon retains on refunds. Exact charge, refund and administration types remain available in records.",
+    ["REFERRAL_FEES", "REFUNDED_REFERRAL_FEES", "REFUND_COMMISSION"],
+    ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE", "REFUND_COMMISSION_FEE"],
   ),
   family(
     "inventory-reimbursements",
@@ -208,66 +207,70 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   family(
     "net-product-sales",
     "sales",
-    "Net product sales",
-    "Product principal sales plus signed product refunds, compared with Data Kiosk net product sales. Shipping, promotions, taxes and zero-value records without monetary detail are separate; refund timing can differ between sources.",
+    "Product sales and refunds",
+    "Finances product principal sales plus signed product refunds alongside Data Kiosk net product sales. Shipping, promotions, points, taxes and zero-value records without monetary detail remain separate.",
     ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
     ["NET_PRODUCT_SALES"],
+    {
+      kind: "different-basis",
+      note: "Finances uses posting dates; Data Kiosk uses ordered sales less refunds counted by refund-request time. Some Data Kiosk sales include shipping refunds or buyer discounts, but no universal adjustment covers these source types. This source gap is not a like-for-like difference.",
+    },
   ),
-  sourceFamily(
+  unpairedFamily(
     "zero-value-activity",
     "other",
     "Zero-value activity",
     "FINANCES",
     ["ZERO_ACTIVITY"],
-    "Zero-value shipment and refund records without a monetary breakdown. Their purpose cannot be identified as product principal or a fee, so they remain separate from sales and charges. Data Kiosk does not retain zero components.",
+    "Zero-value shipment and refund records without a monetary breakdown. Their purpose cannot be identified as product principal or a fee. No separate Data Kiosk type is mapped; its normalized stream drops zero components.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "shipping",
     "fulfillment",
     "Shipping",
     "FINANCES",
     ["SHIPPING_CREDITS", "SHIPPING_REFUNDS", "SHIPPING_CHARGEBACKS"],
-    "Net shipping credits, refunds and chargebacks, excluding shipping tax. No separate Data Kiosk shipping counterpart is defined; this is unmatched source activity.",
+    "Net shipping credits, refunds and chargebacks, excluding shipping tax. Some shipping refunds are embedded in Data Kiosk sales, but no universal counterpart is verified for these types. They remain separate in every marketplace.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "gift-wrapping",
     "fulfillment",
     "Gift wrapping",
     "FINANCES",
     ["GIFT_WRAP_CREDITS", "GIFT_WRAP_CHARGEBACKS"],
-    "Net gift-wrap credits and chargebacks, excluding gift-wrap tax. No separate Data Kiosk gift-wrap counterpart is defined.",
+    "Net gift-wrap credits and chargebacks, excluding gift-wrap tax. No separate Data Kiosk gift-wrap counterpart is mapped; any inclusion within broader sales amounts requires source evidence.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "taxes",
     "taxes",
     "Taxes collected and withheld",
     "FINANCES",
     ["PRODUCT_TAX", "SHIPPING_TAX", "GIFT_WRAP_TAX", "TAX_WITHHELD"],
-    "Net product, shipping and gift-wrap taxes after marketplace withholding. Collected and withheld amounts offset using their original signs; this is not a fee or a separate Data Kiosk tax comparison.",
+    "Net taxes on products, shipping, gift wrapping and liquidation revenue after marketplace withholding. Collected and withheld amounts retain their signs. No universal Data Kiosk counterpart is mapped; tax on Amazon fees stays with the corresponding fee.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "promotions",
     "advertising",
     "Promotions and points",
     "FINANCES",
     ["PROMOTIONAL_REBATES", "PROMOTIONAL_REFUNDS", "POINTS"],
-    "Net promotional rebates, returned promotions and granted/reclaimed points. Kept outside product principal and coupon participation fees; no separate Data Kiosk counterpart is defined.",
+    "Buyer product and shipping discounts, promotion reversals, and points charges or refund adjustments. Some product discounts are embedded in Data Kiosk sales, but these combined types have no verified universal counterpart. Fee discounts stay with their fee.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "restocking",
     "sales",
     "Restocking fees retained",
     "FINANCES",
     ["RESTOCKING"],
-    "Restocking amounts retained from refunds. No separate Data Kiosk restocking counterpart is defined.",
+    "Restocking amounts retained from refunds. No separate Data Kiosk restocking type is mapped; potential inclusion within reported refund amounts is not yet verified.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "liquidation-proceeds",
     "inventory",
     "Liquidation proceeds",
     "FINANCES",
     ["LIQUIDATION_PROCEEDS"],
-    "Gross recovery proceeds from liquidated inventory. Liquidation fees are a separate family; Data Kiosk has no liquidation-proceeds type in this registry.",
+    "Gross recovery proceeds from liquidated inventory. Liquidation fees are separate; no verified Data Kiosk proceeds counterpart is currently mapped.",
   ),
   family(
     "liquidation-fees",
@@ -277,13 +280,13 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     ["LIQUIDATION_FEES"],
     ["LIQUIDATION_PROCESSING_FEE", "LIQUIDATION_REFERRAL_FEE"],
   ),
-  sourceFamily(
+  unpairedFamily(
     "inbound-placement",
     "fulfillment",
     "Inbound placement service fees",
     "DATA_KIOSK",
     ["FBA_INBOUND_PLACEMENT_SERVICE_FEE"],
-    "Data Kiosk inbound placement service fees identified by their exact source key. The registry defines no Finances counterpart for this key; similarly named inbound convenience charges remain separate unless source evidence establishes an equivalent scope.",
+    "Data Kiosk inbound placement service fees identified by their exact source key. No verified Finances counterpart is currently mapped; similarly named inbound convenience charges remain separate unless source evidence establishes an equivalent scope.",
   ),
   family(
     "inbound-convenience",
@@ -293,100 +296,100 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     ["INBOUND_PLACEMENT_FEES"],
     ["FBA_INBOUND_CONVENIENCE_FEE"],
   ),
-  sourceFamily(
+  unpairedFamily(
     "epr-compliance",
     "other",
     "EPR compliance fees",
     "FINANCES",
     ["EPR_FEES"],
-    "Extended Producer Responsibility eco and service charges from native EPRChargebackEcoFee and EPRChargebackServiceFee. Separate from Vine enrollment and inbound defects; no Data Kiosk counterpart is defined.",
+    "Extended Producer Responsibility eco and service charges from native EPRChargebackEcoFee and EPRChargebackServiceFee. Separate from Vine enrollment and inbound defects; no verified Data Kiosk counterpart is currently mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "vine-enrollment",
     "other",
     "Vine enrollment fees",
     "FINANCES",
     ["VINE_FEES"],
-    "Amazon Vine enrollment charges from native VineEnrollmentFee/VineFee. No Data Kiosk counterpart is defined.",
+    "Amazon Vine enrollment charges from native VineEnrollmentFee/VineFee. No verified Data Kiosk counterpart is currently mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "inbound-defects",
     "other",
     "Inbound defect fees",
     "FINANCES",
     ["INBOUND_DEFECT_FEES"],
-    "FBA inbound defect charges from native FBAInboundDefectFee, including its UnplannedServiceCharge wrapper. Separate from transportation, convenience and placement fees; no Data Kiosk counterpart is defined.",
+    "FBA inbound defect charges from native FBAInboundDefectFee, including its UnplannedServiceCharge wrapper. Separate from transportation, convenience and placement fees; no verified Data Kiosk counterpart is currently mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "supply-chain-credits",
     "other",
     "Supply-chain credits",
     "FINANCES",
     ["MCF_CREDITS"],
-    "Credits from native SupplyChainCreditRollUp/MCCFCredit. Kept separate from failed disbursements and miscellaneous account adjustments; no Data Kiosk counterpart is defined.",
+    "Credits from native SupplyChainCreditRollUp/MCCFCredit. Kept separate from failed disbursements and miscellaneous account adjustments; no verified Data Kiosk counterpart is currently mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "account-adjustments",
     "other",
     "Other account adjustments",
     "FINANCES",
     ["OTHER_ADJUSTMENTS"],
-    "Reviewed failed-disbursement and miscellaneous ledger adjustments. This mixed native adjustment type is kept separate from identified supply-chain credits and service charges; no Data Kiosk counterpart is defined.",
+    "Reviewed failed-disbursement and miscellaneous ledger adjustments. This mixed native adjustment type is kept separate from identified supply-chain credits and service charges; no verified Data Kiosk counterpart is currently mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "balance-movements",
     "other",
     "Balance movements",
     "FINANCES",
     ["DEBT_RECOVERY", "CROSS_ACCOUNT_ADJUSTMENTS", "RESERVE_MOVEMENTS", "BANK_TRANSFERS"],
-    "Debt recovery, cross-account adjustments and reserve debits/credits. These move account balances rather than measure service costs. Bank-transfer types remain excluded wherever the activity rules exclude them; Data Kiosk has no balance-movement counterpart.",
+    "Debt recovery, cross-account adjustments and reserve debits/credits. These move account balances rather than measure service costs. Bank-transfer types remain excluded wherever activity rules exclude them; no verified Data Kiosk balance-movement counterpart is mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "tax-reclassification",
     "taxes",
     "Tax reclassification",
     "FINANCES",
     ["TAX_RECLASSIFICATION"],
-    "Account tax corrections and retrocharges, kept separate from transaction taxes and service fees. No Data Kiosk tax-reclassification counterpart is defined.",
+    "Account tax corrections and retrocharges, kept separate from transaction taxes and service fees. No verified Data Kiosk tax-reclassification counterpart is currently mapped.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "cost-of-goods-sold",
     "seller-costs",
     "Cost of goods sold per unit",
     "DATA_KIOSK",
     ["COST_OF_GOODS_SOLD"],
-    "Seller-provided product cost per unit. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
+    "Seller-provided product cost per unit. No Finances type is mapped to this input. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "mfn-fulfillment-cost",
     "seller-costs",
     "Merchant fulfillment cost per unit",
     "DATA_KIOSK",
     ["MFN_FULFILLMENT_COST"],
-    "Seller-provided merchant fulfillment cost per unit, including labor, packing, shipping and customer service. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
+    "Seller-provided merchant fulfillment cost per unit, including labor, packing, shipping and customer service. No Finances type is mapped to this input. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "mfn-storage-cost",
     "seller-costs",
     "Merchant storage cost per unit/month",
     "DATA_KIOSK",
     ["MFN_STORAGE_COST"],
-    "Seller-provided merchant storage cost per unit per month. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
+    "Seller-provided merchant storage cost per unit per month. No Finances type is mapped to this input. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "miscellaneous-cost",
     "seller-costs",
     "Other seller costs per unit",
     "DATA_KIOSK",
     ["MISCELLANEOUS_COST"],
-    "Seller-provided other costs per unit. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
+    "Seller-provided other costs per unit. No Finances type is mapped to this input. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
-  sourceFamily(
+  unpairedFamily(
     "shipping-to-amazon-cost",
     "seller-costs",
     "Shipping to Amazon cost per unit",
     "DATA_KIOSK",
     ["SHIPPING_TO_AMAZON_COST"],
-    "Seller-provided shipping-to-Amazon cost per unit. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
+    "Seller-provided shipping-to-Amazon cost per unit. No Finances type is mapped to this input. This analysis-only input is not a posted charge and is excluded from Financial review and payout amounts.",
   ),
 ];

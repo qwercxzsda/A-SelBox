@@ -1,3 +1,4 @@
+import type { TypeFamily } from "./transaction-type-families.ts";
 import type { CanonicalRow } from "./api/types.ts";
 import { requireCalendarDate } from "./api/filters.ts";
 import { requireMarketplace } from "./api/marketplaces.ts";
@@ -8,14 +9,16 @@ import { buildTypeFamilyOptions, selectTypeFamilies } from "./transaction-type-f
 
 interface FinancialReviewFamilyPoint {
   month: string;
-  difference: string;
-  runningDifference: string;
+  sourceGap: string;
+  runningSourceGap: string;
 }
 
 export interface FinancialReviewFamilySeries {
   id: string;
   label: string;
-  sourceOnlyLabel?: "Finances only" | "Data Kiosk only";
+  comparisonKind: TypeFamily["comparisonKind"];
+  comparisonNote: string;
+  unpairedSource?: "Finances" | "Data Kiosk";
   color: string;
   dash: string;
   points: FinancialReviewFamilyPoint[];
@@ -112,30 +115,32 @@ export function buildFinancialReviewFamilySeries(
     [...rowsByMonth].map(([month, rows]) => [
       month,
       new Map(
-        buildFinancialReviewFamilies(rows, ids).map((row) => [row.family_id, row.difference]),
+        buildFinancialReviewFamilies(rows, ids).map((row) => [row.family_id, row.source_gap]),
       ),
     ]),
   );
   return buildTypeFamilyOptions(typeRows, ids)
     .filter((family) => !selected.size || selected.has(family.id))
     .map((family) => {
-      // Membership defines source-only families; missing observed rows do not.
-      const sourceOnlyLabel: FinancialReviewFamilySeries["sourceOnlyLabel"] =
+      // Membership identifies the mapped source; it does not establish provider absence.
+      const unpairedSource: FinancialReviewFamilySeries["unpairedSource"] =
         family.financesTypes.length === 0
-          ? "Data Kiosk only"
+          ? "Data Kiosk"
           : family.dataKioskTypes.length === 0
-            ? "Finances only"
+            ? "Finances"
             : undefined;
-      let runningDifference = "0";
+      let runningSourceGap = "0";
       const points = months.map((month) => {
-        const difference = totalsByMonth.get(month)?.get(family.id) ?? "0";
-        runningDifference = sumExactDecimals([runningDifference, difference]) ?? "0";
-        return { month, difference, runningDifference };
+        const sourceGap = totalsByMonth.get(month)?.get(family.id) ?? "0";
+        runningSourceGap = sumExactDecimals([runningSourceGap, sourceGap]) ?? "0";
+        return { month, sourceGap, runningSourceGap };
       });
       return {
         id: family.id,
         label: family.label,
-        sourceOnlyLabel,
+        unpairedSource,
+        comparisonKind: family.comparisonKind,
+        comparisonNote: family.comparisonNote,
         ...typeFamilyVisual(family.id),
         points,
       };

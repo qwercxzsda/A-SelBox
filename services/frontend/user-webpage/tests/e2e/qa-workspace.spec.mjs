@@ -145,7 +145,7 @@ test("Financial review retains marketplace, category, year and amount unit after
   const floatingHeader = page.locator(".floating-table-header");
   await expect(floatingHeader).toBeVisible();
   await expect(floatingHeader).toContainText("Month");
-  await expect(floatingHeader).toContainText("Running difference");
+  await expect(floatingHeader).toContainText("Running source gap");
   await page.screenshot({
     path: testInfo.outputPath("monthly-table-column-context.png"),
     animations: "disabled",

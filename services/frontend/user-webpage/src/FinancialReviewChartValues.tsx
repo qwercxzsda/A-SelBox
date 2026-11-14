@@ -3,10 +3,11 @@ import { useId, useState } from "react";
 import { formatRecordMonth } from "./date-display";
 import { compareAbsoluteDecimals, formatAmount } from "./decimal";
 import type { ReviewChartFamily, ReviewChartPoint } from "./financial-review-chart";
+import { chartFamilyScopeLabel, chartFamilyScopeOrder } from "./financial-review-chart-context";
 
 const COMPACT_VALUES = 3;
 
-function DifferenceValues({
+function SourceGapValues({
   monthly,
   running,
   totals = false,
@@ -26,7 +27,7 @@ function DifferenceValues({
         <div key={label}>
           <dt>
             {label}
-            {totals ? " difference" : ""}
+            {totals ? " source gap" : " gap contribution"}
           </dt>
           <dd>{formatAmount(amount)}</dd>
         </div>
@@ -55,8 +56,10 @@ export function FinancialReviewChartValues({
   const familyById = new Map(families.map((family) => [family.id, family]));
   const ordered = [...point.segments].sort(
     (left, right) =>
-      compareAbsoluteDecimals(right.difference, left.difference) ||
-      compareAbsoluteDecimals(right.runningDifference, left.runningDifference) ||
+      chartFamilyScopeOrder(familyById.get(left.familyId)) -
+        chartFamilyScopeOrder(familyById.get(right.familyId)) ||
+      compareAbsoluteDecimals(right.sourceGap, left.sourceGap) ||
+      compareAbsoluteDecimals(right.runningSourceGap, left.runningSourceGap) ||
       (familyById.get(left.familyId)?.label ?? left.familyId).localeCompare(
         familyById.get(right.familyId)?.label ?? right.familyId,
       ),
@@ -96,7 +99,7 @@ export function FinancialReviewChartValues({
       <Text size="sm" c="dimmed" mt="xs">
         {currency}
       </Text>
-      <DifferenceValues
+      <SourceGapValues
         monthly={point.row.difference}
         running={point.row.running_difference}
         totals
@@ -114,11 +117,13 @@ export function FinancialReviewChartValues({
           >
             {visible.map((segment) => {
               const family = familyById.get(segment.familyId);
+              const context = chartFamilyScopeLabel(family);
               return (
                 <div
                   key={segment.familyId}
                   className="financial-review-chart-family-value"
                   data-family-id={segment.familyId}
+                  title={family?.comparisonNote}
                 >
                   <Text size="xs" fw={600} className="financial-review-chart-family-name">
                     <span
@@ -127,16 +132,11 @@ export function FinancialReviewChartValues({
                       aria-hidden="true"
                     />
                     <span>{family?.label ?? segment.familyId}</span>
-                    {family?.sourceOnlyLabel ? (
-                      <small className="financial-review-chart-source-only">
-                        {family.sourceOnlyLabel}
-                      </small>
+                    {context ? (
+                      <small className="financial-review-chart-context">{context}</small>
                     ) : null}
                   </Text>
-                  <DifferenceValues
-                    monthly={segment.difference}
-                    running={segment.runningDifference}
-                  />
+                  <SourceGapValues monthly={segment.sourceGap} running={segment.runningSourceGap} />
                 </div>
               );
             })}
@@ -150,12 +150,12 @@ export function FinancialReviewChartValues({
                   `All ${String(ordered.length)} family values.`
                 ) : (
                   <>
-                    Largest{" "}
+                    Showing{" "}
                     <span className="financial-review-chart-family-count-wide">
                       {String(visible.length)}
                     </span>
                     <span className="financial-review-chart-family-count-phone">1</span> of{" "}
-                    {String(ordered.length)} monthly family differences.
+                    {String(ordered.length)} family contributions, comparable scopes first.
                   </>
                 )}
               </Text>

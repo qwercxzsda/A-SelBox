@@ -25,6 +25,37 @@ const familyAmounts = (page, table, name) =>
     .filter({ has: page.getByText(name, { exact: true }) })
     .locator("td:nth-child(n + 2):nth-child(-n + 5)");
 
+test("an unfinished year retains observed paired differences with a neutral coverage note", async ({
+  page,
+}) => {
+  await openFinancialReview(page, (fixture) => {
+    setupFamilies(fixture);
+    fixture.currentSourceCoverage = ["FINANCES", "DATA_KIOSK"].map((source) => ({
+      source,
+      seller_namespace: "seller-one",
+      start_date: "2026-01-01",
+      end_date: "2026-03-31",
+    }));
+  });
+  await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
+  const comparison = page.getByRole("region", {
+    name: "Yearly type family breakdown",
+    exact: true,
+  });
+  await expect(comparison).toContainText(
+    "Amounts reflect available records; the selected period is not fully covered.",
+  );
+  const paired = comparison.getByRole("table", {
+    name: "Yearly paired type families",
+    exact: true,
+  });
+  const storage = paired
+    .getByRole("row")
+    .filter({ has: page.getByText("Monthly storage fees", { exact: true }) });
+  await expect(storage.locator('[data-column="difference"]')).toHaveText("-5.01");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
 async function openMonth(page, month = "January 2026") {
   await overview(page)
     .getByRole("button", { name: `Open review for ${month}`, exact: true })
@@ -96,16 +127,16 @@ test("fee comparisons distinguish storage and advertising pairs and retain indiv
   await openFinancialReview(page, setupFamilies);
   await openMonth(page);
   await drawer(page).getByRole("button", { name: "Type family comparison", exact: true }).click();
-  const comparison = drawer(page).getByRole("table", {
-    name: "Type family comparison",
+  const comparison = drawer(page).getByRole("region", {
+    name: "Monthly type family breakdown",
     exact: true,
   });
   for (const [name, values] of [
     ["Monthly storage fees", ["-10.00", "-8.00", "-2.00", "Both sources"]],
     ["Aged inventory surcharges", ["-20.00", "-18.00", "-2.00", "Both sources"]],
     ["Sponsored products", ["-30.00", "-25.00", "-5.00", "Both sources"]],
-    ["Future fee · Finances", ["-11.00", "0.00", "-11.00", "Finances-only family"]],
-    ["Future fee · Data Kiosk", ["0.00", "-9.00", "9.00", "Data Kiosk-only family"]],
+    ["Future fee · Finances", ["-11.00", "No mapped type", "Finances mapping only"]],
+    ["Future fee · Data Kiosk", ["No mapped type", "-9.00", "Data Kiosk mapping only"]],
   ]) {
     await expect(familyAmounts(page, comparison, name)).toHaveText(values);
   }
@@ -141,7 +172,7 @@ test("a union of families drives exact signed monthly, running, period and chart
   await expectMonth(page, "March 2026", ["0.00", "0.00", "0.00", "-5.01"]);
   await expectPeriod(page, ["-49.02 USD", "-44.00 USD", "-5.01 USD"]);
   await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
-  const breakdown = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
+  const breakdown = page.getByRole("region", { name: "Yearly type family breakdown", exact: true });
   await expect(breakdown.locator("tbody tr")).toHaveCount(2);
   await expect(familyAmounts(page, breakdown, "Monthly storage fees")).toHaveText([
     "-14.01",
@@ -155,18 +186,18 @@ test("a union of families drives exact signed monthly, running, period and chart
     "-0.01",
     "Both sources in 3 of 3 months",
   ]);
-  const chart = page.getByRole("figure", { name: "Monthly and running differences", exact: true });
+  const chart = page.getByRole("figure", { name: "Monthly and running source gaps", exact: true });
   await expect(
     chart.getByRole("button", { name: "Feb: View chart details for February 2026" }),
   ).toHaveAttribute(
     "title",
-    /^February 2026: Monthly difference 1\.99 USD; Running difference -5\.01 USD(?:\n|$)/,
+    /^February 2026: Monthly source gap 1\.99 USD; Running source gap -5\.01 USD(?:\n|$)/,
   );
   await expect(
     chart.getByRole("button", { name: "Mar: View chart details for March 2026" }),
   ).toHaveAttribute(
     "title",
-    /^March 2026: Monthly difference 0\.00 USD; Running difference -5\.01 USD(?:\n|$)/,
+    /^March 2026: Monthly source gap 0\.00 USD; Running source gap -5\.01 USD(?:\n|$)/,
   );
   await page.screenshot({
     path: testInfo.outputPath("type-family-overview-desktop.png"),
@@ -186,12 +217,7 @@ test("an individual source family never includes the same unknown type from the 
   await openFinancialReview(page, setupFamilies);
   await chooseFamilies(page, ["Future fee · Finances"]);
   await expect(overview(page).locator("tbody tr")).toHaveCount(1);
-  await expectMonth(page, "January 2026", [
-    "-11.00",
-    /^0\.00\s*No source records$/,
-    "-11.00",
-    "-11.00",
-  ]);
+  await expectMonth(page, "January 2026", ["-11.00", "No mapped types", "-11.00", "-11.00"]);
   await openMonth(page);
   const types = drawer(page).getByRole("table", { name: "Amounts by type", exact: true });
   await expect(types.locator("tbody tr")).toHaveCount(1);
@@ -222,7 +248,7 @@ test("family scope survives year, currency, category, history and reload without
   await currency(page).selectOption("USD");
   await category(page, "Finances").click();
   await expect(overview(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
-  await expect(page.getByRole("figure", { name: "Monthly and running differences" })).toHaveCount(
+  await expect(page.getByRole("figure", { name: "Monthly and running source gaps" })).toHaveCount(
     0,
   );
   await expect(page.getByRole("region", { name: "2026 review totals" })).toHaveCount(0);
@@ -233,7 +259,7 @@ test("family scope survives year, currency, category, history and reload without
     "No source types match these type families for Amazon.com in this year and currency.",
   );
   await expect(
-    page.getByRole("table", { name: "Yearly type family breakdown", exact: true }),
+    page.getByRole("region", { name: "Yearly type family breakdown", exact: true }),
   ).toHaveCount(0);
   await page.goBack();
   await expect(category(page, "Data Kiosk")).toHaveAttribute("aria-selected", "true");
@@ -258,7 +284,7 @@ test("monthly totals, alias types and source records keep the selected family un
     drawer(page).getByRole("heading", { name: "Selected type family totals", exact: true }),
   ).toBeVisible();
   await expect(drawer(page)).toContainText(
-    "This comparison is diagnostic and never changes transaction amounts or saved payouts.",
+    "None of these diagnostics changes transaction amounts or saved payouts.",
   );
   const totals = drawer(page).getByRole("table", { name: "Financial review totals", exact: true });
   await expect(totals.locator("tbody tr").getByRole("cell")).toHaveText([
@@ -325,7 +351,7 @@ test("a failed family catalog keeps filtered totals unavailable while retry and 
     0,
   );
   await expect(
-    page.getByRole("figure", { name: "Monthly and running differences", exact: true }),
+    page.getByRole("figure", { name: "Monthly and running source gaps", exact: true }),
   ).toHaveCount(0);
   await expect(overview(page).getByRole("button", { name: /^Open review for/ })).toHaveCount(0);
   await expect(overview(page)).toContainText("Monthly summaries are unavailable.");

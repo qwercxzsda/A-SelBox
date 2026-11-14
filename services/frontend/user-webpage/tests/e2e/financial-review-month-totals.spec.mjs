@@ -71,7 +71,7 @@ for (const width of [320, 390]) {
     await expect(totals(page).locator("dt")).toHaveText([
       "Finances costs",
       "Data Kiosk costs",
-      "Difference",
+      "Source gap",
     ]);
     await expect(totals(page).locator("dd")).toHaveText(["-8,577.90", "-6,923.80", "-1,654.10"]);
     await expect(totals(page).getByText("No source records", { exact: true })).toHaveCount(0);
@@ -113,7 +113,7 @@ for (const width of [320, 390]) {
     await expect(totals(page).locator("dt")).toHaveText([
       "Finances amount",
       "Data Kiosk amount",
-      "Difference",
+      "Source gap",
     ]);
     await expect(totals(page).locator("dd").nth(0)).toHaveText("0.00");
     await expect(totals(page).locator("dd").nth(1)).toContainText("No source records");

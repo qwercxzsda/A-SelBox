@@ -67,7 +67,106 @@ function assertConserved(rows, families) {
       sourceRows.reduce((count, row) => count + BigInt(row.row_count), 0n),
     );
   }
+  const finances =
+    sumExactDecimals(rows.filter((row) => row.source === "FINANCES").map((row) => row.amount)) ??
+    "0";
+  const kiosk =
+    sumExactDecimals(rows.filter((row) => row.source === "DATA_KIOSK").map((row) => row.amount)) ??
+    "0";
+  assert.equal(
+    sumExactDecimals([...families.values()].map((row) => row.source_gap)),
+    sumExactDecimals([finances, kiosk.startsWith("-") ? kiosk.slice(1) : `-${kiosk}`]),
+  );
 }
+
+test("comparison eligibility follows defined counterparts, not observed record counts or equal amounts", () => {
+  const rows = [
+    sourceRow("FINANCES", "SUBSCRIPTION_FEES", "-5"),
+    sourceRow("FINANCES", "EPR_FEES", "-5"),
+    sourceRow("FINANCES", "PRODUCT_SALES", "873"),
+    sourceRow("DATA_KIOSK", "NET_PRODUCT_SALES", "873"),
+    sourceRow("FINANCES", "PRODUCT_TAX", "87"),
+    sourceRow("FINANCES", "POINTS", "-10"),
+  ];
+  const families = byFamily(rows);
+  const subscription = families.get("subscription");
+  assert.equal(subscription.comparison_kind, "paired");
+  assert.equal(subscription.data_kiosk_expected, "true");
+  assert.equal(subscription.data_kiosk_amount, "0");
+  assert.equal(subscription.difference, "-5");
+  const epr = families.get("epr-compliance");
+  assert.equal(epr.comparison_kind, "unpaired");
+  assert.equal(epr.data_kiosk_expected, "false");
+  assert.equal(epr.data_kiosk_amount, null);
+  assert.equal(epr.data_kiosk_row_count, "0");
+  assert.equal(epr.difference, null);
+  assert.equal(epr.source_gap, "-5");
+  const sales = families.get("net-product-sales");
+  assert.equal(sales.comparison_kind, "different-basis");
+  assert.equal(sales.difference, null);
+  assert.equal(sales.source_gap, "0");
+  assert.match(sales.comparison_basis, /refund-request time/);
+  assert.match(sales.comparison_basis, /shipping/i);
+  assert.equal(families.get("taxes").source_gap, "87");
+  assert.equal(families.get("promotions").source_gap, "-10");
+  assertConserved(rows, families);
+});
+
+test("one transport comparison includes shipment and program charges without hiding missing allocations", () => {
+  const rows = [
+    sourceRow("FINANCES", "INBOUND_TRANSPORTATION_FEES", "-152.4004"),
+    sourceRow("FINANCES", "INBOUND_TRANSPORTATION_PROGRAM_FEES", "-32.0067"),
+    sourceRow("DATA_KIOSK", "FBA_INBOUND_TRANSPORTATION_FEE", "0"),
+    sourceRow("DATA_KIOSK", "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE", "0"),
+  ];
+  const families = byFamily(rows);
+  assert.equal(families.size, 1);
+  assert.equal(families.get("inbound-transportation").difference, "-184.4071");
+  assert.equal(families.get("inbound-transportation").comparison_kind, "paired");
+  assert.deepEqual(typeFamilyTypeSelections(["inbound-transportation"]), {
+    financesTypes: ["INBOUND_TRANSPORTATION_FEES", "INBOUND_TRANSPORTATION_PROGRAM_FEES"],
+    dataKioskTypes: ["FBA_INBOUND_TRANSPORTATION_FEE", "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"],
+  });
+  assertConserved(rows, families);
+});
+
+test("one global taxonomy retains unresolved shipping refunds without market-specific amount adjustments", () => {
+  const refunds = [
+    sourceRow("FINANCES", "PRODUCT_REFUNDS", "-1746"),
+    sourceRow("FINANCES", "SHIPPING_REFUNDS", "-77"),
+    sourceRow("DATA_KIOSK", "NET_PRODUCT_SALES", "-1823"),
+  ];
+  // A retained Japan cohort matches principal plus shipping. That observed overlap
+  // does not establish the same inclusion for every refund or another marketplace.
+  for (const [marketplace_name, currency] of [
+    ["Amazon.co.jp", "JPY"],
+    ["Amazon.com", "USD"],
+    ["Amazon.co.uk", "GBP"],
+    ["Amazon.se", "SEK"],
+  ]) {
+    const rows = refunds.map((row) => ({ ...row, marketplace_name, currency }));
+    const original = structuredClone(rows);
+    const families = byFamily(rows);
+    const sales = families.get("net-product-sales");
+    const shipping = families.get("shipping");
+    assert.equal(sales.finances_amount, "-1746");
+    assert.equal(sales.data_kiosk_amount, "-1823");
+    assert.equal(sales.source_gap, "77");
+    assert.equal(sales.comparison_kind, "different-basis");
+    assert.equal(sales.difference, null);
+    assert.equal(shipping.finances_amount, "-77");
+    assert.equal(shipping.data_kiosk_amount, null);
+    assert.equal(shipping.comparison_kind, "unpaired");
+    assert.equal(shipping.difference, null);
+    assert.equal(sumExactDecimals([...families.values()].map((row) => row.source_gap)), "0");
+    assertConserved(rows, families);
+    assert.deepEqual(rows, original);
+  }
+  assert.ok(typeFamilyTypeSelections(["shipping"]).financesTypes.includes("SHIPPING_REFUNDS"));
+  assert.ok(
+    !typeFamilyTypeSelections(["net-product-sales"]).financesTypes.includes("SHIPPING_REFUNDS"),
+  );
+});
 
 test("Financial review keeps unrelated account fees and credits in separate detailed families", () => {
   const rows = [
@@ -107,7 +206,9 @@ test("zero-value activity stays visible without inflating product-sales record c
   assert.equal(families.size, 2);
   const sales = families.get("net-product-sales");
   assert.equal(sales.finances_amount, "80.123456788");
-  assert.equal(sales.difference, "0");
+  assert.equal(sales.difference, null);
+  assert.equal(sales.source_gap, "0");
+  assert.equal(sales.comparison_kind, "different-basis");
   assert.equal(sales.finances_row_count, "7");
   assert.equal(families.get("zero-value-activity").finances_amount, "0");
   assert.equal(families.get("zero-value-activity").finances_row_count, "3");
@@ -117,7 +218,7 @@ test("zero-value activity stays visible without inflating product-sales record c
   assertConserved(rows, families);
 });
 
-test("refunds and reversals net within their own economic activity while administration remains separate", () => {
+test("referral refunds and administration net together while other economic activities remain separate", () => {
   const rows = [
     sourceRow("FINANCES", "REFERRAL_FEES", "-15"),
     sourceRow("FINANCES", "REFUNDED_REFERRAL_FEES", "3"),
@@ -134,10 +235,9 @@ test("refunds and reversals net within their own economic activity while adminis
   ];
   const original = structuredClone(rows);
   const families = byFamily(rows);
-  assert.equal(families.size, 4);
+  assert.equal(families.size, 3);
   for (const [id, amount] of [
-    ["referral", "-12"],
-    ["refund-commission", "-0.6"],
+    ["referral", "-12.6"],
     ["fba-fulfillment", "-34.000000008"],
   ]) {
     assert.equal(families.get(id).finances_amount, amount);
@@ -207,7 +307,9 @@ test("unverified placement-service correspondence cannot erase an inbound-conven
   const families = byFamily(rows);
   assert.equal(families.size, 2);
   assert.equal(families.get("inbound-convenience").difference, "-10");
-  assert.equal(families.get("inbound-placement").difference, "10");
+  assert.equal(families.get("inbound-placement").difference, null);
+  assert.equal(families.get("inbound-placement").source_gap, "10");
+  assert.equal(families.get("inbound-placement").finances_amount, null);
   assert.deepEqual(typeFamilyTypeSelections(["inbound-convenience"]), {
     financesTypes: ["INBOUND_PLACEMENT_FEES"],
     dataKioskTypes: ["FBA_INBOUND_CONVENIENCE_FEE"],

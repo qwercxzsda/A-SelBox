@@ -1,5 +1,6 @@
 import type { DetailColumn } from "./detail-columns";
 import type { FinancialReviewCategory } from "./api/financial-review";
+import type { CanonicalRow } from "./api/types";
 
 export type ReviewCategory = FinancialReviewCategory;
 
@@ -14,13 +15,13 @@ export const REVIEW_CATEGORIES: { value: ReviewCategory; label: string; descript
     value: "DATA_KIOSK",
     label: "Data Kiosk",
     description:
-      "Allocated costs such as advertising and storage. Data Kiosk supplies company costs; Finances provides the comparison.",
+      "Allocated costs such as advertising and storage. Data Kiosk supplies company costs; Finances account controls support comparison where types are mapped.",
   },
   {
     value: "SELBOX",
     label: "SelBox",
     description:
-      "Seller account charges, credits, adjustments and balance movements. Some families have no Data Kiosk counterpart. These are native account amounts, separate from company allocations and service fees.",
+      "Seller account charges, credits, adjustments and balance movements. Some activity has no verified Data Kiosk mapping. These are native account amounts, separate from company allocations and service fees.",
   },
 ];
 
@@ -32,6 +33,23 @@ export function reviewCategoryLabel(category: ReviewCategory): string {
   return REVIEW_CATEGORIES.find(({ value }) => value === category)?.label ?? category;
 }
 
+/** A zero used in source-gap arithmetic is not a mapped counterpart amount. */
+export function isUnmappedSourceAmount(row: CanonicalRow, field: string): boolean {
+  return (
+    (field === "finances_amount" || field === "data_kiosk_amount") &&
+    row[field.replace("_amount", "_expected")] === "false"
+  );
+}
+
+/** Only a mapped source can be described as having no records. */
+export function hasNoSourceRecords(row: CanonicalRow, field: string): boolean {
+  return (
+    (field === "finances_amount" || field === "data_kiosk_amount") &&
+    !isUnmappedSourceAmount(row, field) &&
+    row[field.replace("_amount", "_row_count")] === "0"
+  );
+}
+
 export function reviewAmountColumns(category: ReviewCategory): DetailColumn[] {
   const amount = category === "DATA_KIOSK" ? "costs" : "amount";
   return [
@@ -40,7 +58,7 @@ export function reviewAmountColumns(category: ReviewCategory): DetailColumn[] {
     { key: "data_kiosk_amount", label: `Data Kiosk ${amount}`, kind: "amount" },
     {
       key: "difference",
-      label: `Difference (Finances ${amount} - Data Kiosk ${amount})`,
+      label: `Source gap (Finances ${amount} - Data Kiosk ${amount})`,
       kind: "amount",
     },
   ];

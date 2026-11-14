@@ -49,17 +49,23 @@ export function FinancialReviewTrend({
       withBorder
       p="md"
       className="financial-review-trend"
-      aria-label="Monthly and running differences"
+      aria-label="Monthly and running source gaps"
     >
       <Group justify="space-between" gap="sm" mb="sm">
         <Group gap="xs">
           <Text fw={600} size="sm">
-            Difference across months
+            Source gap across months
           </Text>
-          <HelpPopover label="Difference chart help">
+          <HelpPopover label="Source gap chart help">
             <p>
               Bars show monthly Finances − Data Kiosk. Lines accumulate available months from
               January; months without source records remain gaps.
+            </p>
+            <p>
+              The source gap includes paired comparisons, different reporting bases and unpaired
+              amounts. It is not a reconciliation error total. Unpaired means no verified mapping;
+              the other source may include the activity in a broader amount. A Data Kiosk
+              contribution has the opposite sign because the gap subtracts Data Kiosk from Finances.
             </p>
             <p>
               {familyChart
@@ -73,11 +79,11 @@ export function FinancialReviewTrend({
         <Group gap="md" className="financial-review-trend-legend">
           <span>
             <i className="financial-review-monthly-key" />
-            {familyChart ? "Monthly differences by family" : "Monthly difference"}
+            {familyChart ? "Monthly source gap by family" : "Monthly source gap"}
           </span>
           <span>
             <i className="financial-review-running-key" />
-            Total running difference
+            Running source gap
           </span>
         </Group>
       </Group>
@@ -85,10 +91,10 @@ export function FinancialReviewTrend({
         <Group justify="space-between" gap="xs" mb="sm">
           <Text size="sm" c="dimmed" role="status">
             {familyLoading
-              ? "Fee-family details are loading. Showing total differences."
+              ? "Family details are loading. Showing source total gaps."
               : familyError
-                ? "Fee-family details are unavailable. Showing total differences."
-                : "Fee-family details do not match the current totals. Showing total differences."}
+                ? "Family details are unavailable. Showing source total gaps."
+                : "Family details do not match the current totals. Showing source total gaps."}
           </Text>
           {!familyLoading ? (
             <Button

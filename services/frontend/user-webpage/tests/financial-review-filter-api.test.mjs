@@ -122,7 +122,7 @@ test("current net-sales and referral IDs request one exact source-qualified econ
     requests.push(params);
     assert.equal(
       params.get("or"),
-      '(and(source.eq.FINANCES,component_type.in.("PRODUCT_SALES","PRODUCT_REFUNDS","REFERRAL_FEES","REFUNDED_REFERRAL_FEES")),and(source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES","REFERRAL_FEE","REFERRAL_FEES","REFUNDED_REFERRAL_FEE")))',
+      '(and(source.eq.FINANCES,component_type.in.("PRODUCT_SALES","PRODUCT_REFUNDS","REFERRAL_FEES","REFUNDED_REFERRAL_FEES","REFUND_COMMISSION")),and(source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES","REFERRAL_FEE","REFERRAL_FEES","REFUNDED_REFERRAL_FEE","REFUND_COMMISSION_FEE")))',
     );
     return new Response("amount\n", { headers: { "Content-Range": "*/0" } });
   });

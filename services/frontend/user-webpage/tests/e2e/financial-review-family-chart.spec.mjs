@@ -10,7 +10,7 @@ import {
 import { expectFullyInViewport } from "./viewport-assertions.mjs";
 
 const chart = (page) =>
-  page.getByRole("figure", { name: "Monthly and running differences", exact: true });
+  page.getByRole("figure", { name: "Monthly and running source gaps", exact: true });
 const legend = (page) => chart(page).getByRole("list", { name: "Type family legend", exact: true });
 const month = (page, abbreviation, name) =>
   chart(page).getByRole("button", {
@@ -33,19 +33,19 @@ test("family bars stack positive and negative differences separately and describ
   await expect(legend(page).getByText("Monthly storage fees", { exact: true })).toBeVisible();
   await expect(february).toHaveAttribute(
     "title",
-    /^February 2026: Monthly difference 3\.99 USD; Running difference -7\.01 USD(?:\n|$)/,
+    /^February 2026: Monthly source gap 3\.99 USD; Running source gap -7\.01 USD(?:\n|$)/,
   );
   for (const description of [
-    "Monthly storage fees: Monthly difference -3.00 USD; Running difference -5.01 USD",
-    "Aged inventory surcharges: Monthly difference 2.00 USD; Running difference 0.00 USD",
-    "Sponsored products: Monthly difference 5.00 USD; Running difference -0.01 USD",
-    "Future fee · Finances (Finances only): Monthly difference 0.00 USD; Running difference -11.00 USD",
-    "Future fee · Data Kiosk (Data Kiosk only): Monthly difference 0.00 USD; Running difference 9.00 USD",
+    "Monthly storage fees: Monthly gap contribution -3.00 USD; Running gap contribution -5.01 USD",
+    "Aged inventory surcharges: Monthly gap contribution 2.00 USD; Running gap contribution 0.00 USD",
+    "Sponsored products: Monthly gap contribution 5.00 USD; Running gap contribution -0.01 USD",
+    "Future fee · Finances · Unpaired amount (Finances): Monthly gap contribution 0.00 USD; Running gap contribution -11.00 USD",
+    "Future fee · Data Kiosk · Unpaired amount (Data Kiosk): Monthly gap contribution 0.00 USD; Running gap contribution 9.00 USD",
   ])
     await expect.poll(() => february.getAttribute("title")).toContain(description);
   await expect(month(page, "Mar", "March 2026")).toHaveAttribute(
     "title",
-    /^March 2026: Monthly difference 0\.00 USD; Running difference -7\.01 USD(?:\n|$)/,
+    /^March 2026: Monthly source gap 0\.00 USD; Running source gap -7\.01 USD(?:\n|$)/,
   );
 
   const zero = await chart(page).locator(".financial-review-zero-line").boundingBox();
@@ -133,7 +133,7 @@ test("family colors and legend identities remain stable when selecting and clear
     await expect(segment(february, id)).toHaveCSS("background-color", colors.get(id));
   await expect(february).toHaveAttribute(
     "title",
-    /^February 2026: Monthly difference 1\.99 USD; Running difference -5\.01 USD(?:\n|$)/,
+    /^February 2026: Monthly source gap 1\.99 USD; Running source gap -5\.01 USD(?:\n|$)/,
   );
   await expect
     .poll(() => february.getAttribute("title"))
@@ -208,11 +208,11 @@ test("inconsistent family aggregates keep total values visible until a coordinat
   const figure = chart(page);
   const february = month(page, "Feb", "February 2026");
   await expect(figure).toContainText(
-    "Fee-family details do not match the current totals. Showing total differences.",
+    "Family details do not match the current totals. Showing source total gaps.",
   );
   await expect(february).toHaveAttribute(
     "title",
-    /^February 2026: Monthly difference 3\.99 USD; Running difference -7\.01 USD(?:\n|$)/,
+    /^February 2026: Monthly source gap 3\.99 USD; Running source gap -7\.01 USD(?:\n|$)/,
   );
   await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(0);
   await expect(figure.locator(".financial-review-family-line[data-family-id]")).toHaveCount(0);
@@ -230,7 +230,7 @@ test("inconsistent family aggregates keep total values visible until a coordinat
   );
   await expect(february).toHaveAttribute(
     "title",
-    /^February 2026: Monthly difference 3\.99 USD; Running difference -7\.01 USD(?:\n|$)/,
+    /^February 2026: Monthly source gap 3\.99 USD; Running source gap -7\.01 USD(?:\n|$)/,
   );
   const refreshed = fixture.financialReviewRequests
     .slice(before)
@@ -243,3 +243,79 @@ test("inconsistent family aggregates keep total values visible until a coordinat
     new Set(["current_source_totals", "financial_review_type_totals"]),
   );
 });
+
+test("unpaired-only selections retain their signed gap contributions without a retry error", async ({
+  page,
+}) => {
+  await openFinancialReview(page, setupFamilies);
+  for (const [source, gap] of [
+    ["Finances", "-11.00"],
+    ["Data Kiosk", "9.00"],
+  ]) {
+    await chooseFamilies(page, [`Future fee · ${source}`]);
+    const figure = chart(page);
+    await expect(legend(page)).toContainText(`Unpaired amount (${source})`);
+    await expect(month(page, "Jan", "January 2026")).toHaveAttribute(
+      "title",
+      `January 2026: Monthly source gap ${gap} USD; Running source gap ${gap} USD\nFuture fee · ${source} · Unpaired amount (${source}): Monthly gap contribution ${gap} USD; Running gap contribution ${gap} USD`,
+    );
+    await expect(
+      figure.getByRole("button", { name: "Retry family chart", exact: true }),
+    ).toHaveCount(0);
+    await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(1);
+    await clearFamilies(page);
+  }
+});
+
+test("sales with a different reporting basis remain plotted and explicitly identified", async ({
+  page,
+}) => {
+  await openFinancialReview(page, setupFamilies);
+  await page
+    .getByRole("tablist", { name: "Financial review", exact: true })
+    .getByRole("tab", { name: "Finances", exact: true })
+    .click();
+  const figure = chart(page);
+  await expect(legend(page)).toContainText("Product sales and refunds");
+  await expect(legend(page)).toContainText("Different reporting basis");
+  await expect(month(page, "Jan", "January 2026")).toHaveAttribute(
+    "title",
+    /Different reporting basis: Monthly gap contribution 1\.00 USD/,
+  );
+  await expect(figure.getByRole("button", { name: "Retry family chart", exact: true })).toHaveCount(
+    0,
+  );
+  await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(1);
+});
+
+for (const [source, sourceKey, gap] of [
+  ["Finances", "FINANCES", "-11.00"],
+  ["Data Kiosk", "DATA_KIOSK", "9.00"],
+]) {
+  test(`an unpaired ${source} family requires retrieval coverage only for its mapped source`, async ({
+    page,
+  }) => {
+    await openFinancialReview(page, (fixture) => {
+      setupFamilies(fixture);
+      fixture.currentSourceCoverage = [
+        {
+          source: sourceKey,
+          seller_namespace: "seller-one",
+          start_date: "2026-01-01",
+          end_date: "2026-12-31",
+        },
+      ];
+    });
+    await chooseFamilies(page, [`Future fee · ${source}`]);
+    const figure = chart(page);
+    await expect(legend(page)).toContainText(`Unpaired amount (${source})`);
+    await expect(month(page, "Jan", "January 2026")).toHaveAttribute(
+      "title",
+      new RegExp(`^January 2026: Monthly source gap ${gap.replace(".", "\\.")} USD;`),
+    );
+    await expect(
+      figure.getByRole("button", { name: "Retry family chart", exact: true }),
+    ).toHaveCount(0);
+    await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(1);
+  });
+}

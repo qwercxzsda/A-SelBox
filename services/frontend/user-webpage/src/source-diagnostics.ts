@@ -176,26 +176,40 @@ export function buildSourceComparisons(
   });
 }
 
+function comparisonSource(row: CanonicalRow, result: SourceTotals, source: SourceName) {
+  const prefix = source === "FINANCES" ? "finances" : "data_kiosk";
+  const covered = hasCompleteCoverage(result, source, row.month ?? null, null);
+  const isFamily = typeof row.comparison_kind === "string";
+  const hasMappedScope = isFamily || row.row_kind === "selected-family-month";
+  if (hasMappedScope && row[`${prefix}_expected`] !== "true") {
+    // Unmapped sources contribute zero to the raw gap, without inventing a counterpart amount.
+    return { amount: isFamily ? null : "0", rowCount: "0", gapAmount: "0", covered };
+  }
+  const rowCount = row[`${prefix}_row_count`];
+  const amount = rowCount === "0" && !covered ? null : row[`${prefix}_amount`];
+  return { amount, rowCount: amount === null ? null : rowCount, gapAmount: amount, covered };
+}
+
 /** Apply the same missing-data rules to a type-family projection of the native type totals. */
 export function applyComparisonCoverage(
   rows: readonly CanonicalRow[],
   result: SourceTotals,
 ): CanonicalRow[] {
   return rows.map((row) => {
-    const financesCovered = hasCompleteCoverage(result, "FINANCES", row.month ?? null, null);
-    const kioskCovered = hasCompleteCoverage(result, "DATA_KIOSK", row.month ?? null, null);
-    const finances =
-      row.finances_row_count === "0" && !financesCovered ? null : row.finances_amount;
-    const kiosk = row.data_kiosk_row_count === "0" && !kioskCovered ? null : row.data_kiosk_amount;
+    const finances = comparisonSource(row, result, "FINANCES");
+    const kiosk = comparisonSource(row, result, "DATA_KIOSK");
+    const sourceGap = differenceExact(finances.gapAmount, kiosk.gapAmount);
+    const isFamily = typeof row.comparison_kind === "string";
     return {
       ...row,
-      finances_amount: finances,
-      data_kiosk_amount: kiosk,
-      finances_row_count: finances === null ? null : row.finances_row_count,
-      data_kiosk_row_count: kiosk === null ? null : row.data_kiosk_row_count,
-      finances_covered: String(financesCovered),
-      data_kiosk_covered: String(kioskCovered),
-      difference: differenceExact(finances, kiosk),
+      finances_amount: finances.amount,
+      data_kiosk_amount: kiosk.amount,
+      finances_row_count: finances.rowCount,
+      data_kiosk_row_count: kiosk.rowCount,
+      finances_covered: String(finances.covered),
+      data_kiosk_covered: String(kiosk.covered),
+      ...(isFamily ? { source_gap: sourceGap } : {}),
+      difference: !isFamily || row.comparison_kind === "paired" ? sourceGap : null,
     };
   });
 }

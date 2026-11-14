@@ -162,12 +162,7 @@ test("the original broad groups and order preserve reviewed type boundaries", ()
 test("detailed review families remain distinct within a shared browsing group", () => {
   for (const types of [
     ["ADVERTISING", "SPONSORED_BRANDS", "SPONSORED_DISPLAY", "COUPON_FEES", "DEAL_FEES"],
-    [
-      "INBOUND_PLACEMENT_FEES",
-      "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
-      "INBOUND_TRANSPORTATION_FEES",
-      "INBOUND_TRANSPORTATION_PROGRAM_FEES",
-    ],
+    ["INBOUND_PLACEMENT_FEES", "FBA_INBOUND_PLACEMENT_SERVICE_FEE", "INBOUND_TRANSPORTATION_FEES"],
     ["STORAGE_FEES", "AGED_STORAGE_FEES", "DISPOSAL_FEES", "REMOVAL_FEES"],
   ]) {
     const familyIds = types.map((type) => {

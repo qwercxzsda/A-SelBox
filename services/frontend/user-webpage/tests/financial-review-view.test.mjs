@@ -130,7 +130,7 @@ test("missing or invalid marketplace scopes never infer a marketplace from curre
   assert.equal(decodeReviewScope({ marketplace: "Amazon.de", currency: "JPY" }).currency, "JPY");
 });
 
-test("family scope keeps a canonical union and discards malformed saved values", () => {
+test("family scope keeps unavailable selections while discarding non-string saved values", () => {
   assert.deepEqual(
     decodeReviewScope({
       year: "2026",
@@ -148,7 +148,7 @@ test("family scope keeps a canonical union and discards malformed saved values",
       year: "2026",
       marketplace: "Amazon.com",
       currency: "USD",
-      families: ["monthly-storage", "sponsored-products"],
+      families: ["invented-family", "monthly-storage", "sponsored-products"],
     },
   );
 });
@@ -253,5 +253,15 @@ test("an unavailable comparison keeps later running differences unavailable", ()
       "USD",
     ).map(({ running_difference }) => running_difference),
     ["1", null, null],
+  );
+});
+
+test("a removed-only saved family scope does not become the all-family scope", () => {
+  assert.deepEqual(decodeReviewScope({ families: ["refund-commission"] }).families, [
+    "refund-commission",
+  ]);
+  assert.deepEqual(
+    decodeReviewScope({ families: ["monthly-storage", "refund-commission"] }).families,
+    ["monthly-storage", "refund-commission"],
   );
 });

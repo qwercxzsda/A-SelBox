@@ -180,9 +180,9 @@ test("one broad advertising selection filters exact types and totals while revie
     page
       .getByRole("region", { name: "2026 review totals", exact: true })
       .locator(".financial-review-summary-value"),
-  ).toHaveText(["0.00 USD", "-20.00 USD", "20.00 USD"]);
+  ).toHaveText(["No mapped types", "-20.00 USD", "20.00 USD"]);
   await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
-  const detailed = page.getByRole("table", { name: "Yearly type family breakdown", exact: true });
+  const detailed = page.getByRole("region", { name: "Yearly type family breakdown", exact: true });
   await expect(detailed.locator("tbody tr")).toHaveCount(1);
   await expect(detailed).toContainText("Sponsored brands");
   await expect(detailed).not.toContainText("Sponsored products");

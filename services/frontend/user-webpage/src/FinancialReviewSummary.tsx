@@ -4,11 +4,12 @@ import { formatMoney } from "./decimal";
 import { sumCompleteDecimals } from "./source-diagnostics";
 import { formatRecordMonth } from "./date-display";
 import { FinancialReviewCoverageNote } from "./FinancialReviewCoverageNote";
+import { isUnmappedSourceAmount } from "./financial-review-categories";
 
 const TOTALS = [
   ["finances_amount", "Finances total"],
   ["data_kiosk_amount", "Data Kiosk total"],
-  ["difference", "Period difference"],
+  ["difference", "Source total gap"],
 ] as const;
 
 export function FinancialReviewSummary({
@@ -39,8 +40,15 @@ export function FinancialReviewSummary({
             {label}
           </Text>
           <Text className="financial-review-summary-value">
-            {formatMoney(sumCompleteDecimals(rows.map((row) => row[field])), currency)}
+            {rows.every((row) => isUnmappedSourceAmount(row, field))
+              ? "No mapped types"
+              : formatMoney(sumCompleteDecimals(rows.map((row) => row[field])), currency)}
           </Text>
+          {field === "difference" ? (
+            <Text size="xs" c="dimmed" mt="xs">
+              Includes paired differences, different reporting bases and unpaired activity.
+            </Text>
+          ) : null}
         </Paper>
       ))}
       <FinancialReviewCoverageNote rows={rows} />

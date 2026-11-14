@@ -9,6 +9,7 @@ import {
   buildTypeFamilyOptions,
   typeFamilyTypeSelections,
   normalizeTypeFamilyIds,
+  unavailableTypeFamilyIds,
   resolveTypeFamily,
 } from "../src/transaction-type-family-catalog.ts";
 import { TRANSACTION_TYPE_FAMILIES } from "../src/transaction-type-families.ts";
@@ -102,7 +103,7 @@ test("Sponsored Brands and Display aliases stay separate from Products and each 
       assert.deepEqual(family.financesTypes, []);
     }
   }
-  assert.notEqual(
+  assert.equal(
     resolveTypeFamily("FINANCES", "INBOUND_TRANSPORTATION_FEES").id,
     resolveTypeFamily("FINANCES", "INBOUND_TRANSPORTATION_PROGRAM_FEES").id,
   );
@@ -178,7 +179,9 @@ test("net product sales include signed refunds without absorbing unclassified ze
     assert.equal(families[0].family_id, "net-product-sales");
     assert.equal(families[0].finances_amount, "80.123456788");
     assert.equal(families[0].data_kiosk_amount, "80.12345678");
-    assert.equal(families[0].difference, "0.000000008");
+    assert.equal(families[0].difference, null);
+    assert.equal(families[0].source_gap, "0.000000008");
+    assert.equal(families[0].comparison_kind, "different-basis");
     assert.equal(families[0].finances_row_count, "7");
     assert.equal(families[0].data_kiosk_row_count, "7");
     assert.equal(families[0].coverage, "Both sources");
@@ -192,7 +195,7 @@ test("net product sales include signed refunds without absorbing unclassified ze
   assert.equal(zero.length, 1);
   assert.equal(zero[0].finances_amount, "0");
   assert.equal(zero[0].finances_row_count, "3");
-  assert.equal(zero[0].coverage, "Finances-only family");
+  assert.equal(zero[0].coverage, "Finances mapping only");
   assert.deepEqual(rows, original);
 });
 
@@ -262,14 +265,14 @@ test("fee and reimbursement families net their reversals while preserving source
     assert.equal(families[0].data_kiosk_row_count, String(kiosk.length));
     assert.equal(families[0].coverage, "Both sources");
   }
-  assert.equal(resolveTypeFamily("FINANCES", "REFUND_COMMISSION").id, "refund-commission");
-  assert.equal(resolveTypeFamily("DATA_KIOSK", "REFUND_COMMISSION_FEE").id, "refund-commission");
+  assert.equal(resolveTypeFamily("FINANCES", "REFUND_COMMISSION").id, "referral");
+  assert.equal(resolveTypeFamily("DATA_KIOSK", "REFUND_COMMISSION_FEE").id, "referral");
   assert.equal(resolveTypeFamily("FINANCES", "LIQUIDATION_PROCEEDS").id, "liquidation-proceeds");
   for (const alias of ["FBA_FULFILLMENT_FEES", "FBA_FULFILMENT_FEE"])
     assert.equal(resolveTypeFamily("DATA_KIOSK", alias).id, "fba-fulfillment");
 });
 
-test("source-only economic families combine related signed movements without mixing their purposes", () => {
+test("unpaired economic families combine related signed movements without mixing their purposes", () => {
   for (const [id, category, components, expected] of [
     [
       "shipping",
@@ -333,9 +336,12 @@ test("source-only economic families combine related signed movements without mix
     assert.equal(families.length, 1, id);
     assert.equal(families[0].family_id, id);
     assert.equal(families[0].finances_amount, expected);
-    assert.equal(families[0].data_kiosk_amount, "0");
+    assert.equal(families[0].data_kiosk_amount, null);
+    assert.equal(families[0].data_kiosk_row_count, "0");
+    assert.equal(families[0].difference, null);
+    assert.equal(families[0].source_gap, expected);
     assert.equal(families[0].finances_row_count, String(components.length));
-    assert.equal(families[0].coverage, "Finances-only family");
+    assert.equal(families[0].coverage, "Finances mapping only");
   }
   assert.equal(resolveTypeFamily("FINANCES", "SUBSCRIPTION_FEES").id, "subscription");
   assert.equal(resolveTypeFamily("DATA_KIOSK", "SUBSCRIPTION_FEE").id, "subscription");
@@ -345,27 +351,48 @@ test("source-only economic families combine related signed movements without mix
 test("current family IDs deduplicate while unsupported request IDs are rejected", () => {
   const ids = ["net-product-sales", "referral", "net-product-sales"];
   assert.deepEqual(normalizeTypeFamilyIds([...ids, null, "invalid"]), [
+    "invalid",
     "net-product-sales",
     "referral",
   ]);
   const selection = typeFamilyTypeSelections(ids);
   assert.deepEqual(
     new Set(selection.financesTypes),
-    new Set(["PRODUCT_SALES", "PRODUCT_REFUNDS", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEES"]),
+    new Set([
+      "PRODUCT_SALES",
+      "PRODUCT_REFUNDS",
+      "REFERRAL_FEES",
+      "REFUNDED_REFERRAL_FEES",
+      "REFUND_COMMISSION",
+    ]),
   );
   assert.deepEqual(
     new Set(selection.dataKioskTypes),
-    new Set(["NET_PRODUCT_SALES", "REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE"]),
+    new Set([
+      "NET_PRODUCT_SALES",
+      "REFERRAL_FEE",
+      "REFERRAL_FEES",
+      "REFUNDED_REFERRAL_FEE",
+      "REFUND_COMMISSION_FEE",
+    ]),
   );
-  assert.equal(selection.financesTypes.length, 4);
-  assert.equal(selection.dataKioskTypes.length, 4);
+  assert.equal(selection.financesTypes.length, 5);
+  assert.equal(selection.dataKioskTypes.length, 5);
   assert.deepEqual(
     buildTypeFamilyOptions([], ids)
       .map((family) => family.id)
       .sort(),
     ["net-product-sales", "referral"],
   );
-  assert.throws(() => typeFamilyTypeSelections(["unregistered-family"]));
+  for (const removed of [
+    "refund-commission",
+    "inbound-transportation-program",
+    "unregistered-family",
+  ]) {
+    assert.throws(() => typeFamilyTypeSelections([removed]));
+    assert.deepEqual(normalizeTypeFamilyIds([removed]), [removed]);
+    assert.deepEqual(unavailableTypeFamilyIds([removed]), [removed]);
+  }
 });
 
 test("native inbound convenience fees pair without including placement service fees", () => {
@@ -390,7 +417,7 @@ test("native inbound convenience fees pair without including placement service f
   assert.equal(convenience.finances_types, "INBOUND_PLACEMENT_FEES");
   assert.equal(convenience.data_kiosk_types, "FBA_INBOUND_CONVENIENCE_FEE");
   const placement = result.find((item) => item.family_id === "inbound-placement");
-  assert.equal(placement.coverage, "Data Kiosk-only family");
+  assert.equal(placement.coverage, "Data Kiosk mapping only");
   assert.equal(placement.data_kiosk_amount, "-10");
 });
 
@@ -409,7 +436,7 @@ test("family selections preserve exact source-qualified types and reject malform
   assert.equal(typeFamilyTypeSelections([]), null);
   assert.deepEqual(
     normalizeTypeFamilyIds([unknown.id, null, "missing-id", "monthly-storage", unknown.id]),
-    ["monthly-storage", unknown.id],
+    ["missing-id", "monthly-storage", unknown.id],
   );
   assert.deepEqual(normalizeTypeFamilyIds("monthly-storage"), []);
   for (const value of [
@@ -641,5 +668,22 @@ test("family API rejects truncated or differently scoped responses", async () =>
         "Amazon.com",
       ),
     );
+  }
+});
+
+test("unavailable saved family IDs remain selected and strict amounts never broaden their scope", () => {
+  const sourceUnknown = resolveTypeFamily("FINANCES", "FUTURE_FEE").id;
+  assert.deepEqual(unavailableTypeFamilyIds([sourceUnknown, "monthly-storage"]), []);
+  for (const selected of [
+    ["refund-commission"],
+    ["inbound-transportation-program", "monthly-storage"],
+    ["monthly-storage", "refund-commission", sourceUnknown],
+  ]) {
+    const normalized = normalizeTypeFamilyIds([...selected, ...selected, null, ""]);
+    assert.deepEqual(normalized, [...selected].sort());
+    assert.ok(unavailableTypeFamilyIds(normalized).length > 0);
+    assert.throws(() => typeFamilyTypeSelections(normalized));
+    assert.throws(() => buildFinancialReviewFamilyMonths([], normalized));
+    assert.throws(() => buildFinancialReviewFamilies([], normalized));
   }
 });

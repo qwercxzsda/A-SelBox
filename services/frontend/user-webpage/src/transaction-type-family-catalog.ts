@@ -1,5 +1,6 @@
 import type { CanonicalRow } from "./api/types.ts";
 import { sourceCodeLabel } from "./categories.ts";
+import sourceTypes from "./generated/transaction-types.json" with { type: "json" };
 import {
   TRANSACTION_TYPE_FAMILIES,
   TRANSACTION_TYPE_GROUPS,
@@ -9,6 +10,9 @@ import {
 } from "./transaction-type-families.ts";
 
 const SOURCE_LABELS = { FINANCES: "Finances", DATA_KIOSK: "Data Kiosk" };
+const categoriesBySourceType = new Map(
+  sourceTypes.map(({ source, type, category }) => [JSON.stringify([source, type]), category]),
+);
 
 const groupsById = new Map<string, TypeGroupDefinition>(
   TRANSACTION_TYPE_GROUPS.map((group) => [group.id, group]),
@@ -19,6 +23,10 @@ const familiesById = new Map<string, TypeFamily>();
 const typesByCode = new Map<string, { family: TypeFamily; sources: Set<TypeFamilySource> }>();
 for (const entry of TRANSACTION_TYPE_FAMILIES) {
   if (!groupsById.has(entry.groupId)) throw new Error("A type family has an unknown group");
+  const hasCounterparts = entry.financesTypes.length > 0 && entry.dataKioskTypes.length > 0;
+  if ((entry.comparisonKind === "unpaired") === hasCounterparts)
+    throw new Error("Type family comparison does not match its defined source memberships");
+  if (!entry.comparisonNote.trim()) throw new Error("Type family comparison requires its basis");
   if (familiesById.has(entry.id)) throw new Error("Duplicate type family ID");
   familiesById.set(entry.id, entry);
   for (const [source, types] of [
@@ -76,6 +84,8 @@ export function resolveTypeFamily(source: string, type: string): TypeFamily {
     groupId: "other",
     label: `${sourceCodeLabel(type)} · ${SOURCE_LABELS[source]}`,
     description: `Unrecognized ${SOURCE_LABELS[source]} type ${type}. Its amount remains separate; no cross-source correspondence is assumed.`,
+    comparisonKind: "unpaired",
+    comparisonNote: `No verified counterpart is defined for this unrecognized ${SOURCE_LABELS[source]} type.`,
     financesTypes: source === "FINANCES" ? [type] : [],
     dataKioskTypes: source === "DATA_KIOSK" ? [type] : [],
   };
@@ -95,17 +105,21 @@ function familyFromId(id: unknown): TypeFamily | null {
   }
 }
 
-/** Saved navigation may omit malformed IDs, but request filtering validates strictly below. */
+/** Preserve unavailable saved IDs so a focused scope never silently becomes all families. */
 export function normalizeTypeFamilyIds(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   return [
     ...new Set(
-      input.flatMap((id) => {
-        const entry = familyFromId(id);
-        return entry ? [entry.id] : [];
-      }),
+      input.filter(
+        (id): id is string => typeof id === "string" && id.length > 0 && !id.includes("\0"),
+      ),
     ),
   ].sort();
+}
+
+/** Unavailable selections must be explicitly removed before reading scoped amounts. */
+export function unavailableTypeFamilyIds(ids: readonly string[]): string[] {
+  return [...new Set(ids)].filter((id) => familyFromId(id) === null);
 }
 
 /** Strict canonical selection for API filters, comparisons and charts. Empty means all. */
@@ -129,6 +143,24 @@ export function typeFamilyTypeSelections(ids: readonly string[]): {
   return {
     financesTypes: selected.flatMap((entry) => entry.financesTypes),
     dataKioskTypes: selected.flatMap((entry) => entry.dataKioskTypes),
+  };
+}
+
+/** Retained selections can span categories; unknown types remain conservatively applicable. */
+export function typeFamilySourceExpectations(
+  families: readonly TypeFamily[],
+  category: string,
+): { financesExpected: boolean; dataKioskExpected: boolean } {
+  const includesCategory = (source: TypeFamilySource, types: readonly string[]) =>
+    types.some((type) => {
+      const definedCategory = categoriesBySourceType.get(JSON.stringify([source, type]));
+      return definedCategory === undefined || definedCategory === category;
+    });
+  return {
+    financesExpected: families.some((family) => includesCategory("FINANCES", family.financesTypes)),
+    dataKioskExpected: families.some((family) =>
+      includesCategory("DATA_KIOSK", family.dataKioskTypes),
+    ),
   };
 }
 

@@ -40,13 +40,16 @@ function AdministratorFinancialReview({
     ...(period.year ? [period.totalsQuery] : []),
     ...(period.year && period.currency ? [period.familyQuery] : []),
   ];
-  const status = queries.some((query) => query.isPending)
-    ? "loading"
-    : updating ||
-        queries.some((query) => query.isFetching) ||
-        (period.loading && !queries.some((query) => query.isError))
-      ? "updating"
-      : null;
+  const status =
+    period.unavailableFamilies.length > 0
+      ? null
+      : queries.some((query) => query.isPending)
+        ? "loading"
+        : updating ||
+            queries.some((query) => query.isFetching) ||
+            (period.loading && !queries.some((query) => query.isError))
+          ? "updating"
+          : null;
   return (
     <>
       <WorkspaceHeader
@@ -60,8 +63,9 @@ function AdministratorFinancialReview({
             </p>
             <p>{REVIEW_CATEGORIES.find(({ value }) => value === category)?.description}</p>
             <p>
-              Differences are diagnostic and do not change company payouts. Open a month for source
-              records and saved report snapshots.
+              Source totals include all selected activity. Paired comparisons, different reporting
+              bases and unpaired mappings are shown separately. This review does not change company
+              payouts. Open a month for source records and saved report snapshots.
             </p>
           </>
         }

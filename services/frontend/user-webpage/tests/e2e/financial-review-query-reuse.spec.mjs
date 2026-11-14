@@ -9,7 +9,10 @@ test("monthly totals and family comparison reuse complete raw types without mixi
   const fixture = await openFinancialReview(page, setupFamilies);
   const monthly = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
   const totals = monthly.getByRole("table", { name: "Financial review totals", exact: true });
-  const comparison = monthly.getByRole("table", { name: "Type family comparison", exact: true });
+  const comparison = monthly.getByRole("region", {
+    name: "Monthly type family breakdown",
+    exact: true,
+  });
   const completeReads = (currency) =>
     fixture.financialReviewRequests.filter(
       ({ endpoint, params, completed }) =>

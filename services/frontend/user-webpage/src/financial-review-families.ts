@@ -9,6 +9,7 @@ import {
   compareTypeFamilies,
   selectTypeFamilies,
   resolveTypeFamily,
+  typeFamilySourceExpectations,
 } from "./transaction-type-family-catalog.ts";
 import type { TypeFamily, TypeFamilySource } from "./transaction-type-families.ts";
 
@@ -26,10 +27,9 @@ interface FamilyTypeTotal {
 
 function selectTypeTotals(
   rows: readonly CanonicalRow[],
-  ids: readonly string[],
+  families: readonly TypeFamily[],
 ): FamilyTypeTotal[] {
-  // Malformed selections must never turn into an unfiltered request or comparison.
-  const selected = new Set(selectTypeFamilies(ids).map((family) => family.id));
+  const selected = new Set(families.map((family) => family.id));
   const seen = new Set<string>();
   return rows
     .map((row): FamilyTypeTotal => {
@@ -99,12 +99,30 @@ function comparison(rows: readonly FamilyTypeTotal[]): CanonicalRow {
   };
 }
 
-/** Compare every observed family, including zero and source-only totals, in one currency. */
+/** A raw contribution to the source gap is not necessarily a comparable difference. */
+function familyComparison(rows: readonly FamilyTypeTotal[], family: TypeFamily): CanonicalRow {
+  const raw = comparison(rows);
+  const financesExpected = family.financesTypes.length > 0;
+  const kioskExpected = family.dataKioskTypes.length > 0;
+  return {
+    ...raw,
+    finances_amount: financesExpected ? raw.finances_amount : null,
+    data_kiosk_amount: kioskExpected ? raw.data_kiosk_amount : null,
+    finances_expected: String(financesExpected),
+    data_kiosk_expected: String(kioskExpected),
+    comparison_kind: family.comparisonKind,
+    comparison_basis: family.comparisonNote,
+    source_gap: raw.difference,
+    difference: family.comparisonKind === "paired" ? raw.difference : null,
+  };
+}
+
+/** Compare every observed family, including zero and unpaired totals, in one currency. */
 export function buildFinancialReviewFamilies(
   rows: readonly CanonicalRow[],
   ids: readonly string[] = [],
 ): CanonicalRow[] {
-  const selected = selectTypeTotals(rows, ids);
+  const selected = selectTypeTotals(rows, selectTypeFamilies(ids));
   if (new Set(selected.map((row) => row.marketplace)).size > 1)
     throw new Error("Type family comparison must use one marketplace");
   if (new Set(selected.map((row) => row.currency)).size > 1)
@@ -117,19 +135,22 @@ export function buildFinancialReviewFamilies(
   }
   return [...groups.values()]
     .sort((left, right) => compareTypeFamilies(left[0].family, right[0].family))
-    .map((group) => ({
-      family_id: group[0].family.id,
-      family: group[0].family.label,
-      description: group[0].family.description,
-      currency: group[0].currency,
-      marketplace_name: group[0].marketplace,
-      ...comparison(group),
-      coverage: describeTypeFamilyCoverage(group, group[0].family),
-      finances_definition: group[0].family.financesTypes.join(", ") || "No counterpart defined",
-      data_kiosk_definition: group[0].family.dataKioskTypes.join(", ") || "No counterpart defined",
-      finances_types: sourceTypes(group, "FINANCES"),
-      data_kiosk_types: sourceTypes(group, "DATA_KIOSK"),
-    }));
+    .map((group) => {
+      const { family, currency, marketplace } = group[0];
+      return {
+        family_id: family.id,
+        family: family.label,
+        description: family.description,
+        currency,
+        marketplace_name: marketplace,
+        ...familyComparison(group, family),
+        coverage: describeTypeFamilyCoverage(group, family),
+        finances_definition: family.financesTypes.join(", ") || "No mapped type",
+        data_kiosk_definition: family.dataKioskTypes.join(", ") || "No mapped type",
+        finances_types: sourceTypes(group, "FINANCES"),
+        data_kiosk_types: sourceTypes(group, "DATA_KIOSK"),
+      };
+    });
 }
 
 /** Sum selected type families by their original month/category/currency; never fill source gaps. */
@@ -137,21 +158,36 @@ export function buildFinancialReviewFamilyMonths(
   rows: readonly CanonicalRow[],
   ids: readonly string[] = [],
 ): CanonicalRow[] {
+  const definitions = selectTypeFamilies(ids);
   const groups = new Map<string, FamilyTypeTotal[]>();
-  for (const row of selectTypeTotals(rows, ids)) {
+  for (const row of selectTypeTotals(rows, definitions)) {
     const key = JSON.stringify([row.month, row.category, row.marketplace, row.currency]);
     const group = groups.get(key) ?? [];
     group.push(row);
     groups.set(key, group);
   }
   return [...groups.values()]
-    .map((group) => ({
-      month: group[0].month,
-      category: group[0].category,
-      currency: group[0].currency,
-      marketplace_name: group[0].marketplace,
-      ...comparison(group),
-    }))
+    .map((group) => {
+      const { financesExpected, dataKioskExpected } = typeFamilySourceExpectations(
+        definitions,
+        group[0].category,
+      );
+      const expectations: CanonicalRow = definitions.length
+        ? {
+            row_kind: "selected-family-month",
+            finances_expected: String(financesExpected),
+            data_kiosk_expected: String(dataKioskExpected),
+          }
+        : {};
+      return {
+        month: group[0].month,
+        category: group[0].category,
+        currency: group[0].currency,
+        marketplace_name: group[0].marketplace,
+        ...comparison(group),
+        ...expectations,
+      };
+    })
     .sort(
       (left, right) =>
         left.month.localeCompare(right.month) ||

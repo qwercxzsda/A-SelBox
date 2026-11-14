@@ -8,6 +8,10 @@ import {
   requireReportDiagnosticScope,
   sameSourceRevision,
 } from "../src/source-diagnostics.ts";
+import {
+  buildFinancialReviewFamilies,
+  buildFinancialReviewFamilyMonths,
+} from "../src/financial-review-families.ts";
 
 function totals(rows, coverage) {
   return {
@@ -101,6 +105,185 @@ test("unknown monthly values do not become partial headline or running totals", 
   );
   assert.equal(family.difference, null);
   assert.equal(family.data_kiosk_row_count, null);
+});
+
+test("coverage never invents a counterpart or reconstructs an ineligible family difference", () => {
+  const rows = buildFinancialReviewFamilies(
+    [
+      ["FINANCES", "SUBSCRIPTION_FEES", "-5"],
+      ["FINANCES", "EPR_FEES", "-7"],
+      ["FINANCES", "PRODUCT_SALES", "100"],
+      ["DATA_KIOSK", "NET_PRODUCT_SALES", "90"],
+      ["DATA_KIOSK", "FUTURE_FEE", "-11"],
+    ].map(([source, component_type, amount]) => ({
+      source,
+      component_type,
+      amount,
+      row_count: "1",
+      month: "2026-07-01",
+      category: "FINANCES",
+      marketplace_name: "Amazon.com",
+      currency: "USD",
+    })),
+  );
+  const complete = new Map(
+    applyComparisonCoverage(rows, totals([])).map((row) => [row.family_id, row]),
+  );
+  assert.equal(complete.get("subscription").data_kiosk_amount, "0");
+  assert.equal(complete.get("subscription").difference, "-5");
+  assert.equal(complete.get("epr-compliance").data_kiosk_amount, null);
+  assert.equal(complete.get("epr-compliance").data_kiosk_row_count, "0");
+  assert.equal(complete.get("epr-compliance").difference, null);
+  assert.equal(complete.get("epr-compliance").source_gap, "-7");
+  assert.equal(complete.get("net-product-sales").difference, null);
+  assert.equal(complete.get("net-product-sales").source_gap, "10");
+  const unknown = complete.get("source:DATA_KIOSK:FUTURE_FEE");
+  assert.equal(unknown.comparison_kind, "unpaired");
+  assert.equal(unknown.finances_amount, null);
+  assert.equal(unknown.difference, null);
+  assert.equal(unknown.source_gap, "11");
+
+  const partialCoverage = totals([]);
+  partialCoverage.coverage = partialCoverage.coverage.filter((item) => item.source === "FINANCES");
+  const partial = new Map(
+    applyComparisonCoverage(rows, partialCoverage).map((row) => [row.family_id, row]),
+  );
+  assert.equal(partial.get("subscription").data_kiosk_amount, null);
+  assert.equal(partial.get("subscription").data_kiosk_row_count, null);
+  assert.equal(partial.get("subscription").source_gap, null);
+  assert.equal(partial.get("subscription").difference, null);
+  assert.equal(partial.get("epr-compliance").source_gap, "-7");
+  assert.equal(partial.get("epr-compliance").data_kiosk_row_count, "0");
+  assert.equal(partial.get("net-product-sales").source_gap, "10");
+  assert.equal(partial.get("net-product-sales").difference, null);
+});
+
+test("annual paired amounts retain their observed difference when future months lack coverage", () => {
+  const rows = buildFinancialReviewFamilies(
+    [
+      ["FINANCES", "STORAGE_FEES", "-5"],
+      ["DATA_KIOSK", "FBA_STORAGE_FEE", "-3"],
+    ].map(([source, component_type, amount]) => ({
+      source,
+      component_type,
+      amount,
+      row_count: "1",
+      month: "2026-07-01",
+      category: "DATA_KIOSK",
+      marketplace_name: "Amazon.com",
+      currency: "USD",
+    })),
+  );
+  const currentYear = totals([]);
+  currentYear.scope.start_date = "2026-01-01";
+  currentYear.scope.end_date = "2026-12-31";
+  currentYear.coverage = currentYear.coverage.map((item) => ({
+    ...item,
+    start_date: "2026-01-01",
+    end_date: "2026-10-31",
+  }));
+  const [partial] = applyComparisonCoverage(rows, currentYear);
+  assert.equal(partial.finances_amount, "-5");
+  assert.equal(partial.data_kiosk_amount, "-3");
+  assert.equal(partial.source_gap, "-2");
+  assert.equal(partial.difference, "-2");
+  assert.equal(partial.finances_covered, "false");
+});
+
+test("selected family months require coverage only for their defined mapping union", () => {
+  for (const [source, type, family, category, absentPair, amount, gap] of [
+    ["FINANCES", "EPR_FEES", "epr-compliance", "SELBOX", "subscription", "-7", "-7"],
+    [
+      "DATA_KIOSK",
+      "SPONSORED_BRANDS",
+      "sponsored-brands",
+      "DATA_KIOSK",
+      "monthly-storage",
+      "-11",
+      "11",
+    ],
+  ]) {
+    const sourceRows = [
+      {
+        source,
+        component_type: type,
+        amount,
+        row_count: "1",
+        month: "2026-07-01",
+        category,
+        marketplace_name: "Amazon.com",
+        currency: "USD",
+      },
+    ];
+    const coverage = totals([]);
+    coverage.coverage = coverage.coverage.filter((item) => item.source === source);
+    const selected = buildFinancialReviewFamilyMonths(sourceRows, [family]);
+    assert.equal(selected[0].row_kind, "selected-family-month");
+    assert.equal(selected[0].finances_expected, String(source === "FINANCES"));
+    assert.equal(selected[0].data_kiosk_expected, String(source === "DATA_KIOSK"));
+    const [month] = applyComparisonCoverage(selected, coverage);
+    assert.equal(month.difference, gap);
+    assert.equal(month[source === "FINANCES" ? "data_kiosk_amount" : "finances_amount"], "0");
+    assert.equal(month[source === "FINANCES" ? "data_kiosk_row_count" : "finances_row_count"], "0");
+    assert.equal(month.comparison_kind, undefined);
+    const [unfiltered] = applyComparisonCoverage(
+      buildFinancialReviewFamilyMonths(sourceRows),
+      coverage,
+    );
+    assert.equal(unfiltered.difference, null);
+
+    // Adding a defined pair makes both sources expected even when that pair has no rows.
+    const [expectedAbsent] = applyComparisonCoverage(
+      buildFinancialReviewFamilyMonths(sourceRows, [family, absentPair]),
+      coverage,
+    );
+    assert.equal(expectedAbsent.difference, null);
+    assert.equal(expectedAbsent.finances_expected, "true");
+    assert.equal(expectedAbsent.data_kiosk_expected, "true");
+  }
+});
+
+test("family selections retained across categories do not invent expected sources", () => {
+  const sourceRows = [
+    ["FINANCES", "EPR_FEES", "SELBOX", "-7"],
+    ["DATA_KIOSK", "SPONSORED_BRANDS", "DATA_KIOSK", "-11"],
+  ].map(([source, component_type, category, amount]) => ({
+    source,
+    component_type,
+    category,
+    amount,
+    row_count: "1",
+    month: "2026-07-01",
+    marketplace_name: "Amazon.com",
+    currency: "USD",
+  }));
+  const selected = buildFinancialReviewFamilyMonths(sourceRows, [
+    "epr-compliance",
+    "sponsored-brands",
+  ]);
+  assert.equal(selected.length, 2);
+  for (const category of ["SELBOX", "DATA_KIOSK"]) {
+    const row = selected.find((item) => item.category === category);
+    const finances = category === "SELBOX";
+    assert.equal(row.finances_expected, String(finances));
+    assert.equal(row.data_kiosk_expected, String(!finances));
+    const coverage = totals([]);
+    coverage.coverage = coverage.coverage.filter(
+      (item) => item.source === (finances ? "FINANCES" : "DATA_KIOSK"),
+    );
+    assert.equal(applyComparisonCoverage([row], coverage)[0].difference, finances ? "-7" : "11");
+  }
+
+  const unknown = "source:DATA_KIOSK:FUTURE_ACCOUNT_FEE";
+  const [conservative] = buildFinancialReviewFamilyMonths(
+    [sourceRows[0]],
+    ["epr-compliance", unknown],
+  );
+  assert.equal(conservative.finances_expected, "true");
+  assert.equal(conservative.data_kiosk_expected, "true");
+  const financesOnly = totals([]);
+  financesOnly.coverage = financesOnly.coverage.filter((item) => item.source === "FINANCES");
+  assert.equal(applyComparisonCoverage([conservative], financesOnly)[0].difference, null);
 });
 
 test("daily buckets stay independent across sellers and currencies", () => {

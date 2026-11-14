@@ -5,8 +5,8 @@ import type { FinancialReviewFamilySeries } from "./financial-review-family-seri
 
 export interface ReviewFamilySegment {
   familyId: string;
-  difference: string;
-  runningDifference: string;
+  sourceGap: string;
+  runningSourceGap: string;
   top: number;
   height: number;
   runningY: number;
@@ -42,8 +42,8 @@ interface ExactChartPoint {
 
 interface ExactFamilySegment {
   familyId: string;
-  difference: string;
-  runningDifference: string;
+  sourceGap: string;
+  runningSourceGap: string;
   start: string;
   end: string;
 }
@@ -97,16 +97,16 @@ function familyStacks(
     const segments = series.map((family, index) => {
       const familyPoint = familyPoints[index].get(point.month);
       if (!familyPoint) throw new Error("Family chart month is missing");
-      const difference = exactAmount(familyPoint.difference);
-      const runningDifference = exactAmount(familyPoint.runningDifference);
-      monthly = sumExactDecimals([monthly, difference]) ?? "0";
-      running = sumExactDecimals([running, runningDifference]) ?? "0";
-      const isNegative = difference.startsWith("-");
+      const sourceGap = exactAmount(familyPoint.sourceGap);
+      const runningSourceGap = exactAmount(familyPoint.runningSourceGap);
+      monthly = sumExactDecimals([monthly, sourceGap]) ?? "0";
+      running = sumExactDecimals([running, runningSourceGap]) ?? "0";
+      const isNegative = sourceGap.startsWith("-");
       const start = isNegative ? negative : positive;
-      const end = sumExactDecimals([start, difference]) ?? "0";
+      const end = sumExactDecimals([start, sourceGap]) ?? "0";
       if (isNegative) negative = end;
       else positive = end;
-      return { familyId: family.id, difference, runningDifference, start, end };
+      return { familyId: family.id, sourceGap, runningSourceGap, start, end };
     });
     // Separate reads can briefly span different source revisions. Do not draw
     // colored components that disagree with the unchanged overview totals.
@@ -168,7 +168,7 @@ export function projectFinancialReviewChart(
     const { y, ticks } = chartScale([
       ...points.flatMap((point) => [point.monthly, point.running]),
       ...stacks.flatMap((segments) =>
-        segments.flatMap((segment) => [segment.start, segment.end, segment.runningDifference]),
+        segments.flatMap((segment) => [segment.start, segment.end, segment.runningSourceGap]),
       ),
     ]);
     const monthCount = points[points.length - 1].monthIndex + 1;
@@ -181,23 +181,25 @@ export function projectFinancialReviewChart(
         runningY: y(point.running),
         segments: stacks[index].map((segment) => ({
           familyId: segment.familyId,
-          difference: segment.difference,
-          runningDifference: segment.runningDifference,
+          sourceGap: segment.sourceGap,
+          runningSourceGap: segment.runningSourceGap,
           top: Math.min(y(segment.start), y(segment.end)),
           height: Math.abs(y(segment.start) - y(segment.end)),
-          runningY: y(segment.runningDifference),
+          runningY: y(segment.runningSourceGap),
         })),
       };
     }
     const families = (series ?? []).map((family, familyIndex) => ({
       id: family.id,
       label: family.label,
-      sourceOnlyLabel: family.sourceOnlyLabel,
+      unpairedSource: family.unpairedSource,
+      comparisonKind: family.comparisonKind,
+      comparisonNote: family.comparisonNote,
       color: family.color,
       dash: family.dash,
       lines: chartLines(
         points,
-        stacks.map((segments) => y(segments[familyIndex].runningDifference)),
+        stacks.map((segments) => y(segments[familyIndex].runningSourceGap)),
         monthCount,
       ),
     }));

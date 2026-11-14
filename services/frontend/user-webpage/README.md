@@ -302,19 +302,21 @@ completeness, zero reports, and agreement with their source inputs.
 Financial review shares Marketplace, Year, and the **Type families** checkbox menu across Finances,
 Data Kiosk, and SelBox categories. This menu selects detailed families from the shared taxonomy; its
 comparisons and charts keep those economic distinctions even when families share one broad browsing
-group. These selections scope the yearly totals, chart, monthly rows, running difference, and exact
-source drilldowns. Currency is resolved from the selected marketplace's period rows and shown as the
-amount unit, with a selector when several units exist. Changing marketplace clears the unit and open
-month. Scope survives navigation and reloads.
+group. One global definition applies across marketplaces, including unresolved families. These
+selections scope the yearly totals, chart, monthly rows, running source gap, and exact source
+drilldowns. Currency is resolved from the selected marketplace's period rows and shown as the amount
+unit, with a selector when several units exist. Changing marketplace clears the unit and open month.
+Scope survives navigation and reloads.
 
-The chart combines signed family bars with running lines, numeric readouts, and keyboard/touch month
-navigation. Saved snapshots retain their complete historical scope when current-source comparisons
-are filtered. The
-[overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details) defines
-filtering, chart, coverage, and drawer behavior; the
+The family breakdown separates paired comparisons, different reporting bases and unpaired activity.
+An undefined counterpart says No mapped type, not zero. The chart preserves all signed contributions
+to the source total gap, with running lines, numeric readouts and keyboard/touch month navigation.
+Saved snapshots retain their complete historical scope when current-source comparisons are filtered.
+The [overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details)
+defines filtering, chart, coverage, and drawer behavior; the
 [family contract](../../../docs/financial_review.md#type-family-comparison-and-source-lookup)
-defines memberships and comparison limits. Source-only coverage does not by itself establish an
-error.
+defines memberships and comparison limits. Unpaired activity has no verified mapping for its
+complete family; an embedded counterpart may exist for part of it.
 
 Review links use `reviewMarketplace`, separately from repeated table `marketplace` filters. Report
 links require their exact ID, company, dates, currency, and `reportMarketplace`; an empty
