@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { deferred } from "./fixtures.mjs";
-import { selectColumnOptions } from "./table-actions.mjs";
 import {
   closeCompanyCreation,
   companyCreation,
@@ -51,18 +50,11 @@ test("administrator explicitly deletes an unused company and all company pickers
   page,
 }) => {
   const fixture = await start(page);
-  await selectColumnOptions(page, "Company", ["Unused Company"]);
-  await expect(
-    page.getByRole("button", { name: "Remove Company: Unused Company", exact: true }),
-  ).toBeVisible();
   await askToDelete(page);
   expect(fixture.companyDeletionRequests).toHaveLength(0);
   await button(confirmation(page), "Cancel").click();
   await expect(confirmation(page)).toHaveCount(0);
   await deleteConfirmed(page);
-  await expect(
-    page.getByRole("button", { name: "Remove Company: Unused Company", exact: true }),
-  ).toHaveCount(0);
   await expect(row(page, "Alpha Company")).toBeVisible();
   await expect(
     page.getByRole("status").filter({ hasText: "Company deleted: Unused Company" }),

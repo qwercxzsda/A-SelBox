@@ -46,7 +46,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.table-card td[data-column="sku"] {
+.table-card td[data-column="sku"],
+.table-card[data-dataset="accounts"] td[data-column="email"] {
   font-weight: 500;
 }
 

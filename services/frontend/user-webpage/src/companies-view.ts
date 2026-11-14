@@ -8,7 +8,6 @@ export interface CompanyListState {
   pageSize: number;
   pageIndex: number;
   selected: string | null;
-  companyIds: string[];
   sortColumn: CompanySortColumn;
   sortDirection: "asc" | "desc";
 }
@@ -24,13 +23,6 @@ export function decodeCompanyList(value: unknown): CompanyListState {
         ? Math.max(0, saved.pageIndex)
         : 0,
     selected: typeof saved.selected === "string" && saved.selected.length ? saved.selected : null,
-    companyIds: Array.isArray(saved.companyIds)
-      ? [
-          ...new Set(
-            saved.companyIds.filter((id): id is string => typeof id === "string" && id.length > 0),
-          ),
-        ]
-      : [],
     sortColumn: saved.sortColumn === "skus" ? "skus" : "name",
     sortDirection: saved.sortDirection === "desc" ? "desc" : "asc",
   };

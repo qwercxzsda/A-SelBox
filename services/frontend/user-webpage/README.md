@@ -185,9 +185,9 @@ option search, includes available staged SKUs, and preserves the spelling and wh
 SKU. SKU selections intersect with text search and the other filters before pagination. Changes
 return to page one while retaining drafts and folding choices; applied chips remove selections
 individually. Marketplace matches include both configured periods and required coverage; details
-retain the full configuration. Companies supports company selection and ordering by name or
-assigned-SKU count. These selections combine with search before pagination and persist through tab
-changes and reloads.
+retain the full configuration. Companies supports search and ordering by name or assigned-SKU count.
+Its column menus contain ordering controls only. Search and ordering apply before pagination and
+persist through tab changes and reloads.
 
 Add company opens a compact dialog from the page header or an existing setup shortcut. Entered names
 remain available across navigation, creation feedback stays in the dialog, and returning to the

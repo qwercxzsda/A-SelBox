@@ -67,10 +67,8 @@ export function Companies({
   }, [identity.assignments]);
   const query = state.search.trim().toLocaleLowerCase();
   const filtered = orderCompanies(
-    companies.filter(
-      (company) =>
-        (!state.companyIds.length || state.companyIds.includes(company.id)) &&
-        [company.name, company.id].some((value) => value.toLocaleLowerCase().includes(query)),
+    companies.filter((company) =>
+      [company.name, company.id].some((value) => value.toLocaleLowerCase().includes(query)),
     ),
     assignments,
     state,
@@ -105,7 +103,6 @@ export function Companies({
     setState((current) => ({
       ...current,
       search: "",
-      companyIds: [],
       pageIndex: Math.floor(
         orderCompanies(updated, assignments, current).findIndex(({ id }) => id === company.id) /
           current.pageSize,
@@ -204,7 +201,6 @@ export function Companies({
         items="companies"
       />
       <CompanyTable
-        companies={companies}
         visible={visible}
         assignments={assignments}
         state={state}
@@ -216,7 +212,7 @@ export function Companies({
           labels={{
             navigation: "Company list navigation at bottom",
             items: "companies",
-            back: "Back to company filters",
+            back: "Back to company controls",
           }}
           pageIndex={pageIndex}
           pageCount={pageCount}
@@ -257,11 +253,7 @@ export function Companies({
               setNotice(
                 `${deleted ? "Company deleted" : "Company already deleted"}: ${company.name}`,
               );
-              setState((current) => ({
-                ...current,
-                companyIds: current.companyIds.filter((id) => id !== company.id),
-                selected: null,
-              }));
+              change({ selected: null });
             }}
           />
         ) : null}

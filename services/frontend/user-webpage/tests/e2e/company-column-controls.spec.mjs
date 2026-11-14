@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { skuAssignment } from "./api-fixtures.mjs";
-import { columnHeader, openColumn, selectColumnOptions, sortBy } from "./table-actions.mjs";
+import { columnHeader, openColumn, sortBy } from "./table-actions.mjs";
 import {
   closeCompanyDetails,
   companyDrawer,
@@ -49,12 +49,22 @@ async function setup(page, many = false) {
   return fixture;
 }
 
-test("company filters and deduplicated SKU ordering apply before paging and survive reload", async ({
+test("company controls offer ordering only while search and deduplicated SKU ordering persist through paging and reload", async ({
   page,
 }) => {
   const fixture = await setup(page, true);
   const search = page.getByLabel("Search companies", { exact: true });
   await expect(summary(page)).toHaveText("1–25 of 30 companies");
+  const menu = await openColumn(page, "Company");
+  await expect(menu.getByRole("button", { name: "A to Z", exact: true })).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Z to A", exact: true })).toBeVisible();
+  await expect(menu.getByRole("checkbox")).toHaveCount(0);
+  await expect(menu.getByRole("textbox")).toHaveCount(0);
+  await expect(menu.getByRole("button", { name: "Clear company", exact: true })).toHaveCount(0);
+  await menu.getByRole("button", { name: "Close options", exact: true }).click();
+  await expect(
+    page.getByRole("group", { name: "Applied company filters", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(summary(page)).toHaveText("26–30 of 30 companies");
 
@@ -64,56 +74,74 @@ test("company filters and deduplicated SKU ordering apply before paging and surv
   await expect(names(page).nth(1)).toHaveText("Alpha Company");
   await expect(names(page).nth(2)).toHaveText("Beta Company");
   await expect(companyRow(page, "Alpha Company").locator(".numeric")).toHaveText("2");
-
-  await selectColumnOptions(page, "Company", ["Alpha Company", "Gamma Company"]);
-  await expect(names(page)).toHaveText(["Gamma Company", "Alpha Company"]);
-  await expect(summary(page)).toHaveText("1–2 of 2 companies");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await search.fill("Company");
-  const applied = page.getByRole("group", { name: "Applied company filters", exact: true });
-  await applied
-    .getByRole("button", { name: "Remove Company: Alpha Company", exact: true })
-    .press("Enter");
-  await expect(search).toBeFocused();
-  await expect(search).toHaveValue("Company");
-  await expect(names(page)).toHaveText(["Gamma Company"]);
-  await expect(summary(page)).toHaveText("1–1 of 1 companies");
-  await expect(
-    applied.getByRole("button", { name: "Remove Company: Alpha Company", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    applied.getByRole("button", { name: "Remove Company: Gamma Company", exact: true }),
-  ).toBeVisible();
-  await expect(columnHeader(companies(page), "Assigned SKUs")).toHaveAttribute(
-    "aria-sort",
-    "descending",
-  );
-  await selectColumnOptions(page, "Company", ["Alpha Company"]);
-  await expect(names(page)).toHaveText(["Gamma Company", "Alpha Company"]);
+  await expect(names(page)).toHaveText([
+    "Gamma Company",
+    "Alpha Company",
+    "Beta Company",
+    "Zero Company",
+  ]);
+  await expect(summary(page)).toHaveText("1–4 of 4 companies");
   await page.reload();
-  await expect(names(page)).toHaveText(["Gamma Company", "Alpha Company"]);
+  await expect(names(page)).toHaveText([
+    "Gamma Company",
+    "Alpha Company",
+    "Beta Company",
+    "Zero Company",
+  ]);
   await expect(search).toHaveValue("Company");
   await expect(columnHeader(companies(page), "Assigned SKUs")).toHaveAttribute(
     "aria-sort",
     "descending",
   );
+
   await search.fill("Alpha");
   await expect(names(page)).toHaveText(["Alpha Company"]);
   await expect(summary(page)).toHaveText("1–1 of 1 companies");
-  await page.getByRole("button", { name: "Clear search", exact: true }).click();
-  await expect(names(page)).toHaveText(["Gamma Company", "Alpha Company"]);
+  await search.fill("No such company");
+  await expect(page.getByText("No companies match this search.", { exact: true })).toBeVisible();
+  await page
+    .getByRole("region", { name: "Companies table", exact: true })
+    .getByRole("button", { name: "Clear search", exact: true })
+    .press("Enter");
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue("");
+  await expect(summary(page)).toHaveText("1–25 of 30 companies");
+  await expect(names(page).first()).toHaveText("Gamma Company");
+  await expect(columnHeader(companies(page), "Assigned SKUs")).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
 
-  await sortBy(page, "Company", "A to Z");
-  await expect(names(page)).toHaveText(["Alpha Company", "Gamma Company"]);
+  await search.fill("Company");
+  await sortBy(page, "Company", "Z to A");
+  await expect(names(page)).toHaveText([
+    "Zero Company",
+    "Gamma Company",
+    "Beta Company",
+    "Alpha Company",
+  ]);
   await page.reload();
-  await expect(names(page)).toHaveText(["Alpha Company", "Gamma Company"]);
-  await expect(columnHeader(companies(page), "Company")).toHaveAttribute("aria-sort", "ascending");
-  const menu = await openColumn(page, "Company");
-  for (const name of ["Alpha Company", "Gamma Company"])
-    await expect(menu.getByRole("checkbox", { name, exact: true })).toBeChecked();
-  await menu.getByRole("button", { name: "Clear company", exact: true }).click();
-  await menu.getByRole("button", { name: "Close options", exact: true }).click();
+  await expect(names(page)).toHaveText([
+    "Zero Company",
+    "Gamma Company",
+    "Beta Company",
+    "Alpha Company",
+  ]);
+  await expect(search).toHaveValue("Company");
+  await expect(columnHeader(companies(page), "Company")).toHaveAttribute("aria-sort", "descending");
+  await sortBy(page, "Company", "A to Z");
+  await expect(names(page)).toHaveText([
+    "Alpha Company",
+    "Beta Company",
+    "Gamma Company",
+    "Zero Company",
+  ]);
+  await page.getByRole("button", { name: "Clear search", exact: true }).click();
   await expect(summary(page)).toHaveText("1–25 of 30 companies");
   await expect(names(page).first()).toHaveText("Alpha Company");
+  await expect(columnHeader(companies(page), "Company")).toHaveAttribute("aria-sort", "ascending");
   expect(fixture.companyCreationRequests).toHaveLength(0);
   expect(fixture.companyDeletionRequests).toHaveLength(0);
 });
@@ -145,7 +173,9 @@ test("company rows open a detail drawer by pointer or keyboard and restore focus
   await expect(companyRow(page, "Alpha Company")).toBeFocused();
 });
 
-test("long company lists offer bottom paging and a focused return to filters", async ({ page }) => {
+test("long company lists offer bottom paging and a focused return to controls", async ({
+  page,
+}) => {
   await setup(page, true);
   const controls = page.getByRole("group", { name: "Company list controls", exact: true });
   const bottom = page.getByRole("navigation", {
@@ -158,7 +188,7 @@ test("long company lists offer bottom paging and a focused return to filters", a
   await expect(controls).toBeInViewport();
   await bottom.getByRole("button", { name: "Previous companies", exact: true }).click();
   await expect(summary(page)).toHaveText("1–25 of 30 companies");
-  await bottom.getByRole("button", { name: "Back to company filters", exact: true }).click();
+  await bottom.getByRole("button", { name: "Back to company controls", exact: true }).click();
   await expect(controls).toBeFocused();
   await expect(controls).toBeInViewport();
 });
