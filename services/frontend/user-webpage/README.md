@@ -130,6 +130,40 @@ currency, and UTC period. Every summary and record list uses the same timestamp 
 Selecting a type or broad group narrows its record list; Show all records and Back to amounts
 preserve a clear return path.
 
+The summary heading switches between Current totals, Daily trends, and Weekly trends. Trends use one
+full-width card with a taller chart row for each marketplace, keeping currencies separate. Daily
+trends default to the 30 UTC days through Last day; weekly trends default to the twelve complete
+calendar months through Last month. Both use the same account-visible anchor as current totals.
+Explicit date filters replace the default range, including open-ended ranges; clearing dates
+restores the default. Weeks start on Monday, and boundary weeks include only the selected dates.
+
+All three views share Current totals' marketplace order, including when filters change or a trend
+view is restored on reload. Trend-range activity does not change that order.
+
+Trend bars use the same broad groups as Type filters and Amounts by type. Groups with nonzero
+service fees split into solid reported contributions and hatched fee contributions, with positive
+and negative amounts stacked separately. The parts sum to the company's amount; a single black line
+connects each period's company total without accumulating periods. Groups with zero fees retain one
+solid bar. When company amounts are incomplete, bars include only calculated contributions: the
+solid portion is the exact known company amount minus the known service fee. The details retain all
+matching Reported amount, Service fee, and Company amount values in separate columns, with company
+amounts emphasized and unknown values distinguished from zero. On phones, each type-group name sits
+above its three amount columns so the values remain visible without horizontal scrolling. There is
+no amount selector.
+
+All filters and search apply to the complete aggregate, independent of transaction table paging.
+Search & filters moves to the record controls, and Back to summaries returns to the selected view.
+Empty marketplaces remain in the shared order with a compact inline status. Hovering or focusing a
+period shows its exact amounts; the chart has one keyboard entry point with Left/Right/Home/End
+navigation. Previous/Next and the date selector also move between periods. Selecting a period brings
+it into view horizontally while leaving the page in place; the currency and amount axis stay visible
+on narrow screens. Explicit period and type-group detail actions provide alternatives to small bars.
+Bar and group actions open Transaction totals for the exact period, marketplace, currency, and
+filters, expanding and focusing the matching Amounts by type group. Records retain that scope. Empty
+periods have zero activity, and the selected-period group table includes only groups with
+transactions, including real zero-amount rows. Financial review and transaction trends share chart
+rendering while retaining their own amounts and grouping semantics.
+
 Transactions, Finances, and Data Kiosk use UTC timestamps for display, date filtering, and ordering.
 Finances retains the actual posting instant. A Data Kiosk daily component is booked at the last
 microsecond before the next midnight in its marketplace's time zone, then displayed in UTC. This is

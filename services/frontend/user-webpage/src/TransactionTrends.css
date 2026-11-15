@@ -1,0 +1,71 @@
+.transaction-summary-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.transaction-summary-views > button {
+  min-height: 34px;
+}
+.transaction-trends-card {
+  display: block;
+}
+.transaction-trends-card .totals-card-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.transaction-trends-marketplace {
+  min-width: 0;
+  border-top: 1px solid var(--ui-border);
+}
+.transaction-trends-market-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 40px;
+  padding: 10px 12px;
+  background: var(--ui-surface-header);
+}
+.transaction-trends-market-heading .totals-empty-value {
+  text-align: right;
+}
+.transaction-trends-marketplace[data-empty] .totals-marketplace-name {
+  color: var(--ui-text-muted);
+}
+.transaction-trends-marketplace:last-child .transaction-trends-market-heading:only-child {
+  border-radius: 0 0 var(--ui-radius) var(--ui-radius);
+}
+.transaction-trends-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .transaction-summary-views {
+    width: 100%;
+  }
+  .transaction-summary-views > button {
+    flex: 1;
+    min-height: 44px;
+  }
+  .transaction-summary-views .mantine-Button-label {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .transaction-trends-actions > button {
+    min-height: 44px;
+  }
+  .transaction-trends-actions {
+    justify-content: space-between;
+  }
+  .transaction-trends-card .totals-card-heading {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
+  }
+  .transaction-trends-card .totals-date-control {
+    justify-self: start;
+  }
+}

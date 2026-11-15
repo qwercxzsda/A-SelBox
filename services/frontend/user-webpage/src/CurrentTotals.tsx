@@ -1,12 +1,11 @@
 import type { MarketplaceSummary, OpenSummaryBreakdown, SummaryState } from "./summary-types";
-import { Alert, Button, Group, Modal, Text, Title } from "@mantine/core";
-import { useState, type CSSProperties } from "react";
-import { DateFilter } from "./DateFilter";
-import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
+import { Alert, Button, Group, Title } from "@mantine/core";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import type { SummaryFilter } from "./SummaryFilters";
 import { MarketplaceTotalsTable } from "./MarketplaceTotalsTable";
 import { TotalsDateControl } from "./TotalsDateControl";
-import { HelpPopover } from "./HelpPopover";
-import { LoadingStatus } from "./LoadingStatus";
+import { TransactionSummaryHeading } from "./TransactionSummaryHeading";
+import { SummaryDatePicker } from "./SummaryDatePicker";
 import {
   TOTALS_PERIODS,
   TOTALS_PERIOD_LABELS,
@@ -24,6 +23,7 @@ interface CurrentTotalsProps {
   onDatesChange: (range: DateRange) => void;
   onOpenBreakdown: OpenSummaryBreakdown;
   appliedFilters: SummaryFilter[];
+  controls: ReactNode;
 }
 
 export function CurrentTotals({
@@ -35,6 +35,7 @@ export function CurrentTotals({
   onDatesChange,
   onOpenBreakdown,
   appliedFilters,
+  controls,
 }: CurrentTotalsProps) {
   const [choosingDates, setChoosingDates] = useState(false);
   const errors = [
@@ -45,12 +46,14 @@ export function CurrentTotals({
 
   return (
     <section className="current-totals" aria-label="Current totals" aria-busy={loading}>
-      <div className="totals-heading">
-        <div className="totals-heading-title">
-          <Title order={3} className="totals-section-title">
-            Current totals
-          </Title>
-          <HelpPopover label="Current totals help">
+      <TransactionSummaryHeading
+        title="Current totals"
+        count={groups.length}
+        loading={loading}
+        controls={controls}
+        appliedFilters={appliedFilters}
+        help={
+          <>
             <p>
               Totals sum the matching transactions from Finances and Data Kiosk. Select a company
               amount to open its breakdown and records.
@@ -64,18 +67,9 @@ export function CurrentTotals({
               periods; Selected dates uses the transaction list's date range.
             </p>
             <p>Records missing ownership or fees are excluded from known company amounts.</p>
-          </HelpPopover>
-          <span className="totals-market-count">
-            {groups.length} {groups.length === 1 ? "marketplace" : "marketplaces"}
-          </span>
-          <LoadingStatus state={loading ? "updating" : null} />
-        </div>
-      </div>
-      {appliedFilters.length > 0 ? (
-        <div className="totals-scope">
-          <SummaryFilters filters={appliedFilters} compact />
-        </div>
-      ) : null}
+          </>
+        }
+      />
       {errors.length > 0 ? (
         <Alert color="red" role="alert" mb="sm">
           <Group justify="space-between" gap="xs">
@@ -132,32 +126,14 @@ export function CurrentTotals({
           );
         })}
       </div>
-      <Modal
+      <SummaryDatePicker
         opened={choosingDates}
         onClose={() => {
           setChoosingDates(false);
         }}
-        title="Choose summary dates"
-        closeButtonProps={{ "aria-label": "Close summary dates" }}
-        centered
-      >
-        <Text size="sm" c="dimmed" mb="sm">
-          These UTC dates also filter the transaction list.
-        </Text>
-        <DateFilter
-          filter={{
-            kind: "date",
-            from: dateRange.from,
-            to: dateRange.to,
-            onChange: (from, to) => {
-              onDatesChange({ from, to });
-            },
-          }}
-          onClose={() => {
-            setChoosingDates(false);
-          }}
-        />
-      </Modal>
+        dateRange={dateRange}
+        onDatesChange={onDatesChange}
+      />
     </section>
   );
 }

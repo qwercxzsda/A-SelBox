@@ -1,6 +1,18 @@
 import { sumExactDecimals } from "../../src/decimal.ts";
 import { filterRecordRows } from "./record-fixtures.mjs";
 
+export function sumAggregateRows(rows) {
+  return {
+    reported_amount: sumExactDecimals(rows.map((row) => row.reported_amount)),
+    service_fee: sumExactDecimals(rows.map((row) => row.service_fee)),
+    company_amount: sumExactDecimals(rows.map((row) => row.company_amount)),
+    row_count: rows.reduce((count, row) => count + BigInt(row.row_count), 0n).toString(),
+    known_company_count: rows
+      .reduce((count, row) => count + BigInt(row.known_company_count), 0n)
+      .toString(),
+  };
+}
+
 export function periodBucketTotals(rows, params) {
   const bounds = params.getAll("activity_at");
   if (!bounds.some((bound) => /^(gte|lte|lt)\./.test(bound))) {
@@ -18,13 +30,7 @@ export function periodBucketTotals(rows, params) {
     return {
       marketplace_name: marketplace,
       currency,
-      reported_amount: sumExactDecimals(group.map((row) => row.reported_amount)),
-      service_fee: sumExactDecimals(group.map((row) => row.service_fee)),
-      company_amount: sumExactDecimals(group.map((row) => row.company_amount)),
-      row_count: group.reduce((count, row) => count + BigInt(row.row_count), 0n).toString(),
-      known_company_count: group
-        .reduce((count, row) => count + BigInt(row.known_company_count), 0n)
-        .toString(),
+      ...sumAggregateRows(group),
     };
   });
 }

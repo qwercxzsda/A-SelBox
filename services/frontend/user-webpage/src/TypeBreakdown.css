@@ -14,6 +14,12 @@
   min-width: 0;
 }
 
+.type-breakdown-control {
+  scroll-margin-top: calc(
+    var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px
+  );
+}
+
 .type-breakdown-chevron {
   margin-inline-start: 12px;
 }

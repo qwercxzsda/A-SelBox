@@ -17,7 +17,7 @@ const month = (page, abbreviation, name) =>
     name: `${abbreviation}: View chart details for ${name}`,
     exact: true,
   });
-const segment = (point, id) => point.locator(`.financial-review-trend-bar[data-family-id="${id}"]`);
+const segment = (point, id) => point.locator(`.amount-trend-bar[data-family-id="${id}"]`);
 
 async function seriesIds(locator) {
   return locator.evaluateAll((elements) =>
@@ -48,7 +48,7 @@ test("family bars stack positive and negative differences separately and describ
     /^March 2026: Monthly source gap 0\.00 USD; Running source gap -7\.01 USD(?:\n|$)/,
   );
 
-  const zero = await chart(page).locator(".financial-review-zero-line").boundingBox();
+  const zero = await chart(page).locator(".amount-trend-zero-line").boundingBox();
   const negative = await segment(february, "monthly-storage").boundingBox();
   const positives = await Promise.all(
     ["aged-storage", "sponsored-products"].map((id) => segment(february, id).boundingBox()),
@@ -74,7 +74,7 @@ test("family bars stack positive and negative differences separately and describ
   expect(Math.abs(offsettingNegative.y - zero.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(offsettingPositive.height - offsettingNegative.height)).toBeLessThanOrEqual(1);
 
-  const lines = chart(page).locator(".financial-review-family-line[data-family-id]");
+  const lines = chart(page).locator(".amount-trend-family-line[data-family-id]");
   await expect
     .poll(() => seriesIds(lines))
     .toEqual([
@@ -126,7 +126,7 @@ test("family colors and legend identities remain stable when selecting and clear
     .poll(() => seriesIds(legend(page).locator("[data-family-id]")))
     .toEqual(["monthly-storage", "sponsored-products"]);
   await expect
-    .poll(() => seriesIds(chart(page).locator(".financial-review-family-line[data-family-id]")))
+    .poll(() => seriesIds(chart(page).locator(".amount-trend-family-line[data-family-id]")))
     .toEqual(["monthly-storage", "sponsored-products"]);
   await expect(segment(february, "aged-storage")).toHaveCount(0);
   for (const id of ["monthly-storage", "sponsored-products"])
@@ -214,8 +214,8 @@ test("inconsistent family aggregates keep total values visible until a coordinat
     "title",
     /^February 2026: Monthly source gap 3\.99 USD; Running source gap -7\.01 USD(?:\n|$)/,
   );
-  await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(0);
-  await expect(figure.locator(".financial-review-family-line[data-family-id]")).toHaveCount(0);
+  await expect(figure.locator(".amount-trend-bar[data-family-id]")).toHaveCount(0);
+  await expect(figure.locator(".amount-trend-family-line[data-family-id]")).toHaveCount(0);
   await expect(legend(page)).toHaveCount(0);
   fixture.financialReviewTypeTotals.find(
     (row) =>
@@ -262,7 +262,7 @@ test("unpaired-only selections retain their signed gap contributions without a r
     await expect(
       figure.getByRole("button", { name: "Retry family chart", exact: true }),
     ).toHaveCount(0);
-    await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(1);
+    await expect(figure.locator(".amount-trend-bar[data-family-id]")).toHaveCount(1);
     await clearFamilies(page);
   }
 });
@@ -285,7 +285,7 @@ test("sales with a different reporting basis remain plotted and explicitly ident
   await expect(figure.getByRole("button", { name: "Retry family chart", exact: true })).toHaveCount(
     0,
   );
-  await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(1);
+  await expect(figure.locator(".amount-trend-bar[data-family-id]")).toHaveCount(1);
 });
 
 for (const [source, sourceKey, gap] of [
@@ -316,6 +316,6 @@ for (const [source, sourceKey, gap] of [
     await expect(
       figure.getByRole("button", { name: "Retry family chart", exact: true }),
     ).toHaveCount(0);
-    await expect(figure.locator(".financial-review-trend-bar[data-family-id]")).toHaveCount(1);
+    await expect(figure.locator(".amount-trend-bar[data-family-id]")).toHaveCount(1);
   });
 }

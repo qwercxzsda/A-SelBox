@@ -3,6 +3,7 @@ import { transactionFilterParams } from "../transaction-page-fixtures.mjs";
 import { timestampedTransaction } from "../transaction-time-fixtures.mjs";
 import { LIVE_COLUMNS, liveRow } from "../api-fixtures.mjs";
 import { periodBucketTotals } from "../aggregate-fixtures.mjs";
+import { respondWithTransactionTrends } from "./transaction-trends.mjs";
 
 export async function respondWithLatestDate(fixture, { request, url, user, reply }) {
   const args = request.postDataJSON();
@@ -29,6 +30,8 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
   if (request.method() !== "POST" || request.headers().prefer)
     throw new Error("Summary RPC must use POST without an exact-count request");
   const args = request.postDataJSON();
+  if (args.p_granularity)
+    return respondWithTransactionTrends(fixture, { request, url, user, reply });
   const breakdown = args.p_group_by_type;
   const params = transactionFilterParams(args);
   params.set("offset", String(args.p_offset));

@@ -4,6 +4,7 @@ import {
   decodeDetailPage,
   decodeRecordSelection,
   decodeSummaryBreakdown,
+  summaryBreakdownKey,
 } from "../src/detail-view-state.ts";
 
 test("restored summary scope excludes cached amounts and validates query bounds", () => {
@@ -28,10 +29,13 @@ test("restored summary scope excludes cached amounts and validates query bounds"
   const restored = decodeSummaryBreakdown(input);
   assert.deepEqual(restored.period, { label: "June 2026", range: input.period.range });
   assert.deepEqual(restored.scope, input.scope);
-  for (const title of ["Last day", "Last month", "Selected dates"])
+  for (const title of ["Last day", "Last month", "Selected dates", "Daily trends", "Weekly trends"])
     assert.equal(decodeSummaryBreakdown({ ...input, title }).title, title);
   for (const invalid of [
     { ...input, currency: "usd" },
+    { ...input, focusedGroup: "not-a-group" },
+    { ...input, focusedGroup: null },
+    { ...input, focusedGroup: ["inventory"] },
     { ...input, scope: { ...input.scope, companyIds: ["not-a-company"] } },
     { ...input, scope: { ...input.scope, skus: ["SKU", "SKU"] } },
     { ...input, scope: { ...input.scope, marketplaces: [] } },
@@ -39,6 +43,16 @@ test("restored summary scope excludes cached amounts and validates query bounds"
     { ...input, period: { ...input.period, range: { from: "2026-02-30", to: "2026-03-01" } } },
   ])
     assert.equal(decodeSummaryBreakdown(invalid), null);
+  for (const focusedGroup of ["sales", "inventory", "seller-costs"]) {
+    const focused = decodeSummaryBreakdown({ ...input, title: "Daily trends", focusedGroup });
+    assert.equal(focused.focusedGroup, focusedGroup);
+    assert.deepEqual(focused.scope, input.scope);
+    assert.notEqual(summaryBreakdownKey(focused), summaryBreakdownKey(restored));
+  }
+  assert.notEqual(
+    summaryBreakdownKey({ ...restored, focusedGroup: "sales" }),
+    summaryBreakdownKey({ ...restored, focusedGroup: "inventory" }),
+  );
 });
 
 test("reload retains the page/filter generation while invalid state is discarded", () => {

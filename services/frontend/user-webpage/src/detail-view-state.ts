@@ -5,6 +5,8 @@ import { requireDateRange } from "./api/filters.ts";
 import { isCurrency, isJsonObject, isUuid } from "./api/validation.ts";
 import marketplaces from "./generated/marketplaces.json" with { type: "json" };
 import { TOTALS_PERIOD_LABELS } from "./summary-periods.ts";
+import { TRANSACTION_TYPE_GROUPS, type TypeGroupId } from "./transaction-type-families.ts";
+import { TRANSACTION_TREND_LABELS } from "./transaction-trend-periods.ts";
 
 /** Persist the chosen scope, never a fetched financial result. */
 export interface SummaryBreakdownSelection {
@@ -12,6 +14,7 @@ export interface SummaryBreakdownSelection {
   title: string;
   currency: string;
   scope: TransactionSummaryScope;
+  focusedGroup?: TypeGroupId;
 }
 
 export function decodeDetailStrings(value: unknown): string[] {
@@ -58,7 +61,9 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     value.scope.search.length > 4096 ||
     value.scope.search.includes("\0") ||
     typeof value.title !== "string" ||
-    !Object.values(TOTALS_PERIOD_LABELS).includes(value.title) ||
+    ![...Object.values(TOTALS_PERIOD_LABELS), ...Object.values(TRANSACTION_TREND_LABELS)].includes(
+      value.title,
+    ) ||
     !isCurrency(value.currency) ||
     typeof value.period.label !== "string" ||
     value.period.label.length > 256 ||
@@ -66,6 +71,8 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     typeof value.period.range.to !== "string"
   )
     return null;
+  const focusedGroup = TRANSACTION_TYPE_GROUPS.find((group) => group.id === value.focusedGroup)?.id;
+  if (value.focusedGroup !== undefined && focusedGroup === undefined) return null;
   const { from, to } = value.period.range;
   if (!from && !to) return null;
   try {
@@ -107,9 +114,10 @@ export function decodeSummaryBreakdown(value: unknown): SummaryBreakdownSelectio
     currency: value.currency,
     scope,
     period: { label: value.period.label, range: { from, to } },
+    ...(focusedGroup ? { focusedGroup } : {}),
   };
 }
 
 export function summaryBreakdownKey(value: SummaryBreakdownSelection | null): string {
-  return `summary:${JSON.stringify(value && [value.period.range, value.currency, value.scope])}`;
+  return `summary:${JSON.stringify(value && [value.period.range, value.currency, value.scope, value.focusedGroup])}`;
 }

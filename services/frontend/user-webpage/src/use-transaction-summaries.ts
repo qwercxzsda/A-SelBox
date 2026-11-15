@@ -131,6 +131,9 @@ export function useTransactionSummaries(
     }),
   );
   return {
+    latestDate: latest.data ?? null,
+    latestPending: latest.isPending,
+    latestError: discoveryError,
     scope,
     dateRange,
     groups: sortMarketplaceSummaries(groups),

@@ -11,6 +11,32 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 class SourcePageBenchmarkPlanTests(SourceModelFixture):
+    def test_totals_plans_bind_daily_and_weekly_buckets_under_rls(self) -> None:
+        company, _ = self.owner()
+        self.finances([self.transaction("100")])
+        self.kiosk(1, [self.component()])
+        actors = (self.administrator(), self.member(company))
+        self.connection.commit()
+        for actor, granularity in product(actors, (None, "day", "week")):
+            with self.subTest(actor=actor, granularity=granularity):
+                plan = explain_rpc(
+                    self.connection,
+                    actor,
+                    "transaction_totals",
+                    {
+                        "p_date_from": "2026-06-15",
+                        "p_date_to": "2026-06-16",
+                        "p_granularity": granularity,
+                    },
+                )
+                self.assertEqual(plan["rpc"], "transaction_totals")
+                scanned = {
+                    item.get("Relation Name")
+                    for item in [*plan["index_nodes"], *plan["relation_scans"]]
+                }
+                self.assertIn("finances_transaction_components", scanned)
+                self.assertIn("data_kiosk_day_components", scanned)
+
     def test_installed_source_pages_explain_for_both_datasets_and_orders(self) -> None:
         self.owner()
         self.finances([self.transaction("100"), self.transaction("20", 4)])

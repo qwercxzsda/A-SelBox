@@ -1,3 +1,12 @@
+.transaction-summary-region {
+  min-width: 0;
+  scroll-margin-top: 16px;
+}
+.transaction-summary-region:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 4px;
+}
+
 .loading-state,
 .empty-state {
   display: grid;

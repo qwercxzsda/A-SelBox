@@ -1,0 +1,153 @@
+.amount-trend-plot {
+  position: relative;
+  height: 190px;
+  margin: 28px 0 28px 50px;
+}
+.amount-trend-zero-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--ui-text-muted);
+}
+.amount-trend-axis-label {
+  position: absolute;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+.amount-trend-axis-currency {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -20px;
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+.amount-trend-line {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+.amount-trend-total-line {
+  stroke: var(--ui-text);
+  stroke-width: 2.5;
+}
+.amount-trend-family-line {
+  stroke-width: 1.8;
+  opacity: 0.55;
+}
+.amount-trend-period {
+  position: absolute;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text-muted);
+  cursor: pointer;
+}
+.amount-trend-period:hover {
+  background: var(--ui-hover-tint);
+}
+.amount-trend-period[data-inspected] {
+  background: var(--ui-hover-tint);
+}
+.amount-trend-period[data-inspected] .amount-trend-period-label {
+  color: var(--ui-accent);
+  font-weight: 600;
+}
+.amount-trend-period:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.amount-trend-bar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(24px, 42%);
+  background: var(--mantine-color-blue-3);
+  border-radius: 2px;
+}
+.amount-trend-bar[data-family-id] {
+  border-radius: 0;
+  box-shadow: inset 0 0 0 0.5px var(--ui-surface);
+  opacity: 0.8;
+}
+.amount-trend-period:is(:hover, :focus-visible) .amount-trend-bar {
+  opacity: 1;
+}
+.amount-trend-family-dot {
+  position: absolute;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: 0.55;
+  z-index: 3;
+  pointer-events: none;
+}
+.amount-trend-dot {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--ui-text);
+  border-radius: 50%;
+  background: var(--ui-surface);
+  z-index: 3;
+}
+.amount-trend-period-label,
+.amount-trend-gap {
+  position: absolute;
+  top: calc(100% + 8px);
+  text-align: center;
+  font-size: 12px;
+}
+.amount-trend-period-label {
+  left: 0;
+  right: 0;
+}
+.amount-trend-gap {
+  color: var(--ui-text-muted);
+}
+
+@media (max-width: 600px) {
+  .amount-trend-plot {
+    height: 155px;
+  }
+  .amount-trend-period-label,
+  .amount-trend-gap {
+    font-size: 10px;
+  }
+}
+
+.amount-trend-segment-action {
+  position: absolute;
+  transform: translateX(-50%);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 4;
+}
+.amount-trend-segment-action:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.amount-trend-segment-action:hover {
+  box-shadow: 0 0 0 1px var(--ui-text);
+}
+
+.amount-trend-bar[data-part="serviceFee"] {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(255 255 255 / 85%) 0,
+    rgb(255 255 255 / 85%) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}

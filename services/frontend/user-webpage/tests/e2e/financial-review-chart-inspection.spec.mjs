@@ -50,11 +50,9 @@ test("visible chart values follow hover, keyboard and the month selector while p
     .press("Enter");
   await expect(drawer).toBeHidden();
   await expect(open).toBeFocused();
-  await expect(chart(page).locator(".financial-review-axis-currency")).toHaveText("USD");
-  await expect(chart(page).locator(".financial-review-axis-label")).toHaveCount(3);
-  await expect(
-    chart(page).locator(".financial-review-axis-label[title='-20.01 USD']"),
-  ).toBeVisible();
+  await expect(chart(page).locator(".amount-trend-axis-currency")).toHaveText("USD");
+  await expect(chart(page).locator(".amount-trend-axis-label")).toHaveCount(3);
+  await expect(chart(page).locator(".amount-trend-axis-label[title='-20.01 USD']")).toBeVisible();
 });
 
 test("a long phone legend stays below the plot and expands without removing plotted families", async ({
@@ -69,13 +67,13 @@ test("a long phone legend stays below the plot and expands without removing plot
     "Showing 6 of 23 families, comparable scopes first. All 23 are plotted.",
   );
   await expect(legend.locator("li").first()).toHaveAttribute("data-family-id", "monthly-storage");
-  expect((await chart(page).locator(".financial-review-trend-plot").boundingBox()).y).toBeLessThan(
+  expect((await chart(page).locator(".amount-trend-plot").boundingBox()).y).toBeLessThan(
     (await legend.boundingBox()).y,
   );
   expect((await legend.boundingBox()).height).toBeLessThan(240);
   const plotted = () =>
     chart(page)
-      .locator(".financial-review-family-line")
+      .locator(".amount-trend-family-line")
       .evaluateAll((lines) => new Set(lines.map((line) => line.dataset.familyId)).size);
   expect(await plotted()).toBe(23);
   await chart(page)

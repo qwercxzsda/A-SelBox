@@ -114,7 +114,7 @@ public.payout_report_totals(uuid, boolean, integer, bigint) to authenticated;
 
 grant execute on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean, integer, bigint,
-    text[], text[], boolean, text[], text[], text[], text[]
+    text[], text[], boolean, text[], text[], text[], text[], text
 ) to authenticated;
 
 grant execute on function public.sku_filter_options() to authenticated;

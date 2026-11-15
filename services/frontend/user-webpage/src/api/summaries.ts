@@ -1,4 +1,8 @@
-import { decodeMarketplaceCurrencyTotals, decodeTypeTotals } from "./aggregates.ts";
+import {
+  decodeMarketplaceCurrencyTotals,
+  decodeTypeTotals,
+  decodeTransactionTrends,
+} from "./aggregates.ts";
 import { transactionFilterArguments } from "./transaction-page.ts";
 import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
 import { readOffsetRpcRows } from "./rpc-pagination.ts";
@@ -13,7 +17,14 @@ import type {
   PageResult,
   FetchTransactionPeriodTotalsOptions,
   FetchTransactionTypeTotalsOptions,
+  FetchTransactionTrendsOptions,
+  TransactionTrendTotal,
+  TransactionTrendGranularity,
 } from "./types.ts";
+
+type TotalGrouping =
+  | { p_currency: string | null; p_group_by_type: boolean }
+  | { p_granularity: TransactionTrendGranularity };
 
 function buildPeriodArguments(options: FetchTransactionPeriodTotalsOptions) {
   const { dateFrom, dateTo } = options;
@@ -33,9 +44,10 @@ export function createSummaryApi(
 ) {
   async function readTransactionTotals<Row>(
     options: FetchTransactionPeriodTotalsOptions,
-    currency: string | null,
+    grouping: TotalGrouping,
     decodeRows: (rows: unknown[]) => Row[],
     rowKey: (row: Row) => string,
+    operation = "Current totals",
   ): Promise<Row[]> {
     const { accessToken, signal } = options;
     requireAccessToken(accessToken);
@@ -47,22 +59,35 @@ export function createSummaryApi(
           "transaction_totals",
           {
             ...args,
-            p_currency: currency,
-            p_group_by_type: currency !== null,
+            ...grouping,
             p_limit: LOOKUP_PAGE_SIZE,
             p_offset: offset,
           },
-          "Current totals",
+          operation,
           signal,
         ),
       decodeRows,
       rowKey,
-      "Current totals",
+      operation,
       signal,
     );
   }
 
   return {
+    async fetchTransactionTrends(
+      options: FetchTransactionTrendsOptions,
+    ): Promise<TransactionTrendTotal[]> {
+      const { granularity } = options;
+      if (!["day", "week"].includes(granularity)) throw new Error("Choose daily or weekly trends");
+      return readTransactionTotals(
+        options,
+        { p_granularity: granularity },
+        (rows) => decodeTransactionTrends(rows, granularity),
+        (row) => JSON.stringify([row.periodStart, row.marketplace, row.currency, row.type]),
+        "Transaction trends",
+      );
+    },
+
     async fetchLatestTransactionDate({
       accessToken,
       signal,
@@ -89,8 +114,11 @@ export function createSummaryApi(
     async fetchTransactionPeriodTotals(
       options: FetchTransactionPeriodTotalsOptions,
     ): Promise<MarketplaceCurrencyTotal[]> {
-      return readTransactionTotals(options, null, decodeMarketplaceCurrencyTotals, (row) =>
-        JSON.stringify([row.marketplace, row.currency]),
+      return readTransactionTotals(
+        options,
+        { p_currency: null, p_group_by_type: false },
+        decodeMarketplaceCurrencyTotals,
+        (row) => JSON.stringify([row.marketplace, row.currency]),
       );
     },
 
@@ -101,7 +129,7 @@ export function createSummaryApi(
       requireCurrency(currency);
       return readTransactionTotals(
         options,
-        currency,
+        { p_currency: currency, p_group_by_type: true },
         (rows) => decodeTypeTotals(rows, currency),
         (row) => JSON.stringify([row.currency, row.type]),
       );

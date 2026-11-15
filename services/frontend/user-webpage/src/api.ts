@@ -18,6 +18,8 @@ import type {
   FetchLatestTransactionDateOptions,
   FetchTransactionPeriodTotalsOptions,
   FetchTransactionTypeTotalsOptions,
+  FetchTransactionTrendsOptions,
+  TransactionTrendTotal,
   PageResult,
   Session,
   SessionUser,
@@ -168,6 +170,10 @@ export const fetchTransactionPeriodTotals = (
 export const fetchTransactionTypeTotals = (
   options: FetchTransactionTypeTotalsOptions,
 ): Promise<TransactionTypeTotal[]> => getDefaultClient().fetchTransactionTypeTotals(options);
+
+export const fetchTransactionTrends = (
+  options: FetchTransactionTrendsOptions,
+): Promise<TransactionTrendTotal[]> => getDefaultClient().fetchTransactionTrends(options);
 
 export const fetchPayoutHistory = (options: FetchPayoutHistoryOptions): Promise<PageResult> =>
   getDefaultClient().fetchPayoutHistory(options);

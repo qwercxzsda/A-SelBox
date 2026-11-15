@@ -10,6 +10,7 @@ import { DetailSection } from "./DetailSection";
 import { AmountPrecisionNote } from "./AmountPrecisionNote";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeRecordSelection } from "./detail-view-state";
+import type { TypeGroupId } from "./transaction-type-families";
 import "./TypeBreakdown.css";
 
 export interface RecordSelection {
@@ -28,6 +29,8 @@ export function AmountBreakdown({
   onRetry,
   renderRecords,
   stateKey,
+  focusedGroup,
+  focusReady = true,
 }: {
   currency: string;
   totals: TransactionTypeTotal[] | undefined;
@@ -37,6 +40,8 @@ export function AmountBreakdown({
   onRetry: () => void;
   renderRecords: (selection: RecordSelection) => ReactNode;
   stateKey: string;
+  focusedGroup?: TypeGroupId;
+  focusReady?: boolean;
 }) {
   const [selection, setSelection] = useWorkspacePreference<RecordSelection>(
     `${stateKey}:record-selection`,
@@ -120,6 +125,8 @@ export function AmountBreakdown({
           <>
             <TypeBreakdownRows
               stateKey={stateKey}
+              focusedGroup={focusedGroup}
+              focusReady={focusReady}
               groups={groups}
               onSelectRecords={selectRecords}
             />

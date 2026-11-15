@@ -53,6 +53,7 @@ export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
     [
       "transaction-latest-utc-date",
       "company-period-totals",
+      "transaction-trends",
       "company-type-totals",
       "company-summary-records",
     ].includes(family)

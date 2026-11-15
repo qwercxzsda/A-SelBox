@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchTransactionTypeTotals, type AppAccount, type DatasetFilters } from "./api";
-import type { DateRange } from "./summary-periods";
+import { Button } from "@mantine/core";
+import { fetchTransactionTypeTotals, type DatasetFilters } from "./api";
+import { selectedPeriod, type DateRange, type PeriodDefinition } from "./summary-periods";
 import { CurrentTotals } from "./CurrentTotals";
 import { TypeBreakdown } from "./TypeBreakdown";
 import type { Identity } from "./auth-session";
-import { companyLabel, getErrorMessage } from "./view-model";
+import { getErrorMessage } from "./view-model";
 import { useTransactionSummaries } from "./use-transaction-summaries";
-import type { TransactionSummaryScope } from "./api/types";
-import type { SummaryFilter } from "./SummaryFilters";
 import { SummaryRecords } from "./SummaryRecords";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import {
@@ -16,39 +15,16 @@ import {
   type SummaryBreakdownSelection,
 } from "./detail-view-state";
 import { resolveTransactionSearch } from "./transaction-search";
-import { humanizeCode } from "./categories";
-import { filterOptions, transactionTypeValues } from "./filter-options";
-import { transactionTypeSelectionLabels } from "./transaction-type-groups";
-
-function scopeLabels(
-  scope: TransactionSummaryScope,
-  companies: Map<string, string>,
-  role: AppAccount["access_role"],
-): SummaryFilter[] {
-  return (
-    [
-      { label: "Company", values: scope.companyIds.map((id) => companyLabel(id, companies)) },
-      { label: "SKU", values: scope.skus },
-      { label: "Marketplace", values: scope.marketplaces },
-      { label: "Source", values: scope.sources.map(humanizeCode) },
-      {
-        label: "Type",
-        values: transactionTypeSelectionLabels(
-          filterOptions("component_type", transactionTypeValues("live", role), scope.types),
-          scope.types,
-        ),
-      },
-      {
-        label: "Fee rate",
-        values:
-          scope.feeApplicability.length === 1
-            ? [scope.feeApplicability[0] === "applicable" ? "Applicable" : "Not applicable"]
-            : [],
-      },
-      { label: "Search", values: scope.search ? [scope.search] : [] },
-    ] satisfies SummaryFilter[]
-  ).filter((filter) => filter.values.length > 0);
-}
+import { transactionSummaryFilters } from "./transaction-summary-filters";
+import type { TypeGroupId } from "./transaction-type-families";
+import { TransactionTrends } from "./TransactionTrends";
+import { useTransactionTrends } from "./use-transaction-trends";
+import {
+  decodeTransactionSummaryView,
+  TRANSACTION_SUMMARY_VIEWS,
+  TRANSACTION_TREND_LABELS,
+  type TransactionSummaryView,
+} from "./transaction-trend-periods";
 
 export function TransactionSummaries({
   identity,
@@ -56,23 +32,75 @@ export function TransactionSummaries({
   filters,
   search,
   onPeriodSelect,
+  onShowFilters,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
   filters: DatasetFilters;
   search: string;
   onPeriodSelect: (range: DateRange) => void;
+  onShowFilters: () => void;
 }) {
   const { session, account } = identity;
-  const { scope, ...summaries } = useTransactionSummaries(identity, filters, search);
+  const [view, setView] = useWorkspacePreference<TransactionSummaryView>(
+    "transaction-summary-view",
+    () => "totals",
+    decodeTransactionSummaryView,
+  );
+  // Every view shares the totals' filter-aware marketplace order, including after reload.
+  const { scope, latestDate, latestPending, latestError, ...summaries } = useTransactionSummaries(
+    identity,
+    filters,
+    search,
+  );
+  const trends = useTransactionTrends(
+    identity,
+    scope,
+    summaries.dateRange,
+    latestDate,
+    view === "totals" ? null : view,
+  );
+  const needsAnchor = !summaries.dateRange.from && !summaries.dateRange.to;
+  const controls = (
+    <div className="transaction-summary-views" role="group" aria-label="Transaction summary view">
+      {TRANSACTION_SUMMARY_VIEWS.map(({ value, label }) => (
+        <Button
+          key={value}
+          size="compact-sm"
+          variant={view === value ? "filled" : "default"}
+          aria-pressed={view === value}
+          onClick={() => {
+            setView(value);
+          }}
+        >
+          {label}
+        </Button>
+      ))}
+    </div>
+  );
   const companyNames = new Map(identity.companies.map((company) => [company.id, company.name]));
-  const appliedFilters = scopeLabels(scope, companyNames, account.access_role);
+  const appliedFilters = transactionSummaryFilters(scope, companyNames, account.access_role);
   const [breakdown, setBreakdown] = useWorkspacePreference<SummaryBreakdownSelection | null>(
     "summary-breakdown",
     () => null,
     decodeSummaryBreakdown,
   );
   const stateKey = summaryBreakdownKey(breakdown);
+  function openBreakdown(
+    period: PeriodDefinition,
+    title: string,
+    currency: string,
+    marketplace: string,
+    focusedGroup?: TypeGroupId,
+  ) {
+    setBreakdown({
+      period,
+      title,
+      currency,
+      scope: { ...scope, marketplaces: [marketplace] },
+      focusedGroup,
+    });
+  }
   const searchValues = resolveTransactionSearch(
     "live",
     account.access_role,
@@ -107,29 +135,54 @@ export function TransactionSummaries({
   });
   return (
     <>
-      <CurrentTotals
-        {...summaries}
-        appliedFilters={appliedFilters}
-        onDatesChange={onPeriodSelect}
-        onOpenBreakdown={(period, title, currency, marketplace) => {
-          setBreakdown({
-            period,
-            title,
-            currency,
-            scope: { ...scope, marketplaces: [marketplace] },
-          });
-        }}
-        onRetry={onRetry}
-      />
+      {view === "totals" ? (
+        <CurrentTotals
+          {...summaries}
+          controls={controls}
+          appliedFilters={appliedFilters}
+          onDatesChange={onPeriodSelect}
+          onOpenBreakdown={openBreakdown}
+          onRetry={onRetry}
+        />
+      ) : (
+        <TransactionTrends
+          {...trends}
+          granularity={view}
+          marketplaceOrder={summaries.groups.map((group) => group.marketplace)}
+          dateRange={summaries.dateRange}
+          pending={trends.pending || (needsAnchor && latestPending)}
+          loading={trends.loading || summaries.loading}
+          error={(needsAnchor ? latestError : null) ?? trends.error}
+          controls={controls}
+          appliedFilters={appliedFilters}
+          onDatesChange={onPeriodSelect}
+          onRetry={onRetry}
+          onOpenBreakdown={(range, marketplace, currency, focusedGroup) => {
+            const period = selectedPeriod(range);
+            if (period)
+              openBreakdown(
+                period,
+                TRANSACTION_TREND_LABELS[view],
+                currency,
+                marketplace,
+                focusedGroup,
+              );
+          }}
+          onShowFilters={onShowFilters}
+        />
+      )}
       <TypeBreakdown
         stateKey={stateKey}
+        focusedGroup={breakdown?.focusedGroup}
         opened={breakdown !== null}
         onClose={() => {
           setBreakdown(null);
         }}
         title={breakdown?.title ?? ""}
         appliedFilters={
-          breakdown ? scopeLabels(breakdown.scope, companyNames, account.access_role) : []
+          breakdown
+            ? transactionSummaryFilters(breakdown.scope, companyNames, account.access_role)
+            : []
         }
         periodLabel={breakdown?.period.label ?? ""}
         currency={breakdown?.currency ?? ""}

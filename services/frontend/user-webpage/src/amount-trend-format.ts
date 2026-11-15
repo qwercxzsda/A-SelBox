@@ -5,7 +5,7 @@ export function chartPercentage(value: number): string {
 }
 
 /** Compact axis text from decimal digits; the complete exact amount stays in the tick title. */
-export function formatFinancialReviewChartTick(value: string): string {
+export function formatAmountTrendTick(value: string): string {
   const amount = sumExactDecimals([value]);
   if (amount === null) throw new Error("Chart tick requires an amount");
   if (amount === "0") return "0";

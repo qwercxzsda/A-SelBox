@@ -53,6 +53,7 @@ function StandardFinanceDataset({
 }: FinanceDatasetProps) {
   const online = useBrowserOnline();
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const summariesRef = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const {
     table,
@@ -101,15 +102,27 @@ function StandardFinanceDataset({
         }
       />
       {dataset === "live" ? (
-        <TransactionSummaries
-          identity={identity}
-          onRetry={onRetry}
-          filters={filters}
-          search={debouncedSearch}
-          onPeriodSelect={({ from, to }) => {
-            changeFilters({ dateFrom: from, dateTo: to });
-          }}
-        />
+        <div
+          ref={summariesRef}
+          className="transaction-summary-region"
+          tabIndex={-1}
+          role="region"
+          aria-label="Transaction summary"
+        >
+          <TransactionSummaries
+            identity={identity}
+            onRetry={onRetry}
+            filters={filters}
+            search={debouncedSearch}
+            onShowFilters={() => {
+              showControls();
+              searchInput.current?.focus({ preventScroll: true });
+            }}
+            onPeriodSelect={({ from, to }) => {
+              changeFilters({ dateFrom: from, dateTo: to });
+            }}
+          />
+        </div>
       ) : null}
       {query.error ? (
         <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
@@ -145,7 +158,19 @@ function StandardFinanceDataset({
           table.setPagination({ pageIndex: 0, pageSize });
         }}
         extraControls={
-          dataset === "finances" ? <FinancialSourceLookup identity={identity} /> : undefined
+          dataset === "finances" ? (
+            <FinancialSourceLookup identity={identity} />
+          ) : dataset === "live" ? (
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => {
+                revealSection(summariesRef.current);
+              }}
+            >
+              <span aria-hidden="true">↑ </span> Back to summaries
+            </Button>
+          ) : undefined
         }
         pagination={{
           pageIndex,

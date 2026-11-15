@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useLayoutEffect, useRef } from "react";
 import { FinancialAmounts } from "./FinancialAmounts";
 import { Accordion, Button, Group, Table, Text } from "@mantine/core";
 import type { CurrencyTotal, TransactionTypeTotal } from "./api/types";
@@ -11,6 +11,7 @@ import type { RecordSelection } from "./AmountBreakdown";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailStrings } from "./detail-view-state";
 import { TypeBreakdownAmounts } from "./TypeBreakdownAmounts";
+import type { TypeGroupId } from "./transaction-type-families";
 
 type SelectRecords = (selection: RecordSelection) => void;
 
@@ -141,18 +142,40 @@ export function TypeBreakdownRows({
   groups,
   onSelectRecords,
   stateKey,
+  focusedGroup,
+  focusReady,
 }: {
   groups: TransactionTypeGroup[];
   onSelectRecords: SelectRecords;
   stateKey: string;
+  focusedGroup?: TypeGroupId;
+  focusReady: boolean;
 }) {
   const amountIdPrefix = useId();
+  const controls = useRef(new Map<TypeGroupId, HTMLButtonElement>());
+  const focused = useRef(false);
   const hasUncalculatedAmounts = groups.some((group) => group.totals.missingFeeCount > 0);
   const [expanded, setExpanded] = useWorkspacePreference<string[]>(
     `${stateKey}:type-groups`,
-    () => [],
-    decodeDetailStrings,
+    () => (focusedGroup ? [focusedGroup] : []),
+    (value) => [
+      ...new Set([...decodeDetailStrings(value), ...(focusedGroup ? [focusedGroup] : [])]),
+    ],
   );
+  useLayoutEffect(() => {
+    if (!focusReady || !focusedGroup || focused.current) return;
+    const control = controls.current.get(focusedGroup);
+    if (!control) return;
+    const frame = requestAnimationFrame(() => {
+      if (!control.isConnected) return;
+      control.scrollIntoView({ block: "start", behavior: "instant" });
+      control.focus({ preventScroll: true });
+      focused.current = true;
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [focusReady, focusedGroup, groups]);
 
   return (
     <>
@@ -172,6 +195,7 @@ export function TypeBreakdownRows({
         keepMounted={false}
         className="type-breakdown-groups"
         classNames={{
+          control: "type-breakdown-control",
           label: "type-breakdown-control-label",
           chevron: "type-breakdown-chevron",
         }}
@@ -179,6 +203,11 @@ export function TypeBreakdownRows({
         {groups.map((group) => (
           <Accordion.Item key={group.id} value={group.id}>
             <Accordion.Control
+              data-autofocus={group.id === focusedGroup || undefined}
+              ref={(element) => {
+                if (element) controls.current.set(group.id, element);
+                else controls.current.delete(group.id);
+              }}
               aria-label={`${group.label} details`}
               aria-describedby={`${amountIdPrefix}-${group.id}-amount`}
             >

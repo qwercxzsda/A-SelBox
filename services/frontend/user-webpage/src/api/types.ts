@@ -139,3 +139,14 @@ export interface FetchTransactionTypeTotalsOptions extends FetchTransactionPerio
 export interface TransactionTypeTotal extends CurrencyTotal {
   type: string;
 }
+
+export type TransactionTrendGranularity = "day" | "week";
+
+export interface FetchTransactionTrendsOptions extends FetchTransactionPeriodTotalsOptions {
+  granularity: TransactionTrendGranularity;
+}
+
+export interface TransactionTrendTotal extends MarketplaceCurrencyTotal {
+  periodStart: string;
+  type: string;
+}

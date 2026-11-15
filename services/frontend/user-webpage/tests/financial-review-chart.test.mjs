@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { projectFinancialReviewChart } from "../src/financial-review-chart.ts";
-import { formatFinancialReviewChartTick } from "../src/financial-review-chart-format.ts";
+import { formatAmountTrendTick } from "../src/amount-trend-format.ts";
 import {
   chartFamilyScopeLabel,
   chartFamilyScopeOrder,
@@ -491,6 +491,6 @@ test("compact magnitude labels round decimal digits without floating financial a
     ["10.5", "10.5"],
     ["999.995", "1,000"],
   ])
-    assert.equal(formatFinancialReviewChartTick(value), label);
-  assert.throws(() => formatFinancialReviewChartTick("invalid"));
+    assert.equal(formatAmountTrendTick(value), label);
+  assert.throws(() => formatAmountTrendTick("invalid"));
 });

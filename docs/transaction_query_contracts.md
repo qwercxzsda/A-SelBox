@@ -232,29 +232,34 @@ paging. Account and payout-revision checks bracket date-reference loading, rejec
 snapshot if scheduled report publication changes it mid-read. Display labels and generated report
 names are not database fields.
 
-## Period totals and Type breakdowns
+## Period totals, trends, and Type breakdowns
 
 [`public.transaction_totals`](../services/db/supabase/migrations/20260928123138_transaction_totals.sql)
 accepts:
 
-| Parameter                                                                      | Default | Meaning                                                              |
-| ------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------- |
-| `p_date_from`, `p_date_to`                                                     | `null`  | At least one inclusive date bound is required.                       |
-| `p_company_ids`, `p_skus`, `p_marketplaces`                                    | `null`  | Same current-owner and typed selection semantics as pages.           |
-| `p_sources`, `p_types`                                                         | `null`  | Same exact source and component-type selections as pages.            |
-| `p_fee_applicable`                                                             | `null`  | Same fee-base applicability selection as pages.                      |
-| `p_search_skus`, `p_search_types`, `p_search_marketplaces`, `p_search_sources` | `null`  | Same exact OR search sets as pages; active empty sets match nothing. |
-| `p_currency`                                                                   | `null`  | Optional three-letter uppercase currency code.                       |
-| `p_group_by_type`                                                              | `false` | Use currency/Type groups instead of marketplace/currency groups.     |
-| `p_limit`                                                                      | `1000`  | Integer group-page size, 1–1,000.                                    |
-| `p_offset`                                                                     | `0`     | Same safe-integer bound as page offsets.                             |
+| Parameter                                                                      | Default | Meaning                                                                      |
+| ------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------- |
+| `p_date_from`, `p_date_to`                                                     | `null`  | At least one inclusive date bound is required.                               |
+| `p_company_ids`, `p_skus`, `p_marketplaces`                                    | `null`  | Same current-owner and typed selection semantics as pages.                   |
+| `p_sources`, `p_types`                                                         | `null`  | Same exact source and component-type selections as pages.                    |
+| `p_fee_applicable`                                                             | `null`  | Same fee-base applicability selection as pages.                              |
+| `p_search_skus`, `p_search_types`, `p_search_marketplaces`, `p_search_sources` | `null`  | Same exact OR search sets as pages; active empty sets match nothing.         |
+| `p_currency`                                                                   | `null`  | Optional three-letter uppercase currency code.                               |
+| `p_group_by_type`                                                              | `false` | Use currency/Type groups instead of marketplace/currency groups.             |
+| `p_granularity`                                                                | `null`  | `day` or `week` groups by UTC period, marketplace, currency, and exact Type. |
+| `p_limit`                                                                      | `1000`  | Integer group-page size, 1–1,000.                                            |
+| `p_offset`                                                                     | `0`     | Same safe-integer bound as page offsets.                                     |
 
 Response: `{ "rows": [...], "next_offset": 1000 }`; the continuation is null on the last page. Each
-row contains `marketplace_name`, `currency`, `component_type`, `reported_amount`, `service_fee`,
-`company_amount`, `row_count`, and `known_company_count`. Period totals group by marketplace and
-currency, with null `component_type`. Type breakdowns group by currency and raw component type
-within the requested marketplace scope, with null `marketplace_name`. All five numeric fields are
-strings or, for unknown monetary sums, null.
+row contains `marketplace_name`, `currency`, `component_type`, `period_start`, `reported_amount`,
+`service_fee`, `company_amount`, `row_count`, and `known_company_count`. Period totals group by
+marketplace and currency, with null `component_type`. Type breakdowns group by currency and raw
+component type within the requested marketplace scope, with null `marketplace_name`. Both have null
+`period_start`.
+When `p_granularity` is present, each group retains marketplace, currency, and raw component type
+regardless of `p_group_by_type`; `period_start` is the ISO date of the UTC day or the Monday starting
+the UTC week. Invalid non-null granularities are rejected. All five numeric fields are strings or,
+for unknown monetary sums, null.
 
 Totals include the same authorized current rows as Transactions: eligible `FINANCES` and `SELBOX`
 components from Finances and `DATA_KIOSK` costs from Data Kiosk. `SELBOX` contributes reported
@@ -265,11 +270,23 @@ incomplete fee coverage. Monetary sums retain SQL sum semantics: known amounts c
 entirely unknown sum is null. No matching facts produce an empty `rows` array, not a fabricated
 zero-currency group.
 
-Facts are filtered first and combined by SKU, marketplace, category, date, currency, optional Type,
-and fee applicability before resolving ownership and fee periods. Exact sums remain equivalent to
-individual row calculations. Groups sort by marketplace, currency, and raw Type using database `C`
-collation, with null grouping fields first; one extra group determines continuation without another
-exact source-row count.
+Facts are filtered first and combined by SKU, marketplace, category, source-local date, currency,
+optional Type, optional UTC period, and fee applicability before resolving ownership and fee periods.
+UTC buckets derive from `posted_at` or `activity_at`, while fee lookup retains the original
+source-local accounting date. Exact sums remain equivalent to individual row calculations. Groups
+sort by marketplace, currency, period start, and raw Type using database `C` collation for text,
+with null grouping fields first; one extra group determines continuation without another exact
+source-row count.
+
+Daily and weekly trends aggregate the full requested range in this same RPC, including every
+continuation page, rather than issuing separate requests per day or week. Date bounds clip the
+underlying transactions before bucketing, so the first and last weeks can be partial; their
+`period_start` remains Monday even when that date is outside the selected range. Empty periods do
+not fabricate currency groups. The client fills missing periods for a known marketplace/currency
+series and derives broad groups for the period breakdowns from the same taxonomy as Type filters
+and Amounts by type. Marketplace and currency values are never combined across charts. Trends apply
+the same company, SKU, marketplace, source, Type, fee-applicability, search, and date selections as
+the list.
 
 The materialized current-terms projection includes only SKU keys in those filtered fact groups. It
 preserves invoker RLS and left joins, including missing-ownership and missing-rate diagnostics; it

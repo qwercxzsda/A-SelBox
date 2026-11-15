@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Drawer, Text, Title } from "@mantine/core";
 import type { TransactionTypeTotal } from "./api/types";
 import { DrawerHeading } from "./DrawerHeading";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import { AmountBreakdown, type RecordSelection } from "./AmountBreakdown";
+import type { TypeGroupId } from "./transaction-type-families";
 
 export function TypeBreakdown({
   opened,
@@ -18,6 +19,7 @@ export function TypeBreakdown({
   appliedFilters = [],
   renderRecords,
   stateKey,
+  focusedGroup,
 }: {
   opened: boolean;
   onClose: () => void;
@@ -31,11 +33,20 @@ export function TypeBreakdown({
   appliedFilters?: SummaryFilter[];
   renderRecords: (selection: RecordSelection) => ReactNode;
   stateKey: string;
+  focusedGroup?: TypeGroupId;
 }) {
+  // Restored open drawers mount fully entered and do not emit an enter callback.
+  const [entered, setEntered] = useState(opened);
   return (
     <Drawer
       opened={opened}
       onClose={onClose}
+      onEnterTransitionEnd={() => {
+        setEntered(true);
+      }}
+      onExitTransitionEnd={() => {
+        setEntered(false);
+      }}
       title={
         <DrawerHeading
           title="Transaction totals"
@@ -57,6 +68,8 @@ export function TypeBreakdown({
       <AmountBreakdown
         key={stateKey}
         stateKey={stateKey}
+        focusedGroup={focusedGroup}
+        focusReady={opened && entered}
         currency={currency}
         totals={totals}
         loading={loading}

@@ -220,6 +220,7 @@ def _read_query(
         "p_fee_applicable": ("boolean", args.get("p_fee_applicable")),
         "p_currency": ("text", args.get("p_currency")),
         "p_group_by_type": ("boolean", args.get("p_group_by_type", False)),
+        "p_granularity": ("text", args.get("p_granularity")),
         "p_limit": ("integer", args.get("p_limit", 1000)),
         "p_offset": ("bigint", args.get("p_offset", 0)),
         "p_dataset": ("text", args.get("p_dataset")),

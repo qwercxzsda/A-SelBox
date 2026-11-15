@@ -17,7 +17,8 @@ create function public.transaction_totals(
     p_search_skus text[] default null,
     p_search_types text[] default null,
     p_search_marketplaces text[] default null,
-    p_search_sources text[] default null
+    p_search_sources text[] default null,
+    p_granularity text default null
 ) returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
@@ -40,6 +41,9 @@ begin
     if p_group_by_type is null then
         raise exception 'Grouping preference is required' using errcode = '22023';
     end if;
+    if p_granularity is not null and p_granularity not in ('day', 'week') then
+        raise exception 'Trend granularity must be day or week' using errcode = '22023';
+    end if;
     perform private.validate_page_bounds(p_limit, p_offset);
     -- The unchanged fact RLS already requires current versions for members.
     -- Administrators, owners, and bypass contexts still use the explicit pointer check.
@@ -53,7 +57,9 @@ begin
         with facts as (
             select t.sku, t.marketplace_name, t.category,
                 t.posted_date as activity_date, t.currency,
-                case when p_group_by_type then t.component_type::text end as component_type,
+                case when p_group_by_type or p_granularity is not null
+                    then t.component_type::text end as component_type,
+                date_trunc(p_granularity, t.posted_at at time zone 'UTC')::date as period_start,
                 t.amount::numeric as reported_amount,
                 t.fee_base::numeric as fee_base
             from private.finances_activity_components as t
@@ -83,7 +89,9 @@ begin
                 )
             union all
             select t.sku, t.marketplace_name, t.category, t.activity_date, t.currency,
-                case when p_group_by_type then t.component_type::text end,
+                case when p_group_by_type or p_granularity is not null
+                    then t.component_type::text end,
+                date_trunc(p_granularity, t.activity_at at time zone 'UTC')::date,
                 t.amount::numeric, t.fee_base::numeric
             from private.data_kiosk_component_details as t
             where t.category = 'DATA_KIOSK'
@@ -115,12 +123,13 @@ begin
         ),
         fact_groups as materialized (
             select f.sku, f.marketplace_name, f.category, f.activity_date,
-                f.currency, f.component_type, f.fee_base is not null as fee_applicable,
+                f.currency, f.component_type, f.period_start,
+                f.fee_base is not null as fee_applicable,
                 sum(f.reported_amount) as reported_amount, sum(f.fee_base) as fee_base,
                 count(*)::numeric as row_count
             from facts as f
             group by f.sku, f.marketplace_name, f.category, f.activity_date,
-                f.currency, f.component_type, f.fee_base is not null
+                f.currency, f.component_type, f.period_start, f.fee_base is not null
         ),
         selected_terms as materialized (
             select sku, terms_version_id, company_id
@@ -131,8 +140,10 @@ begin
             )
         ),
         calculated as (
-            select case when not p_group_by_type then g.marketplace_name end as marketplace_name,
-                g.currency, g.component_type, g.category, g.reported_amount, g.row_count,
+            select case when not p_group_by_type or p_granularity is not null
+                    then g.marketplace_name end as marketplace_name,
+                g.currency, g.component_type, g.period_start, g.category,
+                g.reported_amount, g.row_count,
                 case when g.category = 'SELBOX' then 0::numeric
                     when o.company_id is null then null
                     when not g.fee_applicable then 0::numeric
@@ -149,7 +160,7 @@ begin
                     and g.fee_applicable and o.company_id is not null
         ),
         totals as (
-            select c.marketplace_name, c.currency, c.component_type,
+            select c.marketplace_name, c.currency, c.component_type, c.period_start,
                 sum(c.reported_amount) as reported_amount,
                 sum(c.service_fee) as service_fee,
                 sum(case when c.category = 'SELBOX' then 0::numeric
@@ -158,29 +169,33 @@ begin
                 sum(case when c.service_fee is not null then c.row_count else 0 end)
                     as known_company_count
             from calculated as c
-            group by c.marketplace_name, c.currency, c.component_type
+            group by c.marketplace_name, c.currency, c.component_type, c.period_start
         ),
         selected as materialized (
             select t.* from totals as t
             order by t.marketplace_name collate "C" nulls first,
-                t.currency collate "C", t.component_type collate "C" nulls first
+                t.currency collate "C", t.period_start nulls first,
+                t.component_type collate "C" nulls first
             limit p_limit + 1 offset p_offset
         ),
         page as (
             select s.* from selected as s
             order by s.marketplace_name collate "C" nulls first,
-                s.currency collate "C", s.component_type collate "C" nulls first
+                s.currency collate "C", s.period_start nulls first,
+                s.component_type collate "C" nulls first
             limit p_limit
         )
         select jsonb_build_object(
             'rows', coalesce((select jsonb_agg(jsonb_build_object(
                 'marketplace_name', p.marketplace_name,
                 'currency', p.currency, 'component_type', p.component_type,
+                'period_start', p.period_start,
                 'reported_amount', p.reported_amount::text, 'service_fee', p.service_fee::text,
                 'company_amount', p.company_amount::text, 'row_count', p.row_count::text,
                 'known_company_count', p.known_company_count::text
             ) order by p.marketplace_name collate "C" nulls first,
-                p.currency collate "C", p.component_type collate "C" nulls first)
+                p.currency collate "C", p.period_start nulls first,
+                p.component_type collate "C" nulls first)
                 from page as p), '[]'::jsonb),
             'next_offset', case when (select count(*) from selected) > p_limit
                 then p_offset + p_limit end
@@ -190,7 +205,7 @@ end;
 $$;
 revoke all on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean, integer, bigint,
-    text[], text[], boolean, text[], text[], text[], text[]
+    text[], text[], boolean, text[], text[], text[], text[], text
 ) from public, anon, authenticated, service_role;
 
 -- Derived records use saved inputs and report authorization. Numeric/boolean
