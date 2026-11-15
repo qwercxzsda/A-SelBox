@@ -26,9 +26,9 @@ test("different reporting bases and paired families stay separate without changi
   await categoryTab(page, "Finances").click();
   await expect(periodAmounts(page)).toHaveText(["76.00 USD", "76.00 USD", "0.00 USD"]);
   await page.getByRole("button", { name: "Type family breakdown", exact: true }).click();
-  await expect(breakdown(page).locator("tbody tr")).toHaveCount(3);
+  await expect(breakdown(page).locator("tbody tr")).toHaveCount(6);
   for (const [label, amounts] of [
-    ["Product sales and refunds", ["80.00", "80.00", "0.00"]],
+    ["Customer sales and refunds", ["80.00", "80.00", "0.00"]],
     ["FBA fulfillment fees", ["-4.00", "-4.00", "0.00"]],
   ]) {
     const row = familyRow(page, label);
@@ -44,20 +44,30 @@ test("different reporting bases and paired families stay separate without changi
     exact: true,
   });
   await expect(paired).toContainText("FBA fulfillment fees");
-  await expect(differentBasis).toContainText("Product sales and refunds");
+  await expect(differentBasis).toContainText("Customer sales and refunds");
   await expect(differentBasis.getByRole("columnheader", { name: /Source gap/ })).toHaveCount(1);
   await expect(differentBasis.getByRole("columnheader", { name: /Difference/ })).toHaveCount(0);
   const zero = familyRow(page, "Zero-value activity");
   await expect(zero.locator("td").nth(1)).toHaveText("0.00");
   await expect(zero).toContainText("Finances mapping only");
-  const sales = familyRow(page, "Product sales and refunds");
+  for (const [label, amount] of [
+    ["Loyalty points", "-3.00"],
+    ["Amazon shipping fees", "-1.00"],
+    ["Taxes collected and withheld", "4.00"],
+  ]) {
+    const row = familyRow(page, label);
+    await expect(row).toHaveCount(1);
+    await expect(row.locator("td").nth(1)).toHaveText(amount);
+    await expect(row).toContainText("No mapped type");
+  }
+  const sales = familyRow(page, "Customer sales and refunds");
   const tableHeight = (await breakdown(page).boundingBox()).height;
   await sales
-    .getByRole("button", { name: "Family definition for Product sales and refunds", exact: true })
+    .getByRole("button", { name: "Family definition for Customer sales and refunds", exact: true })
     .click();
   const salesDefinition = page.locator(".help-popover");
   await expect(salesDefinition).toContainText(
-    "Defined Finances types: PRODUCT_SALES, PRODUCT_REFUNDS",
+    "Defined Finances types: PRODUCT_SALES, PRODUCT_REFUNDS, PROMOTIONAL_REBATES, PROMOTIONAL_REFUNDS, SHIPPING_CREDITS, SHIPPING_REFUNDS",
   );
   await expect(salesDefinition).toContainText("Defined Data Kiosk types: NET_PRODUCT_SALES");
   expect((await breakdown(page).boundingBox()).height).toBe(tableHeight);
@@ -67,13 +77,13 @@ test("different reporting bases and paired families stay separate without changi
   });
   await salesDefinition
     .getByRole("button", {
-      name: "Close Family definition for Product sales and refunds",
+      name: "Close Family definition for Customer sales and refunds",
       exact: true,
     })
     .click();
   await expect(salesDefinition).toBeHidden();
   await sales
-    .getByRole("button", { name: "Show only Product sales and refunds", exact: true })
+    .getByRole("button", { name: "Show only Customer sales and refunds", exact: true })
     .click();
   await expect(periodAmounts(page)).toHaveText(["80.00 USD", "80.00 USD", "0.00 USD"]);
   const legend = page.getByRole("list", { name: "Type family legend", exact: true });
@@ -83,7 +93,7 @@ test("different reporting bases and paired families stay separate without changi
   const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
   await expect(
     drawer.getByRole("table", { name: "Amounts by type", exact: true }).locator("tbody tr"),
-  ).toHaveCount(3);
+  ).toHaveCount(7);
   const monthlyTypeFilter = () =>
     fixture.financialReviewRequests
       .find(
@@ -98,12 +108,94 @@ test("different reporting bases and paired families stay separate without changi
           params.get("offset") === "0",
       )
       ?.params.get("or");
-  await expect.poll(monthlyTypeFilter).toContain('"PRODUCT_SALES","PRODUCT_REFUNDS"');
+  await expect
+    .poll(monthlyTypeFilter)
+    .toContain(
+      '"PRODUCT_SALES","PRODUCT_REFUNDS","PROMOTIONAL_REBATES","PROMOTIONAL_REFUNDS","SHIPPING_CREDITS","SHIPPING_REFUNDS"',
+    );
   expect(monthlyTypeFilter()).toContain(
     'source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES")',
   );
+  await drawer.getByRole("button", { name: "Source records", exact: true }).click();
+  const records = drawer.getByRole("table", { name: "Source records", exact: true });
+  await expect(records.locator("tbody tr")).toHaveCount(7);
+  for (const type of [
+    "PRODUCT_SALES",
+    "PRODUCT_REFUNDS",
+    "PROMOTIONAL_REBATES",
+    "PROMOTIONAL_REFUNDS",
+    "SHIPPING_CREDITS",
+    "SHIPPING_REFUNDS",
+    "NET_PRODUCT_SALES",
+  ])
+    await expect(records.locator(`[title~="${type}"]`)).toHaveCount(1);
+  for (const type of ["POINTS", "SHIPPING_CHARGEBACKS", "PRODUCT_TAX"])
+    await expect(records.locator(`[title~="${type}"]`)).toHaveCount(0);
+  await expect
+    .poll(() =>
+      fixture.financialReviewRequests
+        .find(
+          ({ endpoint, params, completed }) =>
+            completed &&
+            endpoint === "financial_review_records" &&
+            params.get("select") !== "activity_date",
+        )
+        ?.params.get("or"),
+    )
+    .toBe(monthlyTypeFilter());
   await expect(page.getByRole("dialog")).toHaveCount(1);
   await expectAccessible("net-economic-family-month");
+});
+
+test("customer-sales family membership stays global when marketplace changes and the selection reloads", async ({
+  page,
+}) => {
+  const fixture = await openFinancialReview(page, (fixture) => {
+    setupEconomicFamilies(fixture);
+    for (const field of [
+      "financialReviewTotals",
+      "financialReviewTypeTotals",
+      "financialReviewRecords",
+    ])
+      fixture[field].push(
+        ...fixture[field]
+          .filter((row) => row.category === "FINANCES")
+          .map((row) => ({ ...row, marketplace_name: "Amazon.co.jp", currency: "JPY" })),
+      );
+  });
+  await categoryTab(page, "Finances").click();
+  await chooseFamilies(page, ["Customer sales and refunds"]);
+  await expect(periodAmounts(page)).toHaveText(["80.00 USD", "80.00 USD", "0.00 USD"]);
+  await page
+    .getByRole("combobox", { name: "Marketplace", exact: true })
+    .selectOption("Amazon.co.jp");
+  await expect(periodAmounts(page)).toHaveText(["80.00 JPY", "80.00 JPY", "0.00 JPY"]);
+  await page.reload();
+  await expect(periodAmounts(page)).toHaveText(["80.00 JPY", "80.00 JPY", "0.00 JPY"]);
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll("family"))
+    .toEqual(["net-product-sales"]);
+  await page.getByRole("button", { name: "Open review for January 2026", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
+  await drawer.getByRole("button", { name: "Source records", exact: true }).click();
+  await expect(
+    drawer.getByRole("table", { name: "Source records", exact: true }).locator("tbody tr"),
+  ).toHaveCount(7);
+  await expect
+    .poll(() =>
+      fixture.financialReviewRequests
+        .find(
+          ({ endpoint, params, completed }) =>
+            completed &&
+            endpoint === "financial_review_records" &&
+            params.get("marketplace_name") === "eq.Amazon.co.jp" &&
+            params.get("select") !== "activity_date",
+        )
+        ?.params.get("or"),
+    )
+    .toBe(
+      '(and(source.eq.FINANCES,component_type.in.("PRODUCT_SALES","PRODUCT_REFUNDS","PROMOTIONAL_REBATES","PROMOTIONAL_REFUNDS","SHIPPING_CREDITS","SHIPPING_REFUNDS")),and(source.eq.DATA_KIOSK,component_type.in.("NET_PRODUCT_SALES")))',
+    );
 });
 
 test("SelBox groups account purposes and retains a zero balance without inventing a Kiosk counterpart", async ({

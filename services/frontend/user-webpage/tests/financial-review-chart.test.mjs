@@ -257,7 +257,7 @@ test("unpaired chart markers reflect registry definitions rather than missing ob
   const rows = [overview("2026-01", "3", "3", { category: "FINANCES" })];
   const series = buildFinancialReviewFamilySeries(
     [
-      typeRow("2026-01", "SHIPPING_CREDITS", "10", "FINANCES", "FINANCES"),
+      typeRow("2026-01", "POINTS", "10", "FINANCES", "FINANCES"),
       typeRow("2026-01", "NET_PRODUCT_SALES", "8", "DATA_KIOSK", "FINANCES"),
       typeRow("2026-01", "PRODUCT_SALES", "1", "FINANCES", "FINANCES"),
     ],
@@ -265,7 +265,10 @@ test("unpaired chart markers reflect registry definitions rather than missing ob
   );
   const chart = projectFinancialReviewChart(rows, series);
   for (const families of [series, chart.families]) {
-    assert.equal(families.find((family) => family.id === "shipping").unpairedSource, "Finances");
+    assert.equal(
+      families.find((family) => family.id === "loyalty-points").unpairedSource,
+      "Finances",
+    );
     assert.equal(
       families.find((family) => family.id === "net-product-sales").unpairedSource,
       undefined,
@@ -297,6 +300,10 @@ test("sales with different reporting bases retain their source gap without becom
   const types = [
     typeRow("2026-01", "PRODUCT_SALES", "100.000000009", "FINANCES", "FINANCES"),
     typeRow("2026-01", "PRODUCT_REFUNDS", "-20", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "PROMOTIONAL_REBATES", "-10", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "PROMOTIONAL_REFUNDS", "2", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "SHIPPING_CREDITS", "12", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "SHIPPING_REFUNDS", "-4", "FINANCES", "FINANCES"),
     typeRow("2026-01", "ZERO_ACTIVITY", "0", "FINANCES", "FINANCES"),
     typeRow("2026-01", "NET_PRODUCT_SALES", "80.000000001", "DATA_KIOSK", "FINANCES"),
     typeRow("2026-02", "PRODUCT_SALES", "5", "FINANCES", "FINANCES"),
@@ -361,7 +368,7 @@ test("paired, differing-basis and unpaired contributions conserve the overview w
     typeRow("2026-01", "REFERRAL_FEE", "-13", "DATA_KIOSK", "FINANCES"),
     typeRow("2026-01", "PRODUCT_SALES", "10", "FINANCES", "FINANCES"),
     typeRow("2026-01", "NET_PRODUCT_SALES", "8", "DATA_KIOSK", "FINANCES"),
-    typeRow("2026-01", "SHIPPING_CREDITS", "1000", "FINANCES", "FINANCES"),
+    typeRow("2026-01", "POINTS", "1000", "FINANCES", "FINANCES"),
   ];
   const rows = [overview("2026-01", "1000", "1000", { category: "FINANCES" })];
   const chart = projectFinancialReviewChart(rows, buildFinancialReviewFamilySeries(types, rows));
@@ -374,14 +381,14 @@ test("paired, differing-basis and unpaired contributions conserve the overview w
     chart.families
       .toSorted((left, right) => chartFamilyScopeOrder(left) - chartFamilyScopeOrder(right))
       .map((family) => family.id),
-    ["referral", "net-product-sales", "shipping"],
+    ["referral", "net-product-sales", "loyalty-points"],
   );
   const amounts = new Map(
     chart.months[0].segments.map((segment) => [segment.familyId, segment.sourceGap]),
   );
   assert.equal(amounts.get("referral"), "-2");
   assert.equal(amounts.get("net-product-sales"), "2");
-  assert.equal(amounts.get("shipping"), "1000");
+  assert.equal(amounts.get("loyalty-points"), "1000");
 });
 
 test("unprojectable amounts and invalid months return null while exact family values remain available", () => {

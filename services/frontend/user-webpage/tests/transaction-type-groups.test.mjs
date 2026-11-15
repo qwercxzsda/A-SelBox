@@ -18,7 +18,7 @@ import taxonomy from "../src/generated/transaction-types.json" with { type: "jso
 const catalog = filterOptions("component_type", transactionTypeValues("live", "administrator"));
 const groups = transactionTypeGroups(catalog);
 
-test("every registered type inherits its browsing group from its detailed review family", () => {
+test("every registered type has one canonical browsing membership shared by filters and breakdowns", () => {
   for (const { source, type } of taxonomy) {
     const review = resolveTypeFamily(source, type);
     const [filter] = transactionTypeGroups([{ value: type, label: type }]);
@@ -36,8 +36,16 @@ test("every registered type inherits its browsing group from its detailed review
       ],
       "USD",
     );
-    const group = TRANSACTION_TYPE_GROUPS.find(({ id }) => id === review.groupId);
-    assert.ok(group, `${source}/${type} must have one declared parent group`);
+    const memberships = review.memberships.filter((membership) =>
+      membership[source === "FINANCES" ? "financesTypes" : "dataKioskTypes"].includes(type),
+    );
+    assert.equal(
+      memberships.length,
+      1,
+      `${source}/${type} must have one declared browsing membership`,
+    );
+    const group = TRANSACTION_TYPE_GROUPS.find(({ id }) => id === memberships[0].groupId);
+    assert.ok(group, `${source}/${type} must have a registered browsing group`);
     assert.equal(filter.id, group.id, `${source}/${type}`);
     assert.equal(filter.label, group.label, `${source}/${type}`);
     assert.equal(breakdown.id, group.id, `${source}/${type}`);
@@ -103,6 +111,8 @@ test("the original broad groups and order preserve reviewed type boundaries", ()
       "INBOUND_TRANSPORTATION_FEES",
       "INBOUND_TRANSPORTATION_PROGRAM_FEES",
       "SHIPPING_CREDITS",
+      "SHIPPING_REFUNDS",
+      "SHIPPING_CHARGEBACKS",
       "GIFT_WRAP_CREDITS",
       "LABELING_FEES",
     ],
@@ -124,6 +134,7 @@ test("the original broad groups and order preserve reviewed type boundaries", ()
       "COUPON_FEES",
       "RUN_LIGHTNING_DEAL_FEE",
       "PROMOTIONAL_REBATES",
+      "PROMOTIONAL_REFUNDS",
       "POINTS",
     ],
     taxes: ["PRODUCT_TAX", "TAX_WITHHELD", "TAX_RECLASSIFICATION"],
@@ -152,11 +163,29 @@ test("the original broad groups and order preserve reviewed type boundaries", ()
   }
   assert.equal(new Set(TRANSACTION_TYPE_GROUPS.map(({ id }) => id)).size, 8);
   for (const family of TRANSACTION_TYPE_FAMILIES)
-    assert.equal(
-      TRANSACTION_TYPE_GROUPS.filter(({ id }) => id === family.groupId).length,
-      1,
-      family.id,
-    );
+    for (const membership of family.memberships)
+      assert.equal(
+        TRANSACTION_TYPE_GROUPS.filter(({ id }) => id === membership.groupId).length,
+        1,
+        family.id,
+      );
+});
+
+test("a customer-sales review family spans the existing sales, promotion and shipping browsing groups", () => {
+  const members = [
+    ["PRODUCT_SALES", "sales"],
+    ["PRODUCT_REFUNDS", "sales"],
+    ["PROMOTIONAL_REBATES", "advertising"],
+    ["PROMOTIONAL_REFUNDS", "advertising"],
+    ["SHIPPING_CREDITS", "fulfillment"],
+    ["SHIPPING_REFUNDS", "fulfillment"],
+  ];
+  for (const [type, group] of members) {
+    assert.equal(resolveTypeFamily("FINANCES", type).id, "net-product-sales");
+    assert.equal(transactionTypeGroup(type).id, group);
+  }
+  assert.equal(resolveTypeFamily("FINANCES", "POINTS").id, "loyalty-points");
+  assert.equal(resolveTypeFamily("FINANCES", "SHIPPING_CHARGEBACKS").id, "amazon-shipping-fees");
 });
 
 test("detailed review families remain distinct within a shared browsing group", () => {
@@ -242,7 +271,7 @@ test("known codes from the wrong source remain source-specific unknown review fa
   const otherSource = resolveTypeFamily("DATA_KIOSK", "PRODUCT_SALES");
   assert.equal(registered.id, "net-product-sales");
   assert.equal(otherSource.id, "source:DATA_KIOSK:PRODUCT_SALES");
-  assert.equal(otherSource.groupId, "other");
+  assert.equal(otherSource.memberships[0].groupId, "other");
   assert.deepEqual(otherSource.financesTypes, []);
   assert.deepEqual(otherSource.dataKioskTypes, ["PRODUCT_SALES"]);
   assert.equal(transactionTypeGroup("PRODUCT_SALES").id, "sales");

@@ -47,8 +47,8 @@ searches are literal and case-insensitive. Search fields use one visible Search 
 placeholder naming the searchable values, with no explanatory subtitle. Context-specific accessible
 names distinguish fields for assistive technology. Type menus and current-total or saved-report
 Amounts by type use the eight broad groups from the
-[shared taxonomy](../../../docs/transaction_type_registry.md#shared-type-hierarchy); Financial
-review uses its detailed families. Type menus show readable exact types; Select matches and Deselect
+[shared taxonomy](../../../docs/transaction_type_registry.md#shared-type-taxonomy); Financial review
+uses its detailed families. Type menus show readable exact types; Select matches and Deselect
 matches affect only visible matches. Selection filters apply immediately. Applied chips expose the
 active values and support individual removal. Clearing an empty filtered result preserves ordering
 and page size.
@@ -300,13 +300,15 @@ covered zero; payout amounts stay frozen. The
 completeness, zero reports, and agreement with their source inputs.
 
 Financial review shares Marketplace, Year, and the **Type families** checkbox menu across Finances,
-Data Kiosk, and SelBox categories. This menu selects detailed families from the shared taxonomy; its
-comparisons and charts keep those economic distinctions even when families share one broad browsing
-group. One global definition applies across marketplaces, including unresolved families. These
-selections scope the yearly totals, chart, monthly rows, running source gap, and exact source
-drilldowns. Currency is resolved from the selected marketplace's period rows and shown as the amount
-unit, with a selector when several units exist. Changing marketplace clears the unit and open month.
-Scope survives navigation and reloads.
+Data Kiosk, and SelBox categories. The shared taxonomy assigns each source type a broad browsing
+group and an independent detailed review family. One global definition applies across marketplaces,
+including unresolved families. **Customer sales and refunds** combines principal, buyer promotions
+and customer shipping amounts; **Loyalty points**, **Amazon shipping fees** and taxes stay separate.
+The eight broad groups and their exact type memberships remain unchanged. These selections scope the
+yearly totals, chart, monthly rows, running source gap, and exact source drilldowns. Currency is
+resolved from the selected marketplace's period rows and shown as the amount unit, with a selector
+when several units exist. Changing marketplace clears the unit and open month. Scope survives
+navigation and reloads.
 
 The family breakdown separates paired comparisons, different reporting bases and unpaired activity.
 An undefined counterpart says No mapped type, not zero. The chart preserves all signed contributions

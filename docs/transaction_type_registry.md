@@ -67,15 +67,15 @@ Native IDs, account type, status, links, page/record ordinals, item position and
 preserve provenance. Components have deterministic keys that retain legitimate repeated amounts.
 Source position is not a financial identity.
 
-## Shared type hierarchy
+## Shared type taxonomy
 
 The [transaction taxonomy](../services/frontend/user-webpage/src/transaction-type-families.ts)
-defines one hierarchy: each registered source/type belongs to one detailed family, and each family
-has one parent `groupId`. Memberships are global: there are no marketplace-specific family rules.
-Family definitions own the exact source/type memberships; views derive broader memberships through
-the parent group instead of maintaining separate type lists. A type appearing in both sources must
-belong to the same family in both. Catalog tests check complete coverage against the generated
-Python registry and verify each family's parent group.
+assigns each registered source/type one broad browsing group and one detailed review family in a
+single declaration. These classifications are independent: a review family can contain types from
+several browsing groups. Both memberships are global, without marketplace-specific rules. Views
+derive their memberships from this taxonomy rather than maintaining separate type lists. Catalog
+tests check complete coverage against the generated Python registry and preserve every type's
+browsing group when review families change.
 
 A detailed family combines related charges, refunds, corrections and reversals using their original
 signs. Its source-qualified memberships define which amounts can be compared; neither matching
@@ -94,15 +94,31 @@ current totals and saved reports use the broad groups in this fixed order:
 7. Other fees & adjustments
 8. Seller-provided costs
 
-**Financial review** uses the detailed families within that same hierarchy for its family filter,
+**Financial review** uses the detailed families from that taxonomy for its family filter,
 comparisons and charts. Its source-type tables retain the exact types. Sharing a broad browsing
 group does not assert that different detailed families are equivalent or can be reconciled against
 one another. For example, Sponsored products, Coupon fees and Deal fees can be browsed together
 under Advertising & promotions while remaining distinct families in Financial review.
 
-Product sales and signed refunds belong to **Product sales and refunds**; Finances `ADVERTISING` and
-Data Kiosk Sponsored Products types belong to **Sponsored products**. **Coupon fees**, **Deal
-fees**, and **Promotions and points** retain their own memberships. **Inbound convenience fees**
+**Customer sales and refunds** compares these signed Finances amounts with Data Kiosk
+`NET_PRODUCT_SALES`:
+
+| Finances types                               | Broad browsing group     |
+| -------------------------------------------- | ------------------------ |
+| `PRODUCT_SALES`, `PRODUCT_REFUNDS`           | Sales & refunds          |
+| `PROMOTIONAL_REBATES`, `PROMOTIONAL_REFUNDS` | Advertising & promotions |
+| `SHIPPING_CREDITS`, `SHIPPING_REFUNDS`       | Fulfillment & shipping   |
+
+The promotional types contain both product and shipping discounts and their reversals. Customer
+shipping proceeds and refunds belong to this sales comparison; `SHIPPING_CHARGEBACKS` remains
+separate as **Amazon shipping fees**. `POINTS` remains separate as **Loyalty points**, including
+granted, reclaimed and refund-adjustment amounts. Their broad groups remain Fulfillment & shipping
+and Advertising & promotions respectively. Taxes, gift wrapping and zero-value activity are also
+outside the customer sales family. These review memberships do not change source amounts,
+allocation categories or the commission base from product principal.
+
+Finances `ADVERTISING` and Data Kiosk Sponsored Products types belong to **Sponsored products**.
+**Coupon fees** and **Deal fees** retain their own memberships. **Inbound convenience fees**
 pairs Finances `INBOUND_PLACEMENT_FEES` with Data Kiosk `FBA_INBOUND_CONVENIENCE_FEE`; the
 separately registered placement service type keeps its own family without assuming that similarly
 named fees have identical source scope. EPR compliance, Vine enrollment and inbound defects have
@@ -116,25 +132,23 @@ native paths are `FBAInboundConvenienceFee`. Display labels describe the native 
 stored and filter identifiers stay unchanged, including in saved source versions.
 
 Each detailed family declares its comparison policy: paired counterparts, different reporting bases,
-or unpaired activity. **Product sales and refunds** uses the different-basis policy. Unpaired means
-no verified mapping for the complete family, not that the other source omits every related amount.
-The [Financial review contract](financial_review.md#type-family-comparison-and-source-lookup)
-defines how these states appear in comparisons.
+or unpaired activity. **Customer sales and refunds** remains different-basis because source dates
+and amount definitions can differ. Unpaired means no verified mapping for the complete family,
+not that the other source omits every related amount. The
+[Financial review contract](financial_review.md#type-family-comparison-and-source-lookup) defines
+how these states appear in comparisons.
 
-Shipping, **Promotions and points**, and **Taxes collected and withheld** remain unpaired globally.
-Some shipping refunds and product discounts are embedded in Data Kiosk sales, but those observations
-do not establish universal mappings for the complete stored types. Promotional types combine product
-and shipping discounts; points also include refund adjustments. Taxes include liquidation revenue
-tax and signed marketplace withholding, which can offset collected tax. Tax and discounts on Amazon
-fees remain in their corresponding fee families. Matching aggregate amounts alone does not establish
-a counterpart or identify a normalization error.
+**Loyalty points**, **Amazon shipping fees**, and **Taxes collected and withheld** remain unpaired
+globally. Taxes include liquidation revenue tax and signed marketplace withholding, which can offset
+collected tax. Tax and discounts on Amazon fees remain in their corresponding fee families. Matching
+aggregate amounts alone does not establish a counterpart or identify a normalization error.
 
 **Referral and refund fees** combines referral charges, returned referral fees and retained refund
 administration charges on both sources as one signed commission flow. **Inbound transportation**
 combines transportation and transportation-program charges, which occur in the same evidenced
 shipment cost. Both retain all original types for inspection. These consolidations preserve the raw
-amounts and do not resolve genuine source gaps by reclassification. Their parent browsing groups
-remain Selling fees and Fulfillment & shipping.
+amounts and do not resolve genuine source gaps by reclassification. Their types remain in the broad
+groups Selling fees and Fulfillment & shipping respectively.
 
 Selecting a broad group or detailed family sends only its exact type keys available to that role and
 dataset. Groups without types for that role and dataset are omitted. Within a broad group, Type
@@ -168,7 +182,8 @@ while database permissions authorize each result.
 1. Inspect retained native evidence and determine its exact path and economic role.
 1. Add an explicit registry entry and a test for complete amount partitioning, source identity and
    category treatment. Add no catch-all entry.
-1. Assign the exact source/type to one detailed family and give that family one parent group.
+1. Assign the exact source/type one broad browsing group and one detailed review family in the
+   shared taxonomy.
 1. Regenerate catalogs and run Python, database and frontend checks.
 1. Reprocess the retained capture with the current shared preprocessing definition.
 

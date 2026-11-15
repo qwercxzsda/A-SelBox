@@ -276,7 +276,7 @@ test("sales with a different reporting basis remain plotted and explicitly ident
     .getByRole("tab", { name: "Finances", exact: true })
     .click();
   const figure = chart(page);
-  await expect(legend(page)).toContainText("Product sales and refunds");
+  await expect(legend(page)).toContainText("Customer sales and refunds");
   await expect(legend(page)).toContainText("Different reporting basis");
   await expect(month(page, "Jan", "January 2026")).toHaveAttribute(
     "title",

@@ -292,7 +292,7 @@ marketplace/currency totals together, and opening a Type breakdown retains the s
 exact marketplace and currency along with all other filters. Record drilldowns retain that scope and
 intersect it with the selected exact type or broad group, so rows, counts, and amounts agree. Broad
 groups derive their exact types from the
-[shared taxonomy](transaction_type_registry.md#shared-type-hierarchy); the totals RPC returns raw
+[shared taxonomy](transaction_type_registry.md#shared-type-taxonomy); the totals RPC returns raw
 component types and does not maintain a separate display classification.
 
 For fully calculated company activity, exact `reported_amount + service_fee = company_amount`.

@@ -27,7 +27,12 @@ async function openLink(page, families) {
   return fixture;
 }
 
-for (const families of [["refund-commission"], ["monthly-storage", "refund-commission"]]) {
+for (const families of [
+  ["refund-commission"],
+  ["monthly-storage", "refund-commission"],
+  ["shipping"],
+  ["monthly-storage", "promotions"],
+]) {
   test(`unavailable family selections stay blocked until explicitly removed: ${families.join(", ")}`, async ({
     page,
   }) => {
@@ -46,7 +51,7 @@ for (const families of [["refund-commission"], ["monthly-storage", "refund-commi
     await familyTrigger(page).click();
     await expect(
       familyMenu(page).getByRole("checkbox", {
-        name: "Unavailable: refund-commission",
+        name: `Unavailable: ${families.find((id) => id !== "monthly-storage")}`,
         exact: true,
       }),
     ).toBeChecked();
@@ -65,7 +70,7 @@ for (const families of [["refund-commission"], ["monthly-storage", "refund-commi
       .click();
     await expect(warning(page)).toHaveCount(0);
     await expect(summary(page)).toBeVisible();
-    const remaining = families.filter((id) => id !== "refund-commission");
+    const remaining = families.filter((id) => id === "monthly-storage");
     await expect.poll(() => selectedIds(page)).toEqual(remaining);
     if (remaining.length)
       await expect(summary(page).locator(".financial-review-summary-value")).toHaveText([

@@ -171,11 +171,11 @@ maturity changes do not invalidate source facts or their revision tokens.
 ## Type family comparison and source lookup
 
 Financial review uses the detailed families from the
-[shared type hierarchy](transaction_type_registry.md#shared-type-hierarchy). The registry contract
-defines the hierarchy and native-type interpretation; the linked taxonomy owns exact source
-memberships. Each source/type has the same family in every marketplace; marketplace filters select
-records without changing family definitions. Broad browsing groups do not combine the review's
-detailed comparisons or change its allocation categories.
+[shared type taxonomy](transaction_type_registry.md#shared-type-taxonomy). The registry contract
+defines browsing groups, review families and native-type interpretation; the linked taxonomy owns
+exact source memberships. Each source/type keeps the same review family across marketplaces;
+marketplace filters select records without changing definitions. Broad browsing groups classify types
+independently and do not change allocation categories.
 
 Selecting a family includes its exact source types throughout the year, month, type and record
 views. Selector descriptions identify paired, different-basis and unpaired mappings. Each **Family
@@ -202,15 +202,19 @@ The yearly **Show only** action preserves marketplace, category, year and curren
 unpaired activity as a valid selection. Unrecognized codes keep exact source-qualified identities;
 identical unfamiliar labels are never paired automatically.
 
-Product sales and refunds use the different-basis treatment. Data Kiosk `netProductSales` is ordered
-minus refunded product sales, with refunds assigned by request time; Finances uses posted activity.
-Retained cohorts show some shipping refunds and product discounts embedded in Data Kiosk sales,
-without establishing a universal adjustment for the complete stored types. Shipping, promotions,
-points and net taxes therefore remain separate in every marketplace. Their full memberships and
-limits are defined in the [type registry](transaction_type_registry.md#shared-type-hierarchy).
-See the
+**Customer sales and refunds** combines product principal, buyer product and shipping promotions,
+and customer shipping proceeds and refunds against Data Kiosk `NET_PRODUCT_SALES`. Loyalty points,
+Amazon shipping chargebacks and net taxes remain separate. Every component retains its sign and
+contributes once; broad Type filters and Amounts by type keep their existing memberships.
+
+This family uses the different-basis treatment. Data Kiosk reports ordered minus refunded product
+sales, with refunds assigned by request time; Finances uses posted activity. Combining related
+customer amounts does not remove these timing differences or establish that all remaining amounts
+must agree. The [type registry](transaction_type_registry.md#shared-type-taxonomy) defines the full
+memberships; the
 [Economics schema](https://github.com/amzn/selling-partner-api-models/blob/main/schemas/data-kiosk/analytics_economics_2024_03_15.graphql)
-and the [source-difference investigation](evidence/finances_data_kiosk_differences_2026-10-14.md).
+and [source-difference investigation](evidence/finances_data_kiosk_differences_2026-10-14.md)
+document the comparison limits.
 
 Paired fee families also retain timing limitations: billing/posting, service periods, and attributed
 advertising days can differ. Grouping does not resolve missing allocations or prove matching source

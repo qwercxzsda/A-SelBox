@@ -160,16 +160,21 @@ test("uncertain identities and unknown types receive separate named families", (
   assert.deepEqual(buildFinancialReviewFamilyMonths([]), []);
 });
 
-test("net product sales include signed refunds without absorbing unclassified zero activity, promotions or tax", () => {
+test("customer sales include discounts and shipping offsets without absorbing zero activity, fees, points or tax", () => {
   const rows = [
     row("FINANCES", "PRODUCT_SALES", "100.123456789", { category: "FINANCES", row_count: "5" }),
     row("FINANCES", "PRODUCT_REFUNDS", "-20.000000001", { category: "FINANCES", row_count: "2" }),
     row("FINANCES", "ZERO_ACTIVITY", "0", { category: "FINANCES", row_count: "3" }),
-    row("DATA_KIOSK", "NET_PRODUCT_SALES", "80.123456780", {
+    row("DATA_KIOSK", "NET_PRODUCT_SALES", "82.123456780", {
       category: "FINANCES",
       row_count: "7",
     }),
     row("FINANCES", "PROMOTIONAL_REBATES", "-7", { category: "FINANCES" }),
+    row("FINANCES", "PROMOTIONAL_REFUNDS", "2", { category: "FINANCES" }),
+    row("FINANCES", "SHIPPING_CREDITS", "10", { category: "FINANCES" }),
+    row("FINANCES", "SHIPPING_REFUNDS", "-3", { category: "FINANCES" }),
+    row("FINANCES", "SHIPPING_CHARGEBACKS", "-2", { category: "FINANCES" }),
+    row("FINANCES", "POINTS", "-1", { category: "FINANCES" }),
     row("FINANCES", "PRODUCT_TAX", "8", { category: "FINANCES" }),
   ];
   const original = structuredClone(rows);
@@ -177,19 +182,22 @@ test("net product sales include signed refunds without absorbing unclassified ze
     const families = buildFinancialReviewFamilies(rows, ids);
     assert.equal(families.length, 1);
     assert.equal(families[0].family_id, "net-product-sales");
-    assert.equal(families[0].finances_amount, "80.123456788");
-    assert.equal(families[0].data_kiosk_amount, "80.12345678");
+    assert.equal(families[0].finances_amount, "82.123456788");
+    assert.equal(families[0].data_kiosk_amount, "82.12345678");
     assert.equal(families[0].difference, null);
     assert.equal(families[0].source_gap, "0.000000008");
     assert.equal(families[0].comparison_kind, "different-basis");
-    assert.equal(families[0].finances_row_count, "7");
+    assert.equal(families[0].finances_row_count, "11");
     assert.equal(families[0].data_kiosk_row_count, "7");
     assert.equal(families[0].coverage, "Both sources");
-    assert.equal(families[0].finances_types, "PRODUCT_REFUNDS, PRODUCT_SALES");
+    assert.equal(
+      families[0].finances_types,
+      "PRODUCT_REFUNDS, PRODUCT_SALES, PROMOTIONAL_REBATES, PROMOTIONAL_REFUNDS, SHIPPING_CREDITS, SHIPPING_REFUNDS",
+    );
     const months = buildFinancialReviewFamilyMonths(rows, ids);
     assert.equal(months.length, 1);
     assert.equal(months[0].difference, "0.000000008");
-    assert.equal(months[0].finances_row_count, "7");
+    assert.equal(months[0].finances_row_count, "11");
   }
   const zero = buildFinancialReviewFamilies(rows, ["zero-value-activity"]);
   assert.equal(zero.length, 1);
@@ -274,16 +282,7 @@ test("fee and reimbursement families net their reversals while preserving source
 
 test("unpaired economic families combine related signed movements without mixing their purposes", () => {
   for (const [id, category, components, expected] of [
-    [
-      "shipping",
-      "FINANCES",
-      [
-        ["SHIPPING_CREDITS", "10"],
-        ["SHIPPING_REFUNDS", "-3"],
-        ["SHIPPING_CHARGEBACKS", "-2"],
-      ],
-      "5",
-    ],
+    ["amazon-shipping-fees", "FINANCES", [["SHIPPING_CHARGEBACKS", "-2"]], "-2"],
     [
       "gift-wrapping",
       "FINANCES",
@@ -304,16 +303,7 @@ test("unpaired economic families combine related signed movements without mixing
       ],
       "0",
     ],
-    [
-      "promotions",
-      "FINANCES",
-      [
-        ["PROMOTIONAL_REBATES", "-7"],
-        ["PROMOTIONAL_REFUNDS", "2"],
-        ["POINTS", "-1"],
-      ],
-      "-6",
-    ],
+    ["loyalty-points", "FINANCES", [["POINTS", "-1"]], "-1"],
     ["epr-compliance", "SELBOX", [["EPR_FEES", "-3"]], "-3"],
     ["vine-enrollment", "SELBOX", [["VINE_FEES", "-4"]], "-4"],
     ["inbound-defects", "SELBOX", [["INBOUND_DEFECT_FEES", "-5"]], "-5"],
@@ -361,6 +351,10 @@ test("current family IDs deduplicate while unsupported request IDs are rejected"
     new Set([
       "PRODUCT_SALES",
       "PRODUCT_REFUNDS",
+      "PROMOTIONAL_REBATES",
+      "PROMOTIONAL_REFUNDS",
+      "SHIPPING_CREDITS",
+      "SHIPPING_REFUNDS",
       "REFERRAL_FEES",
       "REFUNDED_REFERRAL_FEES",
       "REFUND_COMMISSION",
@@ -376,7 +370,7 @@ test("current family IDs deduplicate while unsupported request IDs are rejected"
       "REFUND_COMMISSION_FEE",
     ]),
   );
-  assert.equal(selection.financesTypes.length, 5);
+  assert.equal(selection.financesTypes.length, 9);
   assert.equal(selection.dataKioskTypes.length, 5);
   assert.deepEqual(
     buildTypeFamilyOptions([], ids)
@@ -387,6 +381,8 @@ test("current family IDs deduplicate while unsupported request IDs are rejected"
   for (const removed of [
     "refund-commission",
     "inbound-transportation-program",
+    "shipping",
+    "promotions",
     "unregistered-family",
   ]) {
     assert.throws(() => typeFamilyTypeSelections([removed]));
@@ -675,6 +671,8 @@ test("unavailable saved family IDs remain selected and strict amounts never broa
   const sourceUnknown = resolveTypeFamily("FINANCES", "FUTURE_FEE").id;
   assert.deepEqual(unavailableTypeFamilyIds([sourceUnknown, "monthly-storage"]), []);
   for (const selected of [
+    ["shipping"],
+    ["promotions", "net-product-sales"],
     ["refund-commission"],
     ["inbound-transportation-program", "monthly-storage"],
     ["monthly-storage", "refund-commission", sourceUnknown],

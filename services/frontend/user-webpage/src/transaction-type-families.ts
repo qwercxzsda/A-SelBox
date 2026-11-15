@@ -16,31 +16,45 @@ export type TypeGroupId = TypeGroupDefinition["id"];
 export type TypeFamilySource = "FINANCES" | "DATA_KIOSK";
 export type TypeFamilyComparisonKind = "paired" | "different-basis" | "unpaired";
 
-export interface TypeFamily {
-  readonly id: string;
+export interface TypeFamilyMembership {
   readonly groupId: TypeGroupId;
-  readonly label: string;
-  readonly description: string;
-  readonly comparisonKind: TypeFamilyComparisonKind;
-  readonly comparisonNote: string;
   readonly financesTypes: readonly string[];
   readonly dataKioskTypes: readonly string[];
 }
 
-function family(
-  id: string,
+export interface TypeFamily {
+  readonly id: string;
+  readonly label: string;
+  readonly description: string;
+  readonly comparisonKind: TypeFamilyComparisonKind;
+  readonly comparisonNote: string;
+  readonly memberships: readonly TypeFamilyMembership[];
+  readonly financesTypes: readonly string[];
+  readonly dataKioskTypes: readonly string[];
+}
+
+function membership(
   groupId: TypeGroupId,
-  label: string,
-  description: string,
   financesTypes: readonly string[],
   dataKioskTypes: readonly string[],
+): TypeFamilyMembership {
+  return { groupId, financesTypes, dataKioskTypes };
+}
+
+function family(
+  id: string,
+  label: string,
+  description: string,
+  memberships: readonly TypeFamilyMembership[],
   comparison?: { kind: "different-basis"; note: string },
 ): TypeFamily {
+  const financesTypes = memberships.flatMap((entry) => entry.financesTypes);
+  const dataKioskTypes = memberships.flatMap((entry) => entry.dataKioskTypes);
   return {
     id,
-    groupId,
     label,
     description,
+    memberships,
     financesTypes,
     dataKioskTypes,
     comparisonKind:
@@ -57,163 +71,178 @@ function unpairedFamily(
   types: readonly string[],
   description: string,
 ): TypeFamily {
-  return family(
-    id,
-    groupId,
-    label,
-    description,
-    source === "FINANCES" ? types : [],
-    source === "DATA_KIOSK" ? types : [],
-  );
+  return family(id, label, description, [
+    membership(groupId, source === "FINANCES" ? types : [], source === "DATA_KIOSK" ? types : []),
+  ]);
 }
 
-// One global hierarchy: exact source types belong to a detailed review family and
-// inherit its broad browsing group. Marketplace, currency and dates never change membership.
-// Memberships do not alter allocation, dates or coverage.
+// One global taxonomy declares each exact source type once with both its browsing
+// group and its review family. A review family may span browsing groups; neither
+// classification changes allocation, dates, coverage or marketplace membership.
 export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   family(
     "monthly-storage",
-    "inventory",
     "Monthly storage fees",
     "Monthly inventory storage fees, separate from aged inventory surcharges. Finances billing can follow the service month allocated by Data Kiosk, so a same-month gap can reflect timing.",
-    ["STORAGE_FEES"],
-    ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
+    [
+      membership(
+        "inventory",
+        ["STORAGE_FEES"],
+        ["FBA_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
+      ),
+    ],
   ),
   family(
     "aged-storage",
-    "inventory",
     "Aged inventory surcharges",
     "Long-term storage fees and aged inventory surcharges, separate from monthly storage.",
-    ["AGED_STORAGE_FEES"],
-    ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE"],
+    [
+      membership(
+        "inventory",
+        ["AGED_STORAGE_FEES"],
+        ["LONG_TERM_STORAGE_FEE", "FBA_AGED_INVENTORY_SURCHARGE"],
+      ),
+    ],
   ),
   family(
     "sponsored-products",
-    "advertising",
     "Sponsored products",
     "Finances ProductAdsPayment charges and Data Kiosk Sponsored Products allocations. Posting and product/day allocation dates may differ; this mapping does not match individual invoices or campaigns. Sponsored Brands and Display are separate.",
-    ["ADVERTISING"],
     [
-      "SPONSORED_PRODUCT_FEE",
-      "SPONSORED_PRODUCTS",
-      "SPONSORED_PRODUCTS_CHARGE",
-      "SPONSORED_PRODUCTS_CHARGES",
+      membership(
+        "advertising",
+        ["ADVERTISING"],
+        [
+          "SPONSORED_PRODUCT_FEE",
+          "SPONSORED_PRODUCTS",
+          "SPONSORED_PRODUCTS_CHARGE",
+          "SPONSORED_PRODUCTS_CHARGES",
+        ],
+      ),
     ],
   ),
   family(
     "sponsored-brands",
-    "advertising",
     "Sponsored brands",
     "Data Kiosk Sponsored Brands advertising aliases. No verified Finances counterpart is currently mapped to this family.",
-    [],
-    ["SPONSORED_BRANDS", "SPONSORED_BRANDS_CHARGE", "SPONSORED_BRANDS_CHARGES"],
+    [
+      membership(
+        "advertising",
+        [],
+        ["SPONSORED_BRANDS", "SPONSORED_BRANDS_CHARGE", "SPONSORED_BRANDS_CHARGES"],
+      ),
+    ],
   ),
   family(
     "sponsored-display",
-    "advertising",
     "Sponsored display",
     "Data Kiosk Sponsored Display advertising aliases. No verified Finances counterpart is currently mapped to this family.",
-    [],
-    ["SPONSORED_DISPLAY", "SPONSORED_DISPLAY_CHARGE", "SPONSORED_DISPLAY_CHARGES"],
+    [
+      membership(
+        "advertising",
+        [],
+        ["SPONSORED_DISPLAY", "SPONSORED_DISPLAY_CHARGE", "SPONSORED_DISPLAY_CHARGES"],
+      ),
+    ],
   ),
-  family(
-    "coupons",
-    "advertising",
-    "Coupon fees",
-    "Coupon participation and performance fees.",
-    ["COUPON_FEES"],
-    ["COUPON_PARTICIPATION_FEE", "COUPON_PERFORMANCE_FEE"],
-  ),
-  family(
-    "deals",
-    "advertising",
-    "Deal fees",
-    "Lightning deal, participation and performance fees.",
-    ["DEAL_FEES"],
-    ["DEAL_PARTICIPATION_FEE", "DEAL_PERFORMANCE_FEE", "RUN_LIGHTNING_DEAL_FEE"],
-  ),
-  family(
-    "disposal",
-    "inventory",
-    "Disposal",
-    "Inventory disposal fees.",
-    ["DISPOSAL_FEES"],
-    ["DISPOSAL_FEE"],
-  ),
-  family(
-    "removal",
-    "inventory",
-    "Removal",
-    "Inventory removal fees.",
-    ["REMOVAL_FEES"],
-    ["REMOVAL_FEE"],
-  ),
-  family(
-    "labeling",
-    "fulfillment",
-    "Labeling",
-    "Inventory labeling fees.",
-    ["LABELING_FEES"],
-    ["LABELING_FEE"],
-  ),
+  family("coupons", "Coupon fees", "Coupon participation and performance fees.", [
+    membership(
+      "advertising",
+      ["COUPON_FEES"],
+      ["COUPON_PARTICIPATION_FEE", "COUPON_PERFORMANCE_FEE"],
+    ),
+  ]),
+  family("deals", "Deal fees", "Lightning deal, participation and performance fees.", [
+    membership(
+      "advertising",
+      ["DEAL_FEES"],
+      ["DEAL_PARTICIPATION_FEE", "DEAL_PERFORMANCE_FEE", "RUN_LIGHTNING_DEAL_FEE"],
+    ),
+  ]),
+  family("disposal", "Disposal", "Inventory disposal fees.", [
+    membership("inventory", ["DISPOSAL_FEES"], ["DISPOSAL_FEE"]),
+  ]),
+  family("removal", "Removal", "Inventory removal fees.", [
+    membership("inventory", ["REMOVAL_FEES"], ["REMOVAL_FEE"]),
+  ]),
+  family("labeling", "Labeling", "Inventory labeling fees.", [
+    membership("fulfillment", ["LABELING_FEES"], ["LABELING_FEE"]),
+  ]),
   family(
     "inbound-transportation",
-    "fulfillment",
     "Inbound transportation",
     "Inbound transportation and transportation-program charges together represent the shipment's transport cost. Both exact fee types remain available in records; billing dates and missing SKU allocations can still differ between sources.",
-    ["INBOUND_TRANSPORTATION_FEES", "INBOUND_TRANSPORTATION_PROGRAM_FEES"],
-    ["FBA_INBOUND_TRANSPORTATION_FEE", "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"],
+    [
+      membership(
+        "fulfillment",
+        ["INBOUND_TRANSPORTATION_FEES", "INBOUND_TRANSPORTATION_PROGRAM_FEES"],
+        ["FBA_INBOUND_TRANSPORTATION_FEE", "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"],
+      ),
+    ],
   ),
-  family(
-    "subscription",
-    "other",
-    "Seller subscription fees",
-    "Seller subscription fees.",
-    ["SUBSCRIPTION_FEES"],
-    ["SUBSCRIPTION_FEE"],
-  ),
+  family("subscription", "Seller subscription fees", "Seller subscription fees.", [
+    membership("other", ["SUBSCRIPTION_FEES"], ["SUBSCRIPTION_FEE"]),
+  ]),
   family(
     "fba-fulfillment",
-    "fulfillment",
     "FBA fulfillment fees",
     "Net FBA fulfillment charges, including signed fee corrections and reversals. Data Kiosk fulfillment aliases represent the corresponding fee activity.",
-    ["FBA_FULFILLMENT_FEES", "FULFILLMENT_FEE_CORRECTIONS", "FULFILLMENT_FEE_REVERSALS"],
-    ["FBA_FULFILLMENT_FEE", "FBA_FULFILLMENT_FEES", "FBA_FULFILMENT_FEE"],
+    [
+      membership(
+        "fulfillment",
+        ["FBA_FULFILLMENT_FEES", "FULFILLMENT_FEE_CORRECTIONS", "FULFILLMENT_FEE_REVERSALS"],
+        ["FBA_FULFILLMENT_FEE", "FBA_FULFILLMENT_FEES", "FBA_FULFILMENT_FEE"],
+      ),
+    ],
   ),
   family(
     "referral",
-    "selling",
     "Referral and refund fees",
     "Net selling commission: original referral charges plus signed referral refunds and the administration fees Amazon retains on refunds. Exact charge, refund and administration types remain available in records.",
-    ["REFERRAL_FEES", "REFUNDED_REFERRAL_FEES", "REFUND_COMMISSION"],
-    ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE", "REFUND_COMMISSION_FEE"],
+    [
+      membership(
+        "selling",
+        ["REFERRAL_FEES", "REFUNDED_REFERRAL_FEES", "REFUND_COMMISSION"],
+        ["REFERRAL_FEE", "REFERRAL_FEES", "REFUNDED_REFERRAL_FEE", "REFUND_COMMISSION_FEE"],
+      ),
+    ],
   ),
   family(
     "inventory-reimbursements",
-    "inventory",
     "Inventory reimbursements",
     "Net inventory reimbursements after signed reimbursement reversals. Compare this balance with Data Kiosk inventory reimbursements.",
-    ["INVENTORY_REIMBURSEMENTS", "INVENTORY_REIMBURSEMENT_REVERSALS"],
-    ["FBA_INVENTORY_REIMBURSEMENT"],
+    [
+      membership(
+        "inventory",
+        ["INVENTORY_REIMBURSEMENTS", "INVENTORY_REIMBURSEMENT_REVERSALS"],
+        ["FBA_INVENTORY_REIMBURSEMENT"],
+      ),
+    ],
   ),
   family(
     "digital-services",
-    "selling",
     "Digital services fees",
     "Digital services fees across FBA and selling services.",
-    ["DIGITAL_SERVICES_FEES"],
-    ["DIGITAL_SERVICES_FEE_FBA", "DIGITAL_SERVICES_FEE_SOA"],
+    [
+      membership(
+        "selling",
+        ["DIGITAL_SERVICES_FEES"],
+        ["DIGITAL_SERVICES_FEE_FBA", "DIGITAL_SERVICES_FEE_SOA"],
+      ),
+    ],
   ),
   family(
     "net-product-sales",
-    "sales",
-    "Product sales and refunds",
-    "Finances product principal sales plus signed product refunds alongside Data Kiosk net product sales. Shipping, promotions, points, taxes and zero-value records without monetary detail remain separate.",
-    ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
-    ["NET_PRODUCT_SALES"],
+    "Customer sales and refunds",
+    "Customer product sales and refunds, buyer promotion rebates and reversals, and shipping credits and refunds alongside Data Kiosk net product sales. Amazon shipping fees, loyalty points and taxes remain separate.",
+    [
+      membership("sales", ["PRODUCT_SALES", "PRODUCT_REFUNDS"], ["NET_PRODUCT_SALES"]),
+      membership("advertising", ["PROMOTIONAL_REBATES", "PROMOTIONAL_REFUNDS"], []),
+      membership("fulfillment", ["SHIPPING_CREDITS", "SHIPPING_REFUNDS"], []),
+    ],
     {
       kind: "different-basis",
-      note: "Finances uses posting dates; Data Kiosk uses ordered sales less refunds counted by refund-request time. Some Data Kiosk sales include shipping refunds or buyer discounts, but no universal adjustment covers these source types. This source gap is not a like-for-like difference.",
+      note: "This global comparison groups customer sales activity while preserving each source's amounts. Finances uses posting dates; Data Kiosk uses ordered sales and refund-request dates, and its inclusion of shipping and discounts can differ. A remaining gap can reflect reporting basis or timing; it does not by itself establish a missing transaction.",
     },
   ),
   unpairedFamily(
@@ -225,12 +254,12 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     "Zero-value shipment and refund records without a monetary breakdown. Their purpose cannot be identified as product principal or a fee. No separate Data Kiosk type is mapped; its normalized stream drops zero components.",
   ),
   unpairedFamily(
-    "shipping",
+    "amazon-shipping-fees",
     "fulfillment",
-    "Shipping",
+    "Amazon shipping fees",
     "FINANCES",
-    ["SHIPPING_CREDITS", "SHIPPING_REFUNDS", "SHIPPING_CHARGEBACKS"],
-    "Net shipping credits, refunds and chargebacks, excluding shipping tax. Some shipping refunds are embedded in Data Kiosk sales, but no universal counterpart is verified for these types. They remain separate in every marketplace.",
+    ["SHIPPING_CHARGEBACKS"],
+    "Amazon charges for shipping, including signed chargeback reversals. No verified Data Kiosk counterpart is mapped.",
   ),
   unpairedFamily(
     "gift-wrapping",
@@ -249,12 +278,12 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
     "Net taxes on products, shipping, gift wrapping and liquidation revenue after marketplace withholding. Collected and withheld amounts retain their signs. No universal Data Kiosk counterpart is mapped; tax on Amazon fees stays with the corresponding fee.",
   ),
   unpairedFamily(
-    "promotions",
+    "loyalty-points",
     "advertising",
-    "Promotions and points",
+    "Loyalty points",
     "FINANCES",
-    ["PROMOTIONAL_REBATES", "PROMOTIONAL_REFUNDS", "POINTS"],
-    "Buyer product and shipping discounts, promotion reversals, and points charges or refund adjustments. Some product discounts are embedded in Data Kiosk sales, but these combined types have no verified universal counterpart. Fee discounts stay with their fee.",
+    ["POINTS"],
+    "Loyalty points granted, reclaimed and deducted on refunds, preserving their native signs. Points remain separate from customer price discounts; no verified Data Kiosk counterpart is mapped.",
   ),
   unpairedFamily(
     "restocking",
@@ -274,11 +303,15 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   ),
   family(
     "liquidation-fees",
-    "inventory",
     "Liquidation fees",
     "Finances liquidation AmazonFees compared with the sum of Data Kiosk liquidation processing and referral fees. Recovery proceeds remain separate.",
-    ["LIQUIDATION_FEES"],
-    ["LIQUIDATION_PROCESSING_FEE", "LIQUIDATION_REFERRAL_FEE"],
+    [
+      membership(
+        "inventory",
+        ["LIQUIDATION_FEES"],
+        ["LIQUIDATION_PROCESSING_FEE", "LIQUIDATION_REFERRAL_FEE"],
+      ),
+    ],
   ),
   unpairedFamily(
     "inbound-placement",
@@ -290,11 +323,9 @@ export const TRANSACTION_TYPE_FAMILIES: readonly TypeFamily[] = [
   ),
   family(
     "inbound-convenience",
-    "fulfillment",
     "Inbound convenience fees",
     "Finances native FBAInboundConvenienceFee paired with Data Kiosk FBA_INBOUND_CONVENIENCE_FEE by exact source identity. The separately named inbound placement service fee remains a distinct family; similarity of labels alone does not establish equivalence.",
-    ["INBOUND_PLACEMENT_FEES"],
-    ["FBA_INBOUND_CONVENIENCE_FEE"],
+    [membership("fulfillment", ["INBOUND_PLACEMENT_FEES"], ["FBA_INBOUND_CONVENIENCE_FEE"])],
   ),
   unpairedFamily(
     "epr-compliance",

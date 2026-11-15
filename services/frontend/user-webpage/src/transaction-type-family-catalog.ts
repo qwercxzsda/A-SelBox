@@ -7,6 +7,7 @@ import {
   type TypeFamily,
   type TypeFamilySource,
   type TypeGroupDefinition,
+  type TypeGroupId,
 } from "./transaction-type-families.ts";
 
 const SOURCE_LABELS = { FINANCES: "Finances", DATA_KIOSK: "Data Kiosk" };
@@ -20,37 +21,49 @@ const groupsById = new Map<string, TypeGroupDefinition>(
 if (groupsById.size !== TRANSACTION_TYPE_GROUPS.length) throw new Error("Duplicate type group ID");
 
 const familiesById = new Map<string, TypeFamily>();
-const typesByCode = new Map<string, { family: TypeFamily; sources: Set<TypeFamilySource> }>();
+const typesByCode = new Map<
+  string,
+  { family: TypeFamily; groupId: TypeGroupId; sources: Set<TypeFamilySource> }
+>();
+
+function registerSourceTypes(
+  family: TypeFamily,
+  groupId: TypeGroupId,
+  source: TypeFamilySource,
+  types: readonly string[],
+): void {
+  for (const type of types) {
+    const registered = typesByCode.get(type) ?? {
+      family,
+      groupId,
+      sources: new Set<TypeFamilySource>(),
+    };
+    if (registered.family !== family || registered.groupId !== groupId)
+      throw new Error("A type has different family or group classifications across sources");
+    if (registered.sources.has(source))
+      throw new Error("A source type is registered more than once");
+    registered.sources.add(source);
+    typesByCode.set(type, registered);
+  }
+}
+
 for (const entry of TRANSACTION_TYPE_FAMILIES) {
-  if (!groupsById.has(entry.groupId)) throw new Error("A type family has an unknown group");
   const hasCounterparts = entry.financesTypes.length > 0 && entry.dataKioskTypes.length > 0;
   if ((entry.comparisonKind === "unpaired") === hasCounterparts)
     throw new Error("Type family comparison does not match its defined source memberships");
   if (!entry.comparisonNote.trim()) throw new Error("Type family comparison requires its basis");
   if (familiesById.has(entry.id)) throw new Error("Duplicate type family ID");
   familiesById.set(entry.id, entry);
-  for (const [source, types] of [
-    ["FINANCES", entry.financesTypes],
-    ["DATA_KIOSK", entry.dataKioskTypes],
-  ] as const) {
-    for (const type of types) {
-      const registered = typesByCode.get(type) ?? {
-        family: entry,
-        sources: new Set<TypeFamilySource>(),
-      };
-      if (registered.family !== entry)
-        throw new Error("A type belongs to different families across sources");
-      if (registered.sources.has(source))
-        throw new Error("A source type is registered more than once");
-      registered.sources.add(source);
-      typesByCode.set(type, registered);
-    }
+  for (const membership of entry.memberships) {
+    if (!groupsById.has(membership.groupId)) throw new Error("A type has an unknown group");
+    registerSourceTypes(entry, membership.groupId, "FINANCES", membership.financesTypes);
+    registerSourceTypes(entry, membership.groupId, "DATA_KIOSK", membership.dataKioskTypes);
   }
 }
 
-/** The shared broad group follows the detailed family's declared parent. */
+/** Each type keeps its browsing group even when its review family spans groups. */
 export function transactionTypeGroup(type: string): TypeGroupDefinition {
-  const group = groupsById.get(typesByCode.get(type)?.family.groupId ?? "other");
+  const group = groupsById.get(typesByCode.get(type)?.groupId ?? "other");
   if (!group) throw new Error("Missing transaction type group");
   return group;
 }
@@ -79,15 +92,17 @@ export function resolveTypeFamily(source: string, type: string): TypeFamily {
     throw new Error("Type family comparison contains an invalid source type");
   const registered = typesByCode.get(type);
   if (registered?.sources.has(source)) return registered.family;
+  const financesTypes = source === "FINANCES" ? [type] : [];
+  const dataKioskTypes = source === "DATA_KIOSK" ? [type] : [];
   return {
     id: `source:${source}:${encodeURIComponent(type)}`,
-    groupId: "other",
     label: `${sourceCodeLabel(type)} · ${SOURCE_LABELS[source]}`,
     description: `Unrecognized ${SOURCE_LABELS[source]} type ${type}. Its amount remains separate; no cross-source correspondence is assumed.`,
     comparisonKind: "unpaired",
     comparisonNote: `No verified counterpart is defined for this unrecognized ${SOURCE_LABELS[source]} type.`,
-    financesTypes: source === "FINANCES" ? [type] : [],
-    dataKioskTypes: source === "DATA_KIOSK" ? [type] : [],
+    memberships: [{ groupId: "other", financesTypes, dataKioskTypes }],
+    financesTypes,
+    dataKioskTypes,
   };
 }
 

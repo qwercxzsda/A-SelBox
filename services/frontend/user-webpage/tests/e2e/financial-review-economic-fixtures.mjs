@@ -49,6 +49,13 @@ export function setupEconomicFamilies(fixture) {
     [
       ["FINANCES", "PRODUCT_SALES", "100"],
       ["FINANCES", "PRODUCT_REFUNDS", "-20"],
+      ["FINANCES", "PROMOTIONAL_REBATES", "-10"],
+      ["FINANCES", "PROMOTIONAL_REFUNDS", "2"],
+      ["FINANCES", "SHIPPING_CREDITS", "12"],
+      ["FINANCES", "SHIPPING_REFUNDS", "-4"],
+      ["FINANCES", "POINTS", "-3"],
+      ["FINANCES", "SHIPPING_CHARGEBACKS", "-1"],
+      ["FINANCES", "PRODUCT_TAX", "4"],
       ["FINANCES", "ZERO_ACTIVITY", "0"],
       ["DATA_KIOSK", "NET_PRODUCT_SALES", "80"],
       ["FINANCES", "FBA_FULFILLMENT_FEES", "-7"],

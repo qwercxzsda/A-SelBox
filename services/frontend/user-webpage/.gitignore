@@ -1,5 +1,6 @@
 node_modules/
 .pnpm-store/
+.vite/
 dist/
 coverage/
 test-results*/
