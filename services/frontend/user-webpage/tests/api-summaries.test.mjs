@@ -8,6 +8,7 @@ import {
   datasetRecord,
   assertRpcRequest,
   responseJson,
+  transactionTotalsResult,
   latestDateRequest,
   periodTotalsRequest,
 } from "./api-fixtures.mjs";
@@ -110,7 +111,7 @@ test("latest-date cancellation preserves the original abort reason", async () =>
   await rejected;
 });
 
-test("bounded totals RPC preserves exact nullable amounts across explicitly capped pages", async () => {
+test("one complete totals response preserves exact nullable amounts", async () => {
   const requests = [];
   const rows = [
     aggregateRow({
@@ -147,14 +148,9 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
       p_search_sources: null,
       p_currency: null,
       p_group_by_type: false,
-      p_limit: 1000,
-      p_offset: requests.length - 1,
     });
     assert.ok(init.signal instanceof AbortSignal);
-    return responseJson({
-      rows: [rows[args.p_offset]],
-      next_offset: args.p_offset === 0 ? 1 : null,
-    });
+    return responseJson(transactionTotalsResult(rows));
   });
   assert.deepEqual(
     await client.fetchTransactionPeriodTotals(
@@ -183,17 +179,14 @@ test("bounded totals RPC preserves exact nullable amounts across explicitly capp
       },
     ],
   );
-  assert.deepEqual(
-    requests.map((args) => args.p_offset),
-    [0, 1],
-  );
+  assert.equal(requests.length, 1);
 });
 
 test("period totals validate date bounds before HTTP and support open-ended ranges", async () => {
   const requests = [];
   const client = createApiClient(SETTINGS, async (url, init) => {
     requests.push(assertRpcRequest(assert, url, init, "transaction_totals"));
-    return responseJson({ rows: [], next_offset: null });
+    return responseJson(transactionTotalsResult());
   });
   for (const overrides of [
     { accessToken: " " },
@@ -224,7 +217,7 @@ test("period and type totals use exactly the record filters, including resolved 
   const requests = [];
   const client = createApiClient(SETTINGS, async (url, init) => {
     requests.push(assertRpcRequest(assert, url, init, "transaction_totals"));
-    return responseJson({ rows: [], next_offset: null });
+    return responseJson(transactionTotalsResult());
   });
   for (const searchValues of [
     { skus: ['Exact, "SKU"'], types: ["PRODUCT_SALES"], marketplaces: [], sources: [] },
@@ -251,8 +244,6 @@ test("period and type totals use exactly the record filters, including resolved 
         ...filters,
         p_currency: currency,
         p_group_by_type: currency !== null,
-        p_limit: 1000,
-        p_offset: 0,
       });
     }
   }
@@ -271,16 +262,18 @@ test("period and type totals use exactly the record filters, including resolved 
   assert.equal(requests.length, count);
 });
 
-test("period totals preserve separate marketplaces sharing a currency across pages", async () => {
+test("period totals preserve separate marketplaces sharing a currency in one result", async () => {
   const rows = [
     aggregateRow({ marketplace_name: "Amazon.ca", reported_amount: "12.75" }),
     aggregateRow({ marketplace_name: "Amazon.com", reported_amount: "85.25" }),
   ];
-  const client = createApiClient(SETTINGS, async (_url, init) => {
-    const { p_offset: offset } = JSON.parse(init.body);
-    return responseJson({ rows: [rows[offset]], next_offset: offset === 0 ? 1 : null });
+  let requests = 0;
+  const client = createApiClient(SETTINGS, async () => {
+    requests += 1;
+    return responseJson(transactionTotalsResult(rows));
   });
   const totals = await client.fetchTransactionPeriodTotals(periodTotalsRequest());
+  assert.equal(requests, 1);
   assert.deepEqual(
     totals.map(({ marketplace, currency, reportedAmount }) => ({
       marketplace,
@@ -294,7 +287,7 @@ test("period totals preserve separate marketplaces sharing a currency across pag
   );
 });
 
-test("totals reject malformed, truncated, oversized, repeated, or non-advancing pages", async () => {
+test("complete totals reject malformed envelopes, mismatched counts and repeated groups", async () => {
   const row = aggregateRow();
   for (const payload of [
     null,
@@ -302,25 +295,28 @@ test("totals reject malformed, truncated, oversized, repeated, or non-advancing 
     {},
     { rows: [] },
     { rows: [row] },
-    { rows: null, next_offset: null },
-    { rows: [], next_offset: 1 },
-    { rows: [row], next_offset: 0 },
-    { rows: [row], next_offset: 2 },
-    { rows: [row], next_offset: "1" },
-    { rows: [row], next_offset: -1 },
-    { rows: [row, row], next_offset: null },
-    {
-      rows: Array.from({ length: 1001 }, (_, i) =>
-        aggregateRow({
-          currency: String.fromCharCode(
-            65 + Math.floor(i / 676),
-            65 + (Math.floor(i / 26) % 26),
-            65 + (i % 26),
-          ),
-        }),
-      ),
-      next_offset: null,
-    },
+    { rows: null, group_count: "0" },
+    { rows: {}, group_count: "0" },
+    ...[
+      undefined,
+      null,
+      0,
+      1,
+      "",
+      "-1",
+      "1.1",
+      "01",
+      "+1",
+      "1 ",
+      "1e0",
+      "NaN",
+      "Infinity",
+      "9007199254740992",
+    ].map((group_count) => ({ rows: [row], group_count })),
+    transactionTotalsResult([], { group_count: "1" }),
+    transactionTotalsResult([row], { group_count: "0" }),
+    transactionTotalsResult([row], { group_count: "2" }),
+    transactionTotalsResult([row, aggregateRow({ company_amount: "123" })]),
   ]) {
     let requests = 0;
     const client = createApiClient(SETTINGS, async () => {
@@ -329,17 +325,6 @@ test("totals reject malformed, truncated, oversized, repeated, or non-advancing 
     });
     await assert.rejects(client.fetchTransactionPeriodTotals(periodTotalsRequest()));
     assert.equal(requests, 1);
-  }
-  for (const second of [
-    { rows: [], next_offset: null },
-    { rows: [row], next_offset: null },
-  ]) {
-    let requests = 0;
-    const client = createApiClient(SETTINGS, async () =>
-      responseJson(++requests === 1 ? { rows: [row], next_offset: 1 } : second),
-    );
-    await assert.rejects(client.fetchTransactionPeriodTotals(periodTotalsRequest()));
-    assert.equal(requests, 2);
   }
 });
 
@@ -367,17 +352,15 @@ test("totals reject invalid financial fields and preserve missing-fee informatio
     { component_type: "PRODUCT_SALES" },
   ]) {
     const client = createApiClient(SETTINGS, async () =>
-      responseJson({ rows: [aggregateRow(overrides)], next_offset: null }),
+      responseJson(transactionTotalsResult([aggregateRow(overrides)])),
     );
     await assert.rejects(client.fetchTransactionPeriodTotals(periodTotalsRequest()));
   }
-  const client = createApiClient(SETTINGS, async () =>
-    responseJson({ rows: [], next_offset: null }),
-  );
+  const client = createApiClient(SETTINGS, async () => responseJson(transactionTotalsResult()));
   assert.deepEqual(await client.fetchTransactionPeriodTotals(periodTotalsRequest()), []);
 });
 
-test("aggregate pagination and SKU catalogs preserve cancellation even if transport ignores abort", async () => {
+test("complete aggregates and SKU catalogs preserve cancellation even if transport ignores abort", async () => {
   for (const action of [
     (client, signal) => client.fetchTransactionPeriodTotals(periodTotalsRequest({ signal })),
     (client, signal) => client.fetchSkuOptions("test-access", signal),
@@ -392,7 +375,7 @@ test("aggregate pagination and SKU catalogs preserve cancellation even if transp
     const client = createApiClient(SETTINGS, async () => {
       calls += 1;
       controller.abort(reason);
-      return responseJson({ rows: [], next_offset: null, values: [] });
+      return responseJson({ ...transactionTotalsResult(), values: [] });
     });
     await assert.rejects(action(client, controller.signal), (error) => error === reason);
     assert.equal(calls, 1);

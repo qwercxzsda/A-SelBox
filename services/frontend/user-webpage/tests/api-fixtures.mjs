@@ -123,6 +123,10 @@ export function aggregateRow(overrides = {}) {
   };
 }
 
+export function transactionTotalsResult(rows = [], overrides = {}) {
+  return { rows, group_count: String(rows.length), ...overrides };
+}
+
 export function assertRpcRequest(assert, url, init, endpoint) {
   assert.equal(new URL(url).pathname, `/rest/v1/rpc/${endpoint}`);
   assert.equal(new URL(url).search, "");

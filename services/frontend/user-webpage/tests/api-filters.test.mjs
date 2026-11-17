@@ -6,6 +6,7 @@ import { DATASET_CONFIG, isTableDataset } from "../src/api/config.ts";
 import {
   SETTINGS,
   responseJson,
+  transactionTotalsResult,
   pageRequest,
   datasetFilters,
   COMPANY_ID,
@@ -101,8 +102,7 @@ test("company, SKU, and marketplace selections scope records and totals without 
     requests.push({ init, args, endpoint });
     if (endpoint.endsWith("/transaction_page"))
       return responseJson({ rows: [], total_count: null });
-    if (endpoint.endsWith("/transaction_totals"))
-      return responseJson({ rows: [], next_offset: null });
+    if (endpoint.endsWith("/transaction_totals")) return responseJson(transactionTotalsResult());
     assert.fail(`Unexpected summary request: ${endpoint}`);
   });
   const dates = { dateFrom: "2024-02-01", dateTo: "2024-02-29" };
@@ -202,8 +202,8 @@ test("company, SKU, and marketplace selections scope records and totals without 
     assert.equal(endpoint, "/rest/v1/rpc/transaction_totals");
     assert.equal(args.p_date_from, dates.dateFrom);
     assert.equal(args.p_date_to, dates.dateTo);
-    assert.equal(args.p_limit, 1000);
-    assert.equal(args.p_offset, 0);
+    assert.equal(Object.hasOwn(args, "p_limit"), false);
+    assert.equal(Object.hasOwn(args, "p_offset"), false);
     assert.deepEqual(args.p_sources, ["DATA_KIOSK"]);
     assert.deepEqual(args.p_types, ["PRODUCT_SALES"]);
     assert.equal(args.p_fee_applicable, true);
@@ -224,7 +224,7 @@ test("empty or omitted summary scopes leave requests unchanged", async () => {
     if (new URL(url).pathname === "/rest/v1/rpc/transaction_page") {
       return responseJson({ rows: [], total_count: "0" });
     }
-    return responseJson({ rows: [], next_offset: null });
+    return responseJson(transactionTotalsResult());
   });
   for (const values of [undefined, []]) {
     const scope = { companyIds: values, skus: values, marketplaces: values };

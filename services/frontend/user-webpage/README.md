@@ -152,17 +152,21 @@ above its three amount columns so the values remain visible without horizontal s
 no amount selector.
 
 All filters and search apply to the complete aggregate, independent of transaction table paging.
-Search & filters moves to the record controls, and Back to summaries returns to the selected view.
-Empty marketplaces remain in the shared order with a compact inline status. Hovering or focusing a
-period shows its exact amounts; the chart has one keyboard entry point with Left/Right/Home/End
-navigation. Previous/Next and the date selector also move between periods. Selecting a period brings
-it into view horizontally while leaving the page in place; the currency and amount axis stay visible
-on narrow screens. Explicit period and type-group detail actions provide alternatives to small bars.
-Bar and group actions open Transaction totals for the exact period, marketplace, currency, and
-filters, expanding and focusing the matching Amounts by type group. Records retain that scope. Empty
-periods have zero activity, and the selected-period group table includes only groups with
-transactions, including real zero-amount rows. Financial review and transaction trends share chart
-rendering while retaining their own amounts and grouping semantics.
+Current totals, type breakdowns, and trends share one aggregation function. Each request returns all
+matching groups in one response and one database snapshot, without offset pagination. The client
+validates the group count before displaying amounts. Selections exceeding 100,000 groups require
+narrower dates or filters; results are never silently truncated. Search & filters moves to the
+record controls, and Back to summaries returns to the selected view. Empty marketplaces remain in
+the shared order with a compact inline status. Hovering or focusing a period shows its exact
+amounts; the chart has one keyboard entry point with Left/Right/Home/End navigation. Previous/Next
+and the date selector also move between periods. Selecting a period brings it into view horizontally
+while leaving the page in place; the currency and amount axis stay visible on narrow screens.
+Explicit period and type-group detail actions provide alternatives to small bars. Bar and group
+actions open Transaction totals for the exact period, marketplace, currency, and filters, expanding
+and focusing the matching Amounts by type group. Records retain that scope. Empty periods have zero
+activity, and the selected-period group table includes only groups with transactions, including real
+zero-amount rows. Financial review and transaction trends share chart rendering while retaining
+their own amounts and grouping semantics.
 
 Transactions, Finances, and Data Kiosk use UTC timestamps for display, date filtering, and ordering.
 Finances retains the actual posting instant. A Data Kiosk daily component is booked at the last

@@ -34,7 +34,6 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.breakdownPageCap = 1;
   const excluded = [
     { ...typeBucket("SOURCE_EXCLUDED", "999"), source: "DATA_KIOSK", sku: "TARGET-001" },
     { ...typeBucket("SEARCH_EXCLUDED", "888"), source: "FINANCES", sku: "OTHER-002" },
@@ -133,14 +132,10 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
   await expect(summaryAmount(total, "Known company amount")).toHaveText("85.00 USD");
   await expect(total).toContainText("5 records across 3 types");
   await expect(total).toContainText("2 transactions have uncalculated amounts.");
-  expect(fixture.breakdownRequests.map((request) => Number(request.params.get("offset")))).toEqual([
-    0, 1, 2,
-  ]);
-  expect(fixture.breakdownRequests.map((request) => request.includeCount)).toEqual([
-    false,
-    false,
-    false,
-  ]);
+  expect(fixture.breakdownRequests).toHaveLength(1);
+  expect(fixture.breakdownRequests[0].includeCount).toBe(false);
+  expect(fixture.breakdownRequests[0].args).not.toHaveProperty("p_limit");
+  expect(fixture.breakdownRequests[0].args).not.toHaveProperty("p_offset");
   for (const { params, args, endpoint } of fixture.breakdownRequests) {
     expect(params.getAll("activity_at")).toEqual([
       "gte.2026-02-01T00:00:00.000000Z",

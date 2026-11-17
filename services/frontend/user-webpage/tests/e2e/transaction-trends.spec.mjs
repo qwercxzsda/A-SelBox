@@ -14,7 +14,6 @@ test("trend modes use complete default UTC windows and preserve separate marketp
   page,
 }, testInfo) => {
   const fixture = await setup(page);
-  fixture.trendPageCap = 2;
   expect(fixture.trendRequests).toHaveLength(0);
   await page.getByRole("button", { name: "Daily trends", exact: true }).click();
   const daily = trendRegion(page);
@@ -65,7 +64,9 @@ test("trend modes use complete default UTC windows and preserve separate marketp
   await expect(sales.locator('[data-amount-field="companyAmount"]')).toHaveText("95.00");
   await expect(selectedTrendAmount(trendChart(page, "CAD"))).toHaveText("30.00");
   await expect(selectedTrendAmount(trendChart(page, "EUR"))).toHaveText("5.00");
-  expect(fixture.trendRequests.map(({ args }) => args.p_offset)).toEqual([0, 2, 4, 6]);
+  expect(fixture.trendRequests).toHaveLength(1);
+  expect(fixture.trendRequests[0].args).not.toHaveProperty("p_limit");
+  expect(fixture.trendRequests[0].args).not.toHaveProperty("p_offset");
   for (const { args } of fixture.trendRequests)
     expect(args).toMatchObject({
       p_granularity: "day",
@@ -109,7 +110,7 @@ test("trend modes use complete default UTC windows and preserve separate marketp
     "rgb(0, 0, 0)",
   );
   const weekly = fixture.trendRequests.filter(({ args }) => args.p_granularity === "week");
-  expect(weekly.length).toBeGreaterThan(0);
+  expect(weekly).toHaveLength(1);
   for (const { args } of weekly)
     expect(args).toMatchObject({ p_date_from: "2025-11-01", p_date_to: "2026-10-31" });
   if (process.env.PLAYWRIGHT_CAPTURE_REVIEW === "1")

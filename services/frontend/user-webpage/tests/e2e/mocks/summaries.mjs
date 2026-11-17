@@ -30,12 +30,12 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
   if (request.method() !== "POST" || request.headers().prefer)
     throw new Error("Summary RPC must use POST without an exact-count request");
   const args = request.postDataJSON();
+  if (Object.hasOwn(args, "p_limit") || Object.hasOwn(args, "p_offset"))
+    throw new Error("Live transaction totals do not accept paging arguments");
   if (args.p_granularity)
     return respondWithTransactionTrends(fixture, { request, url, user, reply });
   const breakdown = args.p_group_by_type;
   const params = transactionFilterParams(args);
-  params.set("offset", String(args.p_offset));
-  params.set("limit", String(args.p_limit));
   if (args.p_currency) params.set("currency", `eq.${args.p_currency}`);
   const entry = { user, params, args, endpoint: url.pathname, includeCount: false };
   const requests = breakdown ? fixture.breakdownRequests : fixture.aggregateRequests;
@@ -65,13 +65,8 @@ export async function respondWithSummary(fixture, { request, url, user, reply })
           Buffer.compare(Buffer.from(left.component_type), Buffer.from(right.component_type)),
         )
     : periodBucketTotals(rows, params);
-  const offset = args.p_offset;
-  const limit = Math.min(
-    args.p_limit,
-    breakdown ? fixture.breakdownPageCap : fixture.aggregatePageCap,
-  );
   return reply({
-    rows: allRows.slice(offset, offset + limit),
-    next_offset: offset + limit < allRows.length ? offset + limit : null,
+    rows: allRows,
+    group_count: String(allRows.length),
   });
 }

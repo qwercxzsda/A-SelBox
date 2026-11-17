@@ -30,7 +30,9 @@ cleanup status and writes results atomically.
   administrator's complete SKU catalog, including historical facts and registered-only SKUs. Untimed
   authorized SQL provides independent exact-value references. Only current RPCs are timed;
   general REST aggregates stay disabled. The day and month immediately precede the latest visible
-  UTC transaction date; month-end does not change that rule.
+  UTC transaction date; month-end does not change that rule. Each live totals request returns all
+  groups and its exact `group_count` in one response, with the 100,000-group guard; the benchmark
+  validates completeness without issuing offset requests.
 - **Search and amount ordering:** Transactions for members and administrators, plus both raw source
   datasets for administrators. Exact OR search sets resolve from raw SKU,
   Type, Marketplace, and Source values before timing; currency is excluded. Filtered date and amount
@@ -77,8 +79,11 @@ run simultaneous instances against the same clone names.
 `plans.explain_rpc(connection, user_id, function_name, arguments)` inspects current installed
 query definitions on an idle connection. It binds the current request parameters and runs the
 extracted SELECT under `authenticated` with the supplied actor in a read-only transaction. The
-raw source and SKU catalog paths first invoke their actual administrator gates. Check the real RPC response before
-using a plan as diagnostic evidence; this helper does not replace API validation.
+adapter applies only the installed function's `plan_cache_mode`, `enable_sort`, and
+`enable_presorted_aggregate` settings while explaining its body, then restores the caller's settings
+when that transaction ends. It does not override working memory, hash memory, or JIT configuration.
+The raw source and SKU catalog paths first invoke their actual administrator gates. Check the real
+RPC response before using a plan as diagnostic evidence; this helper does not replace API validation.
 
 The adapter supports current page, count, total, and administrator SKU-catalog RPCs. It records
 technical node/index names and cardinalities without saving filter values or financial rows.

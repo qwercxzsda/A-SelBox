@@ -37,10 +37,8 @@ export async function respondWithTransactionTrends(fixture, { request, url, user
         ...sumAggregateRows(group),
       };
     });
-  const limit = Math.min(args.p_limit, fixture.trendPageCap);
-  const next = args.p_offset + limit;
   return reply({
-    rows: totals.slice(args.p_offset, next),
-    next_offset: next < totals.length ? next : null,
+    rows: totals,
+    group_count: String(totals.length),
   });
 }

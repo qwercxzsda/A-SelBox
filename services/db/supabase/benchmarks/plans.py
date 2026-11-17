@@ -1,8 +1,9 @@
 """Read-only, sanitized EXPLAIN adapter for installed table/summary RPC SELECTs.
 
 Call explain_rpc(connection, user_id, function_name, arguments) on an idle
-psycopg connection after timing rounds. This does not measure timings, change
+psycopg connection after timing rounds. This does not measure timings, persist
 planner settings, inspect credentials, modify schemas/data, or retain arguments.
+Installed allowlisted planner settings are replayed only inside its transaction.
 Raw-source and guarded catalog plans first invoke the actual RPC under the requested actor; that
 untimed authorization check prevents explaining a SELECT the caller cannot use.
 """
@@ -199,7 +200,8 @@ def _page_query(definition: str, function: str, args: dict[str, Any]) -> Query:
 def _read_query(
     connection: Connection, definition: str, function: str, args: dict[str, Any]
 ) -> Query:
-    bodies = re.findall(r"\breturn \(\s*(.*?)\n\s*\);", definition, re.S)
+    entry = r"result\s*:=" if function == "transaction_totals" else "return"
+    bodies = re.findall(r"\b" + entry + r" \(\s*(.*?)\n\s*\);", definition, re.S)
     if function == "sku_filter_options":
         # Explain only actors admitted by the installed RPC itself. Extracting its
         # SELECT without this call would skip the administrator-only PL/pgSQL gate.
@@ -221,14 +223,15 @@ def _read_query(
         "p_currency": ("text", args.get("p_currency")),
         "p_group_by_type": ("boolean", args.get("p_group_by_type", False)),
         "p_granularity": ("text", args.get("p_granularity")),
-        "p_limit": ("integer", args.get("p_limit", 1000)),
-        "p_offset": ("bigint", args.get("p_offset", 0)),
         "p_dataset": ("text", args.get("p_dataset")),
         "p_search_skus": ("text[]", args.get("p_search_skus")),
         "p_search_types": ("text[]", args.get("p_search_types")),
         "p_search_marketplaces": ("text[]", args.get("p_search_marketplaces")),
         "p_search_sources": ("text[]", args.get("p_search_sources")),
     }
+    if function != "transaction_totals":
+        values["p_limit"] = ("integer", args.get("p_limit", 1000))
+        values["p_offset"] = ("bigint", args.get("p_offset", 0))
     if function != "source_transaction_count":
         policy = connection.execute(
             "select private.member_policy_covers_current_version("
@@ -259,16 +262,24 @@ def explain_rpc(
         connection.execute("set transaction read only")
         connection.execute("set local statement_timeout='30s'")
         rows = connection.execute(
-            "select pg_get_functiondef(oid) from pg_proc "
+            "select pg_get_functiondef(oid),proconfig from pg_proc "
             "where pronamespace='public'::regnamespace and proname=%s",
             (function,),
         ).fetchall()
         if len(rows) != 1:
             raise ValueError("Expected one installed RPC definition")
         definition = rows[0][0]
+        planner_settings: dict[str, str] = {}
+        configuration = cast(Sequence[str], rows[0][1] or ())
+        for setting in configuration:
+            name, _, value = setting.partition("=")
+            if name in {"plan_cache_mode", "enable_sort", "enable_presorted_aggregate"}:
+                planner_settings[name] = value
         connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user_id,))
         connection.execute("set local role authenticated")
         connection.execute("set local search_path=''")
+        for name, value in planner_settings.items():
+            connection.execute("select set_config(%s,%s,true)", (name, value))
         if function in ("source_transaction_page", "source_transaction_count"):
             # Run the installed authorization/validation gate before extracting its SELECT.
             request = sql.SQL("select public.{}({})").format(
@@ -282,8 +293,9 @@ def explain_rpc(
             query, parameters = _page_query(definition, function, arguments)
         else:
             query, parameters = _read_query(connection, definition, function, arguments)
-        # No persistent prepare and correctly typed values reproduce a custom
-        # plan without changing the connection's plan_cache_mode or scan options.
+        # Match the installed function's narrowly allowlisted planner settings.
+        # The read-only transaction restores every setting on success or failure;
+        # memory and JIT configuration always remain the caller's own settings.
         # Query text is extracted only from the allowlisted installed definitions.
         result = connection.execute(
             cast(LiteralString, "explain (analyze,format json,timing off,summary off) " + query),
@@ -297,6 +309,7 @@ def explain_rpc(
     return {
         "rpc": function,
         "installed_definition_sha256": hashlib.sha256(definition.encode()).hexdigest(),
+        "planner_settings": planner_settings,
         "indexes": sorted({node["Index Name"] for node in active if "Index Name" in node}),
         "index_nodes": [
             {
@@ -327,5 +340,14 @@ def explain_rpc(
             {key: node[key] for key in ("Node Type", "Actual Rows", "Actual Loops") if key in node}
             for node in _walk(plan)
             if node.get("Node Type") in ("Sort", "Incremental Sort")
+        ],
+        "aggregates": [
+            {
+                key: node[key]
+                for key in ("Subplan Name", "Strategy", "Actual Rows", "Actual Loops")
+                if key in node
+            }
+            for node in active
+            if node.get("Node Type") == "Aggregate"
         ],
     }

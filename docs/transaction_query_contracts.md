@@ -247,10 +247,10 @@ accepts:
 | `p_currency`                                                                   | `null`  | Optional three-letter uppercase currency code.                               |
 | `p_group_by_type`                                                              | `false` | Use currency/Type groups instead of marketplace/currency groups.             |
 | `p_granularity`                                                                | `null`  | `day` or `week` groups by UTC period, marketplace, currency, and exact Type. |
-| `p_limit`                                                                      | `1000`  | Integer group-page size, 1–1,000.                                            |
-| `p_offset`                                                                     | `0`     | Same safe-integer bound as page offsets.                                     |
 
-Response: `{ "rows": [...], "next_offset": 1000 }`; the continuation is null on the last page. Each
+Response: `{ "rows": [...], "group_count": "8880" }`; `group_count` is the exact number of returned
+aggregate groups as a decimal string, including `"0"` for an empty result. Every successful call
+returns the complete result in one database snapshot, without paging parameters or continuation. Each
 row contains `marketplace_name`, `currency`, `component_type`, `period_start`, `reported_amount`,
 `service_fee`, `company_amount`, `row_count`, and `known_company_count`. Period totals group by
 marketplace and currency, with null `component_type`. Type breakdowns group by currency and raw
@@ -275,11 +275,18 @@ optional Type, optional UTC period, and fee applicability before resolving owner
 UTC buckets derive from `posted_at` or `activity_at`, while fee lookup retains the original
 source-local accounting date. Exact sums remain equivalent to individual row calculations. Groups
 sort by marketplace, currency, period start, and raw Type using database `C` collation for text,
-with null grouping fields first; one extra group determines continuation without another exact
-source-row count.
+with null grouping fields first. The response counts the resulting groups without a separate
+source-row count or repeated source aggregation.
 
-Daily and weekly trends aggregate the full requested range in this same RPC, including every
-continuation page, rather than issuing separate requests per day or week. Date bounds clip the
+The maximum response is 100,000 groups. The query retains at most 100,001 aggregate groups to detect
+overflow before building the JSON row array. More than 100,000 groups raises SQLSTATE `22023`
+(HTTP 400), with message `Transaction totals exceed 100000 groups; select a shorter date range or narrower filters`
+and structured detail `{"code":"TRANSACTION_TOTAL_GROUP_LIMIT","limit":100000}`. The caller must
+narrow its scope; no truncated result is returned. This guard limits result groups, not the number of
+underlying transactions. At least one explicit date bound remains required.
+
+Daily and weekly trends aggregate all selected marketplaces and the full requested range in this
+same RPC once, without separate requests per marketplace, day, week, or result page. Date bounds clip the
 underlying transactions before bucketing, so the first and last weeks can be partial; their
 `period_start` remains Monday even when that date is outside the selected range. Empty periods do
 not fabricate currency groups. The client fills missing periods for a known marketplace/currency
@@ -327,10 +334,11 @@ totals and saved reports.
 
 ## Saved payout totals
 
-`public.payout_report_totals` uses the same `{ "rows": [...], "next_offset": ... }` response and
-exact numeric strings as `transaction_totals`. It accepts required `p_report_id` plus
+`public.payout_report_totals` returns `{ "rows": [...], "next_offset": ... }`, with the same exact
+numeric row fields as `transaction_totals`. It accepts required `p_report_id` plus
 `p_group_by_type` (default `false`), `p_limit` (default `1000`), and `p_offset` (default `0`). Group
-paging uses the same bounds and the currency/Type ordering of live Type breakdowns. It is stable,
+paging accepts 1–1,000 groups per page and a nonnegative safe-integer offset, with the currency/Type
+ordering of live Type breakdowns. It is stable,
 uses invoker security and an empty search path, and is executable only by authenticated application
 users with access to the saved report under RLS.
 

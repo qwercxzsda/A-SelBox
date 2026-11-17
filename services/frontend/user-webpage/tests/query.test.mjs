@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { QueryObserver } from "@tanstack/react-query";
 import { ApiError } from "../src/api/client.ts";
+import { TransactionTotalsLimitError } from "../src/api/transaction-total-results.ts";
 import { DATASET_CONFIG } from "../src/api/config.ts";
 import { createQueryClient } from "../src/query-client.ts";
 import { datasetCountQueryOptions, datasetQueryOptions } from "../src/dataset-queries.ts";
@@ -114,6 +115,7 @@ test("only network and server failures receive one retry", async () => {
       [new ApiError("query", 403), 1],
       [new ApiError("query", 400), 1],
       [new Error("Invalid CSV"), 1],
+      [new TransactionTotalsLimitError(), 1],
       [new DOMException("Cancelled", "AbortError"), 1],
     ]) {
       let attempts = 0;

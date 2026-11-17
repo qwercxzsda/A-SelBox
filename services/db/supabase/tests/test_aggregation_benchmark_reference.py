@@ -83,7 +83,7 @@ class AggregationBenchmarkReferenceTests(FinancialFixture):
                         ).fetchone()
                     )[0],
                 )
-                self.assertIsNone(result["next_offset"])
+                self.assertEqual(result["group_count"], str(len(result["rows"])))
                 self.assertEqual(reference, _canonical(result["rows"], case))
                 self.assertEqual(sum(row[-2] for row in reference), expected_count)
                 self.connection.execute("reset role")

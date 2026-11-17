@@ -9,8 +9,6 @@ create function public.transaction_totals(
     p_marketplaces text[] default null,
     p_currency text default null,
     p_group_by_type boolean default false,
-    p_limit integer default 1000,
-    p_offset bigint default 0,
     p_sources text[] default null,
     p_types text[] default null,
     p_fee_applicable boolean default null,
@@ -22,10 +20,16 @@ create function public.transaction_totals(
 ) returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
-set plan_cache_mode = 'force_custom_plan' as $$
+set plan_cache_mode = 'force_custom_plan'
+-- Favor hash grouping within the caller's memory limits. JSON ordering stays in
+-- its ordered aggregate, without a disabled-sort cost penalty. Caller memory
+-- limits are inherited, and these planner preferences end with this function.
+set enable_sort = 'off'
+set enable_presorted_aggregate = 'off' as $$
 declare
     finances_policy_is_sufficient boolean;
     kiosk_policy_is_sufficient boolean;
+    result jsonb;
 begin
     perform private.validate_transaction_filters(
         p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
@@ -44,7 +48,6 @@ begin
     if p_granularity is not null and p_granularity not in ('day', 'week') then
         raise exception 'Trend granularity must be day or week' using errcode = '22023';
     end if;
-    perform private.validate_page_bounds(p_limit, p_offset);
     -- The unchanged fact RLS already requires current versions for members.
     -- Administrators, owners, and bypass contexts still use the explicit pointer check.
     finances_policy_is_sufficient := private.member_policy_covers_current_version(
@@ -53,7 +56,7 @@ begin
     kiosk_policy_is_sufficient := private.member_policy_covers_current_version(
         'private.data_kiosk_day_components'::regclass
     );
-    return (
+    result := (
         with facts as (
             select t.sku, t.marketplace_name, t.category,
                 t.posted_date as activity_date, t.currency,
@@ -171,19 +174,12 @@ begin
             from calculated as c
             group by c.marketplace_name, c.currency, c.component_type, c.period_start
         ),
-        selected as materialized (
+        bounded_groups as materialized (
             select t.* from totals as t
-            order by t.marketplace_name collate "C" nulls first,
-                t.currency collate "C", t.period_start nulls first,
-                t.component_type collate "C" nulls first
-            limit p_limit + 1 offset p_offset
+            limit 100001
         ),
-        page as (
-            select s.* from selected as s
-            order by s.marketplace_name collate "C" nulls first,
-                s.currency collate "C", s.period_start nulls first,
-                s.component_type collate "C" nulls first
-            limit p_limit
+        group_count as materialized (
+            select count(*) as value from bounded_groups
         )
         select jsonb_build_object(
             'rows', coalesce((select jsonb_agg(jsonb_build_object(
@@ -196,15 +192,21 @@ begin
             ) order by p.marketplace_name collate "C" nulls first,
                 p.currency collate "C", p.period_start nulls first,
                 p.component_type collate "C" nulls first)
-                from page as p), '[]'::jsonb),
-            'next_offset', case when (select count(*) from selected) > p_limit
-                then p_offset + p_limit end
+                from bounded_groups as p
+                where (select value from group_count) <= 100000), '[]'::jsonb),
+            'group_count', (select value::text from group_count)
         )
     );
+    if (result ->> 'group_count')::bigint > 100000 then
+        raise exception 'Transaction totals exceed 100000 groups; select a shorter date range or narrower filters'
+            using errcode = '22023',
+                detail = '{"code":"TRANSACTION_TOTAL_GROUP_LIMIT","limit":100000}';
+    end if;
+    return result;
 end;
 $$;
 revoke all on function public.transaction_totals(
-    date, date, uuid[], text[], text[], text, boolean, integer, bigint,
+    date, date, uuid[], text[], text[], text, boolean,
     text[], text[], boolean, text[], text[], text[], text[], text
 ) from public, anon, authenticated, service_role;
 

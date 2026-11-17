@@ -7,16 +7,22 @@ import psycopg
 from services.db.supabase.benchmarks.plans import explain_rpc
 from services.db.supabase.benchmarks.search_resolution import resolve_search_values
 from services.db.supabase.benchmarks.table_verification import discover_cases
+from services.db.supabase.tests.rpc_support import read_rpc_execution_settings
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 class SourcePageBenchmarkPlanTests(SourceModelFixture):
+    def planner_settings(self) -> tuple[object, ...]:
+        with self.connection.transaction():
+            return read_rpc_execution_settings(self.connection)
+
     def test_totals_plans_bind_daily_and_weekly_buckets_under_rls(self) -> None:
         company, _ = self.owner()
         self.finances([self.transaction("100")])
         self.kiosk(1, [self.component()])
         actors = (self.administrator(), self.member(company))
         self.connection.commit()
+        caller_settings = self.planner_settings()
         for actor, granularity in product(actors, (None, "day", "week")):
             with self.subTest(actor=actor, granularity=granularity):
                 plan = explain_rpc(
@@ -30,12 +36,35 @@ class SourcePageBenchmarkPlanTests(SourceModelFixture):
                     },
                 )
                 self.assertEqual(plan["rpc"], "transaction_totals")
+                self.assertEqual(
+                    plan["planner_settings"],
+                    {
+                        "plan_cache_mode": "force_custom_plan",
+                        "enable_sort": "off",
+                        "enable_presorted_aggregate": "off",
+                    },
+                )
+                self.assertEqual(self.planner_settings(), caller_settings)
+                fact_groups = next(
+                    node
+                    for node in plan["aggregates"]
+                    if node.get("Subplan Name") == "CTE fact_groups"
+                )
+                self.assertEqual(fact_groups["Strategy"], "Hashed")
                 scanned = {
                     item.get("Relation Name")
                     for item in [*plan["index_nodes"], *plan["relation_scans"]]
                 }
                 self.assertIn("finances_transaction_components", scanned)
                 self.assertIn("data_kiosk_day_components", scanned)
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
+            explain_rpc(
+                self.connection,
+                actors[0],
+                "transaction_totals",
+                {"p_date_from": "2026-06-15", "p_granularity": "invalid"},
+            )
+        self.assertEqual(self.planner_settings(), caller_settings)
 
     def test_installed_source_pages_explain_for_both_datasets_and_orders(self) -> None:
         self.owner()

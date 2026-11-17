@@ -17,7 +17,6 @@ for (const width of [390, 1440]) {
   }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     const fixture = await mockSupabase(page);
-    fixture.aggregatePageCap = 1;
     fixture.aggregateRows = [
       summaryBucket("2026-11-05", "100"),
       summaryBucket("2026-11-05", "20", { currency: "EUR" }),

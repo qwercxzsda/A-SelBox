@@ -88,7 +88,7 @@ class TransactionTrendTests(TransactionTotalsFixture):
         self.assertEqual(partial_rows[0]["period_start"], "2026-06-15")
         self.assertEqual(Decimal(partial_rows[0]["company_amount"]), Decimal("360"))
 
-    def test_marketplace_currency_type_and_bucket_groups_page_without_merging(self) -> None:
+    def test_marketplace_currency_type_and_bucket_groups_remain_separate(self) -> None:
         company, _ = self.owner()
         self.finances(
             [
@@ -111,12 +111,6 @@ class TransactionTrendTests(TransactionTotalsFixture):
             }
             rows = cast(list[dict[str, str]], self.assert_matches_view(member, **options)["rows"])
             self.assertTrue(all(row["marketplace_name"] and row["component_type"] for row in rows))
-            for offset, row in enumerate(rows):
-                page = self.assert_matches_view(member, **options, p_limit=1, p_offset=offset)
-                self.assertEqual(page["rows"], [row])
-                self.assertEqual(
-                    page["next_offset"], offset + 1 if offset < len(rows) - 1 else None
-                )
             if granularity == "week":
                 self.assertIn("2025-12-29", {row["period_start"] for row in rows})
                 self.assertEqual(len(rows), 4)
@@ -130,8 +124,7 @@ class TransactionTrendTests(TransactionTotalsFixture):
             ]
         )
         user = self.member(company)
-        first = self.assert_matches_view(user, p_granularity="day")
-        self.assertEqual(first["next_offset"], 1000)
-        last = self.assert_matches_view(user, p_granularity="day", p_offset=1000)
-        self.assertEqual(len(cast(list[object], last["rows"])), 4)
-        self.assertIsNone(last["next_offset"])
+        for granularity in ("day", "week"):
+            result = self.assert_matches_view(user, p_granularity=granularity)
+            self.assertEqual(result["group_count"], "1004")
+            self.assertEqual(len(cast(list[object], result["rows"])), 1004)

@@ -15,8 +15,6 @@ TRANSACTION_TOTALS_PARAMETER_TYPES = {
     "p_marketplaces": "text[]",
     "p_currency": "text",
     "p_group_by_type": "boolean",
-    "p_limit": "integer",
-    "p_offset": "bigint",
     "p_sources": "text[]",
     "p_types": "text[]",
     "p_fee_applicable": "boolean",
@@ -131,19 +129,12 @@ class TransactionTotalsFixture(FinancialFixture):
             )
         )
         rows = [dict(zip(_ROW_FIELDS, row, strict=True)) for row in result]
-        offset, limit = (
-            cast(int, options.get("p_offset", 0)),
-            cast(int, options.get("p_limit", 1000)),
-        )
-        return {
-            "rows": rows[offset : offset + limit],
-            "next_offset": offset + limit if len(rows) > offset + limit else None,
-        }
+        return {"rows": rows, "group_count": str(len(rows))}
 
     def assert_matches_view(self, user: str | None, **options: object) -> dict[str, object]:
         actual = self.read_totals(user, **options)
         self.assertEqual(actual, self.expected(user, **options))
-        self.assertEqual(set(actual), {"rows", "next_offset"})
+        self.assertEqual(set(actual), {"rows", "group_count"})
         for row in cast(list[dict[str, object]], actual["rows"]):
             self.assertEqual(set(row), set(_ROW_FIELDS))
             for key in _NUMERIC_FIELDS:

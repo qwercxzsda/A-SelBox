@@ -1,7 +1,20 @@
 """Current read-RPC signature and permission contract assertions."""
 
+from psycopg import Connection
+
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
+
+
+def read_rpc_execution_settings(connection: Connection[tuple[object, ...]]) -> tuple[object, ...]:
+    """Capture planner preferences and inherited resource limits for restoration checks."""
+    return require_row(
+        connection.execute(
+            "select current_setting('plan_cache_mode'),current_setting('enable_sort'),"
+            "current_setting('enable_presorted_aggregate'),current_setting('work_mem'),"
+            "current_setting('hash_mem_multiplier'),current_setting('jit')"
+        ).fetchone()
+    )
 
 
 def assert_rpc_security(fixture: SourceModelFixture, signature: str) -> None:

@@ -170,29 +170,21 @@ def _rpc(base: str, bearer: str, case: Case) -> tuple[list[Any], int, int]:
         if not isinstance(values, list):
             raise RuntimeError("SKU catalog RPC returned an invalid value list")
         return cast(list[Any], values), size, 1
-    rows: list[Any] = []
-    size = calls = 0
-    arguments = {**case.arguments, "p_limit": 1000, "p_offset": 0}
-    while True:
-        value, page_bytes = request(base, case.endpoint, arguments, bearer)
-        if not isinstance(value, dict):
-            raise RuntimeError("RPC returned an invalid envelope")
-        envelope = cast(Record, value)
-        raw_page = envelope["rows"]
-        if not isinstance(raw_page, list):
-            raise RuntimeError("RPC returned an invalid bounded page")
-        page = cast(list[Any], raw_page)
-        if len(page) > 1000:
-            raise RuntimeError("RPC returned an oversized page")
-        rows.extend(page)
-        size += page_bytes
-        calls += 1
-        following = envelope["next_offset"]
-        if following is None:
-            return rows, size, calls
-        if not page or following != len(rows):
-            raise RuntimeError("RPC offset is inconsistent")
-        arguments["p_offset"] = following
+    value, size = request(base, case.endpoint, case.arguments, bearer)
+    if not isinstance(value, dict):
+        raise RuntimeError("Totals RPC returned an invalid complete envelope")
+    envelope = cast(Record, value)
+    if set(envelope) != {"rows", "group_count"}:
+        raise RuntimeError("Totals RPC returned an invalid complete envelope")
+    raw_rows = envelope["rows"]
+    if not isinstance(raw_rows, list):
+        raise RuntimeError("Totals RPC returned an invalid bounded result")
+    rows = cast(list[Any], raw_rows)
+    if len(rows) > 100000:
+        raise RuntimeError("Totals RPC returned an invalid bounded result")
+    if envelope["group_count"] != str(len(rows)):
+        raise RuntimeError("Totals RPC returned an inconsistent group count")
+    return rows, size, 1
 
 
 def _canonical(rows: list[Any], case: Case) -> list[Any]:

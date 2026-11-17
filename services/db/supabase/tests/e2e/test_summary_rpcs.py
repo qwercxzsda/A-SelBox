@@ -29,8 +29,14 @@ class SummaryRpcTests(LocalWorkflowCase):
 
         for token, expected_count, reported, expected_amount, type_count, expected_skus in (
             (member_token, "2", "0", "2", 2, [fixture_sku(self.seller)]),
-            (administrator_token, "6", "-20", "4", 3, sorted([fixture_sku(self.seller), "OTHER"])),
+            (administrator_token, "4", "0", "4", 2, sorted([fixture_sku(self.seller), "OTHER"])),
         ):
+            # This archive's authoritative components are its sales and refunds.
+            records = self.stack.request(
+                "POST", "/rest/v1/rpc/transaction_page", token=token, json=dates
+            )
+            self.assertEqual(records.status_code, 200)
+            self.assertEqual(records.json()["total_count"], expected_count)
             for select in ("source_amount.sum()", "currency,source_amount.sum()", "count()"):
                 rejected = self.stack.request(
                     "GET",
@@ -45,7 +51,7 @@ class SummaryRpcTests(LocalWorkflowCase):
             )
             self.assertEqual(response.status_code, 200)
             payload = response.json()
-            self.assertIsNone(payload["next_offset"])
+            self.assertEqual(payload["group_count"], "1")
             self.assertEqual(len(payload["rows"]), 1)
             row = payload["rows"][0]
             self.assertEqual(row["marketplace_name"], "Amazon.com")
@@ -59,20 +65,17 @@ class SummaryRpcTests(LocalWorkflowCase):
             self.assertEqual(Decimal(row["company_amount"]), Decimal(expected_amount))
             types: set[str] = set()
             grouped_count = 0
-            for offset in range(type_count):
-                page = self.stack.request(
-                    "POST",
-                    "/rest/v1/rpc/transaction_totals",
-                    token=token,
-                    json={**dates, "p_group_by_type": True, "p_limit": 1, "p_offset": offset},
-                )
-                self.assertEqual(page.status_code, 200)
-                payload = page.json()
-                self.assertEqual(
-                    payload["next_offset"], offset + 1 if offset + 1 < type_count else None
-                )
-                self.assertEqual(len(payload["rows"]), 1)
-                grouped = payload["rows"][0]
+            response = self.stack.request(
+                "POST",
+                "/rest/v1/rpc/transaction_totals",
+                token=token,
+                json={**dates, "p_group_by_type": True},
+            )
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["group_count"], str(type_count))
+            self.assertEqual(len(payload["rows"]), type_count)
+            for grouped in payload["rows"]:
                 self.assertIsNone(grouped["marketplace_name"])
                 self.assertNotIn(grouped["component_type"], types)
                 types.add(grouped["component_type"])
@@ -113,7 +116,7 @@ class SummaryRpcTests(LocalWorkflowCase):
                 json={**dates, **filters},
             )
             self.assertEqual(empty.status_code, 200)
-            self.assertEqual(empty.json(), {"rows": [], "next_offset": None})
+            self.assertEqual(empty.json(), {"rows": [], "group_count": "0"})
         invalid = self.stack.request(
             "POST", "/rest/v1/rpc/transaction_totals", token=member_token, json={}
         )
@@ -122,7 +125,7 @@ class SummaryRpcTests(LocalWorkflowCase):
 
         self.set_membership(administrator_token, member_id, None).raise_for_status()
         empty_responses: tuple[tuple[str, dict[str, object], dict[str, object]], ...] = (
-            ("transaction_totals", dates, {"rows": [], "next_offset": None}),
+            ("transaction_totals", dates, {"rows": [], "group_count": "0"}),
         )
         for token in (member_token, outsider_token):
             denied = self.stack.request(

@@ -11,11 +11,26 @@ define API behavior; [access control](access_control.md) defines visibility.
 | Reported-amount page | Stop after 10,001 fully filtered matches; reject scopes above 10,000, otherwise sort and calculate the selected page.                                              |
 | Exact count          | Count authorized source facts without fee calculation. The browser renders rows first and caches counts independently of page and order. |
 | Summary anchor | Read one latest authorized transaction by UTC timestamp, within the account's RLS visibility, without UI filters or an exact count; reuse the page RPC. |
-| Period total         | Filter company-financial categories, UTC timestamps and scope, combine facts sharing fee inputs, resolve terms and fees, then aggregate by marketplace/currency or currency/Type. |
+| Period totals and trends | Filter company-financial categories, UTC timestamps and scope, combine facts sharing fee inputs, resolve terms and fees, then return all marketplace/currency, currency/Type, or UTC day/week/marketplace/currency/Type groups in one response. |
 | Filter options       | Source, Marketplace, and Type use static catalogs. Members reuse loaded assignments; administrators preload one complete SKU catalog.                              |
 | Assignments and fees | Load the caller's complete SKU configuration, deduplicate required source dates, and return compressed coverage ranges and setup gaps in one response.             |
 | Revision polling     | Read the current account and requested revision-token rows, then refresh only dependent queries when a revision changes.                                           |
 | Financial review     | Apply the requested marketplace, category, and date bounds to current source facts before monthly/type grouping; page exact source records separately.       |
+
+`transaction_totals` returns one complete, date-bounded aggregate snapshot with an exact
+`group_count`; it does not paginate groups or repeat the source scan for result offsets. Daily and
+weekly modes use the same authorized filters and exact calculations as current totals. UTC bucket
+boundaries do not change the source-local dates used to select fee periods. The function rejects
+results above 100,000 groups with a structured limit error rather than returning partial totals.
+Record pages and saved payout totals retain their separate paging contracts.
+
+The totals function favors hash grouping with function-scoped `enable_sort=off` and
+`enable_presorted_aggregate=off`. The latter keeps the final JSON array's explicit ordering inside
+the ordered aggregate, avoiding an artificial disabled-sort cost penalty for that required output
+order. These preferences end when the function returns or raises an error; record-page and other
+queries retain their own planner settings. The function does not override `work_mem`,
+`hash_mem_multiplier`, or JIT configuration. Hash operations can still spill when the caller's
+existing memory budget is exhausted; the optimization does not require a larger memory allowance.
 
 ### Authorization and current versions
 

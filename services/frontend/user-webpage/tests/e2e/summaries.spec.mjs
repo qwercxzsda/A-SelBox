@@ -9,11 +9,10 @@ import {
   summaryAmount as amount,
 } from "./summary-fixtures.mjs";
 
-test("daily and previous-month totals stay exact, ignore pagination, and apply search", async ({
+test("daily and previous-month totals stay exact across transaction-list pages and search", async ({
   page,
 }) => {
   const fixture = await mockSupabase(page);
-  fixture.aggregatePageCap = 1;
   fixture.liveRows = [
     {
       ...liveRow("SALE", 1),
@@ -100,11 +99,13 @@ test("daily and previous-month totals stay exact, ignore pagination, and apply s
     ["gte.2026-03-15T00:00:00.000000Z", "lt.2026-03-16T00:00:00.000000Z"],
     ["gte.2026-02-01T00:00:00.000000Z", "lt.2026-03-01T00:00:00.000000Z"],
   ]) {
-    const completedLoad = fixture.aggregateRequests
-      .filter(({ params }) => params.getAll("activity_at").join() === bounds.join())
-      .slice(-2);
-    expect(completedLoad.map((request) => Number(request.params.get("offset")))).toEqual([0, 1]);
-    expect(completedLoad.map((request) => request.includeCount)).toEqual([false, false]);
+    const completedLoad = fixture.aggregateRequests.filter(
+      ({ params }) => params.getAll("activity_at").join() === bounds.join(),
+    );
+    expect(completedLoad).toHaveLength(1);
+    expect(completedLoad[0].includeCount).toBe(false);
+    expect(completedLoad[0].args).not.toHaveProperty("p_limit");
+    expect(completedLoad[0].args).not.toHaveProperty("p_offset");
   }
   for (const request of fixture.latestRequests) {
     expect(request.endpoint).toBe("/rest/v1/rpc/transaction_page");

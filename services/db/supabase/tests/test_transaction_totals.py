@@ -4,8 +4,9 @@ from itertools import combinations, product
 from typing import cast
 
 import psycopg
+from psycopg import sql
 
-from services.db.supabase.tests.rpc_support import assert_rpc_security
+from services.db.supabase.tests.rpc_support import assert_rpc_security, read_rpc_execution_settings
 from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS
 from services.db.supabase.tests.transaction_totals_fixture import (
     TRANSACTION_TOTALS_PARAMETER_TYPES,
@@ -14,6 +15,31 @@ from services.db.supabase.tests.transaction_totals_fixture import (
 
 
 class TransactionTotalsTests(TransactionTotalsFixture):
+    def test_planner_preferences_are_function_local_and_memory_limits_are_inherited(self) -> None:
+        company, _ = self.owner()
+        self.finances([self.transaction("100")])
+        member = self.member(company)
+        before = read_rpc_execution_settings(self.connection)
+        self.assert_matches_view(member, p_granularity="day")
+        self.assertEqual(read_rpc_execution_settings(self.connection), before)
+        with self.assertRaises(psycopg.errors.InvalidParameterValue):
+            self.read_totals(member, p_granularity="invalid")
+        self.assertEqual(read_rpc_execution_settings(self.connection), before)
+        config = self.connection.execute(
+            "select proconfig from pg_proc where pronamespace='public'::regnamespace "
+            "and proname='transaction_totals'"
+        ).fetchone()
+        self.assertIsNotNone(config)
+        self.assertEqual(
+            set(config[0] if config else []),
+            {
+                'search_path=""',
+                "plan_cache_mode=force_custom_plan",
+                "enable_sort=off",
+                "enable_presorted_aggregate=off",
+            },
+        )
+
     def test_roles_exact_money_and_missing_states_match_view(self) -> None:
         first, second = self.financial_fixture()
         for user, grouped in product(
@@ -101,7 +127,7 @@ class TransactionTotalsTests(TransactionTotalsFixture):
                 {"p_date_from": "2027-01-01"},
             ):
                 self.assertEqual(
-                    self.assert_matches_view(user, **filters), {"rows": [], "next_offset": None}
+                    self.assert_matches_view(user, **filters), {"rows": [], "group_count": "0"}
                 )
             self.assert_matches_view(
                 user, p_skus=["SKU", "GAP", "SKU"], p_company_ids=[first, second, first]
@@ -131,7 +157,7 @@ class TransactionTotalsTests(TransactionTotalsFixture):
         self.assertEqual(row["company_amount"], "7")
         self.assert_matches_view(self.member(company), p_group_by_type=True)
 
-    def test_marketplace_currency_groups_remain_separate_and_page_in_order(self) -> None:
+    def test_marketplace_currency_groups_remain_separate_and_ordered(self) -> None:
         company, _ = self.owner()
         self.finances(
             [
@@ -155,10 +181,7 @@ class TransactionTotalsTests(TransactionTotalsFixture):
                     ("Amazon.com", "USD", "10.25"),
                 ],
             )
-            for offset, row in enumerate(rows):
-                page = self.assert_matches_view(user, p_limit=1, p_offset=offset)
-                self.assertEqual(page["rows"], [row])
-                self.assertEqual(page["next_offset"], offset + 1 if offset < 2 else None)
+            self.assertEqual(result["group_count"], "3")
             grouped = self.assert_matches_view(user, p_group_by_type=True, p_currency="USD")
             types = cast(list[dict[str, object]], grouped["rows"])
             self.assertEqual(len(types), 1)
@@ -187,7 +210,7 @@ class TransactionTotalsTests(TransactionTotalsFixture):
         for user in users:
             self.assert_matches_view(user)
 
-    def test_more_than_one_thousand_unicode_groups_page_without_extra_count(self) -> None:
+    def test_more_than_one_thousand_unicode_groups_return_completely_in_order(self) -> None:
         company, sku = self.owner()
         self.fee(sku, [("2026-01-01", None, "5")])
         types = [f"TYPE-{number:04}" for number in range(1000)] + ["Ä", "ä", "가", "😀"]
@@ -199,18 +222,12 @@ class TransactionTotalsTests(TransactionTotalsFixture):
             ]
         )
         member = self.member(company)
-        first = self.assert_matches_view(member, p_group_by_type=True)
-        self.assertEqual(first["next_offset"], 1000)
-        second = self.assert_matches_view(member, p_group_by_type=True, p_offset=1000)
-        self.assertIsNone(second["next_offset"])
-        rows = cast(list[dict[str, object]], first["rows"]) + cast(
-            list[dict[str, object]], second["rows"]
-        )
+        result = self.assert_matches_view(member, p_group_by_type=True)
+        self.assertEqual(result["group_count"], "1004")
+        rows = cast(list[dict[str, object]], result["rows"])
         self.assertEqual(
             [row["component_type"] for row in rows], sorted(types, key=lambda value: value.encode())
         )
-        self.assert_matches_view(member, p_group_by_type=True, p_limit=1, p_offset=9007199254740991)
-        self.assert_matches_view(member, p_group_by_type=True, p_limit=2, p_offset=1)
 
     def test_invalid_input_shapes_are_rejected_and_unknown_marketplaces_match_nothing(self) -> None:
         user = self.administrator()
@@ -219,12 +236,6 @@ class TransactionTotalsTests(TransactionTotalsFixture):
             {"p_date_from": "infinity"},
             {"p_date_to": "-infinity"},
             {"p_date_to": "2025-12-31"},
-            {"p_limit": None},
-            {"p_limit": 0},
-            {"p_limit": 1001},
-            {"p_offset": None},
-            {"p_offset": -1},
-            {"p_offset": 9007199254740992},
             {"p_group_by_type": None},
             {"p_granularity": "month"},
             {"p_granularity": ""},
@@ -253,7 +264,7 @@ class TransactionTotalsTests(TransactionTotalsFixture):
                     self.read_totals(user, **{name: values})
         self.assertEqual(
             self.read_totals(user, p_marketplaces=["unknown"]),
-            {"rows": [], "next_offset": None},
+            {"rows": [], "group_count": "0"},
         )
 
     def test_security_invoker_grants_and_anonymous_denial(self) -> None:
@@ -266,3 +277,17 @@ class TransactionTotalsTests(TransactionTotalsFixture):
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute("set local role anon")
             self.connection.execute("select public.transaction_totals(p_date_from => '2026-01-01')")
+        self.assertEqual(
+            self.connection.execute(
+                "select count(*) from pg_proc where pronamespace='public'::regnamespace "
+                "and proname='transaction_totals'"
+            ).fetchone(),
+            (1,),
+        )
+        for paging_argument in ("p_limit", "p_offset"):
+            with self.assertRaises(psycopg.errors.UndefinedFunction), self.connection.transaction():
+                self.connection.execute(
+                    sql.SQL(
+                        "select public.transaction_totals(p_date_from=>'2026-01-01', {}=>1)"
+                    ).format(sql.Identifier(paging_argument))
+                )

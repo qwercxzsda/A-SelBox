@@ -96,8 +96,6 @@ for (const width of [1440, 390]) {
     );
     fixture.aggregateRows = rows.map(aggregate);
     fixture.breakdownRows = rows.slice(0, 5).map(breakdown);
-    fixture.aggregatePageCap = 1;
-    fixture.breakdownPageCap = 1;
     await signIn(page);
     await page.getByRole("region", { name: "Current totals", exact: true }).waitFor();
 

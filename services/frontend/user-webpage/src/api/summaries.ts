@@ -4,8 +4,7 @@ import {
   decodeTransactionTrends,
 } from "./aggregates.ts";
 import { transactionFilterArguments } from "./transaction-page.ts";
-import { LOOKUP_PAGE_SIZE } from "./pagination.ts";
-import { readOffsetRpcRows } from "./rpc-pagination.ts";
+import { decodeTransactionTotalResult } from "./transaction-total-results.ts";
 import { requireAccessToken, type ApiTransport } from "./transport.ts";
 import { requireCurrency } from "./validation.ts";
 import { parseRecordTimestamp } from "../date-display.ts";
@@ -52,25 +51,16 @@ export function createSummaryApi(
     const { accessToken, signal } = options;
     requireAccessToken(accessToken);
     const args = buildPeriodArguments(options);
-    return readOffsetRpcRows(
-      (offset) =>
-        postRpc(
-          accessToken,
-          "transaction_totals",
-          {
-            ...args,
-            ...grouping,
-            p_limit: LOOKUP_PAGE_SIZE,
-            p_offset: offset,
-          },
-          operation,
-          signal,
-        ),
-      decodeRows,
-      rowKey,
+    signal?.throwIfAborted();
+    const result = await postRpc(
+      accessToken,
+      "transaction_totals",
+      { ...args, ...grouping },
       operation,
       signal,
     );
+    signal?.throwIfAborted();
+    return decodeTransactionTotalResult(result, decodeRows, rowKey, operation);
   }
 
   return {

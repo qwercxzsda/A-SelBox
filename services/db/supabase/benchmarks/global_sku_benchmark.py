@@ -96,7 +96,7 @@ def _verify(
         "row_count": Decimal(2 * matching),
         "known_company_count": Decimal(2 * matching),
     }
-    if len(totals["rows"]) != 1 or totals["next_offset"] is not None:
+    if len(totals["rows"]) != 1 or totals["group_count"] != "1":
         raise AssertionError("Expected one complete synthetic currency total")
     if any(Decimal(totals["rows"][0][key]) != value for key, value in expected.items()):
         raise AssertionError("Cross-namespace totals do not match exact known arithmetic")

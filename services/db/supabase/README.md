@@ -104,13 +104,22 @@ and fee projection. `transaction_count` counts current authoritative source comp
 `source_transaction_count` counts raw facts independently.
 `transaction_totals` sums the same filtered rows as Transactions, including authorized SelBox
 activity, and combines compatible facts before fee lookup. Totals and record drilldowns retain every
-selected filter; Last day and Last month replace only the selected date range. Administrator identity bootstrap
-preloads `sku_filter_options`, including unregistered, unassigned, historical, and registered-only
-SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
+selected filter; Last day and Last month replace only the selected date range. Live totals, Type
+breakdowns, and day/week trends each return a complete `rows`/`group_count` snapshot from one
+aggregate query, capped at 100,000 result groups without truncation. Source-local fee dates remain
+separate from UTC trend buckets.
+
+Administrator identity bootstrap preloads `sku_filter_options`, including unregistered, unassigned,
+historical, and registered-only SKUs in one request. The no-argument RPC derives distinct names once per load rather than once per
 cursor page. Members reuse their current assignments. Source, Marketplace, and Type menus
 use static catalogs. The frontend resolves table search to exact OR sets; Currency is not searchable.
 General REST aggregates are disabled. See the
 [query contracts](../../../docs/transaction_query_contracts.md) for parameters and numeric formats.
+
+The live totals RPC scopes its hash-grouping planner preferences to the function call and retains
+the server's existing `work_mem` and `hash_mem_multiplier`. It preserves ordered JSON output and
+restores caller settings on success and error; these preferences do not affect record pages or
+saved payout reads. See the [performance guide](../../../docs/database_performance.md).
 
 Administrator catalog discovery uses the existing SKU/date indexes to seek between distinct source
 SKU values, avoiding repeated transaction entries. The RPC checks the stored administrator

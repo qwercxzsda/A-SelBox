@@ -113,7 +113,7 @@ public.payout_report_records(uuid, boolean, integer, bigint, text[]),
 public.payout_report_totals(uuid, boolean, integer, bigint) to authenticated;
 
 grant execute on function public.transaction_totals(
-    date, date, uuid[], text[], text[], text, boolean, integer, bigint,
+    date, date, uuid[], text[], text[], text, boolean,
     text[], text[], boolean, text[], text[], text[], text[], text
 ) to authenticated;
 
