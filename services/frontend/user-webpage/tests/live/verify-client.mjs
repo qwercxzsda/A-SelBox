@@ -273,8 +273,6 @@ const endpoints = {
   "GET /rest/v1/": [
     "companies",
     "company_skus",
-    "assignment_versions",
-    "sku_fee_periods",
     "latest_inventory_captures",
     "latest_inventory_items",
     "latest_company_payout_reports",
@@ -291,6 +289,7 @@ const endpoints = {
   "POST /rest/v1/rpc/": [
     "sku_filter_options",
     "sku_configuration",
+    "sku_configuration_history",
     "publish_sku_configuration",
     "create_company",
     "delete_company",

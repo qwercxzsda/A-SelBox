@@ -108,3 +108,32 @@ class FinancialSourceLookupTests(SourceModelFixture):
                 "select public.financial_source_record('other',%s,%s)",
                 (new_id(), new_id()),
             )
+
+    def test_header_counts_respect_raw_source_access_and_exact_filter_semantics(self) -> None:
+        company, _ = self.owner()
+        self.finances([self.transaction("19"), self.transaction("0", 4)])
+        admin = self.administrator()
+        for start, markets, expected in (
+            (None, None, "2"),
+            ("2026-06-01", ["Amazon.com"], "2"),
+            ("2026-07-01", None, "0"),
+            (None, ["Amazon.ca"], "0"),
+        ):
+            self.assertEqual(
+                self.as_user(
+                    admin,
+                    "select public.source_transaction_count('finances',p_date_from=>%s::date,"
+                    "p_marketplaces=>%s::text[])",
+                    (start, markets),
+                ),
+                [(expected,)],
+            )
+        self.assertEqual(
+            self.as_user(
+                admin, "select public.source_transaction_count('finances',p_search_types=>'{}')"
+            ),
+            [("0",)],
+        )
+        for user in (self.member(company), self.auth_user()):
+            with self.assertRaises(InsufficientPrivilege):
+                self.as_user(user, "select private.finances_header_count(null,null,null)")

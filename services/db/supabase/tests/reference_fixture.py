@@ -148,7 +148,7 @@ class ReferenceFixture(DatabaseTestCase):
             self.connection.execute(
                 "insert into private.source_unit_versions(id,unit_id,source,content_sha256,"
                 "row_count)"
-                " values (%s,%s,'FINANCES',repeat('a',64),1)",
+                " values (%s,%s,'FINANCES',decode(repeat('aa',32),'hex'),1)",
                 (version, native),
             )
             self.connection.execute(
@@ -159,7 +159,7 @@ class ReferenceFixture(DatabaseTestCase):
                 (
                     version,
                     posted,
-                    posted,
+                    charge.get("instant", posted),
                     charge.get("order"),
                     charge.get("is_activity", True),
                     charge["amount"],

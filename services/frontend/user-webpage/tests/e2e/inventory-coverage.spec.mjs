@@ -70,7 +70,7 @@ test("old inventory exposes source age before opening metadata and separates pro
     path: testInfo.outputPath("inventory-age-desktop.png"),
     animations: "disabled",
   });
-  expect(inventory.captureRequests).toHaveLength(2);
+  expect(inventory.captureRequests).toHaveLength(1);
   await expect(
     page.getByRole("button", { name: /Refresh inventory|Send to FBA|Create shipment/ }),
   ).toHaveCount(0);
@@ -144,7 +144,7 @@ test("active filters show each value, survive F5 and clear individually without 
   ).toBeVisible();
   await expect(chips(page)).toContainText("Health: Out of stock");
   await expect(chips(page)).toContainText("Recommendation: Edit listing");
-  expect(inventory.requests).toHaveLength(2);
+  expect(inventory.requests).toHaveLength(1);
   expect(inventory.requests.every((request) => !request.has("and"))).toBe(true);
   await page.reload();
   await expect(

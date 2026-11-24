@@ -3,213 +3,131 @@ import test from "node:test";
 import { createApiClient, ApiError } from "../src/api/client.ts";
 import { SETTINGS } from "./api-fixtures.mjs";
 
-const uuid = (index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
-const SKU_ID = uuid(1);
-const COMPANY_ID = uuid(2);
-const VERSION_COLUMNS = [
-  "id",
-  "key_id",
-  "company_id",
-  "version_number",
-  "memo",
-  "fee_period_count",
-  "created_at",
-];
-const PERIOD_COLUMNS = [
-  "id",
-  "assignment_version_id",
-  "marketplace_name",
-  "valid_period",
-  "fee_rate_percent",
-];
-const version = (number, overrides = {}) => ({
-  id: uuid(100 + number),
-  key_id: SKU_ID,
-  company_id: COMPANY_ID,
-  version_number: String(number),
-  memo: `Version ${number}`,
-  fee_period_count: "1",
-  created_at: "2026-11-01T12:30:00+00:00",
-  ...overrides,
-});
-const period = (number, overrides = {}) => ({
-  id: uuid(1000 + number),
-  assignment_version_id: uuid(100 + number),
+const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const sku = uuid(1),
+  company = uuid(2);
+const period = {
   marketplace_name: "Amazon.com",
-  valid_period: "[2026-01-01,)",
+  valid_from: "2026-01-01",
+  valid_to: null,
   fee_rate_percent: "5.123456",
-  ...overrides,
-});
-
-function csvResponse(columns, rows, status = 200) {
-  const cell = (value) => (value === null ? "" : `"${String(value).replaceAll('"', '""')}"`);
-  return new Response(
-    [columns.join(","), ...rows.map((row) => columns.map((key) => cell(row[key])).join(","))].join(
-      "\n",
-    ),
-    {
-      status,
-      headers: { "Content-Type": "text/csv" },
-    },
-  );
+};
+function version(n, changes = {}) {
+  return {
+    id: uuid(100 + n),
+    key_id: sku,
+    company_id: company,
+    version_number: String(n),
+    memo: `Version ${n}`,
+    fee_period_count: "1",
+    created_at: "2026-11-01T12:30:00+00:00",
+    periods: [period],
+    ...changes,
+  };
 }
 
-function clientFixture(versions, periods, { cap = 1000, inspect = () => {} } = {}) {
-  return createApiClient(SETTINGS, async (rawUrl, init) => {
-    const url = new URL(rawUrl);
-    inspect(url, init);
-    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-access");
-    assert.equal(new Headers(init.headers).get("Accept"), "text/csv");
-    const offset = Number(url.searchParams.get("offset"));
-    const limit = Math.min(Number(url.searchParams.get("limit")), cap);
-    if (url.pathname.endsWith("/assignment_versions")) {
-      assert.equal(url.searchParams.get("kind"), "eq.SKU");
-      assert.equal(url.searchParams.get("key_id"), `eq.${SKU_ID}`);
-      assert.equal(url.searchParams.get("order"), "version_number.desc,id.desc");
-      return csvResponse(VERSION_COLUMNS, versions.slice(offset, offset + limit));
-    }
-    assert.equal(url.pathname, "/rest/v1/sku_fee_periods");
-    const ids = url.searchParams.get("assignment_version_id").slice(4, -1).split(",");
-    const matches = periods.filter((row) => ids.includes(row.assignment_version_id));
-    return csvResponse(PERIOD_COLUMNS, matches.slice(offset, offset + limit));
+test("each fee history page receives its versions and their exact periods in one request", async () => {
+  const versions = Array.from({ length: 12 }, (_, i) => version(12 - i));
+  versions[0] = version(12, {
+    fee_period_count: "2",
+    periods: [
+      { ...period, valid_from: "2025-01-01", valid_to: "2026-01-01", fee_rate_percent: "0" },
+      period,
+    ],
   });
-}
-
-test("saved fee history fills small server pages and loads complete exact-rate periods only for displayed versions", async () => {
-  const versions = Array.from({ length: 12 }, (_, index) => version(12 - index));
-  versions[0].fee_period_count = "2";
-  const periods = versions.map((row) => period(Number(row.version_number)));
-  periods.unshift(
-    period(99, {
-      assignment_version_id: versions[0].id,
-      valid_period: "[2025-01-01,2026-01-01)",
-      fee_rate_percent: "0",
-    }),
-  );
-  const requests = [];
-  const client = clientFixture(versions, periods, { cap: 2, inspect: (url) => requests.push(url) });
-  const first = await client.fetchSkuConfigurationHistory("test-access", SKU_ID);
+  const calls = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    assert.equal(new URL(url).pathname, "/rest/v1/rpc/sku_configuration_history");
+    assert.equal(init.method, "POST");
+    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-access");
+    const args = JSON.parse(init.body);
+    calls.push(args);
+    const end = args.p_offset + args.p_limit;
+    return Response.json({
+      versions: versions.slice(args.p_offset, end),
+      has_next: versions.length > end,
+    });
+  });
+  const first = await client.fetchSkuConfigurationHistory("test-access", sku);
   assert.equal(first.hasNext, true);
   assert.deepEqual(
-    first.versions.map((row) => row.version_number),
+    first.versions.map((v) => v.version_number),
     [12, 11, 10, 9, 8, 7, 6, 5, 4, 3],
   );
+  assert.deepEqual(first.versions[0].periods, versions[0].periods);
+  const last = await client.fetchSkuConfigurationHistory("test-access", sku, 1);
+  assert.equal(last.hasNext, false);
   assert.deepEqual(
-    first.versions[0].periods.map((row) => [row.fee_rate_percent, row.valid_from, row.valid_to]),
-    [
-      ["0", "2025-01-01", "2026-01-01"],
-      ["5.123456", "2026-01-01", null],
-    ],
-  );
-  for (const request of requests.filter((url) => url.pathname.endsWith("/sku_fee_periods"))) {
-    assert.equal(request.searchParams.get("assignment_version_id").includes(version(2).id), false);
-    assert.equal(request.searchParams.get("assignment_version_id").includes(version(1).id), false);
-  }
-  const second = await client.fetchSkuConfigurationHistory("test-access", SKU_ID, 1);
-  assert.equal(second.hasNext, false);
-  assert.deepEqual(
-    second.versions.map((row) => row.version_number),
+    last.versions.map((v) => v.version_number),
     [2, 1],
   );
+  assert.deepEqual(calls, [
+    { p_key_id: sku, p_limit: 10, p_offset: 0 },
+    { p_key_id: sku, p_limit: 10, p_offset: 10 },
+  ]);
 });
 
-test("empty and zero-period saved versions stay distinct without inventing fee periods", async () => {
-  let requests = 0;
-  const empty = clientFixture([], [], {
-    inspect: () => {
-      requests++;
-    },
-  });
-  assert.deepEqual(await empty.fetchSkuConfigurationHistory("test-access", SKU_ID), {
-    versions: [],
-    hasNext: false,
-  });
-  assert.equal(requests, 1);
-  const client = clientFixture(
-    [version(1, { company_id: null, fee_period_count: "0", memo: "" })],
-    [],
-  );
-  const result = await client.fetchSkuConfigurationHistory("test-access", SKU_ID);
-  assert.equal(result.versions[0].company_id, null);
-  assert.deepEqual(result.versions[0].periods, []);
-  assert.equal(result.versions[0].memo, "");
-});
-
-test("saved fee history rejects cross-SKU versions, duplicate pages and malformed version metadata", async () => {
+test("empty and zero-period saved versions stay distinct", async () => {
   for (const versions of [
-    [version(1, { key_id: uuid(9) })],
+    [],
+    [version(1, { company_id: null, fee_period_count: "0", memo: "", periods: [] })],
+  ]) {
+    const client = createApiClient(SETTINGS, async () =>
+      Response.json({ versions, has_next: false }),
+    );
+    const result = await client.fetchSkuConfigurationHistory("access", sku);
+    assert.equal(result.versions.length, versions.length);
+    if (versions.length) {
+      assert.equal(result.versions[0].memo, "");
+      assert.deepEqual(result.versions[0].periods, []);
+      assert.equal(result.versions[0].company_id, null);
+    }
+  }
+});
+
+test("saved history rejects malformed pages, foreign versions and incomplete or duplicate schedules", async () => {
+  const badRows = [
+    [version(1, { key_id: uuid(3) })],
     [version(1), version(1)],
     [version(1), version(2)],
     [version(1, { id: "bad" })],
     [version(1, { company_id: "bad" })],
     [version(1, { version_number: "0" })],
+    [version(1, { created_at: "invalid" })],
     [version(1, { fee_period_count: "-1" })],
-    [version(1, { created_at: "not-a-date" })],
+    [version(1, { periods: [] })],
+    [version(1, { fee_period_count: "2", periods: [period, period] })],
+    ...[
+      { valid_from: "2026-02-30" },
+      { valid_to: "2025-12-31" },
+      { fee_rate_percent: "5.0000001" },
+      { fee_rate_percent: "101" },
+    ].map((changes) => [version(1, { periods: [{ ...period, ...changes }] })]),
+  ];
+  for (const bad of [
+    null,
+    {},
+    { versions: [], has_next: true },
+    { versions: [version(1)], has_next: "true" },
+    { versions: Array.from({ length: 11 }, (_, i) => version(11 - i)), has_next: false },
+    ...badRows.map((versions) => ({ versions, has_next: false })),
   ]) {
-    await assert.rejects(
-      clientFixture(versions, [period(1)]).fetchSkuConfigurationHistory("test-access", SKU_ID),
-    );
+    const client = createApiClient(SETTINGS, async () => Response.json(bad));
+    await assert.rejects(client.fetchSkuConfigurationHistory("access", sku));
   }
-  const repeating = createApiClient(SETTINGS, async () =>
-    csvResponse(VERSION_COLUMNS, [version(1)]),
-  );
-  await assert.rejects(
-    repeating.fetchSkuConfigurationHistory("test-access", SKU_ID),
-    /changed while loading/,
-  );
 });
 
-test("saved fee history rejects incomplete, duplicate or foreign periods and invalid rate/date ranges", async () => {
-  for (const periods of [
-    [],
-    [period(1), period(1)],
-    [period(1, { valid_period: "(2026-01-01,)" })],
-    [period(1, { valid_period: "[2026-02-30,)" })],
-    [period(1, { valid_period: "[2026-02-01,2026-01-01)" })],
-    [period(1, { fee_rate_percent: "5.1234567" })],
-    [period(1, { fee_rate_percent: "101" })],
-  ]) {
-    await assert.rejects(
-      clientFixture([version(1)], periods).fetchSkuConfigurationHistory("test-access", SKU_ID),
-    );
-  }
-  let versionRead = false;
-  const foreign = createApiClient(SETTINGS, async (url) => {
-    if (new URL(url).pathname.endsWith("/assignment_versions")) {
-      const rows = versionRead ? [] : [version(1)];
-      versionRead = true;
-      return csvResponse(VERSION_COLUMNS, rows);
-    }
-    return csvResponse(PERIOD_COLUMNS, [period(2)]);
-  });
-  await assert.rejects(
-    foreign.fetchSkuConfigurationHistory("test-access", SKU_ID),
-    /another version/,
-  );
-});
-
-test("saved fee history validates input and respects cancellation and denied reads", async () => {
-  let requests = 0;
-  const client = clientFixture([], [], {
-    inspect: () => {
-      requests++;
-    },
-  });
-  await assert.rejects(client.fetchSkuConfigurationHistory("test-access", "invalid"));
-  await assert.rejects(client.fetchSkuConfigurationHistory("test-access", SKU_ID, -1));
-  const cancelled = new AbortController();
-  cancelled.abort(new Error("cancelled"));
-  await assert.rejects(
-    client.fetchSkuConfigurationHistory("test-access", SKU_ID, 0, cancelled.signal),
-    /cancelled/,
-  );
-  assert.equal(requests, 0);
+test("history validates the key, page offset and cancellation before accessing the server", async () => {
+  const client = createApiClient(SETTINGS, async () => assert.fail("unexpected history request"));
+  await assert.rejects(client.fetchSkuConfigurationHistory("access", "invalid"));
+  await assert.rejects(client.fetchSkuConfigurationHistory("access", sku, -1));
+  await assert.rejects(client.fetchSkuConfigurationHistory("access", sku, 0, AbortSignal.abort()));
   const denied = createApiClient(
     SETTINGS,
     async () => new Response("private reason", { status: 403 }),
   );
   await assert.rejects(
-    denied.fetchSkuConfigurationHistory("test-access", SKU_ID),
+    denied.fetchSkuConfigurationHistory("access", sku),
     (error) =>
       error instanceof ApiError &&
       error.status === 403 &&

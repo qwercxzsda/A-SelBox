@@ -19,6 +19,7 @@ from services.sync.src.finances.marketplaces import coverage_marketplaces
 from services.sync.src.finances.models import PreparedFinances
 from services.sync.src.finances.preprocess import prepare_finances_acquisition
 from services.sync.src.finances.query_windows import transaction_query_parameters
+from services.sync.src.finances.validation import revision_digest
 from services.sync.src.numeric import Numeric
 from services.sync.src.source_serialization import source_json
 from services.sync.tests.support.archives import MemoryArchiveStorage
@@ -98,6 +99,72 @@ class FinancesPipelineTests(DatabaseTestCase):
             ).fetchone(),
             (2,),
         )
+
+    def test_private_digest_preserves_all_sha256_bytes(self) -> None:
+        acquisition, prepared = self.capture([native_transaction()])
+        self.accept(acquisition, prepared)
+        (digest,) = require_row(
+            self.connection.execute(
+                "select content_sha256 from private.source_unit_versions"
+            ).fetchone()
+        )
+        self.assertEqual(digest, bytes.fromhex(revision_digest(prepared.transactions[0])))
+        for length in (31, 33):
+            with (
+                self.subTest(length=length),
+                self.assertRaises(psycopg.errors.CheckViolation),
+                self.connection.transaction(),
+            ):
+                self.connection.execute(
+                    "insert into private.source_unit_versions(unit_id,source,content_sha256,"
+                    "row_count) select id,source,%s,0 from private.source_units",
+                    (bytes(length),),
+                )
+
+    def test_selected_observation_requires_the_same_unit_and_observed_version(self) -> None:
+        original = self.accept(
+            *self.capture([native_transaction("A"), native_transaction("B")], "200")
+        )
+        updated = self.accept(
+            *self.capture([native_transaction("A", amount="90"), native_transaction("B")], "190")
+        )
+        [a, b] = self.connection.execute(
+            "select id,current_version_id from private.source_units order by unit_key"
+        ).fetchall()
+        for batch, version in ((original, a[1]), (updated, b[1])):
+            with (
+                self.subTest(batch=batch),
+                self.assertRaises(psycopg.errors.ForeignKeyViolation),
+                self.connection.transaction(),
+            ):
+                self.connection.execute(
+                    "update private.source_units set current_batch_id=%s,current_version_id=%s "
+                    "where id=%s",
+                    (batch, version, a[0]),
+                )
+                self.connection.execute("set constraints all immediate")
+
+        # Publishers may select a batch before inserting that batch's observation rows.
+        pending = require_row(
+            self.connection.execute(
+                "insert into private.source_preprocess_batches "
+                "(acquisition_id,preprocess_version,unit_count,row_count) "
+                "select acquisition_id,preprocess_version,unit_count,row_count "
+                "from private.source_preprocess_batches where id=%s returning id",
+                (updated,),
+            ).fetchone()
+        )[0]
+        self.connection.execute(
+            "update private.source_units set current_batch_id=%s where current_batch_id=%s",
+            (pending, updated),
+        )
+        self.connection.execute(
+            "insert into private.source_batch_units "
+            "select %s,unit_id,version_id,document_number,record_number "
+            "from private.source_batch_units where batch_id=%s",
+            (pending, updated),
+        )
+        self.connection.execute("set constraints all immediate")
 
     def test_changes_keep_every_revision_and_reverting_state_reuses_earlier_revision(self) -> None:
         for amount in range(100, 105):

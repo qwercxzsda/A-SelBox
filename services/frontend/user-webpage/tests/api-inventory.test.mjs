@@ -41,7 +41,7 @@ const options = {
   pageIndex: 0,
   pageSize: 25,
 };
-test("inventory capture discovery retains empty capture references and handles smaller server pages without counts", async () => {
+test("inventory capture discovery retains empty capture references and handles smaller server pages when count headers are unavailable", async () => {
   const captures = [
     {
       capture_id: "empty-us",
@@ -67,7 +67,7 @@ test("inventory capture discovery retains empty capture references and handles s
     assert.equal(new URL(url).pathname, "/rest/v1/latest_inventory_captures");
     assert.equal(params.get("order"), "marketplace_name.asc,capture_id.asc");
     assert.equal(params.get("select"), INVENTORY_CAPTURE_COLUMNS.join(","));
-    assert.equal(init.headers.Prefer, undefined);
+    assert.equal(init.headers.Prefer, params.get("offset") === "0" ? "count=exact" : undefined);
     return new Response(
       offset < captures.length ? csvRecord(captures[offset]) : INVENTORY_CAPTURE_COLUMNS.join(","),
     );
@@ -101,7 +101,7 @@ test("inventory loads every authorized row before display, preserving exact valu
     assert.equal(params.get("order"), "capture_id.asc,sku.asc");
     assert.equal(params.get("select"), INVENTORY_COLUMNS.join(","));
     assert.equal(params.has("and"), false);
-    assert.equal(init.headers.Prefer, undefined);
+    assert.equal(init.headers.Prefer, params.get("offset") === "0" ? "count=exact" : undefined);
     assert.equal(init.headers.Authorization, "Bearer access");
     assert.ok(init.signal instanceof AbortSignal);
     return new Response(
@@ -331,4 +331,33 @@ test("inventory rejects an account change before reading into the cached scope",
     client.fetchInventoryRows("access", revisions.account),
     (error) => error.status === 403,
   );
+});
+
+test("inventory uses the first exact count to complete capped pages without a terminal read", async () => {
+  const offsets = [];
+  const client = createApiClient(SETTINGS, async (url, init) => {
+    if (revisionReply(url)) return revisionReply(url);
+    const offset = Number(new URL(url).searchParams.get("offset"));
+    offsets.push(offset);
+    assert.equal(init.headers.Prefer, offset === 0 ? "count=exact" : undefined);
+    return new Response(csvRecord(record({ sku: `SKU-${offset}` })), {
+      headers: { "Content-Range": offset === 0 ? "0-0/2" : "1-1/*" },
+    });
+  });
+  const rows = await client.fetchInventoryRows("access", revisions.account);
+  assert.deepEqual(
+    rows.map((r) => r.sku),
+    ["SKU-0", "SKU-1"],
+  );
+  assert.deepEqual(offsets, [0, 1]);
+});
+
+test("a truncated counted inventory page never becomes a complete snapshot", async () => {
+  const client = createApiClient(SETTINGS, async (url) => {
+    if (revisionReply(url)) return revisionReply(url);
+    return new URL(url).searchParams.get("offset") === "0"
+      ? new Response(csvRecord(record()), { headers: { "Content-Range": "0-0/2" } })
+      : new Response(INVENTORY_COLUMNS.join(","));
+  });
+  await assert.rejects(client.fetchInventoryRows("access", revisions.account), /incomplete page/);
 });

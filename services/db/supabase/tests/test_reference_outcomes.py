@@ -10,6 +10,40 @@ from services.db.supabase.tests.reference_fixture import ReferenceFixture
 
 
 class ReferenceOutcomeTests(ReferenceFixture):
+    def test_utc_count_and_trend_keep_local_day_reference_ownership(self) -> None:
+        self.assign_sku("A", self.company)
+        self.reference(
+            "INVENTORY_LEDGER",
+            "2026-01",
+            [{"month": "2026-01-01", "sku": "A", "fnsku": "X000000001", "asin": "B000000001"}],
+        )
+        charge = {
+            "route": "FNSKU",
+            "fnsku": "X000000001",
+            "start": "2026-01-01",
+            "end": "2026-01-01",
+            "date": "2026-01-31",
+        }
+        self.finance(
+            [
+                {**charge, "instant": "2026-01-31T18:00:00Z", "amount": -9},
+                {**charge, "instant": "2026-02-01T01:00:00Z", "amount": -3},
+            ]
+        )
+        self.assertEqual(
+            self.one(
+                "select public.transaction_count(p_date_from=>'2026-02-01',"
+                "p_date_to=>'2026-02-01',p_marketplaces=>array['Amazon.com'])"
+            ),
+            "1",
+        )
+        rows = self.connection.execute(
+            "select r->>'period_start',r->>'reported_amount' from jsonb_array_elements("
+            "public.transaction_totals(p_date_from=>'2026-02-01',p_date_to=>'2026-02-01',"
+            "p_granularity=>'day')->'rows') r"
+        ).fetchall()
+        self.assertEqual(rows, [("2026-02-01", "-3")])
+
     def test_ledger_differences_and_duplicate_removal_rows(self) -> None:
         self.assign_sku("A", self.company)
         self.assign_sku("B", self.other)
@@ -87,6 +121,15 @@ class ReferenceOutcomeTests(ReferenceFixture):
             from private.financial_outcomes group by 1""").fetchall()
         )
         self.assertEqual(totals, {1: Decimal("-12.2"), 2: Decimal("-4.4")})
+        # February's charge is explained by January's anchor and warehouse rows.
+        self.assertEqual(
+            self.one(
+                "select sum(base_amount + tax_amount) from private.indirect_financial_amounts("
+                "null, null, '2026-02-01', '2026-03-01', 'Amazon.com') "
+                "where reason='CHARGED_IN_ANOTHER_MONTH'"
+            ),
+            Decimal("-4.4"),
+        )
         self.assertEqual(
             self.one("select sum(source_amount) from private.company_components"), Decimal("-6.6")
         )

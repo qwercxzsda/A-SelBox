@@ -115,7 +115,7 @@ for (const width of [1440, 390]) {
     await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
     await page.getByRole("searchbox", { name: "Search", exact: true }).fill("shipping plan");
     await expect(region.locator(".inventory-sku")).toHaveText(["PLAN"]);
-    expect(inventory.requests).toHaveLength(2);
+    expect(inventory.requests).toHaveLength(1);
     expect(
       await page.evaluate(
         () => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1,

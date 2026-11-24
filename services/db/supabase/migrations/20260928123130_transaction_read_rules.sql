@@ -2,7 +2,8 @@ create index finances_posted_instant_idx on private.finances_transactions (poste
 create index finances_marketplace_instant_idx on private.finances_transactions (
     marketplace_name, posted_at
 );
-create index finances_amount_type_idx on private.finances_amounts (amount_type);
+-- Supports type filters alone and their intersection with an exact seller SKU.
+create index finances_amount_type_idx on private.finances_amounts (amount_type, sku);
 
 -- Shared rules for the bounded transaction read API.
 
@@ -104,7 +105,11 @@ begin
         f.marketplace_name, f.currency, f.posted_date, f.component_type, f.outcome, f.selbox_group,
         f.reason, f.reference_id, f.sku, to_jsonb(f.skus), f.fnsku, f.asin, f.base_amount,
         f.tax_amount, f.company_id
-    from private.financial_outcomes f
+    from (
+        select * from private.direct_financial_amounts(null,null)
+        union all
+        select * from private.indirect_financial_amounts(null,null,cutoff,month_end,p_marketplace)
+    ) f
     where f.outcome = p_outcome
         and (cutoff is null or f.posted_date >= cutoff) and (month_end is null or f.posted_date < month_end)
         and (p_marketplace is null or f.marketplace_name = p_marketplace)
@@ -133,8 +138,7 @@ begin
         raise exception 'Choose the first day of a review month' using errcode='22023';
     end if;
     return query
-    select m.* from private.monthly_financial_totals m
-    where (p_month is null or m.month = p_month) and (p_marketplace is null or m.marketplace_name = p_marketplace)
+    select m.* from private.monthly_amounts(p_month,p_marketplace) m
     order by m.month desc,m.seller_namespace,m.amazon_scope,m.marketplace_name,m.currency
     limit p_limit offset p_offset;
 end;

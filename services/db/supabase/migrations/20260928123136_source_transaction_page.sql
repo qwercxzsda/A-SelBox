@@ -46,7 +46,8 @@ begin
         select case when $12 and (select count(*) from candidates) > 10000 then null::jsonb
             else jsonb_build_object(
                 'rows', coalesce((select jsonb_agg(payload order by %3$s) from result_rows), '[]'),
-                'total_count', case when $11 then (select count(*)::text from candidates) end
+                'total_count', case when $11 and $12 then (select count(*)::text from candidates)
+                    when $11 then public.source_transaction_count('finances',$1,$2,$3,$4,$5,$6,$7,$8) end
             ) end
     $query$,
         case when p_order_by = 'amount' then 'materialized' else 'not materialized' end,

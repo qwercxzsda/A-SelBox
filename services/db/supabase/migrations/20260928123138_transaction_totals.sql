@@ -23,7 +23,10 @@ set plan_cache_mode = 'force_custom_plan'
 as $$
 declare
     result jsonb;
-    companies uuid[] := private.transaction_company_scope(p_company_ids);
+    scope private.transaction_filter := row(
+        p_date_from, p_date_to, private.transaction_company_scope(p_company_ids), p_skus, p_marketplaces,
+        p_sources, p_types, p_fee_applicable, p_search_skus, p_search_types,
+        p_search_marketplaces, p_search_sources, p_currency);
 begin
     perform private.validate_live_transaction_filters(
         p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces, p_sources,
@@ -35,21 +38,33 @@ begin
     if p_granularity is not null and p_granularity not in ('day', 'week') then
         raise exception 'Trend granularity must be day or week' using errcode = '22023';
     end if;
-    if cardinality(companies)=0 then
+    if cardinality(scope.companies)=0 then
         return jsonb_build_object('rows','[]'::jsonb,'group_count','0');
     end if;
     result:=(
-        with totals as (
-            select case when not p_group_by_type or p_granularity is not null then c.marketplace_name end as marketplace_name,
-                c.currency,case when p_group_by_type or p_granularity is not null then c.component_type end as component_type,
+        -- Within a rate version, marketplace and local day, the exact percentage is
+        -- linear. Unpriced and account-level groups remain separate for NULL/count semantics.
+        with basis as (
+            select c.marketplace_name, c.currency,
+                case when p_group_by_type or p_granularity is not null then c.component_type end as component_type,
                 date_trunc(p_granularity,c.activity_at at time zone 'UTC')::date as period_start,
-                sum(c.source_amount) as reported_amount,sum(c.fee_amount) as service_fee,sum(c.company_amount) as company_amount,
-                count(*) as row_count,count(c.company_amount) as known_company_count
-            from private.filtered_components(
-                p_date_from, p_date_to, companies, p_skus, p_marketplaces, p_sources, p_types,
-                p_fee_applicable, p_search_skus, p_search_types, p_search_marketplaces,
-                p_search_sources, p_currency
-            ) c group by 1,2,3,4
+                case when c.fee_base is not null then c.terms_version_id end as rate_version,
+                case when c.fee_base is not null then c.activity_date end as rate_day,
+                c.company_id is not null as owned,
+                sum(c.source_amount) as source_amount,sum(c.fee_base) as fee_base,count(*) as row_count
+            from private.filtered_transaction_measures(scope) c group by 1,2,3,4,5,6,7
+        ), totals as (
+            select case when not p_group_by_type or p_granularity is not null then c.marketplace_name end as marketplace_name,
+                c.currency,c.component_type,c.period_start,sum(c.source_amount) as reported_amount,
+                sum(fee.amount) as service_fee,
+                sum(case when c.owned then c.source_amount+fee.amount else 0 end) as company_amount,
+                sum(c.row_count) as row_count,
+                coalesce(sum(c.row_count) filter (where fee.amount is not null),0) as known_company_count
+            from basis c left join public.sku_fee_periods p on p.assignment_version_id=c.rate_version
+                and p.marketplace_name=c.marketplace_name and p.valid_period @> c.rate_day
+            cross join lateral(select case when c.fee_base is null then 0::numeric
+                else private.calculate_service_fee(c.fee_base,p.fee_rate_percent) end amount) fee
+            group by 1,2,3,4
         ),
         bounded_groups as materialized (
             select t.* from totals as t

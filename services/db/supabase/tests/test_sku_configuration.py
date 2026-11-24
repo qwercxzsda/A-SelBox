@@ -1,10 +1,25 @@
 """Read-only configuration exposes exact current ownership and required fee coverage."""
 
 from decimal import Decimal
+from typing import TypedDict, cast
 
 import psycopg
 
-from services.db.supabase.tests.configuration_fixtures import ConfigurationFixture
+from services.db.supabase.tests.configuration_fixtures import (
+    ConfigurationFixture,
+    ConfigurationPeriod,
+)
+
+
+class SavedVersion(TypedDict):
+    id: str
+    created_at: str
+    periods: list[ConfigurationPeriod]
+
+
+class HistoryPage(TypedDict):
+    versions: list[SavedVersion]
+    has_next: bool
 
 
 class SkuConfigurationTests(ConfigurationFixture):
@@ -80,3 +95,34 @@ class SkuConfigurationTests(ConfigurationFixture):
             ),
             [],
         )
+
+    def test_saved_schedule_page_limits_versions_and_nests_only_their_periods(self) -> None:
+        company, key = self.owner("WITH-HISTORY")
+        other, _ = self.owner("OTHER")
+        old = self.fee(key, [("2025-01-01", "2026-01-01", "0"), ("2026-01-01", None, "5.123456")])
+        latest = self.fee(key, [])
+        admin = self.administrator()
+        query = "select public.sku_configuration_history(%s,%s,1)"
+
+        first = cast(HistoryPage, self.as_user(admin, query, (key, 0))[0][0])
+        self.assertTrue(first["has_next"])
+        self.assertEqual([v["id"] for v in first["versions"]], [latest])
+        self.assertEqual(first["versions"][0]["periods"], [])
+        second = cast(HistoryPage, self.as_user(admin, query, (key, 1))[0][0])["versions"][0]
+        self.assertEqual(second["id"], old)
+        self.assertEqual(
+            second["created_at"],
+            self.as_user(
+                admin, "select created_at::text from public.assignment_versions where id=%s", (old,)
+            )[0][0],
+        )
+        self.assertEqual(
+            [(p["valid_from"], p["valid_to"], p["fee_rate_percent"]) for p in second["periods"]],
+            [("2025-01-01", "2026-01-01", "0"), ("2026-01-01", None, "5.123456")],
+        )
+        own = self.as_user(self.member(company), query, (key, 0))[0][0]
+        self.assertEqual(own, {**first, "has_next": False})
+        empty: HistoryPage = {"versions": [], "has_next": False}
+        self.assertEqual(self.as_user(self.member(other), query, (key, 0)), [(empty,)])
+        self.assertEqual(self.as_user(self.auth_user(), query, (key, 0)), [(empty,)])
+        self.assertEqual(self.as_user(admin, query, (key, 999)), [(empty,)])

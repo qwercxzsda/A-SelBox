@@ -165,10 +165,10 @@ returns table (
 $$;
 
 -- Only direct SKU and account amounts have an outcome without a reference lookup.
-create function private.direct_outcome(route private.finances_route, company_id uuid)
+create function private.direct_outcome(route private.finances_route, has_owner boolean)
 returns text language sql immutable parallel safe as $$
     select case when route = 'SELBOX' then 'SELBOX' when route = 'SKU' then
-        case when company_id is null then 'DIFFERENCE' else 'COMPANY' end end;
+        case when has_owner then 'COMPANY' else 'DIFFERENCE' end end;
 $$;
 
 -- A seller SKU or account charge has no invoice, order or ledger dependency.
@@ -185,7 +185,7 @@ returns setof private.financial_result language sql stable as $$
         case when a.amount_part = 'TAX' then 0 else a.amount end,
         case when a.amount_part = 'TAX' then a.amount else 0 end,
         a.quantity::numeric, a.fee_base::numeric,
-        private.direct_outcome(a.route, owner.company_id),
+        private.direct_outcome(a.route, owner.company_id is not null),
         a.selbox_group::text, case when a.route = 'SKU' and owner.company_id is null then 'NO_ASSIGNMENT' end,
         owner.company_id, owner.key_id, owner.id, p.id::uuid, p.fee_rate_percent,
         case when a.fee_base is null then 'NOT_APPLICABLE' when p.id is null then 'MISSING_FEE' else 'APPLIED' end,
@@ -203,7 +203,8 @@ returns setof private.financial_result language sql stable as $$
 $$;
 
 create function private.indirect_financial_amounts(
-    p_source_versions uuid[], p_assignment_versions uuid[]
+    p_source_versions uuid[], p_assignment_versions uuid[],
+    p_from date default null, p_until date default null, p_marketplace text default null
 )
 returns setof private.financial_result language sql stable as $$
     with units as materialized (
@@ -225,6 +226,11 @@ returns setof private.financial_result language sql stable as $$
         where h.is_activity and a.route not in ('SKU', 'SELBOX')
     ), controls as materialized (
         select distinct on (seller_namespace,amazon_scope,route,ref_key,market_key,currency) c.*,
+            -- A matching charge can be in a different month or market than its key's earliest charge.
+            -- Scope the key only after its full control and anchor have been computed.
+            bool_or((p_from is null or c.posted_date >= p_from)
+                and (p_until is null or c.posted_date < p_until)
+                and (p_marketplace is null or c.marketplace_name = p_marketplace)) over w as in_scope,
             sum(base_amount) over w charge_base,sum(tax_amount) over w charge_tax,array_agg(version_id::uuid) over w supporting
         from activity c where ref_key is not null
         window w as (partition by seller_namespace,amazon_scope,route,ref_key,market_key,currency
@@ -238,6 +244,7 @@ returns setof private.financial_result language sql stable as $$
             u.preprocess_version as reference_preprocess_version
         from controls c left join units u on u.source = c.route and u.unit_key = c.ref_key
             and u.seller_namespace = c.seller_namespace and u.amazon_scope = c.amazon_scope
+        where c.in_scope
     ), matched as materialized (
         select c.id as anchor_id, c.seller_namespace, c.amazon_scope, c.marketplace_name,
             c.posted_date, c.posted_at, c.currency, c.component_type, c.ref_key, c.supporting,
@@ -249,7 +256,7 @@ returns setof private.financial_result language sql stable as $$
             and m.currency = c.currency and coalesce(m.market_key, '') = c.market_key
     ), sums as materialized (
         select anchor_id,sum(base_amount) base_amount,sum(tax_amount) tax_amount from matched group by 1
-    ), inputs as (
+    ), all_inputs as (
         select 'FINANCES'::text source,id::uuid source_row_id,version_id::uuid source_version_id,transaction_id::uuid source_identity_id,
             preprocess_version,seller_namespace::text,amazon_scope::text,marketplace_name,posted_date,posted_at,currency,
             component_type::text,route,reference_id,sku,fnsku,asin,ledger_start_month,ledger_end_month,base_amount,tax_amount,
@@ -287,6 +294,11 @@ returns setof private.financial_result language sql stable as $$
             location(sign,market,day,instant)
         where (date_trunc('month',f.posted_date),f.marketplace_name)<>(date_trunc('month',c.posted_date),c.marketplace_name)
             and (f.base_amount<>0 or f.tax_amount<>0)
+    ), inputs as (
+        select * from all_inputs
+        where (p_from is null or posted_date >= p_from)
+            and (p_until is null or posted_date < p_until)
+            and (p_marketplace is null or marketplace_name = p_marketplace)
     ), lookup_keys as materialized (
         -- Repeated report rows contribute separately. Resolve their common lookup once.
         select row_number() over () as lookup_id, keys.*
@@ -380,7 +392,7 @@ create function private.calculate_amounts(p_source_versions uuid[], p_assignment
 returns setof private.financial_result language sql stable as $$
     select * from private.direct_financial_amounts(p_source_versions, p_assignment_versions)
     union all
-    select * from private.indirect_financial_amounts(p_source_versions, p_assignment_versions);
+    select * from private.indirect_financial_amounts(p_source_versions, p_assignment_versions, null, null, null);
 $$;
 
 create view private.financial_outcomes with (security_invoker = true) as
@@ -417,37 +429,54 @@ select
     company_id
 from private.read_financial_outcomes();
 
--- Count every native activity amount in the control. Direct SKU and account
--- charges also supply their outcome here; the remaining outcomes come from
--- invoice, warehouse, named-assignment and order lookups.
-create view private.monthly_financial_totals with (security_invoker = true) as
+-- The native control includes every selected Finances amount independently of its outcome.
+-- Group each transaction's amounts by route and SKU before joining monthly scopes. All
+-- amounts in that group share a posting date and direct ownership, including unowned SKUs.
+create function private.monthly_amounts(p_month date, p_marketplace text)
+returns table (
+    seller_namespace text, amazon_scope text, marketplace_name text, currency text,
+    month date, finances_base numeric, finances_tax numeric, -- noqa: RF04
+    company_base numeric, company_tax numeric, selbox_base numeric, selbox_tax numeric,
+    difference_base numeric, difference_tax numeric
+) language sql stable as $$
 with contributions as (
     select
         h.seller_namespace,
         h.amazon_scope,
         h.marketplace_name,
         h.currency,
-        date_trunc('month', h.posted_date)::date as month, -- noqa: RF04
+        date_trunc('month', h.posted_date::timestamp)::date as month,
         true as native,
-        private.direct_outcome(a.route, terms.company_id) as outcome,
-        case when a.amount_part = 'TAX' then 0 else a.amount end as base_amount,
-        case when a.amount_part = 'TAX' then a.amount else 0 end as tax_amount
+        private.direct_outcome(a.route, a.sku in (
+            select sku from private.current_sku_terms where company_id is not null
+        )) as outcome,
+        a.base_amount, a.tax_amount
     from private.selected_finance_headers(null) as h
-    inner join private.finances_amounts as a on h.version_id = a.version_id
-    left join private.current_sku_terms as terms on a.route = 'SKU' and a.sku = terms.sku
+    cross join lateral (
+        select a.route, a.sku,
+            sum(a.amount) filter (where a.amount_part <> 'TAX') as base_amount,
+            sum(a.amount) filter (where a.amount_part = 'TAX') as tax_amount
+        from private.finances_amounts a
+        where a.version_id = h.version_id
+        group by a.route, a.sku
+    ) a
     where h.is_activity
+        and (p_month is null or (
+            h.posted_date >= p_month and h.posted_date < (p_month + interval '1 month')::date
+        ))
+        and (p_marketplace is null or h.marketplace_name = p_marketplace)
     union all
     select
         seller_namespace,
         amazon_scope,
         marketplace_name,
         currency,
-        date_trunc('month', posted_date)::date as month, -- noqa: RF04
+        date_trunc('month', posted_date)::date as month,
         false as native,
         outcome,
         base_amount,
         tax_amount
-    from private.indirect_financial_amounts(null, null)
+    from private.indirect_financial_amounts(null, null, p_month, (p_month + interval '1 month')::date, p_marketplace)
 )
 
 select
@@ -466,6 +495,10 @@ select
     coalesce(sum(tax_amount) filter (where outcome = 'DIFFERENCE'), 0) as difference_tax
 from contributions
 group by 1, 2, 3, 4, 5;
+$$;
+
+create view private.monthly_financial_totals with (security_invoker = true) as
+select * from private.monthly_amounts(null, null); -- noqa: AM04
 
 create function private.read_monthly_financial_totals()
 returns setof private.monthly_financial_totals

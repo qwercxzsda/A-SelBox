@@ -32,7 +32,7 @@ def _workspace_reads(connection: Connection, role: str) -> list[Read]:
     ).fetchone()
     report_id = (report[0],) if report else None
     sku = connection.execute(
-        "select id,terms_version_id from public.company_skus order by sku,id limit 1"
+        "select id from public.company_skus order by sku,id limit 1"
     ).fetchone()
     reads = [
         Read("workspace_revisions", "select public.workspace_revisions()"),
@@ -41,17 +41,9 @@ def _workspace_reads(connection: Connection, role: str) -> list[Read]:
         Read("company_skus", "select * from public.company_skus order by sku,id limit 1000"),
         Read("fee_configuration", "select public.sku_configuration()"),
         Read(
-            "fee_history_versions",
-            "select * from public.assignment_versions where kind='SKU' and key_id=%s "
-            "order by version_number desc,id limit 51",
+            "fee_history",
+            "select public.sku_configuration_history(%s)",
             (sku[0],) if sku else None,
-            "skipped_no_visible_sku",
-        ),
-        Read(
-            "fee_history_periods",
-            "select * from public.sku_fee_periods where assignment_version_id=%s "
-            "order by marketplace_name,valid_period,id limit 1000",
-            (sku[1],) if sku else None,
             "skipped_no_visible_sku",
         ),
         Read(

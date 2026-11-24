@@ -98,7 +98,7 @@ test("inventory browser paging, exact punctuation filters and tab state stay ind
   await expect(page.getByText("26–27 of 27 inventory items", { exact: true })).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill(special);
   await expect(page.getByText("1–1 of 1 inventory items", { exact: true }).first()).toBeVisible();
-  expect(fixture.requests).toHaveLength(2);
+  expect(fixture.requests).toHaveLength(1);
   expect(fixture.requests.every((request) => !request.has("and"))).toBe(true);
   await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
   await expect(
@@ -190,7 +190,7 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await page.getByRole("checkbox", { name: "RESTOCK", exact: true }).check();
   await page.keyboard.press("Escape");
   await expect(skus).toHaveText(["RESTOCK"]);
-  expect(inventory.requests).toHaveLength(2);
+  expect(inventory.requests).toHaveLength(1);
   await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
   await columnTrigger(region, "Inventory health status").click();
   await page.getByRole("checkbox", { name: "Unavailable", exact: true }).check();
@@ -375,7 +375,7 @@ test("inventory debounces typing while preserving raw search immediately across 
   await expect(page.locator(".inventory-sku")).toHaveText(["RESTOCK"]);
   await columnTrigger(page, "Sales · last 90 days").click();
   await page.getByRole("button", { name: "Highest first", exact: true }).click();
-  expect(inventory.requests).toHaveLength(initialReads + 2);
+  expect(inventory.requests).toHaveLength(initialReads + 1);
   await expect(
     page.getByRole("columnheader").filter({ has: columnTrigger(page, "Sales · last 90 days") }),
   ).toHaveAttribute("aria-sort", "descending");
@@ -400,7 +400,7 @@ test("an inventory revision refreshes local search while unchanged checks read n
   workspace.revisions.inventory = "new-capture";
   await poll(page, workspace);
   await expect(page.locator(".inventory-sku")).toHaveText(["NEW-SKU"]);
-  expect(inventory.requests).toHaveLength(reads + 2);
+  expect(inventory.requests).toHaveLength(reads + 1);
 });
 
 const financialReads = (fixture) => ({
@@ -437,7 +437,7 @@ test("inventory retains data and retries failed revision checks without a manual
   await poll(page, workspace);
   await expect(page.getByText("RECOVERED", { exact: true })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
-  expect(inventory.requests).toHaveLength(reads + 2);
+  expect(inventory.requests).toHaveLength(reads + 1);
 });
 
 async function poll(page, fixture) {
@@ -476,18 +476,18 @@ for (const role of ["member", "administrator"]) {
     await poll(page, workspace);
     await expect(page.getByText("SECOND", { exact: true })).toBeVisible();
     await expect(page.getByText("FIRST", { exact: true })).toHaveCount(0);
-    expect(inventory.requests).toHaveLength(reads + 2);
+    expect(inventory.requests).toHaveLength(reads + 1);
     expect(financialReads(workspace)).toEqual(financial);
     expect(workspace.identityRequests).toHaveLength(catalogs);
 
     await poll(page, workspace);
-    expect(inventory.requests).toHaveLength(reads + 2);
+    expect(inventory.requests).toHaveLength(reads + 1);
     expect(financialReads(workspace)).toEqual(financial);
 
     // Source imports can update finance without rereading the unchanged inventory page.
     workspace.revisions.references = "1";
     await poll(page, workspace);
-    expect(inventory.requests).toHaveLength(reads + 2);
+    expect(inventory.requests).toHaveLength(reads + 1);
     // Administrators update their shared SKU catalog; hidden financial data stays inactive.
     expect(financialReads(workspace)).toEqual({
       ...financial,
@@ -501,7 +501,7 @@ for (const role of ["member", "administrator"]) {
     workspace.revisions.fees = "1";
     await poll(page, workspace);
     await expect(page.getByText("NEW-OWNERSHIP", { exact: true })).toBeVisible();
-    expect(inventory.requests).toHaveLength(reads + 4);
+    expect(inventory.requests).toHaveLength(reads + 2);
     expect(workspace.identityRequests.length).toBeGreaterThan(previousCatalogs);
   });
 }

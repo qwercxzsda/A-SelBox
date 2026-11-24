@@ -1,10 +1,9 @@
 import { parseExactCount } from "./content-range.ts";
-import { readAllCsvRows, validatePagination } from "./pagination.ts";
+import { validatePagination } from "./pagination.ts";
 import { parseConfigurationPeriod } from "./sku-configuration-codec.ts";
 import type { SkuConfigurationPeriod } from "./sku-configuration-types.ts";
 import type { ApiTransport } from "./transport.ts";
-import type { CanonicalRow } from "./types.ts";
-import { requireUuid } from "./validation.ts";
+import { isJsonObject, isUuid, requireUuid } from "./validation.ts";
 import { parseRecordTimestamp } from "../date-display.ts";
 
 export const SKU_CONFIGURATION_HISTORY_PAGE_SIZE = 10;
@@ -26,41 +25,34 @@ export interface SkuConfigurationHistory {
 }
 
 const OPERATION = "Saved fee versions";
-const VERSION_COLUMNS = [
-  "id",
-  "key_id",
-  "company_id",
-  "version_number",
-  "memo",
-  "fee_period_count",
-  "created_at",
-];
-const PERIOD_COLUMNS = [
-  "id",
-  "assignment_version_id",
-  "marketplace_name",
-  "valid_period",
-  "fee_rate_percent",
-];
-
-function requiredText(row: CanonicalRow, key: string): string {
+function requiredText(row: Record<string, unknown>, key: string): string {
   const value = row[key];
   if (typeof value !== "string" || value.includes("\0"))
     throw new Error(`${OPERATION} returned an invalid ${key}`);
   return value;
 }
 
-function decodeVersion(row: CanonicalRow, skuId: string): SkuConfigurationVersion {
+function decodeVersion(row: unknown, skuId: string): SkuConfigurationVersion {
+  if (!isJsonObject(row) || !Array.isArray(row.periods))
+    throw new Error(`${OPERATION} returned an invalid version`);
   const id = requiredText(row, "id");
   requireUuid(id, "terms version");
   if (typeof row.key_id !== "string" || row.key_id.toLowerCase() !== skuId.toLowerCase())
     throw new Error(`${OPERATION} returned a different SKU`);
-  if (row.company_id !== null) requireUuid(row.company_id, "company");
+  if (row.company_id !== null && !isUuid(row.company_id))
+    throw new Error("A valid company ID is required");
   const versionNumber = parseExactCount(row.version_number);
   const periodCount = parseExactCount(row.fee_period_count);
   const createdAt = requiredText(row, "created_at");
   if (versionNumber < 1 || !parseRecordTimestamp(createdAt))
     throw new Error(`${OPERATION} returned invalid version metadata`);
+  const periods = row.periods.map(parseConfigurationPeriod);
+  if (
+    periods.length !== periodCount ||
+    new Set(periods.map((p) => JSON.stringify([p.marketplace_name, p.valid_from]))).size !==
+      periods.length
+  )
+    throw new Error(`${OPERATION} returned an invalid period inventory`);
   return {
     id,
     key_id: row.key_id,
@@ -69,29 +61,7 @@ function decodeVersion(row: CanonicalRow, skuId: string): SkuConfigurationVersio
     memo: requiredText(row, "memo"),
     fee_period_count: periodCount,
     created_at: createdAt,
-    periods: [],
-  };
-}
-
-function decodePeriod(row: CanonicalRow, versionIds: ReadonlySet<string>) {
-  const id = requiredText(row, "id");
-  requireUuid(id, "fee period");
-  const versionId = requiredText(row, "assignment_version_id");
-  if (!versionIds.has(versionId))
-    throw new Error(`${OPERATION} returned a period from another version`);
-  const range = /^\[(\d{4}-\d{2}-\d{2}),(\d{4}-\d{2}-\d{2})?\)$/.exec(
-    requiredText(row, "valid_period"),
-  );
-  if (!range) throw new Error(`${OPERATION} returned an invalid effective date range`);
-  return {
-    id,
-    versionId,
-    period: parseConfigurationPeriod({
-      marketplace_name: row.marketplace_name,
-      valid_from: range[1],
-      valid_to: range[2] || null,
-      fee_rate_percent: row.fee_rate_percent,
-    }),
+    periods,
   };
 }
 
@@ -105,64 +75,34 @@ export function createSkuConfigurationHistoryApi(transport: ApiTransport) {
     ): Promise<SkuConfigurationHistory> {
       requireUuid(skuId, "SKU");
       validatePagination(pageIndex, SKU_CONFIGURATION_HISTORY_PAGE_SIZE);
-      const versions: SkuConfigurationVersion[] = [];
-      const seen = new Set<string>();
-      const pageOffset = pageIndex * SKU_CONFIGURATION_HISTORY_PAGE_SIZE;
-      if (!Number.isSafeInteger(pageOffset + SKU_CONFIGURATION_HISTORY_PAGE_SIZE))
+      const limit = SKU_CONFIGURATION_HISTORY_PAGE_SIZE;
+      const offset = pageIndex * limit;
+      if (!Number.isSafeInteger(offset + limit))
         throw new Error("Page offset exceeds JavaScript's safe range");
-      // Fill the lookahead even when PostgREST applies a smaller server page cap.
-      while (versions.length <= SKU_CONFIGURATION_HISTORY_PAGE_SIZE) {
-        signal?.throwIfAborted();
-        const limit = SKU_CONFIGURATION_HISTORY_PAGE_SIZE + 1 - versions.length;
-        const result = await transport.readCsvPage(
-          accessToken,
-          "assignment_versions",
-          new URLSearchParams({
-            select: VERSION_COLUMNS.join(","),
-            key_id: `eq.${skuId}`,
-            kind: "eq.SKU",
-            order: "version_number.desc,id.desc",
-            limit: String(limit),
-            offset: String(pageOffset + versions.length),
-          }),
-          OPERATION,
-          signal,
-          false,
-        );
-        signal?.throwIfAborted();
-        if (result.rows.length === 0) break;
-        if (result.rows.length > limit) throw new Error(`${OPERATION} returned too many versions`);
-        for (const row of result.rows) {
-          const version = decodeVersion(row, skuId);
-          const previous = versions.at(-1);
-          if (
-            seen.has(version.id) ||
-            (previous && version.version_number >= previous.version_number)
-          )
-            throw new Error(`${OPERATION} changed while loading. Please retry.`);
-          seen.add(version.id);
-          versions.push(version);
-        }
-      }
-      const visible = versions.slice(0, SKU_CONFIGURATION_HISTORY_PAGE_SIZE);
-      if (visible.length === 0) return { versions: [], hasNext: false };
-      const versionIds = new Set(visible.map(({ id }) => id));
-      const periods = await readAllCsvRows(transport, {
+      signal?.throwIfAborted();
+      const page = await transport.postRpc(
         accessToken,
-        endpoint: "sku_fee_periods",
-        columns: PERIOD_COLUMNS,
-        filters: { assignment_version_id: `in.(${[...versionIds].join(",")})` },
-        order: "assignment_version_id.asc,marketplace_name.asc,valid_period.asc,id.asc",
-        operation: OPERATION,
-        decode: (row) => decodePeriod(row, versionIds),
-        identity: (row) => row.id,
+        "sku_configuration_history",
+        { p_key_id: skuId, p_offset: offset, p_limit: limit },
+        OPERATION,
         signal,
-      });
-      const byId = new Map(visible.map((version) => [version.id, version]));
-      for (const { versionId, period } of periods) byId.get(versionId)?.periods.push(period);
-      if (visible.some((version) => version.periods.length !== version.fee_period_count))
-        throw new Error(`${OPERATION} returned incomplete fee periods. Please retry.`);
-      return { versions: visible, hasNext: versions.length > SKU_CONFIGURATION_HISTORY_PAGE_SIZE };
+      );
+      signal?.throwIfAborted();
+      if (
+        !isJsonObject(page) ||
+        !Array.isArray(page.versions) ||
+        typeof page.has_next !== "boolean" ||
+        page.versions.length > limit ||
+        (page.has_next && page.versions.length !== limit)
+      )
+        throw new Error(`${OPERATION} returned an invalid page`);
+      const versions = page.versions.map((row: unknown) => decodeVersion(row, skuId));
+      if (
+        new Set(versions.map((v) => v.id)).size !== versions.length ||
+        versions.some((v, i) => i > 0 && v.version_number >= versions[i - 1].version_number)
+      )
+        throw new Error(`${OPERATION} returned invalid version ordering`);
+      return { versions, hasNext: page.has_next };
     },
   };
 }

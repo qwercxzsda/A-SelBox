@@ -210,7 +210,7 @@ def _persist_transactions(
     changed = False
     for row in transactions:
         identity = identities[row.native_transaction_id]
-        digest = revision_digest(row)
+        digest = bytes.fromhex(revision_digest(row))
         revision = revisions.get((identity, digest))
         if revision is None:
             revision = str(uuid7())

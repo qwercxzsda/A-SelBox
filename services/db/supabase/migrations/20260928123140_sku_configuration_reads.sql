@@ -162,3 +162,37 @@ create function public.sku_configuration() returns jsonb
 language sql stable security invoker set search_path = '' as $$
     select private.read_sku_configuration();
 $$;
+
+-- Page immutable assignments first. Their periods share the same statement snapshot
+-- and the underlying tables' administrator/member policies. The extra version is
+-- used only for has_next; its periods are never fetched.
+create function public.sku_configuration_history(
+    p_key_id uuid, p_offset bigint default 0, p_limit integer default 10
+) returns jsonb
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+    perform private.validate_page_bounds(p_limit, p_offset);
+    return (
+        with versions as materialized (
+            select id, key_id, company_id, version_number, memo, fee_period_count, created_at
+            from public.assignment_versions
+            where kind = 'SKU' and key_id = p_key_id
+            order by version_number desc limit p_limit + 1 offset p_offset
+        ), page as (
+            select * from versions order by version_number desc limit p_limit
+        )
+        select jsonb_build_object('versions', coalesce(jsonb_agg(
+            to_jsonb(v) || jsonb_build_object(
+                'created_at', v.created_at::text, 'version_number', v.version_number::text,
+                'fee_period_count', v.fee_period_count::text,
+                'periods', array(select jsonb_build_object(
+                    'marketplace_name', p.marketplace_name, 'valid_from', lower(p.valid_period),
+                    'valid_to', upper(p.valid_period), 'fee_rate_percent', p.fee_rate_percent::text
+                ) from public.sku_fee_periods p where p.assignment_version_id = v.id
+                    order by p.marketplace_name, p.valid_period, p.id)
+            ) order by v.version_number desc
+        ), '[]'::jsonb), 'has_next', (select count(*) > p_limit from versions))
+        from page v
+    );
+end;
+$$;

@@ -87,7 +87,8 @@ create table private.source_unit_versions (
     id public.local_uuid primary key default private.uuid7(),
     unit_id public.local_uuid not null,
     source private.amazon_source not null, -- noqa: RF04
-    content_sha256 private.sha256 not null,
+    content_sha256 bytea not null constraint source_versions_digest_length
+    check (octet_length(content_sha256) = 32),
     row_count integer not null check (row_count >= 0),
     created_at timestamptz not null default now(),
     foreign key (unit_id, source) references private.source_units (id, source),
@@ -103,13 +104,18 @@ create table private.source_batch_units (
     document_number integer not null check (document_number > 0),
     record_number integer not null check (record_number > 0),
     primary key (batch_id, unit_id),
-    unique (batch_id, unit_id, version_id),
+    unique (batch_id, version_id),
     foreign key (unit_id, version_id) references private.source_unit_versions (unit_id, id)
 );
 create index source_batch_units_version_idx on private.source_batch_units (version_id);
+-- A version has one permanent unit. Select a version of this unit and a batch
+-- that observed that same version. Both checks can wait for publication to finish.
+alter table private.source_units add constraint source_units_current_version
+foreign key (id, current_version_id) references private.source_unit_versions (unit_id, id)
+deferrable initially deferred;
 alter table private.source_units add constraint source_units_current_observation
-foreign key (current_batch_id, id, current_version_id)
-references private.source_batch_units (batch_id, unit_id, version_id)
+foreign key (current_batch_id, current_version_id)
+references private.source_batch_units (batch_id, version_id)
 deferrable initially deferred;
 create index source_units_current_version_idx on private.source_units (current_version_id);
 create index source_units_current_batch_idx on private.source_units (current_batch_id);
@@ -209,6 +215,10 @@ where sku is not null;
 -- Only commission-bearing amounts contribute required dates to the fee editor.
 create index finances_amounts_fee_sku_idx on private.finances_amounts (sku, version_id)
 where fee_base is not null;
+
+-- Scoped counts read the SKU and route for each selected transaction version.
+create index finances_amounts_direct_scope_idx on private.finances_amounts (version_id, sku, route)
+where route in ('SKU', 'SELBOX');
 
 -- Only charges routed through another identifier need reference matching.
 create index finances_indirect_version_idx on private.finances_amounts (version_id)

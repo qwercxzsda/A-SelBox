@@ -60,7 +60,7 @@ def store_unit(
     if identity_row is None:
         raise RuntimeError("Source identity was not stored.")
     unit, old_version = identity_row[0], identity_row[1]
-    digest = content_sha256((header, rows))
+    digest = bytes.fromhex(content_sha256((header, rows)))
     cursor.execute(
         "select id from private.source_unit_versions where unit_id=%s and content_sha256=%s",
         (unit, digest),

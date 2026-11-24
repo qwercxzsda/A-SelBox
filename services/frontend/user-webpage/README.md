@@ -190,11 +190,12 @@ reduced-motion behavior.
 
 Fee details use one Marketplace fee periods section for the current schedule and saved history. Each
 published version includes its assignment, save time, reason, and complete period table, newest
-first, with ten saved versions per page. History loads only after opening details for an
-administrator. A staged draft appears as a separately labelled schedule, keeping proposed values
-distinct from published versions. Historical versions remain read-only, and Edit always starts from
-the current configuration or the existing draft. Additional details follows the complete section and
-its pagination at the bottom of the panel.
+first, with ten saved versions per page. One request retrieves the page and all of its periods under
+the same database snapshot. History loads only after opening details for an administrator. A staged
+draft appears as a separately labelled schedule, keeping proposed values distinct from published
+versions. Historical versions remain read-only, and Edit always starts from the current
+configuration or the existing draft. Additional details follows the complete section and its
+pagination at the bottom of the panel.
 
 Fee details contain the full period table and setup issues. Administrators select Edit to switch the
 same drawer into the editor, or discard a staged draft from its details. Additional details is
@@ -272,10 +273,11 @@ followed by stranded inventory, listing fixes, pricing, advertising, and no-acti
 Missing values remain last. Health and recommendation ordering use the
 [documented urgency ranks](../../../docs/inventory_daily_captures.md#dates-latest-reads-and-access).
 
-The API loads the complete authorized latest-item snapshot through stable identity pages. Search,
-filters, SKU options, exact decimal comparisons, urgency ordering, and display pagination operate on
-that snapshot in the browser. Changing a filter or page does not issue a data request. Database RLS
-still controls every transport page. Revision checks bracket snapshot loading and reject a load if
+The API loads the complete authorized latest-item snapshot through stable identity pages. The first
+page requests an exact count so the reader can stop after the last item. Search, filters, SKU
+options, exact decimal comparisons, urgency ordering, and display pagination operate on that
+snapshot in the browser. Changing a filter or page does not issue a data request. Database RLS still
+controls every transport page. Revision checks bracket snapshot loading and reject a load if
 inventory, ownership, or account access changes partway through; normal retry then reloads the
 complete snapshot. Later revision changes invalidate the cache. This design uses browser memory
 proportional to the latest authorized inventory, not historical captures.

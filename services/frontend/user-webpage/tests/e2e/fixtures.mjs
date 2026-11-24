@@ -63,8 +63,7 @@ export async function mockSupabase(page) {
       [
         "/rest/v1/rpc/sku_configuration",
         "/rest/v1/rpc/publish_sku_configuration",
-        "/rest/v1/assignment_versions",
-        "/rest/v1/sku_fee_periods",
+        "/rest/v1/rpc/sku_configuration_history",
       ].includes(url.pathname)
     )
       return respondWithSkuConfiguration(fixture, context);

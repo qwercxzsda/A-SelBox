@@ -30,7 +30,10 @@ declare
     sort_field text;
     tie_direction text;
     candidates text;
-    companies uuid[] := private.transaction_company_scope(p_company_ids);
+    scope private.transaction_filter := row(
+        p_date_from, p_date_to, private.transaction_company_scope(p_company_ids), p_skus, p_marketplaces,
+        p_sources, p_types, p_fee_applicable, p_search_skus, p_search_types,
+        p_search_marketplaces, p_search_sources, p_currency);
 begin
     perform private.validate_page_bounds(p_limit,p_offset);
     if p_direction not in ('asc','desc') or p_direction is null or p_order_by not in ('date','amount')
@@ -39,7 +42,7 @@ begin
         p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces, p_sources,
         p_types, p_search_skus, p_search_types, p_search_marketplaces, p_search_sources, p_currency, false
     );
-    if cardinality(companies)=0 then
+    if cardinality(scope.companies)=0 then
         return jsonb_build_object('rows','[]'::jsonb,'total_count',case when p_include_count then '0' end);
     end if;
     -- Date pages and their exact counts get independent plans. Amount ordering
@@ -49,18 +52,20 @@ begin
     tie_direction:=case when p_order_by='date' then p_direction else 'asc' end;
     page_query:=format($query$
         with facts as %4$s (
-            select * from private.filtered_components($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+            select c.* from private.company_components c
+            where private.matches_transaction($1, c.activity_at, c.company_id, c.sku, c.marketplace_name,
+                c.source, c.component_type, c.currency, c.fee_base)
             %5$s
         ),
-        page as (select * from facts order by %1$I %2$s,source %3$s,source_row_id %3$s limit $14 offset $15)
-        select case when $17 and (select count(*) from facts)>10000 then null else jsonb_build_object(
+        page as (select * from facts order by %1$I %2$s,source %3$s,source_row_id %3$s limit $2 offset $3)
+        select case when $5 and (select count(*) from facts)>10000 then null else jsonb_build_object(
             'rows',coalesce((select jsonb_agg(to_jsonb(p)||jsonb_build_object(
                 'activity_at',to_char(activity_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
                 'source_amount',source_amount::text,'base_amount',base_amount::text,'tax_amount',tax_amount::text,
                 'fee_base',fee_base::text,'quantity',quantity::text,'fee_amount',fee_amount::text,
                 'fee_rate_percent',fee_rate_percent::text,'company_amount',company_amount::text)
                 order by %1$I %2$s,source %3$s,source_row_id %3$s) from page p),'[]'),
-            'total_count',case when $16 then (select count(*)::text from facts) end) end
+            'total_count',case when $4 then (select count(*)::text from facts) end) end
     $query$,sort_field,p_direction,tie_direction,candidates,case when p_order_by='amount' then 'limit 10001' else '' end);
 
     -- Every output row is dated by a Finances charge, including the earliest
@@ -86,9 +91,9 @@ begin
         end if;
     end if;
     loop
-        execute page_query into result using from_day,to_day,companies,p_skus,p_marketplaces,
-            p_sources,p_types,p_fee_applicable,p_search_skus,p_search_types,p_search_marketplaces,
-            p_search_sources,p_currency,p_limit,p_offset,p_include_count,p_order_by='amount';
+        scope.date_from := from_day;
+        scope.date_to := to_day;
+        execute page_query into result using scope, p_limit, p_offset, p_include_count, p_order_by='amount';
         exit when (from_day is not distinct from p_date_from and to_day is not distinct from p_date_to)
             or jsonb_array_length(result->'rows')=p_limit;
         from_day:=p_date_from;

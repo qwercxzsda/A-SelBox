@@ -45,15 +45,10 @@ function configurationItems(fixture) {
 
 export async function respondWithSkuConfiguration(
   fixture,
-  { request, url, user, accessToken, reply, csvReply, route, track },
+  { request, url, user, accessToken, reply, route, track },
 ) {
-  if (
-    url.pathname === "/rest/v1/assignment_versions" ||
-    url.pathname === "/rest/v1/sku_fee_periods"
-  ) {
-    if (fixture.roles[user] !== "administrator") return reply({}, 403);
-    return csvReply(url.searchParams.get("select").split(","), []);
-  }
+  if (url.pathname.endsWith("/sku_configuration_history"))
+    return reply({ versions: [], has_next: false });
   if (url.pathname.endsWith("/sku_configuration")) {
     const entry = { user, accessToken, completed: false, failure: null };
     fixture.configurationRequests.push(entry);
