@@ -98,6 +98,7 @@ class PayoutRefreshQueueTests(SourceModelFixture):
         inputs = prepare_payout(self)
         self.fee(inputs.sku_identity, [])
         self.assertEqual(refresh_payout_reports(self), (1, 0, 0, 1))
+        self.finances([], acquisition_id=self.acquisition(start="2026-07-01", end="2026-07-31"))
         self.set_mature_cutoff_date(date(2026, 8, 1))
         self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
         self.assertEqual(
@@ -108,26 +109,6 @@ class PayoutRefreshQueueTests(SourceModelFixture):
             [(date(2026, 7, 1),)],
         )
         self.assertEqual(self.queue_state(inputs.company)[2:], (1, True))
-
-    def test_idle_worker_does_not_read_financial_history_or_payout_rows(self) -> None:
-        prepare_payout(self)
-        self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
-        self.connection.commit()
-        counters = (
-            "select schemaname,relname,seq_scan,seq_tup_read,idx_scan,idx_tup_fetch "
-            "from pg_stat_xact_user_tables where relname in "
-            "('finances_transaction_components','finances_transaction_versions','finances_transactions',"
-            "'finances_preprocess_batches','finances_preprocess_batch_transactions',"
-            "'data_kiosk_day_components','data_kiosk_day_versions','data_kiosk_days',"
-            "'data_kiosk_preprocess_batches','data_kiosk_preprocess_batch_days',"
-            "'company_payout_reports',"
-            "'payout_report_finances_versions','payout_report_data_kiosk_versions',"
-            "'payout_report_terms_versions') "
-            "order by schemaname,relname"
-        )
-        before = self.connection.execute(counters).fetchall()
-        self.assertEqual(refresh_payout_reports(self), (0, 0, 0, 0))
-        self.assertEqual(self.connection.execute(counters).fetchall(), before)
 
     def test_idle_worker_skips_thousands_of_clean_company_months(self) -> None:
         inputs = prepare_payout(self)
@@ -155,7 +136,7 @@ class PayoutRefreshQueueTests(SourceModelFixture):
         )
         self.connection.commit()
         before = self.connection.execute(counters).fetchone()
-        self.assertEqual(refresh_payout_reports(self, 1), (1, 1, 0, 0))
+        self.assertEqual(refresh_payout_reports(self, 1), (1, 0, 0, 1))
         self.assertEqual(self.connection.execute(counters).fetchone(), before)
 
     def test_multiple_requests_coalesce_into_one_latest_snapshot(self) -> None:

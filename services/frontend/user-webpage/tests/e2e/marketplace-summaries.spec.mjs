@@ -178,30 +178,6 @@ test("a month-end latest transaction still uses the previous month for every mar
   await expect(summaryAmount(us.selected, "Reported amount")).toHaveText("100.00 USD");
 });
 
-test("a Data Kiosk UTC day end anchors the previous day and full month", async ({ page }) => {
-  const fixture = await mockSupabase(page);
-  fixture.aggregateRows = [
-    summaryBucket("2026-10-15", "5"),
-    {
-      ...summaryBucket("2026-11-29", "10"),
-      source: "DATA_KIOSK",
-      activity_at: "2026-11-30T07:59:59.999999Z",
-    },
-    summaryBucket("2026-10-15", "30", { marketplace: "Amazon.co.jp" }),
-    summaryBucket("2026-11-29", "200", { marketplace: "Amazon.co.jp" }),
-  ];
-  await signIn(page);
-  const us = summaryPeriods(page, "Amazon.com");
-  const japan = summaryPeriods(page, "Amazon.co.jp");
-
-  await expect(summaryCard(page, "Last day")).toContainText("Nov 29, 2026");
-  await expect(summaryCard(page, "Last month")).toContainText("October 2026");
-  await expect(summaryAmount(us.month, "Reported amount")).toHaveText("5.00 USD");
-  await expect(us.day).toContainText("No transactions");
-  await expect(summaryAmount(japan.day, "Reported amount")).toHaveText("200.00 USD");
-  await expect(summaryAmount(japan.month, "Reported amount")).toHaveText("30.00 USD");
-});
-
 test("marketplace and selected-date filters never move the shared UTC day or month", async ({
   page,
 }) => {

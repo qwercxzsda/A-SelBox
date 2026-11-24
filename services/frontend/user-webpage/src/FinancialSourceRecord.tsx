@@ -34,7 +34,7 @@ export function FinancialSourceRecord({
   return (
     <RowDetail
       companies={new Map(identity.companies.map((company) => [company.id, company.name]))}
-      dataset={selection?.source === "DATA_KIOSK" ? "data_kiosk" : "finances"}
+      dataset="finances"
       row={selection ? (data ?? null) : null}
       isAdministrator
       accessToken={identity.session.access_token}

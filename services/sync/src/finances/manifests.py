@@ -1,11 +1,10 @@
 """Local successful download descriptors, including captures not yet accepted by the DB."""
 
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import cast
 
+from ..archives.manifests import write_manifest
 from .acquisition_models import FinancesAcquisition
 from .acquisition_serialization import (
     finances_acquisition_from_payload,
@@ -14,23 +13,7 @@ from .acquisition_serialization import (
 
 
 def write_finances_manifest(path: Path, acquisition: FinancesAcquisition) -> None:
-    """Create one complete capture manifest atomically, without replacing another capture."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = finances_acquisition_payload(acquisition)
-    temporary: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent, delete=False
-        ) as stream:
-            temporary = stream.name
-            json.dump(payload, stream, ensure_ascii=False, allow_nan=False, indent=2)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.link(temporary, path)
-    finally:
-        if temporary is not None and Path(temporary).exists():
-            Path(temporary).unlink()
+    write_manifest(path, finances_acquisition_payload(acquisition))
 
 
 def read_finances_manifest(path: Path) -> FinancesAcquisition:

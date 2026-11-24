@@ -53,26 +53,16 @@ class FinancialFixture(SourceModelFixture):
                 self.transaction("11", 9, sku="UNASSIGNED"),
                 self.transaction("13", 10, sku="UNASSIGNED", description="Shipping"),
                 self.transaction("20", 11, sku="OTHER"),
-                self.transaction("999", 12, category="DATA_KIOSK"),
-                self.transaction("999", 13, category="SELBOX"),
+                self.transaction("-1", 13, kind="ServiceFee", route="SELBOX")
+                | {
+                    "sku": None,
+                    "component_type": "SUBSCRIPTION_FEES",
+                    "route": "SELBOX",
+                    "selbox_group": "ACCOUNT_FEE",
+                },
             ]
-        )
-        self.kiosk(
-            1,
-            [
-                self.component("-10"),
-                self.component("3", category="FINANCES"),
-                self.component("2", category="ANALYSIS_ONLY"),
-                self.component("0"),
-                self.component("4", sku="OTHER"),
-                self.component("6", sku="UNKNOWN"),
-                self.component("8", sku="UNASSIGNED"),
-                self.component("9") | {"component_type": "NET_PRODUCT_SALES", "fee_base": "9"},
-                self.component("17", category="SELBOX") | {"sku": None},
-            ],
         )
         self.seller = "seller-two"
         self.finances([self.transaction("100")])
-        self.kiosk(1, [self.component("-7")])
         self.seller = "seller-one"
         return company_a, company_b

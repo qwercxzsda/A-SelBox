@@ -1,254 +1,49 @@
-# Sync service
+# Amazon sync
 
-The service archives Amazon Finances, Data Kiosk Economics and Inventory Planning responses, then
-preprocesses those saved inputs without contacting Amazon. The [workflow contract](../../docs/data_workflows.md)
-explains each source's publication and history model.
+Finances supplies every charge and its posting date. Monthly inventory-ledger and warehouse reports, Ads invoices, campaigns, promotions and inbound shipments supply the identifiers and amounts used to attribute those charges. Daily Inventory Planning captures separately supply the stock dashboard.
 
-Finance downloads write a local manifest. Successful preprocessing atomically accepts acquisition
-metadata, batch membership and immutable transaction versions through `src/database/finances.py`.
-Data Kiosk and Inventory persist/load acquisitions through `src/database/acquisitions.py`. Each
-source owns its parser and `workflow.py`; company fees and saved payouts are separate calculations.
-Their typed repositories also own publication orchestration: `source_versions.py` saves complete
-Data Kiosk days and `inventory.py` replaces daily inventory captures. These repositories use direct
-SQL transactions, identity locks, and batch inserts. Archive/page validation remains in source
-models; database constraints and deferred triggers protect stored relationships and completeness.
+## Run a sync
 
-## Configuration
-
-Run Python through the `A-SelBox` conda environment from the repository root.
-The local configuration file is **`services/sync/.env`**. The service CLIs pass
-this exact path to `load_dotenv()`, independently of the working directory.
-They do not search parent directories for another configuration file.
-Existing process environment values take
-precedence; `--no-load-dotenv` uses only that environment. Do not inspect, print,
-or modify `.env` directly, and never put credential values in command arguments
-or diagnostic output.
-
-- Downloads use the existing Amazon LWA client credentials and the selected
-  scope's refresh-token environment variable, defined in `amazon/credentials.py`
-  and `amazon/marketplaces.py`.
-- Storage uses `SUPABASE_URL` (default `http://127.0.0.1:54321`) and the server-only
-  `SUPABASE_SERVICE_ROLE_KEY`. Keys are read from the environment, never arguments.
-- `--database-url` defaults to local PostgreSQL on port 54322. Finance downloading reads the
-  database maturity cutoff when `--posted-after` is omitted; explicit timestamp bounds need only
-  Storage and a local manifest. Data Kiosk/inventory downloads and all preprocessing use PostgreSQL.
-  Database writers require trusted administrator access; Finance publishes its validated batch
-  through one Python-owned database transaction.
-- Download commands use `--seller-namespace` to identify source provenance across financial and
-  inventory acquisitions. Its default is `__DEFAULT__`; use explicit stable
-  namespaces for multiple sellers. Current ownership is configured by exact SKU alone,
-  independently of source namespace.
-
-Offline commands obtain the seller from the saved acquisition; they do not
-accept a seller override.
-
-The [database guide](../db/supabase/README.md) describes the private
-`source-archives` Storage bucket. Source originals and generated financial output
-must remain outside version control.
-
-## Download and archive
-
-Download discovers or queries Amazon and archives complete decoded bytes. It does
-not split days, classify amounts, or load companies and fees.
+Run from the repository root in the `A-SelBox` conda environment. Use the service credential file in the main checkout when running in a linked worktree.
 
 ```sh
-conda run -n A-SelBox python -m services.sync.src.cli.download_finances \
-  --scope NA --seller-namespace seller-na \
-  --manifest-output /private/path/finances-refresh.json
+conda run -n A-SelBox python -m services.sync.src.cli.sync_sources \
+  --scope NA --manifest-directory output/source-manifests \
+  --env-file /Users/mgmg/GitRepos/A-SelBox/services/sync/.env
+```
 
-conda run -n A-SelBox python -m services.sync.src.cli.download_data_kiosk \
-  --scope NA --seller-namespace seller-na \
-  --marketplace-id ATVPDKIKX0DER \
-  --start-date 2026-08-01 --end-date 2026-08-31
+Omit `--scope` to run all five accounts, or repeat it to select several. Use `--seller-namespace` for a separate seller. Python loads credentials through dotenv, preserving existing environment values. Without `--env-file` the default is `services/sync/.env` in the checkout running the command. Use `--no-load-dotenv` for a process with its own environment.
 
+SP-API credentials are configured by region, Ads credentials by application. For local archives, the sync service reads the project API URL and storage service key from `supabase status --output json --workdir services/db`. It checks that the URL matches the requested loopback endpoint. The default is `http://127.0.0.1:54321`. For another Supabase instance, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. An explicit service key takes precedence. The database URL defaults to the local PostgreSQL port 54322. Access to these trusted sync commands and their local manifests is restricted to operators.
+
+The run downloads Finances and checks it against Amazon’s independent summaries, then retrieves the invoices it references. It requests the storage, aged-storage, removal and ledger reports once per account for the full requested period. It then retrieves campaigns named on invoices and promotions and shipments named in Finances. Each new observation refreshes the IDs it mentions. Missing IDs are retried. One failed answer leaves its previous accepted data in place and the other answers continue. A run with failures exits with status 1.
+
+The default Finances window begins at UTC midnight on the same day three calendar months ago (clamped to month end). For historical captures set `--posted-after` and `--posted-before` to explicit timestamps within Amazon’s available history. A capture covers up to 180 days. Removal orders are requested for the preceding twelve months through today. Storage, aged storage and the inventory ledger cover the last three finished months. The first ledger request for an account covers nineteen finished months. Choose any inclusive month range with `--report-start-month YYYY-MM-01` and `--report-end-month YYYY-MM-01`, to override these defaults. Repeat `--source` to choose individual preprocessings. For a single named source and account, repeat `--id` to refresh known invoice, campaign, promotion or shipment IDs. The ledger loads finished months only. Inventory Planning has its own command.
+
+```sh
 conda run -n A-SelBox python -m services.sync.src.cli.download_inventory \
-  --scope NA --seller-namespace seller-na --marketplace-id ATVPDKIKX0DER
+  --scope NA --marketplace-id ATVPDKIKX0DER
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_inventory \
+  --acquisition-id UUID
 ```
 
-Finance defaults to the database's `private.mature_cutoff_date()` at UTC midnight as
-`postedAfter`, and omits `postedBefore`. Amazon's default upper bound is approximately two minutes
-before its request time. The single regional capture includes available current-day transactions
-and may span several calendar months. `--posted-after` overrides the start with an offset-bearing
-timestamp; optional `--posted-before` supplies an exclusive timestamp for historical retrieval.
+## Replay a download
 
-Data Kiosk dates remain inclusive marketplace-local calendar days. It validates the complete
-explicit window before querying; `--max-pages`, `--max-poll-attempts`, and
-`--poll-interval-seconds` bound acquisition work. Use `--help` for command options.
-Each complete download logs its ID. Finances writes one acquisition object as an atomic local
-manifest to `--manifest-output` and refuses an existing output file. Other downloaders publish their
-acquisition metadata to PostgreSQL. An incomplete source traversal logs diagnostics and publishes no partial
-successful manifest. Independently completed downloads stay available.
-
-Finances uses SP-API v2024-06-19 `listTransactions` and `listSummary`. It obtains the
-seller's participating marketplace roster and sends unfiltered regional requests, including all
-statuses and account types. Verified Non-Amazon US, DE, and IT channels retain their native identities
-and marketplace-local dates. `--marketplace-id`
-overrides the declared coverage roster; it does not filter the API request. Unexpected source
-marketplaces fail preprocessing. Each acquisition finishes pagination with identical timestamp
-arguments on every page and archives the exact decoded HTTP response bytes.
-
-Summary is requested only for the common interval of complete marketplace-local days inside the
-UTC retrieval window. Partial first/last days are imported as observations without claiming reconciled
-coverage. Missing Summary access for a declared interval preserves the archives and local manifest
-but prevents successful preprocessing; a capture containing no complete common local day requests
-no Summary and supplies no reconciled payout coverage.
-
-For historical periods, repeat `--marketplace-id` for the complete historical roster when older
-inactive marketplaces no longer appear in current participation discovery.
-
-Finances requests must fit Amazon's 180-day maximum window and rolling two-year history bound.
-The rolling default overlaps prior imports to observe late records and corrections; historical
-changes outside that lookback need an explicit request. Amazon can lag by 48 hours and later
-update past transactions, so a complete API response is not financial finality. The CLI does not
-install a source-download scheduler. See the
-[Finances contract](../../docs/finances_transactions.md) for capture and reconciliation rules.
-
-Inventory requests a full `GET_FBA_INVENTORY_PLANNING_DATA` report for one marketplace. It defaults
-to 60 status polls ten seconds apart; `--max-poll-attempts` and `--poll-interval-seconds` adjust the
-bounds. The interval may be zero through 60 seconds. Cancelled, failed, and timed-out jobs publish
-no acquisition. Run the command once daily for the desired scope; no recurring scheduler is
-installed. Amazon's source snapshot dates may lag the request.
-
-Use `--report-id REPORT_ID` to resume a known Inventory Planning report without submitting another
-`createReport`. The command still verifies its report type and marketplace and performs the actual
-status/document requests. Reusing a report preserves its original capture day and does not imply
-fresh source data.
-
-Archives use XZ preset 2e, CRC64, and independent SHA-256 hashes and lengths for
-the exact document bytes and stored object. Upload and read-back verification
-precede acquisition publication. A database failure can leave an unreferenced
-object for reconciliation. Every successful acquisition and archive is retained
-indefinitely, including overlapping Data Kiosk responses.
-
-Acquisition diagnostics use JSON messages in the normal Python logs (stderr for
-the CLI). Capture these logs with the job's log collector. An `attempt_id` links
-source identifiers, each archive's bucket/path, hashes and byte lengths, and the
-publication outcome. `archive_upload_started` precedes the transfer;
-`archive_verified` follows successful verification. Data Kiosk also records page,
-query and document IDs as they become available. For Data Kiosk and Inventory, `acquisition_published` records the acquisition ID after database
-publication. Finance instead logs local manifest completion; its database publication happens
-during preprocessing.
-
-On failure, `acquisition_failed` records the stage, exception type, failure
-location, SQLSTATE when available, and any pending upload with an unconfirmed
-outcome. Verified objects are repeated as `archive_retained` at ERROR level, so
-they remain identifiable with `--log-level ERROR`. Publication errors are marked
-`unconfirmed`: a lost commit response does not establish whether a record exists.
-Check PostgreSQL before treating an object as unreferenced. Logs exclude source
-bodies, arbitrary API metadata, credentials, signed URLs and exception messages.
-These logs aid diagnosis; they do not implement durable checkpoints or automatic
-recovery, and an abrupt process termination may leave only the preceding events.
-
-## Offline preprocessing
-
-Finances takes the single-acquisition manifest written by its downloader. Data Kiosk and inventory
-take saved acquisition IDs. These commands need PostgreSQL and private Storage access and make
-no Amazon requests:
+Keep the local manifests alongside the private `source-archives` storage bucket. Each reference download archives the source document and writes its manifest before interpreting any rows. Its manifest records the request scope, capture time and source digest. Each successful preprocessing publishes the complete answer in one transaction. Repeated and reordered report rows retain their multiplicity. An empty finished month is stored as a loaded unit. A removal report that omits a previously seen order inside its requested period fails as a whole. An older report cannot supersede a newer observation.
 
 ```sh
+conda run -n A-SelBox python -m services.sync.src.cli.preprocess_reference \
+  output/source-manifests/storage_fee-UUID.json
 conda run -n A-SelBox python -m services.sync.src.cli.preprocess_finances \
-  /private/path/finances-refresh.json
-
-conda run -n A-SelBox python -m services.sync.src.cli.preprocess_data_kiosk \
-  --acquisition-id ACQUISITION_UUID
-
-conda run -n A-SelBox python -m services.sync.src.cli.preprocess_inventory \
-  --acquisition-id ACQUISITION_UUID
+  output/source-manifests/finances-UUID.json
 ```
 
-Preprocessing checks archive integrity before parsing. Missing or corrupt input fails locally.
-Finance preprocessing also validates the proposed transaction state against accepted state under a
-seller/scope lock. Missing previously accepted transactions inside the comparable UTC request
-interval, stale captures, or failed required Summary controls roll back the whole batch. Summary
-checks cover only the declared complete-day reconciliation interval; current partial-day
-transactions outside it still undergo identity, lifecycle and exact monetary validation. Acquisitions and
-preprocessing batches enter PostgreSQL together only after successful validation; failed attempts
-remain in local logs and their downloaded archives/manifests. Data Kiosk and inventory retain
-their saved acquisition metadata when preprocessing fails.
-Financial reruns use the shared `src/preprocess_version.py` definition; historical
-source versions remain immutable. Bump that constant when financial source interpretation changes;
-ownership and fee edits do not change it.
-
-Inventory uses `INVENTORY_PREPROCESS_VERSION` (`inventory-v1`). Same-acquisition/parser replay is
-idempotent; successful preprocessing replaces that report day's entire capture. The
-[inventory contract](../../docs/inventory_daily_captures.md) defines optional metrics, duplicate-SKU
-handling and report-time semantics. Health and recommended actions use exact fixed source values
-from `src/inventory/vocabulary.py`. Unknown nonmissing values fail the entire report before
-publication, including on rows otherwise omitted for blank or conflicting SKU identities.
-Database CHECK constraints are a second guard. Frontend options, labels, colors, and priorities
-do not participate in preprocessing.
-
-The [type registry](../../docs/transaction_type_registry.md) owns supported native monetary paths,
-allocation categories and frontend type generation. The [Finances contract](../../docs/finances_transactions.md)
-owns transaction identity, lifecycle and Summary checks. The [Data Kiosk workflow](../../docs/data_workflows.md#data-kiosk-preprocessing)
-owns daily validation, zero filtering and version reuse. All preserve exact signed decimals and
-nonblank SKU text; unknown required monetary detail fails rather than receiving a guessed category
-or amount.
-
-## Company terms and live financial reads
-
-`src/database/company_terms.py` provides trusted internal company/terms writers. Application
-administrators use the guarded `public.publish_sku_configuration` API instead. Source imports never
-assign companies or create rates. The [company-fee contract](../../docs/company_fees.md) defines
-immutable terms, explicit unassignment, fee periods and corrections; the
-[access contract](../../docs/access_control.md) defines application roles and permissions.
-
-`src/database/financial_reads.py` reads exact company totals for selected successful Finance batches,
-a required processing version and inclusive marketplace/date scope. Missing coverage, ownership or
-required fees fails a strict read. `load_company_financial_progress()` permits missing fees and
-returns known amounts plus the unresolved components. Its fully unknown sums remain NULL.
-See [partial summaries](../../docs/company_fees.md#partial-live-summaries) and the
-[source-allocation policy](../../docs/source_allocation.md).
-
-## Saved company payout reports
-
-The database worker generates mature monthly reports and reacts to source/terms changes. It does
-not call Amazon. The [payout contract](../../docs/company_payout_reports.md) owns eligibility,
-input selection, retry/reuse behavior and access.
-
-`src/database/payout_reports.py` provides a trusted internal `publish_company_payout_report()`
-helper and readers for frozen headers and records derived from saved inputs. Publication selects one
-company/month/marketplace/currency scope; callers do not supply source selections or calculated
-totals. A null marketplace/currency can represent an eligible company month without monetary scope.
-Application users only read reports; saving one does not approve or execute payment.
+For a standalone Finances download use `python -m services.sync.src.cli.download_finances --scope NA --manifest-output output/finances.json` in the same environment. Source preprocessing records its version on the accepted data. A changed rule can be applied to the archived answer while retaining pinned payout evidence.
 
 ## Verification
 
 ```sh
 conda run -n A-SelBox python -m unittest discover -s services/sync/tests/unit -t .
-conda run -n A-SelBox python -m services.sync.src.transaction_types.generate --check
-conda run -n A-SelBox python -m unittest services.db.supabase.tests.test_archive_to_live
-conda run -n A-SelBox ruff format --check .
-conda run -n A-SelBox ruff check .
 ```
 
-Run Pyright with the conda interpreter explicitly if its automatic discovery
-selects another environment:
-
-```sh
-conda run -n A-SelBox python -c 'import sys; print(sys.executable)'
-conda run -n A-SelBox pyright --pythonpath /path/printed/above
-```
-
-The database test suite constructs the fresh baseline and exercises publication,
-version reuse, immutable history, concurrency, and company access locally. See the database guide for
-its commands. Unit tests use synthetic inputs and mocked transfers.
-
-For real local Auth, Storage, and PostgREST verification, run the separate,
-opt-in end-to-end suite:
-
-```sh
-conda run -n A-SelBox python -m unittest discover -s services/db/supabase/tests/e2e -v
-```
-
-It requires the Supabase CLI and a local Docker Unix socket. The harness starts
-a fresh disposable stack with a copied baseline and loopback ports; the first
-startup may pull Docker images. It uses synthetic Amazon data, does not load
-`.env` or use cloud/production databases, and removes its stack afterward. See
-the [database guide](../db/supabase/README.md#verification) for scope and isolation.
-
-See [verification scope](../../docs/known_issues.md#deployment-and-verification-scope)
-for the boundaries of these checks. Source and payout publication concurrency are
-covered by database tests. The [known issues](../../docs/known_issues.md) also
-document the restrictions on changing Storage visibility or process-global
-routing configuration during use.
+Database integration checks are described in the [database guide](../db/supabase/README.md).

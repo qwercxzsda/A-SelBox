@@ -1,75 +1,22 @@
--- Changes enqueue small month sets. Only a new historical scope requires a
--- wider refresh: seller discovery and marketplace coverage span source history.
-create function private.payout_source_has_new_skus(p_seller text, p_skus text[])
-returns boolean language sql stable security invoker set search_path = '' as $$
-    select exists (
-        select 1 from unnest(p_skus) source_skus(sku)
-        where source_skus.sku is not null
-            and not exists (select 1 from private.finances_activity_components t
-                where t.seller_namespace = p_seller and t.sku = source_skus.sku)
-            and not exists (select 1 from private.data_kiosk_component_details t
-                where t.seller_namespace = p_seller and t.sku = source_skus.sku)
-    );
-$$;
-
-create index payout_terms_sku_idx
-on private.payout_report_terms_versions (sku_id, report_id);
-create index payout_finances_version_idx
-on private.payout_report_finances_versions (version_id, report_id);
-
--- Empty reports capture historically owned terms even without monthly rows.
--- Other companies can also depend on these terms to exclude another owner's
--- amounts. Pending source months include unresolved SKUs with no saved manifest;
--- unrelated completed reports stay clean. Pins also find formerly unowned SKUs
--- that were absent from a report's terms manifest.
-create function private.invalidate_payout_sku_terms(p_sku_ids uuid[])
-returns void language plpgsql security invoker set search_path = '' as $$
-declare affected_months date[]; owner_companies uuid[]; affected_scope record;
+-- Refresh prior reports and all mature months of the affected owners. A newly
+-- assigned SKU may be present in ledger or order rows outside its posting month.
+create function private.invalidate_payout_sku_terms(p_sku_ids uuid[]) returns void
+language plpgsql set search_path = '' as $$
+declare owners uuid[];
 begin
-    -- Bootstrap first assignments and remove abandoned work after the final
-    -- assignment moves away, even if the SKU has never appeared in source rows.
-    perform private.ensure_payout_report_months();
-    select coalesce(array_agg(distinct source_month),'{}'::date[]) into affected_months
-    from (
-        select date_trunc('month',t.posted_date)::date as source_month
-        from public.skus s join private.finances_activity_components t on t.sku = s.sku
-        where s.id = any(p_sku_ids) and isfinite(t.posted_date)
-        union
-        select date_trunc('month',t.activity_date)::date
-        from public.skus s join private.data_kiosk_component_details t on t.sku = s.sku
-        where s.id = any(p_sku_ids) and isfinite(t.activity_date)
-    ) months;
-    select coalesce(array_agg(distinct v.company_id),'{}'::uuid[]) into owner_companies
-    from public.sku_terms_versions v
-    where v.sku_id = any(p_sku_ids) and v.company_id is not null;
-    for affected_scope in
-        with dependent_reports as (
-            select v.report_id from private.payout_report_terms_versions v
-            where v.sku_id = any(p_sku_ids)
-            union
-            select p.report_id from public.skus s
-            join private.finances_activity_components t on t.sku = s.sku
-            join private.payout_report_finances_versions p on p.version_id = t.version_id
-            where s.id = any(p_sku_ids)
-            union
-            select p.report_id from public.skus s
-            join private.data_kiosk_day_components t on t.sku = s.sku
-            join private.payout_report_data_kiosk_versions p on p.version_id = t.version_id
-            where s.id = any(p_sku_ids)
-        ), affected_scopes as (
-            select s.company_id,s.month from private.payout_report_refresh_state s
-            where s.company_id = any(owner_companies)
-            union
-            select s.company_id,s.month from private.payout_report_refresh_state s
-            where s.requested_revision > s.completed_revision and s.month = any(affected_months)
-            union
-            select r.company_id,r.start_date from public.company_payout_reports r
-            join dependent_reports d on d.report_id = r.id
-        )
-        select company_id,array_agg(month order by month) as months
-        from affected_scopes group by company_id order by company_id
-    loop
-        perform private.request_payout_report_refresh(affected_scope.months,array[affected_scope.company_id]);
-    end loop;
+    if cardinality(p_sku_ids)=0 then return; end if;
+    select array(select distinct company_id::uuid from (
+        select v.company_id from public.assignment_versions v where v.key_id=any(p_sku_ids)
+        union all select r.company_id from private.payout_report_assignment_versions p
+        join public.company_payout_reports r on r.id=p.report_id where p.key_id=any(p_sku_ids)
+        union all select r.company_id from private.payout_report_source_versions p
+        join public.company_payout_reports r on r.id=p.report_id
+        join private.finances_amounts a on a.version_id=p.version_id and a.route='SKU'
+        join public.assignment_keys k on k.kind='SKU' and k.native_id=a.sku where k.id=any(p_sku_ids)
+        union all select r.company_id from private.payout_report_source_versions p
+        join public.company_payout_reports r on r.id=p.report_id join private.inventory_ledger_rows l on l.version_id=p.version_id
+        join public.assignment_keys k on k.kind='SKU' and k.native_id=l.sku where k.id=any(p_sku_ids)
+    ) owner where company_id is not null) into owners;
+    perform private.request_all_payout_report_refreshes(owners);
 end;
 $$;

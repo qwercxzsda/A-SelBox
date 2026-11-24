@@ -11,10 +11,10 @@ export const SKU_CONFIGURATION_HISTORY_PAGE_SIZE = 10;
 
 export interface SkuConfigurationVersion {
   id: string;
-  sku_id: string;
+  key_id: string;
   company_id: string | null;
   version_number: number;
-  change_reason: string;
+  memo: string;
   fee_period_count: number;
   created_at: string;
   periods: SkuConfigurationPeriod[];
@@ -28,16 +28,16 @@ export interface SkuConfigurationHistory {
 const OPERATION = "Saved fee versions";
 const VERSION_COLUMNS = [
   "id",
-  "sku_id",
+  "key_id",
   "company_id",
   "version_number",
-  "change_reason",
+  "memo",
   "fee_period_count",
   "created_at",
 ];
 const PERIOD_COLUMNS = [
   "id",
-  "terms_version_id",
+  "assignment_version_id",
   "marketplace_name",
   "valid_period",
   "fee_rate_percent",
@@ -53,7 +53,7 @@ function requiredText(row: CanonicalRow, key: string): string {
 function decodeVersion(row: CanonicalRow, skuId: string): SkuConfigurationVersion {
   const id = requiredText(row, "id");
   requireUuid(id, "terms version");
-  if (typeof row.sku_id !== "string" || row.sku_id.toLowerCase() !== skuId.toLowerCase())
+  if (typeof row.key_id !== "string" || row.key_id.toLowerCase() !== skuId.toLowerCase())
     throw new Error(`${OPERATION} returned a different SKU`);
   if (row.company_id !== null) requireUuid(row.company_id, "company");
   const versionNumber = parseExactCount(row.version_number);
@@ -63,10 +63,10 @@ function decodeVersion(row: CanonicalRow, skuId: string): SkuConfigurationVersio
     throw new Error(`${OPERATION} returned invalid version metadata`);
   return {
     id,
-    sku_id: row.sku_id,
+    key_id: row.key_id,
     company_id: row.company_id,
     version_number: versionNumber,
-    change_reason: requiredText(row, "change_reason"),
+    memo: requiredText(row, "memo"),
     fee_period_count: periodCount,
     created_at: createdAt,
     periods: [],
@@ -76,7 +76,7 @@ function decodeVersion(row: CanonicalRow, skuId: string): SkuConfigurationVersio
 function decodePeriod(row: CanonicalRow, versionIds: ReadonlySet<string>) {
   const id = requiredText(row, "id");
   requireUuid(id, "fee period");
-  const versionId = requiredText(row, "terms_version_id");
+  const versionId = requiredText(row, "assignment_version_id");
   if (!versionIds.has(versionId))
     throw new Error(`${OPERATION} returned a period from another version`);
   const range = /^\[(\d{4}-\d{2}-\d{2}),(\d{4}-\d{2}-\d{2})?\)$/.exec(
@@ -116,10 +116,11 @@ export function createSkuConfigurationHistoryApi(transport: ApiTransport) {
         const limit = SKU_CONFIGURATION_HISTORY_PAGE_SIZE + 1 - versions.length;
         const result = await transport.readCsvPage(
           accessToken,
-          "sku_terms_versions",
+          "assignment_versions",
           new URLSearchParams({
             select: VERSION_COLUMNS.join(","),
-            sku_id: `eq.${skuId}`,
+            key_id: `eq.${skuId}`,
+            kind: "eq.SKU",
             order: "version_number.desc,id.desc",
             limit: String(limit),
             offset: String(pageOffset + versions.length),
@@ -150,8 +151,8 @@ export function createSkuConfigurationHistoryApi(transport: ApiTransport) {
         accessToken,
         endpoint: "sku_fee_periods",
         columns: PERIOD_COLUMNS,
-        filters: { terms_version_id: `in.(${[...versionIds].join(",")})` },
-        order: "terms_version_id.asc,marketplace_name.asc,valid_period.asc,id.asc",
+        filters: { assignment_version_id: `in.(${[...versionIds].join(",")})` },
+        order: "assignment_version_id.asc,marketplace_name.asc,valid_period.asc,id.asc",
         operation: OPERATION,
         decode: (row) => decodePeriod(row, versionIds),
         identity: (row) => row.id,

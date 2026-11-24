@@ -17,7 +17,7 @@ including when the declared channel has no activity. Account type, currency and 
 remain separate, and mismatched or missing required controls still reject preprocessing.
 
 This grouping applies only to Summary validation. Native transaction identities, local posting
-dates, Data Kiosk comparisons, company fees and payout scopes remain unchanged. The check does not
+dates, company fees and payout scopes remain unchanged. The check does not
 establish a mapping for any other channel or promise finality of Amazon's source data.
 
 The protected replay result is retained in

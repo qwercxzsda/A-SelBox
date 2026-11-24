@@ -1,148 +1,256 @@
--- Explicit grants are the entire REST boundary, including Supabase default grants.
+-- Do not inherit the database's default PUBLIC function execution privileges.
 revoke all on all tables in schema public, private from public, anon, authenticated, service_role;
 revoke all on all functions in schema private from public, anon, authenticated, service_role;
-revoke all on function public.payout_report_policy(), public.sku_configuration(),
+revoke all on function public.create_company(text),
+public.delete_company(uuid),
+public.account_directory(),
+public.set_company_membership(uuid, uuid, public.app_access_role, uuid),
+public.set_reference_assignment(text, text, text, text, uuid, uuid, text),
+public.workspace_revisions(text[]),
+public.sku_filter_options(),
+public.sku_configuration(),
 public.publish_sku_configuration(jsonb, text),
-public.create_company(text), public.delete_company(uuid),
-public.account_directory(), public.set_company_membership(uuid, uuid, public.app_access_role, uuid),
-public.current_source_totals(
-    date, date, text, text, text, public.allocation_category, integer, bigint
+public.financial_source_record(text, uuid, uuid),
+public.financial_source_transaction_lookup(text, integer, bigint),
+public.source_transaction_page(
+    text,
+    integer,
+    bigint,
+    text,
+    text,
+    date,
+    date,
+    text[],
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[]
 ),
-public.report_source_totals(uuid, text, integer, bigint),
-public.financial_review_type_totals(date, date, public.allocation_category, text, text)
-from public, anon, authenticated, service_role;
+public.source_transaction_count(text, date, date, text[], text[], text[], text[], text[], text[]),
+public.transaction_count(
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
+),
+public.transaction_page(
+    integer,
+    bigint,
+    text,
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text[],
+    text[],
+    boolean,
+    boolean,
+    text,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
+),
+public.transaction_totals(
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text,
+    boolean,
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
+),
+public.payout_report_policy(), public.payout_readiness(date, uuid[], integer, bigint),
+public.payout_setup_blockers(uuid, date, integer, bigint),
+public.payout_report_records(uuid, integer, bigint, text[]),
+public.payout_report_totals(uuid, boolean, integer, bigint) from public,
+anon,
+authenticated,
+service_role;
+grant execute on function public.create_company(text),
+public.delete_company(uuid),
+public.account_directory(),
+public.set_company_membership(uuid, uuid, public.app_access_role, uuid),
+public.set_reference_assignment(text, text, text, text, uuid, uuid, text),
+public.workspace_revisions(text[]),
+public.sku_filter_options(),
+public.sku_configuration(),
+public.publish_sku_configuration(jsonb, text),
+public.financial_source_record(text, uuid, uuid),
+public.financial_source_transaction_lookup(text, integer, bigint),
+public.source_transaction_page(
+    text,
+    integer,
+    bigint,
+    text,
+    text,
+    date,
+    date,
+    text[],
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[]
+),
+public.source_transaction_count(text, date, date, text[], text[], text[], text[], text[], text[]),
+public.transaction_count(
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
+),
+public.transaction_page(
+    integer,
+    bigint,
+    text,
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text[],
+    text[],
+    boolean,
+    boolean,
+    text,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
+),
+public.transaction_totals(
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text,
+    boolean,
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
+),
+public.payout_report_policy(), public.payout_readiness(date, uuid[], integer, bigint),
+public.payout_setup_blockers(uuid, date, integer, bigint),
+public.payout_report_records(uuid, integer, bigint, text[]),
+public.payout_report_totals(uuid, boolean, integer, bigint) to authenticated;
 grant usage on schema private to authenticated;
-grant select on public.app_accounts, public.companies, public.skus,
-public.sku_terms_versions, public.sku_fee_periods, public.company_skus,
-public.current_sku_fee_periods to authenticated;
-grant execute on function private.read_account_directory(), public.account_directory(),
-private.create_administrator_company(text), public.create_company(text),
-private.delete_administrator_company(uuid), public.delete_company(uuid),
-private.set_administrator_company_membership(uuid, uuid, public.app_access_role, uuid),
-public.set_company_membership(uuid, uuid, public.app_access_role, uuid)
-to authenticated;
-grant select on private.finances_transaction_components, private.finances_component_details,
-private.finances_activity_components, private.finances_batch_components,
-private.finances_transactions, private.finances_preprocess_batch_transactions,
-private.data_kiosk_day_components, private.data_kiosk_component_details,
-private.data_kiosk_batch_components, private.data_kiosk_preprocess_batch_days to authenticated;
--- Parent totals/counts and whole-run inventories stay administrator-only.
+grant select on public.app_accounts,
+public.companies,
+public.assignment_keys,
+public.assignment_versions,
+public.sku_fee_periods,
+public.company_skus,
+public.current_sku_fee_periods,
+public.assignment_status,
+public.financial_outcomes,
+public.financial_review_monthly,
+public.finances_preprocess_entries,
+public.finances_preprocess_results,
+public.live_company_components,
+public.company_payout_reports,
+public.latest_company_payout_reports,
+public.payout_report_source_versions, public.payout_report_assignment_versions,
+public.latest_inventory_captures, public.latest_inventory_items to authenticated;
+grant select on private.current_sku_terms,
+private.information_keys, private.information_products, private.inventory_ledger_rows,
+private.campaigns, private.campaign_products, private.promotions, private.promotion_products,
+private.shipments, private.shipment_items, private.ad_invoices, private.ad_invoice_lines,
+private.storage_rows,
+private.aged_storage_rows,
+private.removal_order_rows,
+private.reference_money,
+private.current_reference_assignments,
+private.reference_id_requests,
+private.assignment_candidates,
+private.finances_component_details,
+private.finances_amounts, private.source_units, private.source_batch_units,
+private.payout_report_source_versions, private.payout_report_assignment_versions,
+private.inventory_acquisitions,
+private.inventory_daily_captures,
+private.inventory_items to authenticated;
+grant select (id, unit_id, source, created_at) on private.source_unit_versions to authenticated;
 grant select (
-    id, transaction_id, marketplace_id, marketplace_name, posted_date, posted_at,
+    version_id, marketplace_id, marketplace_name, posted_date, posted_at, customer_order_id,
     account_type,
     transaction_type,
     transaction_status,
     deferred_transaction_id,
     release_transaction_id,
-    activity_eligible, currency, created_at
-) on private.finances_transaction_versions to authenticated;
+    is_activity, currency
+) on private.finances_transactions to authenticated;
 grant select (
     id, acquisition_id, preprocess_version, created_at
-) on private.finances_preprocess_batches to authenticated;
-grant select (
-    id, seller_namespace, marketplace_name, activity_date, dataset_key,
-    current_version_id, current_batch_id
-) on private.data_kiosk_days to authenticated;
-grant select (id, acquisition_id, preprocess_version, created_at)
-on private.data_kiosk_preprocess_batches to authenticated;
-grant select (
-    id, day_id, activity_at
-) on private.data_kiosk_day_versions to authenticated;
-grant select on public.finances_preprocess_results, public.finances_preprocess_entries,
-public.data_kiosk_preprocess_results, public.data_kiosk_preprocess_entries,
-public.live_company_components, private.live_company_component_inputs to authenticated;
-grant select on public.company_payout_reports,
-public.latest_company_payout_reports,
-private.payout_report_finances_versions, private.payout_report_data_kiosk_versions,
-private.payout_report_terms_versions, public.payout_report_finances_versions,
-public.payout_report_data_kiosk_versions, public.payout_report_terms_versions,
-public.financial_review_records to authenticated;
-grant execute on function private.is_administrator(), private.is_member(),
-private.current_owned_sku_terms(), private.current_owned_finances_revisions(),
-private.current_owned_data_kiosk_days(),
-private.mature_cutoff_date(), private.financial_account_visible(),
-public.payout_report_policy(),
-public.payout_readiness(date, uuid[], integer, bigint),
-private.read_payout_readiness(date, uuid[], integer, bigint),
-public.payout_setup_blockers(uuid, date, integer, bigint),
-private.read_payout_setup_blockers(uuid, date, integer, bigint),
+) on private.source_preprocess_batches to authenticated;
+grant execute on function private.is_administrator(),
+private.is_member(),
+private.read_account_directory(),
+private.create_administrator_company(text), private.delete_administrator_company(uuid),
+private.set_administrator_company_membership(uuid, uuid, public.app_access_role, uuid),
+private.current_owned_sku_terms(),
+private.current_owned_finances_revisions(),
+private.financial_account_visible(),
 private.read_finances_preprocess_results(),
-private.read_data_kiosk_preprocess_results(),
-private.resolve_company_components(uuid[], uuid[], uuid[]) to authenticated;
-grant execute on function private.validate_financial_review_scope(
-    date, date, public.allocation_category, text
+private.latest_inventory_capture_references(), private.read_workspace_revisions(text[]),
+private.read_sku_configuration(), private.publish_administrator_sku_configuration(jsonb, text),
+private.validate_page_bounds(integer, bigint),
+private.validate_transaction_filters(date, date, uuid[], text[], text[], text[], text[], boolean),
+private.visible_company_components(date, date, text[], text, uuid[]),
+private.filtered_components(
+    date,
+    date,
+    uuid[],
+    text[],
+    text[],
+    text[],
+    text[],
+    boolean,
+    text[],
+    text[],
+    text[],
+    text[],
+    text
 ),
-public.financial_review_type_totals(date, date, public.allocation_category, text, text)
-to authenticated;
-grant execute on function public.financial_source_record(text, uuid, uuid),
-public.financial_source_transaction_lookup(text, integer, bigint) to authenticated;
-
--- Shared financial helpers remain outside the exposed schema.
-grant select on private.current_sku_terms to authenticated;
-grant execute on function private.calculate_service_fee(numeric, numeric) to authenticated;
-
-grant execute on function private.read_workspace_revisions(text[]),
-public.workspace_revisions(text[]) to authenticated;
-
-grant execute on function private.validate_transaction_filters(
-    date, date, uuid[], text[], text[], text[], text[], boolean
-), private.validate_page_bounds(integer, bigint),
-private.member_policy_covers_current_version(regclass) to authenticated;
-
-grant execute on function public.transaction_count(
-    date, date, uuid[], text[], text[], text[], text[], boolean,
-    text[], text[], text[], text[], text
-)
-to authenticated;
-grant execute on function public.source_transaction_count(
-    text, date, date, text[], text[], text[], text[], text[], text[]
-) to authenticated;
-
-grant execute on function public.transaction_page(
-    integer, bigint, text, date, date, uuid[], text[],
-    text[], text[], text[], boolean, boolean, text, text[], text[], text[], text[], text
-) to authenticated;
-
-grant execute on function public.source_transaction_page(
-    text, integer, bigint, text, text, date, date, text[],
-    text[], text[], boolean, text[], text[], text[]
-) to authenticated;
-
-grant execute on function private.read_payout_report_records(uuid),
-public.payout_report_records(uuid, boolean, integer, bigint, text[]),
-public.payout_report_totals(uuid, boolean, integer, bigint) to authenticated;
-
-grant execute on function public.transaction_totals(
-    date, date, uuid[], text[], text[], text, boolean,
-    text[], text[], boolean, text[], text[], text[], text[], text
-) to authenticated;
-
-grant execute on function public.sku_filter_options() to authenticated;
-
--- Complete SKU configuration is exposed only through caller-checked entry points.
-grant execute on function private.read_sku_configuration(), public.sku_configuration(),
-private.publish_administrator_sku_configuration(jsonb, text),
-public.publish_sku_configuration(jsonb, text)
-to authenticated;
-
--- Inventory publishers stay privileged. Header tables are administrator-only under
--- RLS; the guarded helper exposes just current scope timestamps to members.
-grant select on private.inventory_acquisitions, private.inventory_daily_captures,
-private.inventory_items, public.latest_inventory_captures,
-public.latest_inventory_items to authenticated;
-grant execute on function private.latest_inventory_capture_references() to authenticated;
-
--- Successful Finance coverage metadata is needed for administrator source summaries.
-grant select (
-    id, seller_namespace, amazon_scope, marketplace_ids, capture_started_at,
-    posted_after, posted_before, reconciliation_start_date, reconciliation_end_date, api_metadata
-) on private.finances_acquisitions to authenticated;
-grant execute on function private.current_finances_reconciled_days(text[], date, date, text)
-to authenticated;
-
-grant execute on function private.read_source_totals(
-    uuid, date, date, text, text, text, public.allocation_category, integer, bigint
-), public.current_source_totals(
-    date, date, text, text, text, public.allocation_category, integer, bigint
-), public.report_source_totals(uuid, text, integer, bigint)
-to authenticated;
+private.read_financial_outcomes(), private.read_monthly_financial_totals(),
+private.assign_reference_as_admin(text, text, text, text, uuid, uuid, text),
+private.read_payout_readiness(date, uuid[], integer, bigint),
+private.read_payout_setup_blockers(uuid, date, integer, bigint),
+private.read_payout_report_records(uuid), private.mature_cutoff_date() to authenticated;

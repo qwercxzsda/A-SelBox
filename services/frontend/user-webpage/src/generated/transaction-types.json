@@ -1,472 +1,252 @@
 [
   {
-    "source": "DATA_KIOSK",
-    "category": "ANALYSIS_ONLY",
-    "type": "COST_OF_GOODS_SOLD"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "ANALYSIS_ONLY",
-    "type": "MFN_FULFILLMENT_COST"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "ANALYSIS_ONLY",
-    "type": "MFN_STORAGE_COST"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "ANALYSIS_ONLY",
-    "type": "MISCELLANEOUS_COST"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "ANALYSIS_ONLY",
-    "type": "SHIPPING_TO_AMAZON_COST"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "COUPON_PARTICIPATION_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "COUPON_PERFORMANCE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "DEAL_PARTICIPATION_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "DEAL_PERFORMANCE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "DISPOSAL_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "FBA_AGED_INVENTORY_SURCHARGE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "FBA_INBOUND_CONVENIENCE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "FBA_INBOUND_PLACEMENT_SERVICE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "FBA_INBOUND_TRANSPORTATION_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "FBA_INBOUND_TRANSPORTATION_PROGRAM_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "FBA_STORAGE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "LABELING_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "LONG_TERM_STORAGE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "MONTHLY_INVENTORY_STORAGE_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "REMOVAL_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "RUN_LIGHTNING_DEAL_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_BRANDS"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_BRANDS_CHARGE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_BRANDS_CHARGES"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_DISPLAY"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_DISPLAY_CHARGE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_DISPLAY_CHARGES"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_PRODUCTS"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_PRODUCTS_CHARGE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_PRODUCTS_CHARGES"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "DATA_KIOSK",
-    "type": "SPONSORED_PRODUCT_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "DIGITAL_SERVICES_FEE_FBA"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "DIGITAL_SERVICES_FEE_SOA"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "FBA_FULFILLMENT_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "FBA_FULFILLMENT_FEES"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "FBA_FULFILMENT_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "FBA_INVENTORY_REIMBURSEMENT"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "LIQUIDATION_PROCESSING_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "LIQUIDATION_REFERRAL_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "NET_PRODUCT_SALES"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "REFERRAL_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "REFERRAL_FEES"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "REFUNDED_REFERRAL_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "FINANCES",
-    "type": "REFUND_COMMISSION_FEE"
-  },
-  {
-    "source": "DATA_KIOSK",
-    "category": "SELBOX",
-    "type": "SUBSCRIPTION_FEE"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
+    "route": "AD_INVOICE",
+    "selbox_group": null,
     "type": "ADVERTISING"
   },
   {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
+    "route": "AGED_STORAGE",
+    "selbox_group": null,
     "type": "AGED_STORAGE_FEES"
   },
   {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "COUPON_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "DEAL_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "DISPOSAL_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "INBOUND_PLACEMENT_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "INBOUND_TRANSPORTATION_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "INBOUND_TRANSPORTATION_PROGRAM_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "LABELING_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "REMOVAL_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "DATA_KIOSK",
-    "type": "STORAGE_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "DIGITAL_SERVICES_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "FBA_FULFILLMENT_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "FULFILLMENT_FEE_CORRECTIONS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "FULFILLMENT_FEE_REVERSALS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "GIFT_WRAP_CHARGEBACKS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "GIFT_WRAP_CREDITS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "GIFT_WRAP_TAX"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "INVENTORY_REIMBURSEMENTS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "INVENTORY_REIMBURSEMENT_REVERSALS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "LIQUIDATION_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "LIQUIDATION_PROCEEDS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "POINTS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "PRODUCT_REFUNDS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "PRODUCT_SALES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "PRODUCT_TAX"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "PROMOTIONAL_REBATES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "PROMOTIONAL_REFUNDS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "REFERRAL_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "REFUNDED_REFERRAL_FEES"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "REFUND_COMMISSION"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "RESTOCKING"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "SHIPPING_CHARGEBACKS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "SHIPPING_CREDITS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "SHIPPING_REFUNDS"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "SHIPPING_TAX"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "TAX_WITHHELD"
-  },
-  {
-    "source": "FINANCES",
-    "category": "FINANCES",
-    "type": "ZERO_ACTIVITY"
-  },
-  {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SELBOX",
+    "selbox_group": "BALANCE_MOVEMENT",
     "type": "BANK_TRANSFERS"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "PROMOTION",
+    "selbox_group": null,
+    "type": "COUPON_FEES"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "BALANCE_MOVEMENT",
     "type": "CROSS_ACCOUNT_ADJUSTMENTS"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "PROMOTION",
+    "selbox_group": null,
+    "type": "DEAL_FEES"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "BALANCE_MOVEMENT",
     "type": "DEBT_RECOVERY"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "DIGITAL_SERVICES_FEES"
+  },
+  {
+    "route": "REMOVAL_ORDER",
+    "selbox_group": null,
+    "type": "DISPOSAL_FEES"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "ACCOUNT_FEE",
     "type": "EPR_FEES"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "FBA_FULFILLMENT_FEES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "FULFILLMENT_FEE_CORRECTIONS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "FULFILLMENT_FEE_REVERSALS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "GIFT_WRAP_CHARGEBACKS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "GIFT_WRAP_CREDITS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "GIFT_WRAP_TAX"
+  },
+  {
+    "route": "SHIPMENT",
+    "selbox_group": null,
     "type": "INBOUND_DEFECT_FEES"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SHIPMENT",
+    "selbox_group": null,
+    "type": "INBOUND_PLACEMENT_FEES"
+  },
+  {
+    "route": "SHIPMENT",
+    "selbox_group": null,
+    "type": "INBOUND_TRANSPORTATION_FEES"
+  },
+  {
+    "route": "SHIPMENT",
+    "selbox_group": null,
+    "type": "INBOUND_TRANSPORTATION_PROGRAM_FEES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "INVENTORY_REIMBURSEMENTS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "INVENTORY_REIMBURSEMENT_REVERSALS"
+  },
+  {
+    "route": "SHIPMENT",
+    "selbox_group": null,
+    "type": "LABELING_FEES"
+  },
+  {
+    "route": "FNSKU",
+    "selbox_group": null,
+    "type": "LIQUIDATION_FEES"
+  },
+  {
+    "route": "FNSKU",
+    "selbox_group": null,
+    "type": "LIQUIDATION_PROCEEDS"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "ACCOUNT_FEE",
     "type": "MCF_CREDITS"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SELBOX",
+    "selbox_group": "ACCOUNT_FEE",
     "type": "OTHER_ADJUSTMENTS"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "POINTS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "PRODUCT_REFUNDS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "PRODUCT_SALES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "PRODUCT_TAX"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "PROMOTIONAL_REBATES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "PROMOTIONAL_REFUNDS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "REFERRAL_FEES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "REFUNDED_REFERRAL_FEES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "REFUND_COMMISSION"
+  },
+  {
+    "route": "REMOVAL_ORDER",
+    "selbox_group": null,
+    "type": "REMOVAL_FEES"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "BALANCE_MOVEMENT",
     "type": "RESERVE_MOVEMENTS"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "RESTOCKING"
+  },
+  {
+    "route": "ASIN",
+    "selbox_group": null,
+    "type": "RETURNS_PROCESSING_FEES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "SHIPPING_CHARGEBACKS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "SHIPPING_CREDITS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "SHIPPING_REFUNDS"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "SHIPPING_TAX"
+  },
+  {
+    "route": "STORAGE",
+    "selbox_group": null,
+    "type": "STORAGE_FEES"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "ACCOUNT_FEE",
     "type": "SUBSCRIPTION_FEES"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SELBOX",
+    "selbox_group": "TAX_RECLASSIFICATION",
     "type": "TAX_RECLASSIFICATION"
   },
   {
-    "source": "FINANCES",
-    "category": "SELBOX",
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "TAX_WITHHELD"
+  },
+  {
+    "route": "SELBOX",
+    "selbox_group": "ACCOUNT_FEE",
     "type": "VINE_FEES"
+  },
+  {
+    "route": "SKU",
+    "selbox_group": null,
+    "type": "ZERO_ACTIVITY"
   }
 ]

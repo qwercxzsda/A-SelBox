@@ -3,17 +3,28 @@
 import psycopg
 
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
-from services.sync.src.allocation import AllocationCategory
 
 
 class SchemaContractTests(SourceModelFixture):
-    def test_allocation_enum_matches_the_shared_python_categories(self) -> None:
-        categories = self.connection.execute(
-            "select unnest(enum_range(null::public.allocation_category))::text"
+    def test_finances_routing_vocabulary(self) -> None:
+        routes = self.connection.execute(
+            "select unnest(enum_range(null::private.finances_route))::text"
         ).fetchall()
         self.assertEqual(
-            tuple(row[0] for row in categories),
-            tuple(category.value for category in AllocationCategory),
+            {r[0] for r in routes},
+            {
+                "SKU",
+                "FNSKU",
+                "ASIN",
+                "PROMOTION",
+                "SHIPMENT",
+                "CUSTOMER_ORDER",
+                "AD_INVOICE",
+                "STORAGE",
+                "AGED_STORAGE",
+                "REMOVAL_ORDER",
+                "SELBOX",
+            },
         )
 
     def test_default_finances_account_retains_sku_without_company_access(self) -> None:
@@ -21,7 +32,7 @@ class SchemaContractTests(SourceModelFixture):
         company, _ = self.owner(source_sku)
         self.finances(
             [
-                self.transaction("-11", sku=source_sku, category="SELBOX", kind="ServiceFee")
+                self.transaction("-11", sku=source_sku, route="SELBOX", kind="ServiceFee")
                 | {
                     "component_type": "SUBSCRIPTION_FEES",
                     "breakdown_path": ["Subscription", "Base"],
@@ -29,9 +40,7 @@ class SchemaContractTests(SourceModelFixture):
             ]
         )
         self.assertEqual(
-            self.connection.execute(
-                "select category,sku from private.finances_transaction_components"
-            ).fetchone(),
+            self.connection.execute("select route,sku from private.finances_amounts").fetchone(),
             ("SELBOX", source_sku),
         )
         self.assertEqual(
@@ -45,51 +54,18 @@ class SchemaContractTests(SourceModelFixture):
         self.connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user,))
         self.connection.execute("set local role authenticated")
         self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_transaction_components"
-            ).fetchone(),
+            self.connection.execute("select count(*) from private.finances_amounts").fetchone(),
             (0,),
         )
         self.connection.execute("reset role")
 
     def test_allocated_finances_transaction_components_require_a_source_sku(self) -> None:
-        with self.assertRaises(ValueError), self.connection.transaction():
+        with (
+            self.assertRaises((ValueError, psycopg.errors.CheckViolation)),
+            self.connection.transaction(),
+        ):
             self.finances([self.transaction("100") | {"sku": None}])
         self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_transaction_components"
-            ).fetchone(),
+            self.connection.execute("select count(*) from private.finances_amounts").fetchone(),
             (0,),
-        )
-
-    def test_data_kiosk_publication_rejects_account_category_with_sku(self) -> None:
-        with (
-            self.assertRaisesRegex(ValueError, "MSKU"),
-            self.connection.transaction(),
-        ):
-            self.kiosk(
-                1,
-                [self.component(category="SELBOX") | {"component_type": "SubscriptionFee"}],
-            )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_day_components"
-            ).fetchone(),
-            (0,),
-        )
-
-    def test_direct_data_kiosk_insert_cannot_bypass_account_sku_guard(self) -> None:
-        _, version = self.kiosk(1, [])
-        with (
-            self.assertRaises(psycopg.errors.CheckViolation) as raised,
-            self.connection.transaction(),
-        ):
-            self.connection.execute(
-                "insert into private.data_kiosk_day_components "
-                "(version_id,component_key,sku,category,component_type,amount,currency) "
-                "values (%s,'direct','SKU','SELBOX','SubscriptionFee',-10,'USD')",
-                (version,),
-            )
-        self.assertEqual(
-            raised.exception.diag.constraint_name, "data_kiosk_account_requires_blank_sku"
         )

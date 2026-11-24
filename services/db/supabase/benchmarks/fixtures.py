@@ -86,14 +86,13 @@ class Clones:
 def require_current_schema(connection: Connection) -> None:
     """Reject obsolete source models before copying or benchmarking their data."""
     present = connection.execute(
-        "select to_regclass('private.finances_transaction_versions') is not null "
-        "and to_regclass('private.finances_preprocess_batch_transactions') is not null "
-        "and to_regclass('private.data_kiosk_day_versions') is not null "
-        "and to_regclass('private.data_kiosk_day_components') is not null "
-        "and to_regclass('private.data_kiosk_preprocess_batch_days') is not null"
+        "select to_regclass('private.source_units') is not null "
+        "and to_regclass('private.finances_amounts') is not null "
+        "and to_regclass('private.payout_report_source_versions') is not null "
+        "and to_regclass('public.assignment_keys') is not null"
     ).fetchone()
     if present != (True,):
-        raise ValueError("Benchmark seed must use the current Finance and Data Kiosk source schema")
+        raise ValueError("Benchmark seed must use the current Finances and reference schema")
 
 
 def _source_state(connection: Connection) -> dict[str, str]:

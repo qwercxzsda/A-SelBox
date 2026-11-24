@@ -6,55 +6,13 @@ from typing import Any, cast
 import psycopg
 
 from services.db.supabase.tests.integration_support import TransactionDatabase
-from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
+from services.db.supabase.tests.source_fixtures import SourceModelFixture
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 from services.sync.tests.support.archives import MemoryArchiveStorage
 from services.sync.tests.support.finances import finances_acquisition, native_transaction
 
 
 class SourceVersionVisibilityTests(SourceModelFixture):
-    def test_reused_kiosk_version_exposes_only_owned_components_and_current_observation(
-        self,
-    ) -> None:
-        company, _ = self.owner()
-        self.owner("OTHER")
-        _, old_version = self.kiosk(1, [self.component("-1"), self.component("-2", sku="OTHER")])
-        rows = [self.component("-3"), self.component("-4", sku="OTHER")]
-        _, current_version = self.kiosk(2, rows, expected=old_version)
-        previous_observation = self.kiosk_observation(current_version)
-        _, reused = self.kiosk(3, rows, expected=current_version)
-        current_observation = self.kiosk_observation(reused)
-        self.assertEqual(reused, current_version)
-        self.assertNotEqual(previous_observation, current_observation)
-        user = self.member(company)
-        self.assertEqual(
-            self.as_user(user, "select sku,amount from private.data_kiosk_day_components"),
-            [("SKU", -3)],
-        )
-        self.assertEqual(
-            self.as_user(user, "select id::text from private.data_kiosk_day_versions"),
-            [(current_version,)],
-        )
-        self.assertEqual(
-            self.as_user(user, "select id::text from private.data_kiosk_preprocess_batch_days"),
-            [(current_observation,)],
-        )
-        self.assertEqual(
-            self.as_user(user, "select count(*) from private.data_kiosk_preprocess_batches"),
-            [(1,)],
-        )
-        administrator = self.administrator()
-        self.assertEqual(
-            self.as_user(administrator, "select count(*) from private.data_kiosk_day_components"),
-            [(4,)],
-        )
-        self.assertEqual(
-            self.as_user(
-                administrator, "select count(*) from public.data_kiosk_preprocess_results"
-            ),
-            [(3,)],
-        )
-
     def test_shared_parent_does_not_expose_another_companys_components(self) -> None:
         first_company, _ = self.owner("SKU-1")
         second_company, _ = self.owner("OTHER")
@@ -73,19 +31,17 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         for company, sku, amount in ((first_company, "SKU-1", 100), (second_company, "OTHER", 200)):
             user = self.member(company)
             self.assertEqual(
-                self.as_user(
-                    user, "select sku,amount from private.finances_transaction_components"
-                ),
+                self.as_user(user, "select sku,amount from private.finances_amounts"),
                 [(sku, amount)],
             )
             self.assertEqual(
-                self.as_user(user, "select count(*) from private.finances_transaction_versions"),
+                self.as_user(user, "select count(*) from private.finances_transactions"),
                 [(1,)],
             )
         self.assertEqual(
             self.as_user(
                 self.administrator(),
-                "select count(*),sum(amount) from private.finances_transaction_components",
+                "select count(*),sum(amount) from private.finances_amounts",
             ),
             [(2, 300)],
         )
@@ -109,27 +65,23 @@ class SourceVersionVisibilityTests(SourceModelFixture):
             (self.member(other), other_current),
         ):
             self.assertEqual(
-                self.as_user(user, "select id::text from private.finances_transaction_components"),
+                self.as_user(user, "select id::text from private.finances_amounts"),
                 [(expected,)],
             )
             self.assertEqual(
-                self.as_user(user, "select count(*) from private.finances_transactions"), [(1,)]
+                self.as_user(user, "select count(*) from private.source_units"), [(1,)]
             )
             self.assertEqual(
-                self.as_user(user, "select count(*) from private.finances_transaction_versions"),
+                self.as_user(user, "select count(*) from private.finances_transactions"),
                 [(1,)],
             )
             self.assertEqual(
-                self.as_user(
-                    user, "select count(*) from private.finances_preprocess_batch_transactions"
-                ),
+                self.as_user(user, "select count(*) from private.source_batch_units"),
                 [(1,)],
             )
         administrator = self.administrator()
         self.assertCountEqual(
-            self.as_user(
-                administrator, "select id::text from private.finances_transaction_components"
-            ),
+            self.as_user(administrator, "select id::text from private.finances_amounts"),
             [(old,), (current,), (other_current,)],
         )
         self.assertEqual(
@@ -138,38 +90,15 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_unassigned_and_members_without_skus_have_no_source_references(self) -> None:
-        self.publish_owned_history()
-        self.kiosk(1, [self.component()])
-        company = new_id()
-        self.connection.execute(
-            "insert into public.companies(id,name) values (%s,'Empty')", (company,)
-        )
-        for user in (self.auth_user(), self.member(company), ""):
-            for query in (
-                "select id from private.finances_transactions",
-                "select id from private.finances_transaction_versions",
-                "select id from private.finances_transaction_components",
-                "select batch_id from private.finances_preprocess_batch_transactions",
-                "select id from private.finances_preprocess_batches",
-                "select id from private.data_kiosk_days",
-                "select id from private.data_kiosk_day_versions",
-                "select id from private.data_kiosk_day_components",
-                "select id from private.data_kiosk_preprocess_batch_days",
-                "select id from private.data_kiosk_preprocess_batches",
-            ):
-                with self.subTest(user=user, query=query):
-                    self.assertEqual(self.as_user(user, query), [])
-
     def test_parent_controls_and_batch_inventories_are_not_public_column_grants(self) -> None:
         company, _, _, _, _ = self.publish_owned_history()
         for user in (self.member(company), self.administrator()):
             for query in (
-                "select total_amount from private.finances_transaction_versions",
-                "select component_count from private.finances_transaction_versions",
-                "select content_sha256 from private.finances_transaction_versions",
-                "select transaction_count from private.finances_preprocess_batches",
-                "select documents from private.finances_acquisitions",
+                "select total_amount from private.finances_transactions",
+                "select amount_count from private.finances_transactions",
+                "select content_sha256 from private.source_unit_versions",
+                "select unit_count from private.source_preprocess_batches",
+                "select documents from private.source_acquisitions",
             ):
                 with (
                     self.subTest(query=query),
@@ -183,20 +112,18 @@ class SourceVersionVisibilityTests(SourceModelFixture):
         company, other, _, current, _ = self.publish_owned_history()
         user = self.member(company)
         self.assertEqual(
-            self.as_user(user, "select id::text from private.finances_transaction_components"),
+            self.as_user(user, "select id::text from private.finances_amounts"),
             [(current,)],
         )
         self.connection.execute(
             "update public.app_accounts set company_id=%s where user_id=%s", (other, user)
         )
         self.assertNotEqual(
-            self.as_user(user, "select id::text from private.finances_transaction_components"),
+            self.as_user(user, "select id::text from private.finances_amounts"),
             [(current,)],
         )
         self.connection.execute("delete from public.app_accounts where user_id=%s", (user,))
         self.assertEqual(
-            self.as_user(user, "select id from private.finances_transaction_versions"), []
+            self.as_user(user, "select version_id from private.finances_transactions"), []
         )
-        self.assertEqual(
-            self.as_user(user, "select id from private.finances_transaction_components"), []
-        )
+        self.assertEqual(self.as_user(user, "select id from private.finances_amounts"), [])

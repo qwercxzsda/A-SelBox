@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
+import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
+
+import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { item, feeRow, feeDetails } from "./sku-configuration-fixtures.mjs";
 import { companyRow, companyDrawer, closeCompanyDetails } from "./company-actions.mjs";
@@ -96,7 +97,7 @@ async function setupDesignWorkspace(page, role) {
     },
   ];
   fixture.financesRows = [financesRow(1)];
-  fixture.kioskRows = [kioskRow(1, "12.5")];
+
   fixture.skuConfigurationItems = [item("DESIGN-SKU", { company_id: REVIEW_COMPANY })];
   await mockInventory(page, [
     inventoryRow("DESIGN-SKU", {
@@ -152,7 +153,7 @@ for (const [role, width] of [
     await rowDetail.getByRole("button", { name: "Close row details", exact: true }).click();
 
     if (role === "administrator") {
-      for (const name of ["Finances", "Data Kiosk", "User access"]) {
+      for (const name of ["Finances", "User access"]) {
         await openTab(name);
         await checkTable(
           name === "User access"
@@ -271,39 +272,8 @@ for (const [role, width] of [
 
     if (role === "administrator") {
       await openTab("Financial review");
-      const monthly = page.getByRole("table", {
-        name: "Monthly financial review",
-        exact: true,
-      });
-      await checkTable(monthly);
-      await screenshot("monthly-review");
-      await monthly.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
-      const review = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-      await checkDrawer(review);
-      if (width > 720)
-        await checkTable(
-          review.getByRole("table", { name: "Financial review totals", exact: true }),
-        );
-      else await expect(review.locator(".monthly-review-totals-mobile")).toBeVisible();
-      await screenshot("monthly-details");
-      await review
-        .getByRole("button", { name: "Close monthly financial review", exact: true })
-        .click();
-      await monthly.getByRole("button", { name: "Open review for June 2026", exact: true }).click();
-      await review.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
-      const snapshots = review.getByRole("table", { name: "Financial records", exact: true });
-      await checkTable(snapshots);
-      await snapshots.locator("tbody tr.inspectable-row").first().click();
-      const support = page.getByRole("dialog", {
-        name: "Saved report source details",
-        exact: true,
-      });
-      await checkDrawer(support);
-      await checkTable(
-        support.getByRole("table", { name: "Supporting payout records", exact: true }),
-      );
-      await screenshot("supporting-details");
-      await checkMetadata(support);
+      await expect(page.getByRole("combobox", { name: "Show", exact: true })).toBeVisible();
+      await screenshot("financial-review");
     } else {
       await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(0);
       await expect(page.getByRole("tab", { name: "User access", exact: true })).toHaveCount(0);

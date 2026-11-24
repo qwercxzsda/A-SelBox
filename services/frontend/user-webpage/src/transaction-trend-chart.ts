@@ -1,7 +1,7 @@
 import { requireCalendarDate } from "./api/filters.ts";
 import { chartLines, chartScale } from "./amount-trend-projection.ts";
-import { compareDecimals, sumExactDecimals } from "./decimal.ts";
-import { differenceExact } from "./source-diagnostics.ts";
+import { compareDecimals, sumExactDecimals, differenceExact } from "./decimal.ts";
+
 import { transactionTypeGroup } from "./transaction-type-family-catalog.ts";
 import { TRANSACTION_TYPE_GROUPS, type TypeGroupId } from "./transaction-type-families.ts";
 import type { CurrencyTotal, TransactionTrendGranularity } from "./api/types.ts";
@@ -123,7 +123,6 @@ const GROUP_VISUALS: Record<TypeGroupId, string> = {
   advertising: "#be185d",
   taxes: "#92400e",
   other: "#475569",
-  "seller-costs": "#15803d",
 };
 
 interface GroupContribution {

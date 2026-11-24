@@ -29,6 +29,16 @@ def as_user(
         return result
 
 
+FACT_TABLES = (
+    "finances_amounts",
+    "ad_invoice_lines",
+    "storage_rows",
+    "aged_storage_rows",
+    "removal_order_rows",
+    "inventory_ledger_rows",
+)
+
+
 def source_versions(connection: Connection) -> dict[str, list[str]]:
     return {
         table: [
@@ -37,12 +47,12 @@ def source_versions(connection: Connection) -> dict[str, list[str]]:
                 sql.SQL("select distinct version_id from private.{}").format(sql.Identifier(table))
             ).fetchall()
         ]
-        for table in ("finances_transaction_components", "data_kiosk_day_components")
+        for table in FACT_TABLES
     }
 
 
 def source_fingerprints(connection: Connection, versions: dict[str, list[str]]) -> dict[str, str]:
-    """Fingerprint complete financial rows so policy tests cannot alter their categories."""
+    """Fingerprint complete financial rows so assignment changes cannot alter source facts."""
     return {
         table: connection.execute(
             sql.SQL(
@@ -51,5 +61,5 @@ def source_fingerprints(connection: Connection, versions: dict[str, list[str]]) 
             ).format(sql.Identifier(table)),
             (versions[table],),
         ).fetchall()[0][0]
-        for table in ("finances_transaction_components", "data_kiosk_day_components")
+        for table in FACT_TABLES
     }

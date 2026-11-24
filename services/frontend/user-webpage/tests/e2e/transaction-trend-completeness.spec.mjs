@@ -14,7 +14,7 @@ test("daily and weekly trends load more than 1000 filtered groups in one complet
   page,
 }) => {
   const types = transactionTypes
-    .filter(({ source, category }) => source === "FINANCES" && category === "FINANCES")
+    .filter(({ route }) => route === "SKU")
     .slice(0, 12)
     .map(({ type }) => type);
   expect(types).toHaveLength(12);
@@ -40,7 +40,7 @@ test("daily and weekly trends load more than 1000 filtered groups in one complet
   }
   rows.push(
     trendBucket("2026-10-26", "900000", { type: types[0], sku: "ALPHA" }),
-    trendBucket("2026-10-26", "800000", { type: "FBA_STORAGE_FEE", sku: "BETA" }),
+    trendBucket("2026-10-26", "800000", { type: "STORAGE_FEES", sku: "BETA" }),
   );
   const fixture = await setupTrendPage(page, "member", rows);
   await selectColumnOptions(page, "SKU", ["BETA"]);

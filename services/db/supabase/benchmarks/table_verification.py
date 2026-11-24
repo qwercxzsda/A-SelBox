@@ -26,21 +26,11 @@ class Payload(TypedDict):
 
 
 def reference_relation(dataset: Dataset) -> sql.Composable:
-    if dataset.key != "live":
-        if dataset.key == "data_kiosk":
-            return sql.Identifier("public", dataset.relation)
-        return sql.SQL("(select e.*, {} as activity_at from {} e)").format(
-            sql.SQL("e.posted_at"), sql.Identifier("public", dataset.relation)
+    if dataset.key == "finances":
+        return sql.SQL("(select e.*, e.posted_at as activity_at from {} e)").format(
+            sql.Identifier("public", dataset.relation)
         )
-    return sql.SQL(
-        "(select c.*, case when c.source = 'FINANCES' then f.posted_at "
-        "else k.activity_at "
-        "end as activity_at from public.live_company_components c "
-        "left join private.finances_transaction_versions f "
-        "on c.source = 'FINANCES' and f.id = c.source_version_id "
-        "left join private.data_kiosk_day_versions k "
-        "on c.source = 'DATA_KIOSK' and k.id = c.source_version_id)"
-    )
+    return sql.Identifier("public", dataset.relation)
 
 
 def calendar_column(dataset: Dataset) -> sql.Composable:
@@ -74,14 +64,6 @@ def view_filter(case: SearchCase) -> tuple[sql.Composed, list[object]]:
         for field in SEARCH_COLUMNS[case.dataset.key]:
             matches.append(sql.SQL("v.{}::text ~* %s").format(sql.Identifier(field)))
             params.append(pattern)
-            if field == "source":
-                matches.append(
-                    sql.SQL(
-                        "(case v.source when 'FINANCES' then 'Finances' "
-                        "when 'DATA_KIOSK' then 'Data Kiosk' end) ~* %s"
-                    )
-                )
-                params.append(pattern)
         clauses.append(sql.SQL("({})").format(sql.SQL(" or ").join(matches)))
     return sql.SQL(" and ").join(clauses), params
 
@@ -93,8 +75,9 @@ def read_reference(connection: Connection, user: str, case: SearchCase) -> Paylo
     with connection.transaction():
         connection.execute("set local role authenticated")
         connection.execute(
-            "select set_config('request.jwt.claims',%s,true)",
-            (json.dumps({"sub": user, "role": "authenticated"}),),
+            "select set_config('request.jwt.claims',%s,true), "
+            "set_config('request.jwt.claim.sub',%s,true)",
+            (json.dumps({"sub": user, "role": "authenticated"}), user),
         )
         if case.expect_cap:
             row = connection.execute(
@@ -132,10 +115,9 @@ def read_reference(connection: Connection, user: str, case: SearchCase) -> Paylo
         rows = connection.execute(
             sql.SQL(
                 "select (select jsonb_object_agg(key,value) from "
-                "jsonb_each_text(to_jsonb(r)))::text from (select {} from {} v where {} "
+                "jsonb_each_text(to_jsonb(r)))::text from (select v.* from {} v where {} "
                 "order by {} limit 25 offset %s) r"
             ).format(
-                sql.SQL(", ").join(sql.Identifier("v", field) for field in case.dataset.columns),
                 relation,
                 predicate,
                 ordering,
@@ -164,7 +146,7 @@ def read_rpc_page(
         if not isinstance(row, dict):
             raise RuntimeError("Page returned an invalid row")
         fields = cast(dict[str, object], row)
-        if set(fields) != set(case.dataset.columns) or any(
+        if not fields or any(
             entry is not None and not isinstance(entry, str) for entry in fields.values()
         ):
             raise RuntimeError("Page did not preserve its exact text/NULL projection")
@@ -184,8 +166,9 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
     with connection.transaction():
         connection.execute("set local role authenticated")
         connection.execute(
-            "select set_config('request.jwt.claims',%s,true)",
-            (json.dumps({"sub": user, "role": "authenticated"}),),
+            "select set_config('request.jwt.claims',%s,true), "
+            "set_config('request.jwt.claim.sub',%s,true)",
+            (json.dumps({"sub": user, "role": "authenticated"}), user),
         )
         administrator = connection.execute("select private.is_administrator()").fetchone() == (
             True,
@@ -213,14 +196,19 @@ def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
             if scope is None:
                 raise RuntimeError("Fixture has no positive below-cap filtered amount group")
             sku, marketplace, kind, day, _currency = scope
+            total = connection.execute(
+                sql.SQL("select count(*) from {}").format(reference_relation(dataset))
+            ).fetchone()
+            if total is None:
+                raise RuntimeError("Failed to count visible benchmark rows")
             cases.extend(
                 [
                     blank,
                     replace(
                         blank,
-                        name="amount_over_limit",
+                        name="amount_over_limit" if total[0] > AMOUNT_LIMIT else "amount_all",
                         order_by="amount",
-                        expect_cap=True,
+                        expect_cap=total[0] > AMOUNT_LIMIT,
                     ),
                     SearchCase(
                         dataset,

@@ -10,11 +10,7 @@ from psycopg.conninfo import make_conninfo
 from services.db.supabase.tests.concurrency_support import wait_for_block
 from services.db.supabase.tests.local_database import DEFAULT_DATABASE_URL
 from services.db.supabase.tests.payout_fixtures import (
-    fill_payout_kiosk_month,
-    generate_payout_reports,
-    payout_snapshot,
     prepare_payout,
-    publish_payout,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -39,6 +35,7 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
     def test_competing_empty_requests_save_one_company_month_snapshot(self) -> None:
         self.set_mature_cutoff_date(date(2026, 7, 1))
         company, _ = self.owner("NO-SALES")
+        self.finances([])
         self.assert_competing_requests_reuse(company)
 
     def assert_competing_requests_reuse(self, company: str) -> None:
@@ -67,105 +64,6 @@ class PayoutIdempotencyConcurrencyTests(SourceModelFixture):
             self.assertEqual(
                 observer.execute("select count(*) from public.company_payout_reports").fetchone(),
                 (1,),
-            )
-
-    def test_new_source_namespace_waits_for_publication_and_is_captured_by_next_request(
-        self,
-    ) -> None:
-        self.seller = "seller-z"
-        inputs = prepare_payout(self)
-        self.connection.commit()
-        database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
-
-        def publish_new_source() -> None:
-            with psycopg.connect(database_url, application_name="new-payout-source") as writer:
-                writer.execute("set statement_timeout='10s'")
-                source = SourceModelFixture()
-                source.connection, source.seller = writer, "seller-a"
-                source.finances_acquisitions = {}
-                source.finances([source.transaction("50")])
-                fill_payout_kiosk_month(source)
-
-        with (
-            psycopg.connect(database_url) as holder,
-            psycopg.connect(database_url, autocommit=True) as observer,
-            ThreadPoolExecutor(max_workers=2) as executor,
-        ):
-            first_report, first_created = generate_on_connection(holder, inputs.company)
-            self.assertTrue(first_created)
-            source_future = executor.submit(publish_new_source)
-            try:
-                # The report is prepared but uncommitted. Source publication
-                # must wait for the same input guard used by every payout path.
-                wait_for_block(observer, "new-payout-source", wait_event="advisory")
-            finally:
-                holder.commit()
-            source_future.result(timeout=12)
-
-        self.assertEqual(
-            self.connection.execute(
-                "select source_amount from public.company_payout_reports where id=%s",
-                (first_report,),
-            ).fetchone(),
-            (90,),
-        )
-        before = payout_snapshot(self, first_report)
-        results = generate_payout_reports(self, inputs.company)
-        self.assertEqual(len(results), 1)
-        self.assertNotEqual(results[0][0], first_report)
-        self.assertTrue(results[0][1])
-        self.assertEqual(
-            self.connection.execute(
-                "select source_amount from public.latest_company_payout_reports "
-                "where company_id=%s",
-                (inputs.company,),
-            ).fetchall(),
-            [(140,)],
-        )
-        self.assertEqual(payout_snapshot(self, first_report), before)
-
-    def test_input_guard_serializes_different_currencies(self) -> None:
-        inputs = prepare_payout(self)
-        self.kiosk(
-            2,
-            [self.component("-10"), self.component("-5") | {"currency": "EUR"}],
-            expected=inputs.kiosk_version,
-        )
-        self.connection.commit()
-        database_url = make_conninfo(DEFAULT_DATABASE_URL, dbname=self.connection.info.dbname)
-        with (
-            psycopg.connect(database_url) as winner,
-            psycopg.connect(database_url, autocommit=True) as observer,
-            ThreadPoolExecutor(max_workers=1) as executor,
-        ):
-            winner.execute("set statement_timeout='10s'")
-            publisher = SourceModelFixture()
-            publisher.connection, publisher.seller = winner, self.seller
-            euro = publish_payout(publisher, inputs, currency="EUR")
-
-            def publish_dollar() -> str:
-                with psycopg.connect(
-                    database_url, application_name="different-currency-payout"
-                ) as worker:
-                    worker.execute("set statement_timeout='10s'")
-                    contender = SourceModelFixture()
-                    contender.connection, contender.seller = worker, self.seller
-                    return publish_payout(contender, inputs, currency="USD")
-
-            future = executor.submit(publish_dollar)
-            try:
-                wait_for_block(observer, "different-currency-payout", wait_event="advisory")
-                dollar = publish_payout(publisher, inputs, currency="USD")
-            finally:
-                winner.commit()
-            self.assertEqual(future.result(timeout=12), dollar)
-            self.assertNotEqual(euro, dollar)
-            self.assertEqual(
-                observer.execute(
-                    "select currency,count(*) from public.company_payout_reports group by currency "
-                    "order by currency"
-                ).fetchall(),
-                [("EUR", 1), ("USD", 1)],
             )
 
     def test_latest_order_uses_save_time_when_transaction_started_before_prior_report(self) -> None:

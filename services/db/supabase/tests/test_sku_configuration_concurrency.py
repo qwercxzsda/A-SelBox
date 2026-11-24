@@ -73,13 +73,13 @@ class SkuConfigurationConcurrencyTests(ConfigurationFixture):
                 winner.commit()
             self.assertEqual(future.result(timeout=12), ("PT409", "SKU_CONFIGURATION_STALE"))
             self.assertEqual(
-                observer.execute("select count(*) from public.sku_terms_versions").fetchone(), (4,)
+                observer.execute("select count(*) from public.assignment_versions").fetchone(), (4,)
             )
             self.assertEqual(
                 observer.execute(
-                    "select s.sku,p.fee_rate_percent from public.skus s "
+                    "select s.native_id,p.fee_rate_percent from public.assignment_keys s "
                     "join public.sku_fee_periods p "
-                    "on p.terms_version_id=s.current_terms_version_id order by s.sku"
+                    "on p.assignment_version_id=s.current_version_id order by s.native_id"
                 ).fetchall(),
                 [("A", Decimal(7)), ("B", Decimal(8))],
             )

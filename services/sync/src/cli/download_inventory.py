@@ -10,15 +10,15 @@ from sp_api.api import Reports
 from ..amazon.client import create_explicit_sp_api_client
 from ..amazon.credentials import close_quietly, load_lwa_credentials
 from ..amazon.marketplaces import get_credential_scope
+from ..amazon.reports.jobs import (
+    DEFAULT_MAX_POLL_ATTEMPTS,
+    DEFAULT_POLL_INTERVAL_SECONDS,
+    ReportsClient,
+)
 from ..amazon.scopes import DEFAULT_AMAZON_SCOPE
 from ..database.connection import PostgresDatabaseConnection
 from ..inventory.acquisition import download_inventory_acquisition
 from ..inventory.models import validate_inventory_scope
-from ..inventory.reports import (
-    DEFAULT_MAX_POLL_ATTEMPTS,
-    DEFAULT_POLL_INTERVAL_SECONDS,
-    InventoryReportsClient,
-)
 from .archive_common import add_archive_arguments, archive_storage_from_args
 from .common import add_seller_argument, initialize_cli, non_negative_float, positive_int
 
@@ -45,14 +45,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = initialize_cli(build_parser(), argv)
-    client: InventoryReportsClient | None = None
+    client: ReportsClient | None = None
     try:
         validate_inventory_scope(args.scope, args.marketplace_id)
         scope = get_credential_scope(args.scope)
         storage = archive_storage_from_args(args)
         credentials = load_lwa_credentials(scope.refresh_token_environment)
         client = cast(
-            InventoryReportsClient,
+            ReportsClient,
             create_explicit_sp_api_client(Reports, scope.client_marketplace, credentials),
         )
         with PostgresDatabaseConnection(args.database_url) as database:

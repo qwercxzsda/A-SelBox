@@ -9,17 +9,11 @@ export function DatasetHelp({ dataset }: { dataset: TableDatasetKey }) {
         <>
           <p>
             Included entries count as activity, including funds still held by Amazon. Linked
-            releases and bank transfers are exclusive. A released status alone does not exclude a
+            releases and bank transfers are excluded. A released status alone does not exclude a
             directly posted fee.
           </p>
           <p>Find by transaction ID searches all retained captures, regardless of table filters.</p>
         </>
-      ) : null}
-      {dataset === "data_kiosk" ? (
-        <p>
-          Dates use UTC and represent the end of each reported marketplace day. Retained source
-          records support comparison; Transactions applies the company allocation rules.
-        </p>
       ) : null}
       {dataset === "payouts" ? (
         <p>

@@ -23,7 +23,7 @@ export function mapDatasetRows(dataset: TableDatasetKey, records: unknown[]): Ca
     }
     if (dataset === "payouts") payoutMarketplace(row);
     if (
-      (dataset === "live" || dataset === "finances" || dataset === "data_kiosk") &&
+      (dataset === "live" || dataset === "finances") &&
       (!row.activity_at || !parseRecordTimestamp(row.activity_at))
     )
       throw new Error("Data response has an invalid transaction timestamp");

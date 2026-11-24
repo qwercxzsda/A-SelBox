@@ -16,12 +16,12 @@ const COMPANY = "11111111-1111-4111-8111-111111111111";
 function transaction(prefix, index, amount, category, fee, date = "2026-10-10") {
   const row = {
     ...liveRow(prefix, index, category === "SELBOX" ? null : COMPANY),
-    category,
+    outcome: category === "SELBOX" ? "SELBOX" : "COMPANY",
     activity_date: date,
-    activity_at: category === "DATA_KIOSK" ? undefined : `${date}T12:00:00.000000Z`,
-    source: category === "DATA_KIOSK" ? "DATA_KIOSK" : "FINANCES",
+    activity_at: category === "STORAGE" ? undefined : `${date}T12:00:00.000000Z`,
+    source: category === "STORAGE" ? "STORAGE" : "FINANCES",
     component_type:
-      category === "DATA_KIOSK"
+      category === "STORAGE"
         ? "STORAGE_FEES"
         : category === "SELBOX"
           ? "DEBT_RECOVERY"
@@ -43,7 +43,6 @@ function aggregate(row) {
     ...summaryBucket(row.activity_date, row.source_amount, {
       marketplace: row.marketplace_name,
       currency: row.currency,
-      category: row.category,
       serviceFee: row.fee_amount,
       companyAmount: row.company_amount,
       knownCompanyCount: row.company_amount === null ? 0 : 1,
@@ -76,7 +75,7 @@ for (const width of [1440, 390]) {
     fixture.companyNames[COMPANY] = "Company totals";
     const rows = [
       transaction("PRODUCT-SALE", 1, "100", "FINANCES", "-5"),
-      transaction("STORAGE-COST", 2, "-20", "DATA_KIOSK", "0"),
+      transaction("STORAGE-COST", 2, "-20", "STORAGE", "0"),
       transaction("ACCOUNT-DEBT", 3, "50", "SELBOX", "0", "2026-10-15"),
       {
         ...transaction("ACCOUNT-SUBSCRIPTION", 4, "-10", "SELBOX", "0", "2026-10-16"),
@@ -91,7 +90,7 @@ for (const width of [1440, 390]) {
     ];
     fixture.liveRows = rows;
     fixture.assignments = skuAssignments(
-      rows.filter((row) => row.category !== "SELBOX").map((row) => row.sku),
+      rows.filter((row) => row.outcome !== "SELBOX").map((row) => row.sku),
       COMPANY,
     );
     fixture.aggregateRows = rows.map(aggregate);

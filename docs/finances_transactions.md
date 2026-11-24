@@ -6,17 +6,12 @@ an observation in Python, and atomically publishes stable transaction identities
 transaction versions, and their monetary components. Unchanged transactions reuse their existing
 versions across successful preprocessing batches.
 
-Company allocation remains separate from Amazon account reconciliation. Finances supplies
-Finances and SelBox category amounts. Data Kiosk supplies its allocated company-cost category at all
-dates. Data Kiosk counterparts in other categories remain available for administrator comparisons.
-The two-calendar-month [maturity policy](source_allocation.md) controls payout eligibility and the
-default refresh lookback. It does not switch current source selection or establish Amazon finality.
+Finances supplies the activity and posting dates for company calculation. The [allocation rules](source_allocation.md) specify the reference key for each fee.
 
 ## Acquisition scope and archives
 
 Each acquisition declares one seller credential scope, a UTC `posted_after` timestamp, an optional
-exclusive `posted_before` timestamp, and its marketplace roster. Routine refreshes start at
-`private.mature_cutoff_date()` at UTC midnight and omit `postedBefore`. Amazon then applies its
+exclusive `posted_before` timestamp, and its marketplace roster. Routine refreshes start at UTC midnight three calendar months before the run date and omit `postedBefore`. Amazon then applies its
 default upper bound of approximately two minutes before the request. Current-day records are
 accepted; retrieval does not wait for a marketplace's local midnight or split at month boundaries.
 Requests remain regional and unfiltered by marketplace, account, status, order or SKU. Marketplace
@@ -46,9 +41,9 @@ The [sync guide](../services/sync/README.md) owns the executable download/replay
 
 Native `Non-Amazon US`, `Non-Amazon DE`, and `Non-Amazon IT` remain distinct financial channels.
 The registry binds each to its credential scope and local time zone. They do not become Inventory
-or Data Kiosk stores. Summary comparison groups Non-Amazon US, DE and IT with Amazon.com, Amazon.de
+stores. Summary comparison groups Non-Amazon US, DE and IT with Amazon.com, Amazon.de
 and Amazon.it respectively. This [verified Summary grouping](evidence/finances_summary_channels_2026-11-07.md)
-does not relabel transactions, company fee matching, Data Kiosk comparisons or report scopes.
+does not relabel transactions, company fee matching, reference matches or report scopes.
 Currency never supplies a missing marketplace.
 
 The downloader enforces Amazon's timestamp/history limits, including the maximum 180-day request
@@ -57,33 +52,11 @@ retrieval without changing the rolling default. Historical marketplace coverage 
 explicit known roster; unsupported source markets fail preprocessing. Credentials stay in service
 configuration and never enter archive manifests.
 
-## Six-table model
+## Source versions
 
-| Table                                            | One row represents                                                                                                                                                |
-| --- | --- |
-| `private.finances_acquisitions`                  | Archived retrieval metadata and complete page manifest, saved with its first successful preprocessing.                                                            |
-| `private.finances_preprocess_batches`            | One successful preprocessing of an acquisition, with processor version and transaction/component inventory counts.                                                |
-| `private.finances_transactions`                  | Stable `(seller_namespace, amazon_scope, native_transaction_id)` identity, selecting `current_version_id` and `current_batch_id`.                                 |
-| `private.finances_transaction_versions`          | One immutable normalized transaction state: posting details, marketplace/account, status, lifecycle links, eligibility, total/currency and content hash.          |
-| `private.finances_transaction_components`        | One immutable component within a transaction version, numbered within that version, with SKU, amount, optional quantity/fee base and native breakdown provenance. |
-| `private.finances_preprocess_batch_transactions` | One observed transaction/version in a successful batch, including that capture's source page and record numbers.                                                  |
+Each accepted download creates a source acquisition and preprocessing batch. The unit key for a Finances transaction consists of its regional seller account and native transaction ID. The unit selects a content version and the batch that last observed it. An identical normalized transaction reuses its version, including when Amazon returns to an earlier state. Batch membership records which version each observation saw.
 
-Batch membership includes unchanged reused versions. A batch with no transactions is still a
-successful observation with a declared scope. Full source JSON remains in page archives. Components keep
-`breakdown_path`, `item_index` and `breakdown_indexes`; transaction-wide fields are stored once on
-the parent version. Page/record locations belong to batch membership because pagination can change
-without changing a transaction's normalized state.
-
-The transaction's current pointer selects one version observed by its current batch. Both pointers
-must identify the same membership. A version has no originating-batch field: several batches can
-observe it, and a later observation can return to a previously stored state. Content hashes cover
-normalized stored state and exclude observation locations. Processing labels remain on batches.
-
-For example, two captures of transaction A with unchanged amounts/status produce two batches and
-two memberships, but one transaction version and one component set. If its status or financial
-contents change, publication stores another version and moves A's pointers. Prior versions remain
-immutable. Current reads select each transaction's pointer; historical batch reads use membership,
-not whatever is current today.
+`finances_transactions` holds the transaction header for one version. `finances_amounts` records signed amounts, the route for each amount, its item position and the keys needed to resolve ownership. The source archive preserves Amazon's exact response.
 
 ## Preprocessing and publication
 
@@ -154,25 +127,10 @@ the whole preprocessing batch. A capture with no such interval can publish its v
 observations without a Summary control, but supplies no reconciled day coverage. Exact Summary
 response bytes remain in the archives; successful batch membership identifies the versions used in
 the comparison. Transactions outside the reconciliation interval remain observations, not proof of
-complete account totals for those days. A match does not certify Data Kiosk's SKU cost allocation.
+complete account totals for those days.
 [Amazon Summary scope](https://developer-docs.amazon/sp-api/docs/retrieve-financial-summary).
 
 ## Payouts, history and reads
 
-Payouts reference transaction versions directly through `private.payout_report_finances_versions`,
-alongside Data Kiosk day versions and SKU terms. Saved reports keep those exact contents and compact
-coverage intervals after current selections change. Publication checks required reconciled source
-coverage and matching current transaction versions, not Finance business equations again. Reprocessing
-unchanged normalized versions does not create another payout report merely because a new batch
-observed them.
-
-Finance acquisitions, batches, memberships, transaction versions and components have no history
-cap. Data Kiosk applies the same immutable-history policy to complete-day versions and their batch
-memberships. Raw page archives remain indefinitely in either workflow.
-
-Administrator source views expose retained transaction versions, including releases and transfers.
-Company Transactions and Financial review select current activity according to allocation rules.
-An acquisition is an explicit command; payout scheduling does not call Amazon.
-A partial capture can update transactions, but does not
-establish retrieval coverage for unqueried dates. The [payout contract](company_payout_reports.md)
-and [schema reference](database_schema.md) describe the exact read and reference relationships.
+Payouts pin the source versions for Finances, reference money and ledger months, and the assignment versions used to resolve their records.
+Raw pages and their observation provenance are available for offline replay.

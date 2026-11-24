@@ -21,12 +21,12 @@ for (const role of ["member", "administrator"]) {
     await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
 
     const source = await openColumn(page, "Source");
-    await expect(source.getByRole("checkbox")).toHaveCount(2);
+    await expect(source.getByRole("checkbox")).toHaveCount(5);
     await expect(source.getByRole("checkbox", { name: "Reconciliation", exact: true })).toHaveCount(
       0,
     );
     await expect(source.getByLabel("Search source", { exact: true })).toHaveCount(0);
-    await source.getByRole("checkbox", { name: "Data Kiosk", exact: true }).check();
+    await source.getByRole("checkbox", { name: "Monthly storage report", exact: true }).check();
     await closeMenu(source);
 
     const marketplace = await openColumn(page, "Marketplace");
@@ -42,20 +42,6 @@ for (const role of ["member", "administrator"]) {
     await closeMenu(marketplace);
 
     const type = await openColumn(page, "Type");
-    for (const [unused, label] of [
-      ["NET_PRODUCT_SALES", "Net product sales"],
-      ["STORAGE_FEES", "Storage fees"],
-      ["COST_OF_GOODS_SOLD", "Cost of goods sold"],
-      ["SUBSCRIPTION_FEE", "Subscription fee"],
-    ]) {
-      await type.getByLabel("Search type", { exact: true }).fill(unused);
-      await expect(
-        type.getByRole("checkbox", {
-          name: label,
-          exact: true,
-        }),
-      ).toHaveCount(0);
-    }
     await type.getByLabel("Search type", { exact: true }).fill("subscription");
     await expect(
       type.getByRole("checkbox", {
@@ -63,10 +49,10 @@ for (const role of ["member", "administrator"]) {
         exact: true,
       }),
     ).toHaveCount(role === "administrator" ? 1 : 0);
-    await type.getByLabel("Search type", { exact: true }).fill("FBA_STORAGE_FEE");
+    await type.getByLabel("Search type", { exact: true }).fill("STORAGE_FEES");
     await expect(
       type.getByRole("checkbox", {
-        name: "FBA storage fee",
+        name: "Storage fees",
         exact: true,
       }),
     ).toBeVisible();
@@ -82,28 +68,24 @@ for (const role of ["member", "administrator"]) {
     expect(fixture.optionRequests).toHaveLength(preloadRequests);
     expect(fixture.requests.at(-1).args.p_types).toEqual(["PRODUCT_SALES"]);
     expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Non-Amazon IT"]);
-    expect(fixture.requests.at(-1).args.p_sources).toEqual(["DATA_KIOSK"]);
+    expect(fixture.requests.at(-1).args.p_sources).toEqual(["STORAGE"]);
 
     if (role === "administrator") {
-      for (const tab of ["Finances", "Data Kiosk"]) {
-        await page.getByRole("tab", { name: tab, exact: true }).click();
-        const rawType = await openColumn(page, "Type");
-        await expect(rawType.getByLabel("Search type", { exact: true })).toBeVisible();
-        await expect(rawType.getByRole("checkbox").first()).toBeVisible();
-        await rawType
-          .getByLabel("Search type", { exact: true })
-          .fill(tab === "Finances" ? "STORAGE_FEES" : "NET_PRODUCT_SALES");
-        await expect(
-          rawType.getByRole("checkbox", {
-            name: tab === "Finances" ? "Storage fees" : "Net product sales",
-            exact: true,
-          }),
-        ).toBeVisible();
-        await closeMenu(rawType);
-        const rawMarketplace = await openColumn(page, "Marketplace");
-        await expect(rawMarketplace.getByRole("checkbox")).toHaveCount(marketplaces.length);
-        await closeMenu(rawMarketplace);
-      }
+      await page.getByRole("tab", { name: "Finances", exact: true }).click();
+      const rawType = await openColumn(page, "Type");
+      await expect(rawType.getByLabel("Search type", { exact: true })).toBeVisible();
+      await expect(rawType.getByRole("checkbox").first()).toBeVisible();
+      await rawType.getByLabel("Search type", { exact: true }).fill("STORAGE_FEES");
+      await expect(
+        rawType.getByRole("checkbox", {
+          name: "Storage fees",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await closeMenu(rawType);
+      const rawMarketplace = await openColumn(page, "Marketplace");
+      await expect(rawMarketplace.getByRole("checkbox")).toHaveCount(marketplaces.length);
+      await closeMenu(rawMarketplace);
       expect(fixture.optionRequests).toHaveLength(preloadRequests);
     }
   });

@@ -11,8 +11,8 @@ from services.db.supabase.benchmarks.aggregation_measurement import (
     _reference,  # pyright: ignore[reportPrivateUsage]
     summary_cases,
 )
-from services.db.supabase.tests.financial_fixtures import FinancialFixture
 from services.db.supabase.tests.local_database import require_row
+from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 class SummaryBenchmarkPeriodTests(unittest.TestCase):
@@ -33,29 +33,30 @@ class SummaryBenchmarkPeriodTests(unittest.TestCase):
                 self.assertEqual(cases["last_month"], {"p_date_from": start, "p_date_to": end})
 
 
-class AggregationBenchmarkReferenceTests(FinancialFixture):
+class AggregationBenchmarkReferenceTests(SourceModelFixture):
     def test_reference_matches_totals_for_current_authority_roles_and_grouping(self) -> None:
-        company, _ = self.financial_fixture()
+        company, sku = self.owner()
+        self.fee(sku, [("2026-01-01", None, "5")])
+        expense = self.transaction("-3", 4, kind="ServiceFee", route="SELBOX")
+        expense.update(
+            route="SELBOX",
+            selbox_group="ACCOUNT_FEE",
+            component_type="SUBSCRIPTION_FEES",
+            sku=None,
+        )
+        self.finances([self.transaction("20"), expense])
         member, administrator = self.member(company), self.administrator()
         for (role, user, expected_count), grouped in product(
-            (("member", member, 10), ("administrator", administrator, 18)), (False, True)
+            (("member", member, 1), ("administrator", administrator, 2)), (False, True)
         ):
             with self.subTest(role=role, grouped=grouped), self.connection.transaction():
                 self.connection.execute(
                     "select set_config('request.jwt.claim.sub',%s,true)", (user,)
                 )
                 self.connection.execute("set local role authenticated")
-                excluded = require_row(
-                    self.connection.execute(
-                        "select count(*) from public.live_company_components "
-                        "where not authoritative"
-                    ).fetchone()
-                )[0]
-                self.assertEqual(excluded, 0)
                 accounts = require_row(
                     self.connection.execute(
-                        "select count(*) from public.live_company_components "
-                        "where authoritative and category='SELBOX'"
+                        "select count(*) from public.live_company_components where outcome='SELBOX'"
                     ).fetchone()
                 )[0]
                 if role == "administrator":

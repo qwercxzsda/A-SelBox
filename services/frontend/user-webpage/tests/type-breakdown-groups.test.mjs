@@ -19,14 +19,10 @@ function row(type, overrides = {}) {
 test("broad amount groups preserve exact rows and stable child order without an intermediate family layer", () => {
   const input = [
     row("INBOUND_PLACEMENT_FEES"),
-    row("FBA_INBOUND_CONVENIENCE_FEE"),
-    row("FBA_INBOUND_PLACEMENT_SERVICE_FEE"),
     row("ADVERTISING"),
-    row("SPONSORED_PRODUCTS_CHARGE"),
     row("COUPON_FEES"),
     row("DEAL_FEES"),
     row("PRODUCT_REFUNDS"),
-    row("NET_PRODUCT_SALES"),
     row("PRODUCT_SALES"),
     row("RESTOCKING"),
     row("UNKNOWN_A"),
@@ -34,7 +30,6 @@ test("broad amount groups preserve exact rows and stable child order without an 
     row("STORAGE_FEES"),
     row("REFERRAL_FEES"),
     row("PRODUCT_TAX"),
-    row("COST_OF_GOODS_SOLD"),
   ];
   input.forEach(Object.freeze);
   Object.freeze(input);
@@ -50,27 +45,12 @@ test("broad amount groups preserve exact rows and stable child order without an 
       ["advertising", "Advertising & promotions"],
       ["taxes", "Taxes"],
       ["other", "Other fees & adjustments"],
-      ["seller-costs", "Seller-provided costs"],
     ],
   );
   const types = (id) => groups.find((group) => group.id === id).types.map(({ type }) => type);
-  assert.deepEqual(types("fulfillment"), [
-    "FBA_INBOUND_CONVENIENCE_FEE",
-    "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
-    "INBOUND_PLACEMENT_FEES",
-  ]);
-  assert.deepEqual(types("advertising"), [
-    "ADVERTISING",
-    "COUPON_FEES",
-    "DEAL_FEES",
-    "SPONSORED_PRODUCTS_CHARGE",
-  ]);
-  assert.deepEqual(types("sales"), [
-    "PRODUCT_SALES",
-    "PRODUCT_REFUNDS",
-    "NET_PRODUCT_SALES",
-    "RESTOCKING",
-  ]);
+  assert.deepEqual(types("fulfillment"), ["INBOUND_PLACEMENT_FEES"]);
+  assert.deepEqual(types("advertising"), ["ADVERTISING", "COUPON_FEES", "DEAL_FEES"]);
+  assert.deepEqual(types("sales"), ["PRODUCT_SALES", "PRODUCT_REFUNDS", "RESTOCKING"]);
   assert.deepEqual(types("other"), ["UNKNOWN_A", "UNKNOWN_B"]);
   assert.deepEqual(new Set(groups.flatMap(({ types }) => types)), new Set(input));
   assert.equal(groups.flatMap(({ types }) => types).length, input.length);
@@ -107,14 +87,14 @@ test("exact subtotals equal the overall total while preserving null and missing-
       reportedAmount: "-9007199254740993",
       companyAmount: "-9007199254740993",
     }),
-    row("NET_PRODUCT_SALES", {
+    row("RESTOCKING", {
       reportedAmount: "3.1",
       serviceFee: null,
       companyAmount: null,
       rowCount: 2,
       missingFeeCount: 2,
     }),
-    row("REFERRAL_FEE", {
+    row("REFERRAL_FEES", {
       reportedAmount: "-0.000000000000000002",
       companyAmount: "-0.000000000000000002",
     }),

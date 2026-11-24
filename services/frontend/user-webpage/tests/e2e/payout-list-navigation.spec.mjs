@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { openFinancialReview } from "./financial-review-actions.mjs";
 
 function populateReports(fixture, month = "2026-06", currency) {
   const end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));
@@ -56,29 +55,3 @@ for (const width of [390, 1280]) {
     expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
   });
 }
-
-test("nested snapshot paging keeps its controls below the sticky review header", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 800 });
-  await openFinancialReview(page, (fixture) => {
-    populateReports(fixture, "2026-07", "USD");
-  });
-  await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
-  const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-  await drawer.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
-  const snapshots = drawer.getByRole("region", { name: "Saved report snapshots", exact: true });
-  const table = snapshots.getByRole("table", { name: "Financial records", exact: true });
-  await expect(table.locator("tbody tr[tabindex='0']")).toHaveCount(25);
-  await snapshots.getByRole("button", { name: "Next reports", exact: true }).click();
-  await expect(table).toContainText("QA Company 26");
-  const controls = snapshots.getByRole("group", { name: "Payout report controls", exact: true });
-  await expect(controls).toBeFocused();
-  await expect
-    .poll(async () => {
-      const header = await drawer.locator(".ui-drawer-header").boundingBox();
-      const toolbar = await controls.boundingBox();
-      return toolbar.y - header.y - header.height;
-    })
-    .toBeGreaterThanOrEqual(0);
-});

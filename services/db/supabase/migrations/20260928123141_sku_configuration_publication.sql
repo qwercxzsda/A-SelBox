@@ -1,7 +1,7 @@
 -- Publish a complete immutable ownership/fee revision using compare-and-swap.
 create function private.publish_sku_terms_version(p_payload jsonb) returns uuid
 language plpgsql set search_path = '' as $$
-declare identity public.skus; published_version_id public.local_uuid := (p_payload->>'id')::uuid;
+declare identity public.assignment_keys; published_version_id public.local_uuid := (p_payload->>'id')::uuid;
     next_version_number bigint;
 begin
     perform private.lock_payout_report_inputs();
@@ -9,26 +9,26 @@ begin
     -- complete payload. This writer owns locking, CAS, and relational constraints.
     perform pg_advisory_xact_lock(hashtextextended(jsonb_build_array(
         'sku-terms',p_payload->>'sku')::text,0));
-    insert into public.skus(id,sku)
-        values ((p_payload->>'sku_id')::uuid,p_payload->>'sku')
-        on conflict (sku) do nothing;
-    select * into strict identity from public.skus s
-        where s.sku = p_payload->>'sku' for update;
-    if identity.current_terms_version_id is distinct from (p_payload->>'expected_current_version_id')::uuid then
+    insert into public.assignment_keys(id,kind,native_id)
+        values ((p_payload->>'sku_id')::uuid,'SKU',p_payload->>'sku')
+        on conflict (kind,seller_namespace,amazon_scope,native_id) do nothing;
+    select * into strict identity from public.assignment_keys s
+        where s.kind='SKU' and s.native_id = p_payload->>'sku' for update;
+    if identity.current_version_id is distinct from (p_payload->>'expected_current_version_id')::uuid then
         raise exception 'Stale SKU terms publication' using errcode = '40001';
     end if;
     select coalesce(max(v.version_number),0) + 1 into next_version_number
-        from public.sku_terms_versions v where v.sku_id = identity.id;
-    insert into public.sku_terms_versions(id,sku_id,company_id,version_number,fee_period_count,change_reason)
-        values (published_version_id,identity.id,(p_payload->>'company_id')::uuid,next_version_number,
-            jsonb_array_length(p_payload->'periods'),p_payload->>'change_reason');
-    insert into public.sku_fee_periods(id,terms_version_id,marketplace_name,valid_period,fee_rate_percent)
+        from public.assignment_versions v where v.key_id = identity.id;
+    insert into public.assignment_versions(id,key_id,kind,company_id,version_number,fee_period_count,memo,origin,set_by)
+        values (published_version_id,identity.id,'SKU',(p_payload->>'company_id')::uuid,next_version_number,
+            jsonb_array_length(p_payload->'periods'),p_payload->>'change_reason','ADMINISTRATOR',auth.uid());
+    insert into public.sku_fee_periods(id,assignment_version_id,marketplace_name,valid_period,fee_rate_percent)
         select (period_payload->>'id')::uuid,published_version_id,
             period_payload->>'marketplace_name',
             daterange((period_payload->>'valid_from')::date,(period_payload->>'valid_to')::date,'[)'),
             (period_payload->>'fee_rate_percent')::numeric
         from jsonb_array_elements(p_payload->'periods') as periods(period_payload);
-    update public.skus set current_terms_version_id = published_version_id where id = identity.id;
+    update public.assignment_keys set current_version_id = published_version_id where id = identity.id;
     return published_version_id;
 end;
 $$;
@@ -41,7 +41,7 @@ declare published_version_id uuid;
 begin
     published_version_id := private.publish_sku_terms_version(p_payload);
     perform private.invalidate_payout_sku_terms(array(
-        select v.sku_id from public.sku_terms_versions v where v.id = published_version_id
+        select v.key_id from public.assignment_versions v where v.id = published_version_id
     ));
     return published_version_id;
 end;
@@ -146,13 +146,14 @@ begin
         issue->>'marketplace_name' collate "C", issue->>'valid_from'), '[]'::jsonb)
     into issues
     from jsonb_array_elements(configuration->'items') as items(item)
-    cross join lateral jsonb_array_elements(item->'issues') as item_issues(issue);
+    cross join lateral jsonb_array_elements(item->'issues') as item_issues(issue)
+    where item->>'company_id' is not null;
     if jsonb_array_length(issues) > 0 then
         raise exception 'SKU configuration is incomplete' using errcode = '23514',
             detail = jsonb_build_object('code', 'SKU_CONFIGURATION_INCOMPLETE', 'issues', issues)::text;
     end if;
     perform private.invalidate_payout_sku_terms(array(
-        select v.sku_id from public.sku_terms_versions v
+        select v.key_id from public.assignment_versions v
         where v.id in (select (item->>'terms_version_id')::uuid from jsonb_array_elements(published) item)
     ));
     return jsonb_build_object('published', published, 'changed_count', jsonb_array_length(published));

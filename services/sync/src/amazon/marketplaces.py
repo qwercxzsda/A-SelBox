@@ -94,7 +94,7 @@ CREDENTIAL_SCOPES: Mapping[str, AmazonCredentialScope] = MappingProxyType(
     }
 )
 
-# Data Kiosk DAY aggregation follows marketplace-local calendar dates. Use
+# Financial posting dates follow marketplace-local calendar dates. Use
 # named IANA zones so daylight-saving and government rule changes come from the
 # runtime time-zone database rather than hard-coded UTC offsets.
 _MARKETPLACE_TIME_ZONE_NAMES: Mapping[str, str] = MappingProxyType(
@@ -175,7 +175,7 @@ def validate_marketplace_scope_pair(amazon_scope: str, marketplace_id: str) -> N
 
 
 def get_marketplace_timezone(marketplace_id: str) -> ZoneInfo:
-    """Return the named zone defining a marketplace's Data Kiosk DAY."""
+    """Return the named zone defining a marketplace's posting day."""
     try:
         time_zone_name = _MARKETPLACE_TIME_ZONE_NAMES[marketplace_id]
     except KeyError as exc:

@@ -12,7 +12,7 @@ for (const width of [1280, 390]) {
     fixture.breakdownRows = [
       typeBucket("PRODUCT_SALES", "100"),
       typeBucket("REFERRAL_FEES", "-5"),
-      typeBucket("FBA_STORAGE_FEE", "-10"),
+      typeBucket("STORAGE_FEES", "-10"),
     ];
     await signIn(page);
     await page

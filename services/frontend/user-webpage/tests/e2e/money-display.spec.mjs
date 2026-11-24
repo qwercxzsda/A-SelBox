@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { financesRow, kioskRow, liveRow } from "./api-fixtures.mjs";
+import { financesRow, liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
   ["finances", "Finances"],
-  ["data_kiosk", "Data Kiosk"],
 ]) {
   test(`${tab} rounds money to two decimals including JPY while preserving quantities and source values`, async ({
     page,
@@ -24,9 +23,7 @@ for (const [dataset, tab] of [
     const rows = examples.map(([amount], index) => ({
       ...(dataset === "live"
         ? { ...liveRow("MONEY", index), source_amount: amount }
-        : dataset === "finances"
-          ? financesRow(index, amount)
-          : kioskRow(index, amount)),
+        : financesRow(index, amount)),
       sku: `MONEY-${index}`,
       currency: "JPY",
       quantity: "1.23456789",
@@ -34,8 +31,8 @@ for (const [dataset, tab] of [
       ...(dataset === "live" ? { fee_rate_percent: "5.123456" } : {}),
     }));
     if (dataset === "live") fixture.liveRows = rows;
-    else if (dataset === "finances") fixture.financesRows = rows;
-    else fixture.kioskRows = rows;
+    else fixture.financesRows = rows;
+
     await signIn(page);
     if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
     for (const [index, [, displayed]] of examples.entries()) {

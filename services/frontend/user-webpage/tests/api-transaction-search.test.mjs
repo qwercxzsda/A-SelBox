@@ -5,7 +5,7 @@ import { SETTINGS, responseJson, pageRequest, datasetFilters } from "./api-fixtu
 import { searchValues } from "./search-fixtures.mjs";
 
 test("resolved search preserves OR sets separately from column filters and distinguishes no matches", async () => {
-  for (const dataset of ["live", "finances", "data_kiosk"]) {
+  for (const dataset of ["live", "finances"]) {
     const requests = [];
     const client = createApiClient(SETTINGS, async (url, init) => {
       requests.push(JSON.parse(init.body));
@@ -18,7 +18,7 @@ test("resolved search preserves OR sets separately from column filters and disti
       skus: [" exact SKU ", "SKU_100%", "SKU_100%"],
       types: ["PRODUCT_REFUNDS"],
       marketplaces: ["Amazon.com"],
-      sources: dataset === "live" ? ["DATA_KIOSK"] : [],
+      sources: dataset === "live" ? ["STORAGE"] : [],
     });
     await client.fetchDatasetPage(
       pageRequest(dataset, { search: "refund", searchValues: matches, filters: selected }),
@@ -52,7 +52,7 @@ test("unresolved or malformed transaction search fails before any HTTP request",
     }
   }
   for (const values of invalidValues) {
-    for (const dataset of ["live", "finances", "data_kiosk"]) {
+    for (const dataset of ["live", "finances"]) {
       await assert.rejects(
         client.fetchDatasetPage(pageRequest(dataset, { search: "active", searchValues: values })),
       );

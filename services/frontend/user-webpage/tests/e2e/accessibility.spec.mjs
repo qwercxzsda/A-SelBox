@@ -4,7 +4,7 @@ import { applySummaryDates, openColumn } from "./table-actions.mjs";
 import { summaryBucket } from "./summary-fixtures.mjs";
 import marketplaces from "../../src/generated/marketplaces.json" with { type: "json" };
 import { openSourceLookup, sourceDetail } from "./financial-source-fixtures.mjs";
-import { openFinancialReview } from "./financial-review-actions.mjs";
+
 import {
   editor,
   openEditor,
@@ -79,9 +79,9 @@ for (const width of [1440, 390]) {
       { ...liveRow("TYPE", 1), component_type: "PRODUCT_SALES" },
       {
         ...liveRow("TYPE", 2),
-        source: "DATA_KIOSK",
-        category: "DATA_KIOSK",
-        component_type: "FBA_STORAGE_FEE",
+        source: "STORAGE",
+        outcome: "COMPANY",
+        component_type: "STORAGE_FEES",
       },
       { ...liveRow("TYPE", 3), component_type: "EXPERIMENTAL_TAX_FEE" },
     ];
@@ -91,7 +91,7 @@ for (const width of [1440, 390]) {
     await table.scrollIntoViewIfNeeded();
     for (const [sku, label, group] of [
       ["TYPE-001", "Product sales", "Sales & refunds"],
-      ["TYPE-002", "FBA storage fee", "Storage & inventory"],
+      ["TYPE-002", "Storage fees", "Storage & inventory"],
       ["TYPE-003", "Experimental tax fee", "Other fees & adjustments"],
     ]) {
       const row = rowWithSku(page, sku);
@@ -133,17 +133,6 @@ test("accessibility: source error and recovery action", async ({ page, expectAcc
   await opener.click();
   await expect(sourceDetail(page).getByRole("alert")).toBeVisible();
   await expectAccessible("source-error");
-});
-
-test("accessibility: financial review and monthly detail", async ({ page, expectAccessible }) => {
-  await openFinancialReview(page);
-  const openMonth = page.getByRole("button", { name: "Open review for July 2026", exact: true });
-  await expect(openMonth).toBeVisible();
-  await expectAccessible("financial-review");
-  await openMonth.click();
-  const monthly = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-  await expect(monthly.getByRole("table", { name: "Amounts by type", exact: true })).toBeVisible();
-  await expectAccessible("monthly-review-detail");
 });
 
 test("accessibility: fee editor and change review on a phone", async ({

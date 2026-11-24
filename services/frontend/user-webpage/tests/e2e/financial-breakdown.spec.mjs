@@ -34,7 +34,7 @@ for (const width of [834, 390]) {
         companyAmount: "97.123456789012345678",
         rowCount: 52,
       }),
-      typeBucket("FBA_STORAGE_FEE", "-2", { rowCount: 2 }),
+      typeBucket("STORAGE_FEES", "-2", { rowCount: 2 }),
     ];
     fixture.liveRows = Array.from({ length: 52 }, (_, index) => ({
       ...liveRow("MONTH", index, companyId),
@@ -50,8 +50,8 @@ for (const width of [834, 390]) {
     fixture.liveRows.push({
       ...liveRow("STORAGE", 53, companyId),
       activity_date: "2026-06-29",
-      component_type: "FBA_STORAGE_FEE",
-      source: "DATA_KIOSK",
+      component_type: "STORAGE_FEES",
+      source: "STORAGE",
       source_amount: "-2",
       fee_amount: "0",
       company_amount: "-2",
@@ -72,8 +72,8 @@ for (const width of [834, 390]) {
     fixture.liveRows.push({
       ...liveRow("ZERO-STORAGE", 55, companyId),
       activity_date: "2026-06-29",
-      component_type: "FBA_STORAGE_FEE",
-      source: "DATA_KIOSK",
+      component_type: "STORAGE_FEES",
+      source: "STORAGE",
       source_amount: "0",
       fee_amount: "0",
       company_amount: "0",
@@ -81,7 +81,6 @@ for (const width of [834, 390]) {
     fixture.payoutRecords = fixture.liveRows.map((row) => ({
       ...row,
       report_id: reportId,
-      authoritative: "true",
     }));
     fixture.liveRows.push({
       ...liveRow("EXCLUDED-EUR", 54, companyId),
@@ -119,7 +118,7 @@ for (const width of [834, 390]) {
     ).toBeInViewport();
     await expect(summary.getByRole("button", { name: "Previous records" })).toBeDisabled();
     expect(fixture.summaryRecordRequests.at(-1).args.p_currency).toBe("USD");
-    expect(fixture.summaryRecordRequests.at(-1).args.p_types).toEqual(["FBA_STORAGE_FEE"]);
+    expect(fixture.summaryRecordRequests.at(-1).args.p_types).toEqual(["STORAGE_FEES"]);
     await summary.getByRole("button", { name: "Show all records", exact: true }).click();
     await expect(records.getByRole("row")).toHaveCount(51);
     await captureResponsiveReview(page, testInfo, "summary-month-records");

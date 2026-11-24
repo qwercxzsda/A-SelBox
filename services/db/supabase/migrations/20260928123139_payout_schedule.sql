@@ -8,6 +8,8 @@ begin
         return;
     end if;
     create extension if not exists pg_cron with schema pg_catalog;
+    perform cron.schedule('default-reference-assignments','17 * * * *',
+        'select private.default_reference_assignments()');
     perform cron.schedule(
         'company-payout-reports',
         '*/5 * * * *',

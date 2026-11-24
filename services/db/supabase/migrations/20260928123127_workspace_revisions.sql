@@ -4,7 +4,7 @@
 -- Company IDs use public.local_uuid (UUIDv7), which rejects this nil UUID.
 create table private.workspace_revision_tokens (
     source text not null check (source in ( -- noqa: RF04
-        'finances', 'data_kiosk', 'fees', 'inventory', 'payouts'
+        'finances', 'references', 'fees', 'inventory', 'payouts'
     )),
     scope_company_id uuid not null,
     revision uuid not null default gen_random_uuid(),
@@ -34,13 +34,6 @@ $$;
 create function private.track_source_revision() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-    if tg_table_name = 'data_kiosk_days' then
-        if tg_op = 'UPDATE' and (new.current_version_id,new.current_batch_id) is not distinct from (old.current_version_id,old.current_batch_id) then
-            return null;
-        end if;
-        if tg_op = 'INSERT' and new.current_version_id is null then return null; end if;
-        if tg_op = 'DELETE' and old.current_version_id is null then return null; end if;
-    end if;
     perform private.bump_workspace_revision(tg_argv[0], '{}'::uuid[]);
     return null;
 end;
@@ -48,24 +41,23 @@ $$;
 
 -- Delay the tiny shared-row write until the publication has finished inserting
 -- its facts. Multi-day batches rotate each source token at most once per commit.
-create constraint trigger workspace_finances_revision
-after insert or update or delete on private.finances_transactions
-deferrable initially deferred for each row
-execute function private.track_source_revision('finances');
-create constraint trigger workspace_data_kiosk_revision
-after insert or update or delete on private.data_kiosk_days
-deferrable initially deferred for each row
-execute function private.track_source_revision('data_kiosk');
-
--- Successful observations change history even when normalized contents are reused.
-create constraint trigger workspace_finances_run_revision
-after insert on private.finances_preprocess_batches
-deferrable initially deferred for each row
-execute function private.track_source_revision('finances');
-create constraint trigger workspace_data_kiosk_batch_revision
-after insert on private.data_kiosk_preprocess_batches
-deferrable initially deferred for each row
-execute function private.track_source_revision('data_kiosk');
+create function private.track_source_batch() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare source_name text;
+begin
+    select case when source='FINANCES' then 'finances' else 'references' end
+    into strict source_name from private.source_acquisitions where id=new.acquisition_id;
+    perform private.bump_workspace_revision(source_name,'{}'::uuid[]);
+    return null;
+end;
+$$;
+create constraint trigger workspace_source_revision
+after insert on private.source_preprocess_batches
+deferrable initially deferred for each row execute function private.track_source_batch();
+create constraint trigger workspace_assignment_revision
+after insert on public.assignment_versions
+deferrable initially deferred for each row when (new.kind <> 'SKU')
+execute function private.track_source_revision('references');
 
 -- Rotate one tiny token at commit after the full capture and its rows are ready.
 -- Archive-only downloads and idempotent preprocessing never touch these headers.
@@ -83,18 +75,18 @@ begin
         affected_companies := case when tg_op = 'DELETE' then array[old.id::uuid]
             else array[new.id::uuid] end;
     else
-        if tg_op = 'UPDATE' and new.current_terms_version_id is not distinct from old.current_terms_version_id then
+        if tg_op = 'UPDATE' and new.current_version_id is not distinct from old.current_version_id then
             return null;
         end if;
         -- Terms history rejects UPDATE, DELETE, and TRUNCATE, so even a later
         -- selection in this transaction cannot erase either captured owner.
         select array_agg(v.company_id::uuid) into affected_companies
-        from public.sku_terms_versions as v
+        from public.assignment_versions as v
         where v.id in (
-            case when tg_op <> 'DELETE' then new.current_terms_version_id end,
-            case when tg_op <> 'INSERT' then old.current_terms_version_id end
+            case when tg_op <> 'DELETE' then new.current_version_id end,
+            case when tg_op <> 'INSERT' then old.current_version_id end
         );
-        if tg_op = 'INSERT' and new.current_terms_version_id is null then return null; end if;
+        if tg_op = 'INSERT' and new.current_version_id is null then return null; end if;
     end if;
     perform private.bump_workspace_revision('fees', coalesce(affected_companies, '{}'::uuid[]));
     return null;
@@ -105,7 +97,7 @@ $$;
 -- Both previous and next owners receive the new token. Company names use the
 -- same dependency because fee/transaction labels also depend on that lookup.
 create constraint trigger workspace_terms_revision
-after insert or update or delete on public.skus
+after insert or update or delete on public.assignment_keys
 deferrable initially deferred for each row execute function private.track_fee_revision();
 create constraint trigger workspace_company_revision
 after insert or update or delete on public.companies
@@ -140,7 +132,7 @@ begin
     if not found then raise exception 'Application access required' using errcode = '42501'; end if;
     if p_sources is null or cardinality(p_sources) > 5 or array_ndims(p_sources) > 1
         or exists (select 1 from unnest(p_sources) as s(source)
-            where source is null or source not in ('finances', 'data_kiosk', 'fees', 'inventory', 'payouts')) then
+            where source is null or source not in ('finances', 'references', 'fees', 'inventory', 'payouts')) then
         raise exception 'Invalid revision sources' using errcode = '22023';
     end if;
     select coalesce(jsonb_object_agg(s.source,
@@ -162,7 +154,7 @@ $$;
 
 create function public.workspace_revisions(
     p_sources text[] default array[
-        'finances', 'data_kiosk', 'fees', 'inventory', 'payouts'
+        'finances', 'references', 'fees', 'inventory', 'payouts'
     ]::text[]
 ) returns jsonb language sql stable security invoker set search_path = '' as $$
     select private.read_workspace_revisions(p_sources);

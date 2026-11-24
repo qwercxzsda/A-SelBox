@@ -13,12 +13,12 @@ from sp_api.api import Reports
 from services.sync.src.amazon.client import create_explicit_sp_api_client
 from services.sync.src.amazon.credentials import close_quietly, load_lwa_credentials
 from services.sync.src.amazon.marketplaces import get_credential_scope
+from services.sync.src.amazon.reports.jobs import ReportsClient
 from services.sync.src.archives.storage import SupabaseArchiveStorage, load_document_archive
 from services.sync.src.database.acquisitions import load_inventory_acquisition
 from services.sync.src.database.connection import PostgresDatabaseConnection
 from services.sync.src.inventory.acquisition import download_inventory_acquisition
 from services.sync.src.inventory.parser import prepare_inventory_report
-from services.sync.src.inventory.reports import InventoryReportsClient
 from services.sync.src.inventory.workflow import preprocess_inventory_acquisition
 
 from ...e2e.local_stack import LocalSupabaseStack
@@ -63,7 +63,7 @@ def verify(
                 flush=True,
             )
             acquisition_id = download_inventory_acquisition(
-                cast(InventoryReportsClient, client),
+                cast(ReportsClient, client),
                 database,
                 storage,
                 amazon_scope=scope_name,
@@ -105,8 +105,8 @@ def verify(
         browser = verify_browser(stack, accounts, private_output)
         with database.connection() as connection:
             financial = connection.execute(
-                "SELECT (SELECT count(*) FROM private.finances_transaction_components) + "
-                "(SELECT count(*) FROM private.data_kiosk_day_components) + "
+                "SELECT (SELECT count(*) FROM private.finances_amounts) + "
+                "(SELECT count(*) FROM private.reference_money) + "
                 "(SELECT count(*) FROM public.company_payout_reports)"
             ).fetchone()
             require(financial[0] == 0, "Inventory changed financial source or payout data.")

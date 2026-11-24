@@ -52,7 +52,7 @@ test("every displayed sort uses a real allowed API column", () => {
 test("row selection uses source-qualified IDs and each other view's stable identity", () => {
   assert.notEqual(
     rowId({ source: "FINANCES", source_row_id: "shared-id" }),
-    rowId({ source: "DATA_KIOSK", source_row_id: "shared-id" }),
+    rowId({ source: "STORAGE", source_row_id: "shared-id" }),
   );
   assert.equal(rowId({ id: "source-fact" }), "source-fact");
   assert.equal(rowId({ user_id: "member-id" }), "member-id");
@@ -62,5 +62,5 @@ test("missing ownership and fee configuration do not become zero or an assigned 
   assert.equal(companyLabel(null, new Map()), "Unassigned");
   assert.equal(companyLabel("company-a", new Map([["company-a", "Company A"]])), "Company A");
   assert.notEqual(humanizeCode("MISSING_FEE"), humanizeCode("NOT_APPLICABLE"));
-  assert.notEqual(humanizeCode("MISSING_OWNERSHIP"), humanizeCode("APPLIED"));
+  assert.notEqual(humanizeCode("MISSING_FEE"), humanizeCode("APPLIED"));
 });

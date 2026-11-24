@@ -10,7 +10,6 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from services.db.supabase.tests.integration_support import TransactionDatabase
-from services.sync.src.allocation import AllocationCategory
 from services.sync.src.amazon.finances.client import FINANCES_API_VERSION, FinancesOperation
 from services.sync.src.amazon.financial_channels import FINANCIAL_CHANNELS
 from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAME_BY_ID
@@ -182,16 +181,21 @@ def finance_transaction(
     path = cast(list[object] | tuple[object, ...], path)
     component = FinancesComponent(
         component_number=1,
-        category=AllocationCategory(str(row.get("category"))),
         component_type=str(row["component_type"]),
         sku=None if row.get("sku") is None else str(row["sku"]),
         amount=Numeric(str(row["amount"])),
         quantity=_number(row.get("quantity")),
         fee_base=_number(row.get("fee_base")),
-        accounting_subtype=None
-        if row.get("accounting_subtype") is None
-        else str(row["accounting_subtype"]),
+        accounting_subtype=cast(str | None, row.get("selbox_group")),
         breakdown_path=tuple(str(part) for part in path),
+        route=str(row["route"]),
+        amount_part=str(row.get("amount_part", "BASE")),
+        asin=cast(str | None, row.get("asin")),
+        fnsku=cast(str | None, row.get("fnsku")),
+        reference_id=cast(str | None, row.get("reference_id")),
+        reference_month=cast(date | None, row.get("reference_month")),
+        ledger_start_month=cast(date | None, row.get("ledger_start_month")),
+        ledger_end_month=cast(date | None, row.get("ledger_end_month")),
         item_index=0,
         breakdown_indexes=tuple(0 for _ in path),
     )
@@ -280,7 +284,9 @@ def _finances_capture(
     published = {
         str(native): (str(component), str(revision))
         for native, component, revision in self.connection.execute(
-            "select native_transaction_id,id,version_id from private.finances_batch_components "
+            "select d.native_transaction_id,d.id,d.version_id from "
+            "private.finances_component_details d join private.source_batch_units m "
+            "using(version_id) "
             "where batch_id=%s",
             (batch_id,),
         )

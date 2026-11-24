@@ -8,14 +8,8 @@ import { buildSearchFilter } from "../src/api/search.ts";
 import { datasetRecord } from "./api-fixtures.mjs";
 
 test("datasets use current source, payout, and application-account APIs", () => {
-  assert.deepEqual(Object.keys(DATASET_CONFIG), [
-    "live",
-    "finances",
-    "data_kiosk",
-    "payouts",
-    "accounts",
-  ]);
-  for (const dataset of ["live", "finances", "data_kiosk"])
+  assert.deepEqual(Object.keys(DATASET_CONFIG), ["live", "finances", "payouts", "accounts"]);
+  for (const dataset of ["live", "finances"])
     assert.equal(Object.hasOwn(DATASET_CONFIG[dataset], "endpoint"), false);
   assert.equal(DATASET_CONFIG.payouts.endpoint, "latest_company_payout_reports");
   assert.equal(DATASET_CONFIG.accounts.endpoint, "rpc/account_directory");
@@ -25,7 +19,8 @@ test("datasets use current source, payout, and application-account APIs", () => 
 
 test("search uses visible transaction text and excludes hidden or computed fields", () => {
   const nonTextColumns = new Set([
-    "category",
+    "outcome",
+    "route",
     "access_role",
     "company_id",
     "source_row_id",
@@ -50,7 +45,7 @@ test("search uses visible transaction text and excludes hidden or computed field
     "source",
     "marketplace_name",
   ]);
-  for (const dataset of ["finances", "data_kiosk"])
+  for (const dataset of ["finances"])
     assert.deepEqual(DATASET_CONFIG[dataset].searchColumns, [
       "sku",
       "component_type",

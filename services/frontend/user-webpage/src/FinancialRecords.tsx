@@ -13,6 +13,8 @@ const RECORD_COLUMNS: DetailColumn[] = [
   { key: "source", label: "Source", kind: "source" },
   { key: "component_type", label: "Type", kind: "type" },
   { key: "quantity", label: "Quantity", kind: "number" },
+  { key: "base_amount", label: "Base amount", kind: "number" },
+  { key: "tax_amount", label: "Tax amount", kind: "number" },
 ];
 
 export function FinancialRecords({
@@ -21,7 +23,6 @@ export function FinancialRecords({
   onPageChange,
   currency,
   label = "Amount records",
-  authoritative = true,
   transactionTimeline = false,
 }: {
   query: UseQueryResult<PageResult>;
@@ -29,14 +30,13 @@ export function FinancialRecords({
   onPageChange: (page: number) => void;
   currency: string;
   label?: string;
-  authoritative?: boolean;
   transactionTimeline?: boolean;
 }) {
   const rows = query.data?.rows ?? [];
   return (
     <DetailData
       query={query}
-      label={authoritative ? "records" : "supporting records"}
+      label="records"
       rowCount={rows.length}
       emptyMessage="No records match this selection."
       pagination={{ pageIndex, totalCount: query.data?.totalCount ?? null, onPageChange }}
@@ -55,7 +55,7 @@ export function FinancialRecords({
                 ? { ...column, key: "activity_at", label: "Date (UTC)" }
                 : column,
             ),
-            ...financialAmountColumns(currency, authoritative),
+            ...financialAmountColumns(currency),
           ]}
           rows={rows}
           rowKey={(row) => [row.report_id, row.source, row.source_row_id].filter(Boolean).join(":")}

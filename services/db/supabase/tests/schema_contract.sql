@@ -7,8 +7,8 @@ begin
     end if;
     if (select array_agg(conrelid::regclass::text order by conrelid::regclass::text)
         from pg_constraint where contype = 'f' and confrelid = 'public.companies'::regclass
-    ) is distinct from array['app_accounts','company_payout_reports',
-        'private.payout_report_refresh_state','sku_terms_versions'] then
+    ) is distinct from array['app_accounts','assignment_versions','company_payout_reports',
+        'private.payout_report_refresh_state'] then
         raise exception 'Company deletion reasons must cover every company foreign key';
     end if;
     if not has_function_privilege('authenticated','public.delete_company(uuid)','EXECUTE')
@@ -20,16 +20,6 @@ begin
         select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('public','private') and c.relkind = 'r' and not c.relrowsecurity
     ) then raise exception 'All application tables require row level security'; end if;
-    if (select provolatile from pg_proc where oid =
-        'private.company_financial_totals(text,date,date,text,uuid[],text[],text)'::regprocedure
-    ) <> 's' then
-        raise exception 'Strict completeness checks and totals must share a statement snapshot';
-    end if;
-    if (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'private' and c.relkind = 'r'
-          and c.relname in ('finances_transaction_components','data_kiosk_day_components')) <> 2 then
-        raise exception 'Both source fact tables are required';
-    end if;
     if exists (
         select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname in ('public','private') and c.relkind = 'v'
@@ -37,43 +27,31 @@ begin
     ) then raise exception 'All financial views must preserve invoker security'; end if;
     if exists (
         select 1 from information_schema.columns where table_schema = 'private'
-          and table_name in ('finances_transaction_components','data_kiosk_day_components')
-          and column_name in ('company_id','fee_amount','fee_rate_percent','company_amount','elaborated_quantity')
+          and table_name in ('finances_amounts','ad_invoice_lines','storage_rows','aged_storage_rows','removal_order_rows')
+          and column_name in ('company_id','fee_rate_percent','company_amount','elaborated_quantity')
     ) then raise exception 'Ownership or fee amounts must not be stored in source facts'; end if;
     if exists (
         select 1 from information_schema.columns where table_schema = 'private'
-          and table_name in ('finances_transaction_components','data_kiosk_day_components')
+          and table_name in ('finances_amounts','ad_invoice_lines','storage_rows','aged_storage_rows','removal_order_rows')
           and column_name = 'amount' and is_nullable <> 'NO'
     ) then raise exception 'Published source facts require quantified amounts'; end if;
-    if (select count(*) from information_schema.columns
-        where table_schema = 'private'
-          and table_name in ('finances_transaction_components','data_kiosk_day_components')
-          and column_name = 'category' and is_nullable = 'NO'
-          and udt_schema = 'public' and udt_name = 'allocation_category') <> 2 then
-        raise exception 'Both source fact tables require one named enum category';
-    end if;
-    if enum_range(null::public.allocation_category)::text[] is distinct from
-        array['FINANCES','SELBOX','DATA_KIOSK','ANALYSIS_ONLY'] then
-        raise exception 'Exactly four named categories are required';
+    if to_regclass('private.source_unit_versions') is null or to_regclass('public.financial_review_monthly') is null then
+        raise exception 'Reference versions and the monthly reconciliation view are required';
     end if;
     if has_schema_privilege('anon','private','USAGE')
-        or has_table_privilege('authenticated','public.skus','INSERT,UPDATE,DELETE')
+        or has_table_privilege('authenticated','public.assignment_keys','INSERT,UPDATE,DELETE')
         or has_table_privilege('authenticated','public.companies','INSERT,UPDATE,DELETE')
-        or has_table_privilege('authenticated','public.sku_terms_versions','INSERT,UPDATE,DELETE')
+        or has_table_privilege('authenticated','public.assignment_versions','INSERT,UPDATE,DELETE')
         or has_function_privilege('authenticated','private.publish_sku_terms(jsonb)','EXECUTE')
         or has_function_privilege('authenticated','private.publish_company_payout_report(jsonb)','EXECUTE')
         or has_function_privilege('authenticated','private.generate_company_payout_reports(uuid,date)','EXECUTE')
         or has_function_privilege('authenticated','private.refresh_company_payout_reports(integer)','EXECUTE')
         or has_table_privilege('authenticated','private.payout_report_refresh_state','SELECT')
-        or has_table_privilege('authenticated','private.finances_acquisitions','SELECT') then
+        or has_table_privilege('authenticated','private.source_acquisitions','SELECT') then
         raise exception 'Private source evidence and administrative writes must not be exposed';
     end if;
     if to_regprocedure('public.generate_company_payout_reports(uuid,date)') is not null then
         raise exception 'Monthly payouts must not have a manual generation API';
-    end if;
-    if to_regprocedure('public.current_source_totals(date,date,text,text,text,public.allocation_category,integer,bigint)') is null
-        or to_regprocedure('public.report_source_totals(uuid,text,integer,bigint)') is null then
-        raise exception 'Source review requires current and saved-report aggregate APIs';
     end if;
     if has_column_privilege('authenticated','public.app_accounts','access_role','INSERT')
         or has_column_privilege('authenticated','public.app_accounts','access_role','UPDATE')

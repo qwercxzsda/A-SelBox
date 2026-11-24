@@ -22,7 +22,7 @@ test("type totals filter card dates and currency and return every exact group in
       known_company_count: "1300",
     },
     {
-      component_type: "NET_PRODUCT_SALES",
+      component_type: "RESTOCKING",
       currency: "USD",
       reported_amount: "9007199254740993.000000000000000001",
       service_fee: "-0.000000000000000001",
@@ -75,7 +75,7 @@ test("type totals filter card dates and currency and return every exact group in
       missingFeeCount: 0,
     },
     {
-      type: "NET_PRODUCT_SALES",
+      type: "RESTOCKING",
       currency: "USD",
       reportedAmount: "9007199254740993.000000000000000001",
       serviceFee: "-0.000000000000000001",

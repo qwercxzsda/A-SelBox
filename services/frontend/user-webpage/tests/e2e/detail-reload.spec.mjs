@@ -19,7 +19,6 @@ function rows() {
     company_amount: "1",
     quantity: "1",
     report_id: reportId,
-    authoritative: "true",
   }));
 }
 

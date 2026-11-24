@@ -12,6 +12,7 @@ from services.sync.src.finances.preprocess import prepare_finances_acquisition
 from services.sync.src.finances.query_windows import transaction_query_parameters
 from services.sync.src.numeric import ZERO, Numeric
 from services.sync.tests.support.archives import MemoryArchiveStorage
+from services.sync.tests.support.currencies import CURRENCY_DECIMALS
 from services.sync.tests.support.finances import finances_acquisition, native_transaction
 
 CHANNELS = (
@@ -83,7 +84,9 @@ class NonAmazonEuropeTests(unittest.TestCase):
                 ]
                 rows.append(euro_transaction("retail", "2026-10-25T12:00:00Z", retail_id))
                 prepared = prepare_finances_acquisition(
-                    october_capture(storage, rows, (retail_id, channel_id)), storage
+                    october_capture(storage, rows, (retail_id, channel_id)),
+                    storage,
+                    CURRENCY_DECIMALS,
                 )
                 native = [
                     row for row in prepared.transactions if row.marketplace_name == channel_name
@@ -116,7 +119,7 @@ class NonAmazonEuropeTests(unittest.TestCase):
                 row = euro_transaction("native", "2026-10-25T12:00:00Z", channel_id)
                 acquisition = october_capture(storage, [row], (retail_id,))
                 with self.assertRaisesRegex(ValueError, "outside declared coverage"):
-                    prepare_finances_acquisition(acquisition, storage)
+                    prepare_finances_acquisition(acquisition, storage, CURRENCY_DECIMALS)
 
     def test_native_channels_cannot_be_relabelled_or_given_the_us_timezone(self) -> None:
         for _, retail_name, channel_id, channel_name, zone in CHANNELS:
@@ -137,4 +140,4 @@ class NonAmazonEuropeTests(unittest.TestCase):
                             "coverage_marketplaces": [{"marketplace_id": channel_id, **invalid}],
                         },
                     )
-                    prepare_finances_acquisition(malformed, storage)
+                    prepare_finances_acquisition(malformed, storage, CURRENCY_DECIMALS)

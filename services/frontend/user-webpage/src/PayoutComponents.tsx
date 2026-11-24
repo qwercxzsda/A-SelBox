@@ -9,25 +9,22 @@ export function PayoutComponents({
   reportId,
   currency,
   types = [],
-  authoritative = true,
   pageKey,
 }: {
   accessToken: string;
   reportId: string;
   currency: string;
   types?: string[];
-  authoritative?: boolean;
   pageKey?: string;
 }) {
   const [pageIndex, setPageIndex] = useWorkspacePreference(
-    pageKey ?? `payout:${reportId}:records:${JSON.stringify([authoritative, types])}`,
+    pageKey ?? `payout:${reportId}:records:${JSON.stringify(types)}`,
     () => 0,
     decodeDetailPage,
   );
   const query = useQuery({
-    queryKey: ["payout-records", reportId, authoritative, types, pageIndex],
-    queryFn: ({ signal }) =>
-      fetchPayoutRecords(accessToken, reportId, authoritative, pageIndex, signal, types),
+    queryKey: ["payout-records", reportId, types, pageIndex],
+    queryFn: ({ signal }) => fetchPayoutRecords(accessToken, reportId, pageIndex, signal, types),
     staleTime: Infinity,
   });
   return (
@@ -36,8 +33,7 @@ export function PayoutComponents({
       pageIndex={pageIndex}
       onPageChange={setPageIndex}
       currency={currency}
-      authoritative={authoritative}
-      label={authoritative ? "Amount records" : "Supporting payout records"}
+      label="Amount records"
     />
   );
 }

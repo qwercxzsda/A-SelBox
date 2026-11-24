@@ -55,8 +55,8 @@ export function CurrentTotals({
         help={
           <>
             <p>
-              Totals sum the matching transactions from Finances and Data Kiosk. Select a company
-              amount to open its breakdown and records.
+              Totals sum the matching transactions from Finances and its matched reference rows.
+              Select a company amount to open its breakdown and records.
             </p>
             <p>
               Last day and Last month are the previous UTC calendar periods based on the latest
@@ -66,7 +66,7 @@ export function CurrentTotals({
               Totals use all selected filters and search. Last day and Last month use their own UTC
               periods; Selected dates uses the transaction list's date range.
             </p>
-            <p>Records missing ownership or fees are excluded from known company amounts.</p>
+            <p>Known company amounts exclude records with a missing fee rate.</p>
           </>
         }
       />

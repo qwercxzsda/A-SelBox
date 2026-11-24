@@ -83,7 +83,11 @@ export function SkuConfigurationEditor({
     skuInput.current?.scrollIntoView({ block: "center" });
   }
   const knownCompanyIds = new Set(companies.map(({ id }) => id));
-  const issues = validateSkuItem({ ...item, ...values }, knownCompanyIds);
+  const issues = validateSkuItem(
+    { ...item, ...values },
+    knownCompanyIds,
+    !values.company_id && Boolean(item.company_id),
+  );
   const coverageIssues = issues.filter((issue) => !issue.field);
   const initialIssue =
     editing.rateChange === null ? issues.find((issue) => issue.field) : undefined;
@@ -214,7 +218,7 @@ export function SkuConfigurationEditor({
               data-autofocus={initialIssue?.field === "company_id" || undefined}
               value={unavailableCompany ? "" : (values.company_id ?? "")}
               data={[
-                { value: "", label: "Choose a company" },
+                { value: "", label: item.terms_version_id ? "Unassigned" : "Choose a company" },
                 ...companies.map((company) => ({ value: company.id, label: company.name })),
               ]}
               onChange={(event) => {

@@ -134,7 +134,7 @@ test("transaction page arrays preserve exact text and inclusive dates without fi
     dateTo: "2024-03-01",
     skus: ["SKU_100%", 'quoted"SKU', "path\\sku", "  spaced  ", "ＳＫＵ－１", "SKU_100%"],
     marketplaces: ["Amazon.com", "Amazon.co.jp"],
-    sources: ["FINANCES", "DATA_KIOSK"],
+    sources: ["FINANCES", "STORAGE"],
     types: ["PRODUCT_SALES", "FbaStorageFee"],
   });
   const client = createApiClient(SETTINGS, async (_url, init) => {
@@ -158,7 +158,7 @@ test("transaction page arrays preserve exact text and inclusive dates without fi
 });
 
 test("all three transaction tabs send raw amount ordering in both directions and preserve exact decimals", async () => {
-  for (const dataset of ["live", "finances", "data_kiosk"]) {
+  for (const dataset of ["live", "finances"]) {
     for (const direction of ["asc", "desc"]) {
       const amountColumn = dataset === "live" ? "source_amount" : "amount";
       const record =
@@ -167,7 +167,6 @@ test("all three transaction tabs send raw amount ordering in both directions and
           : datasetRecord(dataset, {
               amount: EXACT_AMOUNT,
               quantity: "9007199254740993.123456789",
-              ...(dataset === "data_kiosk" ? { fee_base: null } : {}),
             });
       const client = createApiClient(SETTINGS, async (url, init) => {
         assert.equal(
@@ -216,7 +215,7 @@ test("all three transaction tabs send raw amount ordering in both directions and
 });
 
 test("source tabs use their date columns for date RPCs and reject lossy source amounts", async () => {
-  for (const dataset of ["finances", "data_kiosk"]) {
+  for (const dataset of ["finances"]) {
     for (const direction of ["asc", "desc"]) {
       const client = createApiClient(SETTINGS, async (_url, init) => {
         assert.equal(JSON.parse(init.body).p_order_by, "date");
@@ -234,7 +233,7 @@ test("source tabs use their date columns for date RPCs and reject lossy source a
         129,
       );
     }
-    for (const field of ["amount", "quantity", ...(dataset === "data_kiosk" ? ["fee_base"] : [])]) {
+    for (const field of ["amount", "quantity"]) {
       const client = createApiClient(SETTINGS, async () =>
         json({
           rows: [datasetRecord(dataset, { [field]: 1.25 })],
@@ -252,7 +251,7 @@ test("derived amount ordering is rejected before HTTP on all transaction tabs", 
   const client = createApiClient(SETTINGS, () =>
     assert.fail("Unsupported ordering must not request data"),
   );
-  for (const dataset of ["live", "finances", "data_kiosk"]) {
+  for (const dataset of ["live", "finances"]) {
     for (const column of ["company_amount", "fee_amount", "fee_rate_percent"]) {
       await assert.rejects(
         client.fetchDatasetPage(request({ dataset, sort: { column, direction: "desc" } })),

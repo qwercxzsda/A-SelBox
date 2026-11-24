@@ -29,7 +29,6 @@ export function sourceTransactionPageParams(args) {
 export function sourceTransactionFilterParams(args) {
   const params = new URLSearchParams();
   addSearch(params, args);
-  if (args.p_dataset === "data_kiosk") params.set("amount", "not.is.null");
   addUtcDates(params, args);
   for (const [field, values] of [
     ["sku", args.p_skus],

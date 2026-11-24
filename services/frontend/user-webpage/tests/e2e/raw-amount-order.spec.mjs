@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
+import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { sortBy } from "./table-actions.mjs";
 
 for (const [dataset, tab, dateColumn, amountColumn] of [
   ["live", "Transactions", "activity_date", "source_amount"],
   ["finances", "Finances", "posted_date", "amount"],
-  ["data_kiosk", "Data Kiosk", "activity_date", "amount"],
 ]) {
   test(`${tab} sorts signed reported amounts with page RPCs and preserves RPC ordering through search`, async ({
     page,
@@ -21,12 +20,7 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
         29: "9007199254740993.000000000000000002",
       };
       const amount = exactExtremes[index] ?? String(index - 15);
-      const row =
-        dataset === "live"
-          ? liveRow("RAW", index + 1)
-          : dataset === "finances"
-            ? financesRow(index + 1, amount)
-            : kioskRow(index + 1, amount);
+      const row = dataset === "live" ? liveRow("RAW", index + 1) : financesRow(index + 1, amount);
       return {
         ...row,
         sku: `RAW-${String(index).padStart(2, "0")}`,
@@ -37,8 +31,8 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
       };
     });
     if (dataset === "live") fixture.liveRows = rows;
-    else if (dataset === "finances") fixture.financesRows = rows;
-    else fixture.kioskRows = rows;
+    else fixture.financesRows = rows;
+
     await signIn(page);
     if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
     const table = page.getByRole("table", { name: "Financial records", exact: true });

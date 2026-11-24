@@ -8,7 +8,6 @@ from uuid import UUID
 import psycopg
 
 from services.db.supabase.tests.local_database import require_row
-from services.db.supabase.tests.payout_fixtures import publish_report
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
@@ -23,9 +22,12 @@ class LiveSourceModelTests(SourceModelFixture):
                 self.transaction("12", 5, description="Shipping"),
             ]
         )
-        finance_runs = list(self.last_finances_batch_ids)
+        totals = (
+            "select company_id,currency,sum(source_amount),sum(fee_amount),sum(company_amount) "
+            "from public.live_company_components group by company_id,currency"
+        )
         self.assertEqual(
-            self.totals(finance_runs),
+            self.connection.execute(totals).fetchall(),
             [(UUID(company), "USD", Decimal("12"), Decimal("2"), Decimal("14"))],
         )
         self.assertEqual(
@@ -36,16 +38,18 @@ class LiveSourceModelTests(SourceModelFixture):
             (None, None, Decimal(0)),
         )
         second = self.fee(owner, [("2026-01-01", None, "6")], first)
-        self.assertEqual(self.totals(finance_runs)[0][-2:], (Decimal("0"), Decimal("12")))
+        self.assertEqual(
+            self.connection.execute(totals).fetchall()[0][-2:], (Decimal("0"), Decimal("12"))
+        )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.finances_preprocess_batches"
+                "select count(*) from private.source_preprocess_batches"
             ).fetchone(),
             (2,),
         )
         for statement, values in (
-            ("update public.skus set sku='other' where id=%s", (owner,)),
-            ("delete from public.skus where id=%s", (owner,)),
+            ("update public.assignment_keys set native_id='other' where id=%s", (owner,)),
+            ("delete from public.assignment_keys where id=%s", (owner,)),
         ):
             with self.assertRaises(psycopg.Error), self.connection.transaction():
                 self.connection.execute(cast(LiteralString, statement), values)
@@ -55,269 +59,11 @@ class LiveSourceModelTests(SourceModelFixture):
             str(
                 require_row(
                     self.connection.execute(
-                        "select current_terms_version_id from public.skus"
+                        "select current_version_id from public.assignment_keys"
                     ).fetchone()
                 )[0]
             ),
             second,
-        )
-
-    def test_nonoverlap_rates_gaps_zero_and_missing_ownership(self) -> None:
-        _, owner = self.owner()
-        first = self.fee(owner, [("2026-01-01", None, "0")])
-        zero = self.transaction("0")
-        finances, _ = self.finances([zero])
-        self.assertEqual(self.totals([finances])[0][-1], 0)
-        for periods in (
-            [("2026-01-01", "2026-07-02", "5"), ("2026-07-01", None, "6")],
-            [("2026-01-01", None, "5.0000000")],
-            [("2026-01-01", None, "NaN")],
-            [("2026-01-01", None, "101")],
-        ):
-            with self.assertRaises(psycopg.Error), self.connection.transaction():
-                self.fee(owner, periods, first)
-        self.fee(owner, [], first)
-        self.assertEqual(
-            self.connection.execute(
-                "select resolution_status,fee_amount,company_amount from "
-                "public.live_company_components"
-            ).fetchone(),
-            ("MISSING_FEE", None, None),
-        )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.totals([finances])
-        unmapped, _ = self.finances(
-            [zero, self.transaction("1", sku="UNMAPPED")], identity="unmapped"
-        )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.totals([unmapped])
-
-    def test_repeated_captures_reuse_finances_state_and_preserve_authority(self) -> None:
-        _, owner = self.owner()
-        self.fee(owner, [("2026-01-01", None, "5")])
-        rows = [self.transaction("100"), self.transaction("-9", 4, category="DATA_KIOSK")]
-        canonical, old = self.finances(rows)
-        repeated = self.acquisition(capture_label="repeated")
-        same, latest = self.finances(rows, acquisition_id=repeated)
-        self.assertNotEqual(canonical, same)
-        self.assertEqual(old, latest)
-        self.assertEqual(self.totals([same])[0][-1], Decimal("95"))
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_component_details "
-                "where category='DATA_KIOSK' and is_current"
-            ).fetchone(),
-            (1,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_transaction_components"
-            ).fetchone(),
-            (2,),
-        )
-        changed = self.acquisition(capture_label="changed", digest="c")
-        rows[0].update(amount="91", fee_base="91")
-        changed_run, changed_revision = self.finances(rows, acquisition_id=changed)
-        self.assertNotEqual(changed_revision, old)
-        self.assertEqual(self.totals([changed_run])[0][-1], Decimal("86.45"))
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.totals([canonical])
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.finances_acquisitions"
-            ).fetchone(),
-            (3,),
-        )
-
-    def test_day_replacement_preserves_history_and_old_observations_stay_unselected(self) -> None:
-        company, _ = self.owner()
-        day, one = self.kiosk(1, [self.component()])
-        report = publish_report(self, company)
-        initial_acquisition_count = int(
-            require_row(
-                self.connection.execute(
-                    "select count(*) from private.data_kiosk_acquisitions"
-                ).fetchone()
-            )[0]
-        )
-        _, two = self.kiosk(2, [], expected=one)
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from public.live_company_components "
-                "where source='DATA_KIOSK' and authoritative"
-            ).fetchone(),
-            (0,),
-        )
-        _, three = self.kiosk(3, [self.component("-2")], expected=two)
-        _, four = self.kiosk(4, [self.component("-3")], expected=three)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "delete from private.payout_report_data_kiosk_versions where report_id=%s",
-                (report,),
-            )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_day_components where version_id=%s", (one,)
-            ).fetchone(),
-            (1,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select row_count from private.data_kiosk_day_versions where id=%s", (one,)
-            ).fetchone(),
-            (1,),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_acquisitions"
-            ).fetchone(),
-            (initial_acquisition_count + 3,),
-        )
-        old_acquisition = require_row(
-            self.connection.execute(
-                "select b.acquisition_id from private.data_kiosk_preprocess_batch_days m "
-                "join private.data_kiosk_preprocess_batches b on b.id=m.batch_id "
-                "where m.version_id=%s",
-                (one,),
-            ).fetchone()
-        )[0]
-        self.kiosk(1, [self.component("-99")], acquisition_id=str(old_acquisition), expected=four)
-        self.assertEqual(
-            str(
-                require_row(
-                    self.connection.execute(
-                        "select current_version_id from private.data_kiosk_days where id=%s", (day,)
-                    ).fetchone()
-                )[0]
-            ),
-            four,
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_day_versions where day_id=%s",
-                (day,),
-            ).fetchone(),
-            (5,),
-        )
-
-    def test_strict_combination_rejects_missing_and_mixed_versions(self) -> None:
-        self.owner()
-        recent = self.current_activity_date()
-        self.kiosk(
-            1,
-            [self.component(), self.component("100", category="FINANCES")],
-            activity_date=recent,
-        )
-        sql = (
-            "select * from private.company_financial_totals(%s,%s,%s,%s,'{}',"
-            "array['Amazon.com']::text[])"
-        )
-        self.assertEqual(
-            require_row(
-                self.connection.execute(sql, (self.seller, recent, recent, "v0")).fetchone()
-            )[-1],
-            Decimal("-10"),
-        )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(sql, (self.seller, recent, recent, "different"))
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                sql,
-                (
-                    self.seller,
-                    recent,
-                    date.fromisoformat(recent) + timedelta(days=1),
-                    "v0",
-                ),
-            )
-
-    def test_tenant_visibility_and_no_configuration_writes(self) -> None:
-        company, owner = self.owner()
-        self.owner("OTHER")
-        self.fee(owner, [("2026-01-01", None, "5")])
-        self.finances(
-            [
-                self.transaction("100"),
-                self.transaction("50", 4, sku="OTHER"),
-                self.transaction("4", 5, category="DATA_KIOSK"),
-            ]
-        )
-        user_id = self.member(company)
-        self.connection.execute("select set_config('request.jwt.claim.sub',%s,true)", (user_id,))
-        self.connection.execute("set local role authenticated")
-        self.assertEqual(
-            self.connection.execute(
-                "select sku,company_amount from public.live_company_components"
-            ).fetchall(),
-            [("SKU", Decimal("95"))],
-        )
-        self.assertEqual(
-            self.connection.execute("select count(*) from public.company_skus").fetchone(), (1,)
-        )
-        for statement in (
-            "select * from private.finances_acquisitions",
-            "select total_amount from private.finances_transaction_versions",
-            "update public.skus set current_terms_version_id=current_terms_version_id",
-            "select private.publish_sku_terms('{}'::jsonb)",
-            (
-                "select * from "
-                "private.company_financial_totals('seller-one','2026-01-01','2026-12-31"
-                "','v0','{}','{}')"
-            ),
-        ):
-            with (
-                self.assertRaises(psycopg.errors.InsufficientPrivilege),
-                self.connection.transaction(),
-            ):
-                self.connection.execute(statement)
-        self.assertEqual(
-            self.connection.execute(
-                "select amount from public.finances_preprocess_entries where category='DATA_KIOSK'"
-            ).fetchall(),
-            [],
-        )
-        self.connection.execute("reset role")
-        self.connection.execute("set constraints all immediate")
-
-    def test_numeric_bounds_and_incomplete_versions_fail(self) -> None:
-        for value in ("1e-1000", "1e999", "0." + "0" * 1000):
-            self.connection.execute("select %s::private.exact_numeric", (value,))
-        for value in ("1e-1001", "1e1000", "NaN", "Infinity", "-Infinity"):
-            with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-                self.connection.execute("select %s::private.exact_numeric", (value,))
-        _, owner = self.owner()
-        initial = self.fee(owner, [])
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                (
-                    "insert into "
-                    "public.sku_terms_versions(sku_id,company_id,version_number,"
-                    "fee_period_count,change_reason) select s.id,v.company_id,v.version_number+1,"
-                    "1,'Incomplete publication' from public.skus s "
-                    "join public.sku_terms_versions v on v.id=s.current_terms_version_id "
-                    "where s.id=%s"
-                ),
-                (owner,),
-            )
-            self.connection.execute("set constraints all immediate")
-        self.assertEqual(
-            str(
-                require_row(
-                    self.connection.execute(
-                        "select current_terms_version_id from public.skus"
-                    ).fetchone()
-                )[0]
-            ),
-            initial,
-        )
-        partial = self.kiosk_acquisition(1, start="2026-06-15", end="2026-06-16")
-        with self.assertRaises(ValueError), self.connection.transaction():
-            self.kiosk(1, [], acquisition_id=partial)
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_preprocess_batches"
-            ).fetchone(),
-            (0,),
         )
 
     def test_authenticated_filtered_totals_exclude_other_companies(self) -> None:

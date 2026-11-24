@@ -2,20 +2,20 @@ import { mapDatasetRows } from "./row-mappers.ts";
 import { validatePagination } from "./pagination.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow } from "./types.ts";
-import type { FinancialReviewSource } from "./financial-review.ts";
+
 import { isJsonObject, isUuid } from "./validation.ts";
 
 const SOURCE_LOOKUP_PAGE_SIZE = 25;
 
 export interface FinancialSourceSelection {
-  source: FinancialReviewSource;
+  source: "FINANCES";
   rowId: string;
   versionId: string;
 }
 
 export function decodeFinancialSourceSelection(value: unknown): FinancialSourceSelection | null {
   if (!isJsonObject(value)) return null;
-  if (value.source !== "FINANCES" && value.source !== "DATA_KIOSK") return null;
+  if (value.source !== "FINANCES") return null;
   if (!isUuid(value.rowId) || !isUuid(value.versionId)) return null;
   return { source: value.source, rowId: value.rowId, versionId: value.versionId };
 }
@@ -41,9 +41,7 @@ export function createFinancialSourceApi(transport: ApiTransport) {
         signal,
       );
       if (record === null) return null;
-      const [row] = mapDatasetRows(selection.source === "FINANCES" ? "finances" : "data_kiosk", [
-        record,
-      ]);
+      const [row] = mapDatasetRows("finances", [record]);
       if (row.id !== selection.rowId || row.version_id !== selection.versionId)
         throw new Error("Source detail returned a different row or version");
       return row;

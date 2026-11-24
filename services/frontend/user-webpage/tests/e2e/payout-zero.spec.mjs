@@ -24,10 +24,9 @@ test("a saved zero report displays without a currency and remains readable durin
       source_amount: "0",
       fee_amount: "0",
       company_amount: "0",
-      component_count: "0",
-      finances_version_count: "2",
-      data_kiosk_version_count: "1",
-      terms_version_count: "1",
+      record_count: "0",
+      source_version_count: "3",
+      assignment_version_count: "1",
     },
   ];
   await signIn(page);
@@ -51,7 +50,7 @@ test("a saved zero report displays without a currency and remains readable durin
   const completedPolls = () => fixture.revisionRequests.filter(({ completed }) => completed).length;
   const pollsBefore = completedPolls();
   fixture.revisions.finances = "1";
-  fixture.revisions.data_kiosk = "1";
+  fixture.revisions.references = "1";
   fixture.revisions.fees = "1";
   await page.clock.fastForward(60_000);
   await expect.poll(completedPolls).toBeGreaterThan(pollsBefore);

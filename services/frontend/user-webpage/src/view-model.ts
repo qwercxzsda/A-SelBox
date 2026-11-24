@@ -25,7 +25,6 @@ interface DatasetPresentation extends WorkspacePresentation {
 export const DATASET_ORDER: readonly DatasetKey[] = [
   "live",
   "finances",
-  "data_kiosk",
   "fees",
   "payouts",
   "accounts",
@@ -40,7 +39,7 @@ export const DATASET_PRESENTATION = {
   live: {
     label: "Transactions",
     description:
-      "Dates, ordering, filters and totals use UTC. Finances keeps its actual posting time; Data Kiosk is placed at the end of its reported marketplace day.",
+      "Dates, ordering, filters and totals use UTC. Reference costs use the posting date of the first matching Finances charge.",
     searchPlaceholder: "SKU, type, source, or marketplace",
     emptyMessage: "No transactions match this view.",
   },
@@ -51,12 +50,6 @@ export const DATASET_PRESENTATION = {
     searchPlaceholder: "SKU, type, or marketplace",
     emptyMessage: "No Finances transactions match this view.",
   },
-  data_kiosk: {
-    label: "Data Kiosk",
-    description: "Daily sales, refunds, and charges reported by Amazon, including zero amounts.",
-    searchPlaceholder: "SKU, type, or marketplace",
-    emptyMessage: "No Data Kiosk records match this view.",
-  },
   fees: {
     label: "Current fees",
     description: "Company assignments and marketplace fee rates for each exact SKU.",
@@ -64,7 +57,7 @@ export const DATASET_PRESENTATION = {
   payouts: {
     label: "Payout reports",
     description:
-      "Monthly payouts preserve company amounts in the Finances and Data Kiosk categories, plus service fees. Source comparisons are separate diagnostics and never change these saved amounts.",
+      "Monthly payouts include the company’s attributed Finances activity and service fees. Open a saved version to inspect its records.",
     searchPlaceholder: "Month, marketplace, or currency",
     emptyMessage: "No payout reports match this view.",
   },
@@ -96,7 +89,7 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
     column("source", "Source", "code"),
-    column("category", "Category", "code"),
+    column("outcome", "Outcome", "code"),
     column("component_type", "Type", "code"),
     {
       ...column("source_amount", "Reported amount", "money"),
@@ -113,16 +106,7 @@ export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]>
     column("activity_eligible", "Activity eligibility", "code"),
     column("sku", "SKU"),
     column("marketplace_name", "Marketplace"),
-    column("category", "Category", "code"),
-    column("component_type", "Type", "code"),
-    column("amount", "Reported amount", "money"),
-    column("quantity", "Quantity", "number"),
-  ],
-  data_kiosk: [
-    column("activity_at", "Date (UTC)", "date"),
-    column("sku", "SKU"),
-    column("marketplace_name", "Marketplace"),
-    column("category", "Category", "code"),
+    column("route", "Route", "code"),
     column("component_type", "Type", "code"),
     column("amount", "Reported amount", "money"),
     column("quantity", "Quantity", "number"),
@@ -154,11 +138,7 @@ export function displayColumns(
 ): readonly ColumnDefinition[] {
   const sortColumns: readonly string[] = DATASET_CONFIG[dataset].sortColumns;
   return TABLE_COLUMNS[dataset]
-    .filter(
-      (column) =>
-        isAdministrator ||
-        (column.kind !== "company" && !(dataset === "finances" && column.key === "category")),
-    )
+    .filter((column) => isAdministrator || column.kind !== "company")
     .map((column) => ({
       ...column,
       sortable: sortColumns.includes(column.key) ? column.key : undefined,

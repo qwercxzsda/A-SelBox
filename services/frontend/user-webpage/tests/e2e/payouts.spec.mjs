@@ -76,7 +76,7 @@ test("members see both company amount sources without supporting or account cont
     {
       source_row_id: "a",
       report_id: report,
-      authoritative: "true",
+
       activity_date: "2026-06-12",
       sku: "OWNED-SKU",
       component_type: "PRODUCT_SALES",
@@ -89,31 +89,21 @@ test("members see both company amount sources without supporting or account cont
     {
       source_row_id: "cost",
       report_id: report,
-      authoritative: "true",
+
       activity_date: "2026-06-12",
       sku: "OWNED-SKU",
-      source: "DATA_KIOSK",
-      component_type: "FBA_STORAGE_FEE",
+      source: "STORAGE",
+      component_type: "STORAGE_FEES",
       source_amount: "-10",
       fee_amount: "0",
       company_amount: "-10",
-    },
-    {
-      source_row_id: "b",
-      report_id: report,
-      authoritative: "false",
-      activity_date: "2026-06-12",
-      sku: "OWNED-SKU",
-      component_type: "NET_PRODUCT_SALES",
-      source: "DATA_KIOSK",
-      source_amount: "102",
     },
   ];
   fixture.payoutRecords.push(
     ...Array.from({ length: 48 }, (_, index) => ({
       source_row_id: `zero-${String(index)}`,
       report_id: report,
-      authoritative: "true",
+
       source_amount: "0",
       fee_amount: "0",
       company_amount: "0",
@@ -121,7 +111,7 @@ test("members see both company amount sources without supporting or account cont
     {
       source_row_id: "outside-first-page",
       report_id: report,
-      authoritative: "true",
+
       sku: "OUTSIDE-FIRST-PAGE",
       source_amount: "2",
       fee_amount: "0",
@@ -140,7 +130,7 @@ test("members see both company amount sources without supporting or account cont
   await expect(
     page
       .getByRole("table", { name: "Amount records", exact: true })
-      .getByRole("cell", { name: "Data Kiosk", exact: true }),
+      .getByRole("cell", { name: "Monthly storage report", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "OUTSIDE-FIRST-PAGE", exact: true })).toHaveCount(0);
   await captureResponsiveReview(page, testInfo, "payout-records");
@@ -152,9 +142,6 @@ test("members see both company amount sources without supporting or account cont
   expect(
     fixture.events.some(({ endpoint }) => endpoint === "/rest/v1/rpc/report_source_totals"),
   ).toBe(false);
-  expect(fixture.payoutRecordRequests.every(({ authoritative }) => authoritative === "true")).toBe(
-    true,
-  );
 });
 
 test("administrator payout drawers contain only their payout amounts and records", async ({
@@ -189,8 +176,5 @@ test("administrator payout drawers contain only their payout amounts and records
   ).toHaveCount(0);
   await expect(drawer.getByRole("table", { name: "Account reconciliation" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toBeVisible();
-  expect(fixture.payoutRecordRequests.every(({ authoritative }) => authoritative === "true")).toBe(
-    true,
-  );
   await captureResponsiveReview(page, testInfo, "payout-only-details");
 });

@@ -59,7 +59,7 @@ class InventoryAccessTests(InventoryFixture):
         next_member = self.member(next_company)
         capture = self.capture(self.acquire(), [self.item()])
         selected = self.connection.execute(
-            "select current_terms_version_id::text from public.skus where id=%s", (identity,)
+            "select current_version_id::text from public.assignment_keys where id=%s", (identity,)
         ).fetchone()
         self.assertIsNotNone(selected)
         assert selected is not None  # noqa: S101 - type narrowing after assertion

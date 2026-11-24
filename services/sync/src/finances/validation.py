@@ -5,7 +5,6 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
-from ..allocation import AllocationCategory
 from ..numeric import ZERO, Numeric
 from ..source_serialization import content_sha256, source_mapping
 from .acquisition_models import FinancesAcquisition
@@ -34,6 +33,7 @@ def revision_payload(transaction: FinancesTransaction) -> dict[str, object]:
         "total_amount": _decimal(transaction.total_amount),
         "deferred_transaction_id": transaction.deferred_transaction_id,
         "release_transaction_id": transaction.release_transaction_id,
+        "order_id": transaction.order_id,
         "activity_eligible": transaction.activity_eligible,
         "components": [
             {
@@ -104,12 +104,10 @@ def validate_finances_candidate(
     normalized: list[FinancesTransaction] = []
     for identifier, row in candidate.items():
         eligible = row.is_activity(identifier, releases)
+        if identifier in current and current[identifier]["activity_eligible"] != eligible:
+            raise ValueError("A Finances answer would change activity on a stored transaction.")
         if identifier in incoming:
             normalized.append(replace(incoming[identifier], activity_eligible=eligible))
-        elif current[identifier]["activity_eligible"] != eligible:
-            raise ValueError(
-                "Finances lifecycle change requires its affected transactions in one capture."
-            )
     result = PreparedFinances(
         tuple(sorted(normalized, key=lambda row: row.native_transaction_id)), prepared.summaries
     )
@@ -174,21 +172,15 @@ def _nonblank(value: object) -> bool:
 
 
 def _validate_component(component: FinancesComponent) -> None:
-    if component.category not in {
-        AllocationCategory.FINANCES,
-        AllocationCategory.SELBOX,
-        AllocationCategory.DATA_KIOSK,
-    }:
-        raise ValueError("Finances components require a supported monetary allocation category.")
     if component.sku is not None and (not _nonblank(component.sku)):
         raise ValueError("Finances source SKU must be nonblank when supplied.")
-    if component.category is AllocationCategory.FINANCES and component.sku is None:
+    if component.route == "SKU" and component.sku is None:
         raise ValueError("Allocated Finances component lacks a source SKU.")
     if not _nonblank(component.component_type):
         raise ValueError("Finances component type must be nonblank.")
     if component.accounting_subtype not in {
         None,
-        "OPERATING_EXPENSE",
+        "ACCOUNT_FEE",
         "BALANCE_MOVEMENT",
         "TAX_RECLASSIFICATION",
     }:

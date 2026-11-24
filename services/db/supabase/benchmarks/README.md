@@ -33,16 +33,14 @@ cleanup status and writes results atomically.
   UTC transaction date; month-end does not change that rule. Each live totals request returns all
   groups and its exact `group_count` in one response, with the 100,000-group guard; the benchmark
   validates completeness without issuing offset requests.
-- **Search and amount ordering:** Transactions for members and administrators, plus both raw source
-  datasets for administrators. Exact OR search sets resolve from raw SKU,
+- **Search and amount ordering:** Transactions for members and administrators, plus the Finances source
+  dataset for administrators. Exact OR search sets resolve from raw SKU,
   Type, Marketplace, and Source values before timing; currency is excluded. Filtered date and amount
   pages cover stable ties, offsets, exact counts, and the 10,000-row amount-ordering guard. Independent
   raw-view substring queries verify these benchmark terms without sorting over-limit scopes.
   Frontend tests separately cover humanized labels and Unicode matching.
 
-Transactions references contain only eligible Finances `FINANCES`/`SELBOX` and Data Kiosk
-`DATA_KIOSK` components, with member ownership restrictions. They do not depend on payout maturity.
-Raw source cases preserve administrators' retained history and comparison categories.
+The live reference view includes company and account outcomes. Raw Finances cases retain immutable historical versions for administrators.
 Each actor's permitted data supplies its scope. Summary filter values are selected from positive
 transactions inside the benchmark date range; records include the actual bounds and
 matching row counts. One warm-up precedes measured repetitions; request order rotates
@@ -76,17 +74,6 @@ run simultaneous instances against the same clone names.
 
 ## Query plans
 
-`plans.explain_rpc(connection, user_id, function_name, arguments)` inspects current installed
-query definitions on an idle connection. It binds the current request parameters and runs the
-extracted SELECT under `authenticated` with the supplied actor in a read-only transaction. The
-adapter applies only the installed function's `plan_cache_mode`, `enable_sort`, and
-`enable_presorted_aggregate` settings while explaining its body, then restores the caller's settings
-when that transaction ends. It does not override working memory, hash memory, or JIT configuration.
-The raw source and SKU catalog paths first invoke their actual administrator gates. Check the real
-RPC response before using a plan as diagnostic evidence; this helper does not replace API validation.
-
-The adapter supports current page, count, total, and administrator SKU-catalog RPCs. It records
-technical node/index names and cardinalities without saving filter values or financial rows.
-Plans are collected after timing; they are not HTTP latency measurements. No benchmark runner
-changes an existing application database. Plan collection itself does not alter indexes,
-functions, or access rules.
+The plan collector runs EXPLAIN ANALYZE on the installed public function in a read-only transaction
+under the measured actor. Results include server execution time and buffer counters. PostgreSQL may
+expose a function call as a single node. Request arguments and financial rows stay out of the output.

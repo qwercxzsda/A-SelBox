@@ -1,11 +1,8 @@
 from collections.abc import Callable
-from typing import cast
 
-from sp_api.api import DataKiosk
 from sp_api.base import Marketplaces
 
 from .credentials import AmazonLwaCredentials
-from .data_kiosk.client_protocol import DataKioskClient
 from .transport import ensure_explicit_marketplace_routing, suppress_sensitive_transport_logging
 
 
@@ -21,17 +18,4 @@ def create_explicit_sp_api_client[ClientT](
         marketplace=marketplace,
         refresh_token=credentials.refresh_token,
         credentials=credentials.as_sdk_credentials(),
-    )
-
-
-def create_data_kiosk_client(
-    marketplace: Marketplaces,
-    credentials: AmazonLwaCredentials,
-) -> DataKioskClient:
-    """Build an explicitly credentialed regional Data Kiosk client."""
-    # python-amazon-sp-api omits None from the annotation for its optional
-    # ``file`` argument. Keep that third-party typing defect at this boundary.
-    return cast(
-        DataKioskClient,
-        create_explicit_sp_api_client(DataKiosk, marketplace, credentials),
     )

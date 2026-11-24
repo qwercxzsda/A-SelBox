@@ -18,16 +18,16 @@ const SKU_ID = version(1);
 const currentVersion = version(112);
 const VERSION_COLUMNS = [
   "id",
-  "sku_id",
+  "key_id",
   "company_id",
   "version_number",
-  "change_reason",
+  "memo",
   "fee_period_count",
   "created_at",
 ];
 const PERIOD_COLUMNS = [
   "id",
-  "terms_version_id",
+  "assignment_version_id",
   "marketplace_name",
   "valid_period",
   "fee_rate_percent",
@@ -45,10 +45,10 @@ async function historyFixture(page, role = "administrator") {
     const number = 12 - index;
     return {
       id: version(100 + number),
-      sku_id: SKU_ID,
+      key_id: SKU_ID,
       company_id: number === 12 ? COMPANY : OTHER_COMPANY,
       version_number: String(number),
-      change_reason: `Saved reason ${number}`,
+      memo: `Saved reason ${number}`,
       fee_period_count: String(number === 1 ? 0 : number === 11 ? 2 : 1),
       created_at: `2026-09-${String(number).padStart(2, "0")}T12:30:00+00:00`,
     };
@@ -56,13 +56,13 @@ async function historyFixture(page, role = "administrator") {
   const periods = versions.flatMap((saved) =>
     Array.from({ length: Number(saved.fee_period_count) }, (_, index) => ({
       id: version(1000 + Number(saved.version_number) * 10 + index),
-      terms_version_id: saved.id,
+      assignment_version_id: saved.id,
       marketplace_name: index === 1 ? "Amazon.co.uk" : "Amazon.com",
       valid_period: index === 1 ? "[2026-09-01,)" : "[2026-09-01,2026-10-01)",
       fee_rate_percent: saved.version_number === "11" ? (index === 0 ? "0" : "6.123456") : "5",
     })),
   );
-  for (const endpoint of ["sku_terms_versions", "sku_fee_periods"]) {
+  for (const endpoint of ["assignment_versions", "sku_fee_periods"]) {
     await page.route(`https://example.invalid/rest/v1/${endpoint}?**`, async (route) => {
       const { reply, csvReply } = createReplies(route);
       if (route.request().method() === "OPTIONS") return reply({});
@@ -71,8 +71,8 @@ async function historyFixture(page, role = "administrator") {
       if (history.status !== 200) return reply({}, history.status);
       const offset = Number(url.searchParams.get("offset"));
       const limit = Number(url.searchParams.get("limit"));
-      if (endpoint === "sku_terms_versions") {
-        expect(url.searchParams.get("sku_id")).toBe(`eq.${SKU_ID}`);
+      if (endpoint === "assignment_versions") {
+        expect(url.searchParams.get("key_id")).toBe(`eq.${SKU_ID}`);
         return csvReply(
           VERSION_COLUMNS,
           versions.slice(offset, offset + limit),
@@ -80,8 +80,8 @@ async function historyFixture(page, role = "administrator") {
           offset,
         );
       }
-      const ids = url.searchParams.get("terms_version_id").slice(4, -1).split(",");
-      const matching = periods.filter((row) => ids.includes(row.terms_version_id));
+      const ids = url.searchParams.get("assignment_version_id").slice(4, -1).split(",");
+      const matching = periods.filter((row) => ids.includes(row.assignment_version_id));
       return csvReply(
         PERIOD_COLUMNS,
         matching.slice(offset, offset + limit),

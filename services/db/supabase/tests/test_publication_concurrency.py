@@ -50,14 +50,14 @@ class PublicationConcurrencyTests(unittest.TestCase):
                     str(
                         require_row(
                             winner.execute(
-                                "select current_terms_version_id from public.skus"
+                                "select current_version_id from public.assignment_keys"
                             ).fetchone()
                         )[0]
                     ),
                     second,
                 )
                 self.assertEqual(
-                    winner.execute("select count(*) from public.sku_terms_versions").fetchone(),
+                    winner.execute("select count(*) from public.assignment_versions").fetchone(),
                     (2,),
                 )
 

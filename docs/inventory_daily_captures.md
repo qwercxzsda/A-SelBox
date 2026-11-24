@@ -20,8 +20,7 @@ The report's trailing 90-day sales are historical, not a demand forecast.
 ## Database model
 
 The [full schema reference](database_schema.md) owns every application table, column, and key.
-[Inventory schema](figures/database/09-daily-inventory.svg) and
-[workflow](figures/database/10-inventory-workflow.svg) figures show this pipeline in detail.
+The [inventory schema](figures/database/09-daily-inventory.svg) shows how captures reference their acquisitions and items.
 
 | Table                              | Contents and identity                                                                                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -101,7 +100,7 @@ preprocessing instead of silently creating a new category.
 6. Rotate the small `inventory` revision token at commit. Archive-only downloads, idempotent replay,
    and rollback do not change it. No financial revision token is changed by inventory publication.
 
-This reuses Data Kiosk's archive → offline preprocess → atomic publication pattern. Inventory
+A download is archived before offline preprocessing and atomic publication. Inventory
 combines the day identity and its one retained result into a single header, without financial
 allocation components, completeness cutoffs, fee coverage, or monetary reconciliation.
 

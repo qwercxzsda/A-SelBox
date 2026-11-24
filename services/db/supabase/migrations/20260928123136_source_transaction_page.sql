@@ -17,18 +17,17 @@ begin
         raise exception 'Administrator access required' using errcode='42501';
     end if;
     perform private.validate_page_bounds(p_limit,p_offset);
-    if p_dataset is null or p_dataset not in ('finances','data_kiosk') then
-        raise exception 'Dataset must be finances or data_kiosk' using errcode='22023'; end if;
+    if p_dataset is null or p_dataset <> 'finances' then
+        raise exception 'Unknown Finances dataset' using errcode='22023'; end if;
     if p_order_by is null or p_order_by not in ('date','amount')
         or p_direction is null or p_direction not in ('asc','desc')
         or p_include_count is null then
         raise exception 'Valid ordering and count preference required' using errcode='22023'; end if;
     perform private.validate_transaction_filters(p_date_from,p_date_to,null,p_skus,p_marketplaces,null,p_types);
     perform private.validate_transaction_filters(null,null,null,p_search_skus,p_search_marketplaces,null,p_search_types);
-    fact_relation:=case p_dataset when 'finances' then 'finances_component_details' else 'data_kiosk_component_details' end;
-    entry_relation:=case p_dataset when 'finances' then 'finances_preprocess_entries' else 'data_kiosk_preprocess_entries' end;
-    timestamp_expression:=case p_dataset when 'finances' then 't.posted_at'
-        else 't.activity_at' end;
+    fact_relation:='finances_component_details';
+    entry_relation:='finances_preprocess_entries';
+    timestamp_expression:='t.posted_at';
     sort_expression:=case p_order_by when 'amount' then 't.amount' else timestamp_expression end;
     sort_direction:=case p_direction when 'asc' then 'asc' else 'desc' end;
     tie_direction:=case p_order_by when 'date' then sort_direction else 'asc' end;
@@ -93,19 +92,25 @@ service_role;
 -- Exact immutable source references are independent of the current selection.
 create function public.financial_source_record(p_source text, p_row_id uuid, p_version_id uuid)
 returns jsonb language plpgsql stable security invoker set search_path = '' as $$
-declare source_record jsonb; source_timestamp timestamptz;
+declare source_record jsonb; source_timestamp timestamptz; row_table text;
 begin
     if not private.is_administrator() then raise exception 'Administrator access is required' using errcode='42501'; end if;
-    if p_source is null or p_source not in ('FINANCES','DATA_KIOSK') or p_row_id is null or p_version_id is null then
+    if p_source is null or p_source not in ('FINANCES','AD_INVOICE','STORAGE','AGED_STORAGE','REMOVAL_ORDER') or p_row_id is null or p_version_id is null then
         raise exception 'A valid source row and revision are required' using errcode='22023'; end if;
     if p_source='FINANCES' then
         select to_jsonb(t),t.posted_at
         into source_record,source_timestamp from public.finances_preprocess_entries t
         where t.id=p_row_id and t.version_id=p_version_id;
     else
-        select to_jsonb(t),t.activity_at
-        into source_record,source_timestamp from public.data_kiosk_preprocess_entries t
-        where t.id=p_row_id and t.version_id=p_version_id;
+        row_table := case p_source when 'AD_INVOICE' then 'ad_invoice_lines'
+            when 'REMOVAL_ORDER' then 'removal_order_rows' when 'STORAGE' then 'storage_rows'
+            when 'AGED_STORAGE' then 'aged_storage_rows' end;
+        -- Drilldown shows the source's sign, identifiers and printed values.
+        execute format('select to_jsonb(m) || jsonb_build_object(''source'',v.source,''native_key'',u.unit_key),
+                v.created_at from private.%I m join private.source_unit_versions v on v.id=m.version_id
+                join private.source_units u on u.id=v.unit_id
+                where m.id=$1 and m.version_id=$2 and v.source::text=$3',row_table)
+        into source_record,source_timestamp using p_row_id,p_version_id,p_source;
     end if;
     return (select jsonb_object_agg(key,value) from jsonb_each_text(source_record))
         || jsonb_build_object('activity_at',

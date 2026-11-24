@@ -31,7 +31,7 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
         )
         rejected = validation.replace(
             "begin\n",
-            "begin\n if new.component_count>0 then raise exception "
+            "begin\n if new.record_count>0 then raise exception "
             "'Unresolved ownership test failure' using errcode='23514'; end if;\n",
             1,
         )
@@ -134,8 +134,9 @@ class AutomaticPayoutIntegrityTests(SourceModelFixture):
         query = (
             "select relname,seq_scan,seq_tup_read,idx_scan,idx_tup_fetch "
             "from pg_stat_xact_user_tables where relname in "
-            "('company_payout_reports','payout_report_finances_versions','payout_report_data_kiosk_versions',"
-            "'finances_transaction_components','data_kiosk_day_components') order by relname"
+            "('company_payout_reports','payout_report_source_versions','payout_report_assignment_versions',"
+            "'finances_amounts','ad_invoice_lines','storage_rows','aged_storage_rows',"
+            "'removal_order_rows') order by relname"
         )
         before = self.connection.execute(query).fetchall()
         tokens = self.revisions(member)

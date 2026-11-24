@@ -2,10 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn, rowWithSku } from "./fixtures.mjs";
 import { financesRow } from "./api-fixtures.mjs";
 import { summaryBucket, summaryPeriods, summaryAmount } from "./summary-fixtures.mjs";
-import {
-  setupFinancialReview,
-  setupManyFinancialReviewRows,
-} from "./financial-review-fixtures.mjs";
+
 import { columnTrigger } from "./table-actions.mjs";
 
 test("marketplace totals remain explicit through filtering and reload, with a date entry point", async ({
@@ -123,44 +120,6 @@ test("workspace URLs restore filters and support Back and Forward without storin
   await expect(page.getByRole("searchbox", { name: "Search", exact: true })).toHaveValue("ALPHA");
   await page.goForward();
   await expect(page.getByRole("tab", { name: "Finances", exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-});
-
-test("Financial review retains marketplace, category, year and amount unit after reloading another tab", async ({
-  page,
-}, testInfo) => {
-  const fixture = await mockSupabase(page);
-  setupFinancialReview(fixture);
-  setupManyFinancialReviewRows(fixture);
-  await signIn(page);
-  await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await page.getByLabel("Currency", { exact: true }).selectOption("JPY");
-  await page.getByLabel("Year", { exact: true }).selectOption("2025");
-  await page.setViewportSize({ width: 1440, height: 320 });
-  const months = page.getByRole("table", { name: "Monthly financial review", exact: true });
-  await expect(months.locator("tbody tr")).toHaveCount(12);
-  await months.locator("tbody tr").last().scrollIntoViewIfNeeded();
-  const floatingHeader = page.locator(".floating-table-header");
-  await expect(floatingHeader).toBeVisible();
-  await expect(floatingHeader).toContainText("Month");
-  await expect(floatingHeader).toContainText("Running source gap");
-  await page.screenshot({
-    path: testInfo.outputPath("monthly-table-column-context.png"),
-    animations: "disabled",
-  });
-  const categories = page.getByRole("tablist", { name: "Financial review", exact: true });
-  await categories.getByRole("tab", { name: "Finances", exact: true }).click();
-  await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-  await page.reload();
-  await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await expect(
-    page.getByRole("table", { name: "Monthly financial review", exact: true }),
-  ).toContainText("No source records for Amazon.com in JPY in 2025.");
-  await expect(page.getByLabel("Marketplace", { exact: true })).toHaveValue("Amazon.com");
-  await expect(page.getByLabel("Year", { exact: true })).toHaveValue("2025");
-  await expect(categories.getByRole("tab", { name: "Finances", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );

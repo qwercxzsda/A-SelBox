@@ -71,7 +71,11 @@ class PayoutEligibilityConcurrencyTests(SourceModelFixture):
             result = future.result(timeout=12)
             self.assertEqual(
                 result,
-                ("23514", "Payout reports require at least one currently assigned SKU")
+                (
+                    "23514",
+                    "Payout reports require a current assignment or an issued report for that "
+                    "month",
+                )
                 if low_level
                 else [],
             )
@@ -124,11 +128,11 @@ class PayoutEligibilityConcurrencyTests(SourceModelFixture):
             self.connection.execute(
                 "select * from private.refresh_company_payout_reports()"
             ).fetchone(),
-            (0, 0, 0, 0),
+            (1, 1, 0, 0),
         )
         self.assertEqual(
             self.connection.execute(
                 "select count(*) from public.company_payout_reports"
             ).fetchone(),
-            (1,),
+            (2,),
         )

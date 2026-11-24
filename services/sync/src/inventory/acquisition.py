@@ -9,24 +9,24 @@ from ..amazon.datetimes import parse_amazon_datetime
 from ..amazon.marketplaces import get_marketplace_timezone
 from ..amazon.reports.decoding import decompress_report_document
 from ..amazon.reports.documents import download_report_document
+from ..amazon.reports.jobs import (
+    DEFAULT_MAX_POLL_ATTEMPTS,
+    DEFAULT_POLL_INTERVAL_SECONDS,
+    ReportsClient,
+    request_report,
+    safe_report_metadata,
+)
 from ..archives.acquisition_logging import AcquisitionLog
 from ..archives.storage import ArchiveStorage, archive_document
 from ..database.acquisitions import persist_inventory_acquisition
 from ..database.connection import DatabaseConnection
 from ..seller_namespaces import validate_seller_namespace
-from .models import InventoryAcquisition, validate_inventory_scope
-from .reports import (
-    DEFAULT_MAX_POLL_ATTEMPTS,
-    DEFAULT_POLL_INTERVAL_SECONDS,
-    InventoryReportsClient,
-    request_inventory_report,
-    safe_report_metadata,
-)
+from .models import INVENTORY_REPORT_TYPE, InventoryAcquisition, validate_inventory_scope
 from .serialization import text
 
 
 def download_inventory_acquisition(
-    client: InventoryReportsClient,
+    client: ReportsClient,
     database: DatabaseConnection,
     storage: ArchiveStorage,
     *,
@@ -48,9 +48,10 @@ def download_inventory_acquisition(
         marketplace_id=marketplace_id,
     ) as activity:
         activity.step("request" if report_id is None else "resume_report")
-        report = request_inventory_report(
+        report = request_report(
             client,
             marketplace_id,
+            report_type=INVENTORY_REPORT_TYPE,
             report_id=report_id,
             on_report_id=lambda accepted_id: activity.step("poll_report", report_id=accepted_id),
             max_poll_attempts=max_poll_attempts,

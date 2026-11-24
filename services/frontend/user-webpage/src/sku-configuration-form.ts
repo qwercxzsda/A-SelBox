@@ -121,13 +121,14 @@ function applySkuDrafts(
 export function validateSkuItem(
   item: SkuConfigurationItem,
   knownCompanyIds?: ReadonlySet<string>,
+  clearingCompany = false,
 ): SkuFormIssue[] {
   const issues: SkuFormIssue[] = [];
   const add = (message: string, field?: SkuFormIssue["field"], periodIndex?: number) =>
     issues.push({ sku: item.sku, message, field, periodIndex });
   if (!item.sku.trim() || item.sku.includes("\0")) add("Enter a SKU.", "sku");
-  if (!item.company_id) add("Choose a company.", "company_id");
-  else if (knownCompanyIds && !knownCompanyIds.has(item.company_id))
+  if (!item.company_id && !clearingCompany) add("Choose a company.", "company_id");
+  else if (item.company_id && knownCompanyIds && !knownCompanyIds.has(item.company_id))
     add("This company is no longer available. Choose another company.", "company_id");
   item.periods.forEach((period, index) => {
     if (!isMarketplace(period.marketplace_name))
@@ -144,7 +145,7 @@ export function validateSkuItem(
   const periods = indexFeePeriods(item.periods);
   for (const index of overlappingFeePeriods(periods))
     add("These dates overlap another fee period for this marketplace.", "valid_from", index);
-  for (const gap of feeCoverageGaps(item.requirements, periods)) {
+  for (const gap of feeCoverageGaps(clearingCompany ? [] : item.requirements, periods)) {
     add(
       `${gap.marketplace_name} needs a fee rate from ${gap.valid_from} (inclusive) to ${gap.valid_to} (exclusive).`,
     );
@@ -158,8 +159,14 @@ export function resolveSkuConfiguration(
   knownCompanyIds?: ReadonlySet<string>,
 ) {
   const effectiveItems = applySkuDrafts(items, drafts);
-  const issues = effectiveItems.flatMap((item) => validateSkuItem(item, knownCompanyIds));
   const savedBySku = new Map(items.map((item) => [item.sku, item]));
+  const issues = effectiveItems.flatMap((item) =>
+    validateSkuItem(
+      item,
+      knownCompanyIds,
+      !item.company_id && Boolean(savedBySku.get(item.sku)?.company_id),
+    ),
+  );
   for (const draft of drafts) {
     const saved = savedBySku.get(draft.sku);
     if ((saved?.terms_version_id ?? null) !== draft.expected_current_version_id)

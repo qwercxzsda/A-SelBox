@@ -46,7 +46,6 @@ class TestPayoutReports(unittest.TestCase):
                 "currency": "USD",
                 "start_date": "2026-01-01",
                 "end_date": "2026-01-31",
-                "dataset_key": "economics",
                 "change_reason": "Initial saved report",
             },
         )
@@ -75,12 +74,10 @@ class TestPayoutReports(unittest.TestCase):
             "JPY",
             date(2026, 1, 1),
             date(2026, 1, 31),
-            "economics",
             "Amazon.co.jp",
             "Initial",
             4,
             3,
-            31,
             2,
             Decimal("1e1000"),
             Decimal("-0.123456789123456789"),
@@ -96,17 +93,16 @@ class TestPayoutReports(unittest.TestCase):
         self.assertEqual(report.marketplace_name, "Amazon.co.jp")
         self.assertEqual(
             (
-                report.component_count,
-                report.finances_version_count,
-                report.data_kiosk_version_count,
-                report.terms_version_count,
+                report.record_count,
+                report.source_version_count,
+                report.assignment_version_count,
             ),
-            (4, 3, 31, 2),
+            (4, 3, 2),
         )
         self.assertNotIn("current_", database.execute_calls[0][0])
         self.assertNotIn("source_coverage", database.execute_calls[0][0])
-        self.assertIn("finances_version_count", database.execute_calls[0][0])
-        self.assertIn("data_kiosk_version_count", database.execute_calls[0][0])
+        self.assertIn("source_version_count", database.execute_calls[0][0])
+        self.assertIn("assignment_version_count", database.execute_calls[0][0])
 
     def test_currencyless_header_must_be_an_empty_aggregate(self) -> None:
         report_id, company_id = str(uuid7()), str(uuid7())
@@ -116,10 +112,8 @@ class TestPayoutReports(unittest.TestCase):
             None,
             date(2026, 6, 1),
             date(2026, 6, 30),
-            "economics",
             None,
             "Explicit request",
-            0,
             0,
             0,
             0,
@@ -138,10 +132,10 @@ class TestPayoutReports(unittest.TestCase):
             (Decimal(0), Decimal(0), Decimal(0)),
         )
         for index, value in (
-            (8, 1),
+            (7, 1),
+            (10, Decimal(1)),
+            (11, Decimal(-1)),
             (12, Decimal(1)),
-            (13, Decimal(-1)),
-            (14, Decimal(1)),
         ):
             invalid = (*header[:index], value, *header[index + 1 :])
             with (
@@ -150,59 +144,45 @@ class TestPayoutReports(unittest.TestCase):
             ):
                 load_company_payout_report(FakeDatabaseConnection([invalid]), report_id)
 
-    def test_derived_records_preserve_terms_and_stable_source_identity(self) -> None:
-        report, source_row, version, identity, sku, terms = (str(uuid7()) for _ in range(6))
-        amount = Decimal("-5.123456789123456789")
-        for authoritative, component_type, fee_base, status in (
-            (True, "FbaStorageFee", None, "NOT_APPLICABLE"),
-            (False, "NET_PRODUCT_SALES", amount, "MISSING_FEE"),
-        ):
-            with self.subTest(authoritative=authoritative):
-                record = (
-                    report,
-                    "DATA_KIOSK",
-                    authoritative,
-                    source_row,
-                    version,
-                    identity,
-                    sku,
-                    terms,
-                    None,
-                    " SKU ",
-                    "Amazon.com",
-                    date(2026, 1, 1),
-                    component_type,
-                    "USD",
-                    amount,
-                    None,
-                    fee_base,
-                    None,
-                    Decimal(0) if authoritative else None,
-                    amount if authoritative else None,
-                    status,
-                )
-                database = FakeDatabaseConnection(fetchall_results=[[record]])
-                result = load_company_payout_report_records(database, report)[0]
-                self.assertEqual(result.terms_version_id, terms)
-                self.assertIsNone(result.fee_period_id)
-                self.assertEqual(result.fee_base, fee_base)
-                self.assertEqual(result.sku, " SKU ")
-                self.assertEqual(result.source_amount, amount)
-                self.assertEqual(result.company_amount, amount if authoritative else None)
-                self.assertEqual(result.authoritative, authoritative)
-                self.assertEqual(result.currency, "USD")
-                self.assertEqual(result.identity, (report, "DATA_KIOSK", source_row))
-                self.assertIn("private.read_payout_report_records", database.execute_calls[0][0])
+    def test_reference_cost_preserves_base_tax_and_identity_without_a_direct_sku(self) -> None:
+        report, source_row, version, identity = (str(uuid7()) for _ in range(4))
+        record = (
+            report,
+            "STORAGE",
+            source_row,
+            version,
+            identity,
+            None,
+            None,
+            None,
+            None,
+            "Amazon.com",
+            date(2026, 8, 1),
+            "STORAGE_FEES",
+            "USD",
+            Decimal("-2"),
+            Decimal("-0.2"),
+            Decimal("-2.2"),
+            None,
+            None,
+            None,
+            Decimal(0),
+            Decimal("-2.2"),
+            "NOT_APPLICABLE",
+        )
+        result = load_company_payout_report_records(FakeDatabaseConnection([record]), report)[0]
+        self.assertIsNone(result.sku)
+        self.assertEqual(result.tax_amount, Decimal("-0.2"))
+        self.assertEqual(result.identity, (report, "STORAGE", source_row))
 
     def test_missing_report_is_not_synthesized(self) -> None:
         self.assertIsNone(load_company_payout_report(FakeDatabaseConnection([None]), str(uuid7())))
 
     def test_invalid_scope_fails_before_publication(self) -> None:
-        for currency, start, end, dataset in (
-            ("usd", date(2026, 1, 1), date(2026, 1, 31), "economics"),
-            ("USD", date(2026, 1, 31), date(2026, 1, 1), "economics"),
-            ("USD", date(2026, 1, 1), date(2026, 1, 30), "economics"),
-            ("USD", date(2026, 1, 1), date(2026, 1, 31), "inventory"),
+        for currency, start, end in (
+            ("usd", date(2026, 1, 1), date(2026, 1, 31)),
+            ("USD", date(2026, 1, 31), date(2026, 1, 1)),
+            ("USD", date(2026, 1, 1), date(2026, 1, 30)),
         ):
             database = FakeDatabaseConnection()
             with self.subTest(currency=currency, start=start), self.assertRaises(ValueError):
@@ -213,7 +193,6 @@ class TestPayoutReports(unittest.TestCase):
                     currency=currency,
                     start_date=start,
                     end_date=end,
-                    dataset_key=dataset,
                     change_reason="Initial",
                 )
             self.assertFalse(database.execute_calls)

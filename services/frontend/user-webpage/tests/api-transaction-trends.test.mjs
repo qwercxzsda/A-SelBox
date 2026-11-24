@@ -55,7 +55,7 @@ test("trends load complete exact aggregates in one request with the same transac
   assert.equal(result[1].missingFeeCount, 1);
   assert.deepEqual(queryRevisionSources(["transaction-trends"]), [
     "finances",
-    "data_kiosk",
+    "references",
     "fees",
   ]);
 });

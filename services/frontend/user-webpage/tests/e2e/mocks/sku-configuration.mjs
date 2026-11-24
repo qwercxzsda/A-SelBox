@@ -6,7 +6,6 @@ function configurationItems(fixture) {
         ...fixture.assignments.map((item) => item.sku),
         ...(fixture.liveRows ?? []).map((row) => row.sku),
         ...fixture.financesRows.map((row) => row.sku),
-        ...fixture.kioskRows.map((row) => row.sku),
       ].filter(Boolean),
     ),
   ];
@@ -49,7 +48,7 @@ export async function respondWithSkuConfiguration(
   { request, url, user, accessToken, reply, csvReply, route, track },
 ) {
   if (
-    url.pathname === "/rest/v1/sku_terms_versions" ||
+    url.pathname === "/rest/v1/assignment_versions" ||
     url.pathname === "/rest/v1/sku_fee_periods"
   ) {
     if (fixture.roles[user] !== "administrator") return reply({}, 403);

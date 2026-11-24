@@ -1,1 +1,1 @@
-"""Amazon Finances and Data Kiosk workflow tests."""
+"""Amazon sync workflow tests."""

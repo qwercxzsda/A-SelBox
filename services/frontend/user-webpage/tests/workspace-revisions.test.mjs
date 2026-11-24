@@ -29,7 +29,7 @@ test("poll requests only named revisions through authenticated REST, without cou
     captured = { url: new URL(url), init };
     return json({
       account,
-      revisions: { finances: "opaque-token", fees: "9007199254740993", data_kiosk: "ignored" },
+      revisions: { finances: "opaque-token", fees: "9007199254740993", references: "ignored" },
     });
   });
   assert.deepEqual(
@@ -85,7 +85,7 @@ test("changed opaque tokens are compared only for requested sources, including n
     changedRevisionSources({ finances: "zzz", fees: "same" }, { finances: "aaa", fees: "same" }),
     ["finances"],
   );
-  assert.deepEqual(changedRevisionSources({ fees: "same" }, { data_kiosk: "0" }), ["data_kiosk"]);
+  assert.deepEqual(changedRevisionSources({ fees: "same" }, { references: "0" }), ["references"]);
   assert.equal(sameAccount(account, { ...account }), true);
   assert.equal(sameAccount(account, { ...account, company_id: "company-b" }), false);
   assert.equal(
@@ -100,16 +100,13 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
     assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "finances"]), [
       "finances",
     ]);
-    assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "data_kiosk"]), [
-      "data_kiosk",
-    ]);
     assert.deepEqual(queryRevisionSources([family, "u", "member", "a", "finances"]), [
       "finances",
       "fees",
     ]);
     assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, "live"]), [
       "finances",
-      "data_kiosk",
+      "references",
       "fees",
     ]);
   }
@@ -119,38 +116,33 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
   );
   assert.deepEqual(queryRevisionSources(["sku-configuration", "u", "administrator"]), [
     "finances",
-    "data_kiosk",
+    "references",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["company-type-totals"]), [
     "finances",
-    "data_kiosk",
+    "references",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["transaction-latest-utc-date"]), [
     "finances",
-    "data_kiosk",
+    "references",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["company-summary-records"]), [
     "finances",
-    "data_kiosk",
+    "references",
     "fees",
   ]);
   assert.deepEqual(queryRevisionSources(["unrelated"]), []);
-  for (const section of ["months", "totals", "types", "records"])
-    assert.deepEqual(queryRevisionSources(["financial-review", section]), [
-      "finances",
-      "data_kiosk",
-    ]);
-  assert.deepEqual(queryRevisionSources(["payout-reconciliation-totals", "report"]), []);
-  assert.deepEqual(queryRevisionSources(["payout-reconciliation", "report", 0]), []);
+  for (const section of ["financial-review", "assignments"])
+    assert.deepEqual(queryRevisionSources([section]), ["finances", "references", "fees"]);
   assert.deepEqual(queryRevisionSources(["inventory", "u", "member", "a"]), ["inventory", "fees"]);
 });
 
 test("poll scope includes active observers and lookup fees, but excludes inactive cached tables", () => {
   const client = createQueryClient();
-  client.setQueryData(["dataset", "u", "administrator", null, "data_kiosk"], {});
+  client.setQueryData(["assignments", "u"], {});
   const observer = new QueryObserver(client, {
     queryKey: ["dataset", "u", "administrator", null, "finances"],
     queryFn: async () => ({}),
@@ -168,7 +160,7 @@ test("poll scope includes active observers and lookup fees, but excludes inactiv
 
 test("polling refreshes account lists while payouts follow revision tokens", () => {
   assert.equal(isPolledQuery({ queryKey: ["inventory", "u"] }), false);
-  for (const dataset of ["accounts", "payouts", "live", "finances", "data_kiosk", "fees"]) {
+  for (const dataset of ["accounts", "payouts", "live", "finances", "references", "fees"]) {
     const expected = dataset === "accounts";
     assert.equal(isPolledDataset(dataset), expected);
     for (const key of [
@@ -290,7 +282,7 @@ test("payout publication tokens refresh report pages, history and counts without
     assert.deepEqual(reads, []);
     await refreshWorkspaceQueries(
       client,
-      ["fees", "data_kiosk"],
+      ["fees", "references"],
       false,
       new AbortController().signal,
     );

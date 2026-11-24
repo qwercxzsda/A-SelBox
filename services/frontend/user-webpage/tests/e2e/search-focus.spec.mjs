@@ -6,7 +6,6 @@ import { columnTrigger } from "./table-actions.mjs";
 for (const [tab, label, placeholder] of [
   ["Transactions", "Search", "SKU, type, source, or marketplace"],
   ["Finances", "Search", "SKU, type, or marketplace"],
-  ["Data Kiosk", "Search", "SKU, type, or marketplace"],
   ["Current fees", "Search SKUs", "SKU or company"],
   ["Payout reports", "Search", "Month, marketplace, or currency"],
   ["Inventory", "Search", "SKU, marketplace, health, or recommendation"],

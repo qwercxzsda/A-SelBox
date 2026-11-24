@@ -88,8 +88,8 @@ test("account directory rejects malformed company IDs and unrelated filters befo
     { companyIds: [null] },
     { companyIds: [COMPANY_ID], marketplaces: ["Amazon.com"] },
     { companyIds: [COMPANY_ID], skus: ["SKU"] },
-    { companyIds: [COMPANY_ID], sources: ["DATA_KIOSK"] },
-    { companyIds: [COMPANY_ID], types: ["NET_PRODUCT_SALES"] },
+    { companyIds: [COMPANY_ID], sources: ["STORAGE"] },
+    { companyIds: [COMPANY_ID], types: ["RESTOCKING"] },
     { companyIds: [COMPANY_ID], dateFrom: "2026-10-01" },
     { companyIds: [COMPANY_ID], feeApplicability: ["applicable"] },
   ]) {

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
+import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
 
@@ -26,25 +26,6 @@ const FINANCES_TYPES = [
   },
 ];
 
-const DATA_KIOSK_TYPES = [
-  {
-    code: "FBA_INBOUND_PLACEMENT_SERVICE_FEE",
-    label: "FBA inbound placement service fee",
-    group: "Fulfillment & shipping",
-  },
-  {
-    code: "MONTHLY_INVENTORY_STORAGE_FEE",
-    label: "Monthly inventory storage fee",
-    group: "Storage & inventory",
-  },
-  {
-    code: "FBA_INVENTORY_REIMBURSEMENT",
-    label: "FBA inventory reimbursement",
-    group: "Storage & inventory",
-  },
-  FINANCES_TYPES.at(-1),
-];
-
 const DATASETS = [
   {
     key: "live",
@@ -59,13 +40,6 @@ const DATASETS = [
     rows: "financesRows",
     makeRow: financesRow,
     types: FINANCES_TYPES,
-  },
-  {
-    key: "data_kiosk",
-    label: "Data Kiosk",
-    rows: "kioskRows",
-    makeRow: (index) => kioskRow(index, "10"),
-    types: DATA_KIOSK_TYPES,
   },
 ];
 

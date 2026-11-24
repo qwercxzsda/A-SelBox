@@ -53,9 +53,9 @@ class TransactionCountTests(SourceModelFixture):
     def test_roles_zero_visibility_and_missing_fee_rows_are_counted_exactly(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, expected in (
-            (self.administrator(), "18"),
-            (self.member(company_a), "10"),
-            (self.member(company_b), "2"),
+            (self.administrator(), "8"),
+            (self.member(company_a), "6"),
+            (self.member(company_b), "1"),
             (self.auth_user(), "0"),
         ):
             with self.subTest(user=user):
@@ -69,7 +69,7 @@ class TransactionCountTests(SourceModelFixture):
             "p_company_ids": [company_a],
             "p_skus": ["SKU"],
             "p_marketplaces": ["Amazon.com"],
-            "p_sources": ["DATA_KIOSK"],
+            "p_sources": ["AD_INVOICE"],
             "p_types": ["FbaStorageFee"],
             "p_fee_applicable": False,
         }
@@ -111,7 +111,7 @@ class TransactionCountTests(SourceModelFixture):
                 p_company_ids=[company_a, company_b, company_a],
                 p_skus=["SKU", "OTHER", "GAP", "SKU"],
                 p_marketplaces=["Amazon.com", "Amazon.co.uk"],
-                p_sources=["DATA_KIOSK", "FINANCES"],
+                p_sources=["AD_INVOICE", "FINANCES"],
                 p_types=["FbaStorageFee", "PRODUCT_SALES", "PRODUCT_REFUNDS"],
             )
             self.assertEqual(self.assert_matches_view(user, p_skus=["not present"]), "0")
@@ -119,32 +119,6 @@ class TransactionCountTests(SourceModelFixture):
                 self.assert_matches_view(user, p_sources=["FINANCES'); select 1; --"]), "0"
             )
         self.assertEqual(self.assert_matches_view(member, p_company_ids=[company_b]), "0")
-
-    def test_reprocessing_reassignment_and_unassignment_update_the_count(self) -> None:
-        company_a, sku = self.owner()
-        company_b, _ = self.owner("OTHER")
-        member_a, member_b, administrator = (
-            self.member(company_a),
-            self.member(company_b),
-            self.administrator(),
-        )
-        terms = self.fee(sku, [("2026-01-01", None, "5")])
-        acquisition = self.acquisition()
-        _, _finances = self.finances([self.transaction("100")], acquisition_id=acquisition)
-        _, kiosk = self.kiosk(1, [self.component("-10")])
-        for user, expected in ((administrator, "2"), (member_a, "2"), (member_b, "0")):
-            self.assertEqual(self.assert_matches_view(user), expected)
-        self.finances(
-            [self.transaction("200", 3), self.transaction("300", 4)],
-            acquisition_id=acquisition,
-        )
-        self.kiosk(2, [self.component("0")], expected=kiosk)
-        new_terms = self.assign("SKU", company_b, rate="7", expected=terms)
-        for user, expected in ((administrator, "3"), (member_a, "0"), (member_b, "3")):
-            self.assertEqual(self.assert_matches_view(user), expected)
-        self.assign("SKU", None, rate="7", expected=new_terms)
-        for user, expected in ((administrator, "3"), (member_a, "0"), (member_b, "0")):
-            self.assertEqual(self.assert_matches_view(user), expected)
 
     def test_anonymous_execution_is_denied_and_function_keeps_invoker_security(self) -> None:
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
@@ -155,9 +129,9 @@ class TransactionCountTests(SourceModelFixture):
     def test_text_marketplace_counts_match_pages_for_all_roles(self) -> None:
         company_a, company_b = self.financial_fixture()
         for user, total in (
-            (self.administrator(), "18"),
-            (self.member(company_a), "10"),
-            (self.member(company_b), "2"),
+            (self.administrator(), "8"),
+            (self.member(company_a), "6"),
+            (self.member(company_b), "1"),
             (self.auth_user(), "0"),
         ):
             for selection in (

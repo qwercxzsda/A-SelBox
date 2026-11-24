@@ -35,7 +35,7 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
 }) => {
   const fixture = await mockSupabase(page);
   const excluded = [
-    { ...typeBucket("SOURCE_EXCLUDED", "999"), source: "DATA_KIOSK", sku: "TARGET-001" },
+    { ...typeBucket("SOURCE_EXCLUDED", "999"), source: "STORAGE", sku: "TARGET-001" },
     { ...typeBucket("SEARCH_EXCLUDED", "888"), source: "FINANCES", sku: "OTHER-002" },
   ];
   fixture.aggregateRows = [
@@ -51,7 +51,7 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
   fixture.aggregateRows.push(
     ...excluded.map((row) => ({
       ...row,
-      activity_date: row.source === "DATA_KIOSK" ? "2026-02-27" : "2026-02-28",
+      activity_date: row.source === "STORAGE" ? "2026-02-27" : "2026-02-28",
     })),
   );
   fixture.breakdownRows = [
@@ -60,7 +60,7 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
       companyAmount: "95",
       rowCount: 2,
     }),
-    typeBucket("REFERRAL_FEE", "-10"),
+    typeBucket("REFERRAL_FEES", "-10"),
     typeBucket("UNPRICED", "7", {
       serviceFee: null,
       companyAmount: null,
@@ -74,7 +74,7 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
     {
       ...liveRow("OTHER", 2),
       activity_date: "2026-03-15",
-      source: "DATA_KIOSK",
+      source: "STORAGE",
     },
   ];
   fixture.assignments = skuAssignments((fixture.liveRows ?? []).map(({ sku }) => sku));
@@ -121,9 +121,9 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
   const principal = table.getByRole("row", { name: "Principal amounts", exact: true });
   await expect(principal.getByRole("cell").nth(0)).toHaveText("100.12 USD");
   await expect(principal.getByRole("cell").nth(1)).toHaveText("-5.12 USD");
-  await expect(table.getByRole("row", { name: "Referral fee amounts", exact: true })).toContainText(
-    "-10.00 USD",
-  );
+  await expect(
+    table.getByRole("row", { name: "Referral fees amounts", exact: true }),
+  ).toContainText("-10.00 USD");
   await expect(
     table.getByRole("row", { name: "Unpriced amounts", exact: true }).getByRole("cell"),
   ).toHaveText(["7.00 USD", "—", "—", "2"]);

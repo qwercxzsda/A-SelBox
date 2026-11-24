@@ -55,15 +55,11 @@ def _seed(
         finances_rows = [
             fixture.transaction("10", index + 3, sku=sku) for index, sku in enumerate(skus)
         ]
-        kiosk_rows = [fixture.component("-1", sku=sku) for sku in skus]
         fixture.finances(finances_rows)
-        fixture.kiosk(1, kiosk_rows)
         expected_ids.update(str(row["id"]) for row in finances_rows[:matching])
-        expected_ids.update(str(row["id"]) for row in kiosk_rows[:matching])
     fixture.connection.commit()
     fixture.connection.autocommit = True
-    fixture.connection.execute("vacuum (analyze) private.finances_transaction_components")
-    fixture.connection.execute("vacuum (analyze) private.data_kiosk_day_components")
+    fixture.connection.execute("vacuum (analyze) private.finances_amounts")
     fixture.connection.execute("analyze")
     return member, expected_ids
 
@@ -90,11 +86,11 @@ def _verify(
             raise AssertionError("Member exact count differs across source namespaces")
     totals = cast(dict[str, Any], fixture.as_user(member, _READS["totals_selected_sku"])[0][0])
     expected = {
-        "reported_amount": Decimal(9 * matching),
+        "reported_amount": Decimal(10 * matching),
         "service_fee": Decimal("-0.5") * matching,
-        "company_amount": Decimal("8.5") * matching,
-        "row_count": Decimal(2 * matching),
-        "known_company_count": Decimal(2 * matching),
+        "company_amount": Decimal("9.5") * matching,
+        "row_count": Decimal(matching),
+        "known_company_count": Decimal(matching),
     }
     if len(totals["rows"]) != 1 or totals["group_count"] != "1":
         raise AssertionError("Expected one complete synthetic currency total")
@@ -140,29 +136,6 @@ def _measure(fixture: SourceModelFixture, member: str, repeat: int) -> list[dict
     ]
 
 
-def _verify_plans(
-    fixture: SourceModelFixture, plans: list[dict[str, Any]]
-) -> list[tuple[object, ...]]:
-    """Record chosen fact indexes without requiring a cost-dependent scan strategy."""
-    fact_indexes: set[str] = set()
-    for plan in plans:
-        for relation in ("finances_transaction_components", "data_kiosk_day_components"):
-            used = {
-                node["Index Name"]
-                for node in plan["index_nodes"]
-                if node.get("Relation Name") == relation
-            }
-            fact_indexes.update(used)
-    keys = fixture.connection.execute(
-        "select c.relname, pg_get_indexdef(i.indexrelid) from pg_index i "
-        "join pg_class c on c.oid=i.indexrelid where c.relname=any(%s) order by c.relname",
-        (sorted(fact_indexes),),
-    ).fetchall()
-    if any("seller_namespace" in str(definition) for _, definition in keys):
-        raise AssertionError("Selected-SKU access still depends on namespace index keys")
-    return keys
-
-
 def run(namespaces: int, matching: int, irrelevant: int, repeat: int) -> dict[str, object]:
     fixture = SourceModelFixture()
     started = time.perf_counter()
@@ -179,7 +152,6 @@ def run(namespaces: int, matching: int, irrelevant: int, repeat: int) -> dict[st
                 ("transaction_totals", _FILTERS),
             )
         ]
-        index_keys = _verify_plans(fixture, plans)
         version = require_row(fixture.connection.execute("show server_version").fetchone())[0]
     finally:
         if not fixture.doCleanups():
@@ -191,21 +163,20 @@ def run(namespaces: int, matching: int, irrelevant: int, repeat: int) -> dict[st
             "namespaces": namespaces,
             "matching_rows_per_source_namespace": matching,
             "irrelevant_rows_per_source_namespace": irrelevant,
-            "total_source_rows": 2 * namespaces * (matching + irrelevant),
+            "total_source_rows": namespaces * (matching + irrelevant),
             "warmups_per_case": 1,
             "measured_repetitions": repeat,
         },
         "verification": verification,
         "measurements": measurements,
         "plans": plans,
-        "used_fact_index_definitions": index_keys,
         "disposable_database_removed": True,
         "elapsed_seconds": round(time.perf_counter() - started, 3),
         "limits": (
             "Warm synthetic local direct-SQL RPC timings, including result decoding; "
             "no HTTP, browser, network latency, production data distribution, "
             "concurrency, historical source versions, or production scalability claim. "
-            "Index/sequence scan choices are recorded rather than forced."
+            "RPC plans record server execution times and buffer reads."
         ),
     }
 

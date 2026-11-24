@@ -5,7 +5,7 @@ const SELECTABLE_COLUMNS = new Set([
   "marketplace_name",
   "source",
   "component_type",
-  "category",
+  "outcome",
 ]);
 const DATE_COLUMNS = [
   "activity_date",
@@ -58,9 +58,8 @@ export function filterRecordRows(rows, params) {
     const feeSelection = params.get("fee_applicable");
     if (feeSelection !== null) {
       const applicable =
-        (row.source === "FINANCES" &&
-          ["PRODUCT_SALES", "PRODUCT_REFUNDS"].includes(row.component_type)) ||
-        (row.source === "DATA_KIOSK" && row.component_type === "NET_PRODUCT_SALES");
+        row.source === "FINANCES" &&
+        ["PRODUCT_SALES", "PRODUCT_REFUNDS"].includes(row.component_type);
       if (applicable !== (feeSelection === "true")) return false;
     }
     const company = params.get("company_id");

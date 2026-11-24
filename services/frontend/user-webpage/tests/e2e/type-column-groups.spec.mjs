@@ -7,7 +7,7 @@ import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 const TYPES = [
   ["PRODUCT_SALES", "Product sales", "Sales & refunds", "FINANCES"],
   ["REFERRAL_FEES", "Referral fees", "Selling fees", "FINANCES"],
-  ["FBA_STORAGE_FEE", "FBA storage fee", "Storage & inventory", "DATA_KIOSK"],
+  ["STORAGE_FEES", "Storage fees", "Storage & inventory", "STORAGE"],
   ["TAX_WITHHELD", "Tax withheld", "Taxes", "FINANCES"],
   ["DEBT_RECOVERY", "Debt recovery", "Other fees & adjustments", "SELBOX"],
   ["UNRECOGNIZED_ENTRY", "Unrecognized entry", "Other fees & adjustments", "FINANCES"],
@@ -69,12 +69,12 @@ for (const width of [1440, 390]) {
     fixture.roles["member-a"] = "administrator";
     fixture.liveRows = TYPES.map(([type, , , category], index) => ({
       ...liveRow("GROUP", index + 1),
-      category,
-      source: category === "DATA_KIOSK" ? "DATA_KIOSK" : "FINANCES",
+      outcome: category === "SELBOX" ? "SELBOX" : "COMPANY",
+      source: category === "STORAGE" ? "STORAGE" : "FINANCES",
       component_type: type,
-      activity_date: category === "DATA_KIOSK" ? "2026-10-30" : "2026-10-31",
+      activity_date: category === "STORAGE" ? "2026-10-30" : "2026-10-31",
       activity_at:
-        category === "DATA_KIOSK" ? "2026-10-31T06:59:59.999999Z" : "2026-10-31T12:00:00.000000Z",
+        category === "STORAGE" ? "2026-10-31T06:59:59.999999Z" : "2026-10-31T12:00:00.000000Z",
     }));
     fixture.assignments = skuAssignments(fixture.liveRows.map(({ sku }) => sku));
     fixture.aggregateRows = [

@@ -11,7 +11,6 @@ from pathlib import Path
 from ..amazon.financial_channels import FINANCIAL_CHANNELS
 from ..amazon.marketplace_names import MARKETPLACE_NAME_BY_ID, MARKETPLACE_NAMES
 from ..amazon.marketplaces import get_marketplace_timezone
-from .data_kiosk import DATA_KIOSK_TYPES
 from .finances import FINANCES_TYPES
 
 OUTPUT_DIRECTORY = (
@@ -20,16 +19,12 @@ OUTPUT_DIRECTORY = (
 
 
 def generated_catalogs() -> dict[str, str]:
-    """Keep API filter keys unchanged and include every supported category."""
+    """Export the default route and SelBox group for each Finances type."""
     types = [
-        {"source": source, "category": item.category.value, "type": item.component_type}
-        for source, entries in (
-            ("FINANCES", FINANCES_TYPES),
-            ("DATA_KIOSK", DATA_KIOSK_TYPES),
-        )
-        for item in entries
+        {"route": item.route, "selbox_group": item.selbox_group, "type": item.component_type}
+        for item in sorted(FINANCES_TYPES, key=lambda item: item.component_type)
     ]
-    types.sort(key=lambda item: (item["source"], item["category"], item["type"]))
+
     time_zones = {
         name: get_marketplace_timezone(identifier).key
         for identifier, name in MARKETPLACE_NAME_BY_ID.items()

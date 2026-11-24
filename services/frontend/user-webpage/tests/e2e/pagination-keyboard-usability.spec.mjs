@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { openFinancialReview } from "./financial-review-actions.mjs";
 
 test("keyboard pagination keeps its place while the next page loads", async ({ page }) => {
   const fixture = await mockSupabase(page);
@@ -40,22 +39,4 @@ test("keyboard pagination keeps its place while the next page loads", async ({ p
   } finally {
     release.resolve();
   }
-});
-
-test("Escape cancels a draft page number before closing the financial review drawer", async ({
-  page,
-}) => {
-  await openFinancialReview(page);
-  await page.getByRole("button", { name: "Open review for June 2026", exact: true }).click();
-  const drawer = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-  await drawer.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
-  const pageNumber = drawer.getByLabel("Page number", { exact: true });
-  await expect(pageNumber).not.toHaveAttribute("readonly", "");
-  await pageNumber.fill("2");
-  await pageNumber.press("Escape");
-  await expect(drawer).toBeVisible();
-  await expect(pageNumber).toHaveValue("1");
-  await expect(pageNumber).toBeFocused();
-  await pageNumber.press("Escape");
-  await expect(drawer).toBeHidden();
 });

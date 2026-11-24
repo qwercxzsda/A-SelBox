@@ -86,8 +86,8 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         before = catalog_fingerprint(connection)
         subjects = identities(connection)
         facts = connection.execute(
-            "select (select count(*) from private.finances_transaction_components),"
-            "(select count(*) from private.data_kiosk_day_components)"
+            "select (select count(*) from private.finances_amounts),"
+            "(select count(*) from private.reference_money)"
         ).fetchone()
         actor_cases = {role: discover_cases(connection, user) for role, user in subjects.items()}
         references = {
@@ -102,7 +102,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         "repeat": repeat,
         "warmups": 1,
         "finances_facts": facts[0],
-        "data_kiosk_facts": facts[1],
+        "reference_facts": facts[1],
         "catalog_before": before,
         "records": [],
         "summary": [],

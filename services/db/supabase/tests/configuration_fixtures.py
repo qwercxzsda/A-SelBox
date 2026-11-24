@@ -98,7 +98,9 @@ class ConfigurationFixture(FinancialFixture):
 
     def change(self, sku: str, company: str | None, periods: object = None) -> dict[str, object]:
         selected = self.connection.execute(
-            "select current_terms_version_id::text from public.skus where sku=%s", (sku,)
+            "select current_version_id::text from public.assignment_keys where kind='SKU' and "
+            "native_id=%s",
+            (sku,),
         ).fetchone()
         return {
             "sku": sku,
@@ -126,9 +128,10 @@ class ConfigurationFixture(FinancialFixture):
         return require_row(
             self.connection.execute(
                 "select jsonb_build_object("
-                "'skus',(select jsonb_agg(to_jsonb(s) order by s.id) from public.skus s),"
+                "'skus',(select jsonb_agg(to_jsonb(s) order by s.id) from "
+                "public.assignment_keys s),"
                 "'terms',(select jsonb_agg(to_jsonb(v) order by v.id) "
-                "from public.sku_terms_versions v),"
+                "from public.assignment_versions v),"
                 "'periods',(select jsonb_agg(to_jsonb(p) order by p.id) "
                 "from public.sku_fee_periods p),"
                 "'revisions',(select jsonb_agg(to_jsonb(r) order by r.source,r.scope_company_id) "

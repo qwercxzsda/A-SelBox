@@ -53,7 +53,7 @@ class TransactionTotalsFixture(FinancialFixture):
 
     def expected(self, user: str | None, **options: object) -> dict[str, object]:
         options = {"p_date_from": "2026-01-01", **options}
-        predicates: list[sql.Composable] = [sql.SQL("authoritative")]
+        predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, column, comparison, type_name in (
             ("p_date_from", "utc_date", ">=", "date"),
@@ -84,21 +84,15 @@ class TransactionTotalsFixture(FinancialFixture):
                 )
                 parameters.append(options[name])
         if options.get("p_skus"):
-            predicates.append(sql.SQL("category <> 'SELBOX'"))
+            predicates.append(sql.SQL("outcome <> 'SELBOX'"))
         if options.get("p_fee_applicable") is not None:
             predicates.append(sql.SQL("(fee_base is not null) = %s::boolean"))
             parameters.append(options["p_fee_applicable"])
         append_search_selections(predicates, parameters, LIVE_SEARCH_FIELDS, options)
         query = sql.SQL("""
             with source_rows as (
-                select c.*, (case when c.source='FINANCES' then f.posted_at
-                    else k.activity_at
-                    end at time zone 'UTC')::date as utc_date
+                select c.*, (activity_at at time zone 'UTC')::date as utc_date
                 from public.live_company_components c
-                left join private.finances_transaction_versions f
-                    on c.source='FINANCES' and f.id=c.source_version_id
-                left join private.data_kiosk_day_versions k
-                    on c.source='DATA_KIOSK' and k.id=c.source_version_id
             ), totals as (select
                 case when %s::boolean then marketplace_name end as marketplace_name,
                 currency,

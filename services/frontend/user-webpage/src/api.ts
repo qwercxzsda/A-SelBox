@@ -3,12 +3,7 @@ import { readRuntimeConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FinancialSourceSelection } from "./api/financial-source.ts";
-import type { CurrentSourceScope, ReportSourceScope } from "./api/source-totals.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
-import type {
-  FinancialReviewCategory,
-  FinancialReviewRecordFilters,
-} from "./api/financial-review.ts";
 import type {
   AppAccount,
   Company,
@@ -120,22 +115,6 @@ export const fetchPayoutReadiness = (
   pageIndex = 0,
   signal?: AbortSignal,
 ) => getDefaultClient().fetchPayoutReadiness(accessToken, month, companyIds, pageIndex, signal);
-export const fetchFinancialReviewFamilyTypes = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  month: string,
-  currency: string,
-  marketplace: string,
-  signal?: AbortSignal,
-) =>
-  getDefaultClient().fetchFinancialReviewFamilyTypes(
-    accessToken,
-    category,
-    month,
-    currency,
-    marketplace,
-    signal,
-  );
 export const fetchPayoutSetupBlockers = (
   accessToken: string,
   companyId: string,
@@ -182,19 +161,10 @@ export const fetchPayoutVersion = (options: FetchPayoutVersionOptions) =>
 export const fetchPayoutRecords = (
   accessToken: string,
   reportId: string,
-  authoritative: boolean,
   pageIndex: number,
   signal?: AbortSignal,
   types: string[] = [],
-) =>
-  getDefaultClient().fetchPayoutRecords(
-    accessToken,
-    reportId,
-    authoritative,
-    pageIndex,
-    signal,
-    types,
-  );
+) => getDefaultClient().fetchPayoutRecords(accessToken, reportId, pageIndex, signal, types);
 
 export const fetchPayoutTypeTotals = (
   accessToken: string,
@@ -203,81 +173,18 @@ export const fetchPayoutTypeTotals = (
   signal?: AbortSignal,
 ) => getDefaultClient().fetchPayoutTypeTotals(accessToken, reportId, currency, signal);
 
-export const fetchCurrentSourceTotals = (
-  accessToken: string,
-  scope: CurrentSourceScope,
-  signal?: AbortSignal,
-) => getDefaultClient().fetchCurrentSourceTotals(accessToken, scope, signal);
-export const fetchReportSourceTotals = (
-  accessToken: string,
-  scope: ReportSourceScope,
-  signal?: AbortSignal,
-) => getDefaultClient().fetchReportSourceTotals(accessToken, scope, signal);
-
-export const fetchFinancialReviewBounds = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  marketplace: string,
-  signal?: AbortSignal,
-) => getDefaultClient().fetchFinancialReviewBounds(accessToken, category, marketplace, signal);
-export const fetchFinancialReviewPeriodTypes = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  year: string,
-  currency: string,
-  marketplace: string,
-  signal?: AbortSignal,
-) =>
-  getDefaultClient().fetchFinancialReviewPeriodTypes(
-    accessToken,
-    category,
-    year,
-    currency,
-    marketplace,
-    signal,
-  );
-export const fetchFinancialReviewTypes = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  month: string,
-  currency: string,
-  marketplace: string,
-  pageIndex = 0,
-  signal?: AbortSignal,
-  familyIds: readonly string[] = [],
-) =>
-  getDefaultClient().fetchFinancialReviewTypes(
-    accessToken,
-    category,
-    month,
-    currency,
-    marketplace,
-    pageIndex,
-    signal,
-    familyIds,
-  );
-export const fetchFinancialReviewRecords = (
-  accessToken: string,
-  category: FinancialReviewCategory,
-  month: string,
-  currency: string,
-  marketplace: string,
-  pageIndex: number,
-  filters: FinancialReviewRecordFilters = {},
-  signal?: AbortSignal,
-  familyIds: readonly string[] = [],
-) =>
-  getDefaultClient().fetchFinancialReviewRecords(
-    accessToken,
-    category,
-    month,
-    currency,
-    marketplace,
-    pageIndex,
-    filters,
-    signal,
-    familyIds,
-  );
+export const fetchOutcomeMonths = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["fetchOutcomeMonths"]>
+) => getDefaultClient().fetchOutcomeMonths(...args);
+export const fetchFinancialOutcomes = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["fetchFinancialOutcomes"]>
+) => getDefaultClient().fetchFinancialOutcomes(...args);
+export const fetchAssignmentStatus = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["fetchAssignmentStatus"]>
+) => getDefaultClient().fetchAssignmentStatus(...args);
+export const setReferenceAssignment = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["setReferenceAssignment"]>
+) => getDefaultClient().setReferenceAssignment(...args);
 
 export const setCompanyMembership = (options: SetCompanyMembershipOptions) =>
   getDefaultClient().setCompanyMembership(options);

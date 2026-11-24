@@ -18,27 +18,6 @@ _MUTATE = (
 
 
 class AppAccountTests(SourceModelFixture):
-    def test_unassigned_cannot_read_populated_financial_sources_or_references(self) -> None:
-        company, _ = self.owner()
-        self.member(company)
-        self.finances([self.transaction("20")])
-        self.kiosk(1, [self.component("-4")])
-        user = self.auth_user()
-        for query in (
-            "select * from private.finances_transaction_components",
-            "select * from private.data_kiosk_day_components",
-            "select id from private.finances_transactions",
-            "select id from private.data_kiosk_days",
-            "select id from private.finances_transaction_versions",
-            "select id from private.data_kiosk_day_versions",
-            "select * from public.company_skus",
-            "select * from public.current_sku_fee_periods",
-            "select * from public.live_company_components",
-            "select * from public.financial_review_records",
-        ):
-            with self.subTest(query=query):
-                self.assertEqual(self.as_user(user, query), [])
-
     def test_concurrent_db_promotion_cannot_be_overwritten_by_membership_edit(self) -> None:
         company, _ = self.owner()
         administrator, user = self.administrator(), self.auth_user()

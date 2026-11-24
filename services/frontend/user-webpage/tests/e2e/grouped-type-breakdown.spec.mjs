@@ -12,10 +12,10 @@ const GROUPS = [
 const TYPES = [
   "Product sales",
   "Product refunds",
-  "Net product sales",
-  "Referral fee",
-  "FBA fulfillment fee",
-  "Sponsored products charge",
+  "Restocking",
+  "Referral fees",
+  "FBA fulfillment fees",
+  "Advertising",
   "Unknown test type",
 ];
 
@@ -33,15 +33,15 @@ async function seedGroupedBreakdown(page) {
   fixture.breakdownRows = [
     typeBucket("PRODUCT_REFUNDS", "-0.100000000000000001"),
     typeBucket("PRODUCT_SALES", "0.100000000000000002"),
-    typeBucket("NET_PRODUCT_SALES", "5", {
+    typeBucket("RESTOCKING", "5", {
       companyAmount: null,
       serviceFee: null,
       rowCount: 2,
       knownCompanyCount: 0,
     }),
-    typeBucket("SPONSORED_PRODUCTS_CHARGE", "-2"),
-    typeBucket("FBA_FULFILLMENT_FEE", "-1"),
-    typeBucket("REFERRAL_FEE", "100"),
+    typeBucket("ADVERTISING", "-2"),
+    typeBucket("FBA_FULFILLMENT_FEES", "-1"),
+    typeBucket("REFERRAL_FEES", "100"),
     typeBucket("UNKNOWN_TEST_TYPE", "7", {
       companyAmount: null,
       serviceFee: null,

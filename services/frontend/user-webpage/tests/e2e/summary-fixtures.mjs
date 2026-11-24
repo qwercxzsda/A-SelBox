@@ -5,10 +5,7 @@ export function summaryBucket(activityDate, reportedAmount, options) {
 export function typeBucket(type, reportedAmount, options) {
   return {
     component_type: type,
-    ...aggregateValues(reportedAmount, {
-      category: categoriesByType.get(type) ?? "FINANCES",
-      ...options,
-    }),
+    ...aggregateValues(reportedAmount, options),
   };
 }
 
@@ -17,7 +14,6 @@ function aggregateValues(
   {
     currency = "USD",
     marketplace = "Amazon.com",
-    category = "FINANCES",
     serviceFee = "0",
     companyAmount = reportedAmount,
     rowCount = 1,
@@ -26,7 +22,6 @@ function aggregateValues(
 ) {
   return {
     marketplace_name: marketplace,
-    category,
     currency,
     reported_amount: reportedAmount,
     service_fee: serviceFee,
@@ -80,6 +75,3 @@ export function summaryAmount(scope, label, currency = "USD") {
     .locator("dd");
   return tableAmount.or(detailAmount);
 }
-import transactionTypes from "../../src/generated/transaction-types.json" with { type: "json" };
-
-const categoriesByType = new Map(transactionTypes.map(({ type, category }) => [type, category]));

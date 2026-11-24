@@ -9,6 +9,8 @@ from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS, appen
 
 _NUMERIC_COLUMNS = (
     "source_amount",
+    "base_amount",
+    "tax_amount",
     "quantity",
     "fee_base",
     "fee_rate_percent",
@@ -16,6 +18,7 @@ _NUMERIC_COLUMNS = (
     "company_amount",
 )
 _ROW_COLUMNS = {
+    "selbox_group",
     "source",
     "source_row_id",
     "source_version_id",
@@ -29,9 +32,11 @@ _ROW_COLUMNS = {
     "component_type",
     "currency",
     "source_amount",
+    "base_amount",
+    "tax_amount",
     "quantity",
     "fee_base",
-    "category",
+    "outcome",
     "sku_id",
     "terms_version_id",
     "company_id",
@@ -79,7 +84,7 @@ class TransactionPageFixture(FinancialFixture):
         return cast(dict[str, object], result[0][0])
 
     def expected(self, user: str, **options: object) -> dict[str, object]:
-        predicates: list[sql.Composable] = [sql.SQL("authoritative")]
+        predicates: list[sql.Composable] = [sql.SQL("true")]
         parameters: list[object] = []
         for name, comparison in (("p_date_from", ">="), ("p_date_to", "<=")):
             if options.get(name) is not None:
@@ -102,7 +107,7 @@ class TransactionPageFixture(FinancialFixture):
                 )
                 parameters.append(options[name])
         if options.get("p_skus"):
-            predicates.append(sql.SQL("category <> 'SELBOX'"))
+            predicates.append(sql.SQL("outcome <> 'SELBOX'"))
         if options.get("p_fee_applicable") is not None:
             # Canonical preprocessing keeps TYPE and fee-base presence equivalent.
             # Keep this independent financial oracle for the ordinary fixtures.
@@ -127,19 +132,13 @@ class TransactionPageFixture(FinancialFixture):
             for column in _NUMERIC_COLUMNS
         )
         query = sql.SQL(
-            "with source_rows as (select c.*, case when c.source = 'FINANCES' then f.posted_at "
-            " else k.activity_at "
-            " end as activity_at from public.live_company_components c "
-            " left join private.finances_transaction_versions f "
-            " on c.source='FINANCES' and f.id=c.source_version_id "
-            " left join private.data_kiosk_day_versions k "
-            " on c.source='DATA_KIOSK' and k.id=c.source_version_id), "
+            "with source_rows as (select * from public.live_company_components), "
             "matching as not materialized ("
             " select * from source_rows where {predicates}"
             "), page as (select * from matching order by {ordering} limit %s offset %s) "
             "select jsonb_build_object("
             " 'rows', coalesce((select jsonb_agg("
-            "   (to_jsonb(p) - 'authoritative') || jsonb_build_object({numeric_strings}, "
+            "   to_jsonb(p) || jsonb_build_object({numeric_strings}, "
             " 'activity_at', to_char(p.activity_at at time zone 'UTC', "
             ' \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\'))'
             "   order by {ordering}) from page p), '[]'::jsonb),"

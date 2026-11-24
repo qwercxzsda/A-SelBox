@@ -17,12 +17,7 @@ class SearchResolutionTests(unittest.TestCase):
 
     def test_transaction_catalog_uses_only_authoritative_source_categories(self) -> None:
         storage = cast(list[str], self.resolve("member", "  sToRaGe  ")["p_search_types"])
-        self.assertEqual(
-            storage,
-            ["FBA_STORAGE_FEE", "LONG_TERM_STORAGE_FEE", "MONTHLY_INVENTORY_STORAGE_FEE"],
-        )
-        self.assertNotIn("AGED_STORAGE_FEES", storage)
-        self.assertNotIn("STORAGE_FEES", storage)
+        self.assertEqual(storage, ["AGED_STORAGE_FEES", "STORAGE_FEES"])
         self.assertEqual(
             self.resolve("member", "product_sales")["p_search_types"], ["PRODUCT_SALES"]
         )
@@ -33,14 +28,11 @@ class SearchResolutionTests(unittest.TestCase):
 
     def test_raw_admin_catalogs_retain_native_types_and_member_raw_catalogs_are_empty(self) -> None:
         finances_type = "SUBSCRIPTION_FEES"
-        kiosk_type = "SUBSCRIPTION_FEE"
         for role, dataset, expected in (
             ("member", "live", []),
             ("member", "finances", []),
-            ("member", "data_kiosk", []),
             ("administrator", "live", [finances_type]),
             ("administrator", "finances", [finances_type]),
-            ("administrator", "data_kiosk", [kiosk_type]),
         ):
             with self.subTest(role=role, dataset=dataset):
                 self.assertEqual(

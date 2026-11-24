@@ -12,22 +12,24 @@ export interface FilterOption {
   description?: string;
 }
 
-/** Source names identify the imported dataset, independently of allocation category. */
-const TRANSACTION_SOURCES = ["FINANCES", "DATA_KIOSK"] as const;
+/** Sources that can contribute company or SelBox amounts. */
+export const TRANSACTION_SOURCES = [
+  "FINANCES",
+  "AD_INVOICE",
+  "STORAGE",
+  "AGED_STORAGE",
+  "REMOVAL_ORDER",
+] as const;
 
 export function transactionTypeValues(dataset: TableDatasetKey, role: AccessRole): string[] {
+  if (dataset === "finances" && role === "administrator")
+    return transactionTypes.map(({ type }) => type);
+  if (dataset !== "live" || role === "unassigned") return [];
   return transactionTypes
-    .filter(({ source, category }) => {
-      if (role === "unassigned") return false;
-      if (dataset === "finances") return role === "administrator" && source === "FINANCES";
-      if (dataset === "data_kiosk") return role === "administrator" && source === "DATA_KIOSK";
-      return (
-        dataset === "live" &&
-        ((source === "FINANCES" &&
-          (category === "FINANCES" || (category === "SELBOX" && role === "administrator"))) ||
-          (source === "DATA_KIOSK" && category === "DATA_KIOSK"))
-      );
-    })
+    .filter(
+      ({ type, selbox_group }) =>
+        type !== "BANK_TRANSFERS" && (!selbox_group || role === "administrator"),
+    )
     .map(({ type }) => type);
 }
 

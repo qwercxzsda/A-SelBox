@@ -3,9 +3,14 @@ create schema private;
 revoke all on schema private from public, anon, authenticated, service_role;
 create extension if not exists btree_gist with schema extensions;
 
-create type public.allocation_category as enum (
-    'FINANCES', 'SELBOX', 'DATA_KIOSK', 'ANALYSIS_ONLY'
-);
+create domain public.marketplace_name as text check (value in (
+    'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
+    'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
+    'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
+    'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
+    'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
+    'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
+));
 
 -- PostgreSQL 17 has no uuidv7(). Trusted Python writers normally supply IDs.
 create function private.uuid7() returns uuid language plpgsql volatile

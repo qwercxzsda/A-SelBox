@@ -220,3 +220,9 @@ test("publication completion retains every newer fee edit, including incomplete 
   assert.deepEqual(clearSubmittedDrafts([removed], [submitted]), [removed]);
   assert.deepEqual(clearSubmittedDrafts([added], [submitted]), [added]);
 });
+
+test("clearing a saved owner permits unassigned amounts without a fee rate", () => {
+  const saved = item({ periods: [] });
+  const clear = { ...createSkuDraft(saved), company_id: null, periods: [] };
+  assert.deepEqual(resolveSkuConfiguration([saved], [clear]).draftIssues, []);
+});

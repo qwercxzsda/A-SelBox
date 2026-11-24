@@ -30,7 +30,8 @@ class SkuConfigurationValidationTests(ConfigurationFixture):
                 self.connection.execute(query, arguments)
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from public.skus where sku=' API SKU '"
+                "select count(*) from public.assignment_keys where kind='SKU' and native_id=' "
+                "API SKU '"
             ).fetchone(),
             (0,),
         )

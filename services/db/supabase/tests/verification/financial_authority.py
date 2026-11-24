@@ -2,7 +2,6 @@
 
 import calendar
 from datetime import date
-from decimal import Decimal
 
 from services.db.supabase.tests.verification.financial_seed import Connection, as_user, require
 
@@ -23,53 +22,29 @@ def verify_authority(connection: Connection, administrator: str) -> tuple[date, 
         policy["mature_cutoff_months"] == 2,
         "Mature cutoff period is not two months",
     )
-    source_totals = connection.execute(
+    mismatches = as_user(
+        connection,
+        administrator,
         """
-        with facts as (
-            select t.marketplace_name,t.currency,t.amount
-            from private.finances_component_details t
-            where t.is_current and t.activity_eligible
-                and t.category in ('FINANCES', 'SELBOX')
-            union all
-            select h.marketplace_name,t.currency,t.amount
-            from private.data_kiosk_day_components t
-            join private.data_kiosk_days h on h.current_version_id=t.version_id
-            where t.category='DATA_KIOSK'
-        ) select marketplace_name,currency,sum(amount),count(*) from facts
-        group by marketplace_name,currency
-        """,
-    ).fetchall()
-    expected = {
-        (marketplace, currency): [amount, count]
-        for marketplace, currency, amount, count in source_totals
-    }
-    minimum = connection.execute(
-        "select least((select min(posted_date) from private.finances_transaction_versions),"
-        "(select min(activity_date) from private.data_kiosk_days)) - 1"
-    ).fetchall()[0][0]
-    actual = as_user(
-        connection, administrator, "select public.transaction_totals(p_date_from => %s)", (minimum,)
-    )[0][0]["rows"]
-    require(
-        expected
-        == {
-            (row["marketplace_name"], row["currency"]): [
-                Decimal(row["reported_amount"]),
-                int(row["row_count"]),
-            ]
-            for row in actual
-        },
-        "Administrator totals differ from eligible Finances components and Data Kiosk costs",
-    )
-    excluded = connection.execute(
-        "select count(*) from private.data_kiosk_day_components c "
-        "join private.data_kiosk_days d on d.current_version_id=c.version_id "
-        "where c.category<>'DATA_KIOSK'",
-    ).fetchall()[0][0]
+        with native as (select seller_namespace,amazon_scope,marketplace_name,currency,
+            date_trunc('month',posted_date)::date as month,
+            sum(case when amount_part='TAX' then 0 else amount end) as base,
+            sum(case when amount_part='TAX' then amount else 0 end) as tax
+            from private.finances_component_details
+            where is_current and activity_eligible group by 1,2,3,4,5),
+        results as (select seller_namespace,amazon_scope,marketplace_name,currency,month,
+            sum(company_base+selbox_base+difference_base) as base,
+            sum(company_tax+selbox_tax+difference_tax) as tax
+            from public.financial_review_monthly group by 1,2,3,4,5)
+        select count(*) from native full join results
+            using(seller_namespace,amazon_scope,marketplace_name,currency,month)
+        where coalesce(native.base,0)<>coalesce(results.base,0)
+            or coalesce(native.tax,0)<>coalesce(results.tax,0)
+    """,
+    )[0][0]
+    require(mismatches == 0, "Monthly outcomes differ from Finances activity")
     return mature_cutoff_date, {
         "mature_cutoff_date": mature_cutoff_date.isoformat(),
         "latest_month": policy["latest_month"],
-        "exact_marketplace_currency_totals_match": True,
-        "authoritative_row_count": sum(values[1] for values in expected.values()),
-        "supporting_data_kiosk_rows_excluded": excluded,
+        "monthly_outcomes_reconcile": True,
     }

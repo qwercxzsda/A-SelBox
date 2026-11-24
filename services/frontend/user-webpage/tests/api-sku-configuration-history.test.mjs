@@ -8,33 +8,33 @@ const SKU_ID = uuid(1);
 const COMPANY_ID = uuid(2);
 const VERSION_COLUMNS = [
   "id",
-  "sku_id",
+  "key_id",
   "company_id",
   "version_number",
-  "change_reason",
+  "memo",
   "fee_period_count",
   "created_at",
 ];
 const PERIOD_COLUMNS = [
   "id",
-  "terms_version_id",
+  "assignment_version_id",
   "marketplace_name",
   "valid_period",
   "fee_rate_percent",
 ];
 const version = (number, overrides = {}) => ({
   id: uuid(100 + number),
-  sku_id: SKU_ID,
+  key_id: SKU_ID,
   company_id: COMPANY_ID,
   version_number: String(number),
-  change_reason: `Version ${number}`,
+  memo: `Version ${number}`,
   fee_period_count: "1",
   created_at: "2026-11-01T12:30:00+00:00",
   ...overrides,
 });
 const period = (number, overrides = {}) => ({
   id: uuid(1000 + number),
-  terms_version_id: uuid(100 + number),
+  assignment_version_id: uuid(100 + number),
   marketplace_name: "Amazon.com",
   valid_period: "[2026-01-01,)",
   fee_rate_percent: "5.123456",
@@ -62,14 +62,15 @@ function clientFixture(versions, periods, { cap = 1000, inspect = () => {} } = {
     assert.equal(new Headers(init.headers).get("Accept"), "text/csv");
     const offset = Number(url.searchParams.get("offset"));
     const limit = Math.min(Number(url.searchParams.get("limit")), cap);
-    if (url.pathname.endsWith("/sku_terms_versions")) {
-      assert.equal(url.searchParams.get("sku_id"), `eq.${SKU_ID}`);
+    if (url.pathname.endsWith("/assignment_versions")) {
+      assert.equal(url.searchParams.get("kind"), "eq.SKU");
+      assert.equal(url.searchParams.get("key_id"), `eq.${SKU_ID}`);
       assert.equal(url.searchParams.get("order"), "version_number.desc,id.desc");
       return csvResponse(VERSION_COLUMNS, versions.slice(offset, offset + limit));
     }
     assert.equal(url.pathname, "/rest/v1/sku_fee_periods");
-    const ids = url.searchParams.get("terms_version_id").slice(4, -1).split(",");
-    const matches = periods.filter((row) => ids.includes(row.terms_version_id));
+    const ids = url.searchParams.get("assignment_version_id").slice(4, -1).split(",");
+    const matches = periods.filter((row) => ids.includes(row.assignment_version_id));
     return csvResponse(PERIOD_COLUMNS, matches.slice(offset, offset + limit));
   });
 }
@@ -80,7 +81,7 @@ test("saved fee history fills small server pages and loads complete exact-rate p
   const periods = versions.map((row) => period(Number(row.version_number)));
   periods.unshift(
     period(99, {
-      terms_version_id: versions[0].id,
+      assignment_version_id: versions[0].id,
       valid_period: "[2025-01-01,2026-01-01)",
       fee_rate_percent: "0",
     }),
@@ -101,8 +102,8 @@ test("saved fee history fills small server pages and loads complete exact-rate p
     ],
   );
   for (const request of requests.filter((url) => url.pathname.endsWith("/sku_fee_periods"))) {
-    assert.equal(request.searchParams.get("terms_version_id").includes(version(2).id), false);
-    assert.equal(request.searchParams.get("terms_version_id").includes(version(1).id), false);
+    assert.equal(request.searchParams.get("assignment_version_id").includes(version(2).id), false);
+    assert.equal(request.searchParams.get("assignment_version_id").includes(version(1).id), false);
   }
   const second = await client.fetchSkuConfigurationHistory("test-access", SKU_ID, 1);
   assert.equal(second.hasNext, false);
@@ -125,18 +126,18 @@ test("empty and zero-period saved versions stay distinct without inventing fee p
   });
   assert.equal(requests, 1);
   const client = clientFixture(
-    [version(1, { company_id: null, fee_period_count: "0", change_reason: "" })],
+    [version(1, { company_id: null, fee_period_count: "0", memo: "" })],
     [],
   );
   const result = await client.fetchSkuConfigurationHistory("test-access", SKU_ID);
   assert.equal(result.versions[0].company_id, null);
   assert.deepEqual(result.versions[0].periods, []);
-  assert.equal(result.versions[0].change_reason, "");
+  assert.equal(result.versions[0].memo, "");
 });
 
 test("saved fee history rejects cross-SKU versions, duplicate pages and malformed version metadata", async () => {
   for (const versions of [
-    [version(1, { sku_id: uuid(9) })],
+    [version(1, { key_id: uuid(9) })],
     [version(1), version(1)],
     [version(1), version(2)],
     [version(1, { id: "bad" })],
@@ -174,7 +175,7 @@ test("saved fee history rejects incomplete, duplicate or foreign periods and inv
   }
   let versionRead = false;
   const foreign = createApiClient(SETTINGS, async (url) => {
-    if (new URL(url).pathname.endsWith("/sku_terms_versions")) {
+    if (new URL(url).pathname.endsWith("/assignment_versions")) {
       const rows = versionRead ? [] : [version(1)];
       versionRead = true;
       return csvResponse(VERSION_COLUMNS, rows);

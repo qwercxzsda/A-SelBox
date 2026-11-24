@@ -8,87 +8,29 @@ from typing import cast
 import psycopg
 
 from services.db.supabase.tests.payout_fixtures import (
-    fill_payout_kiosk_month,
     generate_payout_reports,
     payout_snapshot,
+    prepare_payout,
     publish_report,
-    report_source_rows,
+    report_records,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
 
 class MonthlyPayoutGenerationTests(SourceModelFixture):
     def prepared_company(self) -> str:
-        company, identity = self.owner()
-        self.fee(identity, [("2026-01-01", None, "5")])
-        self.finances([self.transaction("100")])
-        self.kiosk(1, [self.component("-10")])
-        fill_payout_kiosk_month(self)
-        return company
+        return prepare_payout(self).company
 
     def generate(self, company: str, month: date = date(2026, 6, 1)) -> str:
         rows = generate_payout_reports(self, company, month)
         self.assertEqual(len(rows), 1)
         return rows[0][0]
 
-    def test_generation_freezes_month_and_includes_data_kiosk_costs_once(self) -> None:
-        company = self.prepared_company()
-        report = self.generate(company)
-        self.assertEqual(
-            self.connection.execute(
-                "select start_date,end_date,source_amount,fee_amount,company_amount,"
-                "component_count "
-                "from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone(),
-            (date(2026, 6, 1), date(2026, 6, 30), Decimal(90), Decimal(-5), Decimal(85), 2),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select source,authoritative,source_amount,fee_amount,company_amount "
-                "from private.read_payout_report_records(%s) order by source",
-                (report,),
-            ).fetchall(),
-            [
-                ("DATA_KIOSK", True, Decimal(-10), Decimal(0), Decimal(-10)),
-                ("FINANCES", True, Decimal(100), Decimal(-5), Decimal(95)),
-            ],
-        )
-        self.connection.execute("set constraints all immediate")
-
-    def test_incompatible_required_kiosk_day_blocks_monthly_report(self) -> None:
-        company = self.prepared_company()
-        selected = self.connection.execute(
-            "select current_version_id::text from private.data_kiosk_days "
-            "where seller_namespace=%s and activity_date='2026-06-16'",
-            (self.seller,),
-        ).fetchone()
-        if selected is None:
-            self.fail("Expected complete June Kiosk coverage.")
-        self.kiosk(
-            2,
-            [self.component("-20")],
-            expected=selected[0],
-            version="v1",
-            activity_date="2026-06-16",
-        )
-        with self.assertRaisesRegex(
-            psycopg.errors.CheckViolation, "preprocessing versions|incompatible.*Data Kiosk"
-        ):
-            self.generate(company)
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from public.company_payout_reports"
-            ).fetchone(),
-            (0,),
-        )
-
     def test_other_company_missing_fee_does_not_block_own_report(self) -> None:
         company, identity = self.owner()
         self.owner("OTHER")
         self.fee(identity, [("2026-01-01", None, "5")])
         self.finances([self.transaction("100"), self.transaction("200", 4, sku="OTHER")])
-        fill_payout_kiosk_month(self)
         report = self.generate(company)
         self.assertEqual(
             self.connection.execute(
@@ -98,60 +40,11 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
         )
         self.connection.execute("set constraints all immediate")
 
-    def test_account_source_categories_do_not_change_company_entitlement(self) -> None:
-        company, identity = self.owner()
-        self.fee(identity, [("2026-01-01", None, "5")])
-        self.finances(
-            [
-                self.transaction("100"),
-                self.transaction("-3", 4, kind="ServiceFee", category="SELBOX")
-                | {
-                    "sku": None,
-                    "component_type": "SUBSCRIPTION_FEES",
-                    "accounting_subtype": "OPERATING_EXPENSE",
-                    "breakdown_path": ["AmazonFees", "Subscription", "Base"],
-                },
-                self.transaction("-12", 5, kind="ServiceFee", category="DATA_KIOSK")
-                | {"sku": None},
-                self.transaction("-2", 6, kind="ServiceFee", category="DATA_KIOSK")
-                | {"sku": None, "marketplace_name": "Amazon.ca"},
-            ]
-        )
-        self.kiosk(1, [self.component("-10"), self.component("100", category="FINANCES")])
-        fill_payout_kiosk_month(self)
-        fill_payout_kiosk_month(self, marketplace="Amazon.ca")
-        administrator, member = self.administrator(), self.member(company)
-        report = self.generate(company)
-        self.assertEqual(
-            self.connection.execute(
-                "select source_amount,fee_amount,company_amount "
-                "from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone(),
-            (Decimal(90), Decimal(-5), Decimal(85)),
-        )
-        self.assertCountEqual(
-            [
-                (row["source"], row["category"], Decimal(row["amount"]))
-                for row in report_source_rows(self, administrator, report)
-            ],
-            [
-                ("FINANCES", "FINANCES", Decimal(100)),
-                ("FINANCES", "SELBOX", Decimal(-3)),
-                ("FINANCES", "DATA_KIOSK", Decimal(-12)),
-                ("DATA_KIOSK", "DATA_KIOSK", Decimal(-10)),
-                ("DATA_KIOSK", "FINANCES", Decimal(100)),
-            ],
-        )
-        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
-            report_source_rows(self, member, report)
-        self.connection.execute("set constraints all immediate")
-
     def test_reading_source_aggregates_does_not_mutate_saved_report_inputs(self) -> None:
         company = self.prepared_company()
         report = self.generate(company)
         before = payout_snapshot(self, report)
-        self.assertTrue(report_source_rows(self, self.administrator(), report))
+        self.assertTrue(report_records(self, report, user=self.administrator()))
         self.assertEqual(payout_snapshot(self, report), before)
         self.connection.execute("set constraints all immediate")
 
@@ -164,29 +57,6 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
                 "select * from private.generate_company_payout_reports(%s,'2026-06-01')", (company,)
             ).fetchall()
             self.connection.execute("set constraints all immediate")
-
-    def test_company_with_only_data_kiosk_costs_can_generate(self) -> None:
-        company, _ = self.owner()
-        self.kiosk(1, [self.component("-10")])
-        self.finances([])
-        fill_payout_kiosk_month(self)
-        report = self.generate(company)
-        self.assertEqual(
-            self.connection.execute(
-                "select source_amount,fee_amount,company_amount from public.company_payout_reports "
-                "where id=%s",
-                (report,),
-            ).fetchone(),
-            (Decimal(-10), Decimal(0), Decimal(-10)),
-        )
-        self.assertEqual(
-            [
-                (row["source"], row["category"], Decimal(row["amount"]))
-                for row in report_source_rows(self, self.administrator(), report)
-            ],
-            [("DATA_KIOSK", "DATA_KIOSK", Decimal(-10))],
-        )
-        self.connection.execute("set constraints all immediate")
 
     def test_no_application_user_can_generate_and_own_frozen_rows_are_visible(self) -> None:
         company = self.prepared_company()
@@ -223,6 +93,7 @@ class MonthlyPayoutGenerationTests(SourceModelFixture):
             ).fetchone(),
             (0,),
         )
+        self.finances([], acquisition_id=self.acquisition(start="2025-01-01", end="2025-01-31"))
         report = self.generate(company, date(2025, 1, 1))
         self.assertEqual(
             self.connection.execute(

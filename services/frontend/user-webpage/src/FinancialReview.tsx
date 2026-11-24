@@ -1,100 +1,182 @@
-import { Tabs } from "@mantine/core";
+import { useState } from "react";
+import { Group, Select, TextInput } from "@mantine/core";
+import { useQuery } from "@tanstack/react-query";
+import { fetchFinancialOutcomes, fetchOutcomeMonths } from "./api";
 import type { Identity } from "./auth-session";
-import { FinancialReviewMonths } from "./FinancialReviewMonths";
+import { decodeOutcomeFilters } from "./outcome-filters";
 import { useWorkspacePreference } from "./use-workspace-preference";
-import { REVIEW_CATEGORIES, reviewCategory } from "./financial-review-categories";
-import { createReviewScope, decodeReviewScope } from "./financial-review-view";
+import { OUTCOMES } from "./api/allocations";
+import { DetailData } from "./DetailData";
+import { DetailTable } from "./DetailTable";
 import { WorkspaceHeader } from "./WorkspaceHeader";
-import { useFinancialReviewPeriod } from "./use-financial-review-period";
+import { PayoutReadiness } from "./PayoutReadiness";
+import { sourceCodeLabel } from "./categories";
+import marketplaces from "./generated/marketplaces.json";
+import type { DetailColumn } from "./detail-columns";
 
-interface FinancialReviewProps {
-  identity: Identity;
-  onRetry: () => Promise<void>;
-  updating?: boolean;
-}
+const OUTCOME_LABELS = {
+  DIFFERENCE: "Differences",
+  SELBOX: "SelBox types",
+  COMPANY: "Company amounts",
+};
+const SCOPE_COLUMNS: DetailColumn[] = [
+  { key: "seller_namespace", label: "Seller account" },
+  { key: "amazon_scope", label: "Region" },
+  { key: "marketplace_name", label: "Marketplace" },
+  { key: "currency", label: "Currency" },
+];
+const AMOUNTS: DetailColumn[] = [
+  { key: "base_amount", label: "Base", kind: "number" },
+  { key: "tax_amount", label: "Tax", kind: "number" },
+];
+const DETAIL_COLUMNS: DetailColumn[] = [
+  { key: "posted_date", label: "Posting date", kind: "date" },
+  ...SCOPE_COLUMNS,
+  { key: "component_type", label: "Type", kind: "type" },
+  { key: "source", label: "Source", kind: "source" },
+  { key: "reference_id", label: "Reference ID" },
+  { key: "sku", label: "SKU" },
+  { key: "fnsku", label: "FNSKU" },
+  { key: "asin", label: "ASIN" },
+  ...AMOUNTS,
+];
+const MONTH_COLUMNS: DetailColumn[] = [
+  { key: "month", label: "Month" },
+  ...SCOPE_COLUMNS,
+  ...["Finances", "Company", "SelBox", "Difference"].flatMap((label): DetailColumn[] => [
+    { key: label.toLowerCase() + "_base", label: label + " base", kind: "number" },
+    { key: label.toLowerCase() + "_tax", label: label + " tax", kind: "number" },
+  ]),
+];
 
-export function FinancialReview(props: FinancialReviewProps) {
-  return props.identity.account.access_role === "administrator" ? (
-    <AdministratorFinancialReview {...props} />
-  ) : null;
-}
-
-function AdministratorFinancialReview({
-  identity,
-  onRetry,
-  updating = false,
-}: FinancialReviewProps) {
-  const [category, setCategory] = useWorkspacePreference(
-    "financial-review:category",
-    () => reviewCategory(null),
-    reviewCategory,
+export function FinancialReview({ identity }: { identity: Identity }) {
+  const [{ view, month, marketplace }, setScope] = useWorkspacePreference(
+    "financial-review:filters",
+    () => decodeOutcomeFilters(null),
+    decodeOutcomeFilters,
   );
-  const [scope, setScope] = useWorkspacePreference(
-    "financial-review:scope",
-    createReviewScope,
-    decodeReviewScope,
-  );
-  const period = useFinancialReviewPeriod(identity, category, scope);
-  const queries = [
-    period.bounds,
-    ...(period.year ? [period.totalsQuery] : []),
-    ...(period.year && period.currency ? [period.familyQuery] : []),
-  ];
-  const status =
-    period.unavailableFamilies.length > 0
-      ? null
-      : queries.some((query) => query.isPending)
-        ? "loading"
-        : updating ||
-            queries.some((query) => query.isFetching) ||
-            (period.loading && !queries.some((query) => query.isError))
-          ? "updating"
-          : null;
+  const [page, setPage] = useState(0);
+  const query = useQuery({
+    queryKey: ["financial-review", identity.session.user.id, view, month, marketplace, page],
+    queryFn: ({ signal }) =>
+      view === "MONTHS"
+        ? fetchOutcomeMonths(identity.session.access_token, month, marketplace, page, signal)
+        : fetchFinancialOutcomes(
+            identity.session.access_token,
+            { outcome: view, month, marketplace },
+            page,
+            signal,
+          ),
+    enabled: identity.account.access_role === "administrator",
+  });
+  if (identity.account.access_role !== "administrator") return null;
+  const rows = query.data?.rows ?? [];
   return (
     <>
       <WorkspaceHeader
         title="Financial review"
-        status={status}
         help={
-          <>
-            <p>
-              Compare Finances and Data Kiosk by marketplace, year, currency, and type family. This
-              view includes all source accounts and companies.
-            </p>
-            <p>{REVIEW_CATEGORIES.find(({ value }) => value === category)?.description}</p>
-            <p>
-              Source totals include all selected activity. Paired comparisons, different reporting
-              bases and unpaired mappings are shown separately. This review does not change company
-              payouts. Open a month for source records and saved report snapshots.
-            </p>
-          </>
+          <p>
+            Finances determines activity. Each amount belongs to one company, a SelBox type or a
+            difference. Monthly totals separate each seller account, marketplace and currency.
+            Differences update when references or assignments change.
+          </p>
         }
       />
-      <Tabs
-        value={category}
-        onChange={(value) => {
-          setCategory(reviewCategory(value));
+      <Group mb="md" align="end">
+        <Select
+          label="Show"
+          value={view}
+          data={[
+            ...OUTCOMES.map((v) => ({ value: v, label: OUTCOME_LABELS[v] })),
+            { value: "MONTHS", label: "Monthly totals" },
+          ]}
+          allowDeselect={false}
+          onChange={(v) => {
+            setScope({ view: OUTCOMES.find((o) => o === v) ?? "MONTHS", month, marketplace });
+            setPage(0);
+          }}
+        />
+        <TextInput
+          label="Month"
+          type="month"
+          value={month}
+          onChange={(e) => {
+            setScope({ view, month: e.currentTarget.value, marketplace });
+            setPage(0);
+          }}
+        />
+        <Select
+          label="Marketplace"
+          placeholder="All marketplaces"
+          clearable
+          searchable
+          data={marketplaces}
+          value={marketplace || null}
+          onChange={(v) => {
+            setScope({ view, month, marketplace: v ?? "" });
+            setPage(0);
+          }}
+        />
+      </Group>
+      <DetailData
+        label="financial outcomes"
+        query={query}
+        rowCount={rows.length}
+        emptyMessage="No financial outcomes match these filters."
+        pagination={{
+          pageIndex: page,
+          totalCount: query.data?.totalCount ?? null,
+          onPageChange: setPage,
         }}
       >
-        <Tabs.List aria-label="Financial review">
-          {REVIEW_CATEGORIES.map(({ value, label }) => (
-            <Tabs.Tab key={value} value={value}>
-              {label}
-            </Tabs.Tab>
-          ))}
-        </Tabs.List>
-        <Tabs.Panel value={category} pt="md">
-          <FinancialReviewMonths
-            key={category}
-            category={category}
-            scope={scope}
-            onScopeChange={setScope}
-            identity={identity}
-            period={period}
-            onRetry={onRetry}
+        {rows.length > 0 && (
+          <DetailTable
+            label={view === "MONTHS" ? "Monthly totals" : OUTCOME_LABELS[view]}
+            minWidth={900}
+            rows={rows}
+            columns={
+              view === "MONTHS"
+                ? MONTH_COLUMNS
+                : [
+                    ...DETAIL_COLUMNS,
+                    view === "SELBOX"
+                      ? { key: "selbox_group", label: "SelBox group" }
+                      : view === "COMPANY"
+                        ? { key: "company_id", label: "Company" }
+                        : { key: "reason", label: "Reason" },
+                  ]
+            }
+            rowKey={(row) =>
+              JSON.stringify(
+                view === "MONTHS"
+                  ? [
+                      row.month,
+                      row.seller_namespace,
+                      row.amazon_scope,
+                      row.marketplace_name,
+                      row.currency,
+                    ]
+                  : [
+                      row.source_row_id,
+                      row.outcome,
+                      row.reason,
+                      row.marketplace_name,
+                      row.posted_date,
+                    ],
+              )
+            }
+            renderCell={(row, column) => {
+              if (column.key === "company_id")
+                return identity.companies.find((c) => c.id === row.company_id)?.name ?? "—";
+              if (column.key === "reason" || column.key === "selbox_group")
+                return sourceCodeLabel(row[column.key] ?? "—");
+              return undefined;
+            }}
           />
-        </Tabs.Panel>
-      </Tabs>
+        )}
+      </DetailData>
+      {month && <PayoutReadiness identity={identity} month={month} companyIds={[]} />}
     </>
   );
 }

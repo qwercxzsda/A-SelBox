@@ -23,7 +23,7 @@ async function openReadiness(page, companyCount = 1, requirementCount = 26) {
       company_id: companyId(0),
       month: "2026-04-01",
       sku: `BLOCKED-${String(index).padStart(2, "0")}`,
-      reason: "MISSING_OWNERSHIP",
+      reason: "MISSING_FEE",
       marketplace_name: "Amazon.com",
       first_date: "2026-04-01",
       last_date: "2026-04-30",

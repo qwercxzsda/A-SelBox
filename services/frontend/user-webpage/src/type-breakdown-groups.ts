@@ -14,7 +14,7 @@ export interface TransactionTypeGroup {
 function salesOrder(type: string): number {
   if (type === "PRODUCT_SALES") return 0;
   if (type === "PRODUCT_REFUNDS") return 1;
-  return type === "NET_PRODUCT_SALES" ? 2 : 3;
+  return 2;
 }
 
 function compareTypes(left: TransactionTypeTotal, right: TransactionTypeTotal): number {

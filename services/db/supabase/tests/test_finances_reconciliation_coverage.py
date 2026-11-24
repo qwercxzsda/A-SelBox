@@ -2,7 +2,6 @@
 
 from dataclasses import replace
 from datetime import datetime
-from typing import cast
 
 import psycopg
 
@@ -19,6 +18,15 @@ from services.sync.src.finances.models import PreparedFinances
 
 
 class FinancesReconciliationCoverageTests(SourceModelFixture):
+    def covered_days(self) -> set[str]:
+        return {
+            str(row[0])
+            for row in self.connection.execute(
+                "select activity_date from private.current_finances_reconciled_days(null,"
+                "'2026-06-01','2026-06-30','Amazon.com')"
+            )
+        }
+
     def partial_observation(self, rows: list[dict[str, object]], day: str = "15") -> str:
         """Capture part of a historical local day without claiming daily reconciliation."""
         acquisition_id = self.acquisition(start=f"2026-06-{day}", end=f"2026-06-{day}")
@@ -50,17 +58,6 @@ class FinancesReconciliationCoverageTests(SourceModelFixture):
             PreparedFinances(transactions, ()),
             preprocess_version="v0",
         )
-
-    def covered_days(self) -> list[str]:
-        return [
-            str(row[0])
-            for row in self.connection.execute(
-                "select activity_date from private.current_payout_source_days("
-                "%s::text[],'2026-06-01','2026-06-30','Amazon.com') "
-                "where source='FINANCES' order by activity_date",
-                ([self.seller],),
-            ).fetchall()
-        ]
 
     def test_unchanged_partial_observation_reuses_reconciled_version_proof(self) -> None:
         inputs = prepare_payout(self)
@@ -127,18 +124,4 @@ class FinancesReconciliationCoverageTests(SourceModelFixture):
         )
         self.assertEqual(len(self.covered_days()), 30)
         self.assertNotEqual(publish_payout(self, inputs), original)
-        self.connection.execute("set constraints all immediate")
-
-    def test_empty_partial_capture_does_not_establish_source_coverage(self) -> None:
-        self.partial_observation([])
-        self.assertEqual(self.covered_days(), [])
-        administrator = self.administrator()
-        result = cast(
-            dict[str, object],
-            self.as_user(
-                administrator,
-                "select public.current_source_totals('2026-06-01','2026-06-30','Amazon.com')",
-            )[0][0],
-        )
-        self.assertEqual(result["coverage"], [])
         self.connection.execute("set constraints all immediate")

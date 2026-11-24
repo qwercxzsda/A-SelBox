@@ -3,41 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, datetime
 from typing import Literal, LiteralString
 from uuid import uuid7
 
 from psycopg.types.json import Jsonb
 
-from services.db.supabase.tests.integration_support import DatabaseTestCase, TransactionDatabase
+from services.db.supabase.tests.integration_support import DatabaseTestCase
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_finances import acquisition, finances
-from services.db.supabase.tests.source_kiosk import publish_kiosk_fixture
-from services.sync.src.amazon.data_kiosk.models import DataKioskDocumentKind
-from services.sync.src.amazon.marketplace_names import MARKETPLACE_NAME_BY_ID
-from services.sync.src.amazon.marketplaces import CREDENTIAL_SCOPES
-from services.sync.src.archives.models import ArchivedDataKioskPage, DataKioskAcquisition
-from services.sync.src.archives.serialization import document_from_payload
-from services.sync.src.data_kiosk_economics.timestamps import reporting_activity_at
-from services.sync.src.database.acquisitions import persist_data_kiosk_acquisition
 from services.sync.src.finances.acquisition_models import FinancesAcquisition
-from services.sync.src.source_serialization import content_sha256
 
 
 def new_id() -> str:
     return str(uuid7())
-
-
-def kiosk_timestamp(day: str, marketplace: str = "Amazon.com") -> str:
-    """Use preprocessing's normalized reporting instant in synthetic publications."""
-    return reporting_activity_at(date.fromisoformat(day), marketplace).isoformat()
-
-
-def kiosk_content_hash(activity_at: str, rows: Sequence[dict[str, object]]) -> str:
-    """Deduplicate synthetic day contents independently of generated component IDs."""
-    components = [{key: value for key, value in row.items() if key != "id"} for row in rows]
-    components.sort(key=lambda row: str(row["component_key"]))
-    return content_sha256({"activity_at": activity_at, "transactions": components})
 
 
 def archive_document(digest: str = "a") -> dict[str, object]:
@@ -59,9 +37,6 @@ class SourceModelFixture(DatabaseTestCase):
     acquisition = acquisition
     finances = finances
 
-    def publish_kiosk_days(self, payload: dict[str, object]) -> str:
-        return publish_kiosk_fixture(TransactionDatabase(self.connection), payload)
-
     def setUp(self) -> None:
         super().setUp()
         self.seller = "seller-one"
@@ -74,7 +49,7 @@ class SourceModelFixture(DatabaseTestCase):
             str(row[0])
             for row in self.connection.execute(
                 "select distinct version_id::text "
-                "from private.finances_preprocess_batch_transactions "
+                "from private.source_batch_units "
                 "where batch_id=any(%s::uuid[]) order by version_id::text",
                 (list(batches),),
             ).fetchall()
@@ -165,9 +140,9 @@ class SourceModelFixture(DatabaseTestCase):
     ) -> str:
         row = require_row(
             self.connection.execute(
-                "select s.sku,v.company_id,s.current_terms_version_id "
-                "from public.skus s join public.sku_terms_versions v "
-                "on v.id=s.current_terms_version_id where s.id=%s",
+                "select s.native_id,v.company_id,s.current_version_id "
+                "from public.assignment_keys s join public.assignment_versions v "
+                "on v.id=s.current_version_id where s.id=%s",
                 (owner,),
             ).fetchone()
         )
@@ -201,19 +176,20 @@ class SourceModelFixture(DatabaseTestCase):
         sku: str = "SKU",
         activity_date: str = "2026-06-15",
         kind: str = "Shipment",
-        category: str = "FINANCES",
+        route: str = "SKU",
         description: str = "Principal",
     ) -> dict[str, object]:
         component_type = f"{kind}/{description}"
         fee_base = None
-        if kind in {"Shipment", "Refund"} and description == "Principal" and category == "FINANCES":
+        if kind in {"Shipment", "Refund"} and description == "Principal" and route == "SKU":
             component_type = "PRODUCT_REFUNDS" if kind == "Refund" else "PRODUCT_SALES"
             fee_base = amount
         return {
             "id": new_id(),
             "native_transaction_id": f"{activity_date}:{line}:{sku}:{kind}:{description}",
             "source_record_number": line,
-            "category": category,
+            "route": route,
+            "selbox_group": "ACCOUNT_FEE" if route == "SELBOX" else None,
             "component_type": component_type,
             "sku": sku,
             "marketplace_name": "Amazon.com",
@@ -226,151 +202,3 @@ class SourceModelFixture(DatabaseTestCase):
             "transaction_type": kind,
             "breakdown_path": [description],
         }
-
-    def kiosk_acquisition(
-        self,
-        observation: int,
-        *,
-        start: str = "2026-06-15",
-        end: str | None = None,
-        marketplace_id: str = "ATVPDKIKX0DER",
-        amazon_scope: str = "NA",
-        marketplace: str | None = None,
-    ) -> str:
-        if marketplace is not None:
-            marketplace_id = next(
-                identifier
-                for identifier, name in MARKETPLACE_NAME_BY_ID.items()
-                if name == marketplace
-            )
-            amazon_scope = next(
-                name
-                for name, scope in CREDENTIAL_SCOPES.items()
-                if marketplace_id in scope.marketplace_ids
-            )
-        query_id, document_id = new_id(), new_id()
-        created = f"2026-09-{observation:02d}T00:00:00Z"
-        metadata = {
-            "queryId": query_id,
-            "createdTime": created,
-            "processingStatus": "DONE",
-            "dataDocumentId": document_id,
-            "query": "economics complete DAY",
-        }
-        timestamp = datetime.fromisoformat(created)
-        page = ArchivedDataKioskPage(
-            page_number=1,
-            query_id=query_id,
-            query_created_at=timestamp,
-            document_kind=DataKioskDocumentKind.DATA,
-            is_terminal=True,
-            document_id=document_id,
-            document=document_from_payload(archive_document()),
-            api_metadata=metadata,
-        )
-        acquisition = DataKioskAcquisition(
-            id=uuid7(),
-            seller_namespace=self.seller,
-            amazon_scope=amazon_scope,
-            root_query_id=query_id,
-            root_query_created_at=timestamp,
-            schema_version="analytics_economics_2024_03_15",
-            query_definition="economics complete DAY",
-            marketplace_id=marketplace_id,
-            query_start_date=date.fromisoformat(start),
-            query_end_date=date.fromisoformat(end or start),
-            api_metadata=metadata,
-            downloaded_at=timestamp,
-            pages=(page,),
-        )
-        return persist_data_kiosk_acquisition(TransactionDatabase(self.connection), acquisition)
-
-    def kiosk(
-        self,
-        observation: int,
-        rows: list[dict[str, object]],
-        *,
-        expected: str | None = None,
-        acquisition_id: str | None = None,
-        version: str = "v0",
-        activity_date: str = "2026-06-15",
-        activity_at: str | None = None,
-    ) -> tuple[str, str]:
-        selected = self.connection.execute(
-            "select current_batch_id from private.data_kiosk_days where seller_namespace=%s "
-            "and marketplace_name='Amazon.com' and activity_date=%s and dataset_key='economics'",
-            (self.seller, activity_date),
-        ).fetchone()
-        timestamp = activity_at if activity_at is not None else kiosk_timestamp(activity_date)
-        batch_id = self.publish_kiosk_days(
-            {
-                "acquisition_id": acquisition_id
-                or self.kiosk_acquisition(observation, start=activity_date),
-                "preprocess_version": version,
-                "dataset_key": "economics",
-                "days": [
-                    {
-                        "marketplace_name": "Amazon.com",
-                        "activity_date": activity_date,
-                        "activity_at": timestamp,
-                        "expected_current_version_id": expected,
-                        "expected_current_batch_id": None
-                        if selected is None or selected[0] is None
-                        else str(selected[0]),
-                        "content_sha256": kiosk_content_hash(timestamp, rows),
-                        "transactions": rows,
-                    }
-                ],
-            },
-        )
-        row = require_row(
-            self.connection.execute(
-                "select day_id,version_id from private.data_kiosk_preprocess_batch_days "
-                "where batch_id=%s",
-                (batch_id,),
-            ).fetchone()
-        )
-        return str(row[0]), str(row[1])
-
-    def kiosk_observation(self, version_id: str) -> str:
-        """Select the current observation of a version, or its latest retained observation."""
-        row = require_row(
-            self.connection.execute(
-                "select m.id from private.data_kiosk_preprocess_batch_days m "
-                "join private.data_kiosk_days d on d.id=m.day_id "
-                "join private.data_kiosk_preprocess_batches b on b.id=m.batch_id "
-                "join private.data_kiosk_acquisitions a on a.id=b.acquisition_id "
-                "where m.version_id=%s order by (m.batch_id=d.current_batch_id) desc,"
-                "a.root_query_created_at desc,a.id desc,b.id desc limit 1",
-                (version_id,),
-            ).fetchone()
-        )
-        return str(row[0])
-
-    @staticmethod
-    def component(
-        amount: str | None = "-10", *, sku: str = "SKU", category: str = "DATA_KIOSK"
-    ) -> dict[str, object]:
-        return {
-            "id": new_id(),
-            "component_key": new_id(),
-            "sku": sku,
-            "component_type": "FbaStorageFee",
-            "amount": amount,
-            "currency": "USD",
-            "quantity": None,
-            "fee_base": None,
-            "category": category,
-        }
-
-    def totals(
-        self,
-        finances_batch_ids: list[str],
-        marketplaces: list[str] | None = None,
-        version: str = "v0",
-    ) -> list[tuple[object, ...]]:
-        return self.connection.execute(
-            "select * from private.company_financial_totals("
-            "%s,'2026-06-01','2026-08-31',%s,%s::uuid[],%s::text[])",
-            (self.seller, version, finances_batch_ids, marketplaces or []),
-        ).fetchall()

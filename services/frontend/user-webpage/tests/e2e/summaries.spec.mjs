@@ -22,9 +22,9 @@ test("daily and previous-month totals stay exact across transaction-list pages a
       company_amount: "95",
     },
     {
-      ...liveRow("KIOSK", 1),
+      ...liveRow("REFERENCE", 1),
       activity_date: "2026-03-15",
-      source: "DATA_KIOSK",
+      source: "STORAGE",
       activity_at: "2026-03-15T23:59:59.999999Z",
       source_amount: "50.123456789012345678",
       fee_amount: "-2.5",

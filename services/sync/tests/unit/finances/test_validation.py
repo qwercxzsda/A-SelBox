@@ -6,12 +6,12 @@ from dataclasses import asdict, replace
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid7
 
-from services.sync.src.allocation import AllocationCategory
 from services.sync.src.finances.acquisition_models import FinancesAcquisition
 from services.sync.src.finances.preprocess import prepare_finances_acquisition
 from services.sync.src.finances.validation import revision_digest, validate_finances_candidate
 from services.sync.src.numeric import Numeric
 from services.sync.tests.support.archives import MemoryArchiveStorage
+from services.sync.tests.support.currencies import CURRENCY_DECIMALS
 from services.sync.tests.support.finances import finances_acquisition, native_transaction
 
 
@@ -21,7 +21,9 @@ class CandidateValidationTests(unittest.TestCase):
         self.acquisition = finances_acquisition(
             self.storage, [native_transaction()], summary_amount="100"
         )
-        self.prepared = prepare_finances_acquisition(self.acquisition, self.storage)
+        self.prepared = prepare_finances_acquisition(
+            self.acquisition, self.storage, CURRENCY_DECIMALS
+        )
 
     def accepted(self) -> dict[str, object]:
         return {
@@ -69,7 +71,7 @@ class CandidateValidationTests(unittest.TestCase):
             after=datetime(2026, 7, 31, 17, tzinfo=UTC),
             summary_amount="100",
         )
-        prepared = prepare_finances_acquisition(acquisition, self.storage)
+        prepared = prepare_finances_acquisition(acquisition, self.storage, CURRENCY_DECIMALS)
         result = validate_finances_candidate(acquisition, prepared, [], [])
         self.assertEqual(len(result.transactions), 3)
         self.assertEqual(
@@ -87,7 +89,7 @@ class CandidateValidationTests(unittest.TestCase):
             [native_transaction("tail", posted="2026-08-03T11:00:00Z")],
             after=datetime(2026, 8, 3, 10, tzinfo=UTC),
         )
-        prepared = prepare_finances_acquisition(acquisition, self.storage)
+        prepared = prepare_finances_acquisition(acquisition, self.storage, CURRENCY_DECIMALS)
         self.assertEqual(validate_finances_candidate(acquisition, prepared, [], []), prepared)
         self.assertIsNone(acquisition.reconciliation_start_date)
         self.assertIsNone(acquisition.reconciliation_end_date)
@@ -98,7 +100,7 @@ class CandidateValidationTests(unittest.TestCase):
             [native_transaction("tail", posted="2026-08-03T11:00:00Z")],
             after=datetime(2026, 8, 3, 10, tzinfo=UTC),
         )
-        prepared = prepare_finances_acquisition(acquisition, self.storage)
+        prepared = prepare_finances_acquisition(acquisition, self.storage, CURRENCY_DECIMALS)
         outside = self.accepted()
         outside.update(
             native_transaction_id="unobserved",
@@ -214,6 +216,20 @@ class CandidateValidationTests(unittest.TestCase):
         result = validate_finances_candidate(self.acquisition, candidate, [original], [])
         self.assertFalse(result.transactions[0].activity_eligible)
 
+    def test_redownload_cannot_change_activity_on_an_accepted_transaction(self) -> None:
+        transaction = replace(
+            self.prepared.transactions[0],
+            transaction_status="RELEASED",
+            deferred_transaction_id="original",
+        )
+        with self.assertRaisesRegex(ValueError, "change activity"):
+            validate_finances_candidate(
+                self.acquisition,
+                replace(self.prepared, transactions=(transaction,)),
+                [self.accepted()],
+                [],
+            )
+
     def test_link_change_cannot_silently_rewrite_an_unobserved_transaction(self) -> None:
         outside = self.accepted()
         outside.update(
@@ -223,7 +239,7 @@ class CandidateValidationTests(unittest.TestCase):
             posted_at=self.acquisition.comparable_end_at + timedelta(days=1),
         )
         transaction = replace(self.prepared.transactions[0], release_transaction_id="release")
-        with self.assertRaisesRegex(ValueError, "affected transactions"):
+        with self.assertRaisesRegex(ValueError, "change activity"):
             validate_finances_candidate(
                 self.acquisition, replace(self.prepared, transactions=(transaction,)), [outside], []
             )
@@ -232,7 +248,6 @@ class CandidateValidationTests(unittest.TestCase):
         transaction = self.prepared.transactions[0]
         component = transaction.components[0]
         for invalid, message in (
-            (replace(component, category=AllocationCategory.ANALYSIS_ONLY), "allocation"),
             (replace(component, sku=None), "SKU"),
             (replace(component, quantity=Numeric(-1)), "quantity"),
             (replace(component, fee_base=Numeric(99)), "fee base"),

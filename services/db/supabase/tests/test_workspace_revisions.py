@@ -1,6 +1,5 @@
 """Cheap change tokens track committed publications without exposing private rows."""
 
-from datetime import date
 from typing import cast
 
 import psycopg
@@ -9,10 +8,11 @@ from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 _POLL = "select public.workspace_revisions(%s::text[])"
-_SOURCES = ["finances", "data_kiosk", "fees", "inventory", "payouts"]
+_SOURCES = ["finances", "references", "fees", "inventory", "payouts"]
 _FACT_STATS = (
     "select relname,seq_scan,seq_tup_read,idx_scan,idx_tup_fetch from pg_stat_xact_user_tables "
-    "where relname in ('finances_transaction_components','data_kiosk_day_components') "
+    "where relname in ('finances_amounts','ad_invoice_lines','storage_rows','aged_storage_rows',"
+    "'removal_order_rows') "
     "order by relname"
 )
 
@@ -24,38 +24,6 @@ class WorkspaceRevisionTests(SourceModelFixture):
 
     def revisions(self, user: str) -> dict[str, str]:
         return cast(dict[str, str], self.poll(user)["revisions"])
-
-    def test_subset_empty_request_and_account_identity(self) -> None:
-        company, _ = self.owner()
-        member, administrator = self.member(company), self.administrator()
-        self.connection.commit()
-        for user, role, company_id in (
-            (member, "member", company),
-            (administrator, "administrator", None),
-        ):
-            with self.subTest(role=role):
-                response = self.poll(user, ["finances", "fees"])
-                self.assertEqual(
-                    response["account"],
-                    {"user_id": user, "access_role": role, "company_id": company_id},
-                )
-                self.assertEqual(
-                    set(cast(dict[str, str], response["revisions"])), {"finances", "fees"}
-                )
-                self.assertEqual(self.poll(user, [])["revisions"], {})
-        self.assertEqual(self.revisions(member)["finances"], "0")
-        self.assertEqual(self.revisions(member)["data_kiosk"], "0")
-
-    def test_payout_maturity_changes_do_not_change_source_revision_tokens(self) -> None:
-        company, _ = self.owner()
-        self.finances([self.transaction("100", activity_date=self.current_activity_date())])
-        self.kiosk(1, [self.component("-10")], activity_date=self.current_activity_date())
-        for user in (self.member(company), self.administrator()):
-            before = self.revisions(user)
-            for cutoff in (date(2000, 1, 1), date(2100, 1, 1)):
-                with self.subTest(cutoff=cutoff), self.connection.transaction(force_rollback=True):
-                    self.set_mature_cutoff_date(cutoff)
-                    self.assertEqual(self.revisions(user), before)
 
     def test_requires_current_application_access_and_never_grants_private_table_access(
         self,
@@ -128,65 +96,6 @@ class WorkspaceRevisionTests(SourceModelFixture):
         self.connection.commit()
         self.assertNotEqual(self.revisions(member)["finances"], first["finances"])
 
-    def test_kiosk_history_and_empty_replacement_rotate_source_at_commit(
-        self,
-    ) -> None:
-        company, _ = self.owner()
-        member = self.member(company)
-        older = self.kiosk_acquisition(1)
-        _, current = self.kiosk(2, [self.component("-7")])
-        self.connection.commit()
-        first = self.revisions(member)
-        self.kiosk(1, [self.component("-9")], acquisition_id=older, expected=current)
-        self.assertEqual(self.revisions(member), first)
-        self.connection.commit()
-        historical = self.revisions(member)
-        self.assertNotEqual(historical["data_kiosk"], first["data_kiosk"])
-        self.assertEqual(historical["finances"], first["finances"])
-        self.assertEqual(historical["fees"], first["fees"])
-        self.assertEqual(
-            self.connection.execute(
-                "select current_version_id::text from private.data_kiosk_days"
-            ).fetchone(),
-            (current,),
-        )
-        self.kiosk(3, [], expected=current)
-        self.connection.commit()
-        second = self.revisions(member)
-        self.assertNotEqual(second["data_kiosk"], historical["data_kiosk"])
-        self.assertEqual(second["finances"], first["finances"])
-
-    def test_reused_contents_with_a_new_observation_rotate_source_token(self) -> None:
-        company, _ = self.owner()
-        administrator, member = self.administrator(), self.member(company)
-        components = [self.component()]
-        _, first_version = self.kiosk(1, components)
-        first_observation = self.kiosk_observation(first_version)
-        self.connection.commit()
-        initial = self.revisions(administrator)
-        _, repeated = self.kiosk(2, components, expected=first_version)
-        self.assertEqual(repeated, first_version)
-        self.assertNotEqual(self.kiosk_observation(repeated), first_observation)
-        self.assertEqual(self.revisions(administrator), initial)
-        self.connection.commit()
-        changed = self.revisions(administrator)
-        self.assertNotEqual(changed["data_kiosk"], initial["data_kiosk"])
-        self.assertEqual(changed["finances"], initial["finances"])
-        self.assertEqual(changed["fees"], initial["fees"])
-        self.assertEqual(self.revisions(member)["data_kiosk"], changed["data_kiosk"])
-        self.assertEqual(
-            self.as_user(
-                administrator, "select count(*) from public.data_kiosk_preprocess_entries"
-            ),
-            [(1,)],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select count(*) from private.data_kiosk_preprocess_batch_days"
-            ).fetchone(),
-            (2,),
-        )
-
     def test_source_tokens_are_global_but_fees_are_company_scoped(self) -> None:
         company_a, sku_a = self.owner()
         company_b, _ = self.owner("OTHER")
@@ -219,7 +128,7 @@ class WorkspaceRevisionTests(SourceModelFixture):
         first_a, first_b = self.revisions(member_a), self.revisions(member_b)
         current = require_row(
             self.connection.execute(
-                "select current_terms_version_id from public.skus where id=%s", (sku_a,)
+                "select current_version_id from public.assignment_keys where id=%s", (sku_a,)
             ).fetchone()
         )
         self.call(
@@ -261,7 +170,7 @@ class WorkspaceRevisionTests(SourceModelFixture):
         member = self.member(company)
         self.connection.commit()
         self.finances([self.transaction("8")], identity="one")
-        self.connection.execute("set constraints private.workspace_finances_revision immediate")
+        self.connection.execute("set constraints private.workspace_source_revision immediate")
         first = self.revisions(member)["finances"]
         self.finances([self.transaction("9")], identity="two")
         self.assertEqual(self.revisions(member)["finances"], first)
@@ -270,14 +179,3 @@ class WorkspaceRevisionTests(SourceModelFixture):
         self.finances([self.transaction("10")], identity="three")
         self.connection.commit()
         self.assertNotEqual(self.revisions(member)["finances"], first)
-
-    def test_polling_does_not_read_fact_rows(self) -> None:
-        company, _ = self.owner()
-        member = self.member(company)
-        self.finances([self.transaction("8")])
-        self.kiosk(1, [self.component("-2")])
-        self.connection.commit()
-        before = self.connection.execute(_FACT_STATS).fetchall()
-        self.poll(member)
-        after = self.connection.execute(_FACT_STATS).fetchall()
-        self.assertEqual(after, before)

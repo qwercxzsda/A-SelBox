@@ -4,7 +4,7 @@ create function private.generate_company_payout_reports(p_company_id uuid, p_mon
 returns table (report_id uuid, created boolean)
 language plpgsql volatile security invoker set search_path = '' as $$
 declare month_end date; scope record;
-    requested_report_id uuid; seller_namespaces text[];
+    requested_report_id uuid;
 begin
     perform private.require_read_committed();
     month_end := private.payout_month_end(p_month);
@@ -12,54 +12,24 @@ begin
         raise exception 'A valid company is required' using errcode = '22023';
     end if;
     perform pg_advisory_xact_lock(hashtextextended('company_payout_inputs',0));
-    if not private.payout_company_eligible(p_company_id) then return; end if;
+    if not private.payout_month_eligible(p_company_id,p_month) then return; end if;
     -- The input guard keeps ownership and source selections stable across every
     -- report in this company/month, including an explicitly empty scope.
-    seller_namespaces := private.payout_company_sellers(p_company_id);
     for scope in
-        -- Ownership and scope discovery need each SKU/marketplace/currency once;
-        -- the publisher still resolves every original monetary component.
-        with source_scopes as (
-            select t.sku,t.marketplace_name,t.currency
-            from private.finances_activity_components t
-            where t.is_current and t.posted_date between p_month and month_end and t.category = 'FINANCES'
-                and t.seller_namespace = any(seller_namespaces)
+        with scopes as (
+            select distinct marketplace_name,currency from private.company_components
+            where company_id=p_company_id and activity_date between p_month and month_end
             union
-            select t.sku,t.marketplace_name,t.currency
-            from private.data_kiosk_component_details t
-            where t.is_current and t.activity_date between p_month and month_end and t.category = 'DATA_KIOSK'
-                and t.seller_namespace = any(seller_namespaces)
-        ), resolved_owners as materialized (
-            -- Scope discovery and completeness use the same selected facts and
-            -- ownership lookup, including rows belonging to other companies.
-            select s.marketplace_name,s.currency,o.company_id
-            from source_scopes s left join private.current_sku_terms o on o.sku = s.sku
-        ), scopes as (
-            select marketplace_name,currency from resolved_owners
-            where company_id = p_company_id
-            union
-            -- A removed scope needs a new zero aggregate, not a stale nonzero latest report.
-            select r.marketplace_name,r.currency from public.company_payout_reports r
-            where r.company_id = p_company_id and r.start_date = p_month
-                and r.currency is not null
-        )
-        -- An assigned company still has an empty scope before its first sale.
-        select scopes.marketplace_name,scopes.currency,
-            exists(select 1 from resolved_owners where company_id is null) as missing_ownership
-        from (values (p_company_id)) company(id) left join scopes on true
-        order by scopes.marketplace_name nulls first,scopes.currency
+            select marketplace_name,currency from public.company_payout_reports
+            where company_id=p_company_id and start_date=p_month and currency is not null
+        ) select s.* from (values(1)) fallback(i) left join scopes s on true
+        order by marketplace_name,currency
     loop
-        -- Reject unowned facts even when only the fallback empty scope exists.
-        if scope.missing_ownership then
-            raise exception 'Unresolved ownership or fee coverage prevents a complete payout report'
-                using errcode = '23514', detail = 'SETUP_REQUIRED';
-        end if;
         requested_report_id := private.uuid7();
         report_id := private.publish_company_payout_report(jsonb_build_object(
             'id',requested_report_id,'company_id',p_company_id,
             'marketplace_name',scope.marketplace_name,
             'currency',scope.currency,'start_date',p_month,'end_date',month_end,
-            'dataset_key','economics',
             'change_reason','Automatically generated monthly payout report'
         ));
         created := report_id = requested_report_id;
@@ -126,7 +96,7 @@ begin
     left join private.payout_report_refresh_state s on s.company_id=c.id and s.month=p_month
     cross join lateral (
         select count(*)>0 as has_report,
-            coalesce(bool_or(r.component_count>0),false) as has_activity
+            coalesce(bool_or(r.record_count>0),false) as has_activity
         from public.latest_company_payout_reports r
         where r.company_id=c.id and r.start_date=p_month
     ) r
@@ -156,7 +126,7 @@ create function private.read_payout_setup_blockers(
     component_count bigint
 )
 language plpgsql stable security definer set search_path = '' as $$
-declare sellers text[]; month_end date;
+declare month_end date;
 begin
     if not private.is_administrator() then
         raise exception 'Administrator access required' using errcode='42501';
@@ -166,14 +136,11 @@ begin
         raise exception 'Choose a valid company and bounded blocker page' using errcode='22023';
     end if;
     month_end:=private.payout_month_end(p_month);
-    sellers:=private.payout_company_sellers(p_company_id);
     return query select c.sku::text,c.resolution_status,c.marketplace_name,
         min(c.activity_date),max(c.activity_date),count(*)
     from public.live_company_components c
     where c.activity_date between p_month and month_end
-        and c.seller_namespace=any(sellers) and c.authoritative and c.category<>'SELBOX'
-        and (c.resolution_status='MISSING_OWNERSHIP'
-            or (c.resolution_status='MISSING_FEE' and c.company_id=p_company_id))
+        and c.resolution_status='MISSING_FEE' and c.company_id=p_company_id
     group by c.sku,c.resolution_status,c.marketplace_name
     order by c.sku,c.resolution_status,c.marketplace_name limit p_limit offset p_offset;
 end;

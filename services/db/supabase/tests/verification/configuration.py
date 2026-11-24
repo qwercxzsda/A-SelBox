@@ -47,8 +47,8 @@ def _change(item: dict[str, Any]) -> dict[str, Any]:
 
 def _state(connection: Connection) -> list[tuple[Any, ...]]:
     return connection.execute(
-        "select 'sku',id::text,current_terms_version_id::text from public.skus "
-        "union all select 'version',id::text,version_number::text from public.sku_terms_versions "
+        "select 'sku',id::text,current_version_id::text from public.assignment_keys "
+        "union all select 'version',id::text,version_number::text from public.assignment_versions "
         "union all select 'fee',id::text,fee_rate_percent::text from public.sku_fee_periods "
         "union all select 'revision',source||':'||scope_company_id::text,revision::text "
         "from private.workspace_revision_tokens order by 1,2,3"
@@ -76,14 +76,14 @@ def _verify_writes(
     items: list[dict[str, Any]],
 ) -> dict[str, object]:
     selected = next(item for item in items if item["requirements"] and item["periods"])
-    other = next(item for item in items if item["sku"] != selected["sku"])
+    other = next(item for item in items if item["sku"] != selected["sku"] and item["requirements"])
     change = _change(selected)
     destination = next(company for company in members if company != selected["company_id"])
     change["company_id"] = destination
     for period in change["periods"]:
         period["fee_rate_percent"] = "7.123456"
     incomplete = _change(other)
-    incomplete["company_id"] = None
+    incomplete["periods"] = []
     before = _state(connection)
     error = _publish(stack, administrator, [change, incomplete], 400)
     require(error.get("message") == "SKU configuration is incomplete", "Missing batch rejection")
@@ -162,9 +162,12 @@ def verify(seed: Path) -> dict[str, object]:
             known = {
                 row[0]
                 for row in connection.execute(
-                    "select sku from public.skus union "
-                    "select sku from private.finances_transaction_components "
-                    "where sku is not null union select sku from private.data_kiosk_day_components "
+                    "select native_id as sku from public.assignment_keys where kind='SKU' union "
+                    "select sku from private.finances_component_details "
+                    "where activity_eligible "
+                    "and sku is not null union select sku from private.information_products "
+                    "where sku is not null union select l.sku from private.inventory_ledger_rows l "
+                    "join private.source_units u on u.current_version_id=l.version_id "
                     "where sku is not null"
                 )
             }
@@ -184,15 +187,15 @@ def verify(seed: Path) -> dict[str, object]:
                 )
                 member_counts.append(len(visible))
             _, authority = verify_authority(connection, administrator_id)
-            finances_count, kiosk_count = require_row(
+            finances_count, reference_count = require_row(
                 connection.execute(
-                    "select (select count(*) from private.finances_transaction_components),"
-                    "(select count(*) from private.data_kiosk_day_components)"
+                    "select (select count(*) from private.finances_amounts),"
+                    "(select count(*) from private.reference_money)"
                 ).fetchone()
             )
             source_counts = {
-                "finances_transaction_components": int(finances_count),
-                "data_kiosk_day_components": int(kiosk_count),
+                "finances_amounts": int(finances_count),
+                "reference_amounts": int(reference_count),
             }
             publication = _verify_writes(stack, connection, administrator, members, items)
             require(

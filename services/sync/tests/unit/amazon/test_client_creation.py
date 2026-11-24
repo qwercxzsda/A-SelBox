@@ -7,11 +7,10 @@ import unittest
 from typing import cast
 from unittest.mock import patch
 
-from sp_api.api import DataKiosk, Reports, Sellers
+from sp_api.api import Reports, Sellers
 from sp_api.base import Marketplaces
 
-from ....src.amazon import client as amazon_client
-from ....src.amazon.client import create_data_kiosk_client, create_explicit_sp_api_client
+from ....src.amazon.client import create_explicit_sp_api_client
 from ....src.amazon.credentials import (
     AmazonLwaCredentials,
     load_lwa_credentials,
@@ -41,21 +40,6 @@ def _credentials() -> AmazonLwaCredentials:
 
 
 class TestAmazonClientCreation(unittest.TestCase):
-    def test_creates_client_with_explicit_credentials(self) -> None:
-        """Pass secrets explicitly to the selected marketplace transport."""
-        with patch.object(amazon_client, "DataKiosk") as data_kiosk_class:
-            client = create_data_kiosk_client(Marketplaces.US, _credentials())
-
-        self.assertIs(client, data_kiosk_class.return_value)
-        data_kiosk_class.assert_called_once_with(
-            marketplace=Marketplaces.US,
-            refresh_token=TEST_REFRESH_CREDENTIAL,
-            credentials={
-                "lwa_app_id": TEST_LWA_APP_ID,
-                "lwa_client_secret": TEST_LWA_CREDENTIAL,
-            },
-        )
-
     def test_sdk_logging_is_suppressed_before_construction_and_first_api_call(self) -> None:
         sdk_logger = logging.getLogger("sp_api")
         calls: list[str] = []
@@ -108,7 +92,7 @@ class TestExplicitClientRouting(unittest.TestCase):
         credentials = _credentials()
         with patch.dict(os.environ, {}, clear=True):
             for marketplace in Marketplaces:
-                for client_class in (DataKiosk, Sellers, Reports):
+                for client_class in (Sellers, Reports):
                     with self.subTest(
                         marketplace=marketplace.name,
                         client=client_class.__name__,

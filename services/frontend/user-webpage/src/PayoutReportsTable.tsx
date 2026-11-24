@@ -32,8 +32,6 @@ export function PayoutReportsTable({
   onSelectVersion,
   status,
   children,
-  fixedMonth = false,
-  fixedMarketplace = false,
 }: {
   identity: Identity;
   rows: CanonicalRow[];
@@ -52,8 +50,6 @@ export function PayoutReportsTable({
   onSelectVersion: (row: CanonicalRow) => void;
   status: ReactNode;
   children: ReactNode;
-  fixedMonth?: boolean;
-  fixedMarketplace?: boolean;
 }) {
   const columns = displayColumns("payouts", identity.account.access_role === "administrator");
   const reportColumns = columns.filter((column) => column.key !== "start_date");
@@ -85,21 +81,16 @@ export function PayoutReportsTable({
                     : undefined
                 }
               >
-                {(fixedMonth && column.key === "start_date") ||
-                (fixedMarketplace && column.key === "marketplace_name") ? (
-                  column.label
-                ) : (
-                  <FinanceColumnHeader
-                    column={column}
-                    dataset="payouts"
-                    identity={identity}
-                    filters={filters}
-                    onFiltersChange={onFiltersChange}
-                    sort={sort}
-                    onSortChange={onSortChange}
-                    totalCount={totalCount}
-                  />
-                )}
+                <FinanceColumnHeader
+                  column={column}
+                  dataset="payouts"
+                  identity={identity}
+                  filters={filters}
+                  onFiltersChange={onFiltersChange}
+                  sort={sort}
+                  onSortChange={onSortChange}
+                  totalCount={totalCount}
+                />
               </Table.Th>
             ))}
           </Table.Tr>

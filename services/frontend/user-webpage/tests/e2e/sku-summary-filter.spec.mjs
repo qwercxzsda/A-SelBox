@@ -33,7 +33,7 @@ async function skuFixture(page, role = "member") {
     company_id: companyId,
     sku,
     component_type: "PRODUCT_SALES",
-    source: date === "2026-02-28" ? "DATA_KIOSK" : "FINANCES",
+    source: date === "2026-02-28" ? "STORAGE" : "FINANCES",
     marketplace_name: date === "2026-02-28" ? "Amazon.co.jp" : "Amazon.com",
     source_amount: value,
   });
@@ -192,7 +192,7 @@ test("member totals, type breakdowns and records intersect every selected filter
   await expectEmpty(page, "Last day");
   await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "300.00 USD");
   await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "120.12 USD");
-  await selectValues(page, "Source", ["Finances"], ["Finances", "Data Kiosk"]);
+  await selectValues(page, "Source", ["Finances"], ["Finances"]);
   await expectEmpty(page, "Selected dates", "Amazon.co.jp");
   await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "8.00 USD");
   await selectValues(page, "Type", ["Product sales"], ["Product sales"]);

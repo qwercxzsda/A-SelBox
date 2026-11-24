@@ -69,7 +69,7 @@ test("unchanged administrator renewal reuses catalog but renews credentials and 
 
 test("a changed revision forces one catalog download during token renewal", async ({ page }) => {
   const fixture = await setup(page);
-  fixture.revisions.data_kiosk = "1";
+  fixture.revisions.references = "1";
   fixture.skuOptions.push("NEW-SKU");
   fixture.companyNames["company-member-a"] = "Fresh company label";
   await page.clock.fastForward(30_000);

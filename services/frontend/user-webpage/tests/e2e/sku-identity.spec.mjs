@@ -1,13 +1,6 @@
 import { feeRow as configurationRow } from "./sku-configuration-fixtures.mjs";
 import { expect, test } from "@playwright/test";
-import {
-  assignmentId,
-  feeRow,
-  kioskRow,
-  liveRow,
-  financesRow,
-  skuAssignments,
-} from "./api-fixtures.mjs";
+import { assignmentId, feeRow, liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 
@@ -15,7 +8,6 @@ const SCOPES = [
   ["member", "live", "Transactions"],
   ["administrator", "live", "Transactions"],
   ["administrator", "finances", "Finances"],
-  ["administrator", "data_kiosk", "Data Kiosk"],
 ];
 
 for (const [role, dataset, tab] of SCOPES) {
@@ -27,21 +19,15 @@ for (const [role, dataset, tab] of SCOPES) {
     fixture.assignments = skuAssignments(["S1", "S2"]);
     fixture.feeRows = [feeRow(0), { ...feeRow(1), marketplace_name: "Amazon.co.uk" }];
     const rows = [1, 2, 3].map((index) => ({
-      ...(dataset === "live"
-        ? liveRow("SOURCE", index)
-        : dataset === "finances"
-          ? financesRow(index)
-          : kioskRow(index, String(index * 10))),
+      ...(dataset === "live" ? liveRow("SOURCE", index) : financesRow(index)),
       seller_namespace: index === 1 ? "N1" : "N2",
       sku: index <= 2 ? "S1" : "S2",
       sku_id: assignmentId(index <= 2 ? 1 : 2),
       source_amount: String(index * 10),
       amount: String(index * 10),
-      component_type: dataset === "data_kiosk" ? "NET_PRODUCT_SALES" : "PRODUCT_SALES",
+      component_type: "PRODUCT_SALES",
     }));
-    fixture[
-      dataset === "live" ? "liveRows" : dataset === "finances" ? "financesRows" : "kioskRows"
-    ] = rows;
+    fixture[dataset === "live" ? "liveRows" : "financesRows"] = rows;
     await signIn(page);
     if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
     const table = page.getByRole("table", { name: "Financial records", exact: true });

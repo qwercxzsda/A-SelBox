@@ -46,11 +46,7 @@ direct financial events contribute; linked release copies and `Transfer` do not.
 SKU-less source events remain present. Parent totals are checked against components, not added to
 them. Dates, account types, currencies and Summary marketplace scope must match.
 
-`listSummary` is an account control and has no SKU dimension. These matches establish neither
-business ownership nor Data Kiosk's per-SKU cost correctness. Company payouts additionally apply
-current SKU terms and the [source allocation policy](../source_allocation.md). Data Kiosk remains
-authoritative for its company-cost category; advertising allocation and other upstream Data Kiosk
-issues require their separate investigations.
+Amazon Summary verifies account totals. The [allocation rules](../source_allocation.md) describe how individual charges reach a company.
 
 ## Earlier independent checks
 

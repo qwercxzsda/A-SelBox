@@ -6,7 +6,7 @@ import { formatAmount } from "./decimal.ts";
 function metadataLabel(key: string): string {
   if (key === "id") return "Record ID";
   if (key === "seller_namespace") return "Source namespace";
-  const label = humanizeCode(key).replace(/\b(id|sku|api|utc|asin)\b/gi, (word) =>
+  const label = humanizeCode(key).replace(/\b(id|sku|fnsku|api|utc|asin)\b/gi, (word) =>
     word.toUpperCase(),
   );
   return label.charAt(0).toUpperCase() + label.slice(1);

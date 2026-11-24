@@ -4,17 +4,20 @@ import gzip
 import json
 import unittest
 from datetime import date
+from functools import partial
 from typing import cast
 from unittest.mock import Mock, patch
 
+from services.sync.src.amazon.reports.jobs import request_report
 from services.sync.src.archives.storage import load_document_archive
 from services.sync.src.inventory.acquisition import download_inventory_acquisition
 from services.sync.src.inventory.models import INVENTORY_REPORT_TYPE, InventoryAcquisition
-from services.sync.src.inventory.reports import request_inventory_report
 from services.sync.src.inventory.serialization import inventory_from_payload, inventory_payload
 from services.sync.tests.support.archives import MemoryArchiveStorage
 
 from .fixtures import MARKETPLACE, ReportsClient, report_summary
+
+request_inventory_report = partial(request_report, report_type=INVENTORY_REPORT_TYPE)
 
 MODULE = "services.sync.src.inventory.acquisition"
 

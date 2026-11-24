@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
+import { liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { applyDates, selectColumnOptions, sortBy, columnHeader } from "./table-actions.mjs";
 
@@ -102,9 +102,9 @@ for (const width of [1440, 834, 390]) {
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = "administrator";
     fixture.financesRows = [financesRow(1, "0")];
-    fixture.kioskRows = [kioskRow(1, "0")];
+
     await signIn(page);
-    for (const tab of ["Finances", "Data Kiosk"]) {
+    for (const tab of ["Finances"]) {
       await page.getByRole("tab", { name: tab, exact: true }).click();
       const table = page.getByRole("table", { name: "Financial records", exact: true });
       await expect(table.locator("tbody tr")).toHaveCount(1);

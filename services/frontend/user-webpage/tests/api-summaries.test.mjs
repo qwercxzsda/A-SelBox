@@ -53,7 +53,7 @@ test("one shared UTC anchor uses the latest accessible transaction without any U
         marketplaces: ["Amazon.co.jp"],
         dateFrom: "2020-01-01",
         dateTo: "2020-01-31",
-        sources: ["DATA_KIOSK"],
+        sources: ["STORAGE"],
         types: ["PRODUCT_SALES"],
         search: "ignored",
         feeApplicability: ["applicable"],

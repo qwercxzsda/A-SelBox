@@ -2,7 +2,6 @@ import type { ReactNode, Ref } from "react";
 import { Text, Title } from "@mantine/core";
 import type { CanonicalRow, TableDatasetKey } from "./api";
 import { TableCellValue } from "./Cell";
-import { PayoutReviewDetails } from "./PayoutReviewDetails";
 import { PayoutAmounts } from "./PayoutAmounts";
 import { AdditionalDetails } from "./AdditionalDetails";
 import { formatRecordDate } from "./date-display";
@@ -23,7 +22,6 @@ export function RowDetailContent({
   row,
   isAdministrator,
   accessToken,
-  isReview,
   reportNavigation,
   headingRef,
 }: {
@@ -32,19 +30,23 @@ export function RowDetailContent({
   row: CanonicalRow;
   isAdministrator: boolean;
   accessToken: string;
-  isReview: boolean;
   reportNavigation?: ReactNode;
   headingRef: Ref<HTMLHeadingElement>;
 }) {
   const columns: ColumnDefinition[] = displayColumns(dataset, isAdministrator)
     .flatMap(({ secondary, ...column }) => (secondary ? [column, secondary] : [column]))
     .filter((column) => !(column.key === "sku" && row.sku));
+  if (dataset === "live")
+    columns.push(
+      { key: "base_amount", label: "Base amount", kind: "money" },
+      { key: "tax_amount", label: "Tax amount", kind: "money" },
+    );
   const shown = new Set([...TABLE_COLUMNS[dataset], ...columns].map((column) => column.key));
   const remaining = Object.keys(row).filter((key) => key === "company_id" || !shown.has(key));
   return (
     <>
       <Title ref={headingRef} tabIndex={-1} order={3} mb={4} className="row-detail-title">
-        {isReview ? "Saved report review" : (row.sku ?? DATASET_PRESENTATION[dataset].label)}
+        {row.sku ?? DATASET_PRESENTATION[dataset].label}
       </Title>
       <Text c="dimmed" size="sm" mb="lg">
         {dataset === "payouts"
@@ -53,7 +55,7 @@ export function RowDetailContent({
       </Text>
       {dataset === "finances" && row.activity_eligible === "false" ? (
         <Text size="sm" c="dimmed" mb="lg">
-          This record is exclusive of activity totals. Linked releases track when existing funds
+          This record is excluded from activity totals. Linked releases track when existing funds
           become available; transfers track movement to or from a bank account. The original
           economic activity is counted once. A released status alone does not exclude a directly
           posted fee.
@@ -77,9 +79,7 @@ export function RowDetailContent({
           ))}
         </div>
       ) : null}
-      {dataset === "payouts" && row.id && isReview ? (
-        <PayoutReviewDetails key={`review-${row.id}`} row={row} accessToken={accessToken} />
-      ) : dataset === "payouts" && row.id ? (
+      {dataset === "payouts" && row.id ? (
         <PayoutAmounts key={`payout-${row.id}`} row={row} accessToken={accessToken} />
       ) : null}
       {isAdministrator && remaining.length > 0 ? (

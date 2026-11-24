@@ -1,36 +1,9 @@
--- Index parent metadata separately from compact monetary components.
--- Reporting instants are separate from marketplace-local accounting dates.
-create index finances_revisions_instant_idx
-on private.finances_transaction_versions (posted_at, id);
-create index finances_revisions_marketplace_instant_idx on private.finances_transaction_versions (
+create index finances_posted_instant_idx on private.finances_transactions (posted_at, version_id);
+create index finances_marketplace_instant_idx on private.finances_transactions (
     marketplace_name, posted_at
 );
-create index finances_revisions_date_idx on private.finances_transaction_versions (posted_date, id);
-create index finances_revisions_marketplace_date_idx on private.finances_transaction_versions (
-    marketplace_name, posted_date
-);
-create index finances_transaction_components_sku_idx on private.finances_transaction_components (
-    sku, version_id
-);
-create index finances_transaction_components_type_idx on private.finances_transaction_components (
-    component_type, version_id
-);
-create index finances_transactions_native_lookup_idx on private.finances_transactions (
-    native_transaction_id, id
-);
-
--- Day metadata is stored once; component indexes retain only row-level keys.
-create index data_kiosk_days_current_version_idx
-on private.data_kiosk_days (current_version_id) where current_version_id is not null;
-create index data_kiosk_days_date_idx on private.data_kiosk_days (activity_date, id);
-create index data_kiosk_days_marketplace_date_idx
-on private.data_kiosk_days (marketplace_name, activity_date, id);
-create index data_kiosk_versions_instant_idx on private.data_kiosk_day_versions (activity_at, id);
-create index data_kiosk_day_components_sku_idx
-on private.data_kiosk_day_components (sku, version_id);
-create index data_kiosk_day_components_type_idx on private.data_kiosk_day_components (
-    component_type, version_id
-);
+create index finances_amount_type_idx on private.finances_amounts (amount_type, version_id);
+create index source_units_native_lookup_idx on private.source_units (unit_key, id);
 
 -- Shared rules for the bounded transaction read API.
 
@@ -87,21 +60,6 @@ $$;
 
 -- This only recognizes the two fact policies that already enforce current
 -- source pointers for authenticated members. It does not grant access.
--- Call once before custom planning, or through a scalar InitPlan in page SQL.
-create function private.member_policy_covers_current_version(p_relation regclass)
-returns boolean
-language sql stable security invoker set search_path = '' as $$
-    select case when p_relation in (
-        'private.finances_transaction_components'::regclass,
-        'private.data_kiosk_day_components'::regclass
-    ) then current_user = 'authenticated'
-        and not private.is_administrator()
-        and pg_catalog.row_security_active(p_relation)
-    else false end;
-$$;
-
-revoke all on function private.member_policy_covers_current_version(regclass)
-from public, anon, authenticated, service_role;
 
 revoke all on function private.validate_transaction_filters(
     date, date, uuid[], text[], text[], text[], text[], boolean

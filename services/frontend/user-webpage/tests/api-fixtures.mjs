@@ -20,7 +20,7 @@ export function workspaceRevisionReply(url) {
     account: { user_id: "user-1", access_role: "member", company_id: "company-1" },
     revisions: {
       finances: "one",
-      data_kiosk: "one",
+      references: "one",
       fees: "one",
       inventory: "one",
       payouts: "one",
@@ -39,9 +39,7 @@ export function datasetRecord(dataset, overrides = {}) {
   return Object.assign(
     Object.fromEntries(DATASET_CONFIG[dataset].selectColumns.map((column) => [column, column])),
     dataset === "payouts" ? { marketplace_name: "Amazon.com" } : {},
-    ["live", "finances", "data_kiosk"].includes(dataset)
-      ? { activity_at: "2026-11-06T07:59:59.999999Z" }
-      : {},
+    ["live", "finances"].includes(dataset) ? { activity_at: "2026-11-06T07:59:59.999999Z" } : {},
     overrides,
   );
 }

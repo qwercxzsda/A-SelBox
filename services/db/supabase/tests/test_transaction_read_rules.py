@@ -5,7 +5,7 @@ from typing import LiteralString
 
 import psycopg
 
-from services.db.supabase.tests import test_live_view_equivalence as live_fixture
+from services.db.supabase.tests.financial_fixtures import FinancialFixture
 from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 
@@ -16,12 +16,11 @@ _HELPERS = (
     "private.financial_account_visible()",
     "private.validate_transaction_filters(date,date,uuid[],text[],text[],text[],text[],boolean)",
     "private.validate_page_bounds(integer,bigint)",
-    "private.member_policy_covers_current_version(regclass)",
 )
 
 
 class TransactionReadRulesTests(SourceModelFixture):
-    assign = live_fixture.LiveViewEquivalenceTests.assign
+    assign = FinancialFixture.assign
 
     def test_only_sale_and_refund_principal_components_have_finances_fee_bases(self) -> None:
         self.finances(
@@ -101,7 +100,7 @@ class TransactionReadRulesTests(SourceModelFixture):
                     ).fetchone()
                 )
                 self.assertFalse(row[0])
-                self.assertEqual(row[4:], (True, False, False, False))
+                self.assertEqual(row[4:], (signature not in _INLINE_HELPERS, False, False, False))
                 if signature in _INLINE_HELPERS:
                     self.assertEqual(row[1:4], ("i", "s", None))
                 else:
@@ -114,19 +113,6 @@ class TransactionReadRulesTests(SourceModelFixture):
             (list(_HELPERS),),
         ).fetchall()
         self.assertEqual(rows, [])
-
-    def test_policy_shortcut_is_limited_to_member_fact_table_reads(self) -> None:
-        company, _ = self.owner()
-        query = (
-            "select private.member_policy_covers_current_version("
-            "'private.finances_transaction_components'::regclass),"
-            "private.member_policy_covers_current_version("
-            "'private.data_kiosk_day_components'::regclass),"
-            "private.member_policy_covers_current_version('public.skus'::regclass)"
-        )
-        self.assertEqual(self.connection.execute(query).fetchone(), (False, False, False))
-        self.assertEqual(self.as_user(self.administrator(), query), [(False, False, False)])
-        self.assertEqual(self.as_user(self.member(company), query), [(True, True, False)])
 
     def test_current_terms_use_exact_sku_identity_and_do_not_broaden_member_scope(self) -> None:
         first, first_sku = self.owner()

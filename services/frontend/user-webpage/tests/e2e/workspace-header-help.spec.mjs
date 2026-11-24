@@ -1,6 +1,7 @@
 import { expect, test } from "./accessibility-fixture.mjs";
-import { financesRow, kioskRow, liveRow } from "./api-fixtures.mjs";
-import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
+import { financesRow, liveRow } from "./api-fixtures.mjs";
+
+import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { item } from "./sku-configuration-fixtures.mjs";
@@ -12,8 +13,8 @@ const ADMIN_TABS = [
   "Current fees",
   "User access",
   "Companies",
+  "Assignments",
   "Finances",
-  "Data Kiosk",
   "Financial review",
 ];
 const MEMBER_TABS = ["Transactions", "Inventory", "Payout reports", "Current fees"];
@@ -74,7 +75,7 @@ async function setup(page, role = "administrator") {
   fixture.roles["member-a"] = role;
   fixture.liveRows = [liveRow("HEADER", 1, REVIEW_COMPANY)];
   fixture.financesRows = [financesRow(1)];
-  fixture.kioskRows = [kioskRow(1, "12")];
+
   fixture.skuConfigurationItems = [item("HEADER-SKU", { company_id: REVIEW_COMPANY })];
   await mockInventory(page, [
     inventoryRow("HEADER-SKU", {

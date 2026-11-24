@@ -20,9 +20,9 @@ export function trendBucket(
   amount,
   { type = "PRODUCT_SALES", sku = "ALPHA", ...options } = {},
 ) {
-  const source = type === "FBA_STORAGE_FEE" ? "DATA_KIOSK" : "FINANCES";
+  const source = type === "STORAGE_FEES" ? "STORAGE" : "FINANCES";
   return {
-    ...summaryBucket(date, amount, { category: source, ...options }),
+    ...summaryBucket(date, amount, options),
     activity_at: `${date}T12:00:00.000000Z`,
     component_type: type,
     source,
@@ -40,7 +40,7 @@ export async function setupTrendPage(page, role = "member", extraRows = []) {
   fixture.aggregateRows = [
     trendBucket("2026-11-15", "1"),
     trendBucket("2026-11-14", "100", { serviceFee: "-5", companyAmount: "95" }),
-    trendBucket("2026-11-14", "-10", { type: "FBA_STORAGE_FEE" }),
+    trendBucket("2026-11-14", "-10", { type: "STORAGE_FEES" }),
     trendBucket("2026-11-13", "20", { sku: "BETA" }),
     trendBucket("2026-11-14", "30", { marketplace: "Amazon.ca", currency: "CAD" }),
     trendBucket("2026-11-14", "5", { currency: "EUR" }),

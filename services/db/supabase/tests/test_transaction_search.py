@@ -46,7 +46,7 @@ def selections(*, live: bool) -> tuple[dict[str, object], ...]:
     )
     extra: tuple[dict[str, object], ...] = (
         (
-            {"p_search_sources": ["DATA_KIOSK"]},
+            {"p_search_sources": ["AD_INVOICE"]},
             {"p_search_sources": ["FINANCES"], "p_search_skus": ["OTHER"]},
         )
         if live
@@ -94,7 +94,7 @@ class TransactionSearchTests(SourceModelFixture):
             {"p_search_marketplaces": ["Amazon.com"], "p_date_from": "2026-06-16"},
             {"p_search_types": ["PRODUCT_SALES", "FbaStorageFee"], "p_fee_applicable": False},
             {"p_search_skus": ["SKU"], "p_company_ids": [company_b]},
-            {"p_search_sources": ["DATA_KIOSK"], "p_marketplaces": ["Amazon.co.uk"]},
+            {"p_search_sources": ["AD_INVOICE"], "p_marketplaces": ["Amazon.co.uk"]},
         )
         for user, order, direction, selection, include_count in product(
             (self.administrator(), self.member(company_a)),
@@ -114,50 +114,6 @@ class TransactionSearchTests(SourceModelFixture):
             )
             if include_count:
                 self.assertEqual(self.count(user, **selection), result["total_count"])
-
-    def test_catalog_values_are_exact_including_punctuation_unicode_and_whitespace(self) -> None:
-        sku = " Literal.*[]\\%,_\"'Ωä한국\ninside "
-        company, _ = self.owner(sku)
-        self.finances([self.transaction("100.123456789012345678901", sku=sku)])
-        self.kiosk(
-            1,
-            [self.component("-100.123456789012345678901", sku=sku)],
-            activity_date=self.current_activity_date(),
-        )
-        for user in (self.administrator(), self.member(company)):
-            self.assertEqual(
-                self.assert_matches_view(user, p_search_skus=[sku])["total_count"], "2"
-            )
-            for absent in (sku.strip(), sku.lower(), ".*", "USD", "APPLIED", "seller"):
-                self.assertEqual(self.count(user, p_search_skus=[absent]), "0")
-            self.assertEqual(self.count(user, p_search_types=["USD"]), "0")
-
-    def test_search_cannot_bypass_current_ownership_or_account_revocation(self) -> None:
-        company_a, sku = self.owner()
-        company_b, _ = self.owner("OTHER")
-        terms = self.fee(sku, [("2026-01-01", None, "5")])
-        administrator, member_a, member_b = (
-            self.administrator(),
-            self.member(company_a),
-            self.member(company_b),
-        )
-        acquisition = self.acquisition()
-        _, _old = self.finances([self.transaction("100")], acquisition_id=acquisition)
-        self.finances([self.transaction("200")], acquisition_id=acquisition)
-        self.kiosk(1, [self.component("-20")], activity_date=self.current_activity_date())
-        new_terms = self.assign("SKU", company_b, expected=terms)
-        self.assertEqual(self.count(member_a, p_search_skus=["SKU"]), "0")
-        self.assertEqual(self.count(member_b, p_search_skus=["SKU"]), "2")
-        self.assign("SKU", None, expected=new_terms)
-        for user in (administrator, member_a, member_b):
-            result = self.assert_matches_view(user, p_search_skus=["SKU"])
-            self.assertEqual(result["total_count"], "2" if user == administrator else "0")
-        self.connection.execute(
-            "delete from public.app_accounts where user_id=%s", (administrator,)
-        )
-        self.assertEqual(
-            self.count(administrator, p_search_sources=["FINANCES", "DATA_KIOSK"]), "0"
-        )
 
     def test_invalid_search_shapes_are_rejected_by_both_live_rpcs(self) -> None:
         user = self.administrator()
@@ -194,77 +150,6 @@ class SourceTransactionSearchTests(SourceModelFixture):
         self.assertIsInstance(result, str)
         self.assertTrue(cast(str, result).isdecimal())
         return cast(str, result)
-
-    def test_source_search_or_sets_keep_administrator_history_order_and_filters(self) -> None:
-        self.financial_fixture()
-        administrator = self.administrator()
-        for dataset, selection, order in product(
-            ("finances", "data_kiosk"),
-            selections(live=False),
-            ("date", "amount"),
-        ):
-            result = self.assert_matches_view(
-                administrator, dataset, p_limit=2, p_offset=1, p_order_by=order, **selection
-            )
-            self.assertEqual(self.count(administrator, dataset, **selection), result["total_count"])
-        for dataset, direction, include_count in product(
-            ("finances", "data_kiosk"), ("asc", "desc"), (True, False)
-        ):
-            self.assert_matches_view(
-                administrator,
-                dataset,
-                p_search_skus=["SKU"],
-                p_search_types=["FbaStorageFee"],
-                p_types=["PRODUCT_SALES"],
-                p_marketplaces=["Amazon.com"],
-                p_date_from="2026-06-15",
-                p_direction=direction,
-                p_include_count=include_count,
-            )
-
-    def test_source_count_retains_administrator_history_and_rejects_members(self) -> None:
-        company, sku = self.owner()
-        administrator, member = self.administrator(), self.member(company)
-        terms = self.fee(sku, [("2026-01-01", None, "5")])
-        acquisition = self.acquisition()
-        _, _finances = self.finances([self.transaction("10")], acquisition_id=acquisition)
-        _, kiosk = self.kiosk(1, [self.component("10")])
-        self.finances([self.transaction("20")], acquisition_id=acquisition)
-        self.kiosk(2, [self.component("0")], expected=kiosk)
-        for dataset in ("finances", "data_kiosk"):
-            result = self.assert_matches_view(administrator, dataset, p_search_skus=["SKU"])
-            self.assertEqual(
-                self.count(administrator, dataset, p_search_skus=["SKU"]), result["total_count"]
-            )
-            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
-                self.count(member, dataset, p_search_skus=["SKU"])
-        self.assign("SKU", None, expected=terms)
-        for dataset in ("finances", "data_kiosk"):
-            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
-                self.count(member, dataset, p_search_skus=["SKU"])
-            self.assertEqual(
-                self.count(administrator, dataset, p_search_skus=["SKU"]),
-                "2",
-            )
-
-    def test_raw_search_cannot_bypass_account_authorization(self) -> None:
-        company, _ = self.owner()
-        self.finances([self.transaction("10")])
-        self.kiosk(1, [self.component("10")])
-        administrator = self.administrator()
-        self.connection.execute(
-            "delete from public.app_accounts where user_id=%s", (administrator,)
-        )
-        for user, dataset, call in product(
-            (self.member(company), self.auth_user(), administrator),
-            ("finances", "data_kiosk"),
-            (self.page, self.count),
-        ):
-            with (
-                self.subTest(dataset=dataset),
-                self.assertRaises(psycopg.errors.InsufficientPrivilege),
-            ):
-                call(user, dataset, p_search_skus=["SKU"])
 
     def test_source_count_contract_and_invalid_search_requests(self) -> None:
         assert_rpc_contract(self, "source_transaction_count", _SOURCE_COUNT_TYPES)

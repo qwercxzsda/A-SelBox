@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { financesRow, kioskRow } from "./api-fixtures.mjs";
+import { financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 
-for (const dataset of ["finances", "data_kiosk"]) {
+for (const dataset of ["finances"]) {
   test(`member cannot open the ${dataset} full-source tab through a URL`, async ({ page }) => {
     const rawRequests = [];
     page.on("request", (request) => {
@@ -17,37 +17,26 @@ for (const dataset of ["finances", "data_kiosk"]) {
       "true",
     );
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-    for (const name of ["Finances", "Data Kiosk"])
+    for (const name of ["Finances"])
       await expect(page.getByRole("tab", { name, exact: true })).toHaveCount(0);
     expect(rawRequests).toEqual([]);
   });
 }
 
-test("administrator source tabs retain comparison and historical rows", async ({ page }) => {
+test("administrator Finances retains historical charge rows", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.financesRows = [
     {
       ...financesRow(1, "-5"),
       sku: "FINANCE-CONTROL",
-      category: "DATA_KIOSK",
+      route: "STORAGE",
       component_type: "STORAGE_FEES",
       is_current: "false",
       activity_eligible: "false",
     },
   ];
-  fixture.kioskRows = [
-    {
-      ...kioskRow(1, "98"),
-      sku: "KIOSK-COMPARISON",
-      category: "FINANCES",
-      component_type: "NET_PRODUCT_SALES",
-      is_current: "false",
-    },
-  ];
   await signIn(page);
   await page.getByRole("tab", { name: "Finances", exact: true }).click();
   await expect(rowWithSku(page, "FINANCE-CONTROL")).toBeVisible();
-  await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
-  await expect(rowWithSku(page, "KIOSK-COMPARISON")).toBeVisible();
 });

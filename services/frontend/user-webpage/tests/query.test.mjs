@@ -46,7 +46,7 @@ test("cached pages are separated by account access and every server-side query o
         { companyIds: ["11111111-1111-4111-8111-111111111111"] },
         { skus: ["SKU_100"] },
         { marketplaces: ["Amazon.com"] },
-        { sources: ["DATA_KIOSK"] },
+        { sources: ["STORAGE"] },
         { types: ["PRINCIPAL"] },
         { feeApplicability: ["applicable"] },
         { feeApplicability: ["not_applicable"] },
@@ -269,7 +269,7 @@ test("a changed count invalidates only pages in its exact scope before navigatio
   const unaffected = [
     datasetQueryOptions(IDENTITY, { ...OPTIONS, search: "different-search" }),
     datasetQueryOptions(IDENTITY, { ...OPTIONS, dataset: "finances" }),
-    datasetQueryOptions(IDENTITY, { ...OPTIONS, filters: { sources: ["DATA_KIOSK"] } }),
+    datasetQueryOptions(IDENTITY, { ...OPTIONS, filters: { sources: ["STORAGE"] } }),
     datasetQueryOptions(
       { ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } },
       OPTIONS,

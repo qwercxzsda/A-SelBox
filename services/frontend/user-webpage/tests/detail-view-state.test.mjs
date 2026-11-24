@@ -43,7 +43,7 @@ test("restored summary scope excludes cached amounts and validates query bounds"
     { ...input, period: { ...input.period, range: { from: "2026-02-30", to: "2026-03-01" } } },
   ])
     assert.equal(decodeSummaryBreakdown(invalid), null);
-  for (const focusedGroup of ["sales", "inventory", "seller-costs"]) {
+  for (const focusedGroup of ["sales", "inventory", "fulfillment"]) {
     const focused = decodeSummaryBreakdown({ ...input, title: "Daily trends", focusedGroup });
     assert.equal(focused.focusedGroup, focusedGroup);
     assert.deepEqual(focused.scope, input.scope);
@@ -65,8 +65,8 @@ test("reload retains the page/filter generation while invalid state is discarded
     revision: 7,
   });
   assert.deepEqual(
-    decodeRecordSelection({ label: "Storage", types: ["FBA_STORAGE_FEE"], revision: 3 }),
-    { label: "Storage", types: ["FBA_STORAGE_FEE"], revision: 3 },
+    decodeRecordSelection({ label: "Storage", types: ["STORAGE_FEES"], revision: 3 }),
+    { label: "Storage", types: ["STORAGE_FEES"], revision: 3 },
   );
   assert.deepEqual(decodeRecordSelection(null), { label: "All records", types: [] });
 });

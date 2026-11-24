@@ -219,3 +219,13 @@ export function sumExactDecimals(values: Iterable<string | null>): string | null
   const fraction = scale === 0 ? "" : digits.slice(-scale).replace(/0+$/, "");
   return `${negative ? "-" : ""}${integer}${fraction ? `.${fraction}` : ""}`;
 }
+
+export function differenceExact(left: string | null, right: string | null): string | null {
+  if (left === null || right === null) return null;
+  const normalized = sumExactDecimals([right]);
+  if (normalized === null) return null;
+  return sumExactDecimals([
+    left,
+    normalized.startsWith("-") ? normalized.slice(1) : `-${normalized}`,
+  ]);
+}

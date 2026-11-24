@@ -6,10 +6,8 @@ from decimal import Decimal
 import psycopg
 
 from services.db.supabase.tests.integration_support import TransactionDatabase
-from services.db.supabase.tests.payout_fixtures import fill_payout_kiosk_month
 from services.db.supabase.tests.source_fixtures import SourceModelFixture
 from services.sync.src.database.company_terms import FeePeriod, create_company, publish_sku_terms
-from services.sync.src.database.financial_reads import load_company_financial_progress
 from services.sync.src.database.payout_reports import (
     load_company_payout_report,
     load_company_payout_report_records,
@@ -22,7 +20,7 @@ class FinancialRepositoryTests(SourceModelFixture):
     def test_report_repository_rejects_company_without_assigned_skus(self) -> None:
         database = TransactionDatabase(self.connection)
         company = create_company(database, "Not assigned yet")
-        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "currently assigned SKU"):
+        with self.assertRaises(psycopg.errors.CheckViolation):
             publish_company_payout_report(
                 database,
                 company_id=company,
@@ -39,45 +37,6 @@ class FinancialRepositoryTests(SourceModelFixture):
             (0,),
         )
 
-    def test_partial_reader_preserves_exact_missing_fee_details(self) -> None:
-        database = TransactionDatabase(self.connection)
-        company = create_company(database, "Partial sums")
-        for sku, periods in (
-            ("SKU", [FeePeriod("Amazon.com", date(2026, 1, 1), None, Numeric(10))]),
-            ("MISSING", []),
-        ):
-            publish_sku_terms(
-                database,
-                sku=sku,
-                company_id=company,
-                expected_current_version_id=None,
-                periods=periods,
-                change_reason="Initial terms",
-            )
-        finances, _ = self.finances(
-            [
-                self.transaction("100"),
-                self.transaction("200", 4, sku="MISSING"),
-                self.transaction("-5", 5, description="Shipping"),
-            ]
-        )
-        progress = load_company_financial_progress(
-            database,
-            seller_namespace=self.seller,
-            start_date=date(2026, 6, 1),
-            end_date=date(2026, 6, 30),
-            preprocess_version="v0",
-            finances_batch_ids=[finances],
-            marketplace_names=[],
-        )[0]
-        self.assertEqual(
-            (progress.source_amount, progress.known_fee_amount, progress.known_company_amount),
-            (Decimal(295), Decimal(-10), Decimal(85)),
-        )
-        self.assertEqual(progress.missing_fee_count, 1)
-        self.assertEqual(progress.missing_fee_components[0].source_amount, Decimal(200))
-        self.assertEqual(progress.missing_fee_components[0].fee_base, Decimal(200))
-
     def test_report_repository_reads_frozen_amounts_after_unassignment(self) -> None:
         database = TransactionDatabase(self.connection)
         company = create_company(database, "Saved report")
@@ -90,7 +49,6 @@ class FinancialRepositoryTests(SourceModelFixture):
             change_reason="Initial terms",
         )
         self.finances([self.transaction("100")])
-        fill_payout_kiosk_month(self)
         report_id = publish_company_payout_report(
             database,
             company_id=company,

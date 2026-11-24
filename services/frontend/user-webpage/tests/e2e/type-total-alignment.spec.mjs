@@ -137,9 +137,9 @@ for (const [user, role] of [
       const rows = [
         record("PRODUCT_SALES", "1000", 1, "-50"),
         record("PRODUCT_REFUNDS", "-100", 2, "5"),
-        record("SPONSORED_PRODUCT_FEE", "-700", 3),
-        record("REFERRAL_FEE", "-150", 4),
-        record("FBA_STORAGE_FEE", "0", 5),
+        record("ADVERTISING", "-700", 3),
+        record("REFERRAL_FEES", "-150", 4),
+        record("STORAGE_FEES", "0", 5),
       ];
       const fixture = await setRecords(page, rows, user, role);
       fixture.payoutRows = [
@@ -158,7 +158,6 @@ for (const [user, role] of [
       fixture.payoutRecords = rows.map((row) => ({
         ...row,
         report_id: reportId,
-        authoritative: "true",
       }));
       const summary = await openSummary(page, user);
       const expected = ["50.00 USD", "-45.00 USD", "5.00 USD"];
@@ -169,13 +168,9 @@ for (const [user, role] of [
           ["900.00 USD", "-45.00 USD", "855.00 USD"],
           ["PRODUCT_SALES", "PRODUCT_REFUNDS"],
         ],
-        [
-          "Advertising & promotions",
-          ["-700.00 USD", "0.00 USD", "-700.00 USD"],
-          ["SPONSORED_PRODUCT_FEE"],
-        ],
-        ["Selling fees", ["-150.00 USD", "0.00 USD", "-150.00 USD"], ["REFERRAL_FEE"]],
-        ["Storage & inventory", ["0.00 USD", "0.00 USD", "0.00 USD"], ["FBA_STORAGE_FEE"]],
+        ["Advertising & promotions", ["-700.00 USD", "0.00 USD", "-700.00 USD"], ["ADVERTISING"]],
+        ["Selling fees", ["-150.00 USD", "0.00 USD", "-150.00 USD"], ["REFERRAL_FEES"]],
+        ["Storage & inventory", ["0.00 USD", "0.00 USD", "0.00 USD"], ["STORAGE_FEES"]],
       ];
       for (const [name, amounts] of groups) await assertHeaderAmounts(summary, name, amounts);
       for (const [index, field] of fields.entries()) {
@@ -192,9 +187,9 @@ for (const [user, role] of [
       const records = summary.getByRole("table", { name: "Amount records", exact: true });
       await expect(records.getByRole("row")).toHaveCount(rows.length + 1);
       for (const row of rows) {
-        const cells = recordRow(records, row.sku).getByRole("cell");
-        for (const [index, field] of ["source_amount", "fee_amount", "company_amount"].entries())
-          await expect(cells.nth(6 + index)).toHaveText(
+        const record = recordRow(records, row.sku);
+        for (const field of ["source_amount", "fee_amount", "company_amount"])
+          await expect(record.locator(`td[data-column="${field}"]`)).toHaveText(
             Number(row[field]).toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
@@ -266,7 +261,7 @@ for (const scenario of [
   },
   {
     label: "known zero with unknown",
-    rows: [record("PRODUCT_SALES", "100", 1, null), record("FBA_STORAGE_FEE", "0", 2)],
+    rows: [record("PRODUCT_SALES", "100", 1, null), record("STORAGE_FEES", "0", 2)],
     expected: ["100.00 USD", "0.00 USD", "0.00 USD"],
   },
 ]) {
@@ -279,16 +274,18 @@ for (const scenario of [
       summary.getByRole("region", { name: "Breakdown total", exact: true }),
     ).toContainText("1 transaction has uncalculated amounts.");
     const records = summary.getByRole("table", { name: "Amount records", exact: true });
-    await expect(recordRow(records, "PRODUCT_SALES-001").getByRole("cell").nth(8)).toHaveText("—");
+    await expect(
+      recordRow(records, "PRODUCT_SALES-001").locator('td[data-column="company_amount"]'),
+    ).toHaveText("—");
     if (scenario.rows.length > 1) {
       await assertHeaderAmounts(summary, "Storage & inventory", [
         "0.00 USD",
         "0.00 USD",
         "0.00 USD",
       ]);
-      await expect(recordRow(records, "FBA_STORAGE_FEE-002").getByRole("cell").nth(8)).toHaveText(
-        "0.00",
-      );
+      await expect(
+        recordRow(records, "STORAGE_FEES-002").locator('td[data-column="company_amount"]'),
+      ).toHaveText("0.00");
     }
   });
 }

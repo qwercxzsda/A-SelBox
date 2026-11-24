@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { feeRow, kioskRow, financesRow, skuAssignment } from "./api-fixtures.mjs";
+import { feeRow, financesRow, skuAssignment } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { summaryAmount, summaryBucket, summaryPeriods, typeBucket } from "./summary-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
@@ -29,7 +29,7 @@ async function setup(page, role = "member") {
   fixture.assignments = [skuAssignment(1)];
   fixture.feeRows = [feeRow(0)];
   fixture.financesRows = [financesRow(1)];
-  fixture.kioskRows = [kioskRow(1, "10")];
+
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
@@ -102,9 +102,9 @@ test("unchanged periodic revisions perform one small request and retain every fi
   await finishPoll(page, fixture, initial);
   expect(completedPolls(fixture)).toHaveLength(initial + 1);
   expect(fixture.revisionRequests.at(-1).sources.sort()).toEqual([
-    "data_kiosk",
     "fees",
     "finances",
+    "references",
   ]);
   expect(financialRequests(fixture)).toEqual(financial);
   expect(fixture.identityRequests).toHaveLength(identity);
@@ -112,7 +112,7 @@ test("unchanged periodic revisions perform one small request and retain every fi
   await expect(page.getByRole("dialog", { name: "Transaction totals", exact: true })).toBeVisible();
 });
 
-for (const source of ["finances", "data_kiosk"]) {
+for (const source of ["finances", "references"]) {
   test(`${source} changes reload the live table, summaries, open details and administrator SKU options after refreshing identity catalogs`, async ({
     page,
   }) => {
@@ -159,16 +159,13 @@ for (const source of ["finances", "data_kiosk"]) {
   });
 }
 
-for (const [source, tab, other] of [
-  ["finances", "Finances", "data_kiosk"],
-  ["data_kiosk", "Data Kiosk", "finances"],
-]) {
+for (const [source, tab, other] of [["finances", "Finances", "references"]]) {
   test(`an administrator's ${tab} table reloads only for its own source, while inactive totals catch up on return`, async ({
     page,
   }) => {
     const fixture = await setup(page, "administrator");
     await page.getByRole("tab", { name: tab, exact: true }).click();
-    const sku = source === "finances" ? "FINANCES-1" : "KIOSK-1";
+    const sku = "FINANCES-1";
     await expect(rowWithSku(page, sku)).toBeVisible();
     const rows = () => fixture.requests.filter(({ dataset }) => dataset === source).length;
     const initialRows = rows();
@@ -200,13 +197,11 @@ for (const [source, tab, other] of [
 
     pollCount = completedPolls(fixture).length;
     fixture.revisions[source] = "1";
-    if (source === "finances") fixture.financesRows = [financesRow("UPDATED", "40")];
-    else fixture.kioskRows = [kioskRow("UPDATED", "40")];
+    fixture.financesRows = [financesRow("UPDATED", "40")];
+
     await page.clock.fastForward(60_000);
     await finishPoll(page, fixture, pollCount);
-    await expect(
-      rowWithSku(page, source === "finances" ? "FINANCES-UPDATED" : "KIOSK-UPDATED"),
-    ).toBeVisible();
+    await expect(rowWithSku(page, "FINANCES-UPDATED")).toBeVisible();
     expect(rows()).toBeGreaterThan(initialRows);
     await page.getByRole("tab", { name: "Transactions", exact: true }).click();
 
@@ -418,7 +413,7 @@ test("a late revision response from a signed-out account cannot refresh another 
       await release.promise;
     }
   };
-  fixture.revisionsByUser["member-a"] = { finances: "1", data_kiosk: "0", fees: "1" };
+  fixture.revisionsByUser["member-a"] = { finances: "1", references: "0", fees: "1" };
   try {
     await page.clock.fastForward(60_000);
     await started.promise;
@@ -536,7 +531,7 @@ test("a manual retry requested during an unrelated selective refresh runs when t
     started.resolve();
     await release.promise;
   };
-  fixture.revisions.data_kiosk = "1";
+  fixture.revisions.references = "1";
   try {
     await page.clock.fastForward(60_000);
     await started.promise;

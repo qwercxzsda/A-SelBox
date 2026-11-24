@@ -11,8 +11,8 @@ import { createPayoutReadinessApi } from "./payout-readiness.ts";
 import { createSkuConfigurationApi } from "./sku-configuration.ts";
 import { createSkuConfigurationHistoryApi } from "./sku-configuration-history.ts";
 import { createInventoryApi } from "./inventory.ts";
-import { createSourceTotalsApi } from "./source-totals.ts";
-import { createFinancialReviewApi } from "./financial-review.ts";
+
+import { createAllocationApi } from "./allocations.ts";
 import { createFinancialSourceApi } from "./financial-source.ts";
 import type { ApiClientConfig } from "./client-config.ts";
 export { ApiError } from "./transport.ts";
@@ -36,8 +36,7 @@ export function createApiClient(
     ...createSkuConfigurationApi(transport),
     ...createSkuConfigurationHistoryApi(transport),
     ...createInventoryApi(transport),
-    ...createSourceTotalsApi(transport),
-    ...createFinancialReviewApi(transport),
+    ...createAllocationApi(transport),
     ...createFinancialSourceApi(transport),
     ...createSummaryApi(transport, (options) => datasets.fetchDatasetPage(options)),
   };

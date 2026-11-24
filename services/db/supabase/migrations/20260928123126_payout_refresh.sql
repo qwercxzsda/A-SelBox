@@ -22,15 +22,11 @@ $$;
 create function private.first_payout_source_month() returns date
 language sql stable security invoker set search_path = '' as $$
     select date_trunc('month',min(source_date))::date from (
-        select min(a.reconciliation_start_date) as source_date from private.finances_preprocess_batches p
-        join private.finances_acquisitions a on a.id = p.acquisition_id
+        select min(a.reconciliation_start_date) as source_date from private.source_preprocess_batches p
+        join private.source_acquisitions a on a.id = p.acquisition_id
         union all
-        select min(v.posted_date) from private.finances_transactions t
-        join private.finances_transaction_versions v on v.id=t.current_version_id
-        union all
-        select min(d.activity_date) from private.data_kiosk_days d
-        where d.dataset_key = 'economics' and d.current_version_id is not null
-            and isfinite(d.activity_date)
+        select min(v.posted_date) from private.source_units t
+        join private.finances_transactions v on v.version_id=t.current_version_id
         union all
         select min(r.start_date) from public.company_payout_reports r
         union all
@@ -57,7 +53,8 @@ begin
         if not item.eligible then
             -- Operational state is disposable; immutable report history/pins
             -- survive unassignment. Reassignment bootstraps known months again.
-            delete from private.payout_report_refresh_state where company_id=item.id;
+            delete from private.payout_report_refresh_state s where s.company_id=item.id and not exists(
+                select 1 from public.company_payout_reports r where r.company_id=s.company_id and r.start_date=s.month);
             continue;
         end if;
         if item.first_month is null then
@@ -116,7 +113,7 @@ begin
     insert into private.payout_report_refresh_state (company_id,month)
     select c.id,m.month from public.companies c cross join (select distinct month from unnest(p_months) m(month)) m
     where (p_companies is null or c.id=any(p_companies))
-        and private.payout_company_eligible(c.id)
+        and private.payout_month_eligible(c.id,m.month)
     order by c.id,m.month
     on conflict (company_id,month) do update
     set requested_revision=payout_report_refresh_state.requested_revision+1,
@@ -137,7 +134,7 @@ begin
         next_attempt_at=case when requested_revision>completed_revision
             then least(next_attempt_at,clock_timestamp()) else clock_timestamp() end,failure_count=0
     where (p_companies is null or company_id=any(p_companies))
-        and private.payout_company_eligible(company_id);
+        and private.payout_month_eligible(company_id,month);
 end;
 $$;
 

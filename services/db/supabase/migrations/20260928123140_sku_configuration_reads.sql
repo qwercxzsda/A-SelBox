@@ -13,38 +13,15 @@ begin
         raise exception 'Administrator access required' using errcode = '42501';
     end if;
     return (
-        with recursive finances_skus(sku) as (
-            (
-                select t.sku from private.finances_activity_components as t
-                where t.sku is not null order by t.sku limit 1
-            )
+        with sku_values as (
+            select sku from private.finances_component_details where activity_eligible
             union all
-            select next_sku.sku
-            from finances_skus as previous_sku
-            cross join lateral (
-                select t.sku from private.finances_activity_components as t
-                where t.sku > previous_sku.sku order by t.sku limit 1
-            ) as next_sku
-        ),
-        kiosk_skus(sku) as (
-            (
-                select t.sku from private.data_kiosk_day_components as t
-                where t.sku is not null order by t.sku limit 1
-            )
+            select r.sku from private.inventory_ledger_rows r
+            join private.source_units u on u.current_version_id = r.version_id
             union all
-            select next_sku.sku
-            from kiosk_skus as previous_sku
-            cross join lateral (
-                select t.sku from private.data_kiosk_day_components as t
-                where t.sku > previous_sku.sku order by t.sku limit 1
-            ) as next_sku
-        ),
-        sku_values as (
-            select s.sku from finances_skus as s
+            select sku from private.information_products
             union all
-            select k.sku from kiosk_skus as k
-            union all
-            select s.sku from public.skus as s
+            select native_id from public.assignment_keys where kind='SKU'
         ),
         distinct_skus as (
             select distinct s.sku collate "C" as sku
@@ -68,16 +45,12 @@ from public, anon, authenticated, service_role;
 create function private.sku_configuration_required_dates(p_skus text[])
 returns table (sku text, marketplace_name text, activity_date date)
 language sql stable security invoker set search_path = '' as $$
-    select t.sku, t.marketplace_name, t.posted_date
-    from private.finances_activity_components as t
-    where t.sku = any(p_skus) and t.category = 'FINANCES'
+    select distinct t.sku, t.marketplace_name, t.posted_date
+    from private.finances_component_details as t
+    where t.sku = any(p_skus) and t.route = 'SKU'
         and t.fee_base is not null
-        and t.is_current
-    union
-    select t.sku, t.marketplace_name, t.activity_date
-    from private.data_kiosk_component_details as t
-    where t.sku = any(p_skus) and t.category <> 'SELBOX' and t.fee_base is not null
-        and t.is_current;
+        and t.is_current and t.activity_eligible
+;
 $$;
 
 -- Both read diagnostics and write validation share the same source/terms query.
@@ -88,12 +61,12 @@ language sql stable security invoker set search_path = '' as $$
     with identities as materialized (
         select selected.sku, s.id as sku_id, v.id as terms_version_id, v.company_id
         from unnest(p_skus) as selected(sku)
-        left join public.skus as s on s.sku = selected.sku
-        left join public.sku_terms_versions as v on v.id = s.current_terms_version_id
+        left join public.assignment_keys as s on s.kind='SKU' and s.native_id = selected.sku
+        left join public.assignment_versions as v on v.id = s.current_version_id
     ), periods as materialized (
         select i.sku, p.marketplace_name, p.valid_period, p.fee_rate_percent
         from identities as i
-        join public.sku_fee_periods as p on p.terms_version_id = i.terms_version_id
+        join public.sku_fee_periods as p on p.assignment_version_id = i.terms_version_id
     ), required_dates as materialized (
         select sku, marketplace_name, activity_date
         from private.sku_configuration_required_dates(p_skus)

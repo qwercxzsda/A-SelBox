@@ -43,7 +43,7 @@ const STATUS: Record<
   NOT_SCHEDULED: {
     label: "Not scheduled",
     color: "gray",
-    description: "This company has no assigned SKUs. Reports start automatically after setup.",
+    description: "Reports start automatically when this company has an assignment.",
   },
   IMMATURE: {
     label: "Not mature",
@@ -120,7 +120,7 @@ export function PayoutReadiness({
           const companyId = row.company_id;
           const setup = state.status === "BLOCKED" && state.reason === "SETUP_REQUIRED";
           const description = setup
-            ? "SKU ownership or fee coverage needs setup. Review the requirements below."
+            ? "SKU fee coverage needs setup. Review the requirements below."
             : state.status === "BLOCKED" && state.reason === "SOURCE_REQUIRED"
               ? "Required source data is incomplete or incompatible. Automatic processing will retry after updates."
               : status.description;

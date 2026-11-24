@@ -229,30 +229,32 @@ test("phone fee details keep rates within the screen and return to search", asyn
   await expect(group).toBeVisible();
 });
 
-test("Transactions retains zero Data Kiosk rows in pagination and counting", async ({ page }) => {
+test("Transactions retains zero Monthly storage report rows in pagination and counting", async ({
+  page,
+}) => {
   const fixture = await mockSupabase(page);
   fixture.liveRows = [
     { ...liveRow("FINANCES-ZERO", 1), source_amount: "0" },
     ...Array.from({ length: 24 }, (_, index) => ({
-      ...liveRow("KIOSK-NONZERO", index + 1),
-      source: "DATA_KIOSK",
+      ...liveRow("REFERENCE-NONZERO", index + 1),
+      source: "STORAGE",
       source_amount: index === 0 ? "-2.5" : "1",
     })),
     ...Array.from({ length: 5 }, (_, index) => ({
-      ...liveRow("KIOSK-ZERO", index + 1),
-      source: "DATA_KIOSK",
+      ...liveRow("REFERENCE-ZERO", index + 1),
+      source: "STORAGE",
       source_amount: "0.0000",
     })),
   ];
   await signIn(page);
-  await expect(rowWithSku(page, "KIOSK-ZERO-001")).toBeVisible();
+  await expect(rowWithSku(page, "REFERENCE-ZERO-001")).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     26,
   );
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(rowWithSku(page, "KIOSK-NONZERO-001")).toBeVisible();
+  await expect(rowWithSku(page, "REFERENCE-NONZERO-001")).toBeVisible();
   await expect(rowWithSku(page, "FINANCES-ZERO-001")).toBeVisible();
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     6,
@@ -273,7 +275,7 @@ for (const role of ["member", "administrator"]) {
     ).toHaveCount(role === "administrator" ? 9 : 4);
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
-    for (const sourceTab of ["Finances", "Data Kiosk", "Financial review"]) {
+    for (const sourceTab of ["Finances", "Assignments", "Financial review"]) {
       await expect(page.getByRole("tab", { name: sourceTab, exact: true })).toHaveCount(
         role === "administrator" ? 1 : 0,
       );
@@ -310,7 +312,7 @@ for (const role of ["member", "administrator"]) {
     await rowWithSku(page, "ALPHA-001").click();
     const details = page.getByRole("dialog", { name: "Transaction details" });
     await expect(details.getByText("ALPHA-001", { exact: true })).toHaveCount(1);
-    await expect(details.getByText("Company", { exact: true })).toHaveCount(
+    await expect(details.locator(".field-label").filter({ hasText: /^Company$/ })).toHaveCount(
       role === "administrator" ? 1 : 0,
     );
     if (role === "member") {
@@ -325,7 +327,7 @@ for (const role of ["member", "administrator"]) {
     await details.getByRole("button", { name: "Close row details", exact: true }).click();
 
     if (role === "administrator") {
-      await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
+      await page.getByRole("tab", { name: "Finances", exact: true }).click();
       await expect(columnHeader(page, "Source")).toHaveCount(0);
     }
 

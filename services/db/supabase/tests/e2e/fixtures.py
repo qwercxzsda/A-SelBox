@@ -3,18 +3,12 @@
 import json
 import re
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from uuid import uuid7
 
-from services.sync.src.amazon.data_kiosk.models import DataKioskDocumentKind
-from services.sync.src.amazon.data_kiosk.query_builder import (
-    ECONOMICS_SCHEMA_NAME,
-    build_daily_msku_economics_query,
-)
 from services.sync.src.amazon.finances.client import FINANCES_API_VERSION, FinancesOperation
-from services.sync.src.archives.models import (
-    ArchivedDataKioskPage,
-    DataKioskAcquisition,
-)
 from services.sync.src.archives.storage import ArchiveStorage, archive_document
 from services.sync.src.database.company_terms import (
     FeePeriod,
@@ -24,7 +18,8 @@ from services.sync.src.database.company_terms import (
 from services.sync.src.database.connection import DatabaseConnection
 from services.sync.src.finances.acquisition_models import ArchivedFinancesPage, FinancesAcquisition
 from services.sync.src.numeric import Numeric
-from services.sync.tests.support.economics import complete_economics_document, economics_fee
+from services.sync.src.reference.acquisition import ReferenceRequest, download_reference
+from services.sync.src.reference.publication import preprocess_reference
 
 START = date(2026, 8, 1)
 END = date(2026, 8, 2)
@@ -89,7 +84,9 @@ def finances_document(
                 "marketplaceId": MARKETPLACE_ID,
                 "accountType": "Standard Orders",
             },
-            "relatedIdentifiers": [],
+            "relatedIdentifiers": [
+                {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "REMOVAL-1"}
+            ],
             "totalAmount": charge,
             "items": [
                 {
@@ -201,62 +198,38 @@ def archived_finances(
     )
 
 
-def archived_data_kiosk(
-    storage: ArchiveStorage, seller: str, *, sku: str | None = None, end_date: date = END
-) -> DataKioskAcquisition:
-    """Two complete pages cover separate days and contribute 12 USD of disposal fees."""
+def publish_removal_reference(
+    database: DatabaseConnection, storage: ArchiveStorage, seller: str, *, sku: str | None = None
+) -> None:
     sku = sku if sku is not None else fixture_sku(seller)
-    created = max(CREATED, datetime.combine(end_date, CREATED.timetz()) + timedelta(days=1))
-    identifier = uuid7()
-    query = build_daily_msku_economics_query(START, end_date, MARKETPLACE_ID)
-    pages: list[ArchivedDataKioskPage] = []
-    for number, (day, amount) in enumerate(((START, "7"), (END, "5")), start=1):
-        query_id = f"query-{identifier}-{number}"
-        document_id = f"data-{identifier}-{number}"
-        metadata: dict[str, object] = {
-            "queryId": query_id,
-            "createdTime": created.isoformat(),
-            "processingStatus": "DONE",
-            "query": query,
-            "dataDocumentId": document_id,
-        }
-        if number == 1:
-            metadata["pagination"] = {"nextToken": f"next-{identifier}"}
-        fee = economics_fee("DisposalFee", amount=amount, identifier=f"disposal-{identifier}")
-        content = complete_economics_document(
-            msku=sku,
-            start_date=day.isoformat(),
-            end_date=day.isoformat(),
-            fees="[" + fee.replace(START.isoformat(), day.isoformat()) + "]",
+    reports = {
+        "INVENTORY_LEDGER": "Date\tFNSKU\tASIN\tMSKU\tLocation\tDisposition\n"
+        + f"08/2026\tX000000001\tB000000001\t{sku}\tUS\tSELLABLE\n",
+        "REMOVAL_ORDER": (
+            "request-date\tlast-updated-date\torder-id\torder-type\torder-status\t"
+            "sku\tfnsku\tremoval-fee\tcurrency\n"
         )
-        pages.append(
-            ArchivedDataKioskPage(
-                page_number=number,
-                query_id=query_id,
-                query_created_at=created,
-                document_kind=DataKioskDocumentKind.DATA,
-                is_terminal=number == 2,
-                document_id=document_id,
-                document=archive_document(storage, content, source_compression=None),
-                api_metadata=metadata,
+        + (
+            "2026-08-01T00:00:00Z\t2026-08-02T00:00:00Z\tREMOVAL-1\tDisposal\tCompleted\t"
+            f"{sku}\tX000000001\t10.00\tUSD\n"
+        ),
+    }
+    with TemporaryDirectory() as temp:
+        for source, body in reports.items():
+            request = ReferenceRequest(
+                source=source,
+                scope="NA",
+                seller=seller,
+                marketplace_id=MARKETPLACE_ID,
+                start_date=START,
+                end_date=date(2026, 9, 1),
             )
-        )
-    root = pages[0]
-    return DataKioskAcquisition(
-        id=identifier,
-        seller_namespace=seller,
-        amazon_scope="NA",
-        root_query_id=root.query_id,
-        root_query_created_at=created,
-        query_definition=query,
-        schema_version=ECONOMICS_SCHEMA_NAME,
-        marketplace_id=MARKETPLACE_ID,
-        query_start_date=START,
-        query_end_date=end_date,
-        downloaded_at=datetime.now(UTC),
-        pages=tuple(pages),
-        api_metadata=root.api_metadata,
-    )
+            with patch(
+                "services.sync.src.reference.acquisition._download_report",
+                return_value=(body.encode(), None, {"processingStatus": "DONE"}),
+            ):
+                manifest = download_reference(request, storage, Path(temp))
+            preprocess_reference(database, storage, manifest)
 
 
 def company_with_fees(database: DatabaseConnection, seller: str, *, sku: str | None = None) -> str:

@@ -63,7 +63,7 @@ class PayoutCompanyEligibilityTests(SourceModelFixture):
         self.set_mature_cutoff_date(date(2026, 7, 1))
         company = self.empty_company()
         with (
-            self.assertRaisesRegex(psycopg.errors.CheckViolation, "currently assigned SKU"),
+            self.assertRaisesRegex(psycopg.errors.CheckViolation, "current assignment"),
             self.connection.transaction(),
         ):
             self.call("publish_company_payout_report", empty_report_payload(company))
@@ -76,6 +76,7 @@ class PayoutCompanyEligibilityTests(SourceModelFixture):
 
     def test_first_assignment_bootstraps_known_months_even_without_sales_or_members(self) -> None:
         prepare_payout(self)
+        self.finances([], acquisition_id=self.acquisition(start="2026-07-01", end="2026-07-31"))
         self.set_mature_cutoff_date(date(2026, 8, 1))
         refresh_payout_reports(self)
         company, _ = self.owner("NEW-SKU-WITHOUT-SALES")
@@ -90,12 +91,12 @@ class PayoutCompanyEligibilityTests(SourceModelFixture):
         self.assertEqual(refresh_payout_reports(self), (2, 2, 0, 0))
         self.assertEqual(
             self.connection.execute(
-                "select currency,company_amount,terms_version_count "
+                "select currency,company_amount,assignment_version_count "
                 "from public.company_payout_reports "
                 "where company_id=%s order by start_date",
                 (company,),
             ).fetchall(),
-            [(None, 0, 1), (None, 0, 1)],
+            [(None, 0, 2), (None, 0, 1)],
         )
 
     def test_losing_last_sku_stops_new_reports_and_reassignment_catches_up(self) -> None:
@@ -108,15 +109,18 @@ class PayoutCompanyEligibilityTests(SourceModelFixture):
         )
         snapshot = payout_snapshot(self, report)
         reassign_payout_sku(self, inputs.sku_identity, None)
-        self.assert_no_work(inputs.company)
+        self.assertEqual(refresh_payout_reports(self), (1, 1, 0, 0))
+        self.assertEqual(generate_payout_reports(self, inputs.company, date(2026, 5, 1)), [])
+        self.assertEqual(
+            self.connection.execute(
+                "select company_amount from public.latest_company_payout_reports where "
+                "company_id=%s",
+                (inputs.company,),
+            ).fetchone(),
+            (0,),
+        )
+        self.finances([], acquisition_id=self.acquisition(start="2026-07-01", end="2026-07-31"))
         self.set_mature_cutoff_date(date(2026, 8, 1))
-        self.assertEqual(refresh_payout_reports(self), (0, 0, 0, 0))
-        self.assertEqual(generate_payout_reports(self, inputs.company), [])
-        with (
-            self.assertRaisesRegex(psycopg.errors.CheckViolation, "currently assigned SKU"),
-            self.connection.transaction(),
-        ):
-            self.call("publish_company_payout_report", empty_report_payload(inputs.company))
         self.assertEqual(payout_snapshot(self, report), snapshot)
         reassign_payout_sku(self, inputs.sku_identity, inputs.company)
         self.assertEqual(refresh_payout_reports(self), (2, 2, 0, 0))
@@ -127,7 +131,7 @@ class PayoutCompanyEligibilityTests(SourceModelFixture):
                 "where company_id=%s order by start_date",
                 (inputs.company,),
             ).fetchall(),
-            [(date(2026, 6, 1), 85), (date(2026, 7, 1), 0)],
+            [(date(2026, 6, 1), 95), (date(2026, 7, 1), 0)],
         )
 
     def test_stale_ineligible_queue_does_not_consume_worker_limit_or_seed_history(self) -> None:

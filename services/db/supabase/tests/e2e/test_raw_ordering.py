@@ -6,15 +6,11 @@ from services.db.supabase.benchmarks.datasets import DATASETS, Dataset, canonica
 from services.db.supabase.benchmarks.search_cases import SearchCase
 from services.db.supabase.benchmarks.table_verification import read_reference
 from services.db.supabase.tests.e2e.fixtures import (
-    archived_data_kiosk,
     archived_finances,
     company_with_fees,
+    publish_removal_reference,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
-from services.sync.src.database.acquisitions import (
-    persist_data_kiosk_acquisition,
-)
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 EXACT_AMOUNT = "9007199254740993.123456789012345678901"
@@ -26,13 +22,10 @@ class RawOrderingTests(LocalWorkflowCase):
         finances = archived_finances(
             self.storage, seller, sale_amount=EXACT_AMOUNT, quantity=int(EXACT_QUANTITY)
         )
-        kiosk = persist_data_kiosk_acquisition(
-            self.database, archived_data_kiosk(self.storage, seller)
-        )
         # Repeated preprocessing reuses contents and records both observations.
         for _ in range(2):
             preprocess_finances_acquisition(self.database, self.storage, finances)
-            preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
+            publish_removal_reference(self.database, self.storage, seller)
 
     def assert_equivalent(
         self,
@@ -78,7 +71,7 @@ class RawOrderingTests(LocalWorkflowCase):
             ]
             self.assertTrue(all(all(value is not None for value in key) for key in keys))
             self.assertEqual(keys, sorted(keys, reverse=direction == "desc"))
-        if dataset.key != "data_kiosk" and order_by == "amount" and direction == "desc":
+        if order_by == "amount" and direction == "desc":
             self.assertEqual(expected[0][dataset.amount_column], EXACT_AMOUNT)
             self.assertEqual(expected[0]["quantity"], EXACT_QUANTITY)
         for offset in (0, 1):
@@ -129,7 +122,7 @@ class RawOrderingTests(LocalWorkflowCase):
                             )
                 args = SearchCase(dataset, "invalid", "amount", "desc").arguments()
                 for patch, code in (
-                    ({"p_marketplaces": ["not-a-marketplace"]}, "22023"),
+                    ({"p_marketplaces": [None]}, "22023"),
                     ({"p_order_by": "company_amount"}, "22023"),
                 ):
                     invalid = self.stack.request(

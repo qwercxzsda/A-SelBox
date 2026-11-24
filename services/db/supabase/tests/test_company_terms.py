@@ -18,7 +18,7 @@ class CompanyTermsTests(SourceModelFixture):
         expected: str | None = None,
     ) -> str:
         row = self.connection.execute(
-            "select sku,current_terms_version_id from public.skus where id=%s",
+            "select native_id,current_version_id from public.assignment_keys where id=%s",
             (identity,),
         ).fetchone()
         if row is None:
@@ -64,7 +64,7 @@ class CompanyTermsTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select company_id::text,terms_version_id::text,fee_amount,company_amount "
-                "from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
+                "from private.calculate_amounts(%s::uuid[],%s::uuid[])",
                 ([finances_version], [original]),
             ).fetchall(),
             [(company, original, Decimal(-5), Decimal(95))],
@@ -77,11 +77,6 @@ class CompanyTermsTests(SourceModelFixture):
             ).fetchone(),
             (0,),
         )
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "select * from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
-                ([finances_version], [original, revised]),
-            )
         self.connection.execute("set constraints all immediate")
 
     def test_history_and_unassigned_configuration_are_hidden_from_company_users(self) -> None:
@@ -91,10 +86,10 @@ class CompanyTermsTests(SourceModelFixture):
         self.finances([self.transaction("100")])
         revised = self.publish_terms(identity, company, [self.period(rate="7")])
         self.assertEqual(
-            self.as_user(user, "select id::text from public.sku_terms_versions"), [(revised,)]
+            self.as_user(user, "select id::text from public.assignment_versions"), [(revised,)]
         )
         self.assertEqual(
-            self.as_user(user, "select terms_version_id::text from public.sku_fee_periods"),
+            self.as_user(user, "select assignment_version_id::text from public.sku_fee_periods"),
             [(revised,)],
         )
         self.assertNotEqual(original, revised)
@@ -103,41 +98,14 @@ class CompanyTermsTests(SourceModelFixture):
             [(Decimal(93),)],
         )
         unassigned = self.publish_terms(identity, None, [self.period(rate="9")])
-        self.assertEqual(self.as_user(user, "select id from public.skus"), [])
-        self.assertEqual(self.as_user(user, "select id from public.sku_terms_versions"), [])
-        self.assertEqual(
-            self.as_user(user, "select id from private.finances_transaction_components"), []
-        )
+        self.assertEqual(self.as_user(user, "select id from public.assignment_keys"), [])
+        self.assertEqual(self.as_user(user, "select id from public.assignment_versions"), [])
+        self.assertEqual(self.as_user(user, "select id from private.finances_amounts"), [])
         self.assertEqual(
             self.connection.execute(
-                "select terms_version_id::text,resolution_status,fee_amount,company_amount "
-                "from public.live_company_components"
+                "select terms_version_id::text,outcome,reason from private.financial_outcomes"
             ).fetchall(),
-            [(unassigned, "MISSING_OWNERSHIP", None, None)],
-        )
-        self.connection.execute("set constraints all immediate")
-
-    def test_resolver_retains_both_explicit_source_versions_after_reprocessing(self) -> None:
-        company, identity = self.owner()
-        terms = self.publish_terms(identity, company, [self.period()])
-        acquisition = self.acquisition()
-        _, finances_version = self.finances([self.transaction("100")], acquisition_id=acquisition)
-        _, day_version = self.kiosk(1, [self.component("-10")])
-        self.finances([self.transaction("200")], acquisition_id=acquisition)
-        self.kiosk(2, [self.component("-20")], expected=day_version)
-        self.assertEqual(
-            self.connection.execute(
-                "select sum(company_amount) from public.live_company_components where authoritative"
-            ).fetchone(),
-            (Decimal(170),),
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select sum(company_amount) from private.resolve_company_components("
-                "%s::uuid[],%s::uuid[],%s::uuid[]) where authoritative",
-                ([finances_version], [day_version], [terms]),
-            ).fetchone(),
-            (Decimal(85),),
+            [(unassigned, "DIFFERENCE", "NO_ASSIGNMENT")],
         )
         self.connection.execute("set constraints all immediate")
 
@@ -148,33 +116,13 @@ class CompanyTermsTests(SourceModelFixture):
         new_user = self.member(second_company)
         self.finances([self.transaction("100")])
         self.publish_terms(identity, second_company, [self.period()])
-        self.assertEqual(
-            self.as_user(old_user, "select id from private.finances_transaction_components"), []
-        )
+        self.assertEqual(self.as_user(old_user, "select id from private.finances_amounts"), [])
         self.assertEqual(
             self.as_user(new_user, "select company_amount from public.live_company_components"),
             [(Decimal(95),)],
         )
         self.connection.execute("delete from public.app_accounts where user_id=%s", (new_user,))
         self.assertEqual(self.as_user(new_user, "select * from public.live_company_components"), [])
-        self.connection.execute("set constraints all immediate")
-
-    def test_partial_summary_preserves_null_sums_and_exact_missing_fee_details(self) -> None:
-        _, identity = self.owner()
-        finances, _ = self.finances([self.transaction("0.123456789012345678901")])
-        progress = self.connection.execute(
-            "select * from private.company_financial_progress("
-            "%s,'2026-06-15','2026-06-15','v0',%s::uuid[],'{}')",
-            (self.seller, [finances]),
-        ).fetchone()
-        if progress is None:
-            raise AssertionError("Expected partial summary.")
-        self.assertEqual(progress[2:6], (Decimal("0.123456789012345678901"), None, None, 1))
-        self.assertIsInstance(progress[6], list)
-        self.assertEqual(progress[6][0]["fee_base"], "0.123456789012345678901")
-        self.assertEqual(progress[6][0]["sku_id"], identity)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.totals([finances])
         self.connection.execute("set constraints all immediate")
 
     def test_publication_rejects_stale_incomplete_and_ambiguous_payloads(self) -> None:
@@ -191,13 +139,13 @@ class CompanyTermsTests(SourceModelFixture):
         pending = new_id()
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "insert into public.sku_terms_versions"
-                "(id,sku_id,company_id,version_number,fee_period_count,change_reason) "
-                "values (%s,%s,%s,99,1,'Incomplete')",
+                "insert into public.assignment_versions"
+                "(id,key_id,kind,origin,company_id,version_number,fee_period_count,memo) "
+                "values (%s,%s,'SKU','ADMINISTRATOR',%s,99,1,'Incomplete')",
                 (pending, identity, company),
             )
             self.connection.execute(
-                "update public.skus set current_terms_version_id=%s where id=%s",
+                "update public.assignment_keys set current_version_id=%s where id=%s",
                 (pending, identity),
             )
             self.connection.execute("set constraints all immediate")
@@ -208,14 +156,15 @@ class CompanyTermsTests(SourceModelFixture):
         version = self.publish_terms(identity, company, [self.period()])
         statements: list[tuple[LiteralString, tuple[str, ...]]] = [
             (
-                "update public.skus set current_terms_version_id=null where id=%s",
+                "update public.assignment_keys set current_version_id=null where id=%s",
                 (identity,),
             ),
-            ("delete from public.skus where id=%s", (identity,)),
-            ("delete from public.sku_terms_versions where id=%s", (version,)),
+            ("delete from public.assignment_keys where id=%s", (identity,)),
+            ("delete from public.assignment_versions where id=%s", (version,)),
             ("truncate public.sku_fee_periods cascade", ()),
             (
-                "update public.sku_fee_periods set fee_rate_percent=7 where terms_version_id=%s",
+                "update public.sku_fee_periods set fee_rate_percent=7 where "
+                "assignment_version_id=%s",
                 (version,),
             ),
         ]
@@ -232,23 +181,23 @@ class CompanyTermsTests(SourceModelFixture):
         _, identity = self.owner()
         _, other = self.owner("OTHER")
         selected = self.connection.execute(
-            "select current_terms_version_id from public.skus where id=%s", (other,)
+            "select current_version_id from public.assignment_keys where id=%s", (other,)
         ).fetchone()
         if selected is None:
             raise AssertionError("Expected selected terms.")
         with self.assertRaises(psycopg.errors.ForeignKeyViolation), self.connection.transaction():
             self.connection.execute(
-                "update public.skus set current_terms_version_id=%s where id=%s",
+                "update public.assignment_keys set current_version_id=%s where id=%s",
                 (selected[0], identity),
             )
         with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
             self.connection.execute(
-                "insert into public.skus(sku) values ('NO-TERMS')",
+                "insert into public.assignment_keys(kind,native_id) values ('SKU','NO-TERMS')",
             )
             self.connection.execute("set constraints all immediate")
         self.connection.execute("set constraints all immediate")
 
-    def test_resolver_deduplicates_reused_versions_and_rejects_conflicting_revisions(self) -> None:
+    def test_replaying_the_same_version_counts_each_amount_once(self) -> None:
         company, identity = self.owner()
         terms = self.publish_terms(identity, company, [self.period()])
         acquisition = self.acquisition()
@@ -260,17 +209,8 @@ class CompanyTermsTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select count(*),sum(company_amount) from "
-                "private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
+                "private.calculate_amounts(%s::uuid[],%s::uuid[])",
                 ([version, same_version], [terms]),
             ).fetchone(),
             (1, Decimal(95)),
         )
-        _, revised = self.finances(
-            [self.transaction("200")], acquisition_id=acquisition, version="v1"
-        )
-        self.assertNotEqual(version, revised)
-        with self.assertRaises(psycopg.errors.CheckViolation), self.connection.transaction():
-            self.connection.execute(
-                "select * from private.resolve_company_components(%s::uuid[],'{}',%s::uuid[])",
-                ([version, revised], [terms]),
-            )

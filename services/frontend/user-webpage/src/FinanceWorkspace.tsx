@@ -6,6 +6,7 @@ import { DATASET_PRESENTATION, companyLabel } from "./view-model";
 import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
 import { Inventory } from "./Inventory";
+import { Assignments } from "./Assignments";
 import { FinancialReview } from "./FinancialReview";
 import { useSkuConfiguration } from "./use-sku-configuration";
 import {
@@ -27,13 +28,14 @@ import { useWorkspaceNavigationFocus } from "./use-workspace-navigation-focus";
 
 const TAB_GROUPS = [
   ["live", "inventory", "payouts", "fees"],
-  ["accounts", "companies"],
-  ["finances", "data_kiosk", "financial-review"],
+  ["accounts", "companies", "assignments"],
+  ["finances", "financial-review"],
 ] as const;
 type WorkspaceTab = (typeof TAB_GROUPS)[number][number];
 
 function tabLabel(tab: WorkspaceTab) {
   if (tab === "inventory") return "Inventory";
+  if (tab === "assignments") return "Assignments";
   if (tab === "companies") return "Companies";
   if (tab === "financial-review") return "Financial review";
   return DATASET_PRESENTATION[tab].label;
@@ -190,12 +192,10 @@ export function FinanceWorkspace(props: WorkspaceProps) {
               onViewStateChange={setInventoryViewState}
               onShowTransactions={showSkuTransactions}
             />
+          ) : dataset === "assignments" ? (
+            <Assignments identity={props.identity} />
           ) : dataset === "financial-review" ? (
-            <FinancialReview
-              identity={props.identity}
-              onRetry={props.onRetry}
-              updating={props.isUpdating}
-            />
+            <FinancialReview identity={props.identity} />
           ) : dataset === "fees" ? (
             <CurrentFees
               updating={props.isUpdating}

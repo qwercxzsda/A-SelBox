@@ -49,7 +49,7 @@ test("financial counts use typed filters without ordering, pagination, or lossy 
 });
 
 test("all transaction counts use the same literal search RPC arguments as their pages", async () => {
-  for (const dataset of ["live", "finances", "data_kiosk"]) {
+  for (const dataset of ["live", "finances"]) {
     const requests = [];
     const client = createApiClient(SETTINGS, async (url, init) => {
       const args = JSON.parse(init.body);

@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { financesRow, kioskRow } from "./api-fixtures.mjs";
+import { financesRow } from "./api-fixtures.mjs";
 
 const CASES = [
   { tab: "Transactions", dataset: "live", revision: "finances" },
   { tab: "Finances", dataset: "finances", revision: "finances" },
-  { tab: "Data Kiosk", dataset: "data_kiosk", revision: "data_kiosk" },
   { tab: "Payout reports", dataset: "payouts", revision: "payouts" },
   { tab: "User access", dataset: "accounts", revision: null },
 ];
@@ -26,7 +25,7 @@ function matchesRows(request, dataset) {
   const path = new URL(request.url()).pathname;
   if (dataset === "live")
     return path === "/rest/v1/rpc/transaction_page" && request.postDataJSON().p_limit !== 1;
-  if (dataset === "finances" || dataset === "data_kiosk")
+  if (dataset === "finances")
     return (
       path === "/rest/v1/rpc/source_transaction_page" &&
       request.postDataJSON().p_dataset === dataset
@@ -43,7 +42,7 @@ async function setup(page) {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.financesRows = [financesRow(1)];
-  fixture.kioskRows = [kioskRow(1, "10")];
+
   fixture.payoutRows = [
     {
       id: "0198b50b-701a-7000-8000-000000000002",

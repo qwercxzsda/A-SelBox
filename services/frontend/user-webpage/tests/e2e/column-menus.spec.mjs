@@ -15,8 +15,8 @@ function filteredRows() {
   const target = (index, overrides = {}) => ({
     ...liveRow("TARGET", index),
     sku: "TARGET",
-    source: "DATA_KIOSK",
-    component_type: "FBA_STORAGE_FEE",
+    source: "STORAGE",
+    component_type: "STORAGE_FEES",
     activity_date: "2026-09-02",
     source_amount: String(-10 * index),
     ...overrides,
@@ -54,8 +54,8 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await selectOption(page, "SKU", "TARGET");
   await expect(page.getByRole("form", { name: "Page 1 of 1", exact: true })).toBeVisible();
   await selectOption(page, "Marketplace", "Amazon.com");
-  await selectOption(page, "Source", "Data Kiosk");
-  await selectOption(page, "Type", "FBA storage fee");
+  await selectOption(page, "Source", "Monthly storage report");
+  await selectOption(page, "Type", "Storage fees");
   const dates = await openColumn(page, "Date (UTC)");
   await dates.getByLabel("From date", { exact: true }).fill("2026-09-03");
   await dates.getByLabel("To date", { exact: true }).fill("2026-09-02");
@@ -67,8 +67,8 @@ test("column filters combine with search and inclusive dates, reset the page, an
   const table = page.getByRole("table", { name: "Financial records", exact: true });
   await expect(table.getByRole("row")).toHaveCount(4);
   await expect(table.getByRole("columnheader", { name: /^Date \(UTC\)/ })).toBeVisible();
-  await expect(table.locator("time").filter({ hasText: "2026-09-03 06:59:59" })).toHaveCount(2);
-  await expect(table.locator("time").filter({ hasText: "2026-09-02 06:59:59" })).toHaveCount(1);
+  await expect(table.locator("time").filter({ hasText: "2026-09-02 12:00:00" })).toHaveCount(2);
+  await expect(table.locator("time").filter({ hasText: "2026-09-03 12:00:00" })).toHaveCount(1);
   await expect(table.locator("time").filter({ hasText: "UTC" })).toHaveCount(0);
   const params = fixture.requests.at(-1).params;
   expect(params.getAll("activity_at")).toEqual([
@@ -77,8 +77,8 @@ test("column filters combine with search and inclusive dates, reset the page, an
   ]);
   expect(params.get("sku")).toBe('in.("TARGET")');
   expect(params.get("marketplace_name")).toBe('in.("Amazon.com")');
-  expect(params.get("source")).toBe('in.("DATA_KIOSK")');
-  expect(params.get("component_type")).toBe('in.("FBA_STORAGE_FEE")');
+  expect(params.get("source")).toBe('in.("STORAGE")');
+  expect(params.get("component_type")).toBe('in.("STORAGE_FEES")');
   expect(params.get("and")).toBeNull();
   expect(params.get("or")).toContain("Amazon");
   expect(params.get("order")).toBe(originalOrder);
@@ -88,8 +88,10 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await expect(table.getByRole("row")).toHaveCount(4);
   const sourceMenu = await openColumn(page, "Source");
-  await expect(sourceMenu.getByRole("checkbox", { name: "Data Kiosk", exact: true })).toBeChecked();
-  await expect(sourceMenu.getByRole("checkbox")).toHaveCount(2);
+  await expect(
+    sourceMenu.getByRole("checkbox", { name: "Monthly storage report", exact: true }),
+  ).toBeChecked();
+  await expect(sourceMenu.getByRole("checkbox")).toHaveCount(5);
   await expect(sourceMenu.getByLabel("Search source", { exact: true })).toHaveCount(0);
   await sourceMenu.getByRole("button", { name: "Close options", exact: true }).click();
   const restoredDates = await openColumn(page, "Date (UTC)");
@@ -119,7 +121,7 @@ test("administrator SKU options include unassigned imports from one complete cat
       sku: `MIDDLE-${index}`,
     })),
     { ...liveRow("LAST", 1), sku: lastSku, activity_date: "2026-08-31" },
-    { ...liveRow("ZERO", 1), sku: "ZZZ-ZERO-ONLY", source: "DATA_KIOSK", source_amount: "0" },
+    { ...liveRow("ZERO", 1), sku: "ZZZ-ZERO-ONLY", source: "STORAGE", source_amount: "0" },
   ];
   await signIn(page);
   await expect(page.getByRole("form", { name: "Page 1 of 41", exact: true })).toBeVisible();

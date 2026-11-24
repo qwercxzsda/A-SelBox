@@ -1,7 +1,3 @@
-"""Shared fixed interpretation of archived financial sources.
+"""Version of the checks and derived fields applied to archived source answers."""
 
-Change this name when parsing, filtering, mapping, classification, or allocation category
-changes. Ownership and fee configuration are deliberately independent.
-"""
-
-PREPROCESS_VERSION = "v7"
+PREPROCESS_VERSION = "v1"

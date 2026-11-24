@@ -38,7 +38,7 @@ export async function readWorkspaceRevisions(
   const requested = [...new Set(sources)];
   if (
     requested.some(
-      (source) => !["finances", "data_kiosk", "fees", "inventory", "payouts"].includes(source),
+      (source) => !["finances", "references", "fees", "inventory", "payouts"].includes(source),
     )
   )
     throw new Error("Invalid workspace revision source");

@@ -57,11 +57,11 @@ test("route validation accepts repeated filters, normalizes scalar keys, and rej
 
 test("review and report marketplace metadata stay scalar while table marketplace filters repeat", () => {
   const parsed = parseWorkspaceSearch(
-    "?reviewMarketplace=Amazon.de&reviewMarketplace=Amazon.fr&marketplace=Amazon.de&marketplace=Amazon.fr&reportMarketplace=&reportCurrency=EUR",
+    "?outcome=Amazon.de&outcome=Amazon.fr&marketplace=Amazon.de&marketplace=Amazon.fr&reportMarketplace=&reportCurrency=EUR",
   );
   const validated = validateWorkspaceSearch(parsed);
   assert.deepEqual(validated, {
-    reviewMarketplace: "Amazon.de",
+    outcome: "Amazon.de",
     marketplace: ["Amazon.de", "Amazon.fr"],
     reportMarketplace: "",
     reportCurrency: "EUR",

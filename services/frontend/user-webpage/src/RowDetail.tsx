@@ -14,7 +14,6 @@ export function RowDetail({
   onClose,
   isAdministrator,
   accessToken,
-  reviewMode = false,
   reportNavigation,
   stackId,
   onExitTransitionEnd,
@@ -27,7 +26,6 @@ export function RowDetail({
   onClose: () => void;
   isAdministrator: boolean;
   accessToken: string;
-  reviewMode?: boolean;
   reportNavigation?: ReactNode;
   stackId?: string;
   onExitTransitionEnd?: () => void;
@@ -53,16 +51,12 @@ export function RowDetail({
     )
       (row ? rowHeadingRef.current : closeButtonRef.current)?.focus({ preventScroll: true });
   }, [row, hasFallback]);
-  const isReview = dataset === "payouts" && reviewMode && isAdministrator;
-  const title = isReview
-    ? "Saved report source details"
-    : {
-        live: "Transaction details",
-        finances: "Finances record details",
-        data_kiosk: "Data Kiosk record details",
-        payouts: "Payout report details",
-        accounts: "User access details",
-      }[dataset];
+  const title = {
+    live: "Transaction details",
+    finances: "Finances record details",
+    payouts: "Payout report details",
+    accounts: "User access details",
+  }[dataset];
   return (
     <Drawer
       stackId={stackId}
@@ -100,7 +94,6 @@ export function RowDetail({
             row={row}
             isAdministrator={isAdministrator}
             accessToken={accessToken}
-            isReview={isReview}
             reportNavigation={reportNavigation}
             headingRef={rowHeadingRef}
           />

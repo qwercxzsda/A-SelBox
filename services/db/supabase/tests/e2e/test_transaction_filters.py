@@ -17,7 +17,7 @@ class TransactionFilterTests(LocalWorkflowCase):
         token: str,
         filters: dict[str, object],
         *,
-        companies: Set[str | None],
+        companies: Set[str],
         expected_count: int,
     ) -> None:
         page = self.stack.request(
@@ -39,11 +39,6 @@ class TransactionFilterTests(LocalWorkflowCase):
                 self.assertIsInstance(row[field], str)
             for field in ("quantity", "fee_rate_percent"):
                 self.assertTrue(row[field] is None or isinstance(row[field], str))
-            if row["company_id"] is None:
-                self.assertEqual(row["category"], "SELBOX")
-                self.assertIsNone(row["sku"])
-                self.assertEqual(row["fee_amount"], "0")
-                self.assertEqual(row["company_amount"], "0")
         count = self.stack.request(
             "POST", "/rest/v1/rpc/transaction_count", token=token, json=filters
         )
@@ -70,26 +65,18 @@ class TransactionFilterTests(LocalWorkflowCase):
                 {"p_marketplaces": ["Amazon.com"]},
                 {"p_marketplaces": ["Amazon.com", "Amazon.com"]},
                 {"p_marketplaces": ["Amazon.com", "Amazon.co.uk"]},
+                {"p_marketplaces": ["Amazon.com", "not-a-marketplace"]},
                 {"p_fee_applicable": None},
                 {"p_fee_applicable": True},
                 {"p_marketplaces": ["Amazon.com"], "p_fee_applicable": True},
             )
             for filters in matching:
                 with self.subTest(role=role, filters=filters):
-                    includes_account_rows = (
-                        role == "administrator" and filters.get("p_fee_applicable") is not True
-                    )
                     self.assert_page_and_count(
-                        token,
-                        filters,
-                        companies=companies | {None} if includes_account_rows else companies,
-                        expected_count=count + 2 if includes_account_rows else count,
+                        token, filters, companies=companies, expected_count=count
                     )
             self.assert_page_and_count(
-                token,
-                {"p_fee_applicable": False},
-                companies={None} if role == "administrator" else set(),
-                expected_count=2 if role == "administrator" else 0,
+                token, {"p_fee_applicable": False}, companies=set(), expected_count=0
             )
             for direction in ("asc", "desc"):
                 dated = self.stack.request(
@@ -104,22 +91,11 @@ class TransactionFilterTests(LocalWorkflowCase):
                     for row in dated.json()["rows"]
                 ]
                 self.assertEqual(ordering, sorted(ordering, reverse=direction == "desc"))
-            for marketplace in ("Amazon.co.uk", "Non-Amazon US"):
+            for marketplace in ("Amazon.co.uk", "Non-Amazon US", "not-a-marketplace"):
                 with self.subTest(role=role, known_marketplace_without_rows=marketplace):
                     self.assert_page_and_count(
                         token, {"p_marketplaces": [marketplace]}, companies=set(), expected_count=0
                     )
-            for selected in (["not-a-marketplace"], ["Amazon.com", "not-a-marketplace"]):
-                for endpoint in ("transaction_page", "transaction_count"):
-                    with self.subTest(role=role, endpoint=endpoint, invalid_marketplaces=selected):
-                        rejected = self.stack.request(
-                            "POST",
-                            "/rest/v1/rpc/" + endpoint,
-                            token=token,
-                            json={"p_marketplaces": selected},
-                        )
-                        self.assertEqual(rejected.status_code, 400)
-                        self.assertEqual(rejected.json()["code"], "22023")
 
         self.assert_page_and_count(
             member_token,

@@ -36,9 +36,9 @@ const pageSize = (value: unknown) => PAGE_SIZES.find((size) => size === value) ?
 export function decodeWorkspaceTab(
   value: unknown,
   account: AppAccount,
-): DatasetKey | "inventory" | "financial-review" | "companies" {
+): DatasetKey | "inventory" | "financial-review" | "assignments" | "companies" {
   if (
-    (value === "financial-review" || value === "companies") &&
+    (value === "assignments" || value === "financial-review" || value === "companies") &&
     account.access_role === "administrator"
   )
     return value;

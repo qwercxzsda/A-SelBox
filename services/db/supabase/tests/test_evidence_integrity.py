@@ -3,12 +3,12 @@
 import psycopg
 from psycopg import sql
 
-from services.db.supabase.tests import test_company_payout_reports as payout_fixture
+from services.db.supabase.tests.payout_fixtures import publish_report
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
 class EvidenceIntegrityTests(SourceModelFixture):
-    report = payout_fixture.CompanyPayoutReportTests.report
+    report = publish_report
 
     def published_evidence(self) -> tuple[str, str, str]:
         company, identity = self.owner()
@@ -23,9 +23,9 @@ class EvidenceIntegrityTests(SourceModelFixture):
     def test_source_and_terms_parent_mutations_are_rejected_before_fk_checks(self) -> None:
         self.published_evidence()
         for schema, table in (
-            ("private", "finances_acquisitions"),
-            ("private", "finances_transaction_versions"),
-            ("public", "sku_terms_versions"),
+            ("private", "source_acquisitions"),
+            ("private", "source_unit_versions"),
+            ("public", "assignment_versions"),
             ("public", "sku_fee_periods"),
         ):
             relation = sql.Identifier(schema, table)
@@ -56,13 +56,13 @@ class EvidenceIntegrityTests(SourceModelFixture):
                 self.connection.transaction(),
             ):
                 self.connection.execute(
-                    "insert into private.payout_report_terms_versions "
-                    "(report_id,sku_id,terms_version_id) values (%s,%s,%s)",
+                    "insert into private.payout_report_assignment_versions "
+                    "(report_id,key_id,version_id) values (%s,%s,%s)",
                     (report_id, sku_id, terms_id),
                 )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.payout_report_terms_versions where report_id=%s",
+                "select count(*) from private.payout_report_assignment_versions where report_id=%s",
                 (report,),
             ).fetchone(),
             (1,),

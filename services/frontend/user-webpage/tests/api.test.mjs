@@ -129,8 +129,8 @@ test("transport failures have a retryable status without exposing private networ
 });
 
 test("resolved search values stay literal JSON arrays on all three transaction tabs", async () => {
-  const search = ' SKU_100%*,or(source.eq.DATA_KIOSK)"\\ 한글 ';
-  for (const dataset of ["live", "finances", "data_kiosk"]) {
+  const search = ' SKU_100%*,or(source.eq.STORAGE)"\\ 한글 ';
+  for (const dataset of ["live", "finances"]) {
     const client = createApiClient(SETTINGS, async (url, init) => {
       assert.equal(new URL(url).search, "");
       assert.equal(init.method, "POST");

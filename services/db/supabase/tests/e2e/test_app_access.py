@@ -10,16 +10,12 @@ from uuid import uuid7
 
 from services.db.supabase.tests.e2e.fixtures import (
     START,
-    archived_data_kiosk,
     archived_finances,
     company_with_fees,
     fixture_sku,
+    publish_removal_reference,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
-from services.sync.src.database.acquisitions import (
-    persist_data_kiosk_acquisition,
-)
 from services.sync.src.database.company_terms import create_company
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
@@ -113,16 +109,13 @@ class AppAccessTests(LocalWorkflowCase):
         _, administrator = self.create_administrator()
         for seller in (self.seller, self.seller + "-second"):
             finances = archived_finances(self.storage, seller, sku=sku)
-            kiosk = persist_data_kiosk_acquisition(
-                self.database, archived_data_kiosk(self.storage, seller, sku=sku)
-            )
             preprocess_finances_acquisition(self.database, self.storage, finances)
-            preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
+            publish_removal_reference(self.database, self.storage, seller, sku=sku)
         assignments = self.read_rows("company_skus", member)
         self.assertEqual(len(assignments), 1)
         self.assertEqual(assignments[0]["sku"], sku)
         self.assertNotIn("seller_namespace", assignments[0])
-        for token, count in ((member, "8"), (other_member, "0")):
+        for token, count in ((member, "6"), (other_member, "0")):
             for endpoint in ("transaction_page", "transaction_count", "transaction_totals"):
                 body: dict[str, object] = {"p_skus": [sku]}
                 if endpoint == "transaction_totals":
@@ -141,8 +134,10 @@ class AppAccessTests(LocalWorkflowCase):
                     self.assertEqual(payload["rows"], [])
                 else:
                     self.assertEqual(payload["rows"][0]["row_count"], count)
-                    self.assertEqual(Decimal(payload["rows"][0]["company_amount"]), -20)
-        current = self.read_rows("skus", administrator, sku="eq." + sku)[0]
+                    self.assertEqual(Decimal(payload["rows"][0]["company_amount"]), -16)
+        current = self.read_rows(
+            "assignment_keys", administrator, kind="eq.SKU", native_id="eq." + sku
+        )[0]
         published = self.stack.request(
             "POST",
             "/rest/v1/rpc/publish_sku_configuration",
@@ -152,7 +147,7 @@ class AppAccessTests(LocalWorkflowCase):
                     {
                         "sku": sku,
                         "company_id": other,
-                        "expected_current_version_id": current["current_terms_version_id"],
+                        "expected_current_version_id": current["current_version_id"],
                         "periods": [
                             {
                                 "marketplace_name": "Amazon.com",
@@ -167,7 +162,7 @@ class AppAccessTests(LocalWorkflowCase):
             },
         )
         self.assertEqual(published.status_code, 200)
-        for token, count in ((member, "0"), (other_member, "8")):
+        for token, count in ((member, "0"), (other_member, "6")):
             result = self.stack.request(
                 "POST", "/rest/v1/rpc/transaction_page", token=token, json={"p_skus": [sku]}
             )
@@ -381,24 +376,24 @@ class AppAccessTests(LocalWorkflowCase):
             "company_skus", member_token, sku="eq." + fixture_sku(self.seller)
         )
         self.assertEqual(len(selected), 1)
-        periods = self.read_rows("sku_fee_periods", member_token, terms_version_id="eq." + first)
+        periods = self.read_rows(
+            "sku_fee_periods", member_token, assignment_version_id="eq." + first
+        )
         self.assertEqual(len(periods), 1)
         self.assertEqual(periods[0]["fee_rate_percent"], 0)
         change.update(expected_current_version_id=first, company_id=None, periods=[])
-        incomplete = self.stack.request(
+        cleared = self.stack.request(
             "POST",
             "/rest/v1/rpc/publish_sku_configuration",
             token=administrator_token,
             json=payload,
         )
-        self.assertEqual(incomplete.status_code, 400)
-        self.assertEqual(incomplete.json()["code"], "23514")
-        self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
+        self.assertEqual(cleared.status_code, 200)
+        cleared_id = cleared.json()["published"][0]["terms_version_id"]
         self.assertEqual(
-            self.read_rows("company_skus", member_token, sku="eq." + fixture_sku(self.seller)),
-            selected,
+            self.read_rows("company_skus", member_token, sku="eq." + fixture_sku(self.seller)), []
         )
-        change.update(company_id=other)
+        change.update(company_id=other, expected_current_version_id=cleared_id)
         transferred = self.stack.request(
             "POST",
             "/rest/v1/rpc/publish_sku_configuration",
@@ -411,20 +406,22 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(self.read_rows("company_skus", member_token), [])
         self.assertEqual(len(self.read_rows("company_skus", recipient_token)), 1)
         for token in (member_token, recipient_token):
-            self.assertEqual(self.read_rows("sku_terms_versions", token, id="eq." + first), [])
+            self.assertEqual(self.read_rows("assignment_versions", token, id="eq." + first), [])
             self.assertEqual(
-                self.read_rows("sku_fee_periods", token, terms_version_id="eq." + first), []
+                self.read_rows("sku_fee_periods", token, assignment_version_id="eq." + first), []
             )
         history = self.read_rows(
-            "sku_terms_versions",
+            "assignment_versions",
             administrator_token,
-            id=f"in.({first},{second})",
+            id=f"in.({first},{cleared_id},{second})",
             order="version_number",
         )
-        self.assertEqual([row["company_id"] for row in history], [company, other])
-        self.assertEqual([row["version_number"] for row in history], [1, 2])
+        self.assertEqual([row["company_id"] for row in history], [company, None, other])
+        self.assertEqual([row["version_number"] for row in history], [1, 2, 3])
         self.assertEqual(
-            self.read_rows("sku_fee_periods", administrator_token, terms_version_id="eq." + first),
+            self.read_rows(
+                "sku_fee_periods", administrator_token, assignment_version_id="eq." + first
+            ),
             periods,
         )
         stale = self.stack.request(
@@ -436,7 +433,7 @@ class AppAccessTests(LocalWorkflowCase):
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(stale.json()["code"], "PT409")
         self.assertEqual(json.loads(stale.json()["details"]), {"code": "SKU_CONFIGURATION_STALE"})
-        for relation in ("skus", "sku_terms_versions", "sku_fee_periods"):
+        for relation in ("assignment_keys", "assignment_versions", "sku_fee_periods"):
             denied = self.stack.request(
                 "POST", "/rest/v1/" + relation, token=administrator_token, json={}
             )
@@ -450,15 +447,10 @@ class AppAccessTests(LocalWorkflowCase):
         _, administrator_token = self.create_administrator()
         _, member_token = self.create_member(company)
         finances = archived_finances(self.storage, self.seller)
-        kiosk = persist_data_kiosk_acquisition(
-            self.database, archived_data_kiosk(self.storage, self.seller)
-        )
         for _ in range(2):
             preprocess_finances_acquisition(self.database, self.storage, finances)
-            preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
         for relation, inventory_field, inventory_count in (
             ("finances_preprocess_results", "transaction_count", 3),
-            ("data_kiosk_preprocess_results", "day_count", 2),
         ):
             rows = self.read_rows(
                 relation, administrator_token, seller_namespace="eq." + self.seller
@@ -474,11 +466,7 @@ class AppAccessTests(LocalWorkflowCase):
             )
             self.assertEqual(denied.status_code, 403)
             self.assertEqual(denied.json()["code"], "42501")
-        for relation, administrator_count, member_count in (
-            ("finances_preprocess_entries", 3, 0),
-            # Repeated processing reuses each day's one nonzero fee component.
-            ("data_kiosk_preprocess_entries", 2, 0),
-        ):
+        for relation, administrator_count, member_count in (("finances_preprocess_entries", 3, 0),):
             with self.subTest(relation=relation):
                 self.assertEqual(
                     len(
@@ -497,7 +485,7 @@ class AppAccessTests(LocalWorkflowCase):
         for token in (administrator_token, member_token):
             private = self.stack.request(
                 "GET",
-                "/rest/v1/finances_acquisitions",
+                "/rest/v1/source_acquisitions",
                 token=token,
                 headers={"Accept-Profile": "private"},
             )

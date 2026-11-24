@@ -27,14 +27,14 @@ test("Finances distinguishes activity from releases and retains transaction-vers
       transaction_type: "ServiceFee",
       transaction_status: "RELEASED",
       component_type: "STORAGE_FEES",
-      category: "DATA_KIOSK",
+      route: "STORAGE",
     },
     {
       ...financesRow("TRANSFER", "90"),
       transaction_type: "Transfer",
       transaction_status: "RELEASED",
       component_type: "BANK_TRANSFERS",
-      category: "SELBOX",
+      route: "ACCOUNT",
       activity_eligible: "false",
     },
   ];
@@ -43,12 +43,12 @@ test("Finances distinguishes activity from releases and retains transaction-vers
   for (const suffix of ["ORIGINAL", "DIRECT-FEE"])
     await expect(rowWithSku(page, `FINANCES-${suffix}`)).toContainText("Included");
   for (const suffix of ["RELEASE", "TRANSFER"])
-    await expect(rowWithSku(page, `FINANCES-${suffix}`)).toContainText("Exclusive");
+    await expect(rowWithSku(page, `FINANCES-${suffix}`)).toContainText("Excluded");
   await expect(page.getByRole("button", { name: /refresh/i })).toHaveCount(0);
 
   await rowWithSku(page, "FINANCES-RELEASE").click();
   let drawer = page.getByRole("dialog", { name: "Finances record details", exact: true });
-  await expect(drawer).toContainText("This record is exclusive of activity totals.");
+  await expect(drawer).toContainText("This record is excluded from activity totals.");
   await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
   const metadata = drawer.getByRole("table", { name: "Additional record details", exact: true });
   for (const [field, value] of [

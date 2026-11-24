@@ -9,15 +9,11 @@ import httpx
 from services.db.supabase.tests.configuration_fixtures import ConfigurationItem
 from services.db.supabase.tests.e2e.fixtures import (
     START,
-    archived_data_kiosk,
     archived_finances,
     fixture_sku,
+    publish_removal_reference,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
-from services.sync.src.database.acquisitions import (
-    persist_data_kiosk_acquisition,
-)
 from services.sync.src.database.company_terms import create_company
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
@@ -39,14 +35,11 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
             json={"p_changes": changes, "p_change_reason": "Complete configuration regression"},
         )
 
-    def import_source(self, seller: str, sku: str, *, kiosk: bool = False) -> None:
+    def import_source(self, seller: str, sku: str, *, with_removals: bool = False) -> None:
         acquisition = archived_finances(self.storage, seller, sku=sku)
         preprocess_finances_acquisition(self.database, self.storage, acquisition)
-        if kiosk:
-            acquisition = persist_data_kiosk_acquisition(
-                self.database, archived_data_kiosk(self.storage, seller, sku=sku)
-            )
-            preprocess_data_kiosk_acquisition(self.database, self.storage, acquisition)
+        if with_removals:
+            publish_removal_reference(self.database, self.storage, seller, sku=sku)
 
     @staticmethod
     def change(sku: str, company: str) -> dict[str, object]:
@@ -76,8 +69,8 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
         shared, second, future = (
             fixture_sku(self.seller) + suffix for suffix in ("", "-second", "-future")
         )
-        self.import_source(self.seller, shared, kiosk=True)
-        self.import_source(self.seller + "-two", shared, kiosk=True)
+        self.import_source(self.seller, shared, with_removals=True)
+        self.import_source(self.seller + "-two", shared, with_removals=True)
         self.import_source(self.seller + "-other", second)
         original = self.configuration(administrator)
         self.assertEqual({item["sku"] for item in original}, {shared, second})
@@ -107,14 +100,14 @@ class SkuConfigurationRestTests(LocalWorkflowCase):
             )
             self.assertIn(denied.status_code, (401, 403))
         invalid = self.change(second, other)
-        invalid["company_id"] = None
+        invalid["periods"] = []
         incomplete = self.publish(administrator, [*changes, invalid])
         self.assertEqual(incomplete.status_code, 400)
         self.assertEqual(incomplete.json()["code"], "23514")
         self.assertEqual(incomplete.json()["message"], "SKU configuration is incomplete")
         issues = json.loads(incomplete.json()["details"])["issues"]
         self.assertTrue(
-            any(issue["sku"] == second and issue["kind"] == "missing_company" for issue in issues)
+            any(issue["sku"] == second and issue["kind"] == "missing_fee" for issue in issues)
         )
         self.assertEqual(self.configuration(administrator), original)
         partial = self.publish(administrator, changes)

@@ -54,11 +54,10 @@ def publish_finances(
         accepted = _current_transactions(cursor, acquisition)
         observations = _overlapping_observations(cursor, acquisition)
         candidate = validate_finances_candidate(acquisition, prepared, accepted, observations)
-        scope_expanded = _scope_expanded(cursor, acquisition, candidate)
-        _persist_acquisition(cursor, acquisition)
+        _persist_acquisition(cursor, acquisition, bool(candidate.transactions))
         cursor.execute(
-            "INSERT INTO private.finances_preprocess_batches "
-            "(id,acquisition_id,preprocess_version,transaction_count,component_count) "
+            "INSERT INTO private.source_preprocess_batches "
+            "(id,acquisition_id,preprocess_version,unit_count,row_count) "
             "VALUES (%s,%s,%s,%s,%s)",
             (
                 batch_id,
@@ -68,9 +67,15 @@ def publish_finances(
                 sum(len(row.components) for row in candidate.transactions),
             ),
         )
-        _persist_transactions(cursor, acquisition, candidate.transactions, accepted, batch_id)
-        _request_refresh(
-            cursor, _affected_months(acquisition, candidate.transactions, accepted), scope_expanded
+        changed = _persist_transactions(
+            cursor, acquisition, candidate.transactions, accepted, batch_id
+        )
+        if changed:
+            # Customer orders and removals can change a different posting month.
+            cursor.execute("SELECT private.request_all_payout_report_refreshes()")
+        cursor.execute(
+            "SELECT private.request_payout_report_refresh(%s::date[])",
+            (sorted(_affected_months(acquisition, candidate.transactions, accepted)),),
         )
     return batch_id
 
@@ -101,15 +106,16 @@ def _current_transactions(
     cursor: Cursor[dict[str, Any]], acquisition: FinancesAcquisition
 ) -> list[dict[str, Any]]:
     cursor.execute(
-        "SELECT t.id,t.native_transaction_id,t.current_version_id,t.current_batch_id,"
+        "SELECT t.id,t.unit_key as native_transaction_id,t.current_version_id,t.current_batch_id,"
         "v.posted_date,v.posted_at,v.marketplace_id,v.marketplace_name,v.account_type,"
         "v.transaction_type,v.transaction_status,v.deferred_transaction_id,v.release_transaction_id,"
-        "v.activity_eligible,v.total_amount,v.currency,a.id AS acquisition_id,a.capture_started_at "
-        "FROM private.finances_transactions t "
-        "JOIN private.finances_transaction_versions v ON v.id=t.current_version_id "
-        "JOIN private.finances_preprocess_batches r ON r.id=t.current_batch_id "
-        "JOIN private.finances_acquisitions a ON a.id=r.acquisition_id "
-        "WHERE t.seller_namespace=%s AND t.amazon_scope=%s",
+        "v.is_activity as activity_eligible,v.total_amount,v.currency,a.id AS "
+        "acquisition_id,a.capture_started_at "
+        "FROM private.source_units t "
+        "JOIN private.finances_transactions v ON v.version_id=t.current_version_id "
+        "JOIN private.source_preprocess_batches r ON r.id=t.current_batch_id "
+        "JOIN private.source_acquisitions a ON a.id=r.acquisition_id "
+        "WHERE t.source='FINANCES' AND t.seller_namespace=%s AND t.amazon_scope=%s",
         (acquisition.seller_namespace, acquisition.amazon_scope),
     )
     return cursor.fetchall()
@@ -119,12 +125,12 @@ def _overlapping_observations(
     cursor: Cursor[dict[str, Any]], acquisition: FinancesAcquisition
 ) -> list[dict[str, Any]]:
     cursor.execute(
-        "SELECT a.id,a.capture_started_at FROM private.finances_acquisitions a "
-        "WHERE a.seller_namespace=%s AND a.amazon_scope=%s "
-        "AND a.posted_after<%s "
-        "AND coalesce(a.posted_before,a.capture_started_at-interval '2 minutes')>%s "
+        "SELECT a.id,a.capture_started_at FROM private.source_acquisitions a "
+        "WHERE a.source='FINANCES' AND a.seller_namespace=%s AND a.amazon_scope=%s "
+        "AND a.asked_from<%s "
+        "AND coalesce(a.asked_until,a.capture_started_at-interval '2 minutes')>%s "
         "AND a.marketplace_ids && %s::text[] "
-        "AND EXISTS(SELECT 1 FROM private.finances_preprocess_batches r WHERE "
+        "AND EXISTS(SELECT 1 FROM private.source_preprocess_batches r WHERE "
         "r.acquisition_id=a.id)",
         (
             acquisition.seller_namespace,
@@ -137,9 +143,13 @@ def _overlapping_observations(
     return cursor.fetchall()
 
 
-def _persist_acquisition(cursor: Cursor[dict[str, Any]], acquisition: FinancesAcquisition) -> None:
+def _persist_acquisition(
+    cursor: Cursor[dict[str, Any]], acquisition: FinancesAcquisition, has_rows: bool
+) -> None:
     cursor.execute(
-        "SELECT * FROM private.finances_acquisitions WHERE id=%s", (str(acquisition.id),)
+        "SELECT *,asked_from as posted_after,asked_until as posted_before FROM "
+        "private.source_acquisitions WHERE id=%s",
+        (str(acquisition.id),),
     )
     existing = cursor.fetchone()
     if existing is not None:
@@ -150,13 +160,14 @@ def _persist_acquisition(cursor: Cursor[dict[str, Any]], acquisition: FinancesAc
         return
     payload = finances_acquisition_payload(acquisition)
     cursor.execute(
-        "INSERT INTO private.finances_acquisitions "
-        "(id,seller_namespace,amazon_scope,api_version,capture_started_at,downloaded_at,"
-        "posted_after,posted_before,reconciliation_start_date,reconciliation_end_date,"
+        "INSERT INTO private.source_acquisitions "
+        "(id,source,result,seller_namespace,amazon_scope,api_version,capture_started_at,downloaded_at,"
+        "asked_from,asked_until,reconciliation_start_date,reconciliation_end_date,"
         "marketplace_ids,api_metadata,documents) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        "VALUES (%s,'FINANCES',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (
             str(acquisition.id),
+            "ROWS" if has_rows else "EMPTY",
             acquisition.seller_namespace,
             acquisition.amazon_scope,
             acquisition.api_version,
@@ -179,63 +190,74 @@ def _persist_transactions(
     transactions: Sequence[FinancesTransaction],
     accepted: Sequence[Mapping[str, Any]],
     batch_id: str,
-) -> None:
+) -> bool:
     if not transactions:
-        return
+        return False
     identities = _ensure_transaction_identities(cursor, acquisition, transactions, accepted)
     cursor.execute(
-        "SELECT id,transaction_id,content_sha256 FROM private.finances_transaction_versions "
-        "WHERE transaction_id=ANY(%s::uuid[])",
+        "SELECT id,unit_id,content_sha256 FROM private.source_unit_versions "
+        "WHERE unit_id=ANY(%s::uuid[])",
         ([identities[row.native_transaction_id] for row in transactions],),
     )
     revisions = {
-        (str(row["transaction_id"]), row["content_sha256"]): str(row["id"])
-        for row in cursor.fetchall()
+        (str(row["unit_id"]), row["content_sha256"]): str(row["id"]) for row in cursor.fetchall()
     }
+    new_versions: list[tuple[object, ...]] = []
     new_revisions: list[tuple[object, ...]] = []
     new_components: list[tuple[object, ...]] = []
     memberships: list[tuple[object, ...]] = []
+    current = {row["native_transaction_id"]: str(row["current_version_id"]) for row in accepted}
+    changed = False
     for row in transactions:
         identity = identities[row.native_transaction_id]
         digest = revision_digest(row)
         revision = revisions.get((identity, digest))
         if revision is None:
             revision = str(uuid7())
-            new_revisions.append(_revision_row(row, identity, revision, digest))
+            new_versions.append((revision, identity, "FINANCES", digest, len(row.components)))
+            new_revisions.append(_revision_row(row, revision))
             new_components.extend(
                 _component_row(component, revision) for component in row.components
             )
+        changed |= current.get(row.native_transaction_id) != revision
         memberships.append(
             (batch_id, identity, revision, row.source_page_number, row.source_record_number)
         )
     copy_rows(
         cursor,
-        "COPY private.finances_transaction_versions "
-        "(id,transaction_id,content_sha256,posted_date,posted_at,marketplace_id,marketplace_name,"
+        "COPY private.source_unit_versions (id,unit_id,source,content_sha256,row_count) FROM STDIN",
+        new_versions,
+    )
+    copy_rows(
+        cursor,
+        "COPY private.finances_transactions "
+        "(version_id,posted_date,posted_at,marketplace_id,marketplace_name,"
         "account_type,transaction_type,transaction_status,deferred_transaction_id,release_transaction_id,"
-        "activity_eligible,total_amount,currency,component_count) FROM STDIN",
+        "is_activity,total_amount,currency,amount_count,customer_order_id) FROM STDIN",
         new_revisions,
     )
     copy_rows(
         cursor,
-        "COPY private.finances_transaction_components "
-        "(id,version_id,component_number,category,component_type,accounting_subtype,sku,amount,"
-        "quantity,fee_base,breakdown_path,item_index,breakdown_indexes) FROM STDIN",
+        "COPY private.finances_amounts "
+        "(id,version_id,amount_number,amount_type,selbox_group,sku,amount,"
+        "quantity,fee_base,breakdown_path,item_index,breakdown_indexes,route,amount_part,asin,fnsku,"
+        "reference_id,covered_month,ledger_first_month,ledger_last_month) FROM STDIN",
         new_components,
     )
     copy_rows(
         cursor,
-        "COPY private.finances_preprocess_batch_transactions "
-        "(batch_id,transaction_id,version_id,source_page_number,source_record_number) FROM STDIN",
+        "COPY private.source_batch_units "
+        "(batch_id,unit_id,version_id,document_number,record_number) FROM STDIN",
         memberships,
     )
     cursor.execute(
-        "UPDATE private.finances_transactions t SET "
+        "UPDATE private.source_units t SET "
         "current_version_id=m.version_id,current_batch_id=m.batch_id "
-        "FROM private.finances_preprocess_batch_transactions m "
-        "WHERE m.batch_id=%s AND t.id=m.transaction_id",
+        "FROM private.source_batch_units m "
+        "WHERE m.batch_id=%s AND t.id=m.unit_id",
         (batch_id,),
     )
+    return changed
 
 
 def _ensure_transaction_identities(
@@ -245,7 +267,7 @@ def _ensure_transaction_identities(
     accepted: Sequence[Mapping[str, Any]],
 ) -> dict[str, str]:
     identities = {str(row["native_transaction_id"]): str(row["id"]) for row in accepted}
-    new_identities: list[tuple[str, str, str, str]] = []
+    new_identities: list[tuple[str, str, str, str, str]] = []
     for row in transactions:
         if row.native_transaction_id not in identities:
             identity = str(uuid7())
@@ -253,6 +275,7 @@ def _ensure_transaction_identities(
             new_identities.append(
                 (
                     identity,
+                    "FINANCES",
                     acquisition.seller_namespace,
                     acquisition.amazon_scope,
                     row.native_transaction_id,
@@ -260,20 +283,15 @@ def _ensure_transaction_identities(
             )
     copy_rows(
         cursor,
-        "COPY private.finances_transactions "
-        "(id,seller_namespace,amazon_scope,native_transaction_id) FROM STDIN",
+        "COPY private.source_units (id,source,seller_namespace,amazon_scope,unit_key) FROM STDIN",
         new_identities,
     )
     return identities
 
 
-def _revision_row(
-    row: FinancesTransaction, identity: str, revision: str, digest: str
-) -> tuple[object, ...]:
+def _revision_row(row: FinancesTransaction, revision: str) -> tuple[object, ...]:
     return (
         revision,
-        identity,
-        digest,
         row.posted_date,
         row.posted_at,
         row.marketplace_id,
@@ -287,6 +305,7 @@ def _revision_row(
         row.total_amount.value,
         row.currency,
         len(row.components),
+        row.order_id,
     )
 
 
@@ -295,7 +314,6 @@ def _component_row(component: FinancesComponent, revision: str) -> tuple[object,
         str(uuid7()),
         revision,
         component.component_number,
-        component.category.value,
         component.component_type,
         component.accounting_subtype,
         component.sku,
@@ -305,47 +323,12 @@ def _component_row(component: FinancesComponent, revision: str) -> tuple[object,
         list(component.breakdown_path),
         component.item_index,
         list(component.breakdown_indexes),
+        component.route,
+        component.amount_part,
+        component.asin,
+        component.fnsku,
+        component.reference_id,
+        component.reference_month,
+        component.ledger_start_month,
+        component.ledger_end_month,
     )
-
-
-def _scope_expanded(
-    cursor: Cursor[dict[str, Any]], acquisition: FinancesAcquisition, prepared: PreparedFinances
-) -> bool:
-    """New SKU history or marketplace participation can affect older reports."""
-    skus = sorted(
-        {
-            component.sku
-            for transaction in prepared.transactions
-            if transaction.activity_eligible
-            for component in transaction.components
-            if component.sku is not None
-        }
-    )
-    cursor.execute(
-        "SELECT private.payout_source_has_new_skus(%s,%s::text[]) AS new_skus,"
-        "EXISTS(SELECT 1 FROM unnest(%s::text[]) AS requested(marketplace_id) "
-        "WHERE NOT EXISTS(SELECT 1 FROM private.finances_acquisitions a "
-        "WHERE a.seller_namespace=%s AND a.amazon_scope=%s "
-        "AND requested.marketplace_id=ANY(a.marketplace_ids) "
-        "AND EXISTS(SELECT 1 FROM private.finances_preprocess_batches b "
-        "WHERE b.acquisition_id=a.id))) AS new_marketplace",
-        (
-            acquisition.seller_namespace,
-            skus,
-            list(acquisition.marketplace_ids),
-            acquisition.seller_namespace,
-            acquisition.amazon_scope,
-        ),
-    )
-    row = cursor.fetchone()
-    if row is None:
-        raise RuntimeError("Finances scope comparison returned no result.")
-    return bool(row["new_skus"] or row["new_marketplace"])
-
-
-def _request_refresh(
-    cursor: Cursor[dict[str, Any]], months: set[date], scope_expanded: bool
-) -> None:
-    cursor.execute("SELECT private.request_payout_report_refresh(%s::date[])", (sorted(months),))
-    if scope_expanded:
-        cursor.execute("SELECT private.request_all_payout_report_refreshes()")

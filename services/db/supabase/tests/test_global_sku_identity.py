@@ -1,80 +1,30 @@
 """Exact SKU text is the global ownership, fee, and frontend selection identity."""
 
 from decimal import Decimal
-from typing import cast
-
-import psycopg
 
 from services.db.supabase.tests.financial_fixtures import FinancialFixture
-from services.db.supabase.tests.payout_fixtures import (
-    fill_payout_kiosk_month,
-    generate_payout_reports,
-)
 
 
 class GlobalSkuIdentityTests(FinancialFixture):
     def shared_sources(self) -> tuple[str, str, str, str]:
         company, identity = self.owner("S1")
-        other, _ = self.owner("s1")
-        self.assign("S1 ", other, rate="0")
-        terms = self.fee(identity, [("2026-01-01", None, "5")])
-        for seller, amount, cost in (("N1", "100", "-10"), ("N2", "200", "-20")):
+        other, _ = self.owner("S1 ")
+        self.assign("s1", other)
+        original = self.fee(identity, [("2026-01-01", None, "5")])
+        for seller, amount in (("north", "100"), ("south", "200")):
             self.seller = seller
-            acquisition = self.acquisition()
-            _, _old = self.finances(
-                [self.transaction("1000", sku="S1")], acquisition_id=acquisition
-            )
-            self.finances(
-                [
-                    self.transaction(amount, sku="S1"),
-                    self.transaction("10", 4, sku="s1"),
-                    self.transaction("20", 5, sku="S1 "),
-                ],
-                acquisition_id=acquisition,
-            )
-            _, old_day = self.kiosk(1, [self.component("-1000", sku="S1")])
-            self.kiosk(2, [self.component(cost, sku="S1")], expected=old_day)
-        return company, other, identity, terms
+            self.finances([self.transaction(amount, sku="S1")])
+        return company, other, identity, original
 
-    def assert_shared_reads(self, user: str, expected_fee: str, company: str) -> None:
-        result = cast(
-            dict[str, object],
+    def assert_shared_reads(self, user: str, fee: str, company: str) -> None:
+        self.assertEqual(
             self.as_user(
                 user,
-                "select public.transaction_page(p_skus=>array['S1'],p_limit=>100)",
-            )[0][0],
-        )
-        rows = cast(list[dict[str, object]], result["rows"])
-        self.assertEqual(result["total_count"], "4")
-        self.assertEqual({row["sku"] for row in rows}, {"S1"})
-        self.assertEqual({row["company_id"] for row in rows}, {company})
-        self.assertEqual(
-            {(row["source"], row["seller_namespace"]) for row in rows},
-            {
-                ("FINANCES", "N1"),
-                ("FINANCES", "N2"),
-                ("DATA_KIOSK", "N1"),
-                ("DATA_KIOSK", "N2"),
-            },
-        )
-        self.assertEqual(
-            self.as_user(user, "select public.transaction_count(p_skus=>array['S1'])"),
-            [("4",)],
-        )
-        totals = cast(
-            dict[str, object],
-            self.as_user(
-                user,
-                "select public.transaction_totals(p_date_from=>'2026-06-01',p_skus=>array['S1'])",
-            )[0][0],
-        )
-        total = cast(list[dict[str, str]], totals["rows"])[0]
-        self.assertEqual(total["row_count"], "4")
-        self.assertEqual(Decimal(total["reported_amount"]), Decimal(270))
-        self.assertEqual(Decimal(total["service_fee"]), Decimal(expected_fee))
-        self.assertEqual(Decimal(total["company_amount"]), Decimal(270) + Decimal(expected_fee))
-        self.assertEqual(
-            sum(Decimal(cast(str, row["fee_amount"])) for row in rows), Decimal(expected_fee)
+                "select count(*),sum(fee_amount) from public.live_company_components "
+                "where sku='S1' and company_id=%s",
+                (company,),
+            ),
+            [(2, Decimal(fee))],
         )
 
     def assert_shared_hidden(self, user: str) -> None:
@@ -114,114 +64,22 @@ class GlobalSkuIdentityTests(FinancialFixture):
         self.assertEqual(
             self.as_user(
                 other_member,
-                "select id::text from public.sku_terms_versions where sku_id=%s",
+                "select id::text from public.assignment_versions where key_id=%s",
                 (identity,),
             ),
             [(reassigned,)],
         )
         self.assertEqual(
             self.connection.execute(
-                "select fee_rate_percent from public.sku_fee_periods where terms_version_id=%s",
+                "select fee_rate_percent from public.sku_fee_periods where "
+                "assignment_version_id=%s",
                 (original,),
             ).fetchall(),
             [(Decimal(5),)],
         )
         self.assertEqual(
-            self.connection.execute("select count(*) from public.skus where sku='S1'").fetchone(),
+            self.connection.execute(
+                "select count(*) from public.assignment_keys where kind='SKU' and native_id='S1'"
+            ).fetchone(),
             (1,),
-        )
-
-    def test_raw_source_pages_preserve_namespace_history_for_administrators_only(self) -> None:
-        company, other, _, _ = self.shared_sources()
-        member, administrator = self.member(company), self.administrator()
-        denied_users = (member, self.member(other), self.auth_user())
-        for dataset in ("finances", "data_kiosk"):
-            page = cast(
-                dict[str, object],
-                self.as_user(
-                    administrator,
-                    "select public.source_transaction_page(%s,p_skus=>array['S1'])",
-                    (dataset,),
-                )[0][0],
-            )
-            self.assertEqual(page["total_count"], "4")
-            self.assertEqual(
-                self.as_user(
-                    administrator,
-                    "select public.source_transaction_count(%s,p_skus=>array['S1'])",
-                    (dataset,),
-                ),
-                [("4",)],
-            )
-            for user in denied_users:
-                for query in (
-                    "select public.source_transaction_page(%s,p_skus=>array['S1'])",
-                    "select public.source_transaction_count(%s,p_skus=>array['S1'])",
-                ):
-                    with (
-                        self.subTest(dataset=dataset),
-                        self.assertRaises(psycopg.errors.InsufficientPrivilege),
-                    ):
-                        self.as_user(user, query, (dataset,))
-        self.assertEqual(
-            self.connection.execute(
-                "select table_name,column_name from information_schema.columns "
-                "where table_schema='public' and table_name in "
-                "('skus','company_skus','current_sku_fee_periods') "
-                "and column_name='seller_namespace'"
-            ).fetchall(),
-            [],
-        )
-
-    def test_monthly_payout_discovers_every_source_namespace_for_one_assignment(self) -> None:
-        company, identity = self.owner("S1")
-        self.fee(identity, [("2026-01-01", None, "5")])
-        for seller, amount, cost in (("N1", "100", "-10"), ("N2", "200", "-20")):
-            self.seller = seller
-            self.finances([self.transaction(amount, sku="S1")])
-            self.kiosk(1, [self.component(cost, sku="S1")])
-            fill_payout_kiosk_month(self)
-        reports = generate_payout_reports(self, company)
-        self.assertEqual(len(reports), 1)
-        self.assertTrue(all(created for _, created in reports))
-        self.assertEqual(
-            self.connection.execute(
-                "select source_amount,fee_amount,company_amount,"
-                "terms_version_count "
-                "from public.company_payout_reports where company_id=%s order by id",
-                (company,),
-            ).fetchall(),
-            [
-                (Decimal(270), Decimal(-15), Decimal(255), 1),
-            ],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select distinct sku_id::text from private.payout_report_terms_versions"
-            ).fetchall(),
-            [(identity,)],
-        )
-        self.assertEqual(
-            generate_payout_reports(self, company),
-            [(report, False) for report, _ in reports],
-        )
-        self.fee(identity, [("2026-01-01", None, "7")])
-        revised = generate_payout_reports(self, company)
-        self.assertEqual(len(revised), 1)
-        self.assertTrue(all(created for _, created in revised))
-        self.assertEqual(
-            self.connection.execute(
-                "select company_amount from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by id",
-                ([report for report, _ in revised],),
-            ).fetchall(),
-            [(Decimal(249),)],
-        )
-        self.assertEqual(
-            self.connection.execute(
-                "select company_amount from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by id",
-                ([report for report, _ in reports],),
-            ).fetchall(),
-            [(Decimal(255),)],
         )

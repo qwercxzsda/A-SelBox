@@ -115,7 +115,7 @@ class PayoutRefreshConcurrencyTests(SourceModelFixture):
                 "where company_id=%s order by created_at desc,id desc limit 1",
                 (inputs.company,),
             ).fetchone(),
-            (170,),
+            (180,),
         )
         self.assertEqual(refresh_payout_reports(self), (0, 0, 0, 0))
 

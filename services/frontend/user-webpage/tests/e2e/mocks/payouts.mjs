@@ -12,7 +12,6 @@ function reportRecords(fixture, report) {
       return {
         report_id: report.id,
         source: row.source ?? "FINANCES",
-        authoritative: row.authoritative ?? "true",
         source_row_id: row.source_row_id,
         source_version_id: row.source_version_id ?? "source-version",
         source_identity_id: row.source_identity_id ?? "source-identity",
@@ -28,6 +27,8 @@ function reportRecords(fixture, report) {
         component_type: row.component_type ?? "UNSPECIFIED",
         currency: field("currency", report.currency),
         source_amount: field("source_amount", "0"),
+        base_amount: field("base_amount", row.source_amount ?? "0"),
+        tax_amount: field("tax_amount", "0"),
         quantity: row.quantity ?? null,
         fee_base: row.fee_base ?? null,
         fee_rate_percent: row.fee_rate_percent ?? null,
@@ -49,11 +50,10 @@ export async function respondWithPayouts(fixture, { url, request, user, reply })
   const records = reportRecords(fixture, report);
   const offset = args.p_offset ?? 0;
   if (url.pathname.endsWith("/payout_report_totals")) {
-    const authoritative = records.filter((row) => row.authoritative === "true");
-    const types = [...new Set(authoritative.map((row) => row.component_type))].sort();
+    const types = [...new Set(records.map((row) => row.component_type))].sort();
     const rows = args.p_group_by_type
       ? types.map((type) => {
-          const group = authoritative.filter((row) => row.component_type === type);
+          const group = records.filter((row) => row.component_type === type);
           return {
             currency: report.currency,
             component_type: type,
@@ -72,8 +72,8 @@ export async function respondWithPayouts(fixture, { url, request, user, reply })
               reported_amount: report.source_amount,
               service_fee: report.fee_amount,
               company_amount: report.company_amount,
-              row_count: String(authoritative.length),
-              known_company_count: String(authoritative.length),
+              row_count: String(records.length),
+              known_company_count: String(records.length),
             },
           ];
     const limit = args.p_limit ?? 1000;
@@ -82,17 +82,9 @@ export async function respondWithPayouts(fixture, { url, request, user, reply })
       next_offset: offset + limit < rows.length ? offset + limit : null,
     });
   }
-  if (typeof args.p_authoritative !== "boolean") return reply({}, 400);
-  if (!administrator && !args.p_authoritative)
-    return reply({ code: "42501", message: "Report access required" }, 403);
-  const authoritative = String(args.p_authoritative);
-  fixture.payoutRecordRequests.push({ reportId, authoritative, user, args });
+  fixture.payoutRecordRequests.push({ reportId, user, args });
   const rows = records
-    .filter(
-      (row) =>
-        row.authoritative === authoritative &&
-        (!args.p_types?.length || args.p_types.includes(row.component_type)),
-    )
+    .filter((row) => !args.p_types?.length || args.p_types.includes(row.component_type))
     .sort(
       (a, b) =>
         b.activity_date.localeCompare(a.activity_date) ||

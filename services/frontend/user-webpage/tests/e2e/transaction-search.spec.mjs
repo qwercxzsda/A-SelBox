@@ -1,19 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { kioskRow, liveRow, financesRow } from "./api-fixtures.mjs";
+import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
   ["finances", "Finances"],
-  ["data_kiosk", "Data Kiosk"],
 ]) {
   test(`${tab} resolves literal case-insensitive search into exact sets without currency or metadata matches`, async ({
     page,
   }) => {
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = "administrator";
-    const type = dataset === "data_kiosk" ? "FBA_STORAGE_FEE" : "PRODUCT_SALES";
+    const type = "PRODUCT_SALES";
     const fields = [
       ["sku", 'Needle_%*.\\"(sample)', "p_search_skus"],
       ["component_type", type, "p_search_types"],
@@ -24,25 +23,21 @@ for (const [dataset, tab] of [
       term,
       argument,
       row: {
-        ...(dataset === "live"
-          ? liveRow("SEARCH", index + 1)
-          : dataset === "finances"
-            ? financesRow(index + 1)
-            : kioskRow(index + 1, "10")),
-        source: "DATA_KIOSK",
+        ...(dataset === "live" ? liveRow("SEARCH", index + 1) : financesRow(index + 1)),
+        source: "STORAGE",
         currency: "USD",
         marketplace_name: "Amazon.com",
         sku: `SEARCH-${index}`,
-        component_type: dataset === "data_kiosk" ? "COST_OF_GOODS_SOLD" : "PRODUCT_REFUNDS",
+        component_type: "PRODUCT_REFUNDS",
         resolution_status: "MISSING_FEE",
         native_transaction_id: "native-only",
-        accounting_subtype: "OPERATING_EXPENSE",
+        selbox_group: "ACCOUNT_FEE",
         [field]: term,
       },
     }));
     if (dataset === "live") fixture.liveRows = cases.map(({ row }) => row);
-    else if (dataset === "finances") fixture.financesRows = cases.map(({ row }) => row);
-    else fixture.kioskRows = cases.map(({ row }) => row);
+    else fixture.financesRows = cases.map(({ row }) => row);
+
     await signIn(page);
     if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
     const table = page.getByRole("table", { name: "Financial records", exact: true });
@@ -55,10 +50,8 @@ for (const [dataset, tab] of [
       expect(fixture.requests.at(-1).args).not.toHaveProperty("p_search");
     }
     if (dataset === "live") {
-      await page.getByLabel("Search", { exact: true }).fill("Data Kiosk");
-      await expect
-        .poll(() => fixture.requests.at(-1).args.p_search_sources)
-        .toEqual(["DATA_KIOSK"]);
+      await page.getByLabel("Search", { exact: true }).fill("Monthly storage report");
+      await expect.poll(() => fixture.requests.at(-1).args.p_search_sources).toEqual(["STORAGE"]);
       await expect(table.getByRole("row")).toHaveCount(cases.length);
     }
     for (const hidden of [
@@ -68,8 +61,8 @@ for (const [dataset, tab] of [
       "missing_fee",
       "document-1",
       "native-only",
-      "OPERATING_EXPENSE",
-      ...(dataset === "live" ? [] : ["DATA_KIOSK", "Data Kiosk", "Finances"]),
+      "ACCOUNT_FEE",
+      ...(dataset === "live" ? [] : ["REMOVAL_ORDER", "Monthly storage report", "Finances"]),
     ]) {
       const previous = fixture.requests.length;
       await page.getByLabel("Search", { exact: true }).fill(hidden);
@@ -96,21 +89,21 @@ test("search combines SKU and displayed Type matches with OR before applying col
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.liveRows = [
-    { ...liveRow("FBA-UNREGISTERED", 1), component_type: "PRODUCT_SALES" },
-    { ...liveRow("STORAGE", 1), source: "DATA_KIOSK", component_type: "FBA_STORAGE_FEE" },
+    { ...liveRow("FEE-UNREGISTERED", 1), component_type: "PRODUCT_SALES" },
+    { ...liveRow("STORAGE", 1), source: "STORAGE", component_type: "STORAGE_FEES" },
     { ...liveRow("OTHER", 1), component_type: "PRODUCT_SALES" },
   ];
   await signIn(page);
-  await page.getByLabel("Search", { exact: true }).fill(" fba ");
+  await page.getByLabel("Search", { exact: true }).fill(" fee ");
   const table = page.getByRole("table", { name: "Financial records", exact: true });
   await expect(table.getByRole("row")).toHaveCount(3);
-  expect(fixture.requests.at(-1).args.p_search_skus).toEqual(["FBA-UNREGISTERED-001"]);
-  expect(fixture.requests.at(-1).args.p_search_types).toContain("FBA_STORAGE_FEE");
+  expect(fixture.requests.at(-1).args.p_search_skus).toEqual(["FEE-UNREGISTERED-001"]);
+  expect(fixture.requests.at(-1).args.p_search_types).toContain("STORAGE_FEES");
   const menu = await openColumn(page, "SKU");
-  await menu.getByRole("checkbox", { name: "FBA-UNREGISTERED-001", exact: true }).check();
+  await menu.getByRole("checkbox", { name: "FEE-UNREGISTERED-001", exact: true }).check();
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
   await expect(table.getByRole("row")).toHaveCount(2);
-  expect(fixture.requests.at(-1).args.p_skus).toEqual(["FBA-UNREGISTERED-001"]);
+  expect(fixture.requests.at(-1).args.p_skus).toEqual(["FEE-UNREGISTERED-001"]);
   await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   await page.getByLabel("Search", { exact: true }).fill("storage fee");
   await expect(table.getByRole("row")).toHaveCount(2);

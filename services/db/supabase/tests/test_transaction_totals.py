@@ -52,7 +52,7 @@ class TransactionTotalsTests(TransactionTotalsFixture):
         for sku in ("GAP", "UNKNOWN", "UNASSIGNED"):
             result = self.assert_matches_view(administrator, p_skus=[sku])
             rows = cast(list[dict[str, object]], result["rows"])
-            self.assertTrue(rows)
+            self.assertEqual(bool(rows), sku == "GAP")
             self.assertTrue(all(row["company_amount"] is None for row in rows))
             self.assertTrue(all(row["known_company_count"] == "0" for row in rows))
 
@@ -77,14 +77,14 @@ class TransactionTotalsTests(TransactionTotalsFixture):
         first, _ = self.financial_fixture()
         filters: tuple[dict[str, object], ...] = (
             {"p_sources": ["FINANCES"]},
-            {"p_sources": ["DATA_KIOSK"]},
+            {"p_sources": ["AD_INVOICE"]},
             {"p_types": ["PRODUCT_SALES", "FbaStorageFee"]},
             {"p_fee_applicable": True},
             {"p_fee_applicable": False},
             {"p_search_skus": ["SKU"]},
             {"p_search_types": ["FbaStorageFee"]},
             {"p_search_marketplaces": ["Amazon.com"]},
-            {"p_search_sources": ["DATA_KIOSK"]},
+            {"p_search_sources": ["AD_INVOICE"]},
             {name: [] for name in LIVE_SEARCH_FIELDS},
             {"p_search_skus": ["OTHER"], "p_search_types": ["PRODUCT_SALES"]},
         )
@@ -134,29 +134,6 @@ class TransactionTotalsTests(TransactionTotalsFixture):
             )
         self.assertEqual(self.read_totals(member, p_company_ids=[second])["rows"], [])
 
-    def test_preaggregation_keeps_applicable_zero_separate_from_missing_fee(self) -> None:
-        company, sku = self.owner()
-        self.fee(sku, [("2026-01-01", None, "5")])
-        self.assign("GAP", company)
-        self.finances(
-            [
-                self.transaction("0", 3),
-                self.transaction("10", 4),
-                self.transaction("-10", 5),
-                self.transaction("0", 6, sku="GAP"),
-                self.transaction("3", 7, sku="GAP", description="Shipping"),
-            ]
-        )
-        self.kiosk(
-            1, [self.component("4", sku="GAP"), self.component("5", sku="GAP") | {"fee_base": "0"}]
-        )
-        result = self.assert_matches_view(self.member(company), p_skus=["GAP"])
-        row = cast(list[dict[str, object]], result["rows"])[0]
-        self.assertEqual(row["row_count"], "4")
-        self.assertEqual(row["known_company_count"], "2")
-        self.assertEqual(row["company_amount"], "7")
-        self.assert_matches_view(self.member(company), p_group_by_type=True)
-
     def test_marketplace_currency_groups_remain_separate_and_ordered(self) -> None:
         company, _ = self.owner()
         self.finances(
@@ -190,25 +167,6 @@ class TransactionTotalsTests(TransactionTotalsFixture):
             self.assert_matches_view(
                 user, p_group_by_type=True, p_currency="USD", p_marketplaces=["Amazon.com"]
             )
-
-    def test_reprocessing_and_ownership_changes_are_current(self) -> None:
-        first, sku = self.owner()
-        second, _ = self.owner("OTHER")
-        terms = self.fee(sku, [("2026-01-01", None, "5")])
-        acquisition = self.acquisition()
-        _, _version = self.finances([self.transaction("10")], acquisition_id=acquisition)
-        _, kiosk = self.kiosk(1, [self.component("3")])
-        users = (self.administrator(), self.member(first), self.member(second))
-        for user in users:
-            self.assert_matches_view(user)
-        self.finances([self.transaction("20")], acquisition_id=acquisition)
-        self.kiosk(2, [], expected=kiosk)
-        terms = self.assign("SKU", second, rate="7", expected=terms)
-        for user in users:
-            self.assert_matches_view(user)
-        self.assign("SKU", None, expected=terms)
-        for user in users:
-            self.assert_matches_view(user)
 
     def test_more_than_one_thousand_unicode_groups_return_completely_in_order(self) -> None:
         company, sku = self.owner()

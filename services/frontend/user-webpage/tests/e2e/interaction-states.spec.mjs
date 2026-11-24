@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
-import { kioskRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
+import { financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
+
+import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
 import { item, feeRow, feeDetails } from "./sku-configuration-fixtures.mjs";
 import { companyRow, companyPanel, closeCompanyDetails } from "./company-actions.mjs";
 import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
@@ -123,7 +124,7 @@ async function setup(page, administrator = true) {
   fixture.skuConfigurationItems = [item("S1", { company_id: REVIEW_COMPANY })];
   fixture.assignments = skuAssignments(["S1"], REVIEW_COMPANY);
   fixture.financesRows = [financesRow(1)];
-  fixture.kioskRows = [kioskRow(1, "10")];
+
   fixture.aggregateRows = [summaryBucket("2026-09-01", "10"), summaryBucket("2026-09-02", "0")];
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
   await mockInventory(page, [inventoryRow("S1", { company_id: REVIEW_COMPANY })]);
@@ -210,7 +211,7 @@ test("workspace controls share hover feedback across every administrator tab", a
   await hoverChangesShade(page, button(options, "Close options"));
   await button(options, "Close options").click();
 
-  for (const name of ["Transactions", "Finances", "Data Kiosk", "Payout reports", "User access"]) {
+  for (const name of ["Transactions", "Finances", "Payout reports", "User access"]) {
     const tab = page.getByRole("tab", { name, exact: true });
     await hoverChangesShade(page, tab);
     await tab.click();
@@ -231,7 +232,7 @@ test("workspace controls share hover feedback across every administrator tab", a
       {
         Transactions: "Transaction details",
         Finances: "Finances record details",
-        "Data Kiosk": "Data Kiosk record details",
+        "Monthly storage report": "Monthly storage report record details",
         "Payout reports": "Payout report details",
         "User access": "Company membership",
       }[name],
@@ -251,7 +252,7 @@ test("workspace controls share hover feedback across every administrator tab", a
   }
 
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await hoverEmphasizesText(page, button(page, "Open review for June 2026"));
+  await expect(page.getByRole("combobox", { name: "Show", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
   const details = companyRow(page, "Review Company");
   await hoverChangesShade(page, details);

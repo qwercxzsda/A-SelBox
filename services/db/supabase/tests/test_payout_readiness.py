@@ -123,43 +123,6 @@ class PayoutReadinessTests(SourceModelFixture):
         )
         self.assertEqual(self.facts(administrator, company)[0][3:6], (True, 0, "SETUP_REQUIRED"))
 
-    def test_blockers_are_scoped_to_month_and_company_authority_including_zero(self) -> None:
-        self.set_mature_cutoff_date(date(2026, 8, 1))
-        company, _ = self.owner("KNOWN")
-        self.owner("OTHER")
-        self.finances(
-            [
-                self.transaction("10", sku="KNOWN"),
-                self.transaction("0", 4, sku="UNASSIGNED"),
-                self.transaction("20", 5, sku="OTHER"),
-                self.transaction("30", 6, sku="OUTSIDE-MONTH", activity_date="2026-07-01"),
-            ]
-        )
-        self.kiosk(1, [self.component("-3", sku="UNKNOWN-DK")])
-        administrator = self.administrator()
-        rows = self.as_user(
-            administrator,
-            "select sku,reason,first_date,last_date,component_count "
-            "from public.payout_setup_blockers(%s,'2026-06-01',100,0)",
-            (company,),
-        )
-        self.assertEqual(
-            rows,
-            [
-                ("KNOWN", "MISSING_FEE", date(2026, 6, 15), date(2026, 6, 15), 1),
-                ("UNASSIGNED", "MISSING_OWNERSHIP", date(2026, 6, 15), date(2026, 6, 15), 1),
-                ("UNKNOWN-DK", "MISSING_OWNERSHIP", date(2026, 6, 15), date(2026, 6, 15), 1),
-            ],
-        )
-        self.assertEqual(
-            self.as_user(
-                administrator,
-                "select sku from public.payout_setup_blockers(%s,'2026-06-01',1,1)",
-                (company,),
-            ),
-            [("UNASSIGNED",)],
-        )
-
     def test_readiness_is_bounded_and_does_not_read_source_facts(self) -> None:
         self.set_mature_cutoff_date(date(2026, 7, 1))
         companies = [self.owner(f"SKU-{index}")[0] for index in range(3)]

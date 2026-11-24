@@ -3,20 +3,16 @@
 from typing import Any
 
 from services.db.supabase.tests.e2e.fixtures import (
-    archived_data_kiosk,
     archived_finances,
     company_with_fees,
+    publish_removal_reference,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.db.supabase.tests.search_fixtures import LIVE_SEARCH_FIELDS, SOURCE_SEARCH_FIELDS
-from services.sync.src.data_kiosk_economics.workflow import preprocess_data_kiosk_acquisition
-from services.sync.src.database.acquisitions import (
-    persist_data_kiosk_acquisition,
-)
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
 
 LITERAL_SKU = 'Search.*_[A]%\\Quoted"Sku한글'
-_DATASETS = ("live", "finances", "data_kiosk")
+_DATASETS = ("live", "finances")
 
 
 def _matches(row: dict[str, Any], fields: dict[str, str], selection: dict[str, Any]) -> bool:
@@ -35,11 +31,8 @@ class TextSearchTests(LocalWorkflowCase):
         company_with_fees(self.database, other, sku="OTHER")
         for seller, sku in ((self.seller, LITERAL_SKU), (other, "OTHER")):
             finances = archived_finances(self.storage, seller, sku=sku)
-            kiosk = persist_data_kiosk_acquisition(
-                self.database, archived_data_kiosk(self.storage, seller, sku=sku)
-            )
             preprocess_finances_acquisition(self.database, self.storage, finances)
-            preprocess_data_kiosk_acquisition(self.database, self.storage, kiosk)
+            publish_removal_reference(self.database, self.storage, seller, sku=sku)
         member_id, member = self.create_member(company)
         _, administrator = self.create_administrator()
         _, outsider = self.create_auth_user()
@@ -77,7 +70,7 @@ class TextSearchTests(LocalWorkflowCase):
                         {"p_search_types": ["USD"]},
                     )
                     if live:
-                        selections += ({"p_search_sources": ["DATA_KIOSK"]},)
+                        selections += ({"p_search_sources": ["REMOVAL_ORDER"]},)
                     for selection in selections:
                         expected = [row for row in rows if _matches(row, fields, selection)]
                         for include_count in (True, False):

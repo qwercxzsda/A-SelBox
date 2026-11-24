@@ -173,11 +173,11 @@ create function private.current_owned_sku_terms() returns table (
     sku_id uuid, sku text, terms_version_id uuid
 )
 language sql stable security definer set search_path = '' as $$
-    select s.id::uuid, s.sku, v.id::uuid
+    select s.id::uuid, s.native_id, v.id::uuid
     from public.app_accounts as a
-    join public.sku_terms_versions as v on v.company_id = a.company_id
-    join public.skus as s
-        on s.id = v.sku_id and s.current_terms_version_id = v.id
+    join public.assignment_versions as v on v.company_id = a.company_id
+    join public.assignment_keys as s
+        on s.kind = 'SKU' and s.id = v.key_id and s.current_version_id = v.id
     where a.user_id = (select auth.uid()) and a.access_role = 'member';
 $$;
 
@@ -186,12 +186,12 @@ $$;
 create view private.current_sku_terms with (security_invoker = true) as
 select
     s.id as sku_id,
-    s.sku,
+    s.native_id as sku,
     v.id as terms_version_id,
     v.company_id
-from public.skus as s
-inner join public.sku_terms_versions as v
-    on s.id = v.sku_id and s.current_terms_version_id = v.id;
+from public.assignment_keys as s
+inner join public.assignment_versions as v
+    on s.kind = 'SKU' and s.id = v.key_id and s.current_version_id = v.id;
 
 revoke all on private.current_sku_terms from public, anon, authenticated, service_role;
 create view public.company_skus with (security_invoker = true) as
@@ -213,17 +213,17 @@ select
     p.valid_period,
     p.fee_rate_percent
 from public.company_skus as s
-inner join public.sku_fee_periods as p on s.terms_version_id = p.terms_version_id;
+inner join public.sku_fee_periods as p on s.terms_version_id = p.assignment_version_id;
 
 -- Resolve the caller's visible parent revisions without circular parent/child RLS.
 -- This private definer boundary returns only IDs for current, eligible owned facts.
 create function private.current_owned_finances_revisions() returns setof uuid
 language sql stable security definer set search_path = '' as $$
-    select distinct r.id::uuid
-    from private.finances_transactions t
-    join private.finances_transaction_versions r on r.id=t.current_version_id
-    join private.finances_transaction_components c on c.version_id=r.id
-    where private.is_member() and r.activity_eligible and c.category='FINANCES'
+    select distinct r.version_id::uuid
+    from private.source_units t
+    join private.finances_transactions r on r.version_id=t.current_version_id
+    join private.finances_amounts c on c.version_id=r.version_id
+    where private.is_member() and r.is_activity and c.route='SKU'
         and c.sku in (select o.sku from private.current_owned_sku_terms() o);
 $$;
 revoke all on function private.current_owned_finances_revisions() from public,

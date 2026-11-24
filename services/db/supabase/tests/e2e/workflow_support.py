@@ -111,7 +111,6 @@ class LocalWorkflowCase(unittest.TestCase):
                 token=token,
                 json={
                     "p_report_id": report_id,
-                    "p_authoritative": True,
                     "p_limit": 1000,
                     "p_offset": len(rows),
                 },

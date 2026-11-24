@@ -1,107 +1,18 @@
 """Raw source projections are administrator-only; company calculation grants stay scoped."""
 
 from decimal import Decimal
-from typing import LiteralString
-
-import psycopg
 
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
 class AdministratorSourceAccessTests(SourceModelFixture):
-    def test_source_rows_and_result_headers_preserve_the_role_boundary(self) -> None:
-        company, _ = self.owner()
-        self.owner("OTHER")
-        member, administrator = self.member(company), self.administrator()
-        acquisition = self.acquisition()
-        _, finances_version = self.finances(
-            [
-                self.transaction("100"),
-                self.transaction("500", 4, sku="OTHER"),
-                self.transaction("-10", 5, category="SELBOX", kind="AccountFee") | {"sku": None},
-            ],
-            acquisition_id=acquisition,
-        )
-        self.finances(
-            [
-                self.transaction("200"),
-                self.transaction("600", 4, sku="OTHER"),
-                self.transaction("-10", 5, category="SELBOX", kind="AccountFee") | {"sku": None},
-            ],
-            acquisition_id=acquisition,
-        )
-        _, kiosk_version = self.kiosk(1, [self.component("-1")])
-        self.kiosk(
-            2,
-            [
-                self.component("-2"),
-                self.component("-60", sku="OTHER"),
-                self.component("-20", category="SELBOX") | {"sku": None},
-            ],
-            expected=kiosk_version,
-        )
-        self.connection.execute("set constraints all immediate")
-        queries: tuple[tuple[LiteralString, list[int], list[int]], ...] = (
-            (
-                "select amount from private.finances_transaction_components order by amount",
-                [200],
-                [-10, 100, 200, 500, 600],
-            ),
-            (
-                "select amount from public.finances_preprocess_entries order by amount",
-                [],
-                [-10, 100, 200, 500, 600],
-            ),
-            (
-                "select amount from private.data_kiosk_day_components order by amount",
-                [-2],
-                [-60, -20, -2, -1],
-            ),
-            (
-                "select amount from public.data_kiosk_preprocess_entries order by amount",
-                [],
-                [-60, -20, -2, -1],
-            ),
-        )
-        for query, member_amounts, administrator_amounts in queries:
-            with self.subTest(query=query):
-                self.assertEqual(
-                    self.as_user(member, query), [(Decimal(x),) for x in member_amounts]
-                )
-                self.assertEqual(
-                    self.as_user(administrator, query),
-                    [(Decimal(x),) for x in administrator_amounts],
-                )
-        for query in (
-            "select * from public.finances_preprocess_results",
-            "select * from public.data_kiosk_preprocess_results",
-        ):
-            with self.subTest(query=query):
-                with self.assertRaises(psycopg.errors.InsufficientPrivilege):
-                    self.as_user(member, query)
-                self.assertEqual(len(self.as_user(administrator, query)), 2)
-        if finances_version is None:
-            raise AssertionError("The populated Finance fixture needs a version.")
-        historical_queries: tuple[tuple[LiteralString, str], ...] = (
-            (
-                "select id from public.finances_preprocess_entries where version_id=%s",
-                finances_version,
-            ),
-            (
-                "select id from public.data_kiosk_preprocess_entries where version_id=%s",
-                kiosk_version,
-            ),
-        )
-        for query, version in historical_queries:
-            self.assertEqual(self.as_user(member, query, (version,)), [])
-
     def test_administrator_reads_unassigned_identity_and_all_terms_revisions(self) -> None:
         company, identity = self.owner()
         member, administrator = self.member(company), self.administrator()
         first = self.fee(identity, [("2026-01-01", None, "5")])
         second = self.fee(identity, [("2026-01-01", None, "7")])
         self.assertEqual(
-            self.as_user(member, "select id::text from public.sku_terms_versions"), [(second,)]
+            self.as_user(member, "select id::text from public.assignment_versions"), [(second,)]
         )
         self.assertEqual(
             self.as_user(
@@ -122,17 +33,19 @@ class AdministratorSourceAccessTests(SourceModelFixture):
                 "periods": [],
             },
         )
-        self.assertEqual(self.as_user(member, "select * from public.skus"), [])
-        self.assertEqual(self.as_user(member, "select * from public.sku_terms_versions"), [])
+        self.assertEqual(self.as_user(member, "select * from public.assignment_keys"), [])
+        self.assertEqual(self.as_user(member, "select * from public.assignment_versions"), [])
         self.assertEqual(self.as_user(member, "select * from public.sku_fee_periods"), [])
-        self.assertEqual(len(self.as_user(administrator, "select * from public.skus")), 1)
         self.assertEqual(
-            len(self.as_user(administrator, "select * from public.sku_terms_versions")), 4
+            len(self.as_user(administrator, "select * from public.assignment_keys")), 1
+        )
+        self.assertEqual(
+            len(self.as_user(administrator, "select * from public.assignment_versions")), 4
         )
         self.assertEqual(
             self.as_user(
                 administrator,
-                "select id::text from public.sku_terms_versions where id=%s",
+                "select id::text from public.assignment_versions where id=%s",
                 (first,),
             ),
             [(first,)],

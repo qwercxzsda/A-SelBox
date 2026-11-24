@@ -50,7 +50,7 @@ def source_period_totals(
                 sum(fee_amount)::text as service_fee, sum(company_amount)::text as company_amount,
                 count(*)::text as row_count, count(company_amount)::text as known_company_count
             from public.live_company_components
-            where authoritative and activity_date between %s and %s
+            where activity_date between %s and %s
                 and company_id=%s::uuid and currency=%s and marketplace_name=%s
             group by 1,2
         ) select jsonb_build_object('rows',coalesce(jsonb_agg(to_jsonb(t)
@@ -85,7 +85,7 @@ def verify_record_parity(
             "select source,source_row_id,activity_date,sku,component_type,"
             "source_amount,fee_amount,company_amount "
             "from private.read_payout_report_records(%s) "
-            "where authoritative",
+            "",
             (report_id,),
         )
     }
@@ -96,8 +96,8 @@ def verify_record_parity(
             user,
             "select source,source_row_id,activity_date,sku,component_type,"
             "source_amount,fee_amount,company_amount "
-            "from public.live_company_components where authoritative "
-            "and activity_date between %s and %s "
+            "from public.live_company_components "
+            "where activity_date between %s and %s "
             "and company_id=%s::uuid and currency=%s and marketplace_name=%s",
             (start, end, company, currency, marketplace),
         )

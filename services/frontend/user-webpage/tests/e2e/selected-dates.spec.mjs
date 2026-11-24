@@ -26,15 +26,17 @@ test("the UTC period shortcut resets list pagination and preserves refinements a
     })),
     {
       ...liveRow("OTHER", 1),
-      source: "DATA_KIOSK",
-      // This marketplace day ends on March 15 in UTC.
+      source: "STORAGE",
+      // The Finances posting instant falls on March 15 UTC.
       activity_date: "2026-03-14",
+      activity_at: "2026-03-15T03:15:00.000000Z",
       source_amount: "99",
     },
   ];
   fixture.aggregateRows = [
     ...fixture.liveRows.map((row) => ({
       ...summaryBucket(row.activity_date, row.source_amount),
+      activity_at: row.activity_at,
       sku: row.sku,
       source: row.source,
       component_type: row.component_type,

@@ -102,7 +102,7 @@ class CompanyDeletionTests(SourceModelFixture):
             (0,),
         )
         current = self.connection.execute(
-            "select current_terms_version_id::text from public.skus where id=%s", (sku,)
+            "select current_version_id::text from public.assignment_keys where id=%s", (sku,)
         ).fetchone()
         self.assertIsNotNone(current)
         self.call(
@@ -146,12 +146,12 @@ class CompanyDeletionTests(SourceModelFixture):
         self.fee(sku, [("2026-01-01", None, "5")])
         self.connection.execute(
             "insert into public.company_payout_reports (company_id,currency,start_date,end_date,"
-            "dataset_key,change_reason,"
-            "component_count,finances_version_count,"
-            "data_kiosk_version_count,terms_version_count,"
+            "change_reason,"
+            "record_count,source_version_count,"
+            "assignment_version_count,"
             "source_amount,fee_amount,company_amount) "
-            "values (%s,null,'2026-06-01','2026-06-30','economics',"
-            "'Retained history',0,0,0,0,0,0,0)",
+            "values (%s,null,'2026-06-01','2026-06-30',"
+            "'Retained history',0,0,0,0,0,0)",
             (company,),
         )
         self.connection.execute(
@@ -172,7 +172,7 @@ class CompanyDeletionTests(SourceModelFixture):
         self.assertEqual(
             self.connection.execute(
                 "select (select count(*) from public.sku_fee_periods),"
-                "(select count(*) from public.sku_terms_versions),"
+                "(select count(*) from public.assignment_versions),"
                 "(select count(*) from public.company_payout_reports),"
                 "(select count(*) from private.payout_report_refresh_state)"
             ).fetchone(),

@@ -74,9 +74,11 @@ def _reference(connection: Connection, case: Case) -> list[Any]:
             raise PermissionError("SKU catalog references require an application administrator")
         rows = connection.execute(
             'select distinct sku collate "C" as value from ('
-            "select sku from private.finances_transaction_components union all "
-            "select sku from private.data_kiosk_day_components union all "
-            "select sku from public.skus) inventory "
+            "select sku from private.finances_component_details where activity_eligible union all "
+            "select sku from private.information_products union all "
+            "select l.sku from private.inventory_ledger_rows l join private.source_units u "
+            "on u.current_version_id=l.version_id union all "
+            "select native_id as sku from public.assignment_keys where kind='SKU') inventory "
             "where sku is not null order by value"
         ).fetchall()
         return [row[0] for row in rows]
@@ -126,8 +128,9 @@ def _discover(connection: Connection, user: str) -> tuple[list[Case], dict[str, 
         connection.execute("set transaction read only")
         connection.execute("set local role authenticated")
         connection.execute(
-            "select set_config('request.jwt.claims',%s,true)",
-            (json.dumps({"sub": user, "role": "authenticated"}),),
+            "select set_config('request.jwt.claims',%s,true), "
+            "set_config('request.jwt.claim.sub',%s,true)",
+            (json.dumps({"sub": user, "role": "authenticated"}), user),
         )
         latest_row = connection.execute(
             sql.SQL(
@@ -214,8 +217,8 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
         before = catalog_fingerprint(connection)
         users = identities(connection)
         counts = connection.execute(
-            "select (select count(*) from private.finances_transaction_components),"
-            "(select count(*) from private.data_kiosk_day_components)"
+            "select (select count(*) from private.finances_amounts),"
+            "(select count(*) from private.reference_money)"
         ).fetchone()
         if counts is None:
             raise RuntimeError("Missing fixture metadata")
@@ -279,7 +282,7 @@ def measure(database: str, image: str, password: str, temporary: Path, repeat: i
     return {
         "database": database,
         "finances_facts": counts[0],
-        "data_kiosk_facts": counts[1],
+        "reference_facts": counts[1],
         "repeat": repeat,
         "warmups": 1,
         "records": records,

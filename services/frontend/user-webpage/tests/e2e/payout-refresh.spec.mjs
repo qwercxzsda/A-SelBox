@@ -53,7 +53,7 @@ for (const role of ["administrator", "member"]) {
     expect(fixture.revisionRequests.at(-1).sources).toContain("payouts");
 
     fixture.revisions.fees = "2";
-    fixture.revisions.data_kiosk = "2";
+    fixture.revisions.references = "2";
     await checkForUpdates(page, fixture);
     expect(reportReads(fixture)).toEqual(before);
     await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();

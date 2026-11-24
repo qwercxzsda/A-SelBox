@@ -1,4 +1,4 @@
-export type TableDatasetKey = "live" | "finances" | "data_kiosk" | "payouts" | "accounts";
+export type TableDatasetKey = "live" | "finances" | "payouts" | "accounts";
 export type DatasetKey = TableDatasetKey | "fees";
 type SortDirection = "asc" | "desc";
 type DecimalString = string;
@@ -29,7 +29,7 @@ export interface AppAccount {
   company_id: string | null;
 }
 
-export type RevisionSource = "finances" | "data_kiosk" | "fees" | "inventory" | "payouts";
+export type RevisionSource = "references" | "finances" | "fees" | "inventory" | "payouts";
 export type WorkspaceRevisions = Partial<Record<RevisionSource, string>>;
 
 export interface WorkspaceRevisionSnapshot {

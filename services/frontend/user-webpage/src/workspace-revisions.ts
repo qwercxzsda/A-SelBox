@@ -3,7 +3,7 @@ import type { AppAccount, RevisionSource, WorkspaceRevisions } from "./api/types
 
 export const FINANCIAL_REVISION_SOURCES: readonly RevisionSource[] = [
   "finances",
-  "data_kiosk",
+  "references",
   "fees",
 ];
 export const REVISION_SOURCES: readonly RevisionSource[] = [
@@ -28,8 +28,6 @@ function datasetDependencies(dataset: unknown, administrator: boolean): readonly
       return FINANCIAL_REVISION_SOURCES;
     case "finances":
       return administrator ? ["finances"] : ["finances", "fees"];
-    case "data_kiosk":
-      return administrator ? ["data_kiosk"] : ["data_kiosk", "fees"];
     default:
       return [];
   }
@@ -44,8 +42,8 @@ export function queryRevisionSources(key: QueryKey): readonly RevisionSource[] {
   if (family === "payout-history") return ["payouts"];
   if (family === "payout-readiness") return ["payouts", "fees"];
   if (family === "payout-blockers") return [...FINANCIAL_REVISION_SOURCES, "payouts"];
-  if (family === "financial-review") return ["finances", "data_kiosk"];
-  if (family === "financial-source-record") return ["finances", "data_kiosk"];
+  if (family === "financial-review" || family === "assignments") return FINANCIAL_REVISION_SOURCES;
+  if (family === "financial-source-record") return ["finances"];
   if (family === "financial-source-lookup") return ["finances"];
   if (family === "inventory") return ["inventory", "fees"];
   if (

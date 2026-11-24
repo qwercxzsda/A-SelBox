@@ -46,7 +46,7 @@ class FinancesPipelineTests(DatabaseTestCase):
                 replace(page, requested_at=at, received_at=at) for page in acquisition.documents
             ),
         )
-        return acquisition, prepare_finances_acquisition(acquisition, self.storage)
+        return acquisition, prepare_finances_acquisition(acquisition, self.storage, {"USD": 2})
 
     def accept(self, acquisition: FinancesAcquisition, prepared: PreparedFinances) -> str:
         result = publish_finances(self.database, acquisition, prepared)
@@ -56,12 +56,12 @@ class FinancesPipelineTests(DatabaseTestCase):
 
     def counts(self) -> tuple[int, ...]:
         row = self.connection.execute(
-            "select (select count(*) from private.finances_acquisitions),"
-            "(select count(*) from private.finances_preprocess_batches),"
+            "select (select count(*) from private.source_acquisitions),"
+            "(select count(*) from private.source_preprocess_batches),"
+            "(select count(*) from private.source_units),"
             "(select count(*) from private.finances_transactions),"
-            "(select count(*) from private.finances_transaction_versions),"
-            "(select count(*) from private.finances_transaction_components),"
-            "(select count(*) from private.finances_preprocess_batch_transactions)"
+            "(select count(*) from private.finances_amounts),"
+            "(select count(*) from private.source_batch_units)"
         ).fetchone()
         return tuple(int(value) for value in require_row(row))
 
@@ -69,8 +69,7 @@ class FinancesPipelineTests(DatabaseTestCase):
         first = self.capture([native_transaction("A"), native_transaction("B")], "200")
         first_run = self.accept(*first)
         original = self.connection.execute(
-            "select id,current_version_id from private.finances_transactions "
-            "order by native_transaction_id"
+            "select id,current_version_id from private.source_units order by unit_key"
         ).fetchall()
         second_run = self.accept(
             *self.capture([native_transaction("B"), native_transaction("A")], "200")
@@ -80,22 +79,21 @@ class FinancesPipelineTests(DatabaseTestCase):
         self.assertEqual(
             original,
             self.connection.execute(
-                "select id,current_version_id from private.finances_transactions "
-                "order by native_transaction_id"
+                "select id,current_version_id from private.source_units order by unit_key"
             ).fetchall(),
         )
         self.assertEqual(
             self.connection.execute(
-                "select m.source_record_number from "
-                "private.finances_preprocess_batch_transactions m "
-                "join private.finances_transactions t on t.id=m.transaction_id "
-                "where t.native_transaction_id='A' order by m.batch_id"
+                "select m.record_number from "
+                "private.source_batch_units m "
+                "join private.source_units t on t.id=m.unit_id "
+                "where t.unit_key='A' order by m.batch_id"
             ).fetchall(),
             [(1,), (2,)],
         )
         self.assertEqual(
             self.connection.execute(
-                "select count(*) from private.finances_transactions where current_batch_id=%s",
+                "select count(*) from private.source_units where current_batch_id=%s",
                 (second_run,),
             ).fetchone(),
             (2,),
@@ -105,20 +103,19 @@ class FinancesPipelineTests(DatabaseTestCase):
         for amount in range(100, 105):
             self.accept(*self.capture([native_transaction(amount=str(amount))], str(amount)))
         original = self.connection.execute(
-            "select id from private.finances_transaction_versions where total_amount=100"
+            "select version_id from private.finances_transactions where total_amount=100"
         ).fetchone()
         self.accept(*self.capture([native_transaction(amount="100.00")], "100"))
         self.assertEqual(self.counts(), (6, 6, 1, 5, 5, 6))
         self.assertEqual(
             original,
             self.connection.execute(
-                "select current_version_id from private.finances_transactions"
+                "select current_version_id from private.source_units"
             ).fetchone(),
         )
         self.assertEqual(
             self.connection.execute(
-                "select total_amount from private.finances_transaction_versions "
-                "order by total_amount"
+                "select total_amount from private.finances_transactions order by total_amount"
             ).fetchall(),
             [(Decimal(value),) for value in range(100, 105)],
         )
@@ -131,8 +128,7 @@ class FinancesPipelineTests(DatabaseTestCase):
         self.assertEqual(self.counts(), (2, 2, 1, 2, 2, 2))
         self.assertEqual(
             self.connection.execute(
-                "select transaction_status from "
-                "private.finances_transaction_versions order by created_at,id"
+                "select transaction_status from private.finances_transactions order by version_id"
             ).fetchall(),
             [("DEFERRED",), ("DEFERRED_RELEASED",)],
         )
@@ -164,7 +160,7 @@ class FinancesPipelineTests(DatabaseTestCase):
         self.assertEqual(self.counts(), before)
         self.assertEqual(
             self.connection.execute(
-                "select total_amount from private.finances_transaction_versions"
+                "select total_amount from private.finances_transactions"
             ).fetchone(),
             (Decimal(100),),
         )
@@ -190,7 +186,7 @@ class FinancesPipelineTests(DatabaseTestCase):
             create function pg_temp.reject_test_component() returns trigger language plpgsql as $$
             begin raise exception 'Synthetic late insertion failure' using errcode='23514'; end $$;
             create trigger reject_test_component
-            before insert on private.finances_transaction_components
+            before insert on private.finances_amounts
             for each row execute function pg_temp.reject_test_component();
         """)
         with self.assertRaises(psycopg.errors.CheckViolation):
@@ -200,12 +196,12 @@ class FinancesPipelineTests(DatabaseTestCase):
     def test_revision_components_and_memberships_cannot_be_rewritten_or_removed(self) -> None:
         self.accept(*self.capture([native_transaction()]))
         statements = (
-            "update private.finances_transaction_versions set total_amount=101",
-            "delete from private.finances_transaction_versions",
-            "truncate private.finances_transaction_components",
-            "update private.finances_transaction_components set amount=101",
-            "delete from private.finances_preprocess_batch_transactions",
-            "update private.finances_preprocess_batches set transaction_count=0",
+            "update private.finances_transactions set total_amount=101",
+            "delete from private.finances_transactions",
+            "truncate private.finances_amounts",
+            "update private.finances_amounts set amount=101",
+            "delete from private.source_batch_units",
+            "update private.source_preprocess_batches set unit_count=0",
         )
         for statement in statements:
             with (
@@ -221,13 +217,13 @@ class FinancesPipelineTests(DatabaseTestCase):
             row[0]
             for row in self.connection.execute(
                 "select column_name from information_schema.columns "
-                "where table_schema='private' and table_name='finances_transaction_versions'"
+                "where table_schema='private' and table_name='source_unit_versions'"
             )
         }
         self.assertFalse(
             {"batch_id", "acquisition_id", "source_fields", "source_page_number"} & columns
         )
-        self.assertIn("transaction_id", columns)
+        self.assertIn("unit_id", columns)
         self.assertIn("content_sha256", columns)
 
     def test_same_native_id_is_independent_between_sellers(self) -> None:
@@ -245,8 +241,8 @@ class FinancesPipelineTests(DatabaseTestCase):
         self.accept(*self.capture(rows, "100"))
         self.assertEqual(
             self.connection.execute(
-                "select sum(total_amount),sum(total_amount) filter(where activity_eligible) "
-                "from private.finances_transaction_versions"
+                "select sum(total_amount),sum(total_amount) filter(where is_activity) "
+                "from private.finances_transactions"
             ).fetchone(),
             (Decimal(200), Decimal(100)),
         )
@@ -286,11 +282,11 @@ class FinancesPipelineTests(DatabaseTestCase):
             ).fetchone()
         )
 
-    def test_new_native_id_with_known_sku_does_not_requeue_completed_older_months(self) -> None:
+    def test_changed_finances_requeues_potential_cross_month_dependencies(self) -> None:
         self.accept(*self.capture([native_transaction("A")]))
         company = self.completed_old_month()
         self.accept(*self.capture([native_transaction("A"), native_transaction("B")], "200"))
-        self.assertEqual(self.old_month_revisions(company), (17, 17))
+        self.assertEqual(self.old_month_revisions(company), (18, 17))
         self.assertEqual(
             self.connection.execute(
                 "SELECT requested_revision>completed_revision FROM "
@@ -320,7 +316,9 @@ class FinancesPipelineTests(DatabaseTestCase):
             start=date(2026, 8, 31),
             end=date(2026, 10, 1),
         )
-        self.accept(acquisition, prepare_finances_acquisition(acquisition, self.storage))
+        self.accept(
+            acquisition, prepare_finances_acquisition(acquisition, self.storage, {"USD": 2})
+        )
         self.assertEqual(
             self.connection.execute(
                 "SELECT month,requested_revision,completed_revision "
@@ -341,7 +339,7 @@ class FinancesPipelineTests(DatabaseTestCase):
         self.accept(*self.capture([changed]))
         self.assertEqual(self.old_month_revisions(company), (18, 17))
 
-    def test_new_empty_marketplace_coverage_requeues_historical_scope(self) -> None:
+    def test_empty_marketplace_coverage_requeues_covered_months(self) -> None:
         self.accept(*self.capture([native_transaction("A")]))
         company = self.completed_old_month()
         acquisition, _ = self.capture([], "0")
@@ -376,5 +374,7 @@ class FinancesPipelineTests(DatabaseTestCase):
             },
             documents=tuple(documents),
         )
-        self.accept(acquisition, prepare_finances_acquisition(acquisition, self.storage))
-        self.assertEqual(self.old_month_revisions(company), (18, 17))
+        self.accept(
+            acquisition, prepare_finances_acquisition(acquisition, self.storage, {"USD": 2})
+        )
+        self.assertEqual(self.old_month_revisions(company), (17, 17))

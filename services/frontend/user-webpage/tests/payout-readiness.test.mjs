@@ -65,7 +65,7 @@ test("blocker details retain exact SKU spelling and use a single company/month",
     return new Response(
       csvRecord({
         sku: "SKU.(exact)",
-        reason: "MISSING_OWNERSHIP",
+        reason: "MISSING_FEE",
         component_count: "9007199254740993",
       }),
     );

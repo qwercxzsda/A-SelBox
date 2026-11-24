@@ -8,7 +8,7 @@ import {
 import { pageRequest, responseJson, SETTINGS } from "./api-fixtures.mjs";
 
 test("amount page limits become actionable errors without exposing other database details", async () => {
-  for (const dataset of ["live", "finances", "data_kiosk"]) {
+  for (const dataset of ["live", "finances"]) {
     const client = createApiClient(SETTINGS, async () =>
       responseJson(
         {
@@ -50,7 +50,7 @@ test("only the exact amount-limit contract is exposed and failed RPCs never fall
     ],
     ["live", "source_amount", "42501", validDetails, 400],
     ["live", "activity_at", "22023", validDetails, 400],
-    ["data_kiosk", "amount", "22023", validDetails, 503],
+    ["finances", "amount", "22023", validDetails, 503],
   ]) {
     let requests = 0;
     const client = createApiClient(SETTINGS, async () => {

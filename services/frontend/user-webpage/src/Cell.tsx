@@ -8,7 +8,7 @@ import { companyLabel, type ColumnDefinition } from "./view-model";
 import { TransactionTime } from "./TransactionTime";
 
 function codeLabel(key: string, value: string): string {
-  if (key === "activity_eligible") return value === "true" ? "Included" : "Exclusive";
+  if (key === "activity_eligible") return value === "true" ? "Included" : "Excluded";
   return humanizeCode(value);
 }
 
@@ -45,7 +45,7 @@ function SingleCellValue({ column, companies, row }: TableCellValueProps) {
   const value = row[column.key] ?? null;
   if (value === null) {
     if (column.kind === "company") {
-      if (row.category === "SELBOX") return "SelBox";
+      if (row.outcome === "SELBOX") return "SelBox";
       return row.access_role === "administrator" ? "All companies" : "Unassigned";
     }
     return <span className="muted-value">—</span>;

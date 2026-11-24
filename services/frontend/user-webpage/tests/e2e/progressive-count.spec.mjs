@@ -1,7 +1,7 @@
 import { sortBy, columnTrigger } from "./table-actions.mjs";
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
-import { kioskRow, liveRow, skuAssignment } from "./api-fixtures.mjs";
+import { liveRow, skuAssignment } from "./api-fixtures.mjs";
 
 const pagination = (page, number, total) =>
   page.getByRole("form", { name: `Page ${number} of ${total}`, exact: true });
@@ -276,34 +276,6 @@ test("a newer publication replaces a pending count instead of accepting its olde
       .toBeTruthy();
     await expect(pagination(page, 1, 1)).toBeVisible();
     expect(fixture.countRequests.map(({ count }) => count)).toEqual([60, 5]);
-  } finally {
-    release.resolve();
-  }
-});
-
-test("Data Kiosk rows do not wait for their independent RPC count", async ({ page }) => {
-  const fixture = await mockSupabase(page);
-  fixture.roles["member-a"] = "administrator";
-  fixture.kioskRows = Array.from({ length: 25 }, (_, index) => kioskRow(index + 1, "10"));
-  const started = deferred();
-  const release = deferred();
-  fixture.beforeCount = async ({ dataset }) => {
-    if (dataset === "data_kiosk") {
-      started.resolve();
-      await release.promise;
-    }
-  };
-  try {
-    await signIn(page);
-    await page.getByRole("tab", { name: "Data Kiosk", exact: true }).click();
-    await started.promise;
-    await expect(rowWithSku(page, "KIOSK-1")).toBeVisible();
-    await expect(pagination(page, 1, "—")).toBeVisible();
-    expect(fixture.countRequests.at(-1).transport).toBe("rpc");
-    expect(fixture.countRequests.at(-1).params.get("amount")).toBe("not.is.null");
-    release.resolve();
-    await expect(pagination(page, 1, 1)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
   } finally {
     release.resolve();
   }

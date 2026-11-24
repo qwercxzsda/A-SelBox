@@ -42,14 +42,19 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
         self.assertEqual(current["periods"][0]["fee_rate_percent"], "7.123456")
         self.assertEqual(
             self.connection.execute(
-                "select fee_rate_percent from public.sku_fee_periods where terms_version_id=%s "
+                "select fee_rate_percent from public.sku_fee_periods where "
+                "assignment_version_id=%s "
                 "order by marketplace_name",
                 (first,),
             ).fetchall(),
             [(Decimal(6),), (Decimal(0),)],
         )
-        issues = self.assert_incomplete(administrator, [self.change(" API SKU ", None)])
-        self.assertEqual({issue["kind"] for issue in issues}, {"missing_company"})
+        self.save(administrator, [self.change(" API SKU ", None)])
+        cleared = next(
+            item for item in self.configuration(administrator) if item["sku"] == " API SKU "
+        )
+        self.assertIsNone(cleared["company_id"])
+        self.assertEqual({issue["kind"] for issue in cleared["issues"]}, {"missing_company"})
         self.connection.execute("set constraints all immediate")
 
     def test_valid_changed_sku_can_publish_while_unrelated_gaps_remain_readable(
@@ -76,7 +81,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
             administrator,
             [
                 self.change("A", company, [self.period("7")]),
-                self.change("B", None, [self.period("5")]),
+                self.change("B", company, []),
             ],
         )
         before = self.configuration_state()
@@ -116,7 +121,7 @@ class SkuConfigurationPublicationTests(ConfigurationFixture):
                     "0",
                     sku="OWNED",
                     kind="ServiceFee",
-                    category="SELBOX",
+                    route="SELBOX",
                     description="Subscription",
                 )
                 | {"native_transaction_id": "historical-sku"}

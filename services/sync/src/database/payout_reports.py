@@ -28,13 +28,11 @@ class CompanyPayoutReport:
     currency: str | None
     start_date: date
     end_date: date
-    dataset_key: str
     marketplace_name: str | None
     change_reason: str
-    component_count: int
-    finances_version_count: int
-    data_kiosk_version_count: int
-    terms_version_count: int
+    record_count: int
+    source_version_count: int
+    assignment_version_count: int
     source_amount: Decimal
     fee_amount: Decimal
     company_amount: Decimal
@@ -47,18 +45,19 @@ class CompanyPayoutRecord:
 
     report_id: str
     source: str
-    authoritative: bool
     source_row_id: str
     source_version_id: str
     source_identity_id: str
-    sku_id: str
-    terms_version_id: str
+    sku_id: str | None
+    terms_version_id: str | None
     fee_period_id: str | None
-    sku: str
+    sku: str | None
     marketplace_name: str | None
     activity_date: date
     component_type: str
     currency: str
+    base_amount: Decimal
+    tax_amount: Decimal
     source_amount: Decimal | None
     quantity: Decimal | None
     fee_base: Decimal | None
@@ -82,7 +81,6 @@ def publish_company_payout_report(
     start_date: date,
     end_date: date,
     change_reason: str,
-    dataset_key: str = "economics",
 ) -> str:
     """Save current source and terms revisions, or reuse the matching latest report.
 
@@ -98,8 +96,6 @@ def publish_company_payout_report(
         day=monthrange(start_date.year, start_date.month)[1]
     ):
         raise ValueError("A payout report must cover exactly one complete calendar month.")
-    if dataset_key != "economics":
-        raise ValueError("Financial calculations require the economics dataset.")
     payload = {
         "id": str(uuid7()),
         "company_id": normalize_uuid(company_id, "company_id"),
@@ -109,7 +105,6 @@ def publish_company_payout_report(
         "currency": None if currency is None else financial_currency(currency),
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
-        "dataset_key": dataset_key,
         "change_reason": required_text(change_reason, "change_reason"),
     }
     return publish_json(
@@ -127,9 +122,9 @@ def load_company_payout_report(
         cursor.execute(
             """
             select id, company_id, currency, start_date, end_date,
-                dataset_key, marketplace_name,
-                change_reason, component_count,
-                finances_version_count, data_kiosk_version_count, terms_version_count,
+                marketplace_name,
+                change_reason, record_count,
+                source_version_count, assignment_version_count,
                 source_amount, fee_amount, company_amount, created_at
             from public.company_payout_reports where id = %(id)s::uuid
             """,
@@ -146,10 +141,11 @@ def load_company_payout_report_records(
     with database.connection() as connection, connection.cursor() as cursor:
         cursor.execute(
             """
-            select report_id, source, authoritative, source_row_id,
+            select report_id, source, source_row_id,
                 source_version_id, source_identity_id, sku_id, terms_version_id,
                 fee_period_id, sku, marketplace_name, activity_date, component_type, currency,
-                source_amount, quantity, fee_base, fee_rate_percent, fee_amount, company_amount,
+                base_amount, tax_amount, source_amount, quantity, fee_base, fee_rate_percent,
+                fee_amount, company_amount,
                 resolution_status
             from private.read_payout_report_records(%(id)s::uuid)
             order by source, source_identity_id, source_row_id
@@ -169,9 +165,9 @@ def _optional_marketplace_name(value: object) -> str | None:
 
 
 def _report(row: Sequence[object]) -> CompanyPayoutReport:
-    if len(row) != 16:
+    if len(row) != 14:
         raise RuntimeError("The payout report query returned an invalid shape.")
-    created_at = row[15]
+    created_at = row[13]
     if not isinstance(created_at, datetime) or created_at.utcoffset() is None:
         raise RuntimeError("created_at must be a timezone-aware datetime.")
     report = CompanyPayoutReport(
@@ -180,21 +176,19 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
         currency=None if row[2] is None else financial_currency(row[2]),
         start_date=required_date(row[3], "start_date"),
         end_date=required_date(row[4], "end_date"),
-        dataset_key=required_text(row[5], "dataset_key"),
-        marketplace_name=_optional_marketplace_name(row[6]),
-        change_reason=required_text(row[7], "change_reason"),
-        component_count=nonnegative_count(row[8], "component_count"),
-        finances_version_count=nonnegative_count(row[9], "finances_version_count"),
-        data_kiosk_version_count=nonnegative_count(row[10], "data_kiosk_version_count"),
-        terms_version_count=nonnegative_count(row[11], "terms_version_count"),
-        source_amount=financial_amount(row[12], "source_amount"),
-        fee_amount=financial_amount(row[13], "fee_amount"),
-        company_amount=financial_amount(row[14], "company_amount"),
+        marketplace_name=_optional_marketplace_name(row[5]),
+        change_reason=required_text(row[6], "change_reason"),
+        record_count=nonnegative_count(row[7], "record_count"),
+        source_version_count=nonnegative_count(row[8], "source_version_count"),
+        assignment_version_count=nonnegative_count(row[9], "assignment_version_count"),
+        source_amount=financial_amount(row[10], "source_amount"),
+        fee_amount=financial_amount(row[11], "fee_amount"),
+        company_amount=financial_amount(row[12], "company_amount"),
         created_at=created_at,
     )
     if report.currency is None and any(
         (
-            report.component_count,
+            report.record_count,
             report.source_amount,
             report.fee_amount,
             report.company_amount,
@@ -205,47 +199,29 @@ def _report(row: Sequence[object]) -> CompanyPayoutReport:
 
 
 def _record(row: Sequence[object]) -> CompanyPayoutRecord:
-    if len(row) != 21:
+    if len(row) != 22:
         raise RuntimeError("The payout record query returned an invalid shape.")
-    source = required_text(row[1], "source")
-    status = required_text(row[20], "resolution_status")
-    if source not in ("FINANCES", "DATA_KIOSK") or status not in (
-        "APPLIED",
-        "NOT_APPLICABLE",
-        "MISSING_FEE",
-    ):
-        raise RuntimeError("Payout records must have a known source and resolution status.")
-    authoritative = row[2]
-    if not isinstance(authoritative, bool):
-        raise RuntimeError("authoritative must be a boolean.")
-    if authoritative and (
-        status not in ("APPLIED", "NOT_APPLICABLE")
-        or any(row[index] is None for index in (14, 18, 19))
-    ):
-        raise RuntimeError("Authoritative payout records must have resolved amounts.")
-    sku = row[9]
-    if not isinstance(sku, str) or not sku.strip():
-        raise RuntimeError("sku must be nonblank source text.")
     return CompanyPayoutRecord(
         report_id=normalize_uuid(row[0], "report_id"),
-        source=source,
-        authoritative=authoritative,
-        source_row_id=normalize_uuid(row[3], "source_row_id"),
-        source_version_id=normalize_uuid(row[4], "source_version_id"),
-        source_identity_id=normalize_uuid(row[5], "source_identity_id"),
-        sku_id=normalize_uuid(row[6], "sku_id"),
-        terms_version_id=normalize_uuid(row[7], "terms_version_id"),
-        fee_period_id=None if row[8] is None else normalize_uuid(row[8], "fee_period_id"),
-        sku=sku,
-        marketplace_name=_optional_marketplace_name(row[10]),
-        activity_date=required_date(row[11], "activity_date"),
-        component_type=required_text(row[12], "component_type"),
-        currency=financial_currency(row[13]),
-        source_amount=optional_financial_amount(row[14], "source_amount"),
-        quantity=optional_financial_amount(row[15], "quantity"),
-        fee_base=optional_financial_amount(row[16], "fee_base"),
-        fee_rate_percent=optional_financial_amount(row[17], "fee_rate_percent"),
-        fee_amount=optional_financial_amount(row[18], "fee_amount"),
-        company_amount=optional_financial_amount(row[19], "company_amount"),
-        resolution_status=status,
+        source=required_text(row[1], "source"),
+        source_row_id=normalize_uuid(row[2], "source_row_id"),
+        source_version_id=normalize_uuid(row[3], "source_version_id"),
+        source_identity_id=normalize_uuid(row[4], "source_identity_id"),
+        sku_id=None if row[5] is None else normalize_uuid(row[5], "sku_id"),
+        terms_version_id=None if row[6] is None else normalize_uuid(row[6], "terms_version_id"),
+        fee_period_id=None if row[7] is None else normalize_uuid(row[7], "fee_period_id"),
+        sku=None if row[8] is None else required_text(row[8], "sku"),
+        marketplace_name=_optional_marketplace_name(row[9]),
+        activity_date=required_date(row[10], "activity_date"),
+        component_type=required_text(row[11], "component_type"),
+        currency=financial_currency(row[12]),
+        base_amount=financial_amount(row[13], "base_amount"),
+        tax_amount=financial_amount(row[14], "tax_amount"),
+        source_amount=financial_amount(row[15], "source_amount"),
+        quantity=optional_financial_amount(row[16], "quantity"),
+        fee_base=optional_financial_amount(row[17], "fee_base"),
+        fee_rate_percent=optional_financial_amount(row[18], "fee_rate_percent"),
+        fee_amount=financial_amount(row[19], "fee_amount"),
+        company_amount=financial_amount(row[20], "company_amount"),
+        resolution_status=required_text(row[21], "resolution_status"),
     )

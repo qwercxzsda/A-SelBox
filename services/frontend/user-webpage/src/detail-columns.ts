@@ -8,12 +8,10 @@ export interface DetailColumn {
   nowrap?: boolean;
 }
 
-export function financialAmountColumns(currency: string, authoritative = true): DetailColumn[] {
-  return FINANCIAL_AMOUNTS.filter(([field]) => authoritative || field === "reportedAmount").map(
-    ([, label, recordField]) => ({
-      key: recordField,
-      label: currency ? `${label} (${currency})` : label,
-      kind: "amount",
-    }),
-  );
+export function financialAmountColumns(currency: string): DetailColumn[] {
+  return FINANCIAL_AMOUNTS.map(([, label, recordField]) => ({
+    key: recordField,
+    label: currency ? `${label} (${currency})` : label,
+    kind: "amount",
+  }));
 }

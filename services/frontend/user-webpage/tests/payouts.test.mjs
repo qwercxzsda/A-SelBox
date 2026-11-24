@@ -79,7 +79,6 @@ function payoutRecord(overrides = {}) {
   return {
     report_id: COMPANY_ID,
     source: "FINANCES",
-    authoritative: "false",
     source_row_id: OTHER_COMPANY_ID,
     source_version_id: OTHER_COMPANY_ID,
     source_identity_id: OTHER_COMPANY_ID,
@@ -92,6 +91,8 @@ function payoutRecord(overrides = {}) {
     component_type: "PRODUCT_SALES",
     currency: "USD",
     source_amount: "9007199254740993.123456789",
+    base_amount: "9007199254740993.123456789",
+    tax_amount: "0",
     quantity: null,
     fee_base: null,
     fee_rate_percent: null,
@@ -102,20 +103,19 @@ function payoutRecord(overrides = {}) {
   };
 }
 
-test("derived supporting records page by saved report and preserve exact values and source identity", async () => {
+test("Payout records page by saved report and preserve exact values and source identity", async () => {
   const client = createApiClient(SETTINGS, async (url, init) => {
     assert.equal(new URL(url).pathname, "/rest/v1/rpc/payout_report_records");
     assert.equal(init.method, "POST");
     assert.deepEqual(JSON.parse(init.body), {
       p_report_id: COMPANY_ID,
-      p_authoritative: false,
       p_limit: 50,
       p_offset: 50,
       p_types: null,
     });
     return responseJson({ rows: [payoutRecord()], total_count: "51" });
   });
-  const result = await client.fetchPayoutRecords("token", COMPANY_ID, false, 1);
+  const result = await client.fetchPayoutRecords("token", COMPANY_ID, 1);
   assert.equal(result.totalCount, 51);
   assert.equal(result.rows[0].source_amount, "9007199254740993.123456789");
   assert.equal(result.rows[0].fee_amount, null);
@@ -126,7 +126,6 @@ test("derived supporting records page by saved report and preserve exact values 
 test("record responses reject scope swaps, numeric rounding, duplicate identities and truncated pages", async () => {
   for (const patch of [
     { report_id: OTHER_COMPANY_ID },
-    { authoritative: "true" },
     { source: "OTHER" },
     { source_row_id: "" },
     { source_amount: Number.MAX_SAFE_INTEGER + 1 },
@@ -138,7 +137,7 @@ test("record responses reject scope swaps, numeric rounding, duplicate identitie
     const client = createApiClient(SETTINGS, async () =>
       responseJson({ rows: [payoutRecord(patch)], total_count: "1" }),
     );
-    await assert.rejects(client.fetchPayoutRecords("token", COMPANY_ID, false, 0));
+    await assert.rejects(client.fetchPayoutRecords("token", COMPANY_ID, 0));
   }
   for (const value of [
     { rows: [payoutRecord()], total_count: "2" },
@@ -146,30 +145,27 @@ test("record responses reject scope swaps, numeric rounding, duplicate identitie
     { rows: [payoutRecord(), payoutRecord()], total_count: "2" },
   ]) {
     const client = createApiClient(SETTINGS, async () => responseJson(value));
-    await assert.rejects(client.fetchPayoutRecords("token", COMPANY_ID, false, 0));
+    await assert.rejects(client.fetchPayoutRecords("token", COMPANY_ID, 0));
   }
   const distinctSources = createApiClient(SETTINGS, async () =>
     responseJson({
-      rows: [payoutRecord(), payoutRecord({ source: "DATA_KIOSK" })],
+      rows: [payoutRecord(), payoutRecord({ source: "STORAGE" })],
       total_count: "2",
     }),
   );
-  assert.equal(
-    (await distinctSources.fetchPayoutRecords("token", COMPANY_ID, false, 0)).rows.length,
-    2,
-  );
+  assert.equal((await distinctSources.fetchPayoutRecords("token", COMPANY_ID, 0)).rows.length, 2);
 });
 
 test("an accessible zero report is empty while inaccessible records remain an error", async () => {
   const empty = createApiClient(SETTINGS, async () => responseJson({ rows: [], total_count: "0" }));
-  assert.deepEqual(await empty.fetchPayoutRecords("token", COMPANY_ID, true, 0), {
+  assert.deepEqual(await empty.fetchPayoutRecords("token", COMPANY_ID, 0), {
     rows: [],
     totalCount: 0,
   });
   const denied = createApiClient(SETTINGS, async () =>
     responseJson({ code: "42501", message: "Report access required" }, 403),
   );
-  await assert.rejects(denied.fetchPayoutRecords("token", COMPANY_ID, false, 0), /HTTP 403/);
+  await assert.rejects(denied.fetchPayoutRecords("token", COMPANY_ID, 0), /HTTP 403/);
 });
 
 test("payout type totals page exact groups across namespaces and detail filters remain literal", async () => {
@@ -186,7 +182,7 @@ test("payout type totals page exact groups across namespaces and detail filters 
         rows: [
           {
             currency: "USD",
-            component_type: args.p_offset === 0 ? "PRODUCT_SALES" : "FBA_STORAGE_FEE",
+            component_type: args.p_offset === 0 ? "PRODUCT_SALES" : "STORAGE_FEES",
             reported_amount: "9007199254740993.123456789",
             service_fee: "0",
             company_amount: "9007199254740993.123456789",
@@ -204,6 +200,6 @@ test("payout type totals page exact groups across namespaces and detail filters 
   const totals = await client.fetchPayoutTypeTotals("token", COMPANY_ID, "USD");
   assert.equal(totals.length, 2);
   assert.equal(totals[0].companyAmount, "9007199254740993.123456789");
-  await client.fetchPayoutRecords("token", COMPANY_ID, true, 0, undefined, ['a"b', "x,y"]);
+  await client.fetchPayoutRecords("token", COMPANY_ID, 0, undefined, ['a"b', "x,y"]);
   assert.equal(calls.length, 3);
 });

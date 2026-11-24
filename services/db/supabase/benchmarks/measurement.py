@@ -55,11 +55,11 @@ def _metadata(connection: Connection, repeat: int) -> Record:
             "Install the current date/amount, fee-filterable RPCs before benchmarking"
         )
     counts = connection.execute(
-        "select (select count(*) from private.finances_transaction_components),"
-        "(select count(*) from private.data_kiosk_day_components),"
+        "select (select count(*) from private.finances_amounts),"
+        "(select count(*) from private.reference_money),"
         "(select count(*) from public.companies),"
         "(select count(*) from private.finances_transactions),"
-        "(select count(*) from private.data_kiosk_days)"
+        "(select count(*) from private.source_units where source <> 'FINANCES')"
     ).fetchone()
     if counts is None:
         raise RuntimeError("Missing fixture counts")
@@ -77,8 +77,8 @@ def _metadata(connection: Connection, repeat: int) -> Record:
         settings[key] = row[0]
     visibility = connection.execute(
         "select relname,relpages,relallvisible from pg_class where oid in "
-        "('private.finances_transaction_components'::regclass,"
-        "'private.data_kiosk_day_components'::regclass) "
+        "('private.finances_amounts'::regclass,"
+        "'private.storage_rows'::regclass) "
         "order by relname"
     ).fetchall()
     return {
@@ -86,10 +86,10 @@ def _metadata(connection: Connection, repeat: int) -> Record:
             zip(
                 (
                     "finances_facts",
-                    "kiosk_facts",
+                    "reference_facts",
                     "companies",
                     "finances_transactions",
-                    "kiosk_headers",
+                    "reference_units",
                 ),
                 counts,
                 strict=True,

@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from ..amazon.finances.client import FinancesOperation
 from ..archives.storage import ArchiveStorage, load_document_archive
+from ..reference.currencies import currency_unit
 from ..source_serialization import content_sha256
 from .acquisition_models import FinancesAcquisition
 from .components import build_components
@@ -19,6 +20,7 @@ from .values import (
     decode_page,
     money,
     object_value,
+    related_ids,
     text,
     timestamp,
 )
@@ -48,12 +50,14 @@ def _coverage(acquisition: FinancesAcquisition) -> dict[str, str]:
 
 
 def prepare_finances_acquisition(
-    acquisition: FinancesAcquisition, storage: ArchiveStorage
+    acquisition: FinancesAcquisition, storage: ArchiveStorage, currency_decimals: Mapping[str, int]
 ) -> PreparedFinances:
     coverage = _coverage(acquisition)
     native, summary_records = _load_records(acquisition, storage)
-    transactions = _transactions(acquisition, native, coverage)
+    transactions = _transactions(acquisition, native, coverage, currency_decimals)
     summaries = tuple(_summary(record, acquisition, coverage) for record in summary_records)
+    for summary in summaries:
+        currency_unit(summary.currency, currency_decimals)
     keys = [
         (row.marketplace_id, row.account_type, row.currency, row.period_start, row.period_end)
         for row in summaries
@@ -107,12 +111,26 @@ def _transactions(
     acquisition: FinancesAcquisition,
     native: Mapping[str, _ArchivedRecord],
     coverage: Mapping[str, str],
+    currency_decimals: Mapping[str, int],
 ) -> tuple[FinancesTransaction, ...]:
     lifecycles = {
         identifier: TransactionLifecycle.from_native(record.fields)
         for identifier, record in native.items()
     }
     releases = release_transaction_ids(lifecycles)
+    for identifier, lifecycle in lifecycles.items():
+        if (
+            lifecycle.original
+            and lifecycle.original in lifecycles
+            and lifecycles[lifecycle.original].released != identifier
+        ):
+            raise ValueError("An original and its release in the same answer must name each other.")
+        if (
+            lifecycle.released
+            and lifecycle.released in lifecycles
+            and lifecycles[lifecycle.released].original != identifier
+        ):
+            raise ValueError("An original and its release in the same answer must name each other.")
     result: list[FinancesTransaction] = []
     for identifier, record in native.items():
         row = record.fields
@@ -127,7 +145,11 @@ def _transactions(
             raise ValueError(
                 "Finances response contains a transaction outside its timestamp request."
             )
-        result.append(_transaction(record, identifier, lifecycle, releases, posted, local_date))
+        result.append(
+            _transaction(
+                record, identifier, lifecycle, releases, posted, local_date, currency_decimals
+            )
+        )
     return tuple(sorted(result, key=lambda row: row.native_transaction_id))
 
 
@@ -138,6 +160,7 @@ def _transaction(
     releases: set[str],
     posted: datetime,
     local_date: date,
+    currency_decimals: Mapping[str, int],
 ) -> FinancesTransaction:
     row = record.fields
     status = lifecycle.status
@@ -162,7 +185,10 @@ def _transaction(
         lifecycle.is_activity(identifier, releases),
         record.page_number,
         record.record_number,
-        build_components(row),
+        build_components(row, currency_decimals),
+        related_ids(row.get("relatedIdentifiers")).get("ORDER_ID")
+        if lifecycle.kind in {"Shipment", "Refund"}
+        else None,
     )
 
 

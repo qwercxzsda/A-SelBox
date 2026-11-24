@@ -1,15 +1,8 @@
 """Explicit empty snapshots use the normal publisher without inventing a currency."""
 
 from datetime import date
-from decimal import Decimal
 
-import psycopg
-
-from services.db.supabase.tests.payout_fixtures import (
-    fill_payout_kiosk_month,
-    generate_payout_reports,
-    payout_snapshot,
-)
+from services.db.supabase.tests.payout_fixtures import generate_payout_reports
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
 
@@ -33,18 +26,6 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             self.fail("Expected report count.")
         return int(row[0])
 
-    def assert_empty_scope(self, report: str, inventories: tuple[int, int, int]) -> None:
-        self.assertEqual(
-            self.connection.execute(
-                "select currency,source_amount,fee_amount,"
-                "company_amount,component_count,finances_version_count,"
-                "data_kiosk_version_count,terms_version_count "
-                "from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone(),
-            (None, Decimal(0), Decimal(0), Decimal(0), 0, *inventories),
-        )
-
     def test_company_without_assigned_skus_gets_no_report_despite_members_or_source_data(
         self,
     ) -> None:
@@ -64,81 +45,7 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
         self.assertEqual(self.as_user(other, "select * from public.company_payout_reports"), [])
         self.connection.execute("set constraints all immediate")
 
-    def test_available_empty_versions_and_terms_are_pinned_until_generation_runs(
-        self,
-    ) -> None:
-        company, identity = self.owner()
-        acquisition = self.acquisition()
-        self.finances([], acquisition_id=acquisition)
-        _, old_kiosk = self.kiosk(1, [self.component("-10")])
-        _, kiosk_version = self.kiosk(2, [], expected=old_kiosk)
-        report, created = generate_payout_reports(self, company)[0]
-        self.assertTrue(created)
-        self.assert_empty_scope(report, (0, 1, 1))
-        before = payout_snapshot(self, report)
-        self.assertEqual(
-            self.connection.execute(
-                "select source_coverage from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone(),
-            ([],),
-        )
-        self.assertEqual(generate_payout_reports(self, company), [(report, False)])
-        _, replacement = self.kiosk(3, [], expected=kiosk_version)
-        self.connection.commit()
-        self.assertEqual(self.report_count(), 1)
-        next_report, created = generate_payout_reports(self, company)[0]
-        self.assertFalse(created)
-        self.assertEqual(next_report, report)
-        self.assert_empty_scope(next_report, (0, 1, 1))
-        self.assertEqual(
-            self.connection.execute(
-                "select version_id::text from private.payout_report_data_kiosk_versions "
-                "where report_id=%s",
-                (next_report,),
-            ).fetchall(),
-            [(replacement,)],
-        )
-        terms = self.fee(identity, [])
-        self.connection.commit()
-        self.assertEqual(self.report_count(), 1)
-        final_report, created = generate_payout_reports(self, company)[0]
-        self.assertTrue(created)
-        self.assertNotEqual(final_report, next_report)
-        self.assertEqual(
-            self.connection.execute(
-                "select terms_version_id::text from private.payout_report_terms_versions "
-                "where report_id=%s",
-                (final_report,),
-            ).fetchall(),
-            [(terms,)],
-        )
-        self.assertEqual(generate_payout_reports(self, company), [(final_report, False)])
-        self.assertEqual(payout_snapshot(self, report), before)
-        self.connection.execute("set constraints all immediate")
-
-    def test_registered_sku_cannot_associate_unrelated_empty_source_metadata(self) -> None:
-        company, _ = self.owner()
-        self.finances([])
-        self.kiosk(1, [])
-        report, created = generate_payout_reports(self, company)[0]
-        self.assertTrue(created)
-        self.assert_empty_scope(report, (0, 0, 1))
-        self.assertEqual(generate_payout_reports(self, company), [(report, False)])
-        self.connection.execute("set constraints all immediate")
-
-    def test_archives_without_preprocessing_allow_an_explicit_empty_snapshot(self) -> None:
-        company, _ = self.owner()
-        self.acquisition()
-        self.kiosk_acquisition(1)
-        self.connection.commit()
-        self.assertEqual(self.report_count(), 0)
-        report, created = generate_payout_reports(self, company)[0]
-        self.assertTrue(created)
-        self.assert_empty_scope(report, (0, 0, 1))
-        self.connection.execute("set constraints all immediate")
-
-    def test_unassigned_amounts_for_related_seller_cannot_be_mislabeled_as_empty(self) -> None:
+    def test_missing_assignment_is_a_difference_and_allows_empty_company_payout(self) -> None:
         company, _ = self.owner()
         acquisition = self.acquisition()
         original = self.transaction("100")
@@ -147,69 +54,14 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             [original | {"sku": "UNASSIGNED"}],
             acquisition_id=acquisition,
         )
-        fill_payout_kiosk_month(self)
-        with self.assertRaisesRegex(psycopg.errors.CheckViolation, "ownership"):
-            generate_payout_reports(self, company)
-        self.assertEqual(self.report_count(), 0)
-
-    def test_generation_transitions_empty_to_currencies_and_retains_removed_scopes(
-        self,
-    ) -> None:
-        company, identity = self.owner()
-        empty, _ = generate_payout_reports(self, company)[0]
-        empty_snapshot = payout_snapshot(self, empty)
-        self.fee(identity, [("2026-01-01", None, "5")])
-        acquisition = self.acquisition()
-        self.finances([self.transaction("100")], acquisition_id=acquisition)
-        _, kiosk_version = self.kiosk(
-            1, [self.component("-10"), self.component("-7.25") | {"currency": "EUR"}]
-        )
-        fill_payout_kiosk_month(self)
-        self.connection.commit()
-        self.assertEqual(self.report_count(), 1)
-        paid_scopes = generate_payout_reports(self, company)
-        self.assertEqual(len(paid_scopes), 2)
-        self.assertTrue(all(created for _, created in paid_scopes))
+        self.assertEqual(len(generate_payout_reports(self, company)), 1)
         self.assertEqual(
             self.connection.execute(
-                "select currency from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by currency",
-                ([report for report, _ in paid_scopes],),
-            ).fetchall(),
-            [("EUR",), ("USD",)],
-        )
-        _, remaining_version = self.kiosk(2, [self.component("-10")], expected=kiosk_version)
-        self.connection.commit()
-        self.assertEqual(self.report_count(), 3)
-        mixed = generate_payout_reports(self, company)
-        self.assertEqual(
-            self.connection.execute(
-                "select currency,company_amount,component_count from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by currency",
-                ([report for report, _ in mixed],),
-            ).fetchall(),
-            [("EUR", Decimal(0), 0), ("USD", Decimal(85), 2)],
-        )
-        self.finances([self.transaction("0")], acquisition_id=acquisition)
-        self.kiosk(3, [], expected=remaining_version)
-        self.connection.commit()
-        self.assertEqual(self.report_count(), 5)
-        removed = generate_payout_reports(self, company)
-        self.assertEqual(
-            self.connection.execute(
-                "select currency,source_amount,fee_amount,"
-                "company_amount,component_count from public.company_payout_reports "
-                "where id=any(%s::uuid[]) order by currency",
-                ([report for report, _ in removed],),
-            ).fetchall(),
-            [
-                ("EUR", Decimal(0), Decimal(0), Decimal(0), 0),
-                ("USD", Decimal(0), Decimal(0), Decimal(0), 1),
-            ],
+                "select record_count,company_amount from public.company_payout_reports"
+            ).fetchone(),
+            (0, 0),
         )
         self.assertEqual(
-            generate_payout_reports(self, company),
-            [(report, False) for report, _ in removed],
+            self.connection.execute("select reason from private.financial_outcomes").fetchone(),
+            ("NO_ASSIGNMENT",),
         )
-        self.assertEqual(payout_snapshot(self, empty), empty_snapshot)
-        self.connection.execute("set constraints all immediate")

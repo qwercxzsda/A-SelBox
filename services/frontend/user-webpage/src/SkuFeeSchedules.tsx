@@ -90,7 +90,7 @@ function SavedFeeSchedules({
     status: version.id === savedItem.terms_version_id ? "current" : null,
     versionNumber: version.version_number,
     savedAt: version.created_at,
-    reason: version.change_reason,
+    reason: version.memo,
   }));
   if (schedules.length === 0 && pageIndex === 0) schedules.push(configurationSchedule(savedItem));
   if (hasDraft) schedules.unshift(configurationSchedule(item, "draft"));

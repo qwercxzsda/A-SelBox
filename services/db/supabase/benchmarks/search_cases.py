@@ -12,7 +12,6 @@ SEARCH_COLUMNS = {
         "marketplace_name",
     ),
     "finances": ("sku", "component_type", "marketplace_name"),
-    "data_kiosk": ("sku", "component_type", "marketplace_name"),
 }
 
 

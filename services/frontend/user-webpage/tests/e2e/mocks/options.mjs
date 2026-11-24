@@ -27,7 +27,7 @@ export async function respondWithOptions(fixture, { request, url, user, reply, t
         liveRow(fixture.prefixes[user], index + 1, fixture.companyIds[user]),
       )),
     ...fixture.financesRows,
-    ...fixture.kioskRows,
+
     ...fixture.assignments,
   ];
   const compare = (left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right));

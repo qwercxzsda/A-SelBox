@@ -2,7 +2,6 @@
 
 from typing import cast
 
-from psycopg import sql
 from psycopg.errors import InsufficientPrivilege, InvalidParameterValue
 
 from services.db.supabase.tests.local_database import require_row
@@ -10,47 +9,6 @@ from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_i
 
 
 class FinancialSourceLookupTests(SourceModelFixture):
-    def test_source_detail_matches_both_ids_and_preserves_numeric_text(self) -> None:
-        self.finances([self.transaction("9007199254740993.000000001")])
-        self.kiosk(1, [self.component("-0.000000009")])
-        administrator = self.administrator()
-        for source, relation in (
-            ("FINANCES", "finances_transaction_components"),
-            ("DATA_KIOSK", "data_kiosk_day_components"),
-        ):
-            row = self.connection.execute(
-                sql.SQL("select id,version_id,amount::text from private.{} limit 1").format(
-                    sql.Identifier(relation)
-                )
-            ).fetchone()
-            row = require_row(row)
-            record = self.as_user(
-                administrator,
-                "select public.financial_source_record(%s,%s,%s)",
-                (source, row[0], row[1]),
-            )[0][0]
-            self.assertIsInstance(record, dict)
-            record = cast(dict[str, object], record)
-            self.assertEqual(record["amount"], row[2])
-            self.assertEqual(record["id"], str(row[0]))
-            self.assertEqual(
-                record["activity_at"],
-                "2026-06-15T12:00:00.000000Z"
-                if source == "FINANCES"
-                else "2026-06-16T06:59:59.999999Z",
-            )
-            self.assertTrue(
-                all(value is None or isinstance(value, str) for value in record.values())
-            )
-            self.assertEqual(
-                self.as_user(
-                    administrator,
-                    "select public.financial_source_record(%s,%s,%s)",
-                    (source, row[0], new_id()),
-                ),
-                [(None,)],
-            )
-
     def test_lookup_keeps_current_and_retained_captures_separate_and_paged(self) -> None:
         capture = self.acquisition()
         original = self.transaction("4.100000001") | {"native_transaction_id": "AMAZON-EXACT"}
@@ -100,7 +58,7 @@ class FinancialSourceLookupTests(SourceModelFixture):
         company, _ = self.owner()
         self.finances([self.transaction("0")])
         row = self.connection.execute(
-            "select id,version_id from private.finances_transaction_components limit 1"
+            "select id,version_id from private.finances_amounts limit 1"
         ).fetchone()
         row = require_row(row)
         for user in (self.member(company), self.auth_user()):

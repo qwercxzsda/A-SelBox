@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
-import { REVIEW_COMPANY, setupFinancialReview } from "./financial-review-fixtures.mjs";
+
+import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
 import { item, openEditor, openReview, editor } from "./sku-configuration-fixtures.mjs";
 import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 import { preventedBrowserGestures, UNPREVENTED_BROWSER_GESTURES } from "./browser-gestures.mjs";
@@ -93,67 +94,6 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
   const payout = drawer(page, "Payout report details");
   await checkPanelGestures(page, payout);
   await closePanel(page, payout);
-
-  await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await page.getByRole("button", { name: "Open review for June 2026", exact: true }).click();
-  const monthly = drawer(page, "Monthly financial review");
-  await checkPanelGestures(page, monthly);
-  await monthly.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
-  await monthly
-    .getByRole("table", { name: "Financial records", exact: true })
-    .locator("tbody tr.inspectable-row")
-    .first()
-    .click();
-  const sources = drawer(page, "Saved report source details");
-  await checkPanelGestures(page, sources);
-  await page.keyboard.press("Escape");
-  await expect(sources).toBeHidden();
-  await expect(monthly).toBeVisible();
-  await expect(page.locator("html")).toHaveCSS("overflow-y", "hidden");
-  await closePanel(page, monthly);
-});
-
-test("native wheel scrolls a long panel while its background stays fixed and returns focus", async ({
-  page,
-  browserName,
-  isMobile,
-}) => {
-  test.skip(
-    browserName === "webkit" && isMobile,
-    "Playwright cannot send wheel events to mobile WebKit.",
-  );
-  await setup(page);
-  await page.evaluate(() => globalThis.scrollTo(0, 200));
-  const trigger = financialTable(page).locator("tbody tr").first();
-  await trigger.click();
-  const panel = drawer(page, "Transaction details");
-  await checkPanelGestures(page, panel);
-  const position = await page.evaluate(() => globalThis.scrollY);
-  await page.mouse.move(30, 200);
-  await page.mouse.wheel(0, 700);
-  await page.waitForTimeout(150);
-  expect(await page.evaluate(() => globalThis.scrollY)).toBe(position);
-  await closePanel(page, panel);
-  await expect(trigger).toBeFocused();
-
-  await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await page.getByRole("button", { name: "Open review for June 2026", exact: true }).click();
-  const monthly = drawer(page, "Monthly financial review");
-  await monthly.getByRole("button", { name: "Saved report snapshots", exact: true }).click();
-  await monthly
-    .getByRole("table", { name: "Financial records", exact: true })
-    .locator("tbody tr.inspectable-row")
-    .first()
-    .click();
-  const sources = drawer(page, "Saved report source details");
-  await expect(
-    sources.getByRole("table", { name: "Supporting payout records", exact: true }),
-  ).toBeVisible();
-  // Hover waits for the drawer's opening transition before placing the wheel target.
-  await sources.hover({ position: { x: 150, y: 300 } });
-  await page.mouse.wheel(0, 600);
-  await expect.poll(() => sources.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await checkPanelGestures(page, sources);
 });
 
 test("column popups contain vertical scrolling without suppressing horizontal navigation", async ({

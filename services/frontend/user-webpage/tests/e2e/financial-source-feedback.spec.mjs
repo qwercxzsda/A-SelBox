@@ -1,11 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { deferred, waitForRequestSettled } from "./fixtures.mjs";
-import { openFinancialReview } from "./financial-review-actions.mjs";
+
 import {
   openSourceLookup as openLookup,
-  recordId,
   sourceDetail as detail,
-  sourceRoutes,
   versionId,
 } from "./financial-source-fixtures.mjs";
 
@@ -89,30 +87,4 @@ test("a source error completed before the drawer mounts remains visible", async 
   await expect(
     detail(page).getByRole("button", { name: "Retry source record", exact: true }),
   ).toBeInViewport();
-});
-
-test("a nested source failure opens above monthly review and returns to its exact record", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 800 });
-  await openFinancialReview(page, (fixture) => {
-    fixture.financialReviewRecords.forEach((row, index) => {
-      row.source_row_id = recordId(index);
-      row.source_version_id = versionId;
-    });
-  });
-  const state = await sourceRoutes(page);
-  state.status = 403;
-  await page.getByRole("button", { name: "Open review for July 2026", exact: true }).click();
-  const monthly = page.getByRole("dialog", { name: "Monthly financial review", exact: true });
-  await monthly.getByRole("button", { name: "Source records", exact: true }).click();
-  const table = monthly.getByRole("table", { name: "Source records", exact: true });
-  const opener = table.locator("tbody tr.inspectable-row").first();
-  await opener.click();
-  const source = page.getByRole("dialog", { name: "Data Kiosk record details", exact: true });
-  await expect(source.getByRole("alert")).toBeInViewport();
-  await page.keyboard.press("Escape");
-  await expect(source).toBeHidden();
-  await expect(monthly).toBeVisible();
-  await expect(opener).toBeFocused();
 });

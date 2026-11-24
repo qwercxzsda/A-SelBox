@@ -12,18 +12,18 @@ from ..amazon.finances.client import FinancesHttpClient
 from ..amazon.finances.marketplaces import fetch_financial_marketplace_ids
 from ..amazon.marketplaces import get_credential_scope
 from ..amazon.scopes import DEFAULT_AMAZON_SCOPE
-from ..database.connection import PostgresDatabaseConnection
 from ..finances.acquisition import DEFAULT_MAX_FINANCES_PAGES, download_finances_acquisition
 from ..finances.manifests import write_finances_manifest
 from ..finances.marketplaces import coverage_marketplaces
 from ..finances.query_windows import transaction_query_parameters
+from ..reference.periods import shift_months
 from .archive_common import add_archive_arguments, archive_storage_from_args
 from .common import add_seller_argument, initialize_cli, positive_int
 
 _LOG = logging.getLogger(__name__)
 
 
-def _timestamp(value: str) -> datetime:
+def timestamp_argument(value: str) -> datetime:
     try:
         return as_utc(datetime.fromisoformat(value))
     except ValueError as error:
@@ -35,7 +35,7 @@ def _timestamp(value: str) -> datetime:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Archive rolling Finances transactions from the maturity cutoff "
+            "Archive rolling Finances transactions for the last three calendar months "
             "to Amazon's latest available data."
         )
     )
@@ -43,12 +43,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_seller_argument(parser)
     parser.add_argument(
         "--posted-after",
-        type=_timestamp,
-        help="Inclusive UTC instant; defaults to the database maturity cutoff at UTC midnight.",
+        type=timestamp_argument,
+        help="Inclusive UTC instant; defaults to the same day three calendar months ago "
+        "at UTC midnight.",
     )
     parser.add_argument(
         "--posted-before",
-        type=_timestamp,
+        type=timestamp_argument,
         help="Exclusive instant for an explicitly bounded historical capture; normally omitted.",
     )
     parser.add_argument(
@@ -71,21 +72,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _maturity_posted_after(database_url: str) -> datetime:
-    with PostgresDatabaseConnection(database_url) as database, database.connection() as connection:
-        row = connection.execute("select private.mature_cutoff_date()").fetchone()
-    if row is None:
-        raise ValueError("The database did not return its maturity cutoff.")
-    return datetime.combine(row[0], time.min, UTC)
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = initialize_cli(build_parser(), argv)
     client: FinancesHttpClient | None = None
     try:
         if args.manifest_output.exists():
             raise FileExistsError("Refusing to overwrite an existing Finances download manifest.")
-        posted_after = args.posted_after or _maturity_posted_after(args.database_url)
+        posted_after = args.posted_after or datetime.combine(
+            shift_months(datetime.now(UTC).date(), -3), time.min, UTC
+        )
         transaction_query_parameters(
             posted_after, args.posted_before, observed_at=datetime.now(UTC)
         )

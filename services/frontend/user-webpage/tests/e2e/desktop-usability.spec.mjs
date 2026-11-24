@@ -149,8 +149,8 @@ for (const width of [1440, 1920, 834, 390]) {
     await expect(pagination.getByRole("textbox", { name: "Page number" })).toHaveValue("2");
 
     for (const name of [
+      "Assignments",
       "Finances",
-      "Data Kiosk",
       "Current fees",
       "User access",
       "Companies",

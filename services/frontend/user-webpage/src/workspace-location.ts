@@ -1,22 +1,16 @@
 import type { AppAccount } from "./api/types.ts";
 import { isTableDataset } from "./api/config.ts";
-import { isCurrency, isJsonObject } from "./api/validation.ts";
+import { isJsonObject } from "./api/validation.ts";
 import {
   decodeWorkspaceTab,
   decodeDatasetView,
   decodeInventoryView,
 } from "./workspace-view-codec.ts";
 import { decodePayoutHistoryState } from "./payout-report-view.ts";
-import {
-  decodePayoutVersionSelection,
-  type PayoutVersionSelection,
-} from "./payout-report-scope.ts";
-import { decodeReviewScope, type ReviewScope } from "./financial-review-view.ts";
-import { reviewPeriodKey } from "./financial-review-scope-key.ts";
-import { reviewCategory } from "./financial-review-categories.ts";
+import { decodePayoutVersionSelection } from "./payout-report-scope.ts";
+import { decodeOutcomeFilters } from "./outcome-filters.ts";
 import { withoutWorkspaceLocation } from "./workspace-location-cleanup.ts";
 import {
-  locationDate,
   readDatasetLocation,
   readInventoryLocation,
   writeDatasetLocation,
@@ -36,54 +30,6 @@ function reportSelection(params: URLSearchParams) {
     currency: currency === "" ? null : (currency ?? undefined),
     marketplaceName: marketplace === "" ? null : (marketplace ?? undefined),
   });
-}
-
-function readReviewScope(params: URLSearchParams) {
-  return decodeReviewScope({
-    year: params.get("year"),
-    marketplace: params.get("reviewMarketplace"),
-    currency: params.get("currency"),
-    families: params.getAll("family"),
-  });
-}
-
-function reportInReviewPeriod(
-  selected: PayoutVersionSelection | null,
-  month: string,
-  scope: ReviewScope,
-): selected is PayoutVersionSelection {
-  if (selected?.startDate !== `${month}-01`) return false;
-  return (
-    selected.marketplaceName === scope.marketplace &&
-    (!scope.currency || selected.currency === scope.currency)
-  );
-}
-
-function reviewPreferencePeriod(name: string, month: string, scope: ReviewScope) {
-  for (const [prefix, kind] of [
-    ["financial-review:snapshots:", "snapshots"],
-    ["payout-review-history:", "history"],
-  ] as const) {
-    if (!name.startsWith(prefix)) continue;
-    const key = name.slice(prefix.length);
-    try {
-      const parts: unknown = JSON.parse(key);
-      if (!Array.isArray(parts)) return null;
-      const currency: unknown = parts[2];
-      if (
-        !(currency === "" || isCurrency(currency)) ||
-        (scope.currency !== "" && currency !== scope.currency) ||
-        key !== reviewPeriodKey(month, scope.marketplace, currency)
-      )
-        return null;
-      // An automatic unit may resolve before its URL update. The mounted key
-      // supplies that actual unit; marketplace and explicit units still match.
-      return { kind, scope: { ...scope, currency } };
-    } catch {
-      return null;
-    }
-  }
-  return null;
 }
 
 /** Only read-only navigation is shareable. Drafts, tokens, amounts and access roles never enter URLs. */
@@ -112,23 +58,14 @@ export function locationPreference(
   if (name === "payout-report-history" && tab === "payouts") {
     return { ...decodePayoutHistoryState(saved), selected };
   }
-  if (tab !== "financial-review") return saved;
-  const category = reviewCategory(p.get("category"));
-  const scope = readReviewScope(p);
-  const month = locationDate(`${p.get("month") ?? ""}-01`).slice(0, 7) || null;
-  if (name === "financial-review:category") return category;
-  if (name === "financial-review:scope") return scope;
-  if (name === `financial-review:monthly-summaries:${category}`) return { selectedMonth: month };
-  const period = month === null ? null : reviewPreferencePeriod(name, month, scope);
-  if (period === null) return saved;
-  const scopedReport = reportInReviewPeriod(selected, month ?? "", period.scope) ? selected : null;
-  if (period.kind === "snapshots") {
-    return {
-      ...decodeDatasetView(saved, "payouts"),
-      selectedRowId: scopedReport?.reportId ?? null,
-    };
+  if (tab === "financial-review" && name === "financial-review:filters") {
+    return decodeOutcomeFilters({
+      view: p.get("outcome"),
+      month: p.get("month"),
+      marketplace: p.get("marketplace"),
+    });
   }
-  return { ...decodePayoutHistoryState(saved), selected: scopedReport };
+  return saved;
 }
 
 export function workspaceLocation(url: URL, account: AppAccount, preferences: Preferences): URL {
@@ -157,44 +94,15 @@ export function workspaceLocation(url: URL, account: AppAccount, preferences: Pr
     const view = decodeInventoryView(preferences.get("inventory"));
     if (account.access_role !== "administrator") view.companyIds = [];
     writeInventoryLocation(p, view);
-  } else if (tab === "financial-review") {
-    const category = reviewCategory(preferences.get("financial-review:category"));
-    const scope = decodeReviewScope(preferences.get("financial-review:scope"));
-    const view = preferences.get(`financial-review:monthly-summaries:${category}`);
-    const month =
-      isJsonObject(view) && typeof view.selectedMonth === "string" ? view.selectedMonth : "";
-    // Opening a month records its actual unit in the same user action. Keep
-    // automatic scope automatic until that action, without an extra history entry.
-    const currency =
-      scope.currency ||
-      (month && isJsonObject(view) && isCurrency(view.currency) ? view.currency : "");
-    const periodScope = { ...scope, currency };
-    p.set("category", category);
-    p.set("reviewMarketplace", scope.marketplace);
-    if (currency) p.set("currency", currency);
-    if (scope.year) p.set("year", scope.year);
-    for (const family of scope.families) p.append("family", family);
-    if (locationDate(`${month}-01`)) p.set("month", month);
-    const periodKey = reviewPeriodKey(month, scope.marketplace, currency);
-    const snapshotKey = `financial-review:snapshots:${periodKey}`;
-    const snapshot = decodeDatasetView(preferences.get(snapshotKey), "payouts");
-    const history = decodePayoutHistoryState(preferences.get(`payout-review-history:${periodKey}`));
-    if (
-      history.selected?.reportId === snapshot.selectedRowId &&
-      reportInReviewPeriod(history.selected, month, periodScope)
-    )
-      selected = history.selected;
-    // Nested snapshots mount only after monthly data loads. Do not discard their
-    // incoming deep-link identity while those parent queries are still pending.
-    const incomingScope = readReviewScope(url.searchParams);
-    const samePeriod =
-      url.searchParams.get("month") === month &&
-      incomingScope.marketplace === scope.marketplace &&
-      (!incomingScope.currency || incomingScope.currency === currency);
-    if (!preferences.has(snapshotKey) && samePeriod) {
-      const incoming = reportSelection(url.searchParams);
-      if (reportInReviewPeriod(incoming, month, periodScope)) selected = incoming;
-    }
+  }
+  if (tab === "financial-review") {
+    const filters = decodeOutcomeFilters(
+      preferences.get("financial-review:filters") ??
+        locationPreference(url, account, "financial-review:filters", null),
+    );
+    p.set("outcome", filters.view);
+    if (filters.month) p.set("month", filters.month);
+    if (filters.marketplace) p.set("marketplace", filters.marketplace);
   }
   if (selected) {
     p.set("report", selected.reportId);

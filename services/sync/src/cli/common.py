@@ -83,6 +83,9 @@ def add_log_and_env_arguments(parser: argparse.ArgumentParser) -> None:
         help="Python logging level.",
     )
     parser.add_argument(
+        "--env-file", type=Path, help="Explicit service credential file for a linked worktree."
+    )
+    parser.add_argument(
         "--no-load-dotenv",
         action="store_false",
         default=True,
@@ -101,5 +104,5 @@ def initialize_cli(
     if args.load_dotenv:
         from dotenv import load_dotenv
 
-        load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+        load_dotenv(args.env_file or Path(__file__).resolve().parents[2] / ".env")
     return args

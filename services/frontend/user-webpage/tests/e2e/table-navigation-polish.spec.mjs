@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { financesRow, kioskRow } from "./api-fixtures.mjs";
+import { financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 
-for (const tab of ["Transactions", "Finances", "Data Kiosk"]) {
+for (const tab of ["Transactions", "Finances"]) {
   for (const action of ["Back to filters", "Next records"]) {
     test(`${tab} bottom ${action} returns keyboard focus to the visible controls`, async ({
       page,
@@ -12,7 +12,7 @@ for (const tab of ["Transactions", "Finances", "Data Kiosk"]) {
       fixture.roles["member-a"] = "administrator";
       fixture.totalCount = 105;
       fixture.financesRows = Array.from({ length: 105 }, (_, index) => financesRow(index + 1));
-      fixture.kioskRows = Array.from({ length: 105 }, (_, index) => kioskRow(index + 1, "10"));
+
       await signIn(page);
       await page.getByRole("tab", { name: tab, exact: true }).click();
       await page.getByLabel("Rows", { exact: true }).selectOption("100");

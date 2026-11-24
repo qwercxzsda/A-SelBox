@@ -23,7 +23,7 @@ test("column filters and resolved search share typed page and count arguments", 
     dateTo: "2024-03-01",
     skus: ["SKU_100%", 'quoted"value', "path\\value", "ＳＫＵ－１", "SKU_100%"],
     marketplaces: ["Amazon.com", "Amazon.co.jp"],
-    sources: ["FINANCES", "DATA_KIOSK"],
+    sources: ["FINANCES", "STORAGE"],
     types: ["PRODUCT_SALES", "FbaStorageFee"],
   });
   const client = createApiClient(SETTINGS, async (url, init) => {
@@ -141,7 +141,7 @@ test("company, SKU, and marketplace selections scope records and totals without 
     periodTotalsRequest({
       ...scope,
       signal,
-      sources: ["DATA_KIOSK"],
+      sources: ["STORAGE"],
       types: ["PRODUCT_SALES"],
       feeApplicability: ["applicable"],
       search: "SKU",
@@ -152,7 +152,7 @@ test("company, SKU, and marketplace selections scope records and totals without 
     typeTotalsRequest({
       ...scope,
       signal,
-      sources: ["DATA_KIOSK"],
+      sources: ["STORAGE"],
       types: ["PRODUCT_SALES"],
       feeApplicability: ["applicable"],
       search: "SKU",
@@ -204,7 +204,7 @@ test("company, SKU, and marketplace selections scope records and totals without 
     assert.equal(args.p_date_to, dates.dateTo);
     assert.equal(Object.hasOwn(args, "p_limit"), false);
     assert.equal(Object.hasOwn(args, "p_offset"), false);
-    assert.deepEqual(args.p_sources, ["DATA_KIOSK"]);
+    assert.deepEqual(args.p_sources, ["STORAGE"]);
     assert.deepEqual(args.p_types, ["PRODUCT_SALES"]);
     assert.equal(args.p_fee_applicable, true);
     assert.deepEqual(args.p_search_skus, ["SKU"]);
@@ -289,7 +289,7 @@ test("latest UTC discovery ignores every UI selection, including malformed UI st
     {
       dateFrom: "invalid",
       dateTo: "2020-01-01",
-      sources: ["DATA_KIOSK"],
+      sources: ["STORAGE"],
       types: ["PRODUCT_SALES"],
       feeApplicability: ["applicable"],
       search: "filtered",

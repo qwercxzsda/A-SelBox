@@ -6,11 +6,10 @@ from decimal import Decimal
 import psycopg
 
 from services.db.supabase.tests.payout_fixtures import (
-    fill_payout_kiosk_month,
     generate_payout_reports,
     payout_snapshot,
     prepare_payout,
-    report_source_rows,
+    report_records,
 )
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 from services.db.supabase.tests.verification.payout_source_parity import verify_payout_source_parity
@@ -27,7 +26,6 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 | {"marketplace_name": "Amazon.ca"},
             ],
         )
-        fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         generated = generate_payout_reports(self, inputs.company)
         self.assertEqual(len(generated), 2)
         self.assertTrue(all(created for _, created in generated))
@@ -50,9 +48,9 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 (
                     "Amazon.com",
                     "USD",
-                    Decimal(90),
+                    Decimal(100),
                     Decimal(-5),
-                    Decimal(85),
+                    Decimal(95),
                 ),
             ],
         )
@@ -72,7 +70,7 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 self.assertEqual(
                     {
                         (row["marketplace_name"], row["currency"])
-                        for row in report_source_rows(self, self.administrator(), report)
+                        for row in report_records(self, report, user=self.administrator())
                     },
                     {(market, currency)},
                 )
@@ -92,39 +90,6 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
         self.assertEqual(parity["company_marketplace_currency_reports"], 2)
         self.connection.execute("set constraints all immediate")
 
-    def test_one_market_with_multiple_currencies_never_combines_money_or_controls(self) -> None:
-        inputs = prepare_payout(self)
-        self.kiosk(
-            2,
-            [self.component("-10"), self.component("-7.25") | {"currency": "EUR"}],
-            expected=inputs.kiosk_version,
-        )
-        generated = generate_payout_reports(self, inputs.company)
-        self.assertEqual(len(generated), 2)
-        self.assertEqual(
-            self.connection.execute(
-                "select marketplace_name,currency,company_amount "
-                "from public.latest_company_payout_reports "
-                "where company_id=%s order by currency",
-                (inputs.company,),
-            ).fetchall(),
-            [("Amazon.com", "EUR", Decimal("-7.25")), ("Amazon.com", "USD", Decimal(85))],
-        )
-        administrator = self.administrator()
-        for report, _ in generated:
-            scope = self.connection.execute(
-                "select marketplace_name,currency from public.company_payout_reports where id=%s",
-                (report,),
-            ).fetchone()
-            self.assertTrue(report_source_rows(self, administrator, report))
-            self.assertTrue(
-                all(
-                    (row["marketplace_name"], row["currency"]) == scope
-                    for row in report_source_rows(self, administrator, report)
-                )
-            )
-        self.connection.execute("set constraints all immediate")
-
     def test_zero_market_gets_new_snapshot_without_changing_its_old_report(self) -> None:
         inputs = prepare_payout(self)
         self.finances(
@@ -133,7 +98,6 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                 self.transaction("12", 4, kind="Adjustment") | {"marketplace_name": "Amazon.ca"},
             ],
         )
-        fill_payout_kiosk_month(self, marketplace="Amazon.ca")
         generated = generate_payout_reports(self, inputs.company)
         old = generated[0][0]  # Natural market order: Amazon.ca before Amazon.com.
         before = payout_snapshot(self, old)
@@ -150,12 +114,12 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
         self.assertEqual(len(replacement), 2)
         self.assertEqual(
             self.connection.execute(
-                "select marketplace_name,currency,company_amount,component_count "
+                "select marketplace_name,currency,company_amount,record_count "
                 "from public.latest_company_payout_reports "
                 "where company_id=%s order by marketplace_name",
                 (inputs.company,),
             ).fetchall(),
-            [("Amazon.ca", "USD", Decimal(0), 1), ("Amazon.com", "USD", Decimal(85), 2)],
+            [("Amazon.ca", "USD", Decimal(0), 1), ("Amazon.com", "USD", Decimal(95), 1)],
         )
         self.assertEqual(payout_snapshot(self, old), before)
         self.connection.execute("set constraints all immediate")
@@ -172,9 +136,9 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
             "currency": None,
             "start_date": "2026-06-01",
             "end_date": "2026-06-30",
-            "dataset_key": "economics",
             "change_reason": "No activity",
         }
+        self.finances([])
         report = self.call("publish_company_payout_report", payload)
         self.assertEqual(generate_payout_reports(self, company), [(report, False)])
         self.assertEqual(
@@ -223,17 +187,16 @@ class PayoutMarketplaceScopeTests(SourceModelFixture):
                     "currency": "USD",
                     "start_date": "2026-06-01",
                     "end_date": "2026-06-30",
-                    "dataset_key": "economics",
                     "change_reason": "Reject an out-of-scope pinned revision",
                 },
             )
             self.connection.execute(
-                "alter table private.payout_report_finances_versions disable trigger immutable"
+                "alter table private.payout_report_source_versions disable trigger immutable"
             )
             self.connection.execute(
-                "update private.payout_report_finances_versions p "
-                "set transaction_id=v.transaction_id,version_id=v.id "
-                "from private.finances_transaction_versions v "
+                "update private.payout_report_source_versions p "
+                "set unit_id=v.unit_id,version_id=v.id "
+                "from private.source_unit_versions v "
                 "where v.id=%s and p.report_id=%s",
                 (other_version, report),
             )

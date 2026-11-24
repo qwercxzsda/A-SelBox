@@ -13,7 +13,7 @@ import {
 for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
   test.describe(`UTC transaction timeline in a ${timezoneId} browser`, () => {
     test.use({ timezoneId });
-    test("orders real instants and assumed day ends, with UTC selected totals matching records", async ({
+    test("orders Finances and reference posting instants, with UTC selected totals matching records", async ({
       page,
     }, testInfo) => {
       const fixture = await mockSupabase(page);
@@ -32,15 +32,15 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
           source_amount: "20",
         },
         {
-          ...liveRow("US-KIOSK", 1),
-          source: "DATA_KIOSK",
+          ...liveRow("US-REFERENCE", 1),
+          source: "STORAGE",
           activity_date: "2026-11-05",
           activity_at: "2026-11-06T07:59:59.999999Z",
           source_amount: "3",
         },
         {
-          ...liveRow("JP-KIOSK", 1),
-          source: "DATA_KIOSK",
+          ...liveRow("JP-REFERENCE", 1),
+          source: "STORAGE",
           marketplace_name: "Amazon.co.jp",
           activity_date: "2026-11-06",
           activity_at: "2026-11-06T14:59:59.999999Z",
@@ -71,9 +71,9 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
         .locator('tbody [data-column="sku"]');
       await expect(rows).toHaveText([
         "NEXT-UTC-DAY-001",
-        "JP-KIOSK-001",
+        "JP-REFERENCE-001",
         "JP-FINANCE-001",
-        "US-KIOSK-001",
+        "US-REFERENCE-001",
         "US-FINANCE-001",
       ]);
       const transactionTable = page.getByRole("table", { name: "Financial records", exact: true });
@@ -100,35 +100,31 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
       await expect(financeTime).toHaveAttribute("datetime", "2026-11-06T07:57:20.000000Z");
       await expect(financeTime).toHaveAttribute("title", "2026-11-06T07:57:20.000000Z");
       await expect(transactionTable.locator("time").filter({ hasText: "UTC" })).toHaveCount(0);
-      await expect(rowWithSku(page, "US-KIOSK-001").locator("time")).toHaveAttribute(
-        "aria-description",
-        "Assumed end of 2026-11-05 in Amazon.com's local time zone",
-      );
-      await expect(rowWithSku(page, "US-KIOSK-001").locator("time")).toHaveAttribute(
+      await expect(rowWithSku(page, "US-REFERENCE-001").locator("time")).toHaveAttribute(
         "datetime",
         "2026-11-06T07:59:59.999999Z",
       );
-      await expect(rowWithSku(page, "US-KIOSK-001").locator("time")).toHaveAttribute(
+      await expect(rowWithSku(page, "US-REFERENCE-001").locator("time")).toHaveAttribute(
         "title",
         "2026-11-06T07:59:59.999999Z",
       );
-      await expect(rowWithSku(page, "US-KIOSK-001").locator("time")).toHaveText(
+      await expect(rowWithSku(page, "US-REFERENCE-001").locator("time")).toHaveText(
         "2026-11-06 07:59:59",
       );
       await sortBy(page, "Date (UTC)", "Oldest first");
       await expect(rows).toHaveText([
         "US-FINANCE-001",
-        "US-KIOSK-001",
+        "US-REFERENCE-001",
         "JP-FINANCE-001",
-        "JP-KIOSK-001",
+        "JP-REFERENCE-001",
         "NEXT-UTC-DAY-001",
       ]);
       await applyDates(page, "2026-11-06", "2026-11-06");
       await expect(rows).toHaveText([
         "US-FINANCE-001",
-        "US-KIOSK-001",
+        "US-REFERENCE-001",
         "JP-FINANCE-001",
-        "JP-KIOSK-001",
+        "JP-REFERENCE-001",
       ]);
 
       await expect(
@@ -165,13 +161,13 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
         animations: "disabled",
       });
       for (const [periodRows, title, date, total, skus] of [
-        [us.day, "Last day", "2026-11-06", "13.00 USD", ["US-KIOSK-001", "US-FINANCE-001"]],
+        [us.day, "Last day", "2026-11-06", "13.00 USD", ["US-REFERENCE-001", "US-FINANCE-001"]],
         [
           us.selected,
           "Selected dates",
           "2026-11-06",
           "13.00 USD",
-          ["US-KIOSK-001", "US-FINANCE-001"],
+          ["US-REFERENCE-001", "US-FINANCE-001"],
         ],
       ]) {
         await periodRows
@@ -245,10 +241,10 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
 
 test.describe("source tables share the UTC transaction timeline", () => {
   test.use({ timezoneId: "America/Los_Angeles" });
-  test("Finances and Data Kiosk display and filter UTC instants while retaining source dates", async ({
+  test("Finances displays and filters UTC instants while retaining source dates", async ({
     page,
   }) => {
-    const { financesRow, kioskRow } = await import("./api-fixtures.mjs");
+    const { financesRow } = await import("./api-fixtures.mjs");
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = "administrator";
     fixture.financesRows = [
@@ -271,19 +267,7 @@ test.describe("source tables share the UTC transaction timeline", () => {
         posted_at: "2026-11-07T00:00:00Z",
       },
     ];
-    fixture.kioskRows = [
-      { ...kioskRow(1, "10"), sku: "KIOSK-US", activity_date: "2026-11-05" },
-      {
-        ...kioskRow(2, "20"),
-        sku: "KIOSK-JP",
-        activity_date: "2026-11-06",
-        marketplace_name: "Amazon.co.jp",
-      },
-      { ...kioskRow(3, "30"), sku: "KIOSK-NEXT", activity_date: "2026-11-06" },
-    ];
-    fixture.assignments = skuAssignments(
-      [...fixture.financesRows, ...fixture.kioskRows].map(({ sku }) => sku),
-    );
+    fixture.assignments = skuAssignments(fixture.financesRows.map(({ sku }) => sku));
     await signIn(page);
     for (const [dataset, tab, skus, times] of [
       [
@@ -291,12 +275,6 @@ test.describe("source tables share the UTC transaction timeline", () => {
         "Finances",
         ["FINANCE-START", "FINANCE-END"],
         ["2026-11-06 00:00:00", "2026-11-06 23:59:59"],
-      ],
-      [
-        "data_kiosk",
-        "Data Kiosk",
-        ["KIOSK-US", "KIOSK-JP"],
-        ["2026-11-06 07:59:59", "2026-11-06 14:59:59"],
       ],
     ]) {
       await page.getByRole("tab", { name: tab, exact: true }).click();
@@ -330,16 +308,6 @@ test.describe("source tables share the UTC transaction timeline", () => {
       await expect(page.getByRole("group", { name: "Applied table filters" })).toContainText(
         "Date (UTC): 2026-11-06 – 2026-11-06",
       );
-      if (dataset === "data_kiosk") {
-        await expect(table.locator("tbody .transaction-clock").first()).toHaveAttribute(
-          "title",
-          "Assumed end of 2026-11-05 in Amazon.com's local time zone",
-        );
-        await expect(table.locator("tbody time").first()).toHaveAttribute(
-          "datetime",
-          "2026-11-06T07:59:59.999999Z",
-        );
-      }
     }
   });
 });

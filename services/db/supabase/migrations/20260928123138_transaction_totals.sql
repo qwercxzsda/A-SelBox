@@ -27,8 +27,6 @@ set plan_cache_mode = 'force_custom_plan'
 set enable_sort = 'off'
 set enable_presorted_aggregate = 'off' as $$
 declare
-    finances_policy_is_sufficient boolean;
-    kiosk_policy_is_sufficient boolean;
     result jsonb;
 begin
     perform private.validate_transaction_filters(
@@ -48,131 +46,14 @@ begin
     if p_granularity is not null and p_granularity not in ('day', 'week') then
         raise exception 'Trend granularity must be day or week' using errcode = '22023';
     end if;
-    -- The unchanged fact RLS already requires current versions for members.
-    -- Administrators, owners, and bypass contexts still use the explicit pointer check.
-    finances_policy_is_sufficient := private.member_policy_covers_current_version(
-        'private.finances_transaction_components'::regclass
-    );
-    kiosk_policy_is_sufficient := private.member_policy_covers_current_version(
-        'private.data_kiosk_day_components'::regclass
-    );
-    result := (
-        with facts as (
-            select t.sku, t.marketplace_name, t.category,
-                t.posted_date as activity_date, t.currency,
-                case when p_group_by_type or p_granularity is not null
-                    then t.component_type::text end as component_type,
-                date_trunc(p_granularity, t.posted_at at time zone 'UTC')::date as period_start,
-                t.amount::numeric as reported_amount,
-                t.fee_base::numeric as fee_base
-            from private.finances_activity_components as t
-            where t.category in ('FINANCES', 'SELBOX')
-                and (finances_policy_is_sufficient or t.is_current)
-                and (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
-                and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
-                and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
-                    select 1 from public.company_skus as o
-                    where t.category <> 'SELBOX' and o.sku = t.sku
-                        and o.company_id = any(p_company_ids)
-                ))
-                and (coalesce(cardinality(p_skus), 0) = 0
-                    or (t.category <> 'SELBOX' and t.sku = any(p_skus)))
-                and (coalesce(cardinality(p_marketplaces), 0) = 0
-                    or t.marketplace_name = any(p_marketplaces))
-                and (p_currency is null or t.currency = p_currency)
-                and (coalesce(cardinality(p_sources), 0) = 0
-                    or 'FINANCES'::text = any(p_sources))
-                and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
-                and (p_fee_applicable is null or (t.fee_base is not null) = p_fee_applicable)
-                and (
-                    (p_search_skus is null and p_search_types is null
-                        and p_search_marketplaces is null and p_search_sources is null)
-                    or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
-                    or t.marketplace_name = any(p_search_marketplaces) or 'FINANCES'::text = any(p_search_sources)
-                )
-            union all
-            select t.sku, t.marketplace_name, t.category, t.activity_date, t.currency,
-                case when p_group_by_type or p_granularity is not null
-                    then t.component_type::text end,
-                date_trunc(p_granularity, t.activity_at at time zone 'UTC')::date,
-                t.amount::numeric, t.fee_base::numeric
-            from private.data_kiosk_component_details as t
-            where t.category = 'DATA_KIOSK'
-                and (kiosk_policy_is_sufficient or exists (
-                    select 1 from private.data_kiosk_days as h where h.current_version_id = t.version_id
-                ))
-                and (p_date_from is null or t.activity_at >= p_date_from::timestamp at time zone 'UTC')
-                and (p_date_to is null or t.activity_at < (p_date_to + 1)::timestamp at time zone 'UTC')
-                and (coalesce(cardinality(p_company_ids), 0) = 0 or exists (
-                    select 1 from public.company_skus as o
-                    where o.sku = t.sku
-                        and o.company_id = any(p_company_ids)
-                ))
-                and (coalesce(cardinality(p_skus), 0) = 0
-                    or t.sku = any(p_skus))
-                and (coalesce(cardinality(p_marketplaces), 0) = 0
-                    or t.marketplace_name = any(p_marketplaces))
-                and (p_currency is null or t.currency = p_currency)
-                and (coalesce(cardinality(p_sources), 0) = 0
-                    or 'DATA_KIOSK'::text = any(p_sources))
-                and (coalesce(cardinality(p_types), 0) = 0 or t.component_type = any(p_types))
-                and (p_fee_applicable is null or (t.fee_base is not null) = p_fee_applicable)
-                and (
-                    (p_search_skus is null and p_search_types is null
-                        and p_search_marketplaces is null and p_search_sources is null)
-                    or t.sku = any(p_search_skus) or t.component_type = any(p_search_types)
-                    or t.marketplace_name = any(p_search_marketplaces) or 'DATA_KIOSK'::text = any(p_search_sources)
-                )
-        ),
-        fact_groups as materialized (
-            select f.sku, f.marketplace_name, f.category, f.activity_date,
-                f.currency, f.component_type, f.period_start,
-                f.fee_base is not null as fee_applicable,
-                sum(f.reported_amount) as reported_amount, sum(f.fee_base) as fee_base,
-                count(*)::numeric as row_count
-            from facts as f
-            group by f.sku, f.marketplace_name, f.category, f.activity_date,
-                f.currency, f.component_type, f.period_start, f.fee_base is not null
-        ),
-        selected_terms as materialized (
-            select sku, terms_version_id, company_id
-            from private.current_sku_terms as terms
-            where exists (
-                select 1 from fact_groups as selected
-                where selected.sku = terms.sku and selected.category <> 'SELBOX'
-            )
-        ),
-        calculated as (
-            select case when not p_group_by_type or p_granularity is not null
-                    then g.marketplace_name end as marketplace_name,
-                g.currency, g.component_type, g.period_start, g.category,
-                g.reported_amount, g.row_count,
-                case when g.category = 'SELBOX' then 0::numeric
-                    when o.company_id is null then null
-                    when not g.fee_applicable then 0::numeric
-                    when p.id is not null
-                        then private.calculate_service_fee(g.fee_base, p.fee_rate_percent)
-                end as service_fee
-            from fact_groups as g
-            left join selected_terms as o
-                on g.sku = o.sku and g.category <> 'SELBOX'
-            left join public.sku_fee_periods as p
-                on o.terms_version_id = p.terms_version_id
-                    and g.marketplace_name = p.marketplace_name
-                    and p.valid_period @> g.activity_date
-                    and g.fee_applicable and o.company_id is not null
-        ),
-        totals as (
-            select c.marketplace_name, c.currency, c.component_type, c.period_start,
-                sum(c.reported_amount) as reported_amount,
-                sum(c.service_fee) as service_fee,
-                sum(case when c.category = 'SELBOX' then 0::numeric
-                    else c.reported_amount + c.service_fee end) as company_amount,
-                sum(c.row_count) as row_count,
-                sum(case when c.service_fee is not null then c.row_count else 0 end)
-                    as known_company_count
-            from calculated as c
-            group by c.marketplace_name, c.currency, c.component_type, c.period_start
+    result:=(
+        with totals as (
+            select case when not p_group_by_type or p_granularity is not null then c.marketplace_name end as marketplace_name,
+                c.currency,case when p_group_by_type or p_granularity is not null then c.component_type end as component_type,
+                date_trunc(p_granularity,c.activity_at at time zone 'UTC')::date as period_start,
+                sum(c.source_amount) as reported_amount,sum(c.fee_amount) as service_fee,sum(c.company_amount) as company_amount,
+                count(*) as row_count,count(c.company_amount) as known_company_count
+            from private.filtered_components(p_date_from,p_date_to,p_company_ids,p_skus,p_marketplaces,p_sources,p_types,p_fee_applicable,p_search_skus,p_search_types,p_search_marketplaces,p_search_sources,p_currency) c group by 1,2,3,4
         ),
         bounded_groups as materialized (
             select t.* from totals as t
@@ -213,24 +94,20 @@ revoke all on function public.transaction_totals(
 -- Derived records use saved inputs and report authorization. Numeric/boolean
 -- fields are text in JSON, matching the application's exact-value row contract.
 create function public.payout_report_records(
-    p_report_id uuid, p_authoritative boolean default true,
+    p_report_id uuid,
     p_limit integer default 50, p_offset bigint default 0, p_types text[] default null
 ) returns jsonb language plpgsql stable security invoker set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 begin
-    if p_report_id is null or p_authoritative is null then
+    if p_report_id is null then
         raise exception 'Report and record scope are required' using errcode='22023';
-    end if;
-    if not p_authoritative and not private.financial_account_visible() then
-        raise exception 'Administrator access required' using errcode='42501';
     end if;
     perform private.validate_page_bounds(p_limit,p_offset);
     perform private.validate_transaction_filters(null,null,null,null,null,null,p_types);
     return (
         with records as materialized (
             select r.* from private.read_payout_report_records(p_report_id) r
-            where r.authoritative=p_authoritative
-                and (coalesce(cardinality(p_types),0)=0 or r.component_type=any(p_types))
+            where (coalesce(cardinality(p_types),0)=0 or r.component_type=any(p_types))
         ), page as (
             select * from records
             order by activity_date desc,source desc,source_row_id desc
@@ -274,7 +151,6 @@ begin
                 count(*)::text as row_count,
                 count(c.company_amount)::text as known_company_count
             from private.read_payout_report_records(p_report_id) c
-            where c.authoritative
             group by case when p_group_by_type then c.component_type::text end
         ), selected as materialized (
             select * from totals
@@ -292,6 +168,6 @@ begin
     );
 end;
 $$;
-revoke all on function public.payout_report_records(uuid, boolean, integer, bigint, text[]),
+revoke all on function public.payout_report_records(uuid, integer, bigint, text[]),
 public.payout_report_totals(uuid, boolean, integer, bigint)
 from public, anon, authenticated, service_role;

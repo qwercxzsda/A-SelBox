@@ -16,39 +16,61 @@ create table public.app_accounts (
 );
 create index app_accounts_company_idx on public.app_accounts (company_id);
 
--- Ownership and fees follow exact SKU text across every source namespace.
-create table public.skus (
+create type public.assignment_kind as enum ('SKU', 'CAMPAIGN', 'PROMOTION', 'SHIPMENT');
+create table public.assignment_keys (
     id public.local_uuid primary key default private.uuid7(),
-    sku text not null check (length(btrim(sku)) > 0),
-    current_terms_version_id public.local_uuid,
+    kind public.assignment_kind not null,
+    seller_namespace text check (length(btrim(seller_namespace)) > 0),
+    amazon_scope text check (length(btrim(amazon_scope)) > 0),
+    -- the SKU text, or Amazon's ID
+    native_id text not null check (length(btrim(native_id)) > 0),
+    current_version_id public.local_uuid,
     created_at timestamptz not null default now(),
-    unique (sku)
+    unique nulls not distinct (kind, seller_namespace, amazon_scope, native_id),
+    unique (id, kind),
+    check ((kind = 'SKU') = (seller_namespace is null)),
+    check ((seller_namespace is null) = (amazon_scope is null))
 );
-create table public.sku_terms_versions (
+
+-- Every change, with a memo. Blank = no key, no current version, or a current version without a
+-- company. A blank produces an unassigned difference.
+create table public.assignment_versions (
     id public.local_uuid primary key default private.uuid7(),
-    sku_id public.local_uuid not null references public.skus (id),
-    company_id public.local_uuid references public.companies (id),
+    key_id public.local_uuid not null,
+    kind public.assignment_kind not null,
     version_number bigint not null check (version_number > 0),
+    -- empty: an administrator cleared it
+    company_id public.local_uuid references public.companies (id),
+    origin text not null check (origin in ('ADMINISTRATOR', 'AUTOMATIC')),
+    -- the administrator; empty when automatic
+    set_by uuid references auth.users (id),
+    -- an automatic version says so here
+    memo text not null check (length(btrim(memo)) > 0),
     fee_period_count integer not null check (fee_period_count >= 0),
-    change_reason text not null check (length(btrim(change_reason)) > 0),
     created_at timestamptz not null default now(),
-    unique (sku_id, version_number), unique (sku_id, id)
+    foreign key (key_id, kind) references public.assignment_keys (id, kind),
+    unique (key_id, version_number),
+    unique (key_id, id),
+    unique (id, kind),
+    -- The cron job writes only the first version of a key, and it always names a company. So it
+    -- never changes an assignment that an administrator set or cleared.
+    check (
+        origin <> 'AUTOMATIC' or (version_number = 1 and company_id is not null and set_by is null)
+    ),
+    check (kind <> 'SKU' or origin = 'ADMINISTRATOR'),               -- a SKU has no default
+    check (kind = 'SKU' or fee_period_count = 0)                     -- fee rates exist only on SKUs
 );
-create index sku_terms_versions_company_idx on public.sku_terms_versions (company_id);
-alter table public.skus add constraint sku_current_terms_identity
-foreign key (id, current_terms_version_id)
-references public.sku_terms_versions (sku_id, id);
+create index assignment_versions_company_idx on public.assignment_versions (company_id);
+create index assignment_versions_set_by_idx on public.assignment_versions (set_by);
+alter table public.assignment_keys add constraint assignment_keys_current_version
+foreign key (id, current_version_id) references public.assignment_versions (key_id, id);
+
+-- SelBox's fee rate of a SKU, per marketplace and period.
 create table public.sku_fee_periods (
     id public.local_uuid primary key default private.uuid7(),
-    terms_version_id public.local_uuid not null references public.sku_terms_versions (id),
-    marketplace_name text not null check (marketplace_name in (
-        'Amazon.com', 'Amazon.ca', 'Amazon.com.mx', 'Amazon.com.br', 'Amazon.co.uk',
-        'Amazon.de', 'Amazon.fr', 'Amazon.it', 'Amazon.es', 'Amazon.nl',
-        'Amazon.se', 'Amazon.pl', 'Amazon.com.be', 'Amazon.ie', 'Amazon.com.tr',
-        'Amazon.ae', 'Amazon.sa', 'Amazon.eg', 'Amazon.in', 'Amazon.co.za',
-        'Amazon.co.jp', 'Amazon.com.au', 'Amazon.sg',
-        'Non-Amazon DE', 'Non-Amazon IT', 'Non-Amazon US'
-    )),
+    assignment_version_id public.local_uuid not null,
+    kind public.assignment_kind not null default 'SKU' check (kind = 'SKU'),
+    marketplace_name public.marketplace_name not null,
     valid_period daterange not null check (
         not isempty(valid_period) and not lower_inf(valid_period)
         and lower(valid_period) not in ('-infinity'::date, 'infinity'::date)
@@ -64,6 +86,7 @@ create table public.sku_fee_periods (
         and scale(fee_rate_percent) <= 6
     ),
     created_at timestamptz not null default now(),
-    unique (terms_version_id, id),
-    exclude using gist (terms_version_id with =, marketplace_name with =, valid_period with &&)
+    foreign key (assignment_version_id, kind) references public.assignment_versions (id, kind),
+    unique (assignment_version_id, id),
+    exclude using gist (assignment_version_id with =, marketplace_name with =, valid_period with &&)
 );

@@ -171,7 +171,10 @@ class SummaryRpcTests(LocalWorkflowCase):
         _, member = self.create_member(company)
         _, outsider = self.create_auth_user()
         limited = self.stack.request(
-            "GET", "/rest/v1/skus", token=administrator, params={"select": "id", "limit": "2000"}
+            "GET",
+            "/rest/v1/assignment_keys",
+            token=administrator,
+            params={"select": "id", "limit": "2000"},
         )
         self.assertEqual(limited.status_code, 200)
         self.assertEqual(len(limited.json()), 1000)

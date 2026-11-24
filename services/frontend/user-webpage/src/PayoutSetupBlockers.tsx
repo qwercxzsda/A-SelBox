@@ -53,7 +53,7 @@ export function PayoutSetupBlockers({
         query={query}
         label="payout setup requirements"
         rowCount={rows.length}
-        emptyMessage="No ownership or fee requirements remain. Automatic processing will check the source data again."
+        emptyMessage="No missing fee rates remain. Automatic processing will check the source data again."
       >
         {rows.length ? (
           <DetailTable
@@ -68,12 +68,8 @@ export function PayoutSetupBlockers({
               { key: "first_date", label: "First affected date" },
               { key: "last_date", label: "Last affected date" },
             ]}
-            renderCell={(row, column) =>
-              column.key === "reason"
-                ? row.reason === "MISSING_OWNERSHIP"
-                  ? "Assign company ownership"
-                  : "Add fee coverage"
-                : undefined
+            renderCell={(_row, column) =>
+              column.key === "reason" ? "Add fee coverage" : undefined
             }
           />
         ) : null}

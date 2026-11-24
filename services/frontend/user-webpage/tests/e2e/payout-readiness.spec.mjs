@@ -28,8 +28,8 @@ function setup(fixture, administrator) {
     {
       company_id: COMPANY,
       month: "2026-04-01",
-      sku: "UNASSIGNED-SKU",
-      reason: "MISSING_OWNERSHIP",
+      sku: "MISSING-RATE-SKU",
+      reason: "MISSING_FEE",
       marketplace_name: "Amazon.com",
       first_date: "2026-04-03",
       last_date: "2026-04-20",
@@ -38,11 +38,9 @@ function setup(fixture, administrator) {
   ];
 }
 
-test("administrator can inspect blocked payout setup within Financial review snapshots", async ({
-  page,
-}) => {
+test("administrator can inspect blocked payout setup within Financial review", async ({ page }) => {
   const fixture = await openReviewReadiness(page, (state) => setup(state, true));
-  await expect(readiness(page)).toContainText("SKU ownership or fee coverage needs setup");
+  await expect(readiness(page)).toContainText("SKU fee coverage needs setup");
   expect(
     fixture.payoutReadinessRequests.some(({ endpoint }) =>
       endpoint.endsWith("payout_setup_blockers"),
@@ -52,12 +50,12 @@ test("administrator can inspect blocked payout setup within Financial review sna
     .getByRole("button", { name: "View setup requirements", exact: true })
     .click();
   const setupTable = page.getByRole("table", { name: "Payout setup requirements", exact: true });
-  await expect(setupTable).toContainText("Assign company ownership");
+  await expect(setupTable).toContainText("Add fee coverage");
   await expect(setupTable).toContainText("2026-04-03");
-  await expect(setupTable).toContainText("UNASSIGNED-SKU");
-  await expect(setupTable.getByRole("button", { name: "UNASSIGNED-SKU", exact: true })).toHaveCount(
-    0,
-  );
+  await expect(setupTable).toContainText("MISSING-RATE-SKU");
+  await expect(
+    setupTable.getByRole("button", { name: "MISSING-RATE-SKU", exact: true }),
+  ).toHaveCount(0);
   expect(fixture.events.some(({ endpoint }) => endpoint.includes("generate"))).toBe(false);
 });
 
@@ -72,7 +70,7 @@ for (const administrator of [false, true]) {
     await applyReportMonth(page, "2026-04");
     await expect(page.getByText("No matching reports", { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: /payout readiness/ })).toHaveCount(0);
-    await expect(page.getByText("UNASSIGNED-SKU", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("MISSING-RATE-SKU", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Check readiness above", { exact: false })).toHaveCount(0);
     expect(fixture.payoutReadinessRequests ?? []).toHaveLength(0);
     expect(fixture.events.some(({ endpoint }) => endpoint.endsWith("payout_report_policy"))).toBe(

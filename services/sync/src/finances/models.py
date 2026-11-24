@@ -3,14 +3,12 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from ..allocation import AllocationCategory
 from ..numeric import Numeric
 
 
 @dataclass(frozen=True, slots=True)
 class FinancesComponent:
     component_number: int
-    category: AllocationCategory
     component_type: str
     sku: str | None
     amount: Numeric
@@ -20,6 +18,14 @@ class FinancesComponent:
     breakdown_path: tuple[str, ...]
     item_index: int
     breakdown_indexes: tuple[int, ...]
+    route: str
+    amount_part: str
+    asin: str | None
+    fnsku: str | None
+    reference_id: str | None
+    reference_month: date | None
+    ledger_start_month: date | None
+    ledger_end_month: date | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +46,7 @@ class FinancesTransaction:
     source_page_number: int
     source_record_number: int
     components: tuple[FinancesComponent, ...]
+    order_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

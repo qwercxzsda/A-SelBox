@@ -485,7 +485,7 @@ for (const role of ["member", "administrator"]) {
     expect(financialReads(workspace)).toEqual(financial);
 
     // Source imports can update finance without rereading the unchanged inventory page.
-    workspace.revisions.data_kiosk = "1";
+    workspace.revisions.references = "1";
     await poll(page, workspace);
     expect(inventory.requests).toHaveLength(reads + 2);
     // Administrators update their shared SKU catalog; hidden financial data stays inactive.

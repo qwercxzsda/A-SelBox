@@ -128,8 +128,8 @@ export function SkuConfigurationReview({
               title={`${String(incomplete.length)} ${incomplete.length === 1 ? "SKU needs" : "SKUs need"} setup before saving`}
             >
               <Text size="sm">
-                Each changed SKU needs a company and all required fee periods. Setup gaps in other
-                SKUs do not block this draft.
+                Assigned SKUs need all required fee periods. Setup gaps in other SKUs do not block
+                this draft.
               </Text>
               <Stack gap="xs" mt="sm">
                 {incomplete.slice(0, GAP_SHORTCUT_LIMIT).map((sku) => (

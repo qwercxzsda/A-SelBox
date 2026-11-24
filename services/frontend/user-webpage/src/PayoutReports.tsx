@@ -17,7 +17,6 @@ import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
 import { DatasetCountStatus } from "./DatasetCountStatus";
 import { ListToolbar } from "./ListToolbar";
-import { reviewPeriodKey } from "./financial-review-scope-key";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
 
@@ -26,40 +25,18 @@ export function PayoutReports({
   onRetry,
   viewState,
   onViewStateChange,
-  reviewMode = false,
   updating = false,
-  fixedMonth = false,
-  currency,
-  marketplace,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
-  reviewMode?: boolean;
   updating?: boolean;
-  fixedMonth?: boolean;
-  currency?: string;
-  marketplace?: string;
 } & ViewStateProps<DatasetViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
-  const reviewKey = reviewPeriodKey(
-    viewState.filters.dateFrom.slice(0, 7),
-    marketplace ?? "",
-    currency ?? "",
-  );
-  const scopedViewState = {
-    ...viewState,
-    filters: {
-      ...viewState.filters,
-      marketplaces: marketplace === undefined ? viewState.filters.marketplaces : [marketplace],
-    },
-  };
   const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
-    useFinanceTable(identity, "payouts", scopedViewState, onViewStateChange, currency);
+    useFinanceTable(identity, "payouts", viewState, onViewStateChange);
   const [history, setHistory] = useWorkspacePreference(
-    reviewMode
-      ? `payout-review-history${fixedMonth ? `:${reviewKey}` : ""}`
-      : "payout-report-history",
+    "payout-report-history",
     createPayoutHistoryState,
     decodePayoutHistoryState,
   );
@@ -79,7 +56,6 @@ export function PayoutReports({
     versionQuery,
     selectReport,
     selectVersion,
-    restoreSelectionFocus,
   } = usePayoutReportSelection({
     identity,
     rows,
@@ -89,39 +65,29 @@ export function PayoutReports({
     onSelect: (selectedRowId) => {
       onViewStateChange((current) => ({ ...current, selectedRowId }));
     },
-    restoreFocus: fixedMonth,
+    restoreFocus: false,
     fallbackRef: controlsRef,
   });
-  function restoreReportFocus() {
-    restoreSelectionFocus();
-    if (document.activeElement === controlsRef.current) revealSection(controlsRef.current);
-  }
   const sort = viewState.sorting[0];
-  const visibleFilters = {
-    ...filters,
-    ...(fixedMonth ? { dateFrom: "", dateTo: "" } : {}),
-    ...(marketplace !== undefined ? { marketplaces: [] } : {}),
-  };
+  const visibleFilters = filters;
   const hasRefinements = activeFilterCount(visibleFilters) > 0 || search.trim().length > 0;
 
   return (
     <>
-      {!reviewMode ? (
-        <WorkspaceHeader
-          title="Payout reports"
-          help={<DatasetHelp dataset="payouts" />}
-          status={
-            query.isPending
-              ? "loading"
-              : query.isFetching ||
-                  query.countQuery.isFetching ||
-                  (selectedScope !== null && versionQuery.isFetching) ||
-                  updating
-                ? "updating"
-                : null
-          }
-        />
-      ) : null}
+      <WorkspaceHeader
+        title="Payout reports"
+        help={<DatasetHelp dataset="payouts" />}
+        status={
+          query.isPending
+            ? "loading"
+            : query.isFetching ||
+                query.countQuery.isFetching ||
+                (selectedScope !== null && versionQuery.isFetching) ||
+                updating
+              ? "updating"
+              : null
+        }
+      />
       {query.error ? (
         <Alert color="red" role="alert" mb="md">
           {getErrorMessage(query.error)}
@@ -151,14 +117,6 @@ export function PayoutReports({
       <ListToolbar
         controlsRef={controlsRef}
         label="Payout report controls"
-        style={
-          fixedMonth
-            ? {
-                scrollMarginTop:
-                  "calc(var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px)",
-              }
-            : undefined
-        }
         search={{
           inputRef: searchInput,
           value: search,
@@ -188,13 +146,8 @@ export function PayoutReports({
         rowCount={rows.length}
         totalCount={totalCount}
         items="latest reports"
-        message={query.isPending ? (reviewMode ? "Loading reports…" : "") : undefined}
+        message={query.isPending ? "" : undefined}
       />
-      {reviewMode && selectedScope !== null && versionQuery.isPending ? (
-        <Text role="status" size="xs" c="dimmed" mb="sm">
-          Loading selected report version…
-        </Text>
-      ) : null}
       <AppliedTableFilters
         focusTarget={searchInput}
         dataset="payouts"
@@ -203,8 +156,6 @@ export function PayoutReports({
         onChange={changeFilters}
       />
       <PayoutReportsTable
-        fixedMonth={fixedMonth}
-        fixedMarketplace={marketplace !== undefined}
         identity={identity}
         rows={rows}
         companies={companies}
@@ -236,7 +187,7 @@ export function PayoutReports({
         status={
           <DatasetCountStatus
             isError={query.countQuery.isError}
-            isFetching={reviewMode && query.countQuery.isFetching}
+            isFetching={query.countQuery.isFetching}
             items="reports"
             onRetry={() => {
               showControls();
@@ -245,11 +196,6 @@ export function PayoutReports({
           />
         }
       >
-        {reviewMode && query.isPending ? (
-          <div className="loading-state" role="status">
-            Loading reports…
-          </div>
-        ) : null}
         {!query.isPending && !query.isError && rows.length === 0 ? (
           <div className="empty-state">
             <Text fw={600}>{hasRefinements ? "No matching reports" : "No payout reports yet"}</Text>
@@ -299,14 +245,11 @@ export function PayoutReports({
         />
       ) : null}
       <RowDetail
-        stackId={fixedMonth && reviewMode ? "financial-review-snapshot" : undefined}
-        onExitTransitionEnd={fixedMonth ? restoreReportFocus : undefined}
         accessToken={identity.session.access_token}
         isAdministrator={identity.account.access_role === "administrator"}
         companies={companies}
         dataset="payouts"
         row={selected}
-        reviewMode={reviewMode}
         onClose={() => {
           selectReport(null);
         }}

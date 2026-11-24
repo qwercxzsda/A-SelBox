@@ -25,7 +25,7 @@ async function openReport(page, role, companyName = "Navigation Company") {
   fixture.payoutRecords = Array.from({ length: 75 }, (_, index) => ({
     source_row_id: `record-${String(999 - index).padStart(3, "0")}`,
     report_id: reportId,
-    authoritative: "true",
+
     activity_date: "2026-06-30",
     sku: `SKU-${String(index).padStart(3, "0")}`,
     marketplace_name: "Amazon.com",

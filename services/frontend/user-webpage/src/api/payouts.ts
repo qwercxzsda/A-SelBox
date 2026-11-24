@@ -5,6 +5,7 @@ import { DETAIL_PAGE_SIZE, LOOKUP_PAGE_SIZE, validatePagination } from "./pagina
 import { isJsonObject, requireCurrency, requireUuid } from "./validation.ts";
 import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow, PageResult } from "./types.ts";
+import { TRANSACTION_SOURCES } from "../filter-options.ts";
 import { parseExactCount } from "./content-range.ts";
 import { sumExactDecimals } from "../decimal.ts";
 
@@ -16,13 +17,14 @@ const PAYOUT_RECORD_COLUMNS = [
   "sku_id",
   "terms_version_id",
   "fee_period_id",
-  "authoritative",
   "source",
   "sku",
   "marketplace_name",
   "activity_date",
   "component_type",
   "currency",
+  "base_amount",
+  "tax_amount",
   "source_amount",
   "quantity",
   "fee_base",
@@ -32,12 +34,7 @@ const PAYOUT_RECORD_COLUMNS = [
   "resolution_status",
 ] as const;
 
-function decodePayoutRecords(
-  value: unknown,
-  reportId: string,
-  authoritative: boolean,
-  offset: number,
-): PageResult {
+function decodePayoutRecords(value: unknown, reportId: string, offset: number): PageResult {
   if (!isJsonObject(value) || !Array.isArray(value.rows))
     throw new Error("Payout records returned invalid rows");
   const totalCount = parseExactCount(value.total_count);
@@ -55,8 +52,8 @@ function decodePayoutRecords(
     }
     if (
       row.report_id !== reportId ||
-      row.authoritative !== String(authoritative) ||
-      (row.source !== "FINANCES" && row.source !== "DATA_KIOSK") ||
+      row.source === null ||
+      !TRANSACTION_SOURCES.some((source) => source === row.source) ||
       !row.source_row_id
     )
       throw new Error("Payout records returned an invalid identity or scope");
@@ -84,14 +81,12 @@ export function createPayoutApi(transport: ApiTransport) {
     async fetchPayoutRecords(
       accessToken: string,
       reportId: string,
-      authoritative: boolean,
       pageIndex: number,
       signal?: AbortSignal,
       types: string[] = [],
     ) {
       requireUuid(reportId, "report");
       validatePagination(pageIndex, DETAIL_PAGE_SIZE);
-      if (typeof authoritative !== "boolean") throw new Error("Choose a valid payout record scope");
       const offset = pageIndex * DETAIL_PAGE_SIZE;
       const selectedTypes = textSelectionValues("component_type", types);
       const value = await transport.postRpc(
@@ -99,7 +94,6 @@ export function createPayoutApi(transport: ApiTransport) {
         "payout_report_records",
         {
           p_report_id: reportId,
-          p_authoritative: authoritative,
           p_limit: DETAIL_PAGE_SIZE,
           p_offset: offset,
           p_types: selectedTypes.length ? selectedTypes : null,
@@ -107,7 +101,7 @@ export function createPayoutApi(transport: ApiTransport) {
         "Payout details",
         signal,
       );
-      return decodePayoutRecords(value, reportId, authoritative, offset);
+      return decodePayoutRecords(value, reportId, offset);
     },
     async fetchPayoutTypeTotals(
       accessToken: string,

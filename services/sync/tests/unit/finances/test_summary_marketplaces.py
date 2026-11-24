@@ -15,6 +15,7 @@ from services.sync.src.finances.preprocess import prepare_finances_acquisition
 from services.sync.src.finances.query_windows import transaction_query_parameters
 from services.sync.src.finances.validation import validate_finances_candidate
 from services.sync.tests.support.archives import MemoryArchiveStorage
+from services.sync.tests.support.currencies import CURRENCY_DECIMALS
 from services.sync.tests.support.finances import finances_acquisition, native_transaction
 
 CHANNELS = (
@@ -88,7 +89,7 @@ def candidate(
         },
         documents=(replace(acquisition.documents[0], request_parameters=parameters), summary_page),
     )
-    return acquisition, prepare_finances_acquisition(acquisition, storage)
+    return acquisition, prepare_finances_acquisition(acquisition, storage, CURRENCY_DECIMALS)
 
 
 class SummaryMarketplaceTests(unittest.TestCase):

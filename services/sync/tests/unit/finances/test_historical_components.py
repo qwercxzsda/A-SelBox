@@ -5,6 +5,7 @@ from typing import cast
 
 from services.sync.src.finances.components import build_components
 from services.sync.src.numeric import ZERO, Numeric
+from services.sync.tests.support.currencies import CURRENCY_DECIMALS
 
 
 def _money(amount: str, currency: str = "USD") -> dict[str, object]:
@@ -33,6 +34,8 @@ def _transaction(
         "breakdowns": [_leaf(path, value) for path, value in leaves],
     }
     return {
+        "sellingPartnerMetadata": {"marketplaceId": "ATVPDKIKX0DER"},
+        "postedDate": "2026-10-19T18:00:00Z",
         "transactionId": "native-bill",
         "transactionType": kind,
         "totalAmount": _money(amount),
@@ -41,18 +44,11 @@ def _transaction(
 
 
 class HistoricalComponentTests(unittest.TestCase):
-    def test_lightning_deal_bill_is_a_cost_control_without_product_commission(self) -> None:
+    def test_unobserved_lightning_deal_id_shape_fails_closed(self) -> None:
         path = ("AmazonFees", "RunLightningDealFee", "Base")
         row = _transaction("SellerDealPayment", "-150", ((path, "-150"),))
-        component = build_components(row)[0]
-        self.assertEqual(
-            (component.component_type, component.category.value, component.amount),
-            ("DEAL_FEES", "DATA_KIOSK", Numeric(-150)),
-        )
-        self.assertEqual(component.breakdown_path, path)
-        self.assertIsNone(component.sku)
-        self.assertIsNone(component.fee_base)
-        self.assertIsNone(component.quantity)
+        with self.assertRaisesRegex(ValueError, "Unsupported Finances monetary path"):
+            build_components(row, CURRENCY_DECIMALS)
 
         for kind, unreviewed_path in (
             ("ServiceFee", path),
@@ -63,7 +59,9 @@ class HistoricalComponentTests(unittest.TestCase):
                 self.subTest(kind=kind, path=unreviewed_path),
                 self.assertRaisesRegex(ValueError, "Unsupported Finances monetary path"),
             ):
-                build_components(_transaction(kind, "-150", ((unreviewed_path, "-150"),)))
+                build_components(
+                    _transaction(kind, "-150", ((unreviewed_path, "-150"),)), CURRENCY_DECIMALS
+                )
 
     def test_gift_wrap_bundle_preserves_tax_and_chargebacks_without_extra_commission(self) -> None:
         row = _transaction(
@@ -83,11 +81,11 @@ class HistoricalComponentTests(unittest.TestCase):
             ),
             sku=True,
         )
-        components = build_components(row)
+        components = build_components(row, CURRENCY_DECIMALS)
         gift = [c for c in components if c.component_type.startswith("GIFT_WRAP_")]
         self.assertEqual(len(gift), 4)
         self.assertEqual(sum((c.amount for c in gift), ZERO), ZERO)
-        self.assertTrue(all(c.category.value == "FINANCES" for c in gift))
+        self.assertTrue(all(c.route == "SKU" for c in gift))
         self.assertTrue(all(c.fee_base is None and c.quantity is None for c in gift))
         self.assertEqual(sum((c.amount for c in components), ZERO), Numeric(652))
         self.assertEqual([c.fee_base for c in components if c.fee_base is not None], [Numeric(873)])
@@ -101,10 +99,10 @@ class HistoricalComponentTests(unittest.TestCase):
                 (("AmazonFees", "FBADisposalFee", "Promo"), "60"),
             ),
         )
-        components = build_components(row)
+        components = build_components(row, CURRENCY_DECIMALS)
         self.assertEqual([c.amount for c in components], [Numeric(-60), Numeric(60)])
         self.assertTrue(all(c.component_type == "DISPOSAL_FEES" for c in components))
-        self.assertTrue(all(c.category.value == "DATA_KIOSK" for c in components))
+        self.assertTrue(all(c.route == "REMOVAL_ORDER" for c in components))
 
     def test_zero_aged_storage_item_does_not_erase_charged_siblings(self) -> None:
         row = _transaction(
@@ -115,7 +113,7 @@ class HistoricalComponentTests(unittest.TestCase):
         row["description"] = "FBALongTermStorageBilling"
         items = cast(list[object], row["items"])
         items.append({"totalAmount": {"currencyAmount": 0, "currencyCode": None}, "breakdowns": []})
-        components = build_components(row)
+        components = build_components(row, CURRENCY_DECIMALS)
         self.assertEqual(len(components), 2)
         self.assertEqual(sum((c.amount for c in components), ZERO), Numeric("-41.19"))
         self.assertTrue(all(c.component_type == "AGED_STORAGE_FEES" for c in components))
@@ -127,11 +125,9 @@ class HistoricalComponentTests(unittest.TestCase):
             "-200",
             ((("AmazonFees", "VineEnrollmentFee", "VineFee", "Base"), "-200"),),
         )
-        component = build_components(row)[0]
-        self.assertEqual(
-            (component.category.value, component.component_type), ("SELBOX", "VINE_FEES")
-        )
-        self.assertEqual(component.accounting_subtype, "OPERATING_EXPENSE")
+        component = build_components(row, CURRENCY_DECIMALS)[0]
+        self.assertEqual((component.route, component.component_type), ("SELBOX", "VINE_FEES"))
+        self.assertEqual(component.accounting_subtype, "ACCOUNT_FEE")
         self.assertIsNone(component.sku)
         self.assertIsNone(component.fee_base)
 
@@ -146,10 +142,10 @@ class HistoricalComponentTests(unittest.TestCase):
                 (("Tax", "MarketplaceFacilitatorTax-Shipping"), "-0.16"),
             ),
         )
-        components = build_components(row)
+        components = build_components(row, CURRENCY_DECIMALS)
         self.assertEqual(len(components), 4)
         self.assertEqual(sum((c.amount for c in components), ZERO), ZERO)
-        self.assertTrue(all(c.category.value == "SELBOX" for c in components))
+        self.assertTrue(all(c.route == "SELBOX" for c in components))
 
     def test_native_withholding_preserves_the_sign_without_creating_commission(self) -> None:
         for kind, path, amount in (
@@ -158,7 +154,7 @@ class HistoricalComponentTests(unittest.TestCase):
         ):
             with self.subTest(kind=kind):
                 component = build_components(
-                    _transaction(kind, amount, ((path, amount),), sku=True)
+                    _transaction(kind, amount, ((path, amount),), sku=True), CURRENCY_DECIMALS
                 )[0]
                 self.assertEqual(component.component_type, "TAX_WITHHELD")
                 self.assertEqual(component.amount, Numeric(amount))

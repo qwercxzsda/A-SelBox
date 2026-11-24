@@ -3,14 +3,12 @@
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from ..allocation import AllocationCategory
-
 
 @dataclass(frozen=True, slots=True)
 class FinancesType:
     component_type: str
-    category: AllocationCategory
-    accounting_subtype: str | None = None
+    route: str
+    selbox_group: str | None = None
 
 
 _FINANCIAL = (
@@ -42,34 +40,40 @@ _FINANCIAL = (
     "DIGITAL_SERVICES_FEES",
     "ZERO_ACTIVITY",
 )
-_COSTS = (
-    "ADVERTISING",
-    "STORAGE_FEES",
-    "AGED_STORAGE_FEES",
-    "DISPOSAL_FEES",
-    "REMOVAL_FEES",
-    "INBOUND_PLACEMENT_FEES",
-    "INBOUND_TRANSPORTATION_FEES",
-    "INBOUND_TRANSPORTATION_PROGRAM_FEES",
-    "LABELING_FEES",
-    "COUPON_FEES",
-    "DEAL_FEES",
-)
+_COST_ROUTES = {
+    "INBOUND_DEFECT_FEES": "SHIPMENT",
+    "RETURNS_PROCESSING_FEES": "ASIN",
+    "ADVERTISING": "AD_INVOICE",
+    "STORAGE_FEES": "STORAGE",
+    "AGED_STORAGE_FEES": "AGED_STORAGE",
+    "DISPOSAL_FEES": "REMOVAL_ORDER",
+    "REMOVAL_FEES": "REMOVAL_ORDER",
+    "INBOUND_PLACEMENT_FEES": "SHIPMENT",
+    "INBOUND_TRANSPORTATION_FEES": "SHIPMENT",
+    "INBOUND_TRANSPORTATION_PROGRAM_FEES": "SHIPMENT",
+    "LABELING_FEES": "SHIPMENT",
+    "COUPON_FEES": "PROMOTION",
+    "DEAL_FEES": "PROMOTION",
+}
 _ACCOUNT = (
     "SUBSCRIPTION_FEES",
     "EPR_FEES",
-    "INBOUND_DEFECT_FEES",
     "MCF_CREDITS",
     "VINE_FEES",
     "OTHER_ADJUSTMENTS",
 )
 _BALANCE = ("DEBT_RECOVERY", "CROSS_ACCOUNT_ADJUSTMENTS", "RESERVE_MOVEMENTS", "BANK_TRANSFERS")
 FINANCES_TYPES = (
-    *(FinancesType(name, AllocationCategory.FINANCES) for name in _FINANCIAL),
-    *(FinancesType(name, AllocationCategory.DATA_KIOSK) for name in _COSTS),
-    *(FinancesType(name, AllocationCategory.SELBOX, "OPERATING_EXPENSE") for name in _ACCOUNT),
-    *(FinancesType(name, AllocationCategory.SELBOX, "BALANCE_MOVEMENT") for name in _BALANCE),
-    FinancesType("TAX_RECLASSIFICATION", AllocationCategory.SELBOX, "TAX_RECLASSIFICATION"),
+    *(
+        FinancesType(
+            name, "FNSKU" if name in {"LIQUIDATION_PROCEEDS", "LIQUIDATION_FEES"} else "SKU"
+        )
+        for name in _FINANCIAL
+    ),
+    *(FinancesType(name, route) for name, route in _COST_ROUTES.items()),
+    *(FinancesType(name, "SELBOX", "ACCOUNT_FEE") for name in _ACCOUNT),
+    *(FinancesType(name, "SELBOX", "BALANCE_MOVEMENT") for name in _BALANCE),
+    FinancesType("TAX_RECLASSIFICATION", "SELBOX", "TAX_RECLASSIFICATION"),
 )
 _BY_NAME = {item.component_type: item for item in FINANCES_TYPES}
 
@@ -153,7 +157,11 @@ def _mapping() -> dict[tuple[str, tuple[str, ...]], FinancesType]:
             add(kind, ("AmazonFees", "FBAPerUnitFulfillmentFee", detail), semantic)
     for detail in ("Base", "Tax"):
         add("ProductAdsPayment", (detail,), "ADVERTISING")
-    add("SellerDealPayment", ("AmazonFees", "RunLightningDealFee", "Base"), "DEAL_FEES")
+    add(
+        "ServiceFee",
+        ("FBAFees", "HRRNonApparelRollup", "CustomerReturnHRRUnitFee", "Base"),
+        "RETURNS_PROCESSING_FEES",
+    )
     fees = {
         "FBAStorageFee": "STORAGE_FEES",
         "FBALongTermStorageFee": "AGED_STORAGE_FEES",
@@ -190,6 +198,7 @@ def _mapping() -> dict[tuple[str, tuple[str, ...]], FinancesType]:
                 add("ServiceFee", ("AmazonFees", fee + "Rollup", fee, detail), semantic)
     add("ServiceFee", ("AmazonFees", "FBADisposalFee", "Promo"), "DISPOSAL_FEES")
     add("ServiceFee", ("AmazonFees", "VineEnrollmentFee", "VineFee", "Base"), "VINE_FEES")
+    add("Adjustment", ("CrossAccountDebtAdjustment",), "CROSS_ACCOUNT_ADJUSTMENTS")
     for leaf in ("Sales", "Expenses"):
         add("Adjustment", (leaf,), "CROSS_ACCOUNT_ADJUSTMENTS")
         add("Adjustment", (leaf, "CrossAccountDebtAdjustment"), "CROSS_ACCOUNT_ADJUSTMENTS")

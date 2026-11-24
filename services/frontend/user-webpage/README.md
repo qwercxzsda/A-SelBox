@@ -14,16 +14,17 @@ and API contracts are [access control](../../../docs/access_control.md),
 
 ## Workspace
 
-| Tab                   | Purpose                                                | Access                                                        |
-| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
-| Transactions          | Current company amounts, fees, and current totals      | Members see their company; administrators see all companies   |
-| Current fees          | SKU assignments, fee periods, and batch editing        | Members read their settings; administrators edit              |
-| Inventory             | Latest daily inventory captures and recommendations    | Members see their assigned SKUs; administrators see all items |
-| Finances / Data Kiosk | Retained source components and provenance              | Administrators                                                |
-| Payout reports        | Latest saved reports and earlier versions              | Members see their company; administrators see all companies   |
-| Financial review      | Yearly source comparisons and monthly investigation    | Administrators                                                |
-| Companies             | Company creation, assignments, and restricted deletion | Administrators                                                |
-| User access           | Company membership and revocation                      | Administrators; administrator roles remain DB-only            |
+| Tab              | Purpose                                                 | Access                                                        |
+| ---------------- | ------------------------------------------------------- | ------------------------------------------------------------- |
+| Transactions     | Current company amounts, fees, and current totals       | Members see their company; administrators see all companies   |
+| Current fees     | SKU assignments, fee periods, and batch editing         | Members read their settings; administrators edit              |
+| Inventory        | Latest daily inventory captures and recommendations     | Members see their assigned SKUs; administrators see all items |
+| Finances         | Retained source components and provenance               | Administrators                                                |
+| Payout reports   | Latest saved reports and earlier versions               | Members see their company; administrators see all companies   |
+| Financial review | Monthly allocations, SelBox types and differences       | Administrators                                                |
+| Companies        | Company creation, assignments, and restricted deletion  | Administrators                                                |
+| Assignments      | Campaign, promotion and shipment ownership and warnings | Administrators                                                |
+| User access      | Company membership and revocation                       | Administrators; administrator roles remain DB-only            |
 
 New accounts are Unassigned until an administrator assigns a company. They see an access-pending
 screen without company data. Signup supports immediate sessions or email confirmation according to
@@ -37,21 +38,20 @@ scope. Session storage belongs to this browser tab and Supabase project. Storage
 warning; editing remains available in memory.
 
 Supported read-only state also appears in the URL: tab, filters/search, ordering/page, selected
-record, Financial review scope, and exact report identity. Back/Forward restores that state while
-retaining scoped drafts. URL values are validated against the current account's permissions. Drafts,
-passwords, tokens, and financial amounts do not enter workspace links. Initial sign-in preserves a
-report link; explicit sign-out clears workspace navigation fields.
+record and exact report identity. Back/Forward restores that state while retaining scoped drafts.
+URL values are validated against the current account's permissions. Drafts, passwords, tokens, and
+financial amounts do not enter workspace links. Initial sign-in preserves a report link; explicit
+sign-out clears workspace navigation fields.
 
 Selections are alternatives within one filter; different filters intersect. Table and option
 searches are literal and case-insensitive. Search fields use one visible Search label and a
 placeholder naming the searchable values, with no explanatory subtitle. Context-specific accessible
 names distinguish fields for assistive technology. Type menus and current-total or saved-report
-Amounts by type use the eight broad groups from the
-[shared taxonomy](../../../docs/transaction_type_registry.md#shared-type-taxonomy); Financial review
-uses its detailed families. Type menus show readable exact types; Select matches and Deselect
-matches affect only visible matches. Selection filters apply immediately. Applied chips expose the
-active values and support individual removal. Clearing an empty filtered result preserves ordering
-and page size.
+Amounts by type use the seven browsing groups from the
+[type groups](src/transaction-type-families.ts). Type menus show readable exact types; Select
+matches and Deselect matches affect only visible matches. Selection filters apply immediately.
+Applied chips expose the active values and support individual removal. Clearing an empty filtered
+result preserves ordering and page size.
 
 List-based tabs share [ListToolbar](src/ListToolbar.tsx) for Search, Rows, pagination, spacing, and
 visible-range summaries such as `1–25 of 159 inventory items`. Contextual actions use its
@@ -81,11 +81,7 @@ preserve their scope and pagination within the drawer.
 Financial values remain decimal strings with exact calculations. Displays round to two decimal
 places, including yen and zero, with ties away from zero. Totals sum exact values before rounding.
 Rates retain their precision. Missing values display a dash; known zero amounts remain zero.
-Timestamp displays use UTC, with the original value available in the title. Transactions, Finances,
-and Data Kiosk lists label the compact column Date (UTC) and omit the repeated UTC suffix from each
-row. Dates appear on the first line with the time beneath in smaller, muted text. Data Kiosk's
-assumed marketplace day-end explanation is available on the time's tooltip and accessible
-description.
+Timestamp displays use UTC, with the original posting instant in the tooltip.
 
 Transactions' current totals follow every selected filter and literal search. Three cards show Last
 day, Last month, and Selected dates together. Each card contains a compact list of the selected
@@ -97,7 +93,7 @@ all three cards even when currency counts differ, and stack on narrower screens.
 Current totals, type breakdowns, and their record lists sum the same eligible transactions as the
 main list. This includes administrator-visible `SELBOX` entries; their company amounts and service
 fees remain zero under the allocation rules. Company rows retain exact amounts and partial sums when
-ownership or fee configuration is missing.
+fee rates are missing.
 
 An empty Marketplace filter means all marketplaces in that filter's catalog. An explicit selection
 lists exactly those marketplaces, including markets with no matching transactions. Empty markets
@@ -165,18 +161,11 @@ Explicit period and type-group detail actions provide alternatives to small bars
 actions open Transaction totals for the exact period, marketplace, currency, and filters, expanding
 and focusing the matching Amounts by type group. Records retain that scope. Empty periods have zero
 activity, and the selected-period group table includes only groups with transactions, including real
-zero-amount rows. Financial review and transaction trends share chart rendering while retaining
-their own amounts and grouping semantics.
+zero-amount rows. Transaction trends display signed changes in each reporting period.
 
-Transactions, Finances, and Data Kiosk use UTC timestamps for display, date filtering, and ordering.
-Finances retains the actual posting instant. A Data Kiosk daily component is booked at the last
-microsecond before the next midnight in its marketplace's time zone, then displayed in UTC. This is
-an explicit end-of-day convention because Data Kiosk provides daily aggregates rather than activity
-timestamps. Original marketplace dates continue to determine fees and payout periods.
-
-Transactions, Finances, and Data Kiosk support Date or Reported amount ordering. Amount ordering is
-bounded to 10,000 matching rows; larger scopes explain how to narrow the result or use date order.
-The [query contract](../../../docs/transaction_query_contracts.md) defines exact request fields,
+Transactions and Finances support Date or Reported amount ordering. Amount ordering is bounded to
+10,000 matching rows; larger scopes explain how to narrow the result or use date order. The
+[query contract](../../../docs/transaction_query_contracts.md) defines exact request fields,
 search/count semantics, ordering, fee applicability, source authority, and amount limits.
 
 ### Fee editing and company access
@@ -234,9 +223,9 @@ sticky fee-change summary appears only when drafts or unfinished edits exist; se
 visible in a compact notice with further explanation in header help.
 
 Administrators stage multiple SKU changes, inspect Review changes, and publish one atomic batch.
-Each changed SKU needs a company and all required fee coverage. Unrelated setup gaps remain visible
-without blocking a valid batch. Payout generation retains completeness checks for its full scope.
-Members can inspect only their own assignments and periods.
+Administrators can clear an existing SKU assignment. Assigned SKUs need the required fee coverage.
+Unrelated setup gaps remain visible without blocking a valid batch. Payout generation retains
+completeness checks for its full scope. Members can inspect only their own assignments and periods.
 
 X, Escape, and backdrop dismissal retain unfinished inputs separately from staged drafts. Resume
 unfinished edit restores them; Discard edits removes the unfinished form; Keep draft stages it for
@@ -262,7 +251,7 @@ unavailable until corrected.
 Membership editing distinguishes saved access from an unsaved selection. Saving checks the expected
 role/company atomically; revocation needs explicit confirmation. A pending operation remains tracked
 across drawer and tab changes. Administrator accounts are read-only here. The
-[access contract](../../../docs/access_control.md#rest-interfaces) defines creation, deletion,
+[access contract](../../../docs/access_control.md#permissions) defines creation, deletion,
 membership, and publication permissions and retry rules.
 
 ## Inventory
@@ -309,67 +298,19 @@ inventory. Recommendations are informational, with no shipment or listing action
 
 ## Payout reports and Financial review
 
-Payout reports group the latest saved company/month/marketplace snapshots, keeping currencies
-separate as amount units. Month, Marketplace, and Company filters, visible month/year search, and
-on-demand Versions history support browsing. Source or fee changes may leave the preceding snapshot
-visible until the automatic worker publishes its replacement. The browser never generates reports.
-Show versions reveals earlier reports as rows directly beneath the latest report in the existing
-table, using its headings and column widths. The latest report appears once. Folding preserves the
-viewport and horizontal scroll, with focus on the disclosure control beneath the marketplace.
-Company and marketplace cells span all versions and controls within that report scope, so they
-appear once; separate currencies and report scopes keep their own context. Earlier rows show their
-saved timestamp and amounts, and each version is selected independently. The month heading spans all
-visible report, loading, and paging rows. Each latest report shows its saved timestamp and a green
-Latest label. The report list has no separate maturity or readiness panel. Administrators can
-inspect processing and setup diagnostics in Financial review's Saved report snapshots section.
-Version rows use click/Enter/Space detail navigation, with the inspected version highlighted.
-Loading, retry, empty-history, and pagination controls occupy inline rows only when needed.
+Payout reports show each company’s monthly activity and its SelBox service fees. Open a report to
+inspect the contributing records and amounts by type. Historical versions retain the source and
+ownership versions used to calculate them.
 
-Saved report details contain Total, Amounts by type, and paginated Records. Headers retain
-company/month/marketplace/currency context. An unspecified marketplace is a distinct report scope.
-The headline uses frozen header amounts; Type breakdowns and records are calculated from the saved
-source and terms versions through `payout_report_totals` and `payout_report_records`. Financial
-review's readiness diagnostics cover the whole company/month even when snapshots are filtered to a
-marketplace. Historical reports preserve their original totals and version references. Administrator
-diagnostics load native aggregates from each report's saved source inputs. The frontend computes
-comparisons with exact decimals, using retrieval coverage to distinguish an absent source from a
-covered zero; payout amounts stay frozen. The
-[payout contract](../../../docs/company_payout_reports.md) defines eligibility, maturity,
-completeness, zero reports, and agreement with their source inputs.
+Financial review opens on differences. Each record shows the Finances posting date, marketplace,
+currency, base, tax, reason and available reference or SKU. Choose Company amounts or SelBox types
+to inspect other activity. Monthly totals show Finances activity beside all three outcomes by seller
+account, marketplace and currency. Select a month to check payout readiness and missing fee rates.
 
-Financial review shares Marketplace, Year, and the **Type families** checkbox menu across Finances,
-Data Kiosk, and SelBox categories. The shared taxonomy assigns each source type a broad browsing
-group and an independent detailed review family. One global definition applies across marketplaces,
-including unresolved families. **Customer sales and refunds** combines principal, buyer promotions
-and customer shipping amounts; **Loyalty points**, **Amazon shipping fees** and taxes stay separate.
-The eight broad groups and their exact type memberships remain unchanged. These selections scope the
-yearly totals, chart, monthly rows, running source gap, and exact source drilldowns. Currency is
-resolved from the selected marketplace's period rows and shown as the amount unit, with a selector
-when several units exist. Changing marketplace clears the unit and open month. Scope survives
-navigation and reloads.
-
-The family breakdown separates paired comparisons, different reporting bases and unpaired activity.
-An undefined counterpart says No mapped type, not zero. The chart preserves all signed contributions
-to the source total gap, with running lines, numeric readouts and keyboard/touch month navigation.
-Saved snapshots retain their complete historical scope when current-source comparisons are filtered.
-The [overview contract](../../../docs/financial_review.md#yearly-overview-and-monthly-details)
-defines filtering, chart, coverage, and drawer behavior; the
-[family contract](../../../docs/financial_review.md#type-family-comparison-and-source-lookup)
-defines memberships and comparison limits. Unpaired activity has no verified mapping for its
-complete family; an embedded counterpart may exist for part of it.
-
-Review links use `reviewMarketplace`, separately from repeated table `marketplace` filters. Report
-links require their exact ID, company, dates, currency, and `reportMarketplace`; an empty
-marketplace value denotes an unspecified market. Currency never infers a marketplace. Native
-financial channels remain distinct from their retail marketplaces in menus and links.
-
-Source drilldowns retain exact row/version provenance. Finances keeps the main Search focused on
-filtering its table. The secondary **Find by transaction ID…** action opens an exact Amazon ID
-lookup drawer across all retained captures, independently of table filters. Its submitted ID and
-page survive closing, tab changes, and reloads. Source details retain their exact row/version;
-missing versions show an unavailable message. Closing returns focus to the previous action. The
-[Financial review contract](../../../docs/financial_review.md) defines source eligibility and
-diagnostics over saved source inputs.
+Assignments shows campaigns, promotions and shipments. Warnings identify blank assignments and
+conflicts with the current product ownership. Open the Amazon ID to see its product hints. Record a
+reason when assigning or clearing the company. An explicit clear persists until an administrator
+assigns a company. SKU assignments and product service-fee rates are managed in Current fees.
 
 ## Design conventions
 
@@ -420,10 +361,10 @@ appearance. Text links use the shared accent underline. Narrow/coarse-pointer fo
 least 16px text to avoid automatic focus zoom; manual zoom remains available.
 
 Drawer titles identify their purpose: Transaction totals, Transaction details, Finances record
-details, Data Kiosk record details, Payout report details, or Saved report source details. Amounts
-by type is a section within a totals or report drawer. Fee details/editing, Inventory details,
-Monthly financial review, Company details, Company membership, and Find Amazon transaction retain
-their task-specific titles. Totals, report, company, and monthly review headers include their scope.
+details, or Payout report details. Amounts by type is a section within a totals or report drawer.
+Fee details/editing, Inventory details, Company details, Company membership, and Find Amazon
+transaction retain their task-specific titles. Totals, report, and company headers include their
+scope.
 
 Drawers lock the document with CSS while mounted, including exit transitions. Drawer and popover
 scroll containment is vertical only, preserving horizontal browser gestures and pinch zoom. Escape
@@ -444,11 +385,10 @@ scope changes, and reloads never reuse that catalog.
 
 Visible, online workspaces check `workspace_revisions` every 60 seconds and on focus/reconnection.
 Unchanged revisions preserve successful cached financial and inventory reads. Relevant changes
-invalidate dependent pages, counts, summaries, options, and fee lookups. Financial source tokens
-track publications without a date or maturity suffix. Payout publication/readiness revisions are
-independent of source and fee revisions. Member fee/ownership and payout revisions are
-company-scoped. Pages and account counts have 30-second freshness; financial/payout counts persist
-until a relevant revision changes.
+invalidate dependent pages, counts, summaries, options, and fee lookups. Finances and reference
+source tokens track publications. Payout publication/readiness revisions are independent of source
+and fee revisions. Member fee/ownership and payout revisions are company-scoped. Pages and account
+counts have 30-second freshness; financial/payout counts persist until a relevant revision changes.
 
 Offline notices distinguish cached information from a new view waiting for a connection. The last
 successful application read is not Amazon capture freshness. Cached rows remain visible and paused

@@ -19,7 +19,6 @@ export async function respondWithCount(fixture, { request, url, user, reply, tra
         liveRow(fixture.prefixes[user], index + 1, fixture.companyIds[user]),
       ),
     finances: fixture.financesRows,
-    data_kiosk: fixture.kioskRows,
   }[dataset];
   const actualCount = filterRecordRows(
     dataset === "live"
