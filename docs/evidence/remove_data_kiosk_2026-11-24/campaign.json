@@ -1,0 +1,86 @@
+{
+ "source": "Amazon Ads API v1, campaigns and ads by campaign ID",
+ "seller_account": "Singapore",
+ "asked_for": "the campaign ID on the first invoice line",
+ "shows": "The campaign is found by the invoice line's campaignId. Each ad lists a product, here by SKU with the ASIN Amazon resolves it to.",
+ "left_out": {
+  "fields": ["budgets, optimizations, tags and portfolio of the campaign", "every other creative setting of an ad"]
+ },
+ "campaign": {
+  "campaignId": "CAMPAIGN-1",
+  "name": "(removed)",
+  "adProduct": "SPONSORED_PRODUCTS",
+  "state": "ENABLED",
+  "marketplaces": ["SG"],
+  "countries": ["SG"],
+  "startDateTime": "2024-05-22T05:31:38.160Z",
+  "endDateTime": null,
+  "creationDateTime": "2024-05-22T05:31:38.161Z",
+  "lastUpdatedDateTime": "2024-05-29T07:53:30.569Z"
+ },
+ "ads": [
+  {
+   "adId": "AD-1",
+   "adGroupId": "AD-GROUP-1",
+   "campaignId": "CAMPAIGN-1",
+   "adProduct": "SPONSORED_PRODUCTS",
+   "adType": "PRODUCT_AD",
+   "state": "ENABLED",
+   "marketplaces": ["SG"],
+   "creative": {
+    "productCreative": {
+     "productCreativeSettings": {
+      "advertisedProduct": {
+       "productId": "SKU-2",
+       "productIdType": "SKU",
+       "resolvedProductId": "B000000003",
+       "resolvedProductIdType": "ASIN"
+      }
+     }
+    }
+   }
+  },
+  {
+   "adId": "AD-2",
+   "adGroupId": "AD-GROUP-1",
+   "campaignId": "CAMPAIGN-1",
+   "adProduct": "SPONSORED_PRODUCTS",
+   "adType": "PRODUCT_AD",
+   "state": "ENABLED",
+   "marketplaces": ["SG"],
+   "creative": {
+    "productCreative": {
+     "productCreativeSettings": {
+      "advertisedProduct": {
+       "productId": "SKU-3",
+       "productIdType": "SKU",
+       "resolvedProductId": "B000000001",
+       "resolvedProductIdType": "ASIN"
+      }
+     }
+    }
+   }
+  },
+  {
+   "adId": "AD-3",
+   "adGroupId": "AD-GROUP-2",
+   "campaignId": "CAMPAIGN-1",
+   "adProduct": "SPONSORED_PRODUCTS",
+   "adType": "PRODUCT_AD",
+   "state": "ENABLED",
+   "marketplaces": ["SG"],
+   "creative": {
+    "productCreative": {
+     "productCreativeSettings": {
+      "advertisedProduct": {
+       "productId": "SKU-4",
+       "productIdType": "SKU",
+       "resolvedProductId": "B000000004",
+       "resolvedProductIdType": "ASIN"
+      }
+     }
+    }
+   }
+  }
+ ]
+}

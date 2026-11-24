@@ -1,0 +1,26 @@
+{
+ "source": "SP-API Fulfillment Inbound v0, getShipments and getShipmentItemsByShipmentId",
+ "seller_account": "North America",
+ "asked_for": "the shipment ID on the fee",
+ "shows": "A shipment item names both the SKU and the FNSKU.",
+ "left_out": {"fields": ["PrepDetailsList of an item"]},
+ "shipment": {
+  "ShipmentId": "FBA000000001",
+  "ShipmentName": "(removed)",
+  "ShipmentStatus": "CLOSED",
+  "DestinationFulfillmentCenterId": "PSC2",
+  "LabelPrepType": "NO_LABEL",
+  "BoxContentsSource": "INTERACTIVE",
+  "ShipFromAddress": "(removed)"
+ },
+ "items": [
+  {
+   "ShipmentId": "FBA000000001",
+   "SellerSKU": "SKU-5",
+   "FulfillmentNetworkSKU": "B000000006",
+   "QuantityShipped": 480,
+   "QuantityReceived": 480,
+   "QuantityInCase": 0
+  }
+ ]
+}

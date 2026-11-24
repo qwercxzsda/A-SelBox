@@ -1,0 +1,634 @@
+{
+ "source": "SP-API Finances v2024-06-19, listTransactions",
+ "shows": "One transaction for each way a cost names what it belongs to.",
+ "left_out": "The breakdowns at transaction level, where the items carry their own.",
+ "examples": [
+  {
+   "example": "storage fee",
+   "seller_account": "Singapore",
+   "shows": "A storage charge carries no ID. It is posted early in the month after the month it covers: here on 6 August for July. It equals the one row of the storage report.",
+   "transaction": {
+    "transactionId": "TRANSACTION-1",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-08-06T15:19:11Z",
+    "totalAmount": {"currencyAmount": -0.01, "currencyCode": "SGD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "A19VAU5U5O7RUS"},
+    "marketplaceDetails": {"marketplaceId": "A19VAU5U5O7RUS", "marketplaceName": "Amazon.sg"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-1"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-1"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -0.01, "currencyCode": "SGD"},
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": null,
+        "sku": null,
+        "fulfillmentNetwork": "Amazon",
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "FBAFees",
+        "breakdownAmount": {"currencyAmount": -0.01, "currencyCode": "SGD"},
+        "breakdowns": [
+         {
+          "breakdownType": "StorageBillingFee",
+          "breakdownAmount": {"currencyAmount": -0.01, "currencyCode": "SGD"},
+          "breakdowns": [
+           {
+            "breakdownType": "FBAStorageFee",
+            "breakdownAmount": {"currencyAmount": -0.01, "currencyCode": "SGD"},
+            "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -0.01, "currencyCode": "SGD"}}]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "aged storage fee",
+   "seller_account": "Australia",
+   "shows": "An aged storage charge carries no ID. It is posted in the month of its snapshot, after the 10th. Amazon states base and tax; the report row gives the base.",
+   "transaction": {
+    "transactionId": "TRANSACTION-2",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-07-19T06:21:12Z",
+    "totalAmount": {"currencyAmount": -0.13, "currencyCode": "AUD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "A39IBJ37TRP1C6"},
+    "marketplaceDetails": {"marketplaceId": "A39IBJ37TRP1C6", "marketplaceName": "Amazon.com.au"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-2"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-2"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -0.13, "currencyCode": "AUD"},
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": null,
+        "sku": null,
+        "fulfillmentNetwork": "Amazon",
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "FBAFees",
+        "breakdownAmount": {"currencyAmount": -0.13, "currencyCode": "AUD"},
+        "breakdowns": [
+         {
+          "breakdownType": "LongTermStorageFee",
+          "breakdownAmount": {"currencyAmount": -0.13, "currencyCode": "AUD"},
+          "breakdowns": [
+           {
+            "breakdownType": "FBALongTermStorageFee",
+            "breakdownAmount": {"currencyAmount": -0.13, "currencyCode": "AUD"},
+            "breakdowns": [
+             {"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -0.12, "currencyCode": "AUD"}},
+             {"breakdownType": "Tax", "breakdownAmount": {"currencyAmount": -0.01, "currencyCode": "AUD"}}
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "advertising",
+   "seller_account": "Singapore",
+   "shows": "An advertising charge names its invoice in INVOICE_ID on the item. Base and tax are separate amounts.",
+   "transaction": {
+    "transactionId": "TRANSACTION-3",
+    "transactionType": "ProductAdsPayment",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-03-01T20:50:58Z",
+    "totalAmount": {"currencyAmount": -3.85, "currencyCode": "SGD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "A19VAU5U5O7RUS"},
+    "marketplaceDetails": {"marketplaceId": "A19VAU5U5O7RUS", "marketplaceName": "Amazon.sg"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-3"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-3"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -3.85, "currencyCode": "SGD"},
+      "relatedIdentifiers": [{"itemRelatedIdentifierName": "INVOICE_ID", "itemRelatedIdentifierValue": "INVOICE-1"}],
+      "breakdowns": [
+       {"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -3.5, "currencyCode": "SGD"}},
+       {"breakdownType": "Tax", "breakdownAmount": {"currencyAmount": -0.35, "currencyCode": "SGD"}}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "coupon fee",
+   "seller_account": "North America",
+   "shows": "A coupon or deal fee names its promotion in ORDER_ID. It carries no SKU.",
+   "transaction": {
+    "transactionId": "TRANSACTION-4",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-07-09T19:44:19Z",
+    "totalAmount": {"currencyAmount": -1.53, "currencyCode": "USD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "ATVPDKIKX0DER"},
+    "marketplaceDetails": {"marketplaceId": "ATVPDKIKX0DER", "marketplaceName": "Amazon.com"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-4"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-4"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "PROMOTION-1"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -1.53, "currencyCode": "USD"},
+      "breakdowns": [
+       {
+        "breakdownType": "AmazonFees",
+        "breakdownAmount": {"currencyAmount": -1.53, "currencyCode": "USD"},
+        "breakdowns": [
+         {
+          "breakdownType": "CouponPerformanceFeeRollup",
+          "breakdownAmount": {"currencyAmount": -1.53, "currencyCode": "USD"},
+          "breakdowns": [
+           {
+            "breakdownType": "CouponPerformanceFee",
+            "breakdownAmount": {"currencyAmount": -1.53, "currencyCode": "USD"},
+            "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -1.53, "currencyCode": "USD"}}]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "inbound transportation fee",
+   "seller_account": "North America",
+   "shows": "An inbound fee names its shipment in ORDER_ID.",
+   "transaction": {
+    "transactionId": "TRANSACTION-5",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-06-17T03:05:30Z",
+    "totalAmount": {"currencyAmount": -347.73, "currencyCode": "USD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "ATVPDKIKX0DER"},
+    "marketplaceDetails": {"marketplaceId": "ATVPDKIKX0DER", "marketplaceName": "Amazon.com"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-5"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-5"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "FBA000000001"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -347.73, "currencyCode": "USD"},
+      "relatedIdentifiers": [{"itemRelatedIdentifierName": "TRANSACTION_ID", "itemRelatedIdentifierValue": "TRANSACTION-6"}],
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": 0,
+        "sku": null,
+        "fulfillmentNetwork": null,
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "AmazonFees",
+        "breakdownAmount": {"currencyAmount": -347.73, "currencyCode": "USD"},
+        "breakdowns": [
+         {
+          "breakdownType": "FBAInboundTransportationFee",
+          "breakdownAmount": {"currencyAmount": -347.73, "currencyCode": "USD"},
+          "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -347.73, "currencyCode": "USD"}}]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "inbound defect fee",
+   "seller_account": "Europe",
+   "shows": "An inbound defect fee names its shipment in ORDER_ID too.",
+   "transaction": {
+    "transactionId": "TRANSACTION-7",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-07-12T15:31:41Z",
+    "totalAmount": {"currencyAmount": -169.8, "currencyCode": "GBP"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "A1F83G8C2ARO7P"},
+    "marketplaceDetails": {"marketplaceId": "A1F83G8C2ARO7P", "marketplaceName": "Amazon.co.uk"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-6"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-6"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "FBA000000002"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -169.8, "currencyCode": "GBP"},
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": null,
+        "sku": null,
+        "fulfillmentNetwork": "",
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "FBAFees",
+        "breakdownAmount": {"currencyAmount": -169.8, "currencyCode": "GBP"},
+        "breakdowns": [
+         {
+          "breakdownType": "UnplannedServiceCharge",
+          "breakdownAmount": {"currencyAmount": -169.8, "currencyCode": "GBP"},
+          "breakdowns": [
+           {
+            "breakdownType": "FBAInboundDefectFee",
+            "breakdownAmount": {"currencyAmount": -169.8, "currencyCode": "GBP"},
+            "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -169.8, "currencyCode": "GBP"}}]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "disposal fee of a removal order",
+   "seller_account": "Australia",
+   "shows": "A disposal or removal fee names its removal order in ORDER_ID. The order ID does not have the shape of a customer order.",
+   "transaction": {
+    "transactionId": "TRANSACTION-8",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-06-24T08:41:20Z",
+    "totalAmount": {"currencyAmount": -0.23, "currencyCode": "AUD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "A39IBJ37TRP1C6"},
+    "marketplaceDetails": {"marketplaceId": "A39IBJ37TRP1C6", "marketplaceName": "Amazon.com.au"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-7"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-7"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "REMOVAL-ORDER-1"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -0.23, "currencyCode": "AUD"},
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": null,
+        "sku": null,
+        "fulfillmentNetwork": "",
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "FBAFees",
+        "breakdownAmount": {"currencyAmount": -0.23, "currencyCode": "AUD"},
+        "breakdowns": [
+         {
+          "breakdownType": "FBADisposalFee",
+          "breakdownAmount": {"currencyAmount": -0.23, "currencyCode": "AUD"},
+          "breakdowns": [
+           {"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -0.21, "currencyCode": "AUD"}},
+           {"breakdownType": "Tax", "breakdownAmount": {"currencyAmount": -0.02, "currencyCode": "AUD"}}
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "disposal fee on a customer return",
+   "seller_account": "Europe",
+   "shows": "This disposal fee names a customer order in ORDER_ID: three, seven and seven digits.",
+   "transaction": {
+    "transactionId": "TRANSACTION-9",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-07-24T06:09:17Z",
+    "totalAmount": {"currencyAmount": -2.73, "currencyCode": "EUR"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "APJ6JRA9NG5V4"},
+    "marketplaceDetails": {"marketplaceId": "APJ6JRA9NG5V4", "marketplaceName": "Amazon.it"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-8"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-8"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "000-0000000-0000001"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -2.73, "currencyCode": "EUR"},
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": null,
+        "sku": null,
+        "fulfillmentNetwork": "",
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "FBAFees",
+        "breakdownAmount": {"currencyAmount": -2.73, "currencyCode": "EUR"},
+        "breakdowns": [
+         {
+          "breakdownType": "FBADisposalFee",
+          "breakdownAmount": {"currencyAmount": -2.73, "currencyCode": "EUR"},
+          "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -2.73, "currencyCode": "EUR"}}]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "sale of the same customer order",
+   "seller_account": "Europe",
+   "shows": "The sale of that order names the same ORDER_ID and the SKU. That is how the disposal fee finds its SKU.",
+   "transaction": {
+    "transactionId": "TRANSACTION-10",
+    "transactionType": "Shipment",
+    "transactionStatus": "DEFERRED_RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-06-27T14:08:07Z",
+    "totalAmount": {"currencyAmount": 3.57, "currencyCode": "EUR"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "APJ6JRA9NG5V4"},
+    "marketplaceDetails": {"marketplaceId": "APJ6JRA9NG5V4", "marketplaceName": "Amazon.it"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-9"
+     },
+     {"relatedIdentifierName": "SHIPMENT_ID", "relatedIdentifierValue": "AMAZON-SHIPMENT-1"},
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-9"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "000-0000000-0000001"},
+     {"relatedIdentifierName": "RELEASE_TRANSACTION_ID", "relatedIdentifierValue": "TRANSACTION-11"},
+     {"relatedIdentifierName": "OBFUSCATED_SHIPMENT_ID", "relatedIdentifierValue": "OBFUSCATED-SHIPMENT-1"}
+    ],
+    "contexts": [
+     {"deferralReason": "DD7", "maturityDate": "2026-07-07T08:36:37Z", "contextType": "DeferredContext"},
+     {"contextType": "AddressContext"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": 3.57, "currencyCode": "EUR"},
+      "relatedIdentifiers": [
+       {
+        "itemRelatedIdentifierName": "ORDER_ADJUSTMENT_ITEM_ID",
+        "itemRelatedIdentifierValue": "ORDER-ADJUSTMENT-ITEM-1"
+       }
+      ],
+      "contexts": [
+       {
+        "asin": "B000000005",
+        "quantityShipped": 1,
+        "sku": "SKU-7",
+        "fulfillmentNetwork": "AFN",
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "DigitalServicesFee",
+        "breakdownAmount": {"currencyAmount": -0.09, "currencyCode": "EUR"},
+        "breakdowns": [
+         {
+          "breakdownType": "DigitalServicesFee",
+          "breakdownAmount": {"currencyAmount": -0.09, "currencyCode": "EUR"},
+          "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -0.09, "currencyCode": "EUR"}}]
+         }
+        ]
+       },
+       {
+        "breakdownType": "ProductCharges",
+        "breakdownAmount": {"currencyAmount": 17.9, "currencyCode": "EUR"},
+        "breakdowns": [
+         {
+          "breakdownType": "OurPricePrincipal",
+          "breakdownAmount": {"currencyAmount": 17.9, "currencyCode": "EUR"}
+         }
+        ]
+       },
+       {
+        "breakdownType": "Tax",
+        "breakdownAmount": {"currencyAmount": 0.0, "currencyCode": "EUR"},
+        "breakdowns": [
+         {"breakdownType": "OurPriceTax", "breakdownAmount": {"currencyAmount": 3.94, "currencyCode": "EUR"}},
+         {
+          "breakdownType": "MarketplaceFacilitatorVAT-Principal",
+          "breakdownAmount": {"currencyAmount": -3.94, "currencyCode": "EUR"}
+         }
+        ]
+       },
+       {
+        "breakdownType": "AmazonFees",
+        "breakdownAmount": {"currencyAmount": -14.24, "currencyCode": "EUR"},
+        "breakdowns": [
+         {
+          "breakdownType": "FBAPerUnitFulfillmentFee",
+          "breakdownAmount": {"currencyAmount": -11.4, "currencyCode": "EUR"},
+          "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -11.4, "currencyCode": "EUR"}}]
+         },
+         {
+          "breakdownType": "Commission",
+          "breakdownAmount": {"currencyAmount": -2.84, "currencyCode": "EUR"},
+          "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -2.84, "currencyCode": "EUR"}}]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "liquidation",
+   "seller_account": "Europe",
+   "shows": "On a liquidation item the sku field holds an FNSKU. The record is held back, and names its release copy.",
+   "transaction": {
+    "transactionId": "TRANSACTION-12",
+    "transactionType": "RemovalShipment",
+    "transactionStatus": "DEFERRED_RELEASED",
+    "description": "(removed)",
+    "postedDate": "2026-06-05T04:39:38Z",
+    "totalAmount": {"currencyAmount": -0.33, "currencyCode": "GBP"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "A1F83G8C2ARO7P"},
+    "marketplaceDetails": {"marketplaceId": "A1F83G8C2ARO7P", "marketplaceName": "Amazon.co.uk"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-10"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-10"},
+     {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "ORDER-1"},
+     {"relatedIdentifierName": "RELEASE_TRANSACTION_ID", "relatedIdentifierValue": "TRANSACTION-13"}
+    ],
+    "contexts": [{"deferralReason": "B2B", "maturityDate": "2026-08-04T04:38:42Z", "contextType": "DeferredContext"}],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -0.33, "currencyCode": "GBP"},
+      "relatedIdentifiers": [{"itemRelatedIdentifierName": "TRANSACTION_ID", "itemRelatedIdentifierValue": "TRANSACTION-14"}],
+      "contexts": [
+       {
+        "asin": null,
+        "quantityShipped": 1,
+        "sku": "X000000002",
+        "fulfillmentNetwork": null,
+        "contextType": "ProductContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "Tax",
+        "breakdownAmount": {"currencyAmount": 0.01, "currencyCode": "GBP"},
+        "breakdowns": [
+         {"breakdownType": "TaxOnRevenue", "breakdownAmount": {"currencyAmount": 0.01, "currencyCode": "GBP"}}
+        ]
+       },
+       {
+        "breakdownType": "RecommerceLiquidation",
+        "breakdownAmount": {"currencyAmount": 0.04, "currencyCode": "GBP"}
+       },
+       {"breakdownType": "AmazonFees", "breakdownAmount": {"currencyAmount": -0.38, "currencyCode": "GBP"}}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "example": "returns fee",
+   "seller_account": "North America",
+   "shows": "A returns fee names an ASIN and a period, and no SKU.",
+   "transaction": {
+    "transactionId": "TRANSACTION-15",
+    "transactionType": "ServiceFee",
+    "transactionStatus": "RELEASED",
+    "description": "(removed)",
+    "postedDate": "2025-01-07T11:46:48Z",
+    "totalAmount": {"currencyAmount": -32.04, "currencyCode": "USD"},
+    "sellingPartnerMetadata": {"sellingPartnerId": "SELLER", "accountType": "Standard Orders", "marketplaceId": "ATVPDKIKX0DER"},
+    "marketplaceDetails": {"marketplaceId": "ATVPDKIKX0DER", "marketplaceName": "Amazon.com"},
+    "relatedIdentifiers": [
+     {
+      "relatedIdentifierName": "FINANCIAL_EVENT_GROUP_ID",
+      "relatedIdentifierValue": "FINANCIAL-EVENT-GROUP-11"
+     },
+     {"relatedIdentifierName": "SETTLEMENT_ID", "relatedIdentifierValue": "SETTLEMENT-11"}
+    ],
+    "items": [
+     {
+      "description": "(removed)",
+      "totalAmount": {"currencyAmount": -32.04, "currencyCode": "USD"},
+      "contexts": [
+       {
+        "asin": "B000000008",
+        "quantityShipped": null,
+        "sku": null,
+        "fulfillmentNetwork": null,
+        "contextType": "ProductContext"
+       },
+       {
+        "startTime": "2024-10-01T08:00:00Z",
+        "endTime": "2024-12-31T08:00:00Z",
+        "contextType": "TimeRangeContext"
+       }
+      ],
+      "breakdowns": [
+       {
+        "breakdownType": "FBAFees",
+        "breakdownAmount": {"currencyAmount": -32.04, "currencyCode": "USD"},
+        "breakdowns": [
+         {
+          "breakdownType": "HRRNonApparelRollup",
+          "breakdownAmount": {"currencyAmount": -32.04, "currencyCode": "USD"},
+          "breakdowns": [
+           {
+            "breakdownType": "CustomerReturnHRRUnitFee",
+            "breakdownAmount": {"currencyAmount": -32.04, "currencyCode": "USD"},
+            "breakdowns": [{"breakdownType": "Base", "breakdownAmount": {"currencyAmount": -32.04, "currencyCode": "USD"}}]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

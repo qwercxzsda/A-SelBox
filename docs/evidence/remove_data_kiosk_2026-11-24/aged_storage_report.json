@@ -1,0 +1,24 @@
+{
+ "source": "SP-API Reports v2021-06-30, GET_FBA_FULFILLMENT_LONGTERM_STORAGE_FEE_CHARGES_DATA",
+ "seller_account": "Australia",
+ "asked_for": "snapshots of 2026; the rows of the July snapshot are shown",
+ "shows": "The whole July snapshot: one row. Its amount is before tax. The row prints a SKU, which the rules do not read.",
+ "rows": [
+  {
+   "snapshot-date": "2026-07-14T15:00:00+00:00",
+   "sku": "SKU-1",
+   "fnsku": "B000000002",
+   "asin": "B000000002",
+   "product-name": "(removed)",
+   "condition": "New",
+   "per-unit-volume": "1.0E-4",
+   "currency": "AUD",
+   "volume-unit": "cubic_meters",
+   "country": "AU",
+   "qty-charged": "1",
+   "amount-charged": "0.12",
+   "surcharge-age-tier": "365+",
+   "rate-surcharge": "0.12"
+  }
+ ]
+}

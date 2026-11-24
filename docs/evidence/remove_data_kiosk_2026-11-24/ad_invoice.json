@@ -1,0 +1,89 @@
+{
+ "source": "Amazon Ads API, billing invoice by ID",
+ "seller_account": "Singapore",
+ "asked_for": "the invoice ID on the advertising charge",
+ "shows": "A line names its campaign in campaignId. The invoice states its own tax: the name, the taxed country and a rate written as 1000 for 10%. Amount due and tax due equal the base and the tax of the Finances charge.",
+ "left_out": {"fields": ["payments", "portfolios", "downloadableDocuments", "campaignTags and portfolioId of a line"]},
+ "invoice": {
+  "invoiceSummary": {
+   "id": "INVOICE-1",
+   "invoiceNumber": "(removed)",
+   "status": "PAID_IN_FULL",
+   "paymentMethod": "UNIFIED_BILLING",
+   "invoiceDate": "20260302",
+   "fromDate": "20260124",
+   "toDate": "20260227",
+   "amountDue": {"amount": 3.5, "currencyCode": "SGD"},
+   "taxAmountDue": {"amount": 0.35, "currencyCode": "SGD"},
+   "taxRate": 1000.0,
+   "remainingAmountDue": {"amount": 0.0, "currencyCode": "SGD"},
+   "remainingTaxAmountDue": {"amount": 0.0, "currencyCode": "SGD"},
+   "fees": [
+    {
+     "feeType": "REGULATORY_ADVERTISING_FEE",
+     "cost": {"amount": 0.04, "currencyCode": "SGD"},
+     "feeIdentifiers": {"countryCode": "ES"}
+    }
+   ],
+   "remainingFees": [
+    {
+     "feeType": "REGULATORY_ADVERTISING_FEE",
+     "cost": {"amount": 0.0, "currencyCode": "SGD"},
+     "feeIdentifiers": {"countryCode": "ES"}
+    }
+   ]
+  },
+  "invoiceLines": [
+   {
+    "campaignId": "CAMPAIGN-1",
+    "campaignAID": "CAMPAIGN-AID-1",
+    "campaignName": "(removed)",
+    "name": "(removed)",
+    "programName": "SPONSORED PRODUCTS",
+    "priceType": "CPC",
+    "costEventType": "CLICKS",
+    "costEventCount": 10,
+    "costPerEventType": 0.35,
+    "costPerUnit": 0.35,
+    "cost": {"amount": 3.5, "currencyCode": "SGD"},
+    "fees": [
+     {
+      "feeType": "REGULATORY_ADVERTISING_FEE",
+      "cost": {"amount": 0.04, "currencyCode": "SGD"},
+      "feeIdentifiers": {"countryCode": "ES"}
+     }
+    ]
+   }
+  ],
+  "adjustments": [],
+  "promotions": [],
+  "taxDetail": {
+   "taxCalculationDate": "20260302",
+   "taxBreakups": [
+    {
+     "taxName": "VAT",
+     "taxRate": 0.0,
+     "taxAmount": {"amount": 0.0, "currencyCode": "SGD"},
+     "taxedJurisdictionName": "SINGAPORE",
+     "issuerJurisdiction": "KR",
+     "payerJurisdiction": null,
+     "issuerTaxInformation": "(removed)",
+     "payerTaxInformation": "(removed)"
+    },
+    {
+     "taxName": "VAT",
+     "taxRate": 1000.0,
+     "taxAmount": {"amount": 0.35, "currencyCode": "SGD"},
+     "taxedJurisdictionName": "SOUTH KOREA",
+     "issuerJurisdiction": "KR",
+     "payerJurisdiction": null,
+     "issuerTaxInformation": "(removed)",
+     "payerTaxInformation": "(removed)"
+    }
+   ]
+  },
+  "issuerContactInformation": "(removed)",
+  "payerContactInformation": "(removed)",
+  "thirdPartyContactInformation": "(removed)"
+ }
+}

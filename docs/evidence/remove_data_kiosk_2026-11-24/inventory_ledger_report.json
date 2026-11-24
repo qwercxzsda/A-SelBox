@@ -1,0 +1,85 @@
+{
+ "source": "SP-API Reports v2021-06-30, GET_LEDGER_SUMMARY_VIEW_DATA, monthly rows",
+ "asked_for": "January to October 2026; shown are the rows of the FNSKUs in the storage, aged storage and removal examples, in the months those rows name",
+ "shows": "A monthly row names the FNSKU, the ASIN and the SKU (MSKU). It is the only source that turns an FNSKU into a SKU.",
+ "rows": [
+  {
+   "seller_account": "Singapore",
+   "row": {
+    "Date": "07/2026",
+    "FNSKU": "X000000001",
+    "ASIN": "B000000001",
+    "MSKU": "SKU-3",
+    "Title": "(removed)",
+    "Disposition": "SELLABLE",
+    "Starting Warehouse Balance": "102",
+    "In Transit Between Warehouses": "0",
+    "Receipts": "0",
+    "Customer Shipments": "0",
+    "Customer Returns": "0",
+    "Vendor Returns": "-102",
+    "Warehouse Transfer In/Out": "0",
+    "Found": "0",
+    "Lost": "0",
+    "Damaged": "0",
+    "Disposed": "0",
+    "Other Events": "0",
+    "Ending Warehouse Balance": "0",
+    "Unknown Events": "0",
+    "Location": "SG"
+   }
+  },
+  {
+   "seller_account": "Australia",
+   "row": {
+    "Date": "07/2026",
+    "FNSKU": "B000000002",
+    "ASIN": "B000000002",
+    "MSKU": "SKU-1",
+    "Title": "(removed)",
+    "Disposition": "SELLABLE",
+    "Starting Warehouse Balance": "1",
+    "In Transit Between Warehouses": "0",
+    "Receipts": "0",
+    "Customer Shipments": "0",
+    "Customer Returns": "0",
+    "Vendor Returns": "0",
+    "Warehouse Transfer In/Out": "0",
+    "Found": "0",
+    "Lost": "0",
+    "Damaged": "0",
+    "Disposed": "0",
+    "Other Events": "0",
+    "Ending Warehouse Balance": "1",
+    "Unknown Events": "0",
+    "Location": "AU"
+   }
+  },
+  {
+   "seller_account": "Australia",
+   "row": {
+    "Date": "06/2026",
+    "FNSKU": "B000000007",
+    "ASIN": "B000000007",
+    "MSKU": "SKU-6",
+    "Title": "(removed)",
+    "Disposition": "SELLABLE",
+    "Starting Warehouse Balance": "1",
+    "In Transit Between Warehouses": "0",
+    "Receipts": "0",
+    "Customer Shipments": "0",
+    "Customer Returns": "0",
+    "Vendor Returns": "-1",
+    "Warehouse Transfer In/Out": "0",
+    "Found": "0",
+    "Lost": "0",
+    "Damaged": "0",
+    "Disposed": "0",
+    "Other Events": "0",
+    "Ending Warehouse Balance": "0",
+    "Unknown Events": "0",
+    "Location": "AU"
+   }
+  }
+ ]
+}

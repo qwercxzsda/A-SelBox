@@ -1,0 +1,26 @@
+{
+ "source": "SP-API Reports v2021-06-30, GET_FBA_FULFILLMENT_REMOVAL_ORDER_DETAIL_DATA",
+ "seller_account": "Australia",
+ "asked_for": "orders requested from October 2024 to October 2026; the rows of one order are shown",
+ "shows": "A row names the order, the FNSKU and the fee. The fee includes the tax that the Finances charge states apart. The dates are printed with an offset. The printed SKU is not read by the rules.",
+ "rows": [
+  {
+   "request-date": "2026-06-22T16:00:34+09:00",
+   "order-id": "REMOVAL-ORDER-1",
+   "order-source": "Seller-initiated Manual Removal",
+   "order-type": "Disposal",
+   "order-status": "Completed",
+   "last-updated-date": "2026-06-24T18:41:04+09:00",
+   "sku": "SKU-6",
+   "fnsku": "B000000007",
+   "disposition": "Sellable",
+   "requested-quantity": "1",
+   "cancelled-quantity": "0",
+   "disposed-quantity": "1",
+   "shipped-quantity": "",
+   "in-process-quantity": "0",
+   "removal-fee": "0.23",
+   "currency": "AUD"
+  }
+ ]
+}

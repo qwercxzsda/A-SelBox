@@ -1,0 +1,40 @@
+{
+ "source": "SP-API Reports v2021-06-30, GET_FBA_STORAGE_FEE_CHARGES_DATA",
+ "seller_account": "Singapore",
+ "asked_for": "month of charge July 2026",
+ "shows": "The whole answer: one row. A row names an FNSKU and an ASIN; the report has no SKU column.",
+ "rows": [
+  {
+   "asin": "B000000001",
+   "fnsku": "X000000001",
+   "product_name": "(removed)",
+   "fulfillment_center": "'SIN8'",
+   "country_code": "SG",
+   "longest_side": "10.2",
+   "median_side": "2.4",
+   "shortest_side": "1.4",
+   "measurement_units": "centimeters",
+   "weight": "0.06",
+   "weight_units": "kilograms",
+   "item_volume": "0.0",
+   "volume_units": "cubic meters",
+   "product_size_tier": "Standard-Size",
+   "average_quantity_on_hand": "61.97",
+   "average_quantity_pending_removal": "39.71",
+   "estimated_total_item_volume": "8.0E-4",
+   "month_of_charge": "2026-07",
+   "storage_rate": "13.2",
+   "avg_qty_for_sus": "0.0",
+   "est_vol_for_sus": "0.0",
+   "est_base_msf": "0.0",
+   "est_sus": "0.0",
+   "currency": "SGD",
+   "estimated_monthly_storage_fee": "0.01",
+   "dangerous_goods_storage_type": "--",
+   "category": "--",
+   "total_incentive_fee_amount": "0.0",
+   "breakdown_incentive_fee_amount": "--",
+   "average_quantity_customer_orders": "0.0"
+  }
+ ]
+}
