@@ -76,10 +76,13 @@ class SourceCostTests(unittest.TestCase):
             report_tax("EU", "AGED_STORAGE", "ES", "EUR", Decimal(0), CURRENCY_DECIMALS), (0, 0)
         )
 
-    def test_observed_french_inbound_transport_charge_has_zero_tax(self) -> None:
+    def test_observed_french_inbound_transport_charges_have_zero_tax(self) -> None:
         self.assertEqual(finance_rate("Amazon.fr", "INBOUND_TRANSPORTATION_FEES"), Decimal("0"))
+        self.assertEqual(
+            finance_rate("Amazon.fr", "INBOUND_TRANSPORTATION_PROGRAM_FEES"), Decimal("0")
+        )
         with self.assertRaisesRegex(ValueError, "No observed tax"):
-            finance_rate("Amazon.fr", "INBOUND_TRANSPORTATION_PROGRAM_FEES")
+            finance_rate("Amazon.nl", "INBOUND_TRANSPORTATION_PROGRAM_FEES")
 
     def test_clamps_calendar_windows_at_month_end(self) -> None:
         self.assertEqual(shift_months(date(2024, 5, 31), -3), date(2024, 2, 29))

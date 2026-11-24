@@ -38,7 +38,7 @@ _FEE_COUNTRIES = {
     "LABELING_FEES": ("", "JP", "", ""),
     "INBOUND_PLACEMENT_FEES": ("US", "", "", ""),
     "INBOUND_TRANSPORTATION_FEES": ("DE US GB FR", "", "", ""),
-    "INBOUND_TRANSPORTATION_PROGRAM_FEES": ("DE GB", "", "", ""),
+    "INBOUND_TRANSPORTATION_PROGRAM_FEES": ("DE GB FR", "", "", ""),
     "INBOUND_DEFECT_FEES": ("GB", "", "", ""),
     "ADVERTISING": ("US GB JP FR DE IT BE SE ES PL NL IE", "AU SG", "", ""),
     "COUPON_FEES": ("US CA", "", "", ""),
