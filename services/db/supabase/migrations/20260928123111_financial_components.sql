@@ -2,25 +2,28 @@
 -- noqa: disable=ST06
 -- Version selections are shared by live screens and immutable payout replay.
 -- Null selects current pointers. An empty array deliberately selects no versions.
-create function private.selected_units(p_versions uuid[])
+create function private.selected_units(p_versions uuid[], p_finances boolean)
 returns table (
     unit_id uuid, version_id uuid, source text, seller_namespace text,
     amazon_scope text, unit_key text, preprocess_version text
 )
 language sql stable as $$
-    select u.id::uuid,u.current_version_id::uuid,u.source::text,u.seller_namespace::text,
-        u.amazon_scope::text,u.unit_key::text,b.preprocess_version::text
-    from private.source_units u join private.source_preprocess_batches b on b.id=u.current_batch_id
-    where p_versions is null
+    select u.id, u.current_version_id, u.source::text, u.seller_namespace,
+        u.amazon_scope, u.unit_key, b.preprocess_version
+    from private.source_units u
+    join private.source_preprocess_batches b on b.id = u.current_batch_id
+    where p_versions is null and (u.source = 'FINANCES') = p_finances
     union all
-    select u.id::uuid,v.id::uuid,u.source::text,u.seller_namespace::text,u.amazon_scope::text,
-        u.unit_key::text,b.preprocess_version::text
-    from private.source_unit_versions v join private.source_units u on u.id=v.unit_id
-    cross join lateral (
-        select b.preprocess_version from private.source_batch_units m
-        join private.source_preprocess_batches b on b.id=m.batch_id
-        where m.version_id=v.id order by b.created_at,b.id limit 1
-    ) b where v.id=any(p_versions);
+    (
+        select distinct on (m.version_id) u.id, m.version_id, u.source::text,
+            u.seller_namespace, u.amazon_scope, u.unit_key, b.preprocess_version
+        from private.source_batch_units m
+        join private.source_units u on u.id = m.unit_id
+        join private.source_preprocess_batches b on b.id = m.batch_id
+        where p_versions is not null and m.version_id = any(p_versions)
+            and (u.source = 'FINANCES') = p_finances
+        order by m.version_id, b.created_at, b.id
+    );
 $$;
 
 -- Reference costs use the Finances sign. Marketplace is part of the storage key only.
@@ -137,20 +140,10 @@ returns table (
     native_transaction_id text, preprocess_version text, marketplace_name text,
     posted_date date, posted_at timestamptz, currency text, is_activity boolean
 ) language sql stable as $$
-    select t.version_id::uuid, u.id::uuid, u.seller_namespace::text, u.amazon_scope::text,
-        u.unit_key::text, b.preprocess_version::text, t.marketplace_name::text,
-        t.posted_date, t.posted_at, t.currency, t.is_activity
-    from private.finances_transactions t
-    join private.source_units u on u.current_version_id = t.version_id and u.source = 'FINANCES'
-    join private.source_preprocess_batches b on b.id = u.current_batch_id
-    where p_versions is null
-    union all
     select u.version_id, u.unit_id, u.seller_namespace, u.amazon_scope, u.unit_key,
-        u.preprocess_version, t.marketplace_name::text, t.posted_date, t.posted_at,
-        t.currency, t.is_activity
-    from private.selected_units(p_versions) u
-    join private.finances_transactions t on t.version_id = u.version_id
-    where p_versions is not null;
+        u.preprocess_version, t.marketplace_name, t.posted_date, t.posted_at, t.currency, t.is_activity
+    from private.selected_units(p_versions, true) u
+    join private.finances_transactions t on t.version_id = u.version_id;
 $$;
 
 create function private.selected_assignments(p_versions uuid[])
@@ -171,6 +164,13 @@ returns table (
     where p_versions is not null and v.id = any(p_versions);
 $$;
 
+-- Only direct SKU and account amounts have an outcome without a reference lookup.
+create function private.direct_outcome(route private.finances_route, company_id uuid)
+returns text language sql immutable parallel safe as $$
+    select case when route = 'SELBOX' then 'SELBOX' when route = 'SKU' then
+        case when company_id is null then 'DIFFERENCE' else 'COMPANY' end end;
+$$;
+
 -- A seller SKU or account charge has no invoice, order or ledger dependency.
 -- Keep this path inlinable so the caller can filter the header, amount and owner
 -- before joining fees or constructing provenance arrays.
@@ -185,8 +185,7 @@ returns setof private.financial_result language sql stable as $$
         case when a.amount_part = 'TAX' then 0 else a.amount end,
         case when a.amount_part = 'TAX' then a.amount else 0 end,
         a.quantity::numeric, a.fee_base::numeric,
-        case when a.route = 'SELBOX' then 'SELBOX' when owner.company_id is null then 'DIFFERENCE'
-            else 'COMPANY' end,
+        private.direct_outcome(a.route, owner.company_id),
         a.selbox_group::text, case when a.route = 'SKU' and owner.company_id is null then 'NO_ASSIGNMENT' end,
         owner.company_id, owner.key_id, owner.id, p.id::uuid, p.fee_rate_percent,
         case when a.fee_base is null then 'NOT_APPLICABLE' when p.id is null then 'MISSING_FEE' else 'APPLIED' end,
@@ -208,47 +207,41 @@ create function private.indirect_financial_amounts(
 )
 returns setof private.financial_result language sql stable as $$
     with units as materialized (
-        select * from private.selected_units(p_source_versions) where source <> 'FINANCES'
+        select * from private.selected_units(p_source_versions, false)
     ),
     assignments as materialized (
         select * from private.selected_assignments(p_assignment_versions)
-    ), finances as (
+    ), activity as materialized (
         select h.*, a.id, a.amount_number as component_number, a.route::text as route,
-            a.amount_type::text as component_type, a.amount_part, a.amount, a.reference_id,
-            a.covered_month as reference_month, a.sku, a.fnsku, a.asin, a.quantity, a.fee_base,
-            a.selbox_group::text, a.ledger_first_month as ledger_start_month,
-            a.ledger_last_month as ledger_end_month
+            a.amount_type::text as component_type, a.reference_id, a.sku, a.fnsku, a.asin,
+            a.quantity, a.ledger_first_month as ledger_start_month, a.ledger_last_month as ledger_end_month,
+            case when a.route in ('STORAGE', 'AGED_STORAGE') then to_char(a.covered_month, 'YYYY-MM')
+                when a.route in ('AD_INVOICE', 'REMOVAL_ORDER') then a.reference_id end as ref_key,
+            case when a.route in ('STORAGE', 'AGED_STORAGE') then h.marketplace_name else '' end as market_key,
+            case when a.amount_part = 'TAX' then 0 else a.amount end as base_amount,
+            case when a.amount_part = 'TAX' then a.amount else 0 end as tax_amount
         from private.finances_amounts a
         join private.selected_finance_headers(p_source_versions) h using (version_id)
         where h.is_activity and a.route not in ('SKU', 'SELBOX')
-    ), activity as materialized (
-        select f.*,case when route in ('AD_INVOICE','REMOVAL_ORDER','STORAGE','AGED_STORAGE') then route end ref_source,
-            case when route in ('STORAGE','AGED_STORAGE') then to_char(reference_month,'YYYY-MM') else reference_id end ref_key,
-            case when route in ('STORAGE','AGED_STORAGE') then marketplace_name else '' end market_key,
-            case when amount_part='TAX' then 0 else amount end base_amount,
-            case when amount_part='TAX' then amount else 0 end tax_amount
-        from finances f
-    ), charges as materialized (
-        select * from activity where ref_source is not null and ref_key is not null
     ), controls as materialized (
-        select distinct on (seller_namespace,amazon_scope,ref_source,ref_key,market_key,currency) c.*,
+        select distinct on (seller_namespace,amazon_scope,route,ref_key,market_key,currency) c.*,
             sum(base_amount) over w charge_base,sum(tax_amount) over w charge_tax,array_agg(version_id::uuid) over w supporting
-        from charges c where ref_key is not null and ref_source is not null
-        window w as (partition by seller_namespace,amazon_scope,ref_source,ref_key,market_key,currency
+        from activity c where ref_key is not null
+        window w as (partition by seller_namespace,amazon_scope,route,ref_key,market_key,currency
             order by posted_at,native_transaction_id collate "C",component_number rows between unbounded preceding and unbounded following)
-        order by seller_namespace,amazon_scope,ref_source,ref_key,market_key,currency,
+        order by seller_namespace,amazon_scope,route,ref_key,market_key,currency,
             posted_at,native_transaction_id collate "C",component_number
     ), control_units as materialized (
         -- Resolve the account and native charge key before looking up any money rows.
         -- Joining invoice/report rows merely by currency creates a large intermediate set.
         select c.*, u.unit_id as reference_unit_id, u.version_id as reference_version_id,
             u.preprocess_version as reference_preprocess_version
-        from controls c left join units u on u.source = c.ref_source and u.unit_key = c.ref_key
+        from controls c left join units u on u.source = c.route and u.unit_key = c.ref_key
             and u.seller_namespace = c.seller_namespace and u.amazon_scope = c.amazon_scope
     ), matched as materialized (
         select c.id as anchor_id, c.seller_namespace, c.amazon_scope, c.marketplace_name,
             c.posted_date, c.posted_at, c.currency, c.component_type, c.ref_key, c.supporting,
-            c.ref_source as source, c.reference_unit_id as unit_id, c.reference_version_id as version_id,
+            c.route as source, c.reference_unit_id as unit_id, c.reference_version_id as version_id,
             c.reference_preprocess_version as preprocess_version, m.id as line_id, m.route,
             m.reference_id, m.fnsku, m.asin, m.ledger_first_month, m.ledger_last_month,
             m.base_amount, m.tax_amount, m.adjustment_kind
@@ -260,25 +253,25 @@ returns setof private.financial_result language sql stable as $$
         select 'FINANCES'::text source,id::uuid source_row_id,version_id::uuid source_version_id,transaction_id::uuid source_identity_id,
             preprocess_version,seller_namespace::text,amazon_scope::text,marketplace_name,posted_date,posted_at,currency,
             component_type::text,route,reference_id,sku,fnsku,asin,ledger_start_month,ledger_end_month,base_amount,tax_amount,
-            quantity::numeric,fee_base::numeric,selbox_group,null::text variance,array[version_id::uuid] as supporting
-        from activity where ref_source is null or ref_key is null
+            quantity::numeric,null::text as selbox_group,null::text variance,array[version_id::uuid] as supporting
+        from activity where ref_key is null
         union all
         select m.source,m.line_id,m.version_id,m.unit_id,m.preprocess_version,m.seller_namespace,m.amazon_scope,m.marketplace_name,
             m.posted_date,m.posted_at,m.currency,coalesce(m.adjustment_kind,m.component_type),m.route,
             coalesce(m.reference_id,m.ref_key),null,m.fnsku,m.asin,m.ledger_first_month,m.ledger_last_month,
-            m.base_amount,m.tax_amount,null,null,case when m.route='SELBOX' then 'ACCOUNT_FEE' end,null,m.supporting||m.version_id
+            m.base_amount,m.tax_amount,null,case when m.route='SELBOX' then 'ACCOUNT_FEE' end,null,m.supporting||m.version_id
         from matched m
         union all
         select 'FINANCES',f.id,f.version_id,f.transaction_id,f.preprocess_version,f.seller_namespace,f.amazon_scope,f.marketplace_name,
             f.posted_date,f.posted_at,f.currency,f.component_type,f.route,f.ref_key,null,null,null,null,null,
-            f.base_amount,f.tax_amount,null,null,null,'REFERENCE_NOT_FOUND',
+            f.base_amount,f.tax_amount,null,null,'REFERENCE_NOT_FOUND',
             c.supporting || array[c.reference_version_id]::uuid[]
-        from charges f join control_units c using(seller_namespace,amazon_scope,ref_source,ref_key,market_key,currency)
+        from activity f join control_units c using(seller_namespace,amazon_scope,route,ref_key,market_key,currency)
         where not exists(select 1 from sums s where s.anchor_id=c.id)
         union all
         select 'KEY',c.id,c.version_id,c.transaction_id,c.preprocess_version,c.seller_namespace,c.amazon_scope,c.marketplace_name,
             c.posted_date,c.posted_at,c.currency,c.component_type,c.route,c.ref_key,null,null,null,null,null,
-            x.base,x.tax,null,null,null,x.reason,c.supporting
+            x.base,x.tax,null,null,x.reason,c.supporting
         from controls c join sums s on s.anchor_id=c.id join private.currencies d on d.code=c.currency
         cross join lateral (values
             ('ROUNDING',round(s.base_amount,d.decimals)-s.base_amount,round(s.tax_amount,d.decimals)-s.tax_amount),
@@ -287,8 +280,8 @@ returns setof private.financial_result language sql stable as $$
         union all
         select 'KEY',f.id,f.version_id,f.transaction_id,f.preprocess_version,f.seller_namespace,f.amazon_scope,location.market,
             location.day,location.instant,f.currency,f.component_type,f.route,f.ref_key,null,null,null,null,null,
-            location.sign*f.base_amount,location.sign*f.tax_amount,null,null,null,'CHARGED_IN_ANOTHER_MONTH',c.supporting
-        from charges f join controls c using(seller_namespace,amazon_scope,ref_source,ref_key,market_key,currency)
+            location.sign*f.base_amount,location.sign*f.tax_amount,null,null,'CHARGED_IN_ANOTHER_MONTH',c.supporting
+        from activity f join controls c using(seller_namespace,amazon_scope,route,ref_key,market_key,currency)
         join sums s on s.anchor_id=c.id
         cross join lateral (values (1,f.marketplace_name,f.posted_date,f.posted_at),(-1,c.marketplace_name,c.posted_date,c.posted_at))
             location(sign,market,day,instant)
@@ -319,15 +312,8 @@ returns setof private.financial_result language sql stable as $$
         from lookup_keys k join lookup_months m using (lookup_id)
         join private.inventory_ledger_rows l on l.version_id = m.version_id
             and l.seller_namespace = k.seller_namespace and l.amazon_scope = k.amazon_scope
-            and l.month = m.month::date and l.fnsku = k.code
-        where k.route = 'FNSKU'
-        union all
-        select distinct k.lookup_id, l.sku, null::uuid
-        from lookup_keys k join lookup_months m using (lookup_id)
-        join private.inventory_ledger_rows l on l.version_id = m.version_id
-            and l.seller_namespace = k.seller_namespace and l.amazon_scope = k.amazon_scope
-            and l.month = m.month::date and l.asin = k.code
-        where k.route = 'ASIN'
+            and l.month = m.month::date
+            and (case k.route when 'FNSKU' then l.fnsku when 'ASIN' then l.asin end) = k.code
         union all
         select distinct k.lookup_id, a.sku, t.version_id::uuid
         from lookup_keys k join private.finances_transactions t on t.customer_order_id = k.code
@@ -374,7 +360,7 @@ returns setof private.financial_result language sql stable as $$
             and a.amazon_scope = i.amazon_scope
         left join lookups q on i.variance is null and q.route = i.route
             and q.seller_namespace = i.seller_namespace and q.amazon_scope = i.amazon_scope
-            and q.code is not distinct from case i.route when 'FNSKU' then i.fnsku
+            and q.code = case i.route when 'FNSKU' then i.fnsku
                 when 'ASIN' then i.asin else i.reference_id end
             and q.ledger_start_month is not distinct from i.ledger_start_month
             and q.ledger_end_month is not distinct from i.ledger_end_month
@@ -382,7 +368,7 @@ returns setof private.financial_result language sql stable as $$
     select r.source,r.source_row_id,r.source_version_id,r.source_identity_id,r.preprocess_version,r.seller_namespace,r.amazon_scope,
         r.marketplace_name,r.posted_date,r.posted_at,r.currency,r.component_type,r.route,r.reference_id,
         coalesce(r.sku,case when cardinality(r.resolved_skus)=1 then r.resolved_skus[1] end),r.resolved_skus,r.fnsku,r.asin,
-        r.base_amount,r.tax_amount,r.quantity,r.fee_base,
+        r.base_amount,r.tax_amount,r.quantity,null::numeric,
         case when r.reason is not null then 'DIFFERENCE' when r.route='SELBOX' then 'SELBOX' else 'COMPANY' end,
         r.selbox_group,r.reason,r.owner,null::uuid,null::uuid,null::uuid,null::numeric,
         'NOT_APPLICABLE'::text,0::numeric,
@@ -431,7 +417,9 @@ select
     company_id
 from private.read_financial_outcomes();
 
--- Aggregate native activity independently from attributed results before combining their totals.
+-- Count every native activity amount in the control. Direct SKU and account
+-- charges also supply their outcome here; the remaining outcomes come from
+-- invoice, warehouse, named-assignment and order lookups.
 create view private.monthly_financial_totals with (security_invoker = true) as
 with contributions as (
     select
@@ -440,13 +428,14 @@ with contributions as (
         h.marketplace_name,
         h.currency,
         date_trunc('month', h.posted_date)::date as month, -- noqa: RF04
-        'FINANCES'::text as outcome,
-        sum(case when a.amount_part = 'TAX' then 0 else a.amount end) as base_amount,
-        sum(case when a.amount_part = 'TAX' then a.amount else 0 end) as tax_amount
+        true as native,
+        private.direct_outcome(a.route, terms.company_id) as outcome,
+        case when a.amount_part = 'TAX' then 0 else a.amount end as base_amount,
+        case when a.amount_part = 'TAX' then a.amount else 0 end as tax_amount
     from private.selected_finance_headers(null) as h
     inner join private.finances_amounts as a on h.version_id = a.version_id
+    left join private.current_sku_terms as terms on a.route = 'SKU' and a.sku = terms.sku
     where h.is_activity
-    group by 1, 2, 3, 4, 5
     union all
     select
         seller_namespace,
@@ -454,11 +443,11 @@ with contributions as (
         marketplace_name,
         currency,
         date_trunc('month', posted_date)::date as month, -- noqa: RF04
+        false as native,
         outcome,
-        sum(base_amount) as base_amount,
-        sum(tax_amount) as tax_amount
-    from private.financial_outcomes
-    group by 1, 2, 3, 4, 5, 6
+        base_amount,
+        tax_amount
+    from private.indirect_financial_amounts(null, null)
 )
 
 select
@@ -467,8 +456,8 @@ select
     marketplace_name,
     currency,
     month,
-    coalesce(sum(base_amount) filter (where outcome = 'FINANCES'), 0) as finances_base,
-    coalesce(sum(tax_amount) filter (where outcome = 'FINANCES'), 0) as finances_tax,
+    coalesce(sum(base_amount) filter (where native), 0) as finances_base,
+    coalesce(sum(tax_amount) filter (where native), 0) as finances_tax,
     coalesce(sum(base_amount) filter (where outcome = 'COMPANY'), 0) as company_base,
     coalesce(sum(tax_amount) filter (where outcome = 'COMPANY'), 0) as company_tax,
     coalesce(sum(base_amount) filter (where outcome = 'SELBOX'), 0) as selbox_base,

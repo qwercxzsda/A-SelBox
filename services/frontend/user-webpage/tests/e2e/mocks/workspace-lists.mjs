@@ -34,6 +34,8 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
           company_id: fixture.roles[id] === "member" ? fixture.companyIds[id] : null,
           created_at: "2026-09-01T00:00:00Z",
         }));
+  if (url.pathname.endsWith("/payout_search_months"))
+    return reply([...new Set(source.map((row) => row.start_date))].sort());
   if (url.pathname.endsWith("/latest_company_payout_reports")) {
     const sorted = sortRecordRows(
       source,

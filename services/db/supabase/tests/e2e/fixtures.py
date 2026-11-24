@@ -10,13 +10,16 @@ from uuid import uuid7
 
 from services.sync.src.amazon.finances.client import FINANCES_API_VERSION, FinancesOperation
 from services.sync.src.archives.storage import ArchiveStorage, archive_document
+from services.sync.src.database.acquisitions import persist_inventory_acquisition
 from services.sync.src.database.company_terms import (
     FeePeriod,
     create_company,
     publish_sku_terms,
 )
 from services.sync.src.database.connection import DatabaseConnection
+from services.sync.src.database.inventory import publish_inventory_capture
 from services.sync.src.finances.acquisition_models import ArchivedFinancesPage, FinancesAcquisition
+from services.sync.src.inventory.models import InventoryAcquisition, PreparedInventory
 from services.sync.src.numeric import Numeric
 from services.sync.src.reference.acquisition import ReferenceRequest, download_reference
 from services.sync.src.reference.publication import preprocess_reference
@@ -248,3 +251,30 @@ def company_with_fees(database: DatabaseConnection, seller: str, *, sku: str | N
         ],
     )
     return company
+
+
+def publish_inventory(
+    database: DatabaseConnection,
+    storage: ArchiveStorage,
+    seller: str,
+    rows: list[dict[str, object]],
+) -> str:
+    created = datetime(2026, 9, 29, 12, tzinfo=UTC)
+    acquisition = InventoryAcquisition(
+        id=uuid7(),
+        seller_namespace=seller,
+        amazon_scope="NA",
+        marketplace_id="ATVPDKIKX0DER",
+        marketplace_name="Amazon.com",
+        capture_date=date(2026, 9, 29),
+        report_id=str(uuid7()),
+        report_document_id=str(uuid7()),
+        report_created_at=created,
+        downloaded_at=created,
+        document=archive_document(storage, b"Inventory read fixture", source_compression=None),
+        api_metadata={"processingStatus": "DONE"},
+    )
+    persist_inventory_acquisition(database, acquisition)
+    return publish_inventory_capture(
+        database, acquisition, PreparedInventory(tuple(rows), ()), None
+    )

@@ -3,6 +3,7 @@
 import psycopg
 from psycopg import sql
 
+from services.db.supabase.tests.local_database import require_row
 from services.db.supabase.tests.payout_fixtures import publish_report
 from services.db.supabase.tests.source_fixtures import SourceModelFixture, new_id
 
@@ -41,6 +42,44 @@ class EvidenceIntegrityTests(SourceModelFixture):
                     self.connection.transaction(),
                 ):
                     self.connection.execute(statement)
+
+    def test_a_report_cannot_pin_the_same_version_twice_or_under_another_identity(self) -> None:
+        earlier, _ = self.finances([self.transaction("10", activity_date="2026-05-01")])
+        other_unit = require_row(
+            self.connection.execute(
+                "select unit_id from private.source_batch_units where batch_id=%s", (earlier,)
+            ).fetchone()
+        )[0]
+        report, other_key, _ = self.published_evidence()
+        for table, identity, wrong_identity in (
+            ("payout_report_source_versions", "unit_id", other_unit),
+            ("payout_report_assignment_versions", "key_id", other_key),
+        ):
+            relation = sql.Identifier("private", table)
+            key = sql.Identifier(identity)
+            with (
+                self.subTest(table=table, duplicate=True),
+                self.assertRaises(psycopg.errors.UniqueViolation),
+                self.connection.transaction(),
+            ):
+                self.connection.execute(
+                    sql.SQL("insert into {0} select * from {0} where report_id=%s limit 1").format(
+                        relation
+                    ),
+                    (report,),
+                )
+            with (
+                self.subTest(table=table, wrong_identity=True),
+                self.assertRaises(psycopg.errors.ForeignKeyViolation),
+                self.connection.transaction(),
+            ):
+                self.connection.execute(
+                    sql.SQL(
+                        "insert into {} (report_id,{},version_id) "
+                        "select report_id,%s,version_id from {} where report_id=%s limit 1"
+                    ).format(relation, key, relation),
+                    (wrong_identity, report),
+                )
 
     def test_report_terms_reject_missing_or_misbound_revision_references(self) -> None:
         _, third_identity = self.owner("THIRD")

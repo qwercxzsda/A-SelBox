@@ -87,6 +87,5 @@ create table public.sku_fee_periods (
     ),
     created_at timestamptz not null default now(),
     foreign key (assignment_version_id, kind) references public.assignment_versions (id, kind),
-    unique (assignment_version_id, id),
     exclude using gist (assignment_version_id with =, marketplace_name with =, valid_period with &&)
 );

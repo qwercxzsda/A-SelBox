@@ -72,9 +72,15 @@ create table private.source_units (
     current_version_id public.local_uuid,
     current_batch_id public.local_uuid,
     created_at timestamptz not null default now(),
-    unique (source, seller_namespace, amazon_scope, unit_key),
+    unique (unit_key, source, seller_namespace, amazon_scope),
     unique (id, source),
     check ((current_version_id is null) = (current_batch_id is null))
+);
+
+-- The natural key also serves exact native-ID lookups. Account refreshes
+-- scan this much smaller index of repeated regional scopes.
+create index source_units_account_idx on private.source_units (
+    source, seller_namespace, amazon_scope
 );
 
 create table private.source_unit_versions (
@@ -92,7 +98,7 @@ create table private.source_unit_versions (
 
 create table private.source_batch_units (
     batch_id public.local_uuid not null references private.source_preprocess_batches (id),
-    unit_id public.local_uuid not null references private.source_units (id),
+    unit_id public.local_uuid not null,
     version_id public.local_uuid not null,
     document_number integer not null check (document_number > 0),
     record_number integer not null check (record_number > 0),
@@ -100,8 +106,7 @@ create table private.source_batch_units (
     unique (batch_id, unit_id, version_id),
     foreign key (unit_id, version_id) references private.source_unit_versions (unit_id, id)
 );
-create index source_batch_units_version_idx on private.source_batch_units (version_id, batch_id);
-create index source_batch_units_unit_idx on private.source_batch_units (unit_id);
+create index source_batch_units_version_idx on private.source_batch_units (version_id);
 alter table private.source_units add constraint source_units_current_observation
 foreign key (current_batch_id, id, current_version_id)
 references private.source_batch_units (batch_id, unit_id, version_id)
@@ -198,14 +203,12 @@ create table private.finances_amounts (
 );
 create index finances_amounts_reference_idx on private.finances_amounts (reference_id, route)
 where reference_id is not null;
--- Seek directly to the next seller SKU and check that amount's transaction for activity.
-create index finances_amounts_sku_idx on private.finances_amounts (sku, version_id)
+-- Seek to the next distinct seller SKU, then check its transaction for activity.
+create index finances_amounts_sku_idx on private.finances_amounts (sku)
 where sku is not null;
 -- Only commission-bearing amounts contribute required dates to the fee editor.
 create index finances_amounts_fee_sku_idx on private.finances_amounts (sku, version_id)
 where fee_base is not null;
-create index finances_amounts_covered_month_idx on private.finances_amounts (covered_month, route)
-where covered_month is not null;
 
 -- Only charges routed through another identifier need reference matching.
 create index finances_indirect_version_idx on private.finances_amounts (version_id)
@@ -232,7 +235,6 @@ create table private.ad_invoices (
     line_count integer not null check (line_count >= 0),
     foreign key (version_id, source) references private.source_unit_versions (id, source)
 );
-create index ad_invoices_invoice_idx on private.ad_invoices (invoice_id);
 
 create table private.ad_invoice_lines (
     id public.local_uuid primary key default private.uuid7(),
@@ -353,7 +355,6 @@ create table private.removal_order_rows (
         or (currency is not null and base_amount is not null and tax_amount is not null)
     )
 );
-create index removal_order_rows_order_idx on private.removal_order_rows (removal_order_id);
 
 create table private.inventory_ledger_rows (
     id public.local_uuid primary key default private.uuid7(),
@@ -397,7 +398,6 @@ create table private.campaigns (
     created_at timestamptz not null default now(),
     unique (seller_namespace, amazon_scope, campaign_id)
 );
-create index campaigns_batch_idx on private.campaigns (batch_id);
 
 create table private.campaign_products (
     campaign_row_id public.local_uuid not null references private.campaigns (id) on delete cascade,
@@ -423,7 +423,6 @@ create table private.promotions (
     created_at timestamptz not null default now(),
     unique (seller_namespace, amazon_scope, promotion_id)
 );
-create index promotions_batch_idx on private.promotions (batch_id);
 create table private.promotion_products (
     promotion_row_id public.local_uuid not null references private.promotions (
         id
@@ -447,7 +446,6 @@ create table private.shipments (
     created_at timestamptz not null default now(),
     unique (seller_namespace, amazon_scope, shipment_id)
 );
-create index shipments_batch_idx on private.shipments (batch_id);
 create table private.shipment_items (
     shipment_row_id public.local_uuid not null references private.shipments (id) on delete cascade,
     product_number integer not null check (product_number > 0),

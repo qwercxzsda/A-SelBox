@@ -1,7 +1,8 @@
-import type { ApiTransport } from "./transport.ts";
+import { ApiError, type ApiTransport } from "./transport.ts";
 import { readAllCsvRows } from "./pagination.ts";
 import { requireCalendarDate } from "./filters.ts";
-import { readStableSnapshot } from "./snapshot.ts";
+import { sameAccount } from "../workspace-revisions.ts";
+import { readWorkspaceRevisions } from "./workspace.ts";
 import type { AppAccount, CanonicalRow } from "./types.ts";
 import marketplaces from "../generated/marketplaces.json" with { type: "json" };
 
@@ -104,32 +105,37 @@ export function createInventoryApi(transport: ApiTransport) {
         identity: (capture) => capture.capture_id,
       });
     },
-    fetchInventoryRows(
+    async fetchInventoryRows(
       accessToken: string,
       expectedAccount: AppAccount,
       signal?: AbortSignal,
     ): Promise<InventoryRow[]> {
-      return readStableSnapshot(
-        transport,
-        {
-          accessToken,
-          expectedAccount,
-          sources: ["fees", "inventory"],
-          operation: "Inventory",
-          signal,
-        },
-        () =>
-          readAllCsvRows(transport, {
-            accessToken,
-            signal,
-            endpoint: "latest_inventory_items",
-            columns: INVENTORY_COLUMNS,
-            order: "capture_id.asc,sku.asc",
-            operation: "Inventory",
-            decode: decodeInventoryRow,
-            identity: (row) => JSON.stringify([row.capture_id, row.sku]),
-          }),
-      );
+      const sources = ["fees", "inventory"] as const;
+      const scope = { accessToken, sources, operation: "Inventory", signal };
+      signal?.throwIfAborted();
+      const before = await readWorkspaceRevisions(transport, scope);
+      if (
+        before.account.access_role === "unassigned" ||
+        !sameAccount(before.account, expectedAccount)
+      )
+        throw new ApiError("Inventory access", 403);
+
+      const rows = await readAllCsvRows(transport, {
+        accessToken,
+        signal,
+        endpoint: "latest_inventory_items",
+        columns: INVENTORY_COLUMNS,
+        order: "capture_id.asc,sku.asc",
+        operation: "Inventory",
+        decode: decodeInventoryRow,
+        identity: (row) => JSON.stringify([row.capture_id, row.sku]),
+      });
+      signal?.throwIfAborted();
+      const after = await readWorkspaceRevisions(transport, scope);
+      if (!sameAccount(before.account, after.account)) throw new ApiError("Inventory access", 403);
+      if (sources.some((source) => before.revisions[source] !== after.revisions[source]))
+        throw new Error("Inventory changed while loading.");
+      return rows;
     },
   };
 }

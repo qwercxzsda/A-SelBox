@@ -190,6 +190,16 @@ order by
     r.company_id asc, r.start_date asc, r.marketplace_name asc,
     r.currency asc, r.created_at desc, r.id desc;
 
+-- Each start date present in report history has a latest report, including
+-- months whose only report is empty. RLS scopes this one snapshot to the caller.
+create function public.payout_search_months() returns date[]
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+    if not private.is_administrator() and not private.is_member() then raise insufficient_privilege; end if;
+    return array(select distinct start_date from public.company_payout_reports order by start_date);
+end;
+$$;
+
 create policy payout_sources_admin on private.payout_report_source_versions
 for select to authenticated
 using ((select private.is_administrator()));
@@ -287,7 +297,9 @@ revoke all on public.latest_inventory_captures, public.latest_inventory_items
 from public, anon, authenticated, service_role;
 
 -- Recalculate detail from pinned source and assignment versions.
-create function private.read_payout_report_records(p_report_id uuid)
+create function private.read_payout_report_records(
+    p_report_id uuid, p_from date default null, p_types text[] default null
+)
 returns table (
     report_id uuid,
     source text,
@@ -339,7 +351,8 @@ begin
         f.base_amount,f.tax_amount,f.base_amount+f.tax_amount,f.quantity,f.fee_base,f.fee_rate_percent,
         f.fee_amount,f.company_amount,f.resolution_status
     from private.calculate_amounts(source_ids,assignment_ids) f
-    where f.outcome='COMPANY' and f.company_id=r.company_id and f.posted_date between r.start_date and r.end_date
+    where f.company_id = r.company_id and f.posted_date between greatest(r.start_date, p_from) and r.end_date
+        and (coalesce(cardinality(p_types), 0) = 0 or f.component_type = any(p_types))
         and (f.marketplace_name,f.currency)=(r.marketplace_name,r.currency);
 end;
 $$;

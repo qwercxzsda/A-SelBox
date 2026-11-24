@@ -36,6 +36,7 @@ def _workspace_reads(connection: Connection, role: str) -> list[Read]:
     ).fetchone()
     reads = [
         Read("workspace_revisions", "select public.workspace_revisions()"),
+        Read("payout_search_months", "select public.payout_search_months()"),
         Read("companies", "select id,name from public.companies order by name,id limit 1000"),
         Read("company_skus", "select * from public.company_skus order by sku,id limit 1000"),
         Read("fee_configuration", "select public.sku_configuration()"),

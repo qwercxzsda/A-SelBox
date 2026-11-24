@@ -120,16 +120,32 @@ create function public.payout_report_records(
     p_limit integer default 50, p_offset bigint default 0, p_types text[] default null
 ) returns jsonb language plpgsql stable security invoker set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
+declare
+    report public.company_payout_reports;
+    from_day date;
+    exact_count integer;
+    result jsonb;
 begin
     if p_report_id is null then
         raise exception 'Report and record scope are required' using errcode='22023';
     end if;
     perform private.validate_page_bounds(p_limit,p_offset);
     perform private.validate_transaction_filters(null,null,null,null,null,null,p_types);
-    return (
+    select * into report from public.company_payout_reports where id = p_report_id;
+    if not found then raise exception 'Report access required' using errcode = '42501'; end if;
+    if coalesce(cardinality(p_types), 0) = 0 then
+        exact_count := report.record_count;
+        if p_offset >= exact_count then
+            return jsonb_build_object('rows', '[]'::jsonb, 'total_count', exact_count::text);
+        end if;
+        -- Dense unfiltered reports commonly fill a complete page on their last day.
+        if (report.end_date - report.start_date + 1)::bigint * (p_offset + p_limit) <= exact_count then
+            from_day := report.end_date;
+        end if;
+    end if;
+    loop
         with records as materialized (
-            select r.* from private.read_payout_report_records(p_report_id) r
-            where (coalesce(cardinality(p_types),0)=0 or r.component_type=any(p_types))
+            select * from private.read_payout_report_records(p_report_id, from_day, p_types)
         ), page as (
             select * from records
             order by activity_date desc,source desc,source_row_id desc
@@ -140,8 +156,12 @@ begin
                 (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(p)))
                 order by p.activity_date desc,p.source desc,p.source_row_id desc)
                 from page p),'[]'::jsonb),
-            'total_count',(select count(*)::text from records))
-    );
+            'total_count',coalesce(exact_count::text, (select count(*)::text from records)))
+        into result;
+        exit when from_day is null or jsonb_array_length(result->'rows') = p_limit;
+        from_day := null;
+    end loop;
+    return result;
 end;
 $$;
 

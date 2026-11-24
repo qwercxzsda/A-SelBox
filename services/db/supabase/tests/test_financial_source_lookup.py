@@ -62,6 +62,14 @@ class FinancialSourceLookupTests(SourceModelFixture):
         ).fetchone()
         row = require_row(row)
         for user in (self.member(company), self.auth_user()):
+            self.assertEqual(
+                self.as_user(
+                    user,
+                    "select * from private.filtered_finances_amounts("
+                    "null,null,null,null,null,null,null,null)",
+                ),
+                [],
+            )
             with self.assertRaises(InsufficientPrivilege):
                 self.as_user(user, "select public.financial_source_record('FINANCES',%s,%s)", row)
             with self.assertRaises(InsufficientPrivilege):

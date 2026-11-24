@@ -91,6 +91,41 @@ class PayoutSourceParityTests(SourceModelFixture):
             [(latest,)],
         )
 
+    def test_dense_payout_pages_keep_exact_counts_across_sparse_final_day_and_type(self) -> None:
+        inputs = prepare_payout(self)
+        self.finances(
+            [
+                self.transaction(
+                    "1",
+                    index + 3,
+                    activity_date="2026-06-30" if index == 60 else "2026-06-15",
+                    kind="Refund" if index == 60 else "Shipment",
+                )
+                for index in range(61)
+            ]
+        )
+        report = generate_payout_reports(self, inputs.company)[0][0]
+        actor = self.member(inputs.company)
+        for offset, types, expected_day, count in (
+            (0, None, "2026-06-30", 61),
+            (1, None, "2026-06-15", 61),
+            (61, None, None, 61),
+            (0, ["PRODUCT_REFUNDS"], "2026-06-30", 1),
+            (1, ["PRODUCT_REFUNDS"], None, 1),
+        ):
+            with self.subTest(offset=offset, types=types):
+                response = self.as_user(
+                    actor,
+                    "select public.payout_report_records(%s,1,%s,%s)",
+                    (report, offset, types),
+                )[0][0]
+                page = cast(dict[str, object], response)
+                self.assertEqual(page["total_count"], str(count))
+                self.assertEqual(
+                    [row["activity_date"] for row in cast(list[dict[str, object]], page["rows"])],
+                    [] if expected_day is None else [expected_day],
+                )
+
     def test_payout_type_totals_page_exactly_and_reject_invalid_or_anonymous_requests(self) -> None:
         inputs = prepare_payout(self)
         self.finances([self.transaction("100"), self.transaction("-20", 4, kind="Refund")])

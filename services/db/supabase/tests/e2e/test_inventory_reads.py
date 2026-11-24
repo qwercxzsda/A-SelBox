@@ -1,42 +1,14 @@
 """Raw inventory reads retain exact statuses and ownership across transport pages."""
 
-from datetime import UTC, date, datetime
 from typing import cast
-from uuid import uuid7
 
+from services.db.supabase.tests.e2e.fixtures import publish_inventory
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
-from services.sync.src.archives.storage import archive_document
-from services.sync.src.database.acquisitions import persist_inventory_acquisition
 from services.sync.src.database.company_terms import create_company, publish_sku_terms
-from services.sync.src.database.inventory import publish_inventory_capture
-from services.sync.src.inventory.models import InventoryAcquisition, PreparedInventory
 from services.sync.src.inventory.vocabulary import HEALTH_STATUSES, RECOMMENDED_ACTIONS
 
 
 class InventoryReadTests(LocalWorkflowCase):
-    def publish_inventory(self, rows: list[dict[str, object]]) -> str:
-        created = datetime(2026, 9, 29, 12, tzinfo=UTC)
-        acquisition = InventoryAcquisition(
-            id=uuid7(),
-            seller_namespace=self.seller,
-            amazon_scope="NA",
-            marketplace_id="ATVPDKIKX0DER",
-            marketplace_name="Amazon.com",
-            capture_date=date(2026, 9, 29),
-            report_id=str(uuid7()),
-            report_document_id=str(uuid7()),
-            report_created_at=created,
-            downloaded_at=created,
-            document=archive_document(
-                self.storage, b"Inventory read fixture", source_compression=None
-            ),
-            api_metadata={"processingStatus": "DONE"},
-        )
-        persist_inventory_acquisition(self.database, acquisition)
-        return publish_inventory_capture(
-            self.database, acquisition, PreparedInventory(tuple(rows), ()), None
-        )
-
     def assign(self, sku: str, company: str) -> None:
         publish_sku_terms(
             self.database,
@@ -100,7 +72,7 @@ class InventoryReadTests(LocalWorkflowCase):
                 # another member and unassigned source rows must remain hidden.
                 if repeat < 4:
                     self.assign(sku, companies[0 if repeat < 3 else 1])
-        self.publish_inventory(items)
+        publish_inventory(self.database, self.storage, self.seller, items)
         _, administrator = self.create_administrator()
         member_id, first_member = self.create_member(companies[0])
         _, second_member = self.create_member(companies[1])

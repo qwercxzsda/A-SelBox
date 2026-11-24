@@ -1,10 +1,18 @@
 import { quotePostgrestText } from "./filters.ts";
 
-export function buildSearchFilter(columns: readonly string[], search: string): string | null {
+export function buildSearchFilter(
+  columns: readonly string[],
+  search: string,
+  alternatives: readonly string[] = [],
+): string | null {
   const term = search.trim();
-  if (term === "" || columns.length === 0) return null;
+  if (term === "" || (columns.length === 0 && alternatives.length === 0)) return null;
   // A literal regex preserves stars too: PostgREST ilike aliases them to SQL wildcards.
   const pattern = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const quoted = quotePostgrestText(pattern);
-  return "(" + columns.map((column) => column + ".imatch." + quoted).join(",") + ")";
+  return (
+    "(" +
+    [...columns.map((column) => column + ".imatch." + quoted), ...alternatives].join(",") +
+    ")"
+  );
 }

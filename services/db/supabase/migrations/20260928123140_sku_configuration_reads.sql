@@ -16,13 +16,13 @@ begin
         with recursive finance_skus(sku) as (
             (select a.sku from private.finances_amounts a
              join private.finances_transactions t using(version_id)
-             where a.sku is not null and t.is_activity order by a.sku, a.version_id limit 1)
+             where a.sku is not null and t.is_activity order by a.sku limit 1)
             union all
             select next_sku.sku from finance_skus previous
             cross join lateral (
                 select a.sku from private.finances_amounts a
                 join private.finances_transactions t using(version_id)
-                where a.sku > previous.sku and t.is_activity order by a.sku, a.version_id limit 1
+                where a.sku > previous.sku and t.is_activity order by a.sku limit 1
             ) next_sku
         ), sku_values as (
             select sku from finance_skus

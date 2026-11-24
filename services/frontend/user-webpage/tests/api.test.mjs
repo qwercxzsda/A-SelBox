@@ -3,23 +3,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiError, createApiClient } from "../src/api/client.ts";
 import { DATASET_CONFIG } from "../src/api/config.ts";
-import {
-  SETTINGS,
-  workspaceRevisionReply,
-  responseJson,
-  datasetRecord,
-  csvRecord,
-  pageRequest,
-} from "./api-fixtures.mjs";
+import { SETTINGS, responseJson, datasetRecord, csvRecord, pageRequest } from "./api-fixtures.mjs";
 
 test("206 CSV pages retain exact money and stable dataset-specific ordering", async () => {
   for (const dataset of ["payouts", "accounts"]) {
     let requested;
     const record = datasetRecord(dataset);
     const client = createApiClient(SETTINGS, async (url, init) => {
-      if (workspaceRevisionReply(url)) return workspaceRevisionReply(url);
-      if (new URL(url).searchParams.get("select") === "id,start_date")
-        return new Response("id,start_date");
+      if (new URL(url).pathname.endsWith("/payout_search_months")) return Response.json([]);
       requested = { url: new URL(url), init };
       return new Response(csvRecord(record), {
         status: 206,
@@ -50,11 +41,10 @@ test("206 CSV pages retain exact money and stable dataset-specific ordering", as
 });
 
 test("416 page responses retain the count needed to clamp pagination", async () => {
-  const client = createApiClient(
-    SETTINGS,
-    async (url) =>
-      workspaceRevisionReply(url) ??
-      new Response("", { status: 416, headers: { "Content-Range": "*/10" } }),
+  const client = createApiClient(SETTINGS, async (url) =>
+    new URL(url).pathname.endsWith("/payout_search_months")
+      ? Response.json([])
+      : new Response("", { status: 416, headers: { "Content-Range": "*/10" } }),
   );
   assert.deepEqual(
     await client.fetchDatasetPage(

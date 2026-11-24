@@ -92,6 +92,7 @@ export async function mockSupabase(page) {
         "/rest/v1/rpc/account_directory",
         "/rest/v1/company_payout_reports",
         "/rest/v1/latest_company_payout_reports",
+        "/rest/v1/rpc/payout_search_months",
       ].includes(url.pathname)
     )
       return respondWithWorkspaceLists(fixture, context);

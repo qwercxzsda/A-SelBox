@@ -36,8 +36,7 @@ create table private.payout_report_source_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
     unit_id public.local_uuid not null,
     version_id public.local_uuid not null,
-    primary key (report_id, unit_id),
-    unique (report_id, version_id),
+    primary key (report_id, unit_id) include (version_id),
     foreign key (unit_id, version_id) references private.source_unit_versions (unit_id, id)
 );
 create index payout_source_version_idx on private.payout_report_source_versions (version_id);
@@ -46,8 +45,7 @@ create table private.payout_report_assignment_versions (
     report_id public.local_uuid not null references public.company_payout_reports (id),
     key_id public.local_uuid not null,
     version_id public.local_uuid not null,
-    primary key (report_id, key_id),
-    unique (report_id, version_id),
+    primary key (report_id, key_id) include (version_id),
     foreign key (key_id, version_id) references public.assignment_versions (key_id, id)
 );
 create index payout_assignment_version_idx on private.payout_report_assignment_versions (

@@ -77,6 +77,17 @@ class CompanyPayoutReportTests(SourceModelFixture):
         report = self.report(company)
         self.reassign(identity, other_company)
         self.connection.execute("set constraints all immediate")
+        for user, months in (
+            (administrator, ["2026-06-01"]),
+            (old_user, ["2026-06-01"]),
+            (new_user, []),
+        ):
+            self.assertEqual(
+                self.as_user(user, "select public.payout_search_months()::text[]"), [(months,)]
+            )
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
+            self.as_user(self.auth_user(), "select public.payout_search_months()")
+
         self.assertEqual(
             self.as_user(administrator, "select id::text from public.company_payout_reports"),
             [(report,)],

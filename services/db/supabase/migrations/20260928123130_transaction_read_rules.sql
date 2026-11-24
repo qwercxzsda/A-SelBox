@@ -1,9 +1,8 @@
-create index finances_posted_instant_idx on private.finances_transactions (posted_at, version_id);
+create index finances_posted_instant_idx on private.finances_transactions (posted_at);
 create index finances_marketplace_instant_idx on private.finances_transactions (
     marketplace_name, posted_at
 );
-create index finances_amount_type_idx on private.finances_amounts (amount_type, version_id);
-create index source_units_native_lookup_idx on private.source_units (unit_key, id);
+create index finances_amount_type_idx on private.finances_amounts (amount_type);
 
 -- Shared rules for the bounded transaction read API.
 

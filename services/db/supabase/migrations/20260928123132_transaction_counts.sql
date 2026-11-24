@@ -110,6 +110,29 @@ set plan_cache_mode = 'force_custom_plan' as $$
     );
 $$;
 
+-- Pages and exact counts use the same filters. Each amount references one header,
+-- so PostgreSQL can skip the left join when counting amount-only filters.
+create function private.filtered_finances_amounts(
+    p_date_from date, p_date_to date, p_skus text[], p_marketplaces text[], p_types text[],
+    p_search_skus text[], p_search_types text[], p_search_marketplaces text[]
+) returns table (id uuid, posted_at timestamptz, amount numeric)
+language sql stable security invoker as $$
+    select a.id::uuid, t.posted_at, a.amount::numeric
+    from private.finances_amounts a left join private.finances_transactions t using(version_id)
+    where (select private.financial_account_visible())
+        and (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
+        and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
+        and (coalesce(cardinality(p_skus), 0) = 0 or a.sku = any(p_skus))
+        and (coalesce(cardinality(p_marketplaces), 0) = 0
+            or t.marketplace_name = any(p_marketplaces))
+        and (coalesce(cardinality(p_types), 0) = 0 or a.amount_type = any(p_types))
+        and (
+            (p_search_skus is null and p_search_types is null and p_search_marketplaces is null)
+            or a.sku = any(p_search_skus) or a.amount_type = any(p_search_types)
+            or t.marketplace_name = any(p_search_marketplaces)
+        );
+$$;
+
 create function public.source_transaction_count(
     p_dataset text,
     p_date_from date default null,
@@ -140,22 +163,11 @@ begin
         null, null, null, p_search_skus, p_search_marketplaces,
         null, p_search_types
     );
-    -- Every amount has exactly one Finances header. Date and marketplace filters
-    -- need that header. For amount-only filters the planner can omit the join.
     return (
-        select count(*)::text
-        from private.finances_amounts a left join private.finances_transactions t using(version_id)
-        where (p_date_from is null or t.posted_at >= p_date_from::timestamp at time zone 'UTC')
-            and (p_date_to is null or t.posted_at < (p_date_to + 1)::timestamp at time zone 'UTC')
-            and (coalesce(cardinality(p_skus), 0) = 0 or a.sku = any(p_skus))
-            and (coalesce(cardinality(p_marketplaces), 0) = 0
-                or t.marketplace_name = any(p_marketplaces))
-            and (coalesce(cardinality(p_types), 0) = 0 or a.amount_type = any(p_types))
-            and (
-                (p_search_skus is null and p_search_types is null and p_search_marketplaces is null)
-                or a.sku = any(p_search_skus) or a.amount_type = any(p_search_types)
-                or t.marketplace_name = any(p_search_marketplaces)
-            )
+        select count(*)::text from private.filtered_finances_amounts(
+            p_date_from, p_date_to, p_skus, p_marketplaces, p_types,
+            p_search_skus, p_search_types, p_search_marketplaces
+        )
     );
 end;
 $$;
