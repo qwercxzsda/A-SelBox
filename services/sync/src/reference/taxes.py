@@ -1,8 +1,9 @@
 """Checked fee rates and the tax treatments printed by Amazon's warehouse reports."""
 
 from collections.abc import Mapping
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
+from ..numeric import NUMERIC_PRECISION_BOUND
 from .currencies import currency_unit
 
 ZERO = Decimal(0)
@@ -74,6 +75,38 @@ def finance_rate(
         return _RATES[kind, marketplace_name]
     except KeyError:
         raise ValueError("No observed tax rule for this marketplace and fee.") from None
+
+
+def validate_finance_tax(
+    marketplace_name: str,
+    component_type: str,
+    base: Decimal,
+    tax: Decimal,
+    unit: Decimal,
+    *,
+    customer_order: bool = False,
+) -> None:
+    """Check Amazon's signed fee components without changing their amounts."""
+    if base == ZERO:
+        if tax != ZERO:
+            raise ValueError("A zero cost charge cannot carry tax.")
+        return
+
+    rate = finance_rate(marketplace_name, component_type, customer_order=customer_order)
+    # Allow room for the rate and currency decimals even at the source precision bound.
+    with localcontext(prec=NUMERIC_PRECISION_BOUND + 8):
+        expected = base * rate
+        unit_expectation = expected
+        tolerance = unit
+        if component_type in {"STORAGE_FEES", "AGED_STORAGE_FEES"} and tax == tax.quantize(unit):
+            # Allow two minor units around the rounded expectation for storage bills.
+            unit_expectation = expected.quantize(unit, rounding=ROUND_HALF_UP)
+            tolerance = 2 * unit
+        within_unit = abs(tax - unit_expectation) <= tolerance
+        within_relative = abs(tax - expected) <= abs(base) * Decimal("0.002")
+    same_direction = tax == ZERO or (rate != ZERO and tax.is_signed() == base.is_signed())
+    if not same_direction or not (within_unit or within_relative):
+        raise ValueError("Finances charge tax differs from its observed market and fee rule.")
 
 
 def marketplace_for_country(country: str) -> str:

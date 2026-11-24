@@ -21,8 +21,16 @@ Reference rows contribute amounts only after a matching Finances charge arrives.
 
 For each seller, regional account, marketplace, currency and posting month, company amounts before the SelBox service fee, SelBox amounts, and differences sum to signed Finances activity. The equality holds independently for base and tax. Fee promotions reduce the fee base for the charge comparison. A missing company fee rate affects that company’s payout calculation.
 
-## Evidence and limits
+For posted tax at currency precision, monthly storage and aged-storage preprocessing allows two minor currency units of difference from the expected tax rounded half up to currency precision. An allowance of 0.2% of the base amount also applies against the unrounded expectation. Either allowance is sufficient. This tolerance applies consistently across marketplaces and preserves Amazon's posted base, tax and total. Tax on a zero base, a contradictory sign, and tax at a known zero rate fail the check.
 
-The source rules describe observed Amazon responses. Unrecognized fee paths, contradictory IDs, unsupported tax rates or unseen creative settings fail that answer’s preprocessing and leave the archive available for replay. The French inbound transportation and transportation program fees were both observed with zero tax. Singapore’s tiered aged-storage report lists short- and long-term fees on each product row. Their sum is the base for that row’s 9% tax in SGD. Eight nonzero months matched the Finances base. Report and ledger availability varies by account and date. The warehouse report’s printed SKU remains descriptive. Warehouse allocation follows the dated ledger.
+Warehouse reports supply the product allocation amounts. Calculated tax is rounded once per original product row, including the combined fee in a two-tier aged-storage row. Advertising, removal, monthly storage and aged-storage charges use the same difference classification. For base and tax separately, `ROUNDING` is the currency-rounded allocation subtotal minus its exact subtotal. `TOTALS_DIFFER` is Amazon's posted amount minus that rounded subtotal. These two differences sum to the full allocation gap. A difference caused by Amazon rounding at another level can therefore appear as `TOTALS_DIFFER`. Missing reference data keeps its own reason.
 
-The verified historical sample contains seven older reimbursement transactions with an unclassified monetary path and one refund with an unclassified restocking-tax path. The high-return-rate fee has a dated ASIN route. A lightning-deal payment identifies its promotion through the item’s `DEAL_ID`. Amazon returned the matching promotion for the observed North American charge. Missing or conflicting identifiers fail preprocessing. Two observed Singapore disposal items had zero base and tax. They establish no rate for a nonzero Singapore disposal.
+## Validation and source requirements
+
+Unrecognized fee paths, contradictory identifiers, unsupported tax rates and unsupported invoice promotions or adjustments fail preprocessing. Rejected answers remain archived for replay.
+
+French inbound transportation and transportation program fees use a zero tax rate. Singapore aged-storage reports combine the two fee tiers on each product row before calculating 9% tax in SGD.
+
+Warehouse allocation resolves ownership through FNSKU and the dated inventory ledger. The warehouse report’s printed SKU is retained as descriptive source data. Report and ledger availability varies by account and date.
+
+Lightning-deal payments require a consistent item `DEAL_ID` for promotion lookup.

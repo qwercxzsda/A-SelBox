@@ -7,7 +7,7 @@ from typing import cast
 
 from services.sync.src.reference.invoices import invoice_rows
 from services.sync.src.reference.periods import shift_months
-from services.sync.src.reference.taxes import finance_rate, report_tax
+from services.sync.src.reference.taxes import finance_rate, report_tax, validate_finance_tax
 from services.sync.tests.support.currencies import CURRENCY_DECIMALS
 
 
@@ -75,6 +75,38 @@ class SourceCostTests(unittest.TestCase):
         self.assertEqual(
             report_tax("EU", "AGED_STORAGE", "ES", "EUR", Decimal(0), CURRENCY_DECIMALS), (0, 0)
         )
+
+    def test_storage_tax_allows_two_minor_units_on_the_rounded_expectation(self) -> None:
+        for market, fee, base, tax, unit in (
+            ("Amazon.com.au", "STORAGE_FEES", "-6.35", "-0.65", "0.01"),
+            ("Amazon.co.jp", "AGED_STORAGE_FEES", "-108", "-12", "1"),
+            ("Amazon.com.au", "STORAGE_FEES", "6.35", "0.65", "0.01"),
+            ("Amazon.co.jp", "AGED_STORAGE_FEES", "-1417", "-144", "1"),
+            ("Amazon.com.au", "STORAGE_FEES", "-6.35", "-0.66", "0.01"),
+            ("Amazon.co.jp", "AGED_STORAGE_FEES", "-108", "-13", "1"),
+            ("Amazon.sg", "AGED_STORAGE_FEES", "-5", "-0.47", "0.01"),
+            ("Amazon.sg", "STORAGE_FEES", "5", "0.47", "0.01"),
+            ("Amazon.co.jp", "STORAGE_FEES", "-10000", "-1015", "1"),
+        ):
+            with self.subTest(market=market, fee=fee, base=base):
+                validate_finance_tax(market, fee, Decimal(base), Decimal(tax), Decimal(unit))
+
+    def test_storage_rounding_still_rejects_inconsistent_tax(self) -> None:
+        for market, fee, base, tax, unit in (
+            ("Amazon.com.au", "STORAGE_FEES", "-6.35", "-0.67", "0.01"),
+            ("Amazon.co.jp", "AGED_STORAGE_FEES", "-108", "-14", "1"),
+            ("Amazon.sg", "AGED_STORAGE_FEES", "-5", "-0.48", "0.01"),
+            ("Amazon.com.au", "STORAGE_FEES", "-0.01", "0.01", "0.01"),
+            ("Amazon.com.au", "STORAGE_FEES", "0", "0.01", "0.01"),
+            ("Amazon.com", "STORAGE_FEES", "-6.35", "-0.01", "0.01"),
+            ("Amazon.com.au", "STORAGE_FEES", "-6.35", "-0.649", "0.01"),
+            ("Amazon.com.au", "DISPOSAL_FEES", "-6.35", "-0.65", "0.01"),
+        ):
+            with (
+                self.subTest(market=market, fee=fee, base=base, tax=tax),
+                self.assertRaises(ValueError),
+            ):
+                validate_finance_tax(market, fee, Decimal(base), Decimal(tax), Decimal(unit))
 
     def test_observed_french_inbound_transport_charges_have_zero_tax(self) -> None:
         self.assertEqual(finance_rate("Amazon.fr", "INBOUND_TRANSPORTATION_FEES"), Decimal("0"))

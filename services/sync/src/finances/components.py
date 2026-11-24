@@ -1,11 +1,10 @@
 """Normalize exactly one complete monetary partition per native transaction."""
 
 from collections.abc import Iterator, Mapping
-from decimal import Decimal
 
 from ..numeric import ZERO, Numeric
 from ..reference.currencies import currency_unit
-from ..reference.taxes import finance_rate
+from ..reference.taxes import validate_finance_tax
 from ..transaction_types.finances import classify_finances_component, classify_zero_component
 from .marketplaces import financial_marketplace_name, financial_marketplace_timezone
 from .models import FinancesComponent
@@ -134,16 +133,9 @@ def build_components(
                 )
             )
         for (component_type, customer_order), (base, tax) in costs.items():
-            if base == ZERO:
-                if tax != ZERO:
-                    raise ValueError("A zero cost charge cannot carry tax.")
-                continue
-            rate = finance_rate(name, component_type, customer_order=customer_order)
-            tolerance = max(unit, abs(base.value) * Decimal("0.002"))
-            if (rate == 0 and tax != ZERO) or abs(tax.value - base.value * rate) > tolerance:
-                raise ValueError(
-                    "Finances charge tax differs from its observed market and fee rule."
-                )
+            validate_finance_tax(
+                name, component_type, base.value, tax.value, unit, customer_order=customer_order
+            )
     if sum((r.amount for r in result), ZERO) != total:
         raise ValueError("Finances items do not equal the transaction control total.")
     return tuple(result)
